@@ -12,13 +12,13 @@ class FinalFields {
     private static int nextId = 0;
 
     public constructor(string name) {
-        this.id = FinalFields.nextId;
-        FinalFields.nextId = FinalFields.nextId + 1;
+        this.id = nextId;
+        nextId ++;
         this.name = name;
         print("Created: " + this.name + " with id=" + this.id);
     }
 
-    public void display() {
+    public function display(): void {
         print("Object: " + this.name + ", id=" + this.id + ", constant=" + this.CONSTANT);
     }
 }

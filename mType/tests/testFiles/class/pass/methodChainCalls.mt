@@ -8,29 +8,29 @@ class StringBuilder {
         this.content = "";
     }
 
-    public StringBuilder append(string s) {
+    public function append(string s): StringBuilder {
         this.content = this.content + s;
         print("append('" + s + "') -> '" + this.content + "'");
         return this;
     }
 
-    public StringBuilder appendLine(string s) {
+    public function appendLine(string s): StringBuilder {
         this.content = this.content + s + "\n";
         print("appendLine('" + s + "') -> length " + this.length());
         return this;
     }
 
-    public StringBuilder clear() {
+    public function clear(): StringBuilder {
         this.content = "";
         print("clear() -> empty");
         return this;
     }
 
-    public int length() {
+    public function length(): int {
         return 0; // Simplified for testing
     }
 
-    public string toString() {
+    public function toString(): string {
         return this.content;
     }
 }

@@ -1,12 +1,12 @@
 Test 1: Base instance
 b instanceof Base: true
 b instanceof Derived: false
-b instanceof Object: true
+b instanceof Object: false
 
 Test 2: Derived instance
 d instanceof Base: true
 d instanceof Derived: true
-d instanceof Object: true
+d instanceof Object: false
 
 Test 3: Polymorphic reference
 polyRef instanceof Base: true

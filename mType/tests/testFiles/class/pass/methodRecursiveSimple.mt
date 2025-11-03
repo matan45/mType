@@ -3,7 +3,7 @@
 
 class MathUtils {
     // Recursive factorial
-    public int factorial(int n) {
+    public function factorial(int n): int {
         print("factorial(" + n + ")");
         if (n <= 1) {
             return 1;
@@ -12,7 +12,7 @@ class MathUtils {
     }
 
     // Recursive fibonacci
-    public int fibonacci(int n) {
+    public function fibonacci(int n): int {
         print("fibonacci(" + n + ")");
         if (n <= 1) {
             return n;
@@ -21,7 +21,7 @@ class MathUtils {
     }
 
     // Recursive countdown
-    public void countdown(int n) {
+    public function countdown(int n): void {
         if (n <= 0) {
             print("Done!");
             return;

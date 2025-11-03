@@ -8,11 +8,11 @@ class Fruit {
         this.name = name;
     }
 
-    public string getName() {
+    public function getName(): string {
         return this.name;
     }
 
-    public void describe() {
+    public function describe(): void {
         print("Fruit: " + this.name);
     }
 }
@@ -24,11 +24,11 @@ class Apple extends Fruit {
         this.variety = variety;
     }
 
-    public void describe() {
+    public function describe(): void {
         print("Apple variety: " + this.variety);
     }
 
-    public string getVariety() {
+    public function getVariety(): string {
         return this.variety;
     }
 }
@@ -40,7 +40,7 @@ class Orange extends Fruit {
         this.seedless = seedless;
     }
 
-    public void describe() {
+    public function describe(): void {
         string type = this.seedless ? "seedless" : "seeded";
         print("Orange: " + type);
     }
@@ -65,7 +65,7 @@ while (i < basket.length) {
 print("\nTest 3: Type-specific access");
 i = 0;
 while (i < basket.length) {
-    if (basket[i] instanceof Apple) {
+    if (basket[i] isClassOf Apple) {
         Apple a = (Apple)basket[i];
         print("Found apple: " + a.getVariety());
     }
@@ -78,7 +78,7 @@ apples[0] = new Apple("Fuji");
 apples[1] = new Apple("Gala");
 
 // Covariant assignment
-Fruit[] moreFruit = apples;
+Apple[] moreFruit = apples;
 i = 0;
 while (i < moreFruit.length) {
     moreFruit[i].describe();

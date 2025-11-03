@@ -8,11 +8,11 @@ class Animal {
         this.species = species;
     }
 
-    public void makeSound() {
+    public function makeSound(): void {
         print("Animal sound");
     }
 
-    public string getSpecies() {
+    public function getSpecies(): string {
         return this.species;
     }
 }
@@ -24,11 +24,11 @@ class Dog extends Animal {
         this.breed = breed;
     }
 
-    public void makeSound() {
+    public function makeSound(): void {
         print("Woof!");
     }
 
-    public string getBreed() {
+    public function getBreed(): string {
         return this.breed;
     }
 }
@@ -40,11 +40,11 @@ class Cat extends Animal {
         this.lives = 9;
     }
 
-    public void makeSound() {
+    public function makeSound(): void {
         print("Meow!");
     }
 
-    public int getLives() {
+    public function getLives(): int {
         return this.lives;
     }
 }

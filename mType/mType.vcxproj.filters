@@ -4567,42 +4567,6 @@
     <None Include="tests\testFiles\class\pass\multipleObjects.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
-    <None Include="tests\testFiles\class\pass\nestedClassBasic.expected">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassBasic.mt">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassInheritance.expected">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassInheritance.mt">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassMultiLevel.expected">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassMultiLevel.mt">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassOuterAccess.expected">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassOuterAccess.mt">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassStatic.expected">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassStatic.mt">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassThis.expected">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\class\pass\nestedClassThis.mt">
-      <Filter>tests\testFiles\class\pass</Filter>
-    </None>
     <None Include="tests\testFiles\class\pass\nullHandling.expected">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>

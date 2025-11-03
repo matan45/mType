@@ -8,12 +8,12 @@ class Animal {
         this.name = name;
     }
 
-    public Animal reproduce() {
+    public function reproduce(): Animal {
         print("Animal.reproduce() -> Animal");
         return new Animal(this.name + "_offspring");
     }
 
-    public string getName() {
+    public function getName(): string {
         return this.name;
     }
 }
@@ -26,12 +26,12 @@ class Mammal extends Animal {
     }
 
     // Covariant return type: overrides Animal.reproduce() but returns Mammal
-    public Mammal reproduce() {
+    public function reproduce(): Mammal {
         print("Mammal.reproduce() -> Mammal");
         return new Mammal(this.name + "_baby", this.gestationDays);
     }
 
-    public int getGestationDays() {
+    public function getGestationDays(): int {
         return this.gestationDays;
     }
 }
@@ -44,12 +44,12 @@ class Dog extends Mammal {
     }
 
     // Covariant return type: overrides Mammal.reproduce() but returns Dog
-    public Dog reproduce() {
+    public function reproduce(): Dog {
         print("Dog.reproduce() -> Dog");
         return new Dog(this.name + "_puppy", this.breed);
     }
 
-    public string getBreed() {
+    public function getBreed(): string {
         return this.breed;
     }
 }

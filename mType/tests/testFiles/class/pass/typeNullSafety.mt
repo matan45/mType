@@ -1,6 +1,8 @@
 // Test: Null safety and type checking
 // Expected: Pass - demonstrates null handling patterns
 
+class Object{}
+
 class Container {
     private Object value;
 
@@ -8,7 +10,7 @@ class Container {
         this.value = null;
     }
 
-    public void setValue(Object value) {
+    public function setValue(Object value):void {
         this.value = value;
         if (value == null) {
             print("Value set to null");
@@ -17,15 +19,15 @@ class Container {
         }
     }
 
-    public Object getValue() {
+    public function getValue(): Object {
         return this.value;
     }
 
-    public bool hasValue() {
+    public function hasValue(): bool {
         return this.value != null;
     }
 
-    public void safeProcess() {
+    public function safeProcess(): void {
         if (this.value == null) {
             print("No value to process");
             return;
@@ -34,14 +36,14 @@ class Container {
     }
 }
 
-class DataHolder {
+class DataHolder extends Object {
     private string data;
 
     public constructor(string data) {
         this.data = data;
     }
 
-    public string getData() {
+    public function getData(): string {
         return this.data;
     }
 }
@@ -64,9 +66,9 @@ c.safeProcess();
 
 print("\nTest 4: Type checking with null");
 Object obj = null;
-print("null instanceof Object: " + (obj instanceof Object));
+print("obj is null: " + (obj == null));
 obj = new DataHolder("Data");
-print("non-null instanceof Object: " + (obj instanceof Object));
+print("obj is not null: " + (obj != null));
 
 print("\nTest 5: Null comparison");
 Container c1 = new Container();

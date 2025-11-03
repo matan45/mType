@@ -1,9 +1,10 @@
 // Test: Methods with multiple early return statements
 // Expected: Pass - demonstrates early return patterns
+import * from "../../lib/exceptions/Exception.mt";
 
 class Validator {
     // Multiple early returns for validation
-    public string validate(int age, string name, string email) {
+    public function validate(int age, string name, string email): string {
         print("Validating: age=" + age + ", name=" + name + ", email=" + email);
 
         if (age < 0) {
@@ -31,7 +32,7 @@ class Validator {
     }
 
     // Early return in loop
-    public int findFirst(int target) {
+    public function findFirst(int target): int {
         print("Finding first occurrence of " + target);
         int i = 0;
         while (i < 10) {
@@ -47,18 +48,18 @@ class Validator {
     }
 
     // Early return with try-catch
-    public string processWithException(bool shouldThrow) {
+    public function processWithException(bool shouldThrow): string {
         print("Processing with shouldThrow=" + shouldThrow);
         try {
             if (shouldThrow) {
                 print("Throwing exception");
-                throw "TestException";
+                throw new Exception("TestException");
             }
             print("No exception, returning success");
             return "Success";
-        } catch (string e) {
-            print("Caught exception: " + e);
-            return "Error: " + e;
+        } catch (Exception e) {
+            print("Caught exception: " + e.getMessage());
+            return "Error: " + e.getMessage();
         }
     }
 }

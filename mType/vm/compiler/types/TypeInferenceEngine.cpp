@@ -10,6 +10,7 @@
 #include "../../../ast/nodes/expressions/CastExpression.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../../ast/nodes/expressions/AwaitExpression.hpp"
+#include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
@@ -196,6 +197,47 @@ namespace vm::compiler::types
         return value::ValueType::VOID;
     }
 
+    value::ValueType TypeInferenceEngine::inferIndexAccessType(ast::nodes::expressions::IndexAccessNode* indexAccess) const
+    {
+        // Get the class name of the collection (e.g., "Item[]", "int[]", "Array<Item>", etc.)
+        std::string collectionClassName = inferExpressionClassName(indexAccess->getCollection());
+
+        std::string elementType;
+
+        // Check for generic Array<T> notation
+        if (collectionClassName.find("Array<") == 0)
+        {
+            // Extract T from "Array<T>"
+            size_t start = collectionClassName.find('<');
+            size_t end = collectionClassName.rfind('>');
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                elementType = collectionClassName.substr(start + 1, end - start - 1);
+            }
+        }
+        // Check for bracket notation T[]
+        else if (!collectionClassName.empty() && collectionClassName.length() >= 2 &&
+                 collectionClassName.substr(collectionClassName.length() - 2) == "[]")
+        {
+            // Extract the element type from the array type
+            elementType = collectionClassName.substr(0, collectionClassName.length() - 2);
+        }
+
+        if (!elementType.empty())
+        {
+            // Check if it's a primitive array
+            if (elementType == "int") return value::ValueType::INT;
+            if (elementType == "float") return value::ValueType::FLOAT;
+            if (elementType == "string") return value::ValueType::STRING;
+            if (elementType == "bool") return value::ValueType::BOOL;
+
+            // Otherwise it's an object array
+            return value::ValueType::OBJECT;
+        }
+
+        return value::ValueType::VOID;
+    }
+
     value::ValueType TypeInferenceEngine::inferExpressionType(ast::ASTNode* node) const
     {
         if (!node) return value::ValueType::VOID;
@@ -233,6 +275,10 @@ namespace vm::compiler::types
 
         if (auto* binOp = dynamic_cast<ast::BinaryOpNode*>(node)) {
             return inferBinaryOperationType(binOp);
+        }
+
+        if (auto* indexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(node)) {
+            return inferIndexAccessType(indexAccess);
         }
 
         // Handle await expressions - unwrap Promise<T> to get T
@@ -344,6 +390,46 @@ namespace vm::compiler::types
         return "";
     }
 
+    std::string TypeInferenceEngine::inferIndexAccessClassName(ast::nodes::expressions::IndexAccessNode* indexAccess) const
+    {
+        // Get the class name of the collection (e.g., "Item[]", "Array<Item>", "List<String>[]", etc.)
+        std::string collectionClassName = inferExpressionClassName(indexAccess->getCollection());
+
+        std::string elementType;
+
+        // Check for generic Array<T> notation
+        if (collectionClassName.find("Array<") == 0)
+        {
+            // Extract T from "Array<T>"
+            size_t start = collectionClassName.find('<');
+            size_t end = collectionClassName.rfind('>');
+            if (start != std::string::npos && end != std::string::npos && end > start)
+            {
+                elementType = collectionClassName.substr(start + 1, end - start - 1);
+            }
+        }
+        // Check for bracket notation T[]
+        else if (!collectionClassName.empty() && collectionClassName.length() >= 2 &&
+                 collectionClassName.substr(collectionClassName.length() - 2) == "[]")
+        {
+            // Extract the element type from the array type (e.g., "Item[]" -> "Item", "List<String>[]" -> "List<String>")
+            elementType = collectionClassName.substr(0, collectionClassName.length() - 2);
+        }
+
+        if (!elementType.empty())
+        {
+            // Don't return primitive type names as class names
+            if (elementType != "int" && elementType != "float" &&
+                elementType != "string" && elementType != "bool" &&
+                elementType != "void")
+            {
+                return elementType;
+            }
+        }
+
+        return "";
+    }
+
     std::string TypeInferenceEngine::inferExpressionClassName(ast::ASTNode* node) const
     {
         if (!node) return "";
@@ -366,6 +452,11 @@ namespace vm::compiler::types
         // Function calls
         if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node)) {
             return inferFunctionCallClassName(funcCall);
+        }
+
+        // Index access (array element access)
+        if (auto* indexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(node)) {
+            return inferIndexAccessClassName(indexAccess);
         }
 
         // Await expressions - unwrap Promise<T> to get T's class name

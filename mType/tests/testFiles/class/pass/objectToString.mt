@@ -12,7 +12,7 @@ class Product {
         this.quantity = quantity;
     }
 
-    public string toString() {
+    public function toString(): string {
         return "Product{name='" + this.name + "', price=" + this.price +
                ", quantity=" + this.quantity + "}";
     }
@@ -29,12 +29,12 @@ class Order {
         this.itemCount = 0;
     }
 
-    public void addItem(Product p) {
+    public function addItem(Product p): void {
         this.items[this.itemCount] = p;
         this.itemCount = this.itemCount + 1;
     }
 
-    public string toString() {
+    public function toString(): string {
         string result = "Order #" + this.orderId + " {\n";
         int i = 0;
         while (i < this.itemCount) {

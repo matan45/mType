@@ -10,26 +10,26 @@ class Person {
         this.age = age;
     }
 
-    public int hashCode() {
+    public function hashCode(): int {
         // Simple hash combining name length and age
         int hash = 0;
         if (this.name != null) {
-            hash = this.name.length() * 31;
+            hash = strLength(this.name) * 31;
         }
         hash = hash + this.age;
         print("hashCode() called for " + this.name + ": " + hash);
         return hash;
     }
 
-    public bool equals(Object other) {
-        if (other == null || !(other instanceof Person)) {
+    public function equals(Person other): bool {
+        if (other == null) {
             return false;
         }
-        Person p = (Person)other;
+        Person p = other;
         return this.name == p.name && this.age == p.age;
     }
 
-    public string toString() {
+    public function toString(): string {
         return this.name + " (age " + this.age + ")";
     }
 }

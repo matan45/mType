@@ -10,16 +10,16 @@ class Address {
         this.city = city;
     }
 
-    public Address clone() {
+    public function clone(): Address {
         print("Cloning address: " + this.street + ", " + this.city);
         return new Address(this.street, this.city);
     }
 
-    public void setStreet(string street) {
+    public function setStreet(string street): void {
         this.street = street;
     }
 
-    public string toString() {
+    public function toString(): string {
         return this.street + ", " + this.city;
     }
 }
@@ -36,26 +36,26 @@ class Person {
     }
 
     // Shallow copy - shares address reference
-    public Person shallowCopy() {
+    public function shallowCopy(): Person {
         print("Shallow copying person: " + this.name);
         return new Person(this.name, this.age, this.address);
     }
 
     // Deep copy - clones address
-    public Person deepCopy() {
+    public function deepCopy(): Person {
         print("Deep copying person: " + this.name);
         return new Person(this.name, this.age, this.address.clone());
     }
 
-    public void setName(string name) {
+    public function setName(string name): void {
         this.name = name;
     }
 
-    public Address getAddress() {
+    public function getAddress(): Address {
         return this.address;
     }
 
-    public string toString() {
+    public function toString(): string {
         return this.name + " (age " + this.age + ") at " + this.address.toString();
     }
 }

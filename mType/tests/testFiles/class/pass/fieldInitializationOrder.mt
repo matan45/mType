@@ -14,12 +14,12 @@ class InitOrder {
         print("Constructor end");
     }
 
-    public int initField(string name, int value) {
+    public function initField(string name,int value): int {
         print("Initializing field: " + name + " = " + value);
         return value;
     }
 
-    public void display() {
+    public function display(): void {
         print("first=" + this.first + ", second=" + this.second +
               ", third=" + this.third + ", fourth=" + this.fourth);
     }

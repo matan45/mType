@@ -3,7 +3,7 @@
 
 class EvenOdd {
     // Mutually recursive methods
-    public bool isEven(int n) {
+    public function isEven(int n): bool {
         print("isEven(" + n + ")");
         if (n == 0) {
             return true;
@@ -14,7 +14,7 @@ class EvenOdd {
         return this.isOdd(n - 1);
     }
 
-    public bool isOdd(int n) {
+    public function isOdd(int n): bool {
         print("isOdd(" + n + ")");
         if (n == 0) {
             return false;

@@ -54,10 +54,12 @@ namespace vm::compiler::types
         value::ValueType inferMemberAccessType(ast::MemberAccessNode* memberAccess) const;
         value::ValueType inferMethodCallType(ast::MethodCallNode* methodCall) const;
         value::ValueType inferBinaryOperationType(ast::BinaryOpNode* binOp) const;
+        value::ValueType inferIndexAccessType(ast::nodes::expressions::IndexAccessNode* indexAccess) const;
 
         // Helper methods for inferExpressionClassName
         std::string inferCastClassName(ast::CastExpression* castExpr) const;
         std::string inferVariableClassName(ast::VariableNode* varNode) const;
         std::string inferFunctionCallClassName(ast::FunctionCallNode* funcCall) const;
+        std::string inferIndexAccessClassName(ast::nodes::expressions::IndexAccessNode* indexAccess) const;
     };
 }

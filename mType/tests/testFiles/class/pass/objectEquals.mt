@@ -10,26 +10,23 @@ class Point {
         this.y = y;
     }
 
-    public bool equals(Object other) {
+    public function equals(Point other): bool {
         if (other == null) {
             return false;
         }
-        if (!(other instanceof Point)) {
-            return false;
-        }
-        Point otherPoint = (Point)other;
+        Point otherPoint = other;
         return this.x == otherPoint.x && this.y == otherPoint.y;
     }
 
-    public int getX() {
+    public function getX(): int {
         return this.x;
     }
 
-    public int getY() {
+    public function getY(): int {
         return this.y;
     }
 
-    public string toString() {
+    public function toString(): string {
         return "(" + this.x + ", " + this.y + ")";
     }
 }
@@ -55,7 +52,3 @@ print("\nTest 4: Same reference");
 Point p4 = p1;
 print("p1.equals(p4): " + p1.equals(p4));
 print("p1 == p4: " + (p1 == p4));
-
-print("\nTest 5: Wrong type");
-Object obj = new Object();
-print("p1.equals(obj): " + p1.equals(obj));

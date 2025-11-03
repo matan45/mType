@@ -10,11 +10,11 @@ class Employee {
         this.id = id;
     }
 
-    public void work() {
+    public function work(): void {
         print("Employee " + this.name + " is working");
     }
 
-    public string getInfo() {
+    public function getInfo(): string {
         return "ID: " + this.id + ", Name: " + this.name;
     }
 }
@@ -26,11 +26,11 @@ class Manager extends Employee {
         this.teamSize = teamSize;
     }
 
-    public void work() {
+    public function work(): void {
         print("Manager " + this.name + " is managing team of " + this.teamSize);
     }
 
-    public void holdMeeting() {
+    public function holdMeeting(): void {
         print("Manager " + this.name + " is holding a meeting");
     }
 }
@@ -42,11 +42,11 @@ class Developer extends Employee {
         this.language = language;
     }
 
-    public void work() {
+    public function work(): void {
         print("Developer " + this.name + " is coding in " + this.language);
     }
 
-    public void debug() {
+    public function debug(): void {
         print("Developer " + this.name + " is debugging");
     }
 }
@@ -70,10 +70,10 @@ print("\nTest 3: Type-specific operations");
 i = 0;
 while (i < team.length) {
     print("Processing employee " + i + ":");
-    if (team[i] instanceof Manager) {
+    if (team[i] isClassOf Manager) {
         Manager m = (Manager)team[i];
         m.holdMeeting();
-    } else if (team[i] instanceof Developer) {
+    } else if (team[i] isClassOf Developer) {
         Developer d = (Developer)team[i];
         d.debug();
     } else {

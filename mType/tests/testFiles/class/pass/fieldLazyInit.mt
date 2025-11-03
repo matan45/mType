@@ -9,7 +9,7 @@ class ExpensiveResource {
         print("ExpensiveResource created: " + name);
     }
 
-    public string getName() {
+    public function getName(): string {
         return this.name;
     }
 }
@@ -23,7 +23,7 @@ class LazyContainer {
         print("LazyContainer created (resource not initialized)");
     }
 
-    public ExpensiveResource getResource() {
+    public function getResource(): ExpensiveResource {
         if (!this.initialized) {
             print("Lazy initialization triggered");
             this.resource = new ExpensiveResource("LazyResource");
@@ -32,7 +32,7 @@ class LazyContainer {
         return this.resource;
     }
 
-    public bool isInitialized() {
+    public function isInitialized(): bool {
         return this.initialized;
     }
 }

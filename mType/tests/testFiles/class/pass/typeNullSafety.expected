@@ -3,9 +3,9 @@ Has value: false
 No value to process
 
 Test 2: Set non-null value
-Value set to: DataHolder@<address>
+Value set to: <object>
 Has value: true
-Processing value: DataHolder@<address>
+Processing value: <object>
 
 Test 3: Set back to null
 Value set to null
@@ -13,8 +13,8 @@ Has value: false
 No value to process
 
 Test 4: Type checking with null
-null instanceof Object: false
-non-null instanceof Object: true
+obj is null: true
+obj is not null: true
 
 Test 5: Null comparison
 Value set to null

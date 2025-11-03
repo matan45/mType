@@ -355,17 +355,9 @@ namespace parser
                     TypeInfo elementTypeInfo = convertGenericTypeToTypeInfo(elementType);
 
                     // Build array type name with brackets
+                    // The recursive call already handles nested Array types,
+                    // so we just need to add one [] for this level
                     std::string arrayTypeName = elementTypeInfo.toString() + "[]";
-
-                    // Handle multi-dimensional arrays
-                    auto currentElement = elementType;
-                    while (currentElement->isGenericParameter() &&
-                        currentElement->getGenericName() == "Array" &&
-                        currentElement->isParameterized())
-                    {
-                        arrayTypeName += "[]";
-                        currentElement = currentElement->getTypeArguments()[0];
-                    }
 
                     return TypeInfo(ValueType::OBJECT, arrayTypeName);
                 }

@@ -8,7 +8,7 @@ class Item {
         this.name = name;
     }
 
-    public string getName() {
+    public function getName(): string {
         return this.name;
     }
 }
@@ -20,7 +20,7 @@ class Book extends Item {
         this.author = author;
     }
 
-    public string getAuthor() {
+    public function getAuthor(): string {
         return this.author;
     }
 }
@@ -32,20 +32,20 @@ class DVD extends Item {
         this.duration = duration;
     }
 
-    public int getDuration() {
+    public function getDuration(): int {
         return this.duration;
     }
 }
 
 class Processor {
-    public void processItem(Item item) {
+    public function processItem(Item item): void {
         print("Processing: " + item.getName());
 
-        if (item instanceof Book) {
+        if (item isClassOf Book) {
             Book book = (Book)item;
             print("  Type: Book");
             print("  Author: " + book.getAuthor());
-        } else if (item instanceof DVD) {
+        } else if (item isClassOf DVD) {
             DVD dvd = (DVD)item;
             print("  Type: DVD");
             print("  Duration: " + dvd.getDuration() + " minutes");
@@ -54,7 +54,7 @@ class Processor {
         }
     }
 
-    public void processArray(Item[] items) {
+    public function processArray(Item[] items): void {
         int i = 0;
         while (i < items.length) {
             this.processItem(items[i]);

@@ -5,11 +5,11 @@ class Parent {
     public int value = 10;
     public string name = "Parent";
 
-    public void display() {
+    public function display(): void {
         print("Parent.display(): value=" + this.value + ", name=" + this.name);
     }
 
-    public void showValue() {
+    public function showValue(): void {
         print("Parent.showValue(): " + this.value);
     }
 }
@@ -19,11 +19,11 @@ class Child extends Parent {
     public int value = 20;
     public string name = "Child";
 
-    public void display() {
+    public function display(): void {
         print("Child.display(): value=" + this.value + ", name=" + this.name);
     }
 
-    public void showBoth() {
+    public function showBoth(): void {
         print("Child field: " + this.value);
         this.showValue();  // Calls parent's showValue which sees child's value
     }
@@ -33,7 +33,7 @@ class GrandChild extends Child {
     // Shadow child's and grandparent's fields
     public int value = 30;
 
-    public void displayAll() {
+    public function displayAll(): void {
         print("GrandChild value: " + this.value);
         print("Inherited name: " + this.name);
     }

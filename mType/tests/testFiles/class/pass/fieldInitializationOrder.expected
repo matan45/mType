@@ -16,4 +16,4 @@ Initializing field: fourth = 4
 Constructor end
 Initializing field: fifth = 5
 DerivedInit constructor
-first=1, second=2, third=3, fourth=5
+first=1, second=2, third=3, fourth=4

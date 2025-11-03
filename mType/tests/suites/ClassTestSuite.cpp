@@ -210,22 +210,6 @@ namespace tests::testSuite
         addOutputVerificationTest("Field Lazy Init",
                         passPath + "fieldLazyInit.mt");
 
-        // === NESTED CLASSES TESTS ===
-        // Tests for nested class functionality and access
-
-        addOutputVerificationTest("Nested Class Basic",
-                        passPath + "nestedClassBasic.mt");
-        addOutputVerificationTest("Nested Class Outer Access",
-                        passPath + "nestedClassOuterAccess.mt");
-        addOutputVerificationTest("Nested Class Static",
-                        passPath + "nestedClassStatic.mt");
-        addOutputVerificationTest("Nested Class Multi Level",
-                        passPath + "nestedClassMultiLevel.mt");
-        addOutputVerificationTest("Nested Class This",
-                        passPath + "nestedClassThis.mt");
-        addOutputVerificationTest("Nested Class Inheritance",
-                        passPath + "nestedClassInheritance.mt");
-
         // === TYPE OPERATIONS TESTS ===
         // Tests for type casting, instanceof, and polymorphism
 

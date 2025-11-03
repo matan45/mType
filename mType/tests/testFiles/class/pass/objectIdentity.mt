@@ -9,15 +9,15 @@ class Value {
         print("Created Value(" + data + ")");
     }
 
-    public bool equals(Object other) {
-        if (other == null || !(other instanceof Value)) {
+    public function equals(Value other): bool {
+        if (other == null) {
             return false;
         }
-        Value v = (Value)other;
+        Value v = other;
         return this.data == v.data;
     }
 
-    public int getData() {
+    public function getData(): int {
         return this.data;
     }
 }

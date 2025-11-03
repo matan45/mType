@@ -18,13 +18,13 @@ class Container {
         print("Container created with value: " + this.data.value);
     }
 
-    public void mutateData(int newValue) {
+    public function mutateData(int newValue): void {
         // This is allowed - mutating the object
         print("Mutating from " + this.data.value + " to " + newValue);
         this.data.value = newValue;
     }
 
-    public void display() {
+    public function display(): void {
         print("Current value: " + this.data.value);
     }
 }

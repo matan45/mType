@@ -3,37 +3,37 @@
 
 class Base {
     // Instance method - can be overridden
-    public void instanceMethod() {
+    public function instanceMethod(): void {
         print("Base.instanceMethod()");
     }
 
     // Static method - can be hidden
-    public static void staticMethod() {
+    public static function staticMethod(): void {
         print("Base.staticMethod()");
     }
 
-    public void callBoth() {
+    public function callBoth(): void {
         print("Base.callBoth():");
         this.instanceMethod();
-        Base.staticMethod();
+        Base::staticMethod();
     }
 }
 
 class Derived extends Base {
     // Override instance method
-    public void instanceMethod() {
+    public function instanceMethod(): void {
         print("Derived.instanceMethod()");
     }
 
     // Hide static method (not override)
-    public static void staticMethod() {
+    public static function staticMethod(): void {
         print("Derived.staticMethod()");
     }
 
-    public void callBoth() {
+    public function callBoth(): void {
         print("Derived.callBoth():");
         this.instanceMethod();
-        Derived.staticMethod();
+        Derived::staticMethod();
     }
 }
 
@@ -41,20 +41,20 @@ class Derived extends Base {
 print("Test 1: Direct calls on Derived");
 Derived d = new Derived();
 d.instanceMethod();
-Derived.staticMethod();
+Derived::staticMethod();
 
 print("\nTest 2: Direct calls on Base");
 Base b = new Base();
 b.instanceMethod();
-Base.staticMethod();
+Base::staticMethod();
 
 print("\nTest 3: Polymorphic instance method (overriding)");
 Base polyBase = new Derived();
 polyBase.instanceMethod();  // Calls Derived version (polymorphic)
 
 print("\nTest 4: Static method via reference (hiding)");
-Base.staticMethod();        // Calls Base version
-Derived.staticMethod();     // Calls Derived version
+Base::staticMethod();        // Calls Base version
+Derived::staticMethod();     // Calls Derived version
 
 print("\nTest 5: callBoth method");
 b.callBoth();
