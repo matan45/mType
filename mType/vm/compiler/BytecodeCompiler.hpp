@@ -99,6 +99,7 @@ namespace vm::compiler
         value::Value visitSuperMethodCallNode(ast::SuperMethodCallNode* node) override;
         value::Value visitSuperMemberAccessNode(ast::SuperMemberAccessNode* node) override;
         value::Value visitSuperMemberAssignmentNode(ast::SuperMemberAssignmentNode* node) override;
+        value::Value visitThisConstructorCallNode(ast::ThisConstructorCallNode* node) override;
 
         // Interfaces
         value::Value visitInterfaceNode(ast::InterfaceNode* node) override;

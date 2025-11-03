@@ -6,7 +6,7 @@
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
-
+#include <iostream>
 namespace vm::compiler::visitors
 {
     FunctionCallHelper::FunctionCallHelper(CompilerContext& context)

@@ -277,7 +277,7 @@ namespace vm::runtime
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = "<init>";
+            frame.functionName = constructorName;  // Use qualified name for proper exception handling
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for constructor
 
@@ -305,6 +305,87 @@ namespace vm::runtime
             context.instructionPointer = funcMetadata->startOffset - 1;
         } else {
             throw errors::RuntimeException("Parent constructor '" + constructorName + "' has no bytecode.");
+        }
+    }
+
+    void ObjectInstanceHelper::handleThisConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Operand[0] is classNameIndex, Operand[1] is argCount
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("THIS_CONSTRUCTOR requires 2 operands (classNameIndex, argCount)");
+        }
+
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(context.stackManager->pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            throw errors::RuntimeException("THIS_CONSTRUCTOR can only be called from within an instance context");
+        }
+
+        auto instance = context.callStack.back().thisInstance;
+
+        // Find the current class
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
+
+        // Find another constructor in the same class with the given argument count
+        auto targetConstructor = classDef->findConstructor(argCount);
+        if (!targetConstructor) {
+            throw errors::RuntimeException("No constructor found in class " + currentClassName +
+                                         " with " + std::to_string(argCount) + " arguments");
+        }
+
+        std::string constructorName = currentClassName + "::<init>/" + std::to_string(argCount);
+        auto funcMetadata = context.program->getFunction(constructorName);
+        if (funcMetadata) {
+            size_t frameBase = context.stackManager->size();
+
+            context.stackManager->push(instance);
+
+            for (size_t i = 0; i < argCount; ++i) {
+                context.stackManager->push(args[i]);
+            }
+
+            CallFrame frame;
+            frame.returnAddress = context.instructionPointer;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
+            frame.functionName = constructorName;  // Use qualified name for proper exception handling
+            frame.thisInstance = instance;
+            frame.definingClassName = currentClassName;  // Same class as defining class
+
+            context.pushCallFrame(frame);
+            context.stats.functionCalls++;
+
+            // Notify debugger of constructor delegation entry
+            if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+                auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+                if (sourceLoc) {
+                    errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(constructorName, errorsLoc);
+                } else {
+                    // Fallback: use constructor start location
+                    auto ctorStartLoc = context.program->getSourceLocation(funcMetadata->startOffset);
+                    if (ctorStartLoc) {
+                        errors::SourceLocation errorsLoc(ctorStartLoc->filename, ctorStartLoc->line, ctorStartLoc->column);
+                        debugger::DebugHookHelper::enterFunctionHook(constructorName, errorsLoc);
+                    } else {
+                        debugger::DebugHookHelper::enterFunctionHook(constructorName, errors::SourceLocation());
+                    }
+                }
+            }
+
+            context.instructionPointer = funcMetadata->startOffset - 1;
+        } else {
+            throw errors::RuntimeException("Constructor '" + constructorName + "' has no bytecode.");
         }
     }
 
@@ -509,7 +590,7 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;
         frame.frameBase = context.stackManager->size();
         frame.localBase = context.stackManager->size();
-        frame.functionName = "<init>";
+        frame.functionName = constructorName;  // Use qualified name for proper exception handling
         frame.thisInstance = instance;
         frame.definingClassName = baseClassName;  // Set class as defining class for its own constructor
 

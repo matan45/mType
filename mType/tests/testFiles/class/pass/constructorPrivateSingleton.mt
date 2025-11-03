@@ -14,30 +14,30 @@ class Database {
     }
 
     // Public static method to get the singleton instance
-    public static Database getInstance() {
-        if (Database.instance == null) {
-            Database.instance = new Database();
+    public static function getInstance(): Database {
+        if (instance == null) {
+            instance = new Database();
         }
-        return Database.instance;
+        return instance;
     }
 
-    public void connect() {
-        this.connectionCount = this.connectionCount + 1;
+    public function connect(): void {
+        connectionCount++;
         print("Connected to " + this.connectionString + " (count: " + this.connectionCount + ")");
     }
 
-    public int getConnectionCount() {
+    public function getConnectionCount(): int {
         return this.connectionCount;
     }
 }
 
 // Test singleton pattern
 print("Getting first database instance:");
-Database db1 = Database.getInstance();
+Database db1 = Database::getInstance();
 db1.connect();
 
 print("\nGetting second database instance:");
-Database db2 = Database.getInstance();
+Database db2 = Database::getInstance();
 db2.connect();
 
 print("\nConnection count from db1: " + db1.getConnectionCount());

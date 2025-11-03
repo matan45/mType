@@ -68,6 +68,7 @@ namespace ast
             class SuperMethodCallNode;
             class SuperMemberAccessNode;
             class SuperMemberAssignmentNode;
+            class ThisConstructorCallNode;
         }
 
         namespace annotations
@@ -121,6 +122,7 @@ namespace ast
     using SuperMethodCallNode = nodes::classes::SuperMethodCallNode;
     using SuperMemberAccessNode = nodes::classes::SuperMemberAccessNode;
     using SuperMemberAssignmentNode = nodes::classes::SuperMemberAssignmentNode;
+    using ThisConstructorCallNode = nodes::classes::ThisConstructorCallNode;
     using CastExpression = nodes::expressions::CastExpression;
     using InstanceOfExpression = nodes::expressions::InstanceOfExpression;
     using AwaitExpression = nodes::expressions::AwaitExpression;

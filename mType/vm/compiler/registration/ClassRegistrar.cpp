@@ -194,7 +194,8 @@ namespace vm::compiler::registration
                 value::Value defaultValue;
                 if (fieldNode->getIsStatic())
                 {
-                    switch (fieldNode->getType())
+                    value::ValueType fieldType = fieldNode->getType();
+                    switch (fieldType)
                     {
                     case value::ValueType::INT:
                         defaultValue = 0;

@@ -769,6 +769,8 @@ namespace vm::runtime
             break;
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;
+        case OpCode::THIS_CONSTRUCTOR: objectExecutor->handleThisConstructor(instr);
+            break;
         case OpCode::SUPER_INVOKE: objectExecutor->handleSuperInvoke(instr);
             break;
         case OpCode::SUPER_GET_FIELD: objectExecutor->handleSuperGetField(instr);

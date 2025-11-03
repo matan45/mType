@@ -10,6 +10,7 @@
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/classes/SuperMemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
+#include "../../../ast/nodes/classes/ThisConstructorCallNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include <unordered_set>
 
@@ -572,6 +573,25 @@ namespace vm::compiler::visitors
         std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
         size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
         ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
+                         static_cast<uint32_t>(classNameIndex),
+                         static_cast<uint32_t>(arguments.size()), node);
+
+        return std::monostate{};
+    }
+
+    value::Value ClassCompiler::compileThisConstructorCall(ast::ThisConstructorCallNode* node)
+    {
+        // Push arguments onto stack
+        const auto& arguments = node->getArguments();
+        for (const auto& arg : arguments)
+        {
+            arg->accept(ctx.visitor);
+        }
+
+        // Emit THIS_CONSTRUCTOR instruction with current class name and argument count
+        std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
+        size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::THIS_CONSTRUCTOR,
                          static_cast<uint32_t>(classNameIndex),
                          static_cast<uint32_t>(arguments.size()), node);
 

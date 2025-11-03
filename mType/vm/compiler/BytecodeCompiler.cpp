@@ -298,6 +298,11 @@ namespace vm::compiler
         return classCompiler.compileSuperConstructorCall(node);
     }
 
+    value::Value BytecodeCompiler::visitThisConstructorCallNode(ast::ThisConstructorCallNode* node)
+    {
+        return classCompiler.compileThisConstructorCall(node);
+    }
+
     value::Value BytecodeCompiler::visitSuperMethodCallNode(ast::SuperMethodCallNode* node)
     {
         return classCompiler.compileSuperMethodCall(node);

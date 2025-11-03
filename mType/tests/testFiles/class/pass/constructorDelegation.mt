@@ -15,12 +15,14 @@ class Point {
     }
 
     // Delegating constructor - calls main constructor with default label
-    public constructor(int x, int y) : this(x, y, "Point") {
+    public constructor(int x, int y) {
+	 this(x, y, "Point");
         print("Delegated constructor with default label");
     }
 
     // Delegating constructor - calls other constructor with origin
-    public constructor() : this(0, 0) {
+    public constructor() {
+	this(0, 0);
         print("Default constructor - origin point");
     }
 }

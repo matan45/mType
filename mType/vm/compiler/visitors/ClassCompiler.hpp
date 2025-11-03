@@ -38,6 +38,7 @@ namespace vm::compiler::visitors
         value::Value compileMemberAssignment(ast::MemberAssignmentNode* node);
         value::Value compileMethodCall(ast::MethodCallNode* node);
         value::Value compileSuperConstructorCall(ast::SuperConstructorCallNode* node);
+        value::Value compileThisConstructorCall(ast::ThisConstructorCallNode* node);
         value::Value compileSuperMethodCall(ast::SuperMethodCallNode* node);
         value::Value compileSuperMemberAccess(ast::SuperMemberAccessNode* node);
         value::Value compileSuperMemberAssignment(ast::SuperMemberAssignmentNode* node);

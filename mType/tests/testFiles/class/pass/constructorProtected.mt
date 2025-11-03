@@ -12,7 +12,7 @@ class Animal {
         print("Animal constructor: " + species + ", age " + age);
     }
 
-    public string getInfo() {
+    public function getInfo():string {
         return this.species + " (age: " + this.age + ")";
     }
 }
@@ -26,7 +26,7 @@ class Dog extends Animal {
         print("Dog constructor: " + name);
     }
 
-    public string getFullInfo() {
+    public function getFullInfo(): string {
         return this.name + " the " + this.getInfo();
     }
 }
@@ -41,7 +41,7 @@ class Cat extends Animal {
         print("Cat constructor: " + name + ", indoor: " + indoor);
     }
 
-    public string getFullInfo() {
+    public function getFullInfo(): string {
         string location = this.indoor ? "indoor" : "outdoor";
         return this.name + " the " + location + " " + this.getInfo();
     }

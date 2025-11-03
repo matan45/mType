@@ -10,6 +10,15 @@ namespace vm::runtime
         value::Value right = context.stackManager->pop();
         value::Value left = context.stackManager->pop();
 
+        // Handle null comparisons - both std::monostate and nullptr_t represent null
+        bool leftIsNull = std::holds_alternative<std::monostate>(left) || std::holds_alternative<nullptr_t>(left);
+        bool rightIsNull = std::holds_alternative<std::monostate>(right) || std::holds_alternative<nullptr_t>(right);
+
+        if (leftIsNull || rightIsNull) {
+            context.stackManager->push(leftIsNull && rightIsNull);
+            return;
+        }
+
         // Handle bool-to-int conversion for comparisons
         if (std::holds_alternative<bool>(left) && std::holds_alternative<int>(right)) {
             context.stackManager->push(static_cast<int>(std::get<bool>(left)) == std::get<int>(right));
@@ -24,6 +33,17 @@ namespace vm::runtime
     void ComparisonExecutor::handleNe() {
         value::Value right = context.stackManager->pop();
         value::Value left = context.stackManager->pop();
+
+        // Handle null comparisons - both std::monostate and nullptr_t represent null
+        bool leftIsNull = std::holds_alternative<std::monostate>(left) || std::holds_alternative<nullptr_t>(left);
+        bool rightIsNull = std::holds_alternative<std::monostate>(right) || std::holds_alternative<nullptr_t>(right);
+
+        if (leftIsNull || rightIsNull) {
+            // Not equal if one is null and the other isn't
+            context.stackManager->push(!(leftIsNull && rightIsNull));
+            return;
+        }
+
         context.stackManager->push(left != right);
     }
 

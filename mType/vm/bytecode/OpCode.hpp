@@ -105,6 +105,7 @@ namespace vm::bytecode
         SUPER_SET_FIELD,    // Set field in parent class
         GET_SUPER,          // Get super class
         SUPER_CONSTRUCTOR,  // Call super constructor
+        THIS_CONSTRUCTOR,   // Call another constructor in the same class
 
         // === Type Operations (80-85) ===
         INSTANCEOF,         // Check if object is instance of class
@@ -264,6 +265,7 @@ namespace vm::bytecode
             case OpCode::SUPER_SET_FIELD: return "SUPER_SET_FIELD";
             case OpCode::GET_SUPER: return "GET_SUPER";
             case OpCode::SUPER_CONSTRUCTOR: return "SUPER_CONSTRUCTOR";
+            case OpCode::THIS_CONSTRUCTOR: return "THIS_CONSTRUCTOR";
 
             case OpCode::INSTANCEOF: return "INSTANCEOF";
             case OpCode::CAST: return "CAST";

@@ -7,6 +7,7 @@
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../ast/nodes/classes/ThisConstructorCallNode.hpp"
 #include "../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../errors/ParseException.hpp"
 
@@ -100,15 +101,26 @@ namespace parser::expression
     {
         std::string funcName;
         bool canCallFunction = false;
+        SourceLocation callLocation;
 
         if (auto varNode = dynamic_cast<VariableNode*>(expr.get()))
         {
             funcName = varNode->getName();
             canCallFunction = true;
+            callLocation = varNode->getLocation();
         }
 
         if (canCallFunction)
         {
+            // Check if this is a this(...) constructor delegation call
+            if (funcName == "this" && context.isInsideConstructorBody())
+            {
+                // Parse this(...) as a constructor delegation call
+                ArgumentParser argParser(tokenStream, context);
+                std::vector<std::unique_ptr<ASTNode>> arguments = argParser.parseArgumentsWithParentheses();
+                return std::make_unique<ThisConstructorCallNode>(std::move(arguments), callLocation);
+            }
+
             // Parse generic type arguments if present (e.g., identity<Int>)
             std::vector<std::string> genericTypeArguments;
             if (tokenStream.check(TokenType::LESS))

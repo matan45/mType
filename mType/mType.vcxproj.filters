@@ -148,9 +148,6 @@
     <Filter Include="tests\testFiles\cast\pass">
       <UniqueIdentifier>{3A998A5A-A65B-BEE4-EF0B-4D715B0D97C2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests\testFiles\cast\pass\modules">
-      <UniqueIdentifier>{22582739-8EC6-7CB8-D7AF-37B8435D7254}</UniqueIdentifier>
-    </Filter>
     <Filter Include="tests\testFiles\class">
       <UniqueIdentifier>{1F45B5E4-8BB1-70DF-54A5-083DC0D09247}</UniqueIdentifier>
     </Filter>
@@ -481,6 +478,9 @@
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\classes\SuperMethodCallNode.hpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\ThisConstructorCallNode.hpp">
       <Filter>ast\nodes\classes</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\expressions\ArrayCreationNode.hpp">
@@ -1455,6 +1455,9 @@
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\classes\SuperMethodCallNode.cpp">
+      <Filter>ast\nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\ThisConstructorCallNode.cpp">
       <Filter>ast\nodes\classes</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\expressions\ArrayCreationNode.cpp">
@@ -2872,9 +2875,6 @@
     <None Include="tests\testFiles\await\error\awaitInConstructorError.mt">
       <Filter>tests\testFiles\await\error</Filter>
     </None>
-    <None Include="tests\testFiles\await\error\awaitInGlobalScope.mt">
-      <Filter>tests\testFiles\await\error</Filter>
-    </None>
     <None Include="tests\testFiles\await\error\awaitInStaticInitializer.mt">
       <Filter>tests\testFiles\await\error</Filter>
     </None>
@@ -3343,18 +3343,6 @@
     <None Include="tests\testFiles\cast\pass\boolToStringCast.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
-    <None Include="tests\testFiles\cast\pass\cast2DArrayElementType_pass.expected">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\cast2DArrayElementType_pass.mt">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\cast3DArray_pass.expected">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\cast3DArray_pass.mt">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
     <None Include="tests\testFiles\cast\pass\castAbstractClass_pass.expected">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
@@ -3439,12 +3427,6 @@
     <None Include="tests\testFiles\cast\pass\castCovariantReturn_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
-    <None Include="tests\testFiles\cast\pass\castCrossModule_pass.expected">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castCrossModule_pass.mt">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
     <None Include="tests\testFiles\cast\pass\castDeepHierarchyDowncast_pass.expected">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
@@ -3475,12 +3457,6 @@
     <None Include="tests\testFiles\cast\pass\castFinalClass_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
-    <None Include="tests\testFiles\cast\pass\castFullyQualifiedType_pass.expected">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castFullyQualifiedType_pass.mt">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
     <None Include="tests\testFiles\cast\pass\castFunctionalInterface_pass.expected">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
@@ -3491,12 +3467,6 @@
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castGenericMethodInference_pass.mt">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castImportedType_pass.expected">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castImportedType_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castInAssignment.expected">
@@ -3553,12 +3523,6 @@
     <None Include="tests\testFiles\cast\pass\castInWhileCondition_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
-    <None Include="tests\testFiles\cast\pass\castInfinityToInt_pass.expected">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castInfinityToInt_pass.mt">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
     <None Include="tests\testFiles\cast\pass\castInterfaceDefaultMethod_pass.expected">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
@@ -3569,12 +3533,6 @@
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castInterfaceMethodCall.mt">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castJaggedArray_pass.expected">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castJaggedArray_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castLargeObjectGraph_pass.expected">
@@ -3605,18 +3563,6 @@
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castMultipleInterfaceSameMethod_pass.mt">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castNaNToInt_pass.expected">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castNaNToInt_pass.mt">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castNamespaceCollision_pass.expected">
-      <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castNamespaceCollision_pass.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castNegativeZero_pass.expected">
@@ -3924,15 +3870,6 @@
     </None>
     <None Include="tests\testFiles\cast\pass\mapGenericCast.mt">
       <Filter>tests\testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\modules\AlternateTypes.mt">
-      <Filter>tests\testFiles\cast\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\modules\BaseTypes.mt">
-      <Filter>tests\testFiles\cast\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\modules\ExtendedTypes.mt">
-      <Filter>tests\testFiles\cast\pass\modules</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\multiLevelCast.expected">
       <Filter>tests\testFiles\cast\pass</Filter>

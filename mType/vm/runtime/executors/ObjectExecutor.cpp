@@ -9,7 +9,7 @@
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include <algorithm>
-
+#include <iostream>
 namespace vm::runtime
 {
     ObjectExecutor::ObjectExecutor(ExecutionContext& ctx)
@@ -364,6 +364,7 @@ namespace vm::runtime
 
         // Pop object and check for null
         value::Value objectValue = context.stackManager->pop();
+
         if (std::holds_alternative<std::nullptr_t>(objectValue)) {
             utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
                 "Cannot call method '" + methodName + "' on null object");
@@ -387,6 +388,10 @@ namespace vm::runtime
 
     void ObjectExecutor::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
         instanceHelper->handleSuperConstructor(instr);
+    }
+
+    void ObjectExecutor::handleThisConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
+        instanceHelper->handleThisConstructor(instr);
     }
 
     void ObjectExecutor::handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
