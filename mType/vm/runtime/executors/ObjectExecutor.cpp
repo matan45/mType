@@ -25,7 +25,7 @@ namespace vm::runtime
 
     void ObjectExecutor::handleGetField(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
-            throw errors::RuntimeException("GET_FIELD requires operand");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires operand");
         }
 
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
@@ -37,7 +37,7 @@ namespace vm::runtime
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("GET_FIELD requires an object instance");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires an object instance");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
@@ -63,7 +63,7 @@ namespace vm::runtime
 
     void ObjectExecutor::handleSetField(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
-            throw errors::RuntimeException("SET_FIELD requires operand");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires operand");
         }
 
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
@@ -76,7 +76,7 @@ namespace vm::runtime
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("SET_FIELD requires an object instance");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires an object instance");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
@@ -113,14 +113,15 @@ namespace vm::runtime
 
     void ObjectExecutor::handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
-            throw errors::RuntimeException("GET_STATIC requires operand");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "GET_STATIC requires operand");
         }
 
         const std::string& qualifiedName = context.program->getConstantPool().getString(instr.operands[0]);
 
         size_t colonPos = qualifiedName.find("::");
         if (colonPos == std::string::npos) {
-            throw errors::RuntimeException("GET_STATIC requires qualified name (ClassName::fieldName): " + qualifiedName);
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "GET_STATIC requires qualified name (ClassName::fieldName): " + qualifiedName);
         }
 
         std::string className = qualifiedName.substr(0, colonPos);
@@ -129,7 +130,7 @@ namespace vm::runtime
         auto classRegistry = context.environment->getClassRegistry();
         auto classDef = classRegistry->findClass(className);
         if (!classDef) {
-            throw errors::RuntimeException("Class not found: " + className);
+            utils::ErrorLocationHelper::throwRuntimeError(context, "Class not found: " + className);
         }
 
         auto fieldDef = classDef->getField(fieldName);
@@ -138,7 +139,8 @@ namespace vm::runtime
         }
 
         if (!fieldDef->isStatic()) {
-            throw errors::RuntimeException("Field '" + fieldName + "' is not static");
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Field '" + fieldName + "' is not static");
         }
 
         auto accessContext = createAccessContext(className, false);
@@ -150,7 +152,7 @@ namespace vm::runtime
 
     void ObjectExecutor::handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
-            throw errors::RuntimeException("SET_STATIC requires operand");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "SET_STATIC requires operand");
         }
 
         const std::string& qualifiedName = context.program->getConstantPool().getString(instr.operands[0]);
@@ -158,7 +160,8 @@ namespace vm::runtime
 
         size_t colonPos = qualifiedName.find("::");
         if (colonPos == std::string::npos) {
-            throw errors::RuntimeException("SET_STATIC requires qualified name (ClassName::fieldName): " + qualifiedName);
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "SET_STATIC requires qualified name (ClassName::fieldName): " + qualifiedName);
         }
 
         std::string className = qualifiedName.substr(0, colonPos);
@@ -167,7 +170,7 @@ namespace vm::runtime
         auto classRegistry = context.environment->getClassRegistry();
         auto classDef = classRegistry->findClass(className);
         if (!classDef) {
-            throw errors::RuntimeException("Class not found: " + className);
+            utils::ErrorLocationHelper::throwRuntimeError(context, "Class not found: " + className);
         }
 
         auto fieldDef = classDef->getField(fieldName);
@@ -176,7 +179,8 @@ namespace vm::runtime
         }
 
         if (!fieldDef->isStatic()) {
-            throw errors::RuntimeException("Field '" + fieldName + "' is not static");
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Field '" + fieldName + "' is not static");
         }
 
         if (fieldDef->isFinal()) {
@@ -211,8 +215,9 @@ namespace vm::runtime
 
         // Validate argument count
         if (args.size() != paramCount) {
-            throw errors::RuntimeException("Lambda expects " + std::to_string(paramCount) +
-                                         " arguments but got " + std::to_string(args.size()));
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Lambda expects " + std::to_string(paramCount) +
+                " arguments but got " + std::to_string(args.size()));
         }
 
         // Create call frame
@@ -272,8 +277,9 @@ namespace vm::runtime
         // Use findInstanceMethodInHierarchy to search only instance methods in parent classes
         auto method = classDef->findInstanceMethodInHierarchy(methodName, argCount);
         if (!method) {
-            throw errors::RuntimeException("Instance method not found: " + methodName +
-                                         " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Instance method not found: " + methodName +
+                " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
         }
 
         // Find which class actually defines this method by walking up the hierarchy
@@ -296,7 +302,8 @@ namespace vm::runtime
         std::string qualifiedName = definingClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (!funcMetadata) {
-            throw errors::RuntimeException("Method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
         }
 
         // Convert lambda arguments to interface implementations if needed
@@ -379,7 +386,8 @@ namespace vm::runtime
 
         // Handle regular instance method invocation
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("CALL_METHOD requires an object instance or lambda");
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "CALL_METHOD requires an object instance or lambda");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);

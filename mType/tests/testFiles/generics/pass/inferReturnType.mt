@@ -22,11 +22,11 @@ function <T> createBox(T value): Box<T> {
 
 function main(): void {
     // Infer return type from generic method
-    Box<Int> intBox = createBox(new Int(123));
-    print("Box contains: " + intBox.getItem());
+    Box<Int> intBox = createBox<Int>(new Int(123));
+    print("Box contains: " + intBox.getItem().toString());
 
-    Box<String> strBox = createBox(new String("text"));
-    print("Box contains: " + strBox.getItem());
+    Box<String> strBox = createBox<String>(new String("text"));
+    print("Box contains: " + strBox.getItem().toString());
 }
 
 main();

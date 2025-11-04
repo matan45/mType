@@ -5,7 +5,7 @@ import * from "../../lib/primitives/String.mt";
 class Animal {
     String name;
 
-    public function Animal(String n) {
+    public constructor(String n) {
         name = n;
     }
 
@@ -15,8 +15,7 @@ class Animal {
 }
 
 class Dog extends Animal {
-    public function Dog(String n) {
-        super(n);
+    public constructor(String n) : super(n) {
     }
 }
 
@@ -34,7 +33,7 @@ class Producer<T> {
 
 function printAnimal(Producer<Animal> producer): void {
     Animal animal = producer.getValue();
-    print(animal.getName());
+    print(animal.getName().toString());
 }
 
 function main(): void {

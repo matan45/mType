@@ -10,11 +10,11 @@ interface Extended extends Base {
     function getName(): String;
 }
 
-class Implementation extends Extended {
+class Implementation implements Extended {
     String id;
     String name;
 
-    public function Implementation(String i, String n) {
+    public constructor(String i, String n) {
         id = i;
         name = n;
     }

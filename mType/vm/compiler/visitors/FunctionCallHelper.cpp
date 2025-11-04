@@ -7,6 +7,7 @@
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include <iostream>
+#include <optional>
 namespace vm::compiler::visitors
 {
     FunctionCallHelper::FunctionCallHelper(CompilerContext& context)
@@ -14,40 +15,130 @@ namespace vm::compiler::visitors
     {
     }
 
+    std::string FunctionCallHelper::inferTypeFromArgument(ast::ASTNode* argument)
+    {
+        // Infer the type of an argument for generic type inference
+        value::ValueType argType = ctx.typeInference.inferExpressionType(argument);
+
+        if (argType == value::ValueType::VOID) {
+            return ""; // Cannot infer - unknown type
+        }
+
+        // For primitive types, return the type name
+        if (argType != value::ValueType::OBJECT) {
+            return ::types::TypeConversionUtils::getTypeDisplayName(argType);
+        }
+
+        // For object types, return the class name
+        std::string className = ctx.typeInference.inferExpressionClassName(argument);
+        return className;
+    }
+
     bool FunctionCallHelper::setupGenericTypeBindings(ast::FunctionCallNode* node, const std::string& functionName)
     {
-        if (!node->hasGenericTypeArguments()) {
-            return false;
-        }
-
         const auto* funcMetadata = ctx.program.getFunction(functionName);
         if (!funcMetadata) {
+            // Function not yet registered - this can happen for forward references
+            // or if the function is defined later in the file
+            // In this case, we can't perform type inference without the signature
             return false;
         }
 
-        // Validate that the function is actually generic
+        // If not a generic function, nothing to do
         if (funcMetadata->genericTypeParameters.empty()) {
-            throw errors::TypeException(
-                "Function '" + functionName + "' is not generic but generic type arguments were provided",
-                node->getLocation());
+            // But if user provided type arguments, that's an error
+            if (node->hasGenericTypeArguments()) {
+                throw errors::TypeException(
+                    "Function '" + functionName + "' is not generic but generic type arguments were provided",
+                    node->getLocation());
+            }
+            return false;
         }
 
-        const auto& genericTypeArgs = node->getGenericTypeArguments();
-        const auto& genericTypeParams = funcMetadata->genericTypeParameters;
-
-        // Validate that the number of type arguments matches the number of type parameters
-        if (genericTypeArgs.size() != genericTypeParams.size()) {
-            throw errors::TypeException(
-                "Function '" + functionName + "' expects " +
-                std::to_string(genericTypeParams.size()) + " type argument(s) but got " +
-                std::to_string(genericTypeArgs.size()),
-                node->getLocation());
-        }
-
-        // Build type bindings map
         std::unordered_map<std::string, std::string> typeBindings;
-        for (size_t i = 0; i < genericTypeParams.size(); ++i) {
-            typeBindings[genericTypeParams[i]] = genericTypeArgs[i];
+
+        if (node->hasGenericTypeArguments()) {
+            // Explicit type arguments provided - use them
+            const auto& genericTypeArgs = node->getGenericTypeArguments();
+            const auto& genericTypeParams = funcMetadata->genericTypeParameters;
+
+            // Validate that the number of type arguments matches the number of type parameters
+            if (genericTypeArgs.size() != genericTypeParams.size()) {
+                throw errors::TypeException(
+                    "Function '" + functionName + "' expects " +
+                    std::to_string(genericTypeParams.size()) + " type argument(s) but got " +
+                    std::to_string(genericTypeArgs.size()),
+                    node->getLocation());
+            }
+
+            // Build type bindings map
+            for (size_t i = 0; i < genericTypeParams.size(); ++i) {
+                typeBindings[genericTypeParams[i]] = genericTypeArgs[i];
+            }
+        } else {
+            // No explicit type arguments - infer from call arguments
+            const auto& arguments = node->getArguments();
+            const auto& genericTypeParams = funcMetadata->genericTypeParameters;
+
+            // If the function has no parameters, we can't infer type arguments
+            if (funcMetadata->parameterTypes.empty() || arguments.empty()) {
+                // Can't infer without parameters/arguments - require explicit type arguments
+                throw errors::TypeException(
+                    "Cannot infer type arguments for generic function '" + functionName +
+                    "'. Provide explicit type arguments like '" + functionName + "<Type>(...)'",
+                    node->getLocation());
+            }
+
+            // For each generic type parameter, collect all inferred types and unify them
+            for (const auto& typeParam : genericTypeParams) {
+                std::optional<std::string> unifiedType;
+                std::vector<std::pair<size_t, std::string>> inferredTypes; // (paramIndex, type)
+
+                // Find all parameter positions that use this type parameter
+                for (size_t i = 0; i < funcMetadata->parameterTypes.size(); ++i) {
+                    const std::string& paramType = funcMetadata->parameterTypes[i];
+
+                    // Check if this parameter type is exactly the type parameter (e.g., "T")
+                    // TODO: Handle nested generics like Box<T>, List<T>, etc.
+                    if (paramType == typeParam) {
+                        if (i < arguments.size()) {
+                            std::string argType = inferTypeFromArgument(arguments[i].get());
+
+                            if (argType.empty()) {
+                                // Cannot infer type from this argument
+                                continue;
+                            }
+
+                            inferredTypes.push_back({i, argType});
+
+                            if (!unifiedType.has_value()) {
+                                unifiedType = argType;
+                            } else if (unifiedType.value() != argType) {
+                                // UNIFICATION FAILURE - conflicting types
+                                throw errors::TypeException(
+                                    "Cannot infer type parameter '" + typeParam + "' for function '" +
+                                    functionName + "': parameter " + std::to_string(inferredTypes[0].first + 1) +
+                                    " has type " + inferredTypes[0].second + " but parameter " +
+                                    std::to_string(i + 1) + " has type " + argType,
+                                    node->getLocation());
+                            }
+                        }
+                    }
+                }
+
+                if (!unifiedType.has_value()) {
+                    // No arguments to infer from - this means the type parameter isn't used in any parameter
+                    // It might be used only in the return type, which we don't currently support for inference
+                    // For now, require explicit type arguments
+                    throw errors::TypeException(
+                        "Cannot infer type parameter '" + typeParam + "' for function '" +
+                        functionName + "': type parameter not used in function parameters. " +
+                        "Provide explicit type arguments like '" + functionName + "<Type>(...)'",
+                        node->getLocation());
+                }
+
+                typeBindings[typeParam] = unifiedType.value();
+            }
         }
 
         // Push bindings onto stack

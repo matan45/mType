@@ -14,12 +14,12 @@ class Processor {
 
 function main(): void {
     // Specific method should be chosen over generic
-    String result1 = Processor.processSpecific(new String("test"));
-    print(result1);
+    String result1 = Processor::processSpecific(new String("test"));
+    print(result1.toString());
 
     // Generic method with explicit type
-    String result2 = Processor.process(new Int(42));
-    print(result2);
+    String result2 = Processor::process<Int>(new Int(42));
+    print(result2.toString());
 }
 
 main();

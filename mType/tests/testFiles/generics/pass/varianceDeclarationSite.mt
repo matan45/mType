@@ -18,7 +18,7 @@ class ReadOnlyBox<T> {
 class Animal {
     String type;
 
-    public function Animal(String t) {
+    public constructor(String t) {
         type = t;
     }
 
@@ -28,8 +28,7 @@ class Animal {
 }
 
 class Cat extends Animal {
-    public function Cat() {
-        super(new String("Cat"));
+    public constructor() : super(new String("Cat")) {
     }
 }
 

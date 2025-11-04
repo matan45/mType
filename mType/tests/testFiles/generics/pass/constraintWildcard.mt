@@ -7,11 +7,11 @@ interface Bounded {
     function getLowerBound(): Int;
 }
 
-class Range extends Bounded {
+class Range implements Bounded {
     Int lower;
     Int upper;
 
-    public function Range(Int l, Int u) {
+    public constructor(Int l, Int u) {
         lower = l;
         upper = u;
     }

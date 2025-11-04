@@ -120,17 +120,15 @@ namespace vm::compiler::visitors
 
         std::string resolveGenericType(const std::string& typeName) const
         {
-            // Check from most recent to oldest binding context
-            for (auto it = genericTypeBindingStack.rbegin(); it != genericTypeBindingStack.rend(); ++it)
+            // Get the most recent generic type bindings
+            if (genericTypeBindingStack.empty())
             {
-                auto found = it->find(typeName);
-                if (found != it->end())
-                {
-                    return found->second;
-                }
+                return typeName;  // No bindings available
             }
-            // Not a generic type parameter, return as-is
-            return typeName;
+
+            // Use GenericTypeResolver to handle nested generics (e.g., "TypeToken<T>" -> "TypeToken<Int>")
+            types::GenericTypeResolver resolver;
+            return resolver.resolveGenericType(typeName, genericTypeBindingStack.back());
         }
     };
 }

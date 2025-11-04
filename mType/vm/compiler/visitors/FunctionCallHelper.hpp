@@ -28,6 +28,8 @@ namespace vm::compiler::visitors
         // Helper methods
         bool setupGenericTypeBindings(ast::FunctionCallNode* node, const std::string& functionName);
 
+        std::string inferTypeFromArgument(ast::ASTNode* argument);
+
         void validateFunctionParameters(ast::FunctionCallNode* node, const std::string& functionName,
                                        const std::vector<std::unique_ptr<ast::ASTNode>>& arguments);
 

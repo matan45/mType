@@ -1,5 +1,6 @@
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Unbounded wildcard (?)
 class Holder<T> {
@@ -10,7 +11,7 @@ class Holder<T> {
     }
 
     public function hasData(): Bool {
-        return data != null;
+        return new Bool(data != null);
     }
 }
 

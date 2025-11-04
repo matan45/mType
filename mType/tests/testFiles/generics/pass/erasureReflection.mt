@@ -6,7 +6,7 @@ class Metadata {
     String typeName;
     String description;
 
-    public function Metadata(String name, String desc) {
+    public constructor(String name, String desc) {
         typeName = name;
         description = desc;
     }
@@ -24,7 +24,7 @@ class Reflectable<T> {
     T value;
     Metadata meta;
 
-    public function Reflectable(T val, Metadata m) {
+    public constructor(T val, Metadata m) {
         value = val;
         meta = m;
     }

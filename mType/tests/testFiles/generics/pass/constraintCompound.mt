@@ -10,10 +10,10 @@ interface Cloneable {
     function clone(): Cloneable;
 }
 
-class Data extends Serializable, Cloneable {
+class Data implements Serializable, Cloneable {
     String value;
 
-    public function Data(String v) {
+    public constructor(String v) {
         value = v;
     }
 
@@ -34,7 +34,7 @@ class Repository<T extends Serializable> {
     T[] items;
     Int count;
 
-    public function Repository() {
+    public constructor() {
         items = new T[10];
         count = new Int(0);
     }

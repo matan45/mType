@@ -3,37 +3,37 @@ import * from "../../lib/primitives/String.mt";
 
 // Override with different type bounds
 interface Printable {
-    function print(): void;
+    function display(): void;
 }
 
 class Base {
     public function <T extends Printable> process(T item): void {
-        item.print();
+        item.display();
     }
 }
 
-class Item extends Printable {
+class Item implements Printable {
     String name;
 
-    public function Item(String n) {
+    public constructor(String n) {
         name = n;
     }
 
-    public function print(): void {
-        print("Item: " + name);
+    public function display(): void {
+        print("Item: " + name.toString());
     }
 }
 
 class Derived extends Base {
     public function <T extends Printable> process(T item): void {
         print("Derived processing");
-        item.print();
+        item.display();
     }
 }
 
 function main(): void {
     Derived d = new Derived();
-    d.process(new Item(new String("Test")));
+    d.process<Item>(new Item(new String("Test")));
 }
 
 main();

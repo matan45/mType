@@ -3,6 +3,7 @@
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../types/GenericTypeResolver.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -60,6 +61,36 @@ namespace vm::compiler::visitors
                 location
             );
         }
+    }
+
+    std::string ParameterValidator::normalizeTypeString(const std::string& typeStr)
+    {
+        // Normalize type strings by removing spaces around commas and angle brackets
+        // This ensures "HashMap<Int, String>" matches "HashMap<Int,String>"
+        std::string normalized;
+        normalized.reserve(typeStr.size());
+
+        for (size_t i = 0; i < typeStr.length(); ++i)
+        {
+            char c = typeStr[i];
+
+            // Skip spaces after commas and angle brackets
+            if (c == ' ')
+            {
+                if (i > 0 && (typeStr[i - 1] == ',' || typeStr[i - 1] == '<'))
+                {
+                    continue; // Skip space after comma or <
+                }
+                if (i + 1 < typeStr.length() && typeStr[i + 1] == '>')
+                {
+                    continue; // Skip space before >
+                }
+            }
+
+            normalized += c;
+        }
+
+        return normalized;
     }
 
     bool ParameterValidator::validateGenericParameter(const std::string& methodName, const std::string& expectedType,
@@ -163,36 +194,43 @@ namespace vm::compiler::visitors
             {
                 // For objects, check class name compatibility
                 std::string argClassName = ctx.typeInference.inferExpressionClassName(argument);
-                if (!argClassName.empty() && argClassName != resolvedExpectedType)
+                if (!argClassName.empty())
                 {
-                    // Strip generic parameters for comparison (List<int> -> List)
-                    std::string expectedBase = resolvedExpectedType;
-                    std::string argBase = argClassName;
-                    size_t expectedAngle = resolvedExpectedType.find('<');
-                    size_t argAngle = argClassName.find('<');
-                    if (expectedAngle != std::string::npos)
-                    {
-                        expectedBase = resolvedExpectedType.substr(0, expectedAngle);
-                    }
-                    if (argAngle != std::string::npos)
-                    {
-                        argBase = argClassName.substr(0, argAngle);
-                    }
+                    // Normalize both type strings to handle whitespace differences
+                    std::string normalizedExpected = normalizeTypeString(resolvedExpectedType);
+                    std::string normalizedArg = normalizeTypeString(argClassName);
 
-                    // If base types match, it's compatible (generic type parameters will be validated at runtime)
-                    if (expectedBase == argBase)
+                    if (normalizedArg != normalizedExpected)
                     {
-                        return; // Compatible generic types
-                    }
+                        // Strip generic parameters for comparison (List<int> -> List)
+                        std::string expectedBase = normalizedExpected;
+                        std::string argBase = normalizedArg;
+                        size_t expectedAngle = normalizedExpected.find('<');
+                        size_t argAngle = normalizedArg.find('<');
+                        if (expectedAngle != std::string::npos)
+                        {
+                            expectedBase = normalizedExpected.substr(0, expectedAngle);
+                        }
+                        if (argAngle != std::string::npos)
+                        {
+                            argBase = normalizedArg.substr(0, argAngle);
+                        }
 
-                    // Check if argClassName is assignable to expectedType (inheritance)
-                    if (!ctx.typeValidator.isClassCompatible(argClassName, resolvedExpectedType))
-                    {
-                        throw errors::TypeException(
-                            "Method '" + methodName + "' parameter " + std::to_string(paramIndex + 1) +
-                            " expects " + resolvedExpectedType + " but got " + argClassName,
-                            location
-                        );
+                        // If base types match, it's compatible (generic type parameters will be validated at runtime)
+                        if (expectedBase == argBase)
+                        {
+                            return; // Compatible generic types
+                        }
+
+                        // Check if argClassName is assignable to expectedType (inheritance)
+                        if (!ctx.typeValidator.isClassCompatible(argClassName, resolvedExpectedType))
+                        {
+                            throw errors::TypeException(
+                                "Method '" + methodName + "' parameter " + std::to_string(paramIndex + 1) +
+                                " expects " + resolvedExpectedType + " but got " + argClassName,
+                                location
+                            );
+                        }
                     }
                 }
             }
@@ -241,12 +279,16 @@ namespace vm::compiler::visitors
 
     void ParameterValidator::validateConstructorParameters(const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
                                                           const runtimeTypes::klass::ConstructorDefinition* constructor,
-                                                          const ast::SourceLocation& location)
+                                                          const ast::SourceLocation& location,
+                                                          const std::unordered_map<std::string, std::string>& genericTypeBindings)
     {
         if (!constructor)
         {
             return; // No validation if constructor not found
         }
+
+        // Create resolver for generic type substitution
+        types::GenericTypeResolver resolver;
 
         const auto& params = constructor->getParametersWithTypes();
         for (size_t i = 0; i < arguments.size(); ++i)
@@ -265,7 +307,14 @@ namespace vm::compiler::visitors
             {
                 std::string expectedClass = paramType.className.value();
 
-                // Skip generic type parameters (single uppercase letters)
+                // Resolve generic type parameters using the bindings
+                // This transforms "TypeToken<T>" -> "TypeToken<Int>" when T=Int
+                if (!genericTypeBindings.empty())
+                {
+                    expectedClass = resolver.resolveGenericType(expectedClass, genericTypeBindings);
+                }
+
+                // Skip generic type parameters (single uppercase letters) that weren't resolved
                 if (expectedClass.length() <= 2 && std::isupper(expectedClass[0]))
                 {
                     continue;
@@ -288,18 +337,25 @@ namespace vm::compiler::visitors
                 {
                     // Check class name match
                     std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
-                    if (!argClassName.empty() && argClassName != expectedClass && expectedClass != "object")
+                    if (!argClassName.empty() && expectedClass != "object")
                     {
-                        // Check if argClassName is assignable to expectedClass (inheritance/polymorphism)
-                        if (!ctx.typeValidator.isClassCompatible(argClassName, expectedClass))
+                        // Normalize both type strings to handle whitespace differences
+                        std::string normalizedExpected = normalizeTypeString(expectedClass);
+                        std::string normalizedArg = normalizeTypeString(argClassName);
+
+                        if (normalizedArg != normalizedExpected)
                         {
-                            if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
+                            // Check if argClassName is assignable to expectedClass (inheritance/polymorphism)
+                            if (!ctx.typeValidator.isClassCompatible(argClassName, expectedClass))
                             {
-                                throw errors::TypeException(
-                                    "Constructor parameter " + std::to_string(i + 1) +
-                                    " expects " + expectedClass + " but got " + argClassName,
-                                    location
-                                );
+                                if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
+                                {
+                                    throw errors::TypeException(
+                                        "Constructor parameter " + std::to_string(i + 1) +
+                                        " expects " + expectedClass + " but got " + argClassName,
+                                        location
+                                    );
+                                }
                             }
                         }
                     }

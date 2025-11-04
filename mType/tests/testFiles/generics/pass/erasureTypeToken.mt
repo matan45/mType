@@ -5,7 +5,7 @@ import * from "../../lib/primitives/String.mt";
 class TypeToken<T> {
     String typeName;
 
-    public function TypeToken(String name) {
+    public constructor(String name) {
         typeName = name;
     }
 
@@ -18,7 +18,7 @@ class Container<T> {
     T value;
     TypeToken<T> token;
 
-    public function Container(TypeToken<T> t) {
+    public constructor(TypeToken<T> t) {
         token = t;
     }
 

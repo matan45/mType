@@ -5,7 +5,7 @@ import * from "../../lib/primitives/String.mt";
 class Vehicle {
     String type;
 
-    public function Vehicle(String t) {
+    public constructor(String t) {
         type = t;
     }
 
@@ -15,8 +15,7 @@ class Vehicle {
 }
 
 class Car extends Vehicle {
-    public function Car() {
-        super(new String("Car"));
+    public constructor() : super(new String("Car")) {
     }
 }
 

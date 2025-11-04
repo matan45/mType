@@ -6,6 +6,7 @@
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
+#include "../validation/CompileTimeValidator.hpp"
 
 
 namespace vm::compiler::visitors
@@ -50,6 +51,12 @@ namespace vm::compiler::visitors
             if (!isArrayType && !isGenericParam)
             {
                 std::string baseClassName = ctx.genericResolver.extractBaseTypeName(className);
+
+                // Validate that generic types have type arguments
+                if (ctx.compileTimeValidator)
+                {
+                    ctx.compileTimeValidator->validateTypeIsNotRawGeneric(className, node->getLocation());
+                }
 
                 // Skip validation for Promise types (native async/await support)
                 if (baseClassName != "Promise")

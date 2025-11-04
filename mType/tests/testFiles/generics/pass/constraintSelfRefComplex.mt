@@ -7,11 +7,11 @@ interface Node<T extends Node<T>> {
     function setNext(T next): void;
 }
 
-class LinkedNode extends Node<LinkedNode> {
+class LinkedNode implements Node<LinkedNode> {
     String data;
     LinkedNode next;
 
-    public function LinkedNode(String d) {
+    public constructor(String d) {
         data = d;
     }
 
@@ -48,8 +48,8 @@ function main(): void {
     Chain<LinkedNode> chain = new Chain<LinkedNode>();
     chain.setHead(node1);
 
-    print(chain.getHead().getData());
-    print(chain.getHead().getNext().getData());
+    print(chain.getHead().getData().toString());
+    print(chain.getHead().getNext().getData().toString());
 }
 
 main();

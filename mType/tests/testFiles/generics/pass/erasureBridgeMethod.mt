@@ -16,18 +16,18 @@ class StringProcessor extends Processor<String> {
 
 class IntProcessor extends Processor<Int> {
     public function process(Int item): String {
-        return new String("Int: " + item);
+        return new String("Int: " + item.value);
     }
 }
 
 function main(): void {
     StringProcessor sp = new StringProcessor();
     String result1 = sp.process(new String("test"));
-    print(result1);
+    print(result1.toString());
 
     IntProcessor ip = new IntProcessor();
     String result2 = ip.process(new Int(42));
-    print(result2);
+    print(result2.toString());
 }
 
 main();

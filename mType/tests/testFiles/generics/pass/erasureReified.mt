@@ -5,7 +5,7 @@ import * from "../../lib/primitives/String.mt";
 class Factory<T> {
     String className;
 
-    public function Factory(String name) {
+    public constructor(String name) {
         className = name;
     }
 
@@ -17,7 +17,7 @@ class Factory<T> {
 class Product {
     String name;
 
-    public function Product(String n) {
+    public constructor(String n) {
         name = n;
     }
 
@@ -27,8 +27,7 @@ class Product {
 }
 
 class Widget extends Product {
-    public function Widget(String n) {
-        super(n);
+    public constructor(String n) : super(n) {
     }
 }
 

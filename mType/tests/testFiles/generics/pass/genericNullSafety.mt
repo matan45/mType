@@ -1,24 +1,25 @@
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Generic with null safety patterns
 class Optional<T> {
     T value;
     Bool present;
 
-    public function Optional() {
-        present = false;
+    public constructor() {
+        present = new Bool(false);
     }
 
-    public static function <T> of(T val): Optional<T> {
-        Optional<T> opt = new Optional<T>();
+    public static function <U> of(U val): Optional<U> {
+        Optional<U> opt = new Optional<U>();
         opt.value = val;
-        opt.present = true;
+        opt.present = new Bool(true);
         return opt;
     }
 
-    public static function <T> empty(): Optional<T> {
-        return new Optional<T>();
+    public static function <U> empty(): Optional<U> {
+        return new Optional<U>();
     }
 
     public function isPresent(): Bool {
@@ -30,7 +31,7 @@ class Optional<T> {
     }
 
     public function orElse(T defaultValue): T {
-        if (present) {
+        if (present.getValue()) {
             return value;
         }
         return defaultValue;
@@ -38,18 +39,18 @@ class Optional<T> {
 }
 
 function main(): void {
-    Optional<Int> presentInt = Optional.of(new Int(42));
-    if (presentInt.isPresent()) {
-        print("Present: " + presentInt.get());
+    Optional<Int> presentInt = Optional::of<Int>(new Int(42));
+    if (presentInt.isPresent().getValue()) {
+        print("Present: " + presentInt.get().toString());
     }
 
-    Optional<Int> emptyInt = Optional.empty();
+    Optional<Int> emptyInt = Optional::empty<Int>();
     Int value = emptyInt.orElse(new Int(0));
-    print("Default: " + value);
+    print("Default: " + value.toString());
 
-    Optional<String> presentStr = Optional.of(new String("Hello"));
+    Optional<String> presentStr = Optional::of<String>(new String("Hello"));
     String str = presentStr.orElse(new String("Default"));
-    print("String: " + str);
+    print("String: " + str.toString());
 }
 
 main();

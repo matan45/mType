@@ -2,10 +2,14 @@ import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
 // Variance in return types (covariant)
+interface Creator<T> {
+    function create(): T;
+}
+
 class Product {
     String name;
 
-    public function Product(String n) {
+    public constructor(String n) {
         name = n;
     }
 
@@ -15,28 +19,25 @@ class Product {
 }
 
 class Book extends Product {
-    public function Book(String n) {
-        super(n);
+    public constructor(String n) : super(n) {
     }
 }
 
 class Factory<T> {
-    function(): T creator;
+    Creator<T> creator;
 
-    public function setCreator(function(): T c): void {
+    public function setCreator(Creator<T> c): void {
         creator = c;
     }
 
     public function create(): T {
-        return creator();
+        return creator.create();
     }
 }
 
 function main(): void {
     Factory<Book> bookFactory = new Factory<Book>();
-    bookFactory.setCreator(function(): Book {
-        return new Book(new String("Novel"));
-    });
+    bookFactory.setCreator(() -> new Book(new String("Novel")));
 
     // Covariant return - can treat Book factory result as Product
     Book book = bookFactory.create();

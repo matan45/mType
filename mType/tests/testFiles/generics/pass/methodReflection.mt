@@ -6,7 +6,7 @@ class MethodInfo {
     String name;
     String returnType;
 
-    public function MethodInfo(String n, String r) {
+    public constructor(String n, String r) {
         name = n;
         returnType = r;
     }
@@ -27,13 +27,13 @@ class Inspector {
 }
 
 function main(): void {
-    MethodInfo info1 = Inspector.inspectMethod(new String("process"), new Int(0));
-    print("Method: " + info1.getName());
-    print("Return: " + info1.getReturnType());
+    MethodInfo info1 = Inspector::inspectMethod<Int>(new String("process"), new Int(0));
+    print("Method: " + info1.getName().toString());
+    print("Return: " + info1.getReturnType().toString());
 
-    MethodInfo info2 = Inspector.inspectMethod(new String("convert"), new String(""));
-    print("Method: " + info2.getName());
-    print("Return: " + info2.getReturnType());
+    MethodInfo info2 = Inspector::inspectMethod<String>(new String("convert"), new String(""));
+    print("Method: " + info2.getName().toString());
+    print("Return: " + info2.getReturnType().toString());
 }
 
 main();

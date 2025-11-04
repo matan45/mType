@@ -115,20 +115,27 @@ namespace vm::compiler::visitors
         // Extract the type arguments string (between < and >)
         std::string argsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
 
-        // Simple parsing - split by comma (doesn't handle nested generics)
+        // Parse individual type arguments, respecting nested generics (depth-aware)
+        // This correctly handles: Container<List<String>, HashMap<Int, String>, HashSet<Int>>
         size_t start = 0;
-        size_t comma = argsStr.find(',');
+        size_t depth = 0;
 
-        while (comma != std::string::npos) {
-            std::string typeArg = argsStr.substr(start, comma - start);
-            // Trim whitespace
-            typeArg.erase(0, typeArg.find_first_not_of(" \t"));
-            typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
-            if (!typeArg.empty()) {
-                typeArguments.push_back(typeArg);
+        for (size_t i = 0; i < argsStr.length(); ++i) {
+            if (argsStr[i] == '<') {
+                depth++;  // Entering nested generic
+            } else if (argsStr[i] == '>') {
+                depth--;  // Exiting nested generic
+            } else if (argsStr[i] == ',' && depth == 0) {
+                // Only split on commas at depth 0 (outermost level)
+                std::string typeArg = argsStr.substr(start, i - start);
+                // Trim whitespace
+                typeArg.erase(0, typeArg.find_first_not_of(" \t"));
+                typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
+                if (!typeArg.empty()) {
+                    typeArguments.push_back(typeArg);
+                }
+                start = i + 1;
             }
-            start = comma + 1;
-            comma = argsStr.find(',', start);
         }
 
         // Add the last type argument
@@ -166,7 +173,7 @@ namespace vm::compiler::visitors
         std::string fullClassName = node->getClassName();
 
         // Parse and validate generic type arguments (e.g., "Box<Int>" -> ["Int"])
-        parseAndValidateGenericTypeArguments(fullClassName, node->getLocation());
+        std::vector<std::string> typeArguments = parseAndValidateGenericTypeArguments(fullClassName, node->getLocation());
 
         // Extract base class name for constructor lookup
         std::string baseClassName = fullClassName;
@@ -195,13 +202,22 @@ namespace vm::compiler::visitors
                 );
             }
 
+            // Build generic type bindings map for parameter validation
+            // Maps generic parameter names (e.g., "T") to concrete types (e.g., "Int")
+            std::unordered_map<std::string, std::string> genericTypeBindings;
+            const auto& genericParams = classDef->getGenericParameters();
+            for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
+            {
+                genericTypeBindings[genericParams[i].name] = typeArguments[i];
+            }
+
             // Find matching constructor and validate parameter types
             const auto& constructors = classDef->getConstructors();
             for (const auto& constructor : constructors)
             {
                 if (constructor->getParameterCount() == arguments.size())
                 {
-                    paramValidator->validateConstructorParameters(arguments, constructor.get(), node->getLocation());
+                    paramValidator->validateConstructorParameters(arguments, constructor.get(), node->getLocation(), genericTypeBindings);
                     break;
                 }
             }

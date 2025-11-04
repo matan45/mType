@@ -30,9 +30,9 @@ function async createIntContainer(int value): Promise<Container<Int>> {
     return container;
 }
 
-function async createStringContainer(string value): Promise<Container<Stirng>> {
+function async createStringContainer(string value): Promise<Container<String>> {
     print("Creating string container: " + value);
-    Container<Stirng> container = new Container<Stirng>(new String(value));
+    Container<String> container = new Container<String>(new String(value));
     return container;
 }
 

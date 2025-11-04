@@ -5,14 +5,13 @@ import * from "../../lib/primitives/String.mt";
 class Animal {
     String name;
 
-    public function Animal(String n) {
+    public constructor(String n) {
         name = n;
     }
 }
 
 class Dog extends Animal {
-    public function Dog(String n) {
-        super(n);
+    public constructor(String n) : super(n) {
     }
 }
 
@@ -20,7 +19,7 @@ class Consumer<T> {
     T[] items;
     Int count;
 
-    public function Consumer() {
+    public constructor() {
         items = new T[10];
         count = new Int(0);
     }

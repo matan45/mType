@@ -223,6 +223,79 @@ namespace vm::compiler::validation
         validateClassExists(parentClassName, location);
     }
 
+    void CompileTimeValidator::validateTypeIsNotRawGeneric(const std::string& typeName,
+                                                          const ast::SourceLocation& location)
+    {
+        // Skip validation for:
+        // 1. Generic type parameters (T, K, V, E, etc.) - single uppercase letters
+        // 2. Primitive types (int, float, string, bool, void)
+        // 3. Type names that already contain generic arguments (e.g., "Wrapper<Int>")
+
+        if (typeName.length() == 1 && std::isupper(typeName[0]))
+        {
+            return; // Generic type parameter
+        }
+
+        // Check if type name already contains generic arguments
+        if (typeName.find('<') != std::string::npos)
+        {
+            return; // Already has type arguments
+        }
+
+        // Check if it's a primitive type
+        if (typeName == "int" || typeName == "float" || typeName == "string" ||
+            typeName == "bool" || typeName == "void" || typeName == "object")
+        {
+            return; // Primitive type - not generic
+        }
+
+        auto classRegistry = environment->getClassRegistry();
+        if (!classRegistry)
+        {
+            return; // No class registry available - skip validation
+        }
+
+        // Check if this is a generic class
+        auto classDef = classRegistry->findClass(typeName);
+        if (classDef && !classDef->getGenericParameters().empty())
+        {
+            // This is a generic class but no type arguments were provided
+            std::string paramList;
+            const auto& params = classDef->getGenericParameters();
+            for (size_t i = 0; i < params.size(); ++i)
+            {
+                if (i > 0) paramList += ", ";
+                paramList += params[i].name;
+            }
+
+            throw errors::TypeException(
+                "Generic type '" + typeName + "' requires type arguments. " +
+                "Use '" + typeName + "<" + paramList + ">' instead of raw type '" + typeName + "'",
+                location
+            );
+        }
+
+        // Also check interfaces
+        auto interfaceDef = environment->findInterface(typeName);
+        if (interfaceDef && !interfaceDef->getGenericParameters().empty())
+        {
+            // This is a generic interface but no type arguments were provided
+            std::string paramList;
+            const auto& params = interfaceDef->getGenericParameters();
+            for (size_t i = 0; i < params.size(); ++i)
+            {
+                if (i > 0) paramList += ", ";
+                paramList += params[i].name;
+            }
+
+            throw errors::TypeException(
+                "Generic interface '" + typeName + "' requires type arguments. " +
+                "Use '" + typeName + "<" + paramList + ">' instead of raw type '" + typeName + "'",
+                location
+            );
+        }
+    }
+
     void CompileTimeValidator::validateAllMethodsHaveBytecode(const std::string& className,
                                                              const ast::SourceLocation& location)
     {

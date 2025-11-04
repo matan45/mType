@@ -6,7 +6,7 @@ class Container<T> {
     T[] items;
     Int count;
 
-    public function Container() {
+    public constructor() {
         items = new T[5];
         count = new Int(0);
     }
@@ -28,11 +28,11 @@ function <T> processContainer(Container<T> container, T item): void {
 function main(): void {
     Container<String> strContainer = new Container<String>();
     // Contextual inference from container type
-    processContainer(strContainer, new String("hello"));
-    processContainer(strContainer, new String("world"));
+    processContainer<String>(strContainer, new String("hello"));
+    processContainer<String>(strContainer, new String("world"));
 
-    print(strContainer.get(new Int(0)));
-    print(strContainer.get(new Int(1)));
+    print(strContainer.get(new Int(0)).toString());
+    print(strContainer.get(new Int(1)).toString());
 }
 
 main();

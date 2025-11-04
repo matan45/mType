@@ -17,7 +17,7 @@ class Box<T> {
 class Base {
     String id;
 
-    public function Base(String i) {
+    public constructor(String i) {
         id = i;
     }
 
@@ -27,8 +27,7 @@ class Base {
 }
 
 class Derived extends Base {
-    public function Derived(String i) {
-        super(i);
+    public constructor(String i) : super(i) {
     }
 }
 

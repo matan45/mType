@@ -14,10 +14,10 @@ interface Closeable {
     function close(): void;
 }
 
-class Stream extends Readable, Writable, Closeable {
+class Stream implements Readable, Writable, Closeable {
     String buffer;
 
-    public function Stream() {
+    public constructor() {
         buffer = new String("");
     }
 

@@ -37,9 +37,9 @@ function <T> createNestedBox(T val): Container<Box<T>> {
 
 function main(): void {
     // Infer nested generic type Container<Box<Int>>
-    Container<Box<Int>> nested = createNestedBox(new Int(999));
+    Container<Box<Int>> nested = createNestedBox<Int>(new Int(999));
     Box<Int> innerBox = nested.getElement();
-    print("Nested value: " + innerBox.getValue());
+    print("Nested value: " + innerBox.getValue().toString());
 }
 
 main();

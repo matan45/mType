@@ -6850,9 +6850,6 @@
     <None Include="tests\testFiles\generics\pass\varianceWildcardUpper.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
-    <None Include="tests\testFiles\import\ParentModule.mt">
-      <Filter>tests\testFiles\import</Filter>
-    </None>
     <None Include="tests\testFiles\import\error\circular4way\ModuleA.mt">
       <Filter>tests\testFiles\import\error\circular4way</Filter>
     </None>
@@ -7033,6 +7030,9 @@
     <None Include="tests\testFiles\import\pass\diamond\ModuleD.mt">
       <Filter>tests\testFiles\import\pass\diamond</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importAllCollections.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importAllCollections.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
@@ -7043,6 +7043,9 @@
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importEmptyFile.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importGenericClass.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importGenericClass.mt">
@@ -7057,16 +7060,25 @@
     <None Include="tests\testFiles\import\pass\importGenericMethod.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importHashMapCollection.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importHashMapCollection.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importIntPrimitive.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importListCollection.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importListCollection.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importMultiplePrimitives.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importNestedCollections.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importNestedCollections.mt">

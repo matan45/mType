@@ -17,8 +17,10 @@ class Derived extends Base {
 
 function main(): void {
     Derived d = new Derived();
-    print(d.process(new Int(42)));
-    print(d.process(new String("test")));
+    String result1 = d.process<Int>(new Int(42));
+    print(result1.toString());
+    String result2 = d.process<String>(new String("test"));
+    print(result2.toString());
 }
 
 main();

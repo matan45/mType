@@ -6,10 +6,14 @@ interface Comparable {
     function compare(Comparable other): Int;
 }
 
-class Number extends Comparable {
+interface Formatter<T> {
+    function format(T input): String;
+}
+
+class Number implements Comparable {
     Int value;
 
-    public function Number(Int v) {
+    public constructor(Int v) {
         value = v;
     }
 
@@ -23,25 +27,23 @@ class Number extends Comparable {
 }
 
 class Processor<T extends Comparable> {
-    function(T): String formatter;
+    Formatter<T> formatter;
 
-    public function setFormatter(function(T): String f): void {
+    public function setFormatter(Formatter<T> f): void {
         formatter = f;
     }
 
     public function format(T item): String {
-        return formatter(item);
+        return formatter.format(item);
     }
 }
 
 function main(): void {
     Processor<Number> proc = new Processor<Number>();
-    proc.setFormatter(function(Number n): String {
-        return new String("Number: " + n.getValue());
-    });
+    proc.setFormatter(n -> new String("Number: " + n.getValue()));
 
     String result = proc.format(new Number(new Int(42)));
-    print(result);
+    print(result.toString());
 }
 
 main();

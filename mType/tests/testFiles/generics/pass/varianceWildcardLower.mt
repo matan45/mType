@@ -5,7 +5,7 @@ import * from "../../lib/primitives/String.mt";
 class Entity {
     String id;
 
-    public function Entity(String i) {
+    public constructor(String i) {
         id = i;
     }
 
@@ -15,8 +15,7 @@ class Entity {
 }
 
 class User extends Entity {
-    public function User(String i) {
-        super(i);
+    public constructor(String i) : super(i) {
     }
 }
 
@@ -24,7 +23,7 @@ class Sink<T> {
     T[] items;
     Int count;
 
-    public function Sink() {
+    public constructor() {
         items = new T[10];
         count = new Int(0);
     }

@@ -10,10 +10,10 @@ interface Comparable {
     function compareTo(Comparable other): Int;
 }
 
-class Element extends Printable, Comparable {
+class Element implements Printable, Comparable {
     Int value;
 
-    public function Element(Int v) {
+    public constructor(Int v) {
         value = v;
     }
 
@@ -34,7 +34,7 @@ class Container<T extends Printable> {
     }
 
     public function print(): void {
-        print(item.toString());
+        print(item.toString().toString());
     }
 }
 

@@ -28,7 +28,7 @@ function <A, B, C> makeTriple(A a, B b, C c): Triple<A, B, C> {
 
 function main(): void {
     // Infer A=Int, B=String, C=Int from arguments
-    Triple<Int, String, Int> triple = makeTriple(
+    Triple<Int, String, Int> triple = makeTriple<Int, String, Int>(
         new Int(1),
         new String("middle"),
         new Int(3)

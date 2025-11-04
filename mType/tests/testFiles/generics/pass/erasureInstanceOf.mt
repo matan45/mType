@@ -1,5 +1,6 @@
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // instanceof checks with generic types
 class Container<T> {
@@ -10,21 +11,20 @@ class Container<T> {
     }
 
     public function hasData(): Bool {
-        return data != null;
+        return new Bool(data != null);
     }
 }
 
 class Base {
     String id;
 
-    public function Base(String i) {
+    public constructor(String i) {
         id = i;
     }
 }
 
 class Derived extends Base {
-    public function Derived(String i) {
-        super(i);
+    public constructor(String i) : super(i) {
     }
 }
 

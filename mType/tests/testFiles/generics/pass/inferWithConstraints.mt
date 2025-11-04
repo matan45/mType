@@ -6,10 +6,10 @@ interface Printable {
     function toString(): String;
 }
 
-class Item extends Printable {
+class Item implements Printable {
     String name;
 
-    public function Item(String n) {
+    public constructor(String n) {
         name = n;
     }
 
@@ -26,7 +26,7 @@ class Container<T extends Printable> {
     }
 
     public function print(): void {
-        print(value.toString());
+        print(value.toString().toString());
     }
 }
 
@@ -38,7 +38,7 @@ function <T extends Printable> makeContainer(T val): Container<T> {
 
 function main(): void {
     // Infer T as Item with constraint satisfaction
-    Container<Item> container = makeContainer(new Item(new String("Widget")));
+    Container<Item> container = makeContainer<Item>(new Item(new String("Widget")));
     container.print();
 }
 

@@ -5,7 +5,7 @@ import * from "../../lib/primitives/String.mt";
 class Shape {
     String name;
 
-    public function Shape(String n) {
+    public constructor(String n) {
         name = n;
     }
 
@@ -15,14 +15,12 @@ class Shape {
 }
 
 class Circle extends Shape {
-    public function Circle() {
-        super(new String("Circle"));
+    public constructor() : super(new String("Circle")) {
     }
 }
 
 class Rectangle extends Shape {
-    public function Rectangle() {
-        super(new String("Rectangle"));
+    public constructor() : super(new String("Rectangle")) {
     }
 }
 
@@ -40,7 +38,7 @@ class Container<T extends Shape> {
 
 function printShape(Container<Shape> container): void {
     Shape s = container.getItem();
-    print(s.getName());
+    print(s.getName().toString());
 }
 
 function main(): void {

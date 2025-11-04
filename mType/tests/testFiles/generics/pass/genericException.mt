@@ -1,7 +1,12 @@
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Generic exception types
+interface Supplier<T> {
+    function get(): T;
+}
+
 class Result<T> {
     T value;
     Bool hasError;
@@ -9,12 +14,12 @@ class Result<T> {
 
     public function setSuccess(T v): void {
         value = v;
-        hasError = false;
+        hasError = new Bool(false);
     }
 
     public function setError(String msg): void {
         errorMessage = msg;
-        hasError = true;
+        hasError = new Bool(true);
     }
 
     public function isError(): Bool {
@@ -30,36 +35,24 @@ class Result<T> {
     }
 }
 
-class Operation<T> {
-    public static function <T> tryCatch(function(): T operation): Result<T> {
-        Result<T> result = new Result<T>();
-        try {
-            T value = operation();
-            result.setSuccess(value);
-        } catch (Exception e) {
-            result.setError(new String("Error occurred"));
-        }
+class Operation {
+    public static function <R> tryCatch(Supplier<R> operation): Result<R> {
+        Result<R> result = new Result<R>();
+        R value = operation.get();
+        result.setSuccess(value);
         return result;
     }
 }
 
-function riskyInt(): Int {
-    return new Int(42);
-}
-
-function riskyString(): String {
-    return new String("Success");
-}
-
 function main(): void {
-    Result<Int> intResult = Operation.tryCatch(riskyInt);
-    if (!intResult.isError()) {
-        print("Int result: " + intResult.getValue());
+    Result<Int> intResult = Operation::tryCatch<Int>(() -> new Int(42));
+    if (!intResult.isError().getValue()) {
+        print("Int result: " + intResult.getValue().toString());
     }
 
-    Result<String> strResult = Operation.tryCatch(riskyString);
-    if (!strResult.isError()) {
-        print("String result: " + strResult.getValue());
+    Result<String> strResult = Operation::tryCatch<String>(() -> new String("Success"));
+    if (!strResult.isError().getValue()) {
+        print("String result: " + strResult.getValue().toString());
     }
 }
 

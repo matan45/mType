@@ -5,7 +5,7 @@ import * from "../../lib/primitives/String.mt";
 class Producer<T> {
     T value;
 
-    public function Producer(T v) {
+    public constructor(T v) {
         value = v;
     }
 
@@ -15,8 +15,8 @@ class Producer<T> {
 }
 
 class BaseFactory {
-    public function create(): Producer<Object> {
-        return new Producer<Object>(new Object());
+    public function create(): Producer<String> {
+        return new Producer<String>(new String("Base"));
     }
 }
 
@@ -29,7 +29,8 @@ class StringFactory extends BaseFactory {
 function main(): void {
     StringFactory factory = new StringFactory();
     Producer<String> producer = factory.create();
-    print(producer.produce());
+    String result = producer.produce();
+    print(result.toString());
 }
 
 main();

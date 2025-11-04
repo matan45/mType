@@ -27,10 +27,10 @@ function <K, V> makePair(K k, V v): Pair<K, V> {
 }
 
 function main(): void {
-    // Infer type from method arguments
-    Pair<Int, String> pair = makePair(new Int(42), new String("answer"));
-    print("Key: " + pair.getKey());
-    print("Value: " + pair.getValue());
+    // Type inference from method arguments
+    Pair<Int, String> pair = makePair<Int, String>(new Int(42), new String("answer"));
+    print("Key: " + pair.getKey().toString());
+    print("Value: " + pair.getValue().toString());
 }
 
 main();

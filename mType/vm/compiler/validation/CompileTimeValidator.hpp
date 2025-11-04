@@ -40,6 +40,9 @@ namespace vm::compiler::validation
         void validateClassExists(const std::string& className, const ast::SourceLocation& location);
         void validateParentClassExists(const std::string& parentClassName, const ast::SourceLocation& location);
 
+        // Generic type validation
+        void validateTypeIsNotRawGeneric(const std::string& typeName, const ast::SourceLocation& location);
+
         // Method implementation validation (called after class registration)
         void validateAllMethodsHaveBytecode(const std::string& className, const ast::SourceLocation& location);
 

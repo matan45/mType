@@ -2,17 +2,21 @@ import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
 // Lambda capturing generic variables
+interface BinaryFunc<T> {
+    function apply(T a, T b): T;
+}
+
 class Accumulator<T> {
     T sum;
-    function(T, T): T combiner;
+    BinaryFunc<T> combiner;
 
-    public function Accumulator(T initial, function(T, T): T comb) {
+    public constructor(T initial, BinaryFunc<T> comb) {
         sum = initial;
         combiner = comb;
     }
 
     public function add(T value): void {
-        sum = combiner(sum, value);
+        sum = combiner.apply(sum, value);
     }
 
     public function getSum(): T {
@@ -23,9 +27,7 @@ class Accumulator<T> {
 function main(): void {
     Accumulator<Int> intAccum = new Accumulator<Int>(
         new Int(0),
-        function(Int a, Int b): Int {
-            return new Int(a.value + b.value);
-        }
+        (a, b) -> new Int(a.value + b.value)
     );
 
     intAccum.add(new Int(10));
@@ -36,9 +38,7 @@ function main(): void {
 
     Accumulator<String> strAccum = new Accumulator<String>(
         new String(""),
-        function(String a, String b): String {
-            return new String(a + b);
-        }
+        (a, b) -> new String(a + b)
     );
 
     strAccum.add(new String("Hello"));

@@ -2,10 +2,14 @@ import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
 // Variance in method parameters
+interface Handler<T> {
+    function handle(T item): void;
+}
+
 class Animal {
     String species;
 
-    public function Animal(String s) {
+    public constructor(String s) {
         species = s;
     }
 
@@ -15,28 +19,25 @@ class Animal {
 }
 
 class Bird extends Animal {
-    public function Bird() {
-        super(new String("Bird"));
+    public constructor() : super(new String("Bird")) {
     }
 }
 
 class Processor<T> {
-    function(T): void handler;
+    Handler<T> handler;
 
-    public function setHandler(function(T): void h): void {
+    public function setHandler(Handler<T> h): void {
         handler = h;
     }
 
     public function process(T item): void {
-        handler(item);
+        handler.handle(item);
     }
 }
 
 function main(): void {
     Processor<Animal> processor = new Processor<Animal>();
-    processor.setHandler(function(Animal a): void {
-        print("Processing: " + a.getSpecies());
-    });
+    processor.setHandler(a -> print("Processing: " + a.getSpecies()));
 
     // Contravariant parameter - can pass Bird to Animal processor
     processor.process(new Bird());

@@ -8,12 +8,12 @@ interface Tree<T extends Tree<T>> {
     function getValue(): String;
 }
 
-class BinaryTree extends Tree<BinaryTree> {
+class BinaryTree implements Tree<BinaryTree> {
     String value;
     BinaryTree left;
     BinaryTree right;
 
-    public function BinaryTree(String v) {
+    public constructor(String v) {
         value = v;
     }
 

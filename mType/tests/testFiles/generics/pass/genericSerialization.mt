@@ -7,10 +7,10 @@ interface Serializable<T> {
     function deserialize(String data): T;
 }
 
-class SerializableInt extends Serializable<Int> {
+class SerializableInt implements Serializable<Int> {
     Int value;
 
-    public function SerializableInt(Int v) {
+    public constructor(Int v) {
         value = v;
     }
 
@@ -27,10 +27,10 @@ class SerializableInt extends Serializable<Int> {
     }
 }
 
-class SerializableString extends Serializable<String> {
+class SerializableString implements Serializable<String> {
     String value;
 
-    public function SerializableString(String v) {
+    public constructor(String v) {
         value = v;
     }
 
@@ -47,20 +47,20 @@ class SerializableString extends Serializable<String> {
     }
 }
 
-class Serializer<T> {
-    public static function <T> serialize(Serializable<T> obj): String {
+class Serializer {
+    public static function <U> serialize(Serializable<U> obj): String {
         return obj.serialize();
     }
 }
 
 function main(): void {
     SerializableInt intObj = new SerializableInt(new Int(123));
-    String intSerialized = Serializer.serialize(intObj);
-    print(intSerialized);
+    String intSerialized = Serializer::serialize<Int>(intObj);
+    print(intSerialized.toString());
 
     SerializableString strObj = new SerializableString(new String("test"));
-    String strSerialized = Serializer.serialize(strObj);
-    print(strSerialized);
+    String strSerialized = Serializer::serialize<String>(strObj);
+    print(strSerialized.toString());
 }
 
 main();

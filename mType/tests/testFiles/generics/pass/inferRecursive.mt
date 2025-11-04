@@ -36,9 +36,9 @@ function <T> createChain(T first, T second): Node<T> {
 
 function main(): void {
     // Recursive type inference for linked structure
-    Node<String> chain = createChain(new String("Start"), new String("End"));
-    print(chain.getData());
-    print(chain.getNext().getData());
+    Node<String> chain = createChain<String>(new String("Start"), new String("End"));
+    print(chain.getData().toString());
+    print(chain.getNext().getData().toString());
 }
 
 main();

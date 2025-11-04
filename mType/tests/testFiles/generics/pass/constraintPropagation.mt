@@ -1,5 +1,6 @@
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Constraint propagation in inheritance hierarchy
 interface Validator {
@@ -20,7 +21,7 @@ class BaseContainer<T extends Validator> {
 
 class ExtendedContainer<T extends Validator> extends BaseContainer<T> {
     public function printValidation(): void {
-        if (isValid()) {
+        if (this.isValid().getValue()) {
             print("Valid");
         } else {
             print("Invalid");
@@ -28,10 +29,10 @@ class ExtendedContainer<T extends Validator> extends BaseContainer<T> {
     }
 }
 
-class ValidatedItem extends Validator {
+class ValidatedItem implements Validator {
     Bool valid;
 
-    public function ValidatedItem(Bool v) {
+    public constructor(Bool v) {
         valid = v;
     }
 
@@ -42,7 +43,7 @@ class ValidatedItem extends Validator {
 
 function main(): void {
     ExtendedContainer<ValidatedItem> container = new ExtendedContainer<ValidatedItem>();
-    container.setItem(new ValidatedItem(true));
+    container.setItem(new ValidatedItem(new Bool(true)));
     container.printValidation();
 }
 
