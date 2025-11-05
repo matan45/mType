@@ -2,43 +2,43 @@
 // @Script
 
 interface Animal {
-    func speak(): String;
+    function speak(): string;
 }
 
 interface Flyable {
-    func fly(): void;
+    function fly(): void;
 }
 
 class Dog implements Animal {
-    func speak(): String {
+    public function speak(): string {
         return "Woof";
     }
 }
 
 class Bird implements Animal, Flyable {
-    func speak(): String {
+    public function speak(): string {
         return "Tweet";
     }
 
-    func fly(): void {
+    public function fly(): void {
         print("Flying!");
     }
 }
 
-func processAnimal(animal: Animal): void {
+function processAnimal(Animal animal): void {
     print(animal.speak());
 
     // Check if animal is also flyable
-    if (animal instanceof Flyable) {
-        var flyable: Flyable = animal as Flyable;
+    if (animal isClassOf Flyable) {
+        Flyable flyable = (Flyable)animal;
         flyable.fly();
     } else {
         print("This animal cannot fly");
     }
 }
 
-var dog = new Dog();
-var bird = new Bird();
+Dog dog = new Dog();
+Bird bird = new Bird();
 
 processAnimal(dog);   // Should print "Woof" and "This animal cannot fly"
 processAnimal(bird);  // Should print "Tweet" and "Flying!"

@@ -1,55 +1,52 @@
 // Test generic functional interface with lambda
 // @Script
 
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+
 interface Function<T, R> {
-    func apply(input: T): R;
+    function apply(T input): R;
 }
 
 interface BiFunction<T, U, R> {
-    func apply(first: T, second: U): R;
+    function apply(T first, U second): R;
 }
 
 class LambdaFunction<T, R> implements Function<T, R> {
-    var fn: func(T): R;
+    private Function<T, R> fn;
 
-    func init(fn: func(T): R) {
+    public constructor(Function<T, R> fn) {
         this.fn = fn;
     }
 
-    func apply(input: T): R {
-        return this.fn(input);
+    public function apply(T input): R {
+        return this.fn.apply(input);
     }
 }
 
 class LambdaBiFunction<T, U, R> implements BiFunction<T, U, R> {
-    var fn: func(T, U): R;
+    private BiFunction<T, U, R> fn;
 
-    func init(fn: func(T, U): R) {
+    public constructor(BiFunction<T, U, R> fn) {
         this.fn = fn;
     }
 
-    func apply(first: T, second: U): R {
-        return this.fn(first, second);
+    public function apply(T first, U second): R {
+        return this.fn.apply(first, second);
     }
 }
 
-// String to Int function
-var strLen = new LambdaFunction<String, Int>(func(s: String): Int {
-    return s.length();
-});
+// String to int function
+Function<String, Int> strLen = s -> s.length();
 
-print(strLen.apply("Hello"));  // Should print 5
+print(strLen.apply(new String("Hello")));  // Should print 5
 
-// Int addition function
-var add = new LambdaBiFunction<Int, Int, Int>(func(a: Int, b: Int): Int {
-    return a + b;
-});
+// int addition function
+BiFunction<Int, Int, Int> add = (a, b) -> a.toInt() + b.toInt();
 
-print(add.apply(10, 20));  // Should print 30
+print(add.apply(new Int(10), new Int(20)));  // Should print 30
 
 // String concatenation function
-var concat = new LambdaBiFunction<String, String, String>(func(a: String, b: String): String {
-    return a + " " + b;
-});
+BiFunction<String, String, String> concat = (a, b) -> a + " " + b;
 
-print(concat.apply("Hello", "World"));  // Should print "Hello World"
+print(concat.apply(new String("Hello"), new String("World")));  // Should print "Hello World"

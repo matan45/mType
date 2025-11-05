@@ -1,100 +1,102 @@
 // Test mutual dependency between interfaces
 // @Script
 
+import * from "../../lib/collections/List.mt";
+
 interface Node {
-    func getId(): Int;
-    func getEdges(): EdgeList;
+    function getId(): int;
+    function getEdges(): EdgeList;
 }
 
 interface EdgeList {
-    func add(edge: Edge): void;
-    func getNode(index: Int): Node;
-    func size(): Int;
+    function add(Edge edge): void;
+    function getNode(int index): Node;
+    function size(): int;
 }
 
 interface Edge {
-    func getSource(): Node;
-    func getTarget(): Node;
+    function getSource(): Node;
+    function getTarget(): Node;
 }
 
 class GraphNode implements Node {
-    var id: Int;
-    var edges: EdgeList;
+    private int id;
+    private EdgeList edges;
 
-    func init(id: Int) {
+    public constructor(int id) {
         this.id = id;
         this.edges = new SimpleEdgeList();
     }
 
-    func getId(): Int {
+    public function getId(): int {
         return this.id;
     }
 
-    func getEdges(): EdgeList {
+    public function getEdges(): EdgeList {
         return this.edges;
     }
 
-    func addEdge(target: Node): void {
-        var edge = new GraphEdge(this, target);
+    public function addEdge(Node target): void {
+        GraphEdge edge = new GraphEdge(this, target);
         this.edges.add(edge);
     }
 }
 
 class SimpleEdgeList implements EdgeList {
-    var edges: Array<Edge>;
+    private List<Edge> edges;
 
-    func init() {
-        this.edges = new Array<Edge>();
+    public constructor() {
+        this.edges = new List<Edge>();
     }
 
-    func add(edge: Edge): void {
+    public function add(Edge edge): void {
         this.edges.add(edge);
     }
 
-    func getNode(index: Int): Node {
-        var edge = this.edges.get(index);
+    public function getNode(int index): Node {
+        Edge edge = this.edges.get(index);
         return edge.getTarget();
     }
 
-    func size(): Int {
+    public function size(): int {
         return this.edges.size();
     }
 }
 
 class GraphEdge implements Edge {
-    var source: Node;
-    var target: Node;
+    private Node source;
+    private Node target;
 
-    func init(source: Node, target: Node) {
+    public constructor(Node source, Node target) {
         this.source = source;
         this.target = target;
     }
 
-    func getSource(): Node {
+    public function getSource(): Node {
         return this.source;
     }
 
-    func getTarget(): Node {
+    public function getTarget(): Node {
         return this.target;
     }
 }
 
 // Create a simple graph
-var node1 = new GraphNode(1);
-var node2 = new GraphNode(2);
-var node3 = new GraphNode(3);
+GraphNode node1 = new GraphNode(1);
+GraphNode node2 = new GraphNode(2);
+GraphNode node3 = new GraphNode(3);
 
 node1.addEdge(node2);
 node1.addEdge(node3);
 node2.addEdge(node3);
 
-print("Node 1 has " + node1.getEdges().size().toString() + " edges");
-print("Node 2 has " + node2.getEdges().size().toString() + " edges");
+print("Node 1 has " + node1.getEdges().size() + " edges");
+print("Node 2 has " + node2.getEdges().size() + " edges");
 
-var edges = node1.getEdges();
-var i = 0;
+EdgeList edges = node1.getEdges();
+int i = 0;
 while (i < edges.size()) {
-    var targetNode = edges.getNode(i);
-    print("Node 1 connects to node " + targetNode.getId().toString());
+    Node targetNode = edges.getNode(i);
+    print("Node 1 connects to node " + targetNode.getId());
     i = i + 1;
 }

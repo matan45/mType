@@ -2,17 +2,17 @@
 // @Script
 
 interface Processor {
-    func process(data: String): void;
+    function process(string data): void;
 }
 
 class DataProcessor implements Processor {
-    func process(data: String): void {
+    public function process(string data): void {
         print("Processing: " + data);
     }
 }
 
 class Service {
-    func execute(processor: Processor): void {
+    public function execute(Processor processor): void {
         if (processor == null) {
             print("No processor provided");
             return;
@@ -21,7 +21,7 @@ class Service {
     }
 }
 
-var service = new Service();
+Service service = new Service();
 
 // Pass null - should be handled gracefully
 service.execute(null);

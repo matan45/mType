@@ -2,27 +2,27 @@
 // @Script
 
 interface Logger {
-    func log(message: String): void;
+    function log(string message): void;
 }
 
 class ConsoleLogger implements Logger {
-    func log(message: String): void {
+    public function log(string message): void {
         print("[LOG] " + message);
     }
 }
 
 class Application {
-    var logger: Logger;
+    private Logger logger;
 
-    func init() {
+    public function init() {
         this.logger = null;
     }
 
-    func setLogger(logger: Logger): void {
+    public function setLogger(Logger logger): void {
         this.logger = logger;
     }
 
-    func run(): void {
+    public function run(): void {
         // Proper null check before calling method
         if (this.logger != null) {
             this.logger.log("Application started");
@@ -39,7 +39,7 @@ class Application {
     }
 }
 
-var app = new Application();
+Application app = new Application();
 
 // Run without logger
 app.run();

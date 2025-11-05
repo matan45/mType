@@ -2,29 +2,30 @@
 // @Script
 
 interface Animal {
-    func speak(): String;
+    function speak(): string;
 }
 
 class Dog implements Animal {
-    func speak(): String {
+    public function speak(): string {
         return "Woof";
     }
 }
 
 class Cat implements Animal {
-    func speak(): String {
+    public function speak(): string {
         return "Meow";
     }
 }
 
 class AnimalHandler {
-    // Overloaded methods with different interface types
-    func handle(animal: Animal): void {
+    // Handle a single animal
+    public function handle(Animal animal): void {
         print("Handling generic animal: " + animal.speak());
     }
 
-    func handle(animal: Animal, times: Int): void {
-        var i = 0;
+    // Handle animal multiple times
+    public function handleMultiple(Animal animal, int times): void {
+        int i = 0;
         while (i < times) {
             print(animal.speak());
             i = i + 1;
@@ -32,15 +33,15 @@ class AnimalHandler {
     }
 
     // Specific handling
-    func handlePair(a1: Animal, a2: Animal): void {
+    public function handlePair(Animal a1, Animal a2): void {
         print(a1.speak() + " and " + a2.speak());
     }
 }
 
-var handler = new AnimalHandler();
-var dog = new Dog();
-var cat = new Cat();
+AnimalHandler handler = new AnimalHandler();
+Dog dog = new Dog();
+Cat cat = new Cat();
 
-handler.handle(dog);           // Should print "Handling generic animal: Woof"
-handler.handle(cat, 2);        // Should print "Meow" twice
-handler.handlePair(dog, cat);  // Should print "Woof and Meow"
+handler.handle(dog);               // Should print "Handling generic animal: Woof"
+handler.handleMultiple(cat, 2);  // Should print "Meow" twice
+handler.handlePair(dog, cat);    // Should print "Woof and Meow"

@@ -2,26 +2,26 @@
 // @Script
 
 interface Drawable {
-    func draw(): void;
+    function draw(): void;
 }
 
 interface Comparable<T> {
-    func compareTo(other: T): Int;
+    function compareTo(T other): int;
 }
 
 // Class that implements both interfaces
 class Shape implements Drawable, Comparable<Shape> {
-    var size: Int;
+    private int size;
 
-    func init(size: Int) {
+    public constructor(int size) {
         this.size = size;
     }
 
-    func draw(): void {
-        print("Drawing shape of size: " + this.size.toString());
+    public function draw(): void {
+        print("Drawing shape of size: " + this.size);
     }
 
-    func compareTo(other: Shape): Int {
+    public function compareTo(Shape other): int {
         if (this.size < other.size) {
             return -1;
         }
@@ -33,9 +33,9 @@ class Shape implements Drawable, Comparable<Shape> {
 }
 
 // Function requiring both interfaces
-func drawAndCompare(shape: Shape, other: Shape): void {
+function drawAndCompare(Shape shape, Shape other): void {
     shape.draw();
-    var result = shape.compareTo(other);
+    int result = shape.compareTo(other);
     if (result > 0) {
         print("First shape is larger");
     } else if (result < 0) {
@@ -45,7 +45,7 @@ func drawAndCompare(shape: Shape, other: Shape): void {
     }
 }
 
-var s1 = new Shape(10);
-var s2 = new Shape(20);
+Shape s1 = new Shape(10);
+Shape s2 = new Shape(20);
 
 drawAndCompare(s1, s2);

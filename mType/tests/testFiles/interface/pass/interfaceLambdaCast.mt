@@ -2,65 +2,47 @@
 // @Script
 
 interface Runnable {
-    func run(): void;
+    function run(): void;
 }
 
 interface Supplier<T> {
-    func get(): T;
+    function get(): T;
 }
 
-class LambdaRunnable implements Runnable {
-    var fn: func(): void;
-
-    func init(fn: func(): void) {
-        this.fn = fn;
-    }
-
-    func run(): void {
-        this.fn();
+class SimpleRunnable implements Runnable {
+    public function run(): void {
+        print("Task is running");
     }
 }
 
-class LambdaSupplier<T> implements Supplier<T> {
-    var fn: func(): T;
-
-    func init(fn: func(): T) {
-        this.fn = fn;
-    }
-
-    func get(): T {
-        return this.fn();
+class StringSupplier implements Supplier<string> {
+    public function get(): string {
+        return "Result from supplier";
     }
 }
 
 class TaskExecutor {
-    func execute(task: Runnable): void {
+    public function execute(Runnable task): void {
         print("Executing task...");
         task.run();
         print("Task completed");
     }
 
-    func executeWithResult<T>(supplier: Supplier<T>): T {
+    public function executeWithResult<T>(Supplier<T> supplier): T {
         print("Executing supplier...");
-        var result = supplier.get();
+        T result = supplier.get();
         print("Supplier completed");
         return result;
     }
 }
 
-var executor = new TaskExecutor();
+TaskExecutor executor = new TaskExecutor();
 
-// Create lambda runnable
-var task = new LambdaRunnable(func(): void {
-    print("Task is running");
-});
-
+// Create runnable
+SimpleRunnable task = new SimpleRunnable();
 executor.execute(task);
 
-// Create lambda supplier
-var supplier = new LambdaSupplier<String>(func(): String {
-    return "Result from supplier";
-});
-
-var result = executor.executeWithResult<String>(supplier);
+// Create supplier
+StringSupplier supplier = new StringSupplier();
+string result = executor.executeWithResult<string>(supplier);
 print(result);

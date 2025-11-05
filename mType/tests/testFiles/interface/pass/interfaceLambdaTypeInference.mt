@@ -1,25 +1,40 @@
 // Test lambda type inference with interface
 // @Script
 
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/primitives/Int.mt";
+
 interface Comparator<T> {
-    func compare(a: T, b: T): Int;
+    function compare(T a, T b): int;
+}
+
+class IntComparator implements Comparator<Int> {
+    public function compare(Int a, Int b): int {
+        if (a.getValue() < b.getValue()) {
+            return -1;
+        }
+        if (a.getValue() > b.getValue()) {
+            return 1;
+        }
+        return 0;
+    }
 }
 
 class Sorter<T> {
-    var items: Array<T>;
+    private List<T> items;
 
-    func init(items: Array<T>) {
+    public constructor(List<T> items) {
         this.items = items;
     }
 
-    func sort(comparator: Comparator<T>): void {
-        var n = this.items.size();
-        var i = 0;
+    public function sort(Comparator<T> comparator): void {
+        int n = this.items.size();
+        int i = 0;
         while (i < n - 1) {
-            var j = 0;
+            int j = 0;
             while (j < n - i - 1) {
-                var a = this.items.get(j);
-                var b = this.items.get(j + 1);
+                T a = this.items.get(j);
+                T b = this.items.get(j + 1);
                 if (comparator.compare(a, b) > 0) {
                     this.items.set(j, b);
                     this.items.set(j + 1, a);
@@ -31,43 +46,23 @@ class Sorter<T> {
     }
 }
 
-class LambdaComparator<T> implements Comparator<T> {
-    var fn: func(T, T): Int;
+List<Int> numbers = new List<Int>();
+numbers.add(new Int(5));
+numbers.add(new Int(2));
+numbers.add(new Int(8));
+numbers.add(new Int(1));
+numbers.add(new Int(9));
 
-    func init(fn: func(T, T): Int) {
-        this.fn = fn;
-    }
-
-    func compare(a: T, b: T): Int {
-        return this.fn(a, b);
-    }
-}
-
-var numbers = new Array<Int>();
-numbers.add(5);
-numbers.add(2);
-numbers.add(8);
-numbers.add(1);
-numbers.add(9);
-
-var sorter = new Sorter<Int>(numbers);
+Sorter<Int> sorter = new Sorter<Int>(numbers);
 
 // Lambda with inferred types
-var ascendingComparator = new LambdaComparator<Int>(func(a: Int, b: Int): Int {
-    if (a < b) {
-        return -1;
-    }
-    if (a > b) {
-        return 1;
-    }
-    return 0;
-});
+IntComparator ascendingComparator = new IntComparator();
 
 sorter.sort(ascendingComparator);
 
 print("Sorted:");
-var i = 0;
+int i = 0;
 while (i < numbers.size()) {
-    print(numbers.get(i));
+    print(numbers.get(i).toString());
     i = i + 1;
 }

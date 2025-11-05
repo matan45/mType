@@ -2,52 +2,52 @@
 // @Script
 
 interface Base {
-    func getId(): Int;
+    function getId(): int;
 }
 
 interface Extended extends Base {
-    func getName(): String;
+    function getName(): string;
 }
 
 class Implementation implements Extended {
-    var id: Int;
-    var name: String;
+    private int id;
+    private string name;
 
-    func init(id: Int, name: String) {
+    public constructor(int id, string name) {
         this.id = id;
         this.name = name;
     }
 
-    func getId(): Int {
+    public function getId(): int {
         return this.id;
     }
 
-    func getName(): String {
+    public function getName(): string {
         return this.name;
     }
 }
 
 // Create as Extended
-var extended: Extended = new Implementation(1, "Test");
+Extended extended = new Implementation(1, "Test");
 print(extended.getId());
 print(extended.getName());
 
 // Cast to Base (upcast - always safe)
-var base: Base = extended as Base;
+Base base = (Base)extended;
 print(base.getId());
 
 // Cast back to Extended (downcast - needs runtime check)
 if (base instanceof Extended) {
-    var extended2: Extended = base as Extended;
+    Extended extended2 = (Extended)base;
     print(extended2.getName());
 }
 
 // Test with polymorphic function
-func processBase(base: Base): void {
-    print("Processing base with id: " + base.getId().toString());
+function processBase(Base base): void {
+    print("Processing base with id: " + base.getId());
 
     if (base instanceof Extended) {
-        var ext: Extended = base as Extended;
+        Extended ext = (Extended)base;
         print("  Name: " + ext.getName());
     } else {
         print("  Not an extended interface");

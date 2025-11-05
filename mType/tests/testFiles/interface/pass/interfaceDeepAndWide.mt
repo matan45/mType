@@ -3,110 +3,110 @@
 
 // Level 1
 interface Level1A {
-    func l1a(): Int;
+    function l1a(): int;
 }
 
 interface Level1B {
-    func l1b(): Int;
+    function l1b(): int;
 }
 
 interface Level1C {
-    func l1c(): Int;
+    function l1c(): int;
 }
 
 // Level 2
 interface Level2A extends Level1A {
-    func l2a(): Int;
+    function l2a(): int;
 }
 
 interface Level2B extends Level1B {
-    func l2b(): Int;
+    function l2b(): int;
 }
 
 interface Level2C extends Level1C {
-    func l2c(): Int;
+    function l2c(): int;
 }
 
 // Level 3
 interface Level3A extends Level2A {
-    func l3a(): Int;
+    function l3a(): int;
 }
 
 interface Level3B extends Level2B {
-    func l3b(): Int;
+    function l3b(): int;
 }
 
 interface Level3C extends Level2C {
-    func l3c(): Int;
+    function l3c(): int;
 }
 
 // Level 4
 interface Level4A extends Level3A {
-    func l4a(): Int;
+    function l4a(): int;
 }
 
 interface Level4B extends Level3B {
-    func l4b(): Int;
+    function l4b(): int;
 }
 
 interface Level4C extends Level3C {
-    func l4c(): Int;
+    function l4c(): int;
 }
 
 // Level 5
 interface Level5 extends Level4A, Level4B, Level4C {
-    func l5(): Int;
+    function l5(): int;
 }
 
 // Implementation of deepest interface
 class DeepWideImpl implements Level5 {
     // Level 1
-    func l1a(): Int { return 1; }
-    func l1b(): Int { return 1; }
-    func l1c(): Int { return 1; }
+    public function l1a(): int { return 1; }
+    public function l1b(): int { return 1; }
+    public function l1c(): int { return 1; }
 
     // Level 2
-    func l2a(): Int { return 2; }
-    func l2b(): Int { return 2; }
-    func l2c(): Int { return 2; }
+    public function l2a(): int { return 2; }
+    public function l2b(): int { return 2; }
+    public function l2c(): int { return 2; }
 
     // Level 3
-    func l3a(): Int { return 3; }
-    func l3b(): Int { return 3; }
-    func l3c(): Int { return 3; }
+    public function l3a(): int { return 3; }
+    public function l3b(): int { return 3; }
+    public function l3c(): int { return 3; }
 
     // Level 4
-    func l4a(): Int { return 4; }
-    func l4b(): Int { return 4; }
-    func l4c(): Int { return 4; }
+    public function l4a(): int { return 4; }
+    public function l4b(): int { return 4; }
+    public function l4c(): int { return 4; }
 
     // Level 5
-    func l5(): Int { return 5; }
+    public function l5(): int { return 5; }
 }
 
-var impl = new DeepWideImpl();
+DeepWideImpl impl = new DeepWideImpl();
 
 // Access from different levels
-var level1: Level1A = impl;
+Level1A level1 = impl;
 print(level1.l1a());
 
-var level2: Level2A = impl;
+Level2A level2 = impl;
 print(level2.l2a());
 
-var level3: Level3A = impl;
+Level3A level3 = impl;
 print(level3.l3a());
 
-var level4: Level4A = impl;
+Level4A level4 = impl;
 print(level4.l4a());
 
-var level5: Level5 = impl;
+Level5 level5 = impl;
 print(level5.l5());
 
 // Cross-cast test
-var l1b: Level1B = level5 as Level1B;
+Level1B l1b = (Level1B)level5;
 print(l1b.l1b());
 
-var l3c: Level3C = level2 as Level3C;
+Level3C l3c = (Level3C)level2;
 print(l3c.l3c());
 
 print("Deep and wide interface test passed");

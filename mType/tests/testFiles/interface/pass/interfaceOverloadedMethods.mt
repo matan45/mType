@@ -2,22 +2,22 @@
 // @Script
 
 interface Printer {
-    func print(message: String): void;
-    func print(value: Int): void;
-    func print(flag: Bool): void;
+    function print(String message): void;
+    function print(Int value): void;
+    function print(Bool flag): void;
 }
 
 class ConsolePrinter implements Printer {
-    func print(message: String): void {
+    public function print(String message): void {
         print("[String] " + message);
     }
 
-    func print(value: Int): void {
-        print("[Int] " + value.toString());
+    public function print(Int value): void {
+        print("[Int] " + value);
     }
 
-    func print(flag: Bool): void {
-        var msg = "true";
+    public function print(Bool flag): void {
+        String msg = "true";
         if (!flag) {
             msg = "false";
         }
@@ -25,7 +25,7 @@ class ConsolePrinter implements Printer {
     }
 }
 
-var printer = new ConsolePrinter();
+ConsolePrinter printer = new ConsolePrinter();
 printer.print("Hello");
 printer.print(42);
 printer.print(true);

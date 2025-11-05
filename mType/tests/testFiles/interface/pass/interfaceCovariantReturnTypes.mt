@@ -2,42 +2,41 @@
 // @Script
 
 class Animal {
-    var name: String;
+    public string name;
 
-    func init(name: String) {
+    public constructor(string name) {
         this.name = name;
     }
 }
 
 class Dog extends Animal {
-    func init(name: String) {
-        super.init(name);
+    public constructor(string name) : super(name) {
     }
 
-    func bark(): void {
+    public function bark(): void {
         print("Woof!");
     }
 }
 
 interface AnimalFactory {
-    func create(): Animal;
+    function create(): Animal;
 }
 
 interface DogFactory {
-    func create(): Dog;
+    function create(): Dog;
 }
 
 // Covariant return types - Dog is subtype of Animal
 class PetFactory implements AnimalFactory, DogFactory {
-    func create(): Dog {
+    public function create(): Dog {
         // Returns Dog, which satisfies both Animal and Dog requirements
         return new Dog("Buddy");
     }
 }
 
-var factory = new PetFactory();
-var animal: Animal = factory.create();
-var dog: Dog = factory.create();
+PetFactory factory = new PetFactory();
+Animal animal = factory.create();
+Dog dog = factory.create();
 
 print(animal.name);  // Should print "Buddy"
 print(dog.name);     // Should print "Buddy"

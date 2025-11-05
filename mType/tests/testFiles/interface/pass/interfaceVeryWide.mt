@@ -2,212 +2,212 @@
 // @Script
 
 interface VeryWideInterface {
-    func method001(): Int;
-    func method002(): Int;
-    func method003(): Int;
-    func method004(): Int;
-    func method005(): Int;
-    func method006(): Int;
-    func method007(): Int;
-    func method008(): Int;
-    func method009(): Int;
-    func method010(): Int;
-    func method011(): Int;
-    func method012(): Int;
-    func method013(): Int;
-    func method014(): Int;
-    func method015(): Int;
-    func method016(): Int;
-    func method017(): Int;
-    func method018(): Int;
-    func method019(): Int;
-    func method020(): Int;
-    func method021(): Int;
-    func method022(): Int;
-    func method023(): Int;
-    func method024(): Int;
-    func method025(): Int;
-    func method026(): Int;
-    func method027(): Int;
-    func method028(): Int;
-    func method029(): Int;
-    func method030(): Int;
-    func method031(): Int;
-    func method032(): Int;
-    func method033(): Int;
-    func method034(): Int;
-    func method035(): Int;
-    func method036(): Int;
-    func method037(): Int;
-    func method038(): Int;
-    func method039(): Int;
-    func method040(): Int;
-    func method041(): Int;
-    func method042(): Int;
-    func method043(): Int;
-    func method044(): Int;
-    func method045(): Int;
-    func method046(): Int;
-    func method047(): Int;
-    func method048(): Int;
-    func method049(): Int;
-    func method050(): Int;
-    func method051(): Int;
-    func method052(): Int;
-    func method053(): Int;
-    func method054(): Int;
-    func method055(): Int;
-    func method056(): Int;
-    func method057(): Int;
-    func method058(): Int;
-    func method059(): Int;
-    func method060(): Int;
-    func method061(): Int;
-    func method062(): Int;
-    func method063(): Int;
-    func method064(): Int;
-    func method065(): Int;
-    func method066(): Int;
-    func method067(): Int;
-    func method068(): Int;
-    func method069(): Int;
-    func method070(): Int;
-    func method071(): Int;
-    func method072(): Int;
-    func method073(): Int;
-    func method074(): Int;
-    func method075(): Int;
-    func method076(): Int;
-    func method077(): Int;
-    func method078(): Int;
-    func method079(): Int;
-    func method080(): Int;
-    func method081(): Int;
-    func method082(): Int;
-    func method083(): Int;
-    func method084(): Int;
-    func method085(): Int;
-    func method086(): Int;
-    func method087(): Int;
-    func method088(): Int;
-    func method089(): Int;
-    func method090(): Int;
-    func method091(): Int;
-    func method092(): Int;
-    func method093(): Int;
-    func method094(): Int;
-    func method095(): Int;
-    func method096(): Int;
-    func method097(): Int;
-    func method098(): Int;
-    func method099(): Int;
-    func method100(): Int;
+    function method001(): int;
+    function method002(): int;
+    function method003(): int;
+    function method004(): int;
+    function method005(): int;
+    function method006(): int;
+    function method007(): int;
+    function method008(): int;
+    function method009(): int;
+    function method010(): int;
+    function method011(): int;
+    function method012(): int;
+    function method013(): int;
+    function method014(): int;
+    function method015(): int;
+    function method016(): int;
+    function method017(): int;
+    function method018(): int;
+    function method019(): int;
+    function method020(): int;
+    function method021(): int;
+    function method022(): int;
+    function method023(): int;
+    function method024(): int;
+    function method025(): int;
+    function method026(): int;
+    function method027(): int;
+    function method028(): int;
+    function method029(): int;
+    function method030(): int;
+    function method031(): int;
+    function method032(): int;
+    function method033(): int;
+    function method034(): int;
+    function method035(): int;
+    function method036(): int;
+    function method037(): int;
+    function method038(): int;
+    function method039(): int;
+    function method040(): int;
+    function method041(): int;
+    function method042(): int;
+    function method043(): int;
+    function method044(): int;
+    function method045(): int;
+    function method046(): int;
+    function method047(): int;
+    function method048(): int;
+    function method049(): int;
+    function method050(): int;
+    function method051(): int;
+    function method052(): int;
+    function method053(): int;
+    function method054(): int;
+    function method055(): int;
+    function method056(): int;
+    function method057(): int;
+    function method058(): int;
+    function method059(): int;
+    function method060(): int;
+    function method061(): int;
+    function method062(): int;
+    function method063(): int;
+    function method064(): int;
+    function method065(): int;
+    function method066(): int;
+    function method067(): int;
+    function method068(): int;
+    function method069(): int;
+    function method070(): int;
+    function method071(): int;
+    function method072(): int;
+    function method073(): int;
+    function method074(): int;
+    function method075(): int;
+    function method076(): int;
+    function method077(): int;
+    function method078(): int;
+    function method079(): int;
+    function method080(): int;
+    function method081(): int;
+    function method082(): int;
+    function method083(): int;
+    function method084(): int;
+    function method085(): int;
+    function method086(): int;
+    function method087(): int;
+    function method088(): int;
+    function method089(): int;
+    function method090(): int;
+    function method091(): int;
+    function method092(): int;
+    function method093(): int;
+    function method094(): int;
+    function method095(): int;
+    function method096(): int;
+    function method097(): int;
+    function method098(): int;
+    function method099(): int;
+    function method100(): int;
 }
 
 class VeryWideImplementation implements VeryWideInterface {
-    func method001(): Int { return 1; }
-    func method002(): Int { return 2; }
-    func method003(): Int { return 3; }
-    func method004(): Int { return 4; }
-    func method005(): Int { return 5; }
-    func method006(): Int { return 6; }
-    func method007(): Int { return 7; }
-    func method008(): Int { return 8; }
-    func method009(): Int { return 9; }
-    func method010(): Int { return 10; }
-    func method011(): Int { return 11; }
-    func method012(): Int { return 12; }
-    func method013(): Int { return 13; }
-    func method014(): Int { return 14; }
-    func method015(): Int { return 15; }
-    func method016(): Int { return 16; }
-    func method017(): Int { return 17; }
-    func method018(): Int { return 18; }
-    func method019(): Int { return 19; }
-    func method020(): Int { return 20; }
-    func method021(): Int { return 21; }
-    func method022(): Int { return 22; }
-    func method023(): Int { return 23; }
-    func method024(): Int { return 24; }
-    func method025(): Int { return 25; }
-    func method026(): Int { return 26; }
-    func method027(): Int { return 27; }
-    func method028(): Int { return 28; }
-    func method029(): Int { return 29; }
-    func method030(): Int { return 30; }
-    func method031(): Int { return 31; }
-    func method032(): Int { return 32; }
-    func method033(): Int { return 33; }
-    func method034(): Int { return 34; }
-    func method035(): Int { return 35; }
-    func method036(): Int { return 36; }
-    func method037(): Int { return 37; }
-    func method038(): Int { return 38; }
-    func method039(): Int { return 39; }
-    func method040(): Int { return 40; }
-    func method041(): Int { return 41; }
-    func method042(): Int { return 42; }
-    func method043(): Int { return 43; }
-    func method044(): Int { return 44; }
-    func method045(): Int { return 45; }
-    func method046(): Int { return 46; }
-    func method047(): Int { return 47; }
-    func method048(): Int { return 48; }
-    func method049(): Int { return 49; }
-    func method050(): Int { return 50; }
-    func method051(): Int { return 51; }
-    func method052(): Int { return 52; }
-    func method053(): Int { return 53; }
-    func method054(): Int { return 54; }
-    func method055(): Int { return 55; }
-    func method056(): Int { return 56; }
-    func method057(): Int { return 57; }
-    func method058(): Int { return 58; }
-    func method059(): Int { return 59; }
-    func method060(): Int { return 60; }
-    func method061(): Int { return 61; }
-    func method062(): Int { return 62; }
-    func method063(): Int { return 63; }
-    func method064(): Int { return 64; }
-    func method065(): Int { return 65; }
-    func method066(): Int { return 66; }
-    func method067(): Int { return 67; }
-    func method068(): Int { return 68; }
-    func method069(): Int { return 69; }
-    func method070(): Int { return 70; }
-    func method071(): Int { return 71; }
-    func method072(): Int { return 72; }
-    func method073(): Int { return 73; }
-    func method074(): Int { return 74; }
-    func method075(): Int { return 75; }
-    func method076(): Int { return 76; }
-    func method077(): Int { return 77; }
-    func method078(): Int { return 78; }
-    func method079(): Int { return 79; }
-    func method080(): Int { return 80; }
-    func method081(): Int { return 81; }
-    func method082(): Int { return 82; }
-    func method083(): Int { return 83; }
-    func method084(): Int { return 84; }
-    func method085(): Int { return 85; }
-    func method086(): Int { return 86; }
-    func method087(): Int { return 87; }
-    func method088(): Int { return 88; }
-    func method089(): Int { return 89; }
-    func method090(): Int { return 90; }
-    func method091(): Int { return 91; }
-    func method092(): Int { return 92; }
-    func method093(): Int { return 93; }
-    func method094(): Int { return 94; }
-    func method095(): Int { return 95; }
-    func method096(): Int { return 96; }
-    func method097(): Int { return 97; }
-    func method098(): Int { return 98; }
-    func method099(): Int { return 99; }
-    func method100(): Int { return 100; }
+    public function method001(): int { return 1; }
+    public function method002(): int { return 2; }
+    public function method003(): int { return 3; }
+    public function method004(): int { return 4; }
+    public function method005(): int { return 5; }
+    public function method006(): int { return 6; }
+    public function method007(): int { return 7; }
+    public function method008(): int { return 8; }
+    public function method009(): int { return 9; }
+    public function method010(): int { return 10; }
+    public function method011(): int { return 11; }
+    public function method012(): int { return 12; }
+    public function method013(): int { return 13; }
+    public function method014(): int { return 14; }
+    public function method015(): int { return 15; }
+    public function method016(): int { return 16; }
+    public function method017(): int { return 17; }
+    public function method018(): int { return 18; }
+    public function method019(): int { return 19; }
+    public function method020(): int { return 20; }
+    public function method021(): int { return 21; }
+    public function method022(): int { return 22; }
+    public function method023(): int { return 23; }
+    public function method024(): int { return 24; }
+    public function method025(): int { return 25; }
+    public function method026(): int { return 26; }
+    public function method027(): int { return 27; }
+    public function method028(): int { return 28; }
+    public function method029(): int { return 29; }
+    public function method030(): int { return 30; }
+    public function method031(): int { return 31; }
+    public function method032(): int { return 32; }
+    public function method033(): int { return 33; }
+    public function method034(): int { return 34; }
+    public function method035(): int { return 35; }
+    public function method036(): int { return 36; }
+    public function method037(): int { return 37; }
+    public function method038(): int { return 38; }
+    public function method039(): int { return 39; }
+    public function method040(): int { return 40; }
+    public function method041(): int { return 41; }
+    public function method042(): int { return 42; }
+    public function method043(): int { return 43; }
+    public function method044(): int { return 44; }
+    public function method045(): int { return 45; }
+    public function method046(): int { return 46; }
+    public function method047(): int { return 47; }
+    public function method048(): int { return 48; }
+    public function method049(): int { return 49; }
+    public function method050(): int { return 50; }
+    public function method051(): int { return 51; }
+    public function method052(): int { return 52; }
+    public function method053(): int { return 53; }
+    public function method054(): int { return 54; }
+    public function method055(): int { return 55; }
+    public function method056(): int { return 56; }
+    public function method057(): int { return 57; }
+    public function method058(): int { return 58; }
+    public function method059(): int { return 59; }
+    public function method060(): int { return 60; }
+    public function method061(): int { return 61; }
+    public function method062(): int { return 62; }
+    public function method063(): int { return 63; }
+    public function method064(): int { return 64; }
+    public function method065(): int { return 65; }
+    public function method066(): int { return 66; }
+    public function method067(): int { return 67; }
+    public function method068(): int { return 68; }
+    public function method069(): int { return 69; }
+    public function method070(): int { return 70; }
+    public function method071(): int { return 71; }
+    public function method072(): int { return 72; }
+    public function method073(): int { return 73; }
+    public function method074(): int { return 74; }
+    public function method075(): int { return 75; }
+    public function method076(): int { return 76; }
+    public function method077(): int { return 77; }
+    public function method078(): int { return 78; }
+    public function method079(): int { return 79; }
+    public function method080(): int { return 80; }
+    public function method081(): int { return 81; }
+    public function method082(): int { return 82; }
+    public function method083(): int { return 83; }
+    public function method084(): int { return 84; }
+    public function method085(): int { return 85; }
+    public function method086(): int { return 86; }
+    public function method087(): int { return 87; }
+    public function method088(): int { return 88; }
+    public function method089(): int { return 89; }
+    public function method090(): int { return 90; }
+    public function method091(): int { return 91; }
+    public function method092(): int { return 92; }
+    public function method093(): int { return 93; }
+    public function method094(): int { return 94; }
+    public function method095(): int { return 95; }
+    public function method096(): int { return 96; }
+    public function method097(): int { return 97; }
+    public function method098(): int { return 98; }
+    public function method099(): int { return 99; }
+    public function method100(): int { return 100; }
 }
 
-var impl = new VeryWideImplementation();
+VeryWideImplementation impl = new VeryWideImplementation();
 print(impl.method001());
 print(impl.method050());
 print(impl.method100());

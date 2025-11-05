@@ -2,51 +2,56 @@
 // @Script
 
 interface Builder {
-    func withName(name: String): Builder;
-    func withAge(age: Int): Builder;
-    func build(): Person;
+    function withName(string name): Builder;
+    function withAge(int age): Builder;
+    function build(): Person;
 }
 
 class Person {
-    var name: String;
-    var age: Int;
+    private string name;
+    private int age;
 
-    func init(name: String, age: Int) {
-        this.name = name;
-        this.age = age;
-    }
-
-    func display(): void {
-        print("Person: " + this.name + ", Age: " + this.age.toString());
-    }
-}
-
-class PersonBuilder implements Builder {
-    var name: String;
-    var age: Int;
-
-    func init() {
+    public constructor() {
         this.name = "Unknown";
         this.age = 0;
     }
 
-    func withName(name: String): Builder {
+    public constructor(string name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+
+    public function display(): void {
+        print("Person: " + this.name + ", Age: " + this.age);
+    }
+}
+
+class PersonBuilder implements Builder {
+    private string name;
+    private int age;
+
+    public constructor() {
+        this.name = "Unknown";
+        this.age = 0;
+    }
+
+    public function withName(string name): Builder {
         this.name = name;
         return this;  // Return self for chaining
     }
 
-    func withAge(age: Int): Builder {
+    public function withAge(int age): Builder {
         this.age = age;
         return this;  // Return self for chaining
     }
 
-    func build(): Person {
+    public function build(): Person {
         return new Person(this.name, this.age);
     }
 }
 
 // Fluent interface / method chaining
-var person = new PersonBuilder()
+Person person = new PersonBuilder()
     .withName("Alice")
     .withAge(30)
     .build();
@@ -54,7 +59,7 @@ var person = new PersonBuilder()
 person.display();
 
 // Another example with different order
-var person2 = new PersonBuilder()
+Person person2 = new PersonBuilder()
     .withAge(25)
     .withName("Bob")
     .build();

@@ -1,84 +1,90 @@
 // Test deeply nested generic interfaces
 // @Script
 
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+
 interface Container<T> {
-    func get(): T;
-    func set(value: T): void;
+    function get(): T;
+    function set(T value): void;
 }
 
 interface Pair<K, V> {
-    func getKey(): K;
-    func getValue(): V;
+    function getKey(): K;
+    function getValue(): V;
 }
 
-// Nested generic: Container<Pair<String, Int>>
+// Nested generic: Container<Pair<string, int>>
 class SimplePair<K, V> implements Pair<K, V> {
-    var key: K;
-    var value: V;
+    private K key;
+    private V value;
 
-    func init(key: K, value: V) {
+    public constructor(K key, V value) {
         this.key = key;
         this.value = value;
     }
 
-    func getKey(): K {
+    public function getKey(): K {
         return this.key;
     }
 
-    func getValue(): V {
+    public function getValue(): V {
         return this.value;
     }
 }
 
 class SimpleContainer<T> implements Container<T> {
-    var value: T;
+    private T value;
 
-    func init(value: T) {
+    public constructor(T value) {
         this.value = value;
     }
 
-    func get(): T {
+    public function get(): T {
         return this.value;
     }
 
-    func set(value: T): void {
+    public function set(T value): void {
         this.value = value;
     }
 }
 
 // Very deep nesting: Container<Container<Container<String>>>
-var c1 = new SimpleContainer<String>("deep");
-var c2 = new SimpleContainer<Container<String>>(c1);
-var c3 = new SimpleContainer<Container<Container<String>>>(c2);
+Container<String> c1 = new SimpleContainer<String>(new String("deep"));
+Container<Container<String>> c2 = new SimpleContainer<Container<String>>(c1);
+Container<Container<Container<String>>> c3 = new SimpleContainer<Container<Container<String>>>(c2);
 
-var retrieved = c3.get().get().get();
-print(retrieved);
+string retrieved = c3.get().get().get();
+print(retrieved.toString());
 
 // Complex nesting: Container<Pair<String, Container<Int>>>
-var intContainer = new SimpleContainer<Int>(42);
-var pair = new SimplePair<String, Container<Int>>("answer", intContainer);
-var complexContainer = new SimpleContainer<Pair<String, Container<Int>>>(pair);
+Container<Int> intContainer = new SimpleContainer<Int>(new Int(42));
+Pair<String, Container<Int>> pair = new SimplePair<String, Container<Int>>(new String("answer"), intContainer);
+Container<Pair<String, Container<Int>>> complexContainer = new SimpleContainer<Pair<String, Container<Int>>>(pair);
 
-var retrievedPair = complexContainer.get();
-print(retrievedPair.getKey());
-print(retrievedPair.getValue().get());
+Pair<String, Container<Int>> retrievedPair = complexContainer.get();
+print(retrievedPair.getKey().toString());
+print(retrievedPair.getValue().get().toString());
 
-// Array of nested generics: Array<Container<Pair<String, Int>>>
-var array = new Array<Container<Pair<String, Int>>>();
-var p1 = new SimplePair<String, Int>("first", 1);
-var p2 = new SimplePair<String, Int>("second", 2);
-var p3 = new SimplePair<String, Int>("third", 3);
+// Array of nested generics: List<Container<Pair<String, Int>>>
+List<Container<Pair<String, Int>>> array = new List<Container<Pair<String, Int>>>();
+Pair<String, Int> p1 = new SimplePair<String, Int>(new String("first"), new Int(1));
+Pair<String, Int> p2 = new SimplePair<String, Int>(new String("second"), new Int(2));
+Pair<String, Int> p3 = new SimplePair<String, Int>(new String("third"), new Int(3));
 
-array.add(new SimpleContainer<Pair<String, Int>>(p1));
-array.add(new SimpleContainer<Pair<String, Int>>(p2));
-array.add(new SimpleContainer<Pair<String, Int>>(p3));
+Container<Pair<String, Int>> cp1 = new SimpleContainer<Pair<String, Int>>(p1);
+Container<Pair<String, Int>> cp2 = new SimpleContainer<Pair<String, Int>>(p2);
+Container<Pair<String, Int>> cp3 = new SimpleContainer<Pair<String, Int>>(p3);
 
-var i = 0;
-while (i < array.size()) {
-    var containerPair = array.get(i);
-    var pair = containerPair.get();
-    print(pair.getKey() + ": " + pair.getValue().toString());
-    i = i + 1;
+array.add(cp1);
+array.add(cp2);
+array.add(cp3);
+
+for (int i = 0; i < array.size(); i++) {
+    Container<Pair<String, Int>> containerPair = array.get(i);
+    Pair<String, Int> pair = containerPair.get();
+    print(pair.getKey().toString() + ": " + pair.getValue().toString());
 }
 
 print("Deeply nested generics test passed");

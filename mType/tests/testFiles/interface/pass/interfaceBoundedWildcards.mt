@@ -1,18 +1,20 @@
 // Test bounded generic types beyond simple extends
 // @Script
 
+import * from "../../lib/collections/List.mt";
+
 interface Comparable<T> {
-    func compareTo(other: T): Int;
+    function compareTo(T other): int;
 }
 
 class Number implements Comparable<Number> {
-    var value: Int;
+    public int value;
 
-    func init(value: Int) {
+    public constructor(int value) {
         this.value = value;
     }
 
-    func compareTo(other: Number): Int {
+    public function compareTo(Number other): int {
         if (this.value < other.value) {
             return -1;
         }
@@ -24,43 +26,41 @@ class Number implements Comparable<Number> {
 }
 
 interface Container<T extends Comparable<T>> {
-    func add(item: T): void;
-    func findMax(): T;
+    function add(T item): void;
+    function findMax(): T;
 }
 
 class NumberContainer implements Container<Number> {
-    var items: Array<Number>;
+    private List<Number> items;
 
-    func init() {
-        this.items = new Array<Number>();
+    public constructor() {
+        this.items = new List<Number>();
     }
 
-    func add(item: Number): void {
+    public function add(Number item): void {
         this.items.add(item);
     }
 
-    func findMax(): Number {
+    public function findMax(): Number {
         if (this.items.size() == 0) {
             return new Number(0);
         }
 
-        var max = this.items.get(0);
-        var i = 1;
-        while (i < this.items.size()) {
-            var current = this.items.get(i);
+        Number max = this.items.get(0);
+        for (int i = 1; i < this.items.size(); i++) {
+            Number current = this.items.get(i);
             if (current.compareTo(max) > 0) {
                 max = current;
             }
-            i = i + 1;
         }
         return max;
     }
 }
 
-var container = new NumberContainer();
+NumberContainer container = new NumberContainer();
 container.add(new Number(5));
 container.add(new Number(10));
 container.add(new Number(3));
 
-var max = container.findMax();
+Number max = container.findMax();
 print(max.value);  // Should print 10

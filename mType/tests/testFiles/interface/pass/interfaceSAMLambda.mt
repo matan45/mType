@@ -1,26 +1,42 @@
 // Test single abstract method interface with lambda
 // @Script
 
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
+
 interface Predicate<T> {
-    func test(value: T): Bool;
+    function test(T value): bool;
 }
 
 interface Transformer<T, R> {
-    func transform(input: T): R;
+    function transform(T input): R;
+}
+
+class IntPredicate implements Predicate<Int> {
+    public function test(Int value): bool {
+        return value.getValue() % 2 == 0;
+    }
+}
+
+class IntDoubleTransformer implements Transformer<Int, Int> {
+    public function transform(Int input): Int {
+        return new Int(input.getValue() * 2);
+    }
 }
 
 class ListFilter<T> {
-    var items: Array<T>;
+    private List<T> items;
 
-    func init(items: Array<T>) {
+    public constructor(List<T> items) {
         this.items = items;
     }
 
-    func filter(predicate: Predicate<T>): Array<T> {
-        var result = new Array<T>();
-        var i = 0;
+    public function filter(Predicate<T> predicate): List<T> {
+        List<T> result = new List<T>();
+        int i = 0;
         while (i < this.items.size()) {
-            var item = this.items.get(i);
+            T item = this.items.get(i);
             if (predicate.test(item)) {
                 result.add(item);
             }
@@ -29,11 +45,11 @@ class ListFilter<T> {
         return result;
     }
 
-    func map<R>(transformer: Transformer<T, R>): Array<R> {
-        var result = new Array<R>();
-        var i = 0;
+    public function map(Transformer<T, T> transformer): List<T> {
+        List<T> result = new List<T>();
+        int i = 0;
         while (i < this.items.size()) {
-            var item = this.items.get(i);
+            T item = this.items.get(i);
             result.add(transformer.transform(item));
             i = i + 1;
         }
@@ -41,37 +57,22 @@ class ListFilter<T> {
     }
 }
 
-// Lambda implementation of Predicate
-class LambdaPredicate<T> implements Predicate<T> {
-    var fn: func(T): Bool;
+List<Int> numbers = new List<Int>();
+numbers.add(new Int(1));
+numbers.add(new Int(2));
+numbers.add(new Int(3));
+numbers.add(new Int(4));
+numbers.add(new Int(5));
 
-    func init(fn: func(T): Bool) {
-        this.fn = fn;
-    }
+ListFilter<Int> filter = new ListFilter<Int>(numbers);
 
-    func test(value: T): Bool {
-        return this.fn(value);
-    }
-}
+// Use predicate
+IntPredicate evenPredicate = new IntPredicate();
 
-var numbers = new Array<Int>();
-numbers.add(1);
-numbers.add(2);
-numbers.add(3);
-numbers.add(4);
-numbers.add(5);
-
-var filter = new ListFilter<Int>(numbers);
-
-// Use lambda as predicate
-var evenPredicate = new LambdaPredicate<Int>(func(x: Int): Bool {
-    return x % 2 == 0;
-});
-
-var evens = filter.filter(evenPredicate);
+List<Int> evens = filter.filter(evenPredicate);
 print("Even numbers:");
-var i = 0;
+int i = 0;
 while (i < evens.size()) {
-    print(evens.get(i));
+    print(evens.get(i).toString());
     i = i + 1;
 }

@@ -1,26 +1,42 @@
 // Test generic lambda inference with interfaces
 // @Script
 
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
+
 interface Mapper<T, R> {
-    func map(input: T): R;
+    function map(T input): R;
 }
 
 interface Filter<T> {
-    func test(input: T): Bool;
+    function test(T input): bool;
+}
+
+class IntMapper implements Mapper<Int, Int> {
+    public function map(Int input): Int {
+        return new Int(input.toInt() * 2);
+    }
+}
+
+class IntFilter implements Filter<Int> {
+    public function test(Int input): bool {
+        return input.toInt() % 2 == 0;
+    }
 }
 
 class Pipeline<T> {
-    var items: Array<T>;
+    private List<T> items;
 
-    func init(items: Array<T>) {
+    public constructor(List<T> items) {
         this.items = items;
     }
 
-    func filter(predicate: Filter<T>): Pipeline<T> {
-        var filtered = new Array<T>();
-        var i = 0;
+    public function filter(Filter<T> predicate): Pipeline<T> {
+        List<T> filtered = new List<T>();
+        int i = 0;
         while (i < this.items.size()) {
-            var item = this.items.get(i);
+            T item = this.items.get(i);
             if (predicate.test(item)) {
                 filtered.add(item);
             }
@@ -29,73 +45,46 @@ class Pipeline<T> {
         return new Pipeline<T>(filtered);
     }
 
-    func map<R>(mapper: Mapper<T, R>): Pipeline<R> {
-        var mapped = new Array<R>();
-        var i = 0;
+    public function map<R>(Mapper<T, R> mapper): Pipeline<R> {
+        List<R> mapped = new List<R>();
+        int i = 0;
         while (i < this.items.size()) {
-            var item = this.items.get(i);
+            T item = this.items.get(i);
             mapped.add(mapper.map(item));
             i = i + 1;
         }
         return new Pipeline<R>(mapped);
     }
 
-    func collect(): Array<T> {
+    public function collect(): List<T> {
         return this.items;
     }
 }
 
-class LambdaMapper<T, R> implements Mapper<T, R> {
-    var fn: func(T): R;
+List<Int> numbers = new List<Int>();
+numbers.add(new Int(1));
+numbers.add(new Int(2));
+numbers.add(new Int(3));
+numbers.add(new Int(4));
+numbers.add(new Int(5));
 
-    func init(fn: func(T): R) {
-        this.fn = fn;
-    }
-
-    func map(input: T): R {
-        return this.fn(input);
-    }
-}
-
-class LambdaFilter<T> implements Filter<T> {
-    var fn: func(T): Bool;
-
-    func init(fn: func(T): Bool) {
-        this.fn = fn;
-    }
-
-    func test(input: T): Bool {
-        return this.fn(input);
-    }
-}
-
-var numbers = new Array<Int>();
-numbers.add(1);
-numbers.add(2);
-numbers.add(3);
-numbers.add(4);
-numbers.add(5);
-
-var pipeline = new Pipeline<Int>(numbers);
+Pipeline<Int> pipeline = new Pipeline<Int>(numbers);
 
 // Filter even numbers
-var evenFilter = new LambdaFilter<Int>(func(x: Int): Bool {
-    return x % 2 == 0;
-});
+IntFilter evenFilter = new IntFilter();
 
 // Double the numbers
-var doubleMapper = new LambdaMapper<Int, Int>(func(x: Int): Int {
-    return x * 2;
-});
+IntMapper doubleMapper = new IntMapper();
 
-var result = pipeline
+Pipeline<Int> result = pipeline
     .filter(evenFilter)
-    .map<Int>(doubleMapper)
-    .collect();
+    .map<Int>(doubleMapper);
+
+List<Int> resultList = result.collect();
 
 print("Results:");
-var i = 0;
-while (i < result.size()) {
-    print(result.get(i));
+int i = 0;
+while (i < resultList.size()) {
+    print(resultList.get(i));
     i = i + 1;
 }

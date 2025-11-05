@@ -29,7 +29,7 @@ class StringIntCache implements CacheStore<String, Int, String> {
         return 123;
     }
 
-    // From CacheStore<string, int, string>
+    // From CacheStore<String, Int, String>
     public function cache(String key, Int value, String metadata): void {
         print("Caching " + key + " -> " + value + " [" + metadata + "]");
     }
@@ -47,7 +47,7 @@ class StringIntCache implements CacheStore<String, Int, String> {
 // Test class for SortableMap
 class StringIntMap implements SortableMap<String, Int> {
     public function put(String key, Int value): void {
-        print("Put " + key.toString() + " -> " + value.toString());
+        print("Put " + key + " -> " + value);
     }
 
     public function get(String key): Int {
@@ -70,7 +70,7 @@ StringIntCache cache = new StringIntCache();
 print("\n--- Testing CacheStore (multiple inheritance) ---");
 cache.cache(new String("user1"), new Int(100), new String("active"));
 cache.evict(new String("user2"));
-print("Metadata: " + cache.getMetadata(new String("user1")).toString());
+print("Metadata: " + cache.getMetadata(new String("user1")));
 print("Hash code: " + cache.hashCode());
 
 // Test 2: Single inheritance with generics
@@ -78,7 +78,7 @@ StringIntMap map = new StringIntMap();
 print("\n--- Testing SortableMap (single inheritance) ---");
 map.put(new String("test"), new Int(42));
 print("Size: " + map.size());
-print("Value: " + map.get(new String("test")).toString());
+print("Value: " + map.get(new String("test")));
 
 print("Comparison result: " + map.compareTo(new String("test")));
 
@@ -86,12 +86,16 @@ print("Comparison result: " + map.compareTo(new String("test")));
 print("\n--- Testing Lambda with Multiple Generic Types ---");
 
 // BiFunction with three different types
-BiFunction<String, Int, Bool> stringIntToBool = (str, num) -> new Bool(str.length() > num.getValue());
-print("String length > 5: " + stringIntToBool.apply(new String("hello"), new Int(5)).toString());
-print("String length > 1: " + stringIntToBool.apply(new String("hi"), new Int(1)).toString());
+BiFunction<String, Int, Bool> stringIntToBool = (str, num) -> {
+    return str.length() > num.getValue();
+};
+print("String length > 5: " + stringIntToBool.apply(new String("hello"), new Int(5)));
+print("String length > 1: " + stringIntToBool.apply(new String("hi"), new Int(1)));
 
 // BiPredicate with two generic types
-BiPredicate<String, String> stringEquals = (s1, s2) -> s1.equals(s2);
+BiPredicate<String, String> stringEquals = (s1, s2) -> {
+    return s1.equals(s2);
+};
 print("Strings equal: " + stringEquals.test(new String("test"), new String("test")));
 print("Strings equal: " + stringEquals.test(new String("test"), new String("other")));
 
@@ -100,7 +104,7 @@ print("\n--- Testing Complex Type Assignments ---");
 
 // Assigning to base interface types
 Repository<Int, String> repo = cache; // CacheStore extends Repository
-print("Repository save: " + repo.save(new Int(999)).toString());
+print("Repository save: " + repo.save(999));
 
 // Test hashable interface (inherited from Repository)
 Hashable hashable = cache;
@@ -110,10 +114,14 @@ print("Repository equals check: " + repo.equals(repo));
 
 // Test 5: Multiple generic interface usage
 print("\n--- Testing Multiple Generic Interface Usage ---");
-BiFunction<Int, Int, Bool> intComparison = (a, b) -> new Bool(a.getValue() > b.getValue());
-print("10 > 5: " + intComparison.apply(new Int(10), new Int(5)).getValue());
+BiFunction<Int, Int, Bool> intComparison = (a, b) -> {
+    return a.getValue() > b.getValue();
+};
+print("10 > 5: " + intComparison.apply(new Int(10), new Int(5)));
 
-BiPredicate<Int, Int> intPredicate = (x, y) -> x.value == y.value;
+BiPredicate<Int, Int> intPredicate = (x, y) -> {
+    return x.getValue() == y.getValue();
+};
 print("5 == 5: " + intPredicate.test(new Int(5), new Int(5)));
 
 print("\n=== All Tests Completed Successfully ===");

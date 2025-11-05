@@ -5,10 +5,10 @@ interface Drawable {
 }
 
 class Rectangle implements Drawable {
-    float width;
-    float height;
+    private float width;
+    private float height;
 
-    constructor(float w, float h) {
+    public constructor(float w, float h) {
         this.width = w;
         this.height = h;
     }

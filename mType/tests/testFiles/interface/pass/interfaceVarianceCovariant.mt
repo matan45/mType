@@ -2,29 +2,35 @@
 // @Script
 
 interface Producer<T> {
-    func produce(): T;
+    function produce(): T;
 }
 
 class Animal {
-    var name: String;
+    private string name;
 
-    func init(name: String) {
+    public constructor(string name) {
         this.name = name;
+    }
+
+    public function getName(): string {
+        return this.name;
     }
 }
 
 class Dog extends Animal {
-    func init(name: String) {
-        super.init(name);
+    public constructor(string name) : super(name) {
     }
 
-    func bark(): void {
+    public function bark(): void {
         print("Woof!");
     }
 }
 
 class DogProducer implements Producer<Dog> {
-    func produce(): Dog {
+    public constructor() {
+    }
+
+    public function produce(): Dog {
         return new Dog("Buddy");
     }
 }
@@ -32,19 +38,19 @@ class DogProducer implements Producer<Dog> {
 // Covariant usage - Producer<Dog> is used where Producer<Animal> would work
 // in terms of reading (producing) values
 class AnimalShelter {
-    var producer: Producer<Dog>;
+    private Producer<Dog> producer;
 
-    func init(producer: Producer<Dog>) {
+    public constructor(Producer<Dog> producer) {
         this.producer = producer;
     }
 
-    func getAnimal(): Animal {
+    public function getAnimal(): Animal {
         // Covariant - Dog is a subtype of Animal
         return this.producer.produce();
     }
 }
 
-var dogProducer = new DogProducer();
-var shelter = new AnimalShelter(dogProducer);
-var animal = shelter.getAnimal();
-print(animal.name);  // Should print "Buddy"
+DogProducer dogProducer = new DogProducer();
+AnimalShelter shelter = new AnimalShelter(dogProducer);
+Animal animal = shelter.getAnimal();
+print(animal.getName());  // Should print "Buddy"

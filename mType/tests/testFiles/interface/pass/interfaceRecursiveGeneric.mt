@@ -1,68 +1,70 @@
 // Test recursive generic interface definition
 // @Script
 
+import * from "../../lib/primitives/String.mt";
+
 interface Tree<T, N extends TreeNode<T, N>> {
-    func getRoot(): N;
-    func add(value: T): void;
+    function getRoot(): N;
+    function add(T value): void;
 }
 
 interface TreeNode<T, N extends TreeNode<T, N>> {
-    func getValue(): T;
-    func getLeft(): N;
-    func getRight(): N;
-    func setLeft(node: N): void;
-    func setRight(node: N): void;
+    function getValue(): T;
+    function getLeft(): N;
+    function getRight(): N;
+    function setLeft(N node): void;
+    function setRight(N node): void;
 }
 
 class BinaryNode<T> implements TreeNode<T, BinaryNode<T>> {
-    var value: T;
-    var left: BinaryNode<T>;
-    var right: BinaryNode<T>;
+    private T value;
+    private BinaryNode<T> left;
+    private BinaryNode<T> right;
 
-    func init(value: T) {
+    public constructor(T value) {
         this.value = value;
         this.left = null;
         this.right = null;
     }
 
-    func getValue(): T {
+    public function getValue(): T {
         return this.value;
     }
 
-    func getLeft(): BinaryNode<T> {
+    public function getLeft(): BinaryNode<T> {
         return this.left;
     }
 
-    func getRight(): BinaryNode<T> {
+    public function getRight(): BinaryNode<T> {
         return this.right;
     }
 
-    func setLeft(node: BinaryNode<T>): void {
+    public function setLeft(BinaryNode<T> node): void {
         this.left = node;
     }
 
-    func setRight(node: BinaryNode<T>): void {
+    public function setRight(BinaryNode<T> node): void {
         this.right = node;
     }
 }
 
 class BinaryTree<T> implements Tree<T, BinaryNode<T>> {
-    var root: BinaryNode<T>;
+    private BinaryNode<T> root;
 
-    func init() {
+    public constructor() {
         this.root = null;
     }
 
-    func getRoot(): BinaryNode<T> {
+    public function getRoot(): BinaryNode<T> {
         return this.root;
     }
 
-    func add(value: T): void {
+    public function add(T value): void {
         if (this.root == null) {
             this.root = new BinaryNode<T>(value);
         } else {
             // Simple addition to left or right alternately
-            var node = new BinaryNode<T>(value);
+            BinaryNode<T> node = new BinaryNode<T>(value);
             if (this.root.getLeft() == null) {
                 this.root.setLeft(node);
             } else {
@@ -72,21 +74,21 @@ class BinaryTree<T> implements Tree<T, BinaryNode<T>> {
     }
 }
 
-var tree = new BinaryTree<String>();
+BinaryTree<String> tree = new BinaryTree<String>();
 tree.add("Root");
 tree.add("Left");
 tree.add("Right");
 
-var root = tree.getRoot();
+BinaryNode<String> root = tree.getRoot();
 if (root != null) {
     print("Root: " + root.getValue());
 
-    var left = root.getLeft();
+    BinaryNode<String> left = root.getLeft();
     if (left != null) {
         print("Left: " + left.getValue());
     }
 
-    var right = root.getRight();
+    BinaryNode<String> right = root.getRight();
     if (right != null) {
         print("Right: " + right.getValue());
     }

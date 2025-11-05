@@ -1,65 +1,63 @@
 // Test interface returning generic collection
 // @Script
 
+import * from "../../lib/collections/List.mt";
+
 interface Repository<T> {
-    func findAll(): Array<T>;
-    func findById(id: Int): T;
-    func save(item: T): void;
+    function findAll(): List<T>;
+    function findById(int id): T;
+    function save(T item): void;
 }
 
 class User {
-    var id: Int;
-    var name: String;
+    public int id;
+    public string name;
 
-    func init(id: Int, name: String) {
+    public constructor(int id, string name) {
         this.id = id;
         this.name = name;
     }
 }
 
 class UserRepository implements Repository<User> {
-    var users: Array<User>;
+    private List<User> users;
 
-    func init() {
-        this.users = new Array<User>();
+    public constructor() {
+        this.users = new List<User>();
     }
 
-    func findAll(): Array<User> {
+    public function findAll(): List<User> {
         return this.users;
     }
 
-    func findById(id: Int): User {
-        var i = 0;
-        while (i < this.users.size()) {
-            var user = this.users.get(i);
+    public function findById(int id): User {
+        for (int i = 0; i < this.users.size(); i++) {
+            User user = this.users.get(i);
             if (user.id == id) {
                 return user;
             }
-            i = i + 1;
         }
         return null;
     }
 
-    func save(item: User): void {
+    public function save(User item): void {
         this.users.add(item);
     }
 }
 
-var repo = new UserRepository();
+UserRepository repo = new UserRepository();
 repo.save(new User(1, "Alice"));
 repo.save(new User(2, "Bob"));
 repo.save(new User(3, "Charlie"));
 
-var allUsers = repo.findAll();
+List<User> allUsers = repo.findAll();
 print("All users:");
-var i = 0;
-while (i < allUsers.size()) {
-    var user = allUsers.get(i);
-    print("  " + user.id.toString() + ": " + user.name);
-    i = i + 1;
+for (int i = 0; i < allUsers.size(); i++) {
+    User user = allUsers.get(i);
+    print("  " + user.id + ": " + user.name);
 }
 
-var user = repo.findById(2);
+User user = repo.findById(2);
 if (user != null) {
     print("Found user: " + user.name);
 }

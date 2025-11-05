@@ -2,34 +2,34 @@
 // @Script
 
 interface StringProcessor {
-    func process(input: String): String;
+    function process(string input): string;
 }
 
 interface IntProcessor {
-    func process(input: Int): Int;
+    function process(int input): int;
 }
 
 class UniversalProcessor implements StringProcessor, IntProcessor {
-    func process(input: String): String {
+    public function process(string input): string {
         return input + "!";
     }
 
-    func process(input: Int): Int {
+    public function process(int input): int {
         return input * 2;
     }
 }
 
-var processor = new UniversalProcessor();
+UniversalProcessor processor = new UniversalProcessor();
 
-var str = processor.process("Hello");
+string str = processor.process("Hello");
 print(str);  // Should print "Hello!"
 
-var num = processor.process(21);
+int num = processor.process(21);
 print(num);  // Should print 42
 
 // Can be used as either interface type
-var sp: StringProcessor = processor;
+StringProcessor sp = processor;
 print(sp.process("World"));  // Should print "World!"
 
-var ip: IntProcessor = processor;
+IntProcessor ip = processor;
 print(ip.process(10));       // Should print 20

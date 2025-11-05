@@ -1,56 +1,59 @@
 // Test nested generic interfaces
 // @Script
 
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+
 interface Outer<T> {
-    func getValue(): T;
+    function getValue(): T;
 }
 
 interface Inner<U> {
-    func process(value: U): U;
+    function process(U value): U;
 }
 
 class Container<T> implements Outer<T> {
-    var value: T;
+    private T value;
 
-    func init(value: T) {
+    public constructor(T value) {
         this.value = value;
     }
 
-    func getValue(): T {
+    public function getValue(): T {
         return this.value;
     }
 }
 
 class Processor<U> implements Inner<U> {
-    func process(value: U): U {
+    public function process(U value): U {
         // Just return the value as-is
         return value;
     }
 }
 
 class Combined<T> implements Outer<T>, Inner<T> {
-    var data: T;
+    private T data;
 
-    func init(data: T) {
+    public constructor(T data) {
         this.data = data;
     }
 
-    func getValue(): T {
+    public function getValue(): T {
         return this.data;
     }
 
-    func process(value: T): T {
+    public function process(T value): T {
         this.data = value;
         return this.data;
     }
 }
 
-var container = new Container<String>("Hello");
-print(container.getValue());
+Container<String> container = new Container<String>(new String("Hello"));
+print(container.getValue().toString());
 
-var processor = new Processor<Int>();
-print(processor.process(42));
+Processor<Int> processor = new Processor<Int>();
+print(processor.process(new Int(42)).toString());
 
-var combined = new Combined<String>("World");
-print(combined.getValue());
-print(combined.process("Modified"));
+Combined<String> combined = new Combined<String>(new String("World"));
+print(combined.getValue().toString());
+print(combined.process(new String("Modified")).toString());

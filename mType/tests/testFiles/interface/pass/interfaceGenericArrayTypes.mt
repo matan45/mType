@@ -1,55 +1,53 @@
 // Test interface methods with T[] or Array<T>
 // @Script
 
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
+
 interface ArrayProcessor<T> {
-    func process(items: Array<T>): Array<T>;
-    func filter(items: Array<T>, predicate: func(T): Bool): Array<T>;
-    func first(items: Array<T>): T;
+    function process(List<T> items): List<T>;
+    function filter(List<T> items, Function<T, Bool> predicate): List<T>;
+    function first(List<T> items): T;
 }
 
 class StringArrayProcessor implements ArrayProcessor<String> {
-    func process(items: Array<String>): Array<String> {
-        var result = new Array<String>();
-        var i = 0;
-        while (i < items.size()) {
-            var item = items.get(i);
+    public function process(List<String> items): List<String> {
+        List<String> result = new List<String>();
+        for (int i = 0; i < items.size(); i++) {
+            string item = items.get(i);
             result.add(item + "!");
-            i = i + 1;
         }
         return result;
     }
 
-    func filter(items: Array<String>, predicate: func(String): Bool): Array<String> {
-        var result = new Array<String>();
-        var i = 0;
-        while (i < items.size()) {
-            var item = items.get(i);
+    public function filter(List<String> items, Function<String, Bool> predicate): List<String> {
+        List<String> result = new List<String>();
+        for (int i = 0; i < items.size(); i++) {
+            string item = items.get(i);
             if (predicate(item)) {
                 result.add(item);
             }
-            i = i + 1;
         }
         return result;
     }
 
-    func first(items: Array<String>): String {
+    public function first(List<String> items): string {
         return items.get(0);
     }
 }
 
-var processor = new StringArrayProcessor();
-var words = new Array<String>();
-words.add("Hello");
-words.add("World");
-words.add("Test");
+StringArrayProcessor processor = new StringArrayProcessor();
+List<String> words = new List<String>();
+words.add(new String("Hello"));
+words.add(new String("World"));
+words.add(new String("Test"));
 
-var processed = processor.process(words);
+List<String> processed = processor.process(words);
 print(processed.get(0));  // Should print "Hello!"
 
-var filtered = processor.filter(words, func(s: String): Bool {
-    return s.length() > 4;
-});
+List<String> filtered = processor.filter(words, s -> s.length() > 4);
 print(filtered.get(0));   // Should print "Hello" or "World"
 
-var firstWord = processor.first(words);
+string firstWord = processor.first(words);
 print(firstWord);         // Should print "Hello"

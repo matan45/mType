@@ -1,43 +1,45 @@
 // Test method reference to interface method (if supported)
-// @Script
+
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Printer {
-    func print(message: String): void;
+    function printMessage(string message): void;
 }
 
 class ConsolePrinter implements Printer {
-    var prefix: String;
+    private string prefix;
 
-    func init(prefix: String) {
+    public constructor(string prefix) {
         this.prefix = prefix;
     }
 
-    func print(message: String): void {
+    public function printMessage(string message): void {
         print(this.prefix + message);
     }
 }
 
 class MessageProcessor {
-    func process(messages: Array<String>, printer: Printer): void {
-        var i = 0;
+    public function process(List<String> messages, Printer printer): void {
+        int i = 0;
         while (i < messages.size()) {
-            printer.print(messages.get(i));
+            printer.printMessage(messages.get(i));
             i = i + 1;
         }
     }
 }
 
-var messages = new Array<String>();
-messages.add("Hello");
-messages.add("World");
-messages.add("Test");
+List<String> messages = new List<String>();
+messages.add(new String("Hello"));
+messages.add(new String("World"));
+messages.add(new String("Test"));
 
-var processor = new MessageProcessor();
-var consolePrinter = new ConsolePrinter("[INFO] ");
+MessageProcessor processor = new MessageProcessor();
+ConsolePrinter consolePrinter = new ConsolePrinter("[INFO] ");
 
 // Pass interface implementation
 processor.process(messages, consolePrinter);
 
 // Alternative with different printer
-var errorPrinter = new ConsolePrinter("[ERROR] ");
+ConsolePrinter errorPrinter = new ConsolePrinter("[ERROR] ");
 processor.process(messages, errorPrinter);

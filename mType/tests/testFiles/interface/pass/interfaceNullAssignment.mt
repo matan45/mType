@@ -2,23 +2,23 @@
 // @Script
 
 interface Drawable {
-    func draw(): void;
+    function draw(): void;
 }
 
 class Circle implements Drawable {
-    var radius: Int;
+    private int radius;
 
-    func init(radius: Int) {
+    public constructor(int radius) {
         this.radius = radius;
     }
 
-    func draw(): void {
-        print("Drawing circle with radius: " + this.radius.toString());
+    public function draw(): void {
+        print("Drawing circle with radius: " + this.radius);
     }
 }
 
 // Null assignment should be allowed
-var drawable: Drawable = null;
+Drawable drawable = null;
 
 if (drawable == null) {
     print("Drawable is null");

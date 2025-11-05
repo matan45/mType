@@ -2,82 +2,89 @@
 // @Script
 
 interface Drawable {
-    func draw(): void;
+    function draw(): void;
 }
 
 interface Colorable {
-    func setColor(color: String): void;
-    func getColor(): String;
+    function setColor(string color): void;
+    function getColor(): string;
 }
 
 interface Resizable {
-    func resize(factor: Int): void;
+    function resize(int factor): void;
 }
 
 class SimpleShape implements Drawable {
-    func draw(): void {
+    public function draw(): void {
         print("Drawing simple shape");
     }
 }
 
 class ColoredShape implements Drawable, Colorable {
-    var color: String;
+    private string color;
 
-    func init() {
+    public constructor() {
         this.color = "white";
     }
 
-    func draw(): void {
+    public function draw(): void {
         print("Drawing " + this.color + " shape");
     }
 
-    func setColor(color: String): void {
+    public function setColor(string color): void {
         this.color = color;
     }
 
-    func getColor(): String {
+    public function getColor(): string {
         return this.color;
     }
 }
 
 class AdvancedShape implements Drawable, Colorable, Resizable {
-    var color: String;
-    var size: Int;
+    private string color;
+    private int size;
+    private bool resized;
 
-    func init() {
+    public constructor() {
         this.color = "white";
         this.size = 10;
+        this.resized = false;
     }
 
-    func draw(): void {
-        print("Drawing " + this.color + " shape, size: " + this.size.toString());
+    public function draw(): void {
+        if (this.resized) {
+            print("Drawing " + this.color + " shape, size: " + this.size);
+        } else {
+            print("Drawing " + this.color + " shape");
+        }
     }
 
-    func setColor(color: String): void {
+    public function setColor(string color): void {
         this.color = color;
     }
 
-    func getColor(): String {
+    public function getColor(): string {
         return this.color;
     }
 
-    func resize(factor: Int): void {
+    public function resize(int factor): void {
         this.size = this.size * factor;
+        this.resized = true;
     }
 }
 
-func processShape(shape: Drawable): void {
+function processShape(Drawable shape): void {
     shape.draw();
 
     // Type narrowing - check for additional capabilities
-    if (shape instanceof Colorable) {
-        var colorable: Colorable = shape as Colorable;
+    if (shape isClassOf Colorable) {
+        Colorable colorable = (Colorable)shape;
         colorable.setColor("red");
         print("Set color to: " + colorable.getColor());
     }
 
-    if (shape instanceof Resizable) {
-        var resizable: Resizable = shape as Resizable;
+    if (shape isClassOf Resizable) {
+        Resizable resizable = (Resizable)shape;
         resizable.resize(2);
         print("Resized shape");
     }

@@ -2,25 +2,28 @@
 // @Script
 
 interface Shape {
-    func getArea(): Int;
+    function getArea(): int;
 }
 
 class Rectangle implements Shape {
-    var width: Int;
-    var height: Int;
+    private int width;
+    private int height;
 
-    func init(width: Int, height: Int) {
+    public constructor(int width, int height) {
         this.width = width;
         this.height = height;
     }
 
-    func getArea(): Int {
+    public function getArea(): int {
         return this.width * this.height;
     }
 }
 
 class ShapeFactory {
-    func createShape(valid: Bool): Shape {
+    public constructor() {
+    }
+
+    public function createShape(bool valid): Shape {
         if (valid) {
             return new Rectangle(10, 20);
         }
@@ -28,14 +31,14 @@ class ShapeFactory {
     }
 }
 
-var factory = new ShapeFactory();
+ShapeFactory factory = new ShapeFactory();
 
-var shape1 = factory.createShape(true);
+Shape shape1 = factory.createShape(true);
 if (shape1 != null) {
     print(shape1.getArea());  // Should print 200
 }
 
-var shape2 = factory.createShape(false);
+Shape shape2 = factory.createShape(false);
 if (shape2 == null) {
     print("Shape is null");
 }

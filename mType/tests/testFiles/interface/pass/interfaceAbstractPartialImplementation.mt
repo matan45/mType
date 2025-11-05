@@ -2,66 +2,66 @@
 // @Script
 
 interface Drawable {
-    func draw(): void;
-    func getColor(): String;
-    func getSize(): Int;
+    function draw(): void;
+    function getColor(): string;
+    function getSize(): int;
 }
 
 abstract class Shape implements Drawable {
-    var size: Int;
+    private int size;
 
-    func init(size: Int) {
+    public constructor(int size) {
         this.size = size;
     }
 
     // Implement some interface methods
-    func getSize(): Int {
+    public function getSize(): int {
         return this.size;
     }
 
-    // Leave draw() and getColor() for subclasses
+    // Leave draw() and getColor() for subclasses - declare as abstract
+    public abstract function draw(): void;
+    public abstract function getColor(): string;
 }
 
 class Circle extends Shape {
-    var color: String;
+    private string color;
 
-    func init(size: Int, color: String) {
-        super.init(size);
+    public constructor(int size, string color) : super(size) {
         this.color = color;
     }
 
-    func draw(): void {
+    public function draw(): void {
         print("Drawing circle");
     }
 
-    func getColor(): String {
+    public function getColor(): string {
         return this.color;
     }
 }
 
 class Rectangle extends Shape {
-    var color: String;
+    private string color;
 
-    func init(size: Int, color: String) {
-        super.init(size);
+    public constructor(int size, string color) : super(size) {
         this.color = color;
     }
 
-    func draw(): void {
+    public function draw(): void {
         print("Drawing rectangle");
     }
 
-    func getColor(): String {
+    public function getColor(): string {
         return this.color;
     }
 }
 
-var circle = new Circle(10, "red");
+Circle circle = new Circle(10, "red");
 circle.draw();
 print(circle.getColor());
 print(circle.getSize());
 
-var rect = new Rectangle(20, "blue");
+Rectangle rect = new Rectangle(20, "blue");
 rect.draw();
 print(rect.getColor());
 print(rect.getSize());

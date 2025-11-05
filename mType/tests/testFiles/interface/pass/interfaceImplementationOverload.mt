@@ -1,41 +1,42 @@
 // Test class adds more overloads than interface requires
 // @Script
 
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/primitives/Int.mt";
+
 interface Calculator {
-    func add(a: Int, b: Int): Int;
+    function add(int a, int b): int;
 }
 
 class AdvancedCalculator implements Calculator {
     // Required by interface
-    func add(a: Int, b: Int): Int {
+    public function add(int a, int b): int {
         return a + b;
     }
 
     // Additional overload not in interface
-    func add(a: Int, b: Int, c: Int): Int {
+    public function add2(int a, int b, int c): int {
         return a + b + c;
     }
 
     // Another additional overload
-    func add(numbers: Array<Int>): Int {
-        var sum = 0;
-        var i = 0;
-        while (i < numbers.size()) {
-            sum = sum + numbers.get(i);
-            i = i + 1;
+    public function addList(List<Int> numbers): int {
+        int sum = 0;
+        for (int i = 0; i < numbers.size(); i++) {
+            sum = sum + numbers.get(i).value;
         }
         return sum;
     }
 }
 
-var calc = new AdvancedCalculator();
+AdvancedCalculator calc = new AdvancedCalculator();
 
 print(calc.add(5, 10));           // Should print 15
-print(calc.add(5, 10, 15));       // Should print 30
+print(calc.add2(5, 10, 15));       // Should print 30
 
-var nums = new Array<Int>();
-nums.add(1);
-nums.add(2);
-nums.add(3);
-nums.add(4);
-print(calc.add(nums));            // Should print 10
+List<Int> nums = new List<Int>();
+nums.add(new Int(1));
+nums.add(new Int(2));
+nums.add(new Int(3));
+nums.add(new Int(4));
+print(calc.addList(nums));            // Should print 10

@@ -8,18 +8,18 @@ final interface FinalInterface {
 
 // Final interfaces can still be implemented by classes
 class Worker implements FinalInterface {
-    int value;
+    private int value;
 
-    constructor() {
-        value = 10;
+    public constructor() {
+        this.value = 10;
     }
 
     public function doWork(): void {
-        value = value + 5;
+        this.value = this.value + 5;
     }
 
     public function getValue(): int {
-        return value;
+        return this.value;
     }
 }
 

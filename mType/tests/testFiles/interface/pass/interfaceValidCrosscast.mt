@@ -2,37 +2,37 @@
 // @Script
 
 interface Drawable {
-    func draw(): void;
+    function draw(): void;
 }
 
 interface Resizable {
-    func resize(factor: Int): void;
+    function resize(int factor): void;
 }
 
 class Shape implements Drawable, Resizable {
-    var size: Int;
+    private int size;
 
-    func init(size: Int) {
+    public constructor(int size) {
         this.size = size;
     }
 
-    func draw(): void {
-        print("Drawing shape of size: " + this.size.toString());
+    public function draw(): void {
+        print("Drawing shape of size: " + this.size);
     }
 
-    func resize(factor: Int): void {
+    public function resize(int factor): void {
         this.size = this.size * factor;
-        print("Resized to: " + this.size.toString());
+        print("Resized to: " + this.size);
     }
 }
 
-var drawable: Drawable = new Shape(10);
+Drawable drawable = new Shape(10);
 drawable.draw();
 
 // Valid cross-cast - the underlying object implements both interfaces
-var resizable: Resizable = drawable as Resizable;
+Resizable resizable = (Resizable)drawable;
 resizable.resize(2);
 
 // Cast back
-var drawable2: Drawable = resizable as Drawable;
+Drawable drawable2 = (Drawable)resizable;
 drawable2.draw();

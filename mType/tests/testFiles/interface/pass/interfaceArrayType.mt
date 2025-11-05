@@ -1,46 +1,46 @@
 // Test interface array type
 // @Script
 
+import * from "../../lib/collections/List.mt";
+
 interface Drawable {
-    func draw(): void;
+    function draw(): void;
 }
 
 class Circle implements Drawable {
-    var radius: Int;
+    private int radius;
 
-    func init(radius: Int) {
+    public constructor(int radius) {
         this.radius = radius;
     }
 
-    func draw(): void {
-        print("Drawing circle with radius: " + this.radius.toString());
+    public function draw(): void {
+        print("Drawing circle with radius: " + this.radius);
     }
 }
 
 class Rectangle implements Drawable {
-    var width: Int;
-    var height: Int;
+    private int width;
+    private int height;
 
-    func init(width: Int, height: Int) {
+    public constructor(int width, int height) {
         this.width = width;
         this.height = height;
     }
 
-    func draw(): void {
-        print("Drawing rectangle " + this.width.toString() + "x" + this.height.toString());
+    public function draw(): void {
+        print("Drawing rectangle " + this.width + "x" + this.height);
     }
 }
 
 // Array of interface type
-var shapes = new Array<Drawable>();
+List<Drawable> shapes = new List<Drawable>();
 shapes.add(new Circle(5));
 shapes.add(new Rectangle(10, 20));
 shapes.add(new Circle(15));
 
 // Draw all shapes
-var i = 0;
-while (i < shapes.size()) {
-    var shape = shapes.get(i);
+for (int i = 0; i < shapes.size(); i++) {
+    Drawable shape = shapes.get(i);
     shape.draw();
-    i = i + 1;
 }

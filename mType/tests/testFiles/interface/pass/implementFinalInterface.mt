@@ -6,26 +6,26 @@ final interface Printable {
 }
 
 class Document implements Printable {
-    string content;
+    private string content;
 
-    constructor(string c) {
-        content = c;
+    public constructor(string c) {
+        this.content = c;
     }
 
     public function doSomething(): void {
-        print(content);
+        print(this.content);
     }
 }
 
 class Report implements Printable {
-    int reportId;
+    private int reportId;
 
-    constructor(int id) {
-        reportId = id;
+    public constructor(int id) {
+        this.reportId = id;
     }
 
     public function doSomething(): void {
-        print(reportId);
+        print(this.reportId);
     }
 }
 

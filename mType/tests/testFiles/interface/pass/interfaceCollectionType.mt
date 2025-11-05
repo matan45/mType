@@ -1,20 +1,22 @@
 // Test collection of interface type
 // @Script
 
+import * from "../../lib/collections/List.mt";
+
 interface Comparable<T> {
-    func compareTo(other: T): Int;
+    function compareTo(T other): int;
 }
 
 class Person implements Comparable<Person> {
-    var name: String;
-    var age: Int;
+    public string name;
+    public int age;
 
-    func init(name: String, age: Int) {
+    public constructor(string name, int age) {
         this.name = name;
         this.age = age;
     }
 
-    func compareTo(other: Person): Int {
+    public function compareTo(Person other): int {
         if (this.age < other.age) {
             return -1;
         }
@@ -27,47 +29,41 @@ class Person implements Comparable<Person> {
 
 // Collection of comparable items
 class ComparableList<T extends Comparable<T>> {
-    var items: Array<T>;
+    private List<T> items;
 
-    func init() {
-        this.items = new Array<T>();
+    public constructor() {
+        this.items = new List<T>();
     }
 
-    func add(item: T): void {
+    public function add(T item): void {
         this.items.add(item);
     }
 
-    func sort(): void {
+    public function sort(): void {
         // Simple bubble sort
-        var n = this.items.size();
-        var i = 0;
-        while (i < n - 1) {
-            var j = 0;
-            while (j < n - i - 1) {
-                var current = this.items.get(j);
-                var next = this.items.get(j + 1);
+        int n = this.items.size();
+        for (int i = 0; i < n - 1; i++) {
+            for (int j = 0; j < n - i - 1; j++) {
+                T current = this.items.get(j);
+                T next = this.items.get(j + 1);
                 if (current.compareTo(next) > 0) {
                     // Swap
                     this.items.set(j, next);
                     this.items.set(j + 1, current);
                 }
-                j = j + 1;
             }
-            i = i + 1;
         }
     }
 
-    func print(): void {
-        var i = 0;
-        while (i < this.items.size()) {
-            var person = this.items.get(i);
-            print(person.name + " (" + person.age.toString() + ")");
-            i = i + 1;
+    public function print(): void {
+        for (int i = 0; i < this.items.size(); i++) {
+            Person person = this.items.get(i);
+            print(person.name + " (" + person.age + ")");
         }
     }
 }
 
-var people = new ComparableList<Person>();
+ComparableList<Person> people = new ComparableList<Person>();
 people.add(new Person("Alice", 30));
 people.add(new Person("Bob", 25));
 people.add(new Person("Charlie", 35));

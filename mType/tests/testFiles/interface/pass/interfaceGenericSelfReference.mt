@@ -1,19 +1,21 @@
 // Test generic self-reference pattern (Comparable)
 // @Script
 
+import * from "../../lib/collections/List.mt";
+
 interface Comparable<T extends Comparable<T>> {
-    func compareTo(other: T): Int;
-    func isGreaterThan(other: T): Bool;
+    function compareTo(T other): int;
+    function isGreaterThan(T other): bool;
 }
 
 class Score implements Comparable<Score> {
-    var points: Int;
+    private int points;
 
-    func init(points: Int) {
+    public constructor(int points) {
         this.points = points;
     }
 
-    func compareTo(other: Score): Int {
+    public function compareTo(Score other): int {
         if (this.points < other.points) {
             return -1;
         }
@@ -23,52 +25,54 @@ class Score implements Comparable<Score> {
         return 0;
     }
 
-    func isGreaterThan(other: Score): Bool {
+    public function isGreaterThan(Score other): bool {
         return this.compareTo(other) > 0;
+    }
+
+    public function getPoints(): int {
+        return this.points;
     }
 }
 
 class Ranking<T extends Comparable<T>> {
-    var items: Array<T>;
+    private List<T> items;
 
-    func init() {
-        this.items = new Array<T>();
+    public constructor() {
+        this.items = new List<T>();
     }
 
-    func add(item: T): void {
+    public function add(T item): void {
         this.items.add(item);
     }
 
-    func findHighest(): T {
+    public function findHighest(): T {
         if (this.items.size() == 0) {
             return null;
         }
 
-        var highest = this.items.get(0);
-        var i = 1;
-        while (i < this.items.size()) {
-            var current = this.items.get(i);
+        T highest = this.items.get(0);
+        for (int i = 1; i < this.items.size(); i++) {
+            T current = this.items.get(i);
             if (current.isGreaterThan(highest)) {
                 highest = current;
             }
-            i = i + 1;
         }
         return highest;
     }
 }
 
-var ranking = new Ranking<Score>();
+Ranking<Score> ranking = new Ranking<Score>();
 ranking.add(new Score(100));
 ranking.add(new Score(250));
 ranking.add(new Score(175));
 
-var highest = ranking.findHighest();
+Score highest = ranking.findHighest();
 if (highest != null) {
-    print("Highest score: " + highest.points.toString());
+    print("Highest score: " + highest.getPoints());
 }
 
-var s1 = new Score(100);
-var s2 = new Score(200);
+Score s1 = new Score(100);
+Score s2 = new Score(200);
 
 if (s2.isGreaterThan(s1)) {
     print("s2 is greater than s1");

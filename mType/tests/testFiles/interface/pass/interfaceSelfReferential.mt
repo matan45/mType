@@ -2,19 +2,19 @@
 // @Script
 
 interface Comparable<T extends Comparable<T>> {
-    func compareTo(other: T): Int;
+    function compareTo(T other): int;
 }
 
 class Person implements Comparable<Person> {
-    var age: Int;
-    var name: String;
+    private int age;
+    private string name;
 
-    func init(name: String, age: Int) {
+    public function init(string name, int age) {
         this.name = name;
         this.age = age;
     }
 
-    func compareTo(other: Person): Int {
+    public function compareTo(Person other): int {
         if (this.age < other.age) {
             return -1;
         }
@@ -26,9 +26,9 @@ class Person implements Comparable<Person> {
 }
 
 class Employee extends Person {
-    var salary: Int;
+    private int salary;
 
-    func init(name: String, age: Int, salary: Int) {
+    public function init(string name, int age, int salary) {
         super.init(name, age);
         this.salary = salary;
     }
@@ -36,21 +36,21 @@ class Employee extends Person {
     // Inherited compareTo works with Employee as well
 }
 
-func findOlder<T extends Comparable<T>>(a: T, b: T): T {
+function findOlder<T extends Comparable<T>>(T a, T b): T {
     if (a.compareTo(b) > 0) {
         return a;
     }
     return b;
 }
 
-var p1 = new Person("Alice", 30);
-var p2 = new Person("Bob", 25);
+Person p1 = new Person("Alice", 30);
+Person p2 = new Person("Bob", 25);
 
-var older = findOlder<Person>(p1, p2);
+Person older = findOlder<Person>(p1, p2);
 print(older.name);  // Should print "Alice"
 
-var e1 = new Employee("Charlie", 35, 50000);
-var e2 = new Employee("Diana", 40, 60000);
+Employee e1 = new Employee("Charlie", 35, 50000);
+Employee e2 = new Employee("Diana", 40, 60000);
 
-var olderEmployee = findOlder<Employee>(e1, e2);
+Employee olderEmployee = findOlder<Employee>(e1, e2);
 print(olderEmployee.name);  // Should print "Diana"
