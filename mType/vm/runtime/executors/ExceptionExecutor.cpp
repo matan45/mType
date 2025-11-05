@@ -40,8 +40,17 @@ namespace vm::runtime
         // Pop the exception object from the stack
         value::Value exceptionValue = context.stackManager->pop();
 
+        // Get source location where the throw happened
+        auto* currentLoc = context.program->getSourceLocation(context.instructionPointer);
+        errors::SourceLocation throwLocation;
+        if (currentLoc)
+        {
+            throwLocation = errors::SourceLocation(currentLoc->filename, currentLoc->line, currentLoc->column);
+        }
+
         // Get exception type name and populate stack trace
         std::string typeName = "Exception";
+
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue))
         {
             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue);
@@ -53,7 +62,6 @@ namespace vm::runtime
                 std::ostringstream stackTrace;
 
                 // Add current location (where the throw happened)
-                auto* currentLoc = context.program->getSourceLocation(context.instructionPointer);
                 if (currentLoc)
                 {
                     stackTrace << "  at " << currentLoc->filename << ":"
@@ -89,8 +97,8 @@ namespace vm::runtime
             }
         }
 
-        // Throw UserException - this will be caught by the VM's C++ exception handling
-        throw errors::UserException(exceptionValue, typeName, errors::SourceLocation());
+        // Throw UserException with proper source location
+        throw errors::UserException(exceptionValue, typeName, throwLocation);
     }
 
     void ExceptionExecutor::handleFinally(const bytecode::BytecodeProgram::Instruction& instr)

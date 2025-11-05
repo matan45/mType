@@ -1,4 +1,5 @@
 // Return in finally block of lambda test
+import * from "../../lib/exceptions/RuntimeException.mt";
 interface Function {
     function apply(int x) : int;
 }
@@ -9,11 +10,11 @@ print("=== Finally With Return Test ===");
 Function finallyReturner = x -> {
     try {
         if (x < 0) {
-            throw "Negative";
+            throw new RuntimeException("Negative");
         }
         return x * 2;
-    } catch (String e) {
-        print("Exception: " + e);
+    } catch (RuntimeException e) {
+        print("Exception: " + e.getMessage());
         return -1;
     } finally {
         print("Finally block executed for " + x);
@@ -28,7 +29,7 @@ Function normalFinally = x -> {
     int result = 0;
     try {
         result = x * x;
-    } catch (String e) {
+    } catch (RuntimeException e) {
         result = -1;
     } finally {
         print("Cleanup for " + x);

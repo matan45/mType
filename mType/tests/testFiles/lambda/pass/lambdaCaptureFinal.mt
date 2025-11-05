@@ -4,13 +4,13 @@ interface Function {
 }
 
 class ConstCapture {
-    function createAdder(int constant) : Function {
+    public function createAdder(int constant) : Function {
         // constant is effectively final (parameter)
         Function adder = x -> constant + x;
         return adder;
     }
 
-    function complexCapture() : Function {
+    public function complexCapture() : Function {
         int base = 100;  // Local variable captured
         int multiplier = 2;  // Another local
 

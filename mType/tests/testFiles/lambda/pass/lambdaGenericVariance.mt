@@ -1,22 +1,24 @@
 // Lambda generic variance test (covariance/contravariance patterns)
+import * from "../../lib/primitives/String.mt";
+
 interface Function<T, R> {
     function apply(T input) : R;
 }
 
 class Animal {
-    function makeSound() : String {
+    public function makeSound() : string {
         return "Some sound";
     }
 }
 
 class Dog extends Animal {
-    function makeSound() : String {
+    public function makeSound() : string {
         return "Woof";
     }
 }
 
 class Cat extends Animal {
-    function makeSound() : String {
+    public function makeSound() : string {
         return "Meow";
     }
 }
@@ -24,7 +26,7 @@ class Cat extends Animal {
 print("=== Generic Variance Test ===");
 
 // Contravariance - accepting more general input
-Function<Animal, String> soundMaker = a -> a.makeSound();
+Function<Animal, String> soundMaker = a -> new String(a.makeSound());
 
 Dog dog = new Dog();
 Cat cat = new Cat();

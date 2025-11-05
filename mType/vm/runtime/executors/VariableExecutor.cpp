@@ -21,13 +21,26 @@ namespace vm::runtime
             return false;
         }
 
+        // First try the immediate parent frame
         value::Value val = lambda->parentFrame->getLocalByName(varName);
-        if (std::holds_alternative<std::monostate>(val)) {
-            return false;
+        if (!std::holds_alternative<std::monostate>(val)) {
+            context.stackManager->push(val);
+            return true;
         }
 
-        context.stackManager->push(val);
-        return true;
+        // Not found in immediate parent - traverse up the call stack to find parent lambdas
+        // This supports nested lambdas where inner lambda needs access to outer lambda's parent variables
+        for (auto it = context.callStack.rbegin(); it != context.callStack.rend(); ++it) {
+            if (it->originatingLambda && it->originatingLambda->parentFrame) {
+                val = it->originatingLambda->parentFrame->getLocalByName(varName);
+                if (!std::holds_alternative<std::monostate>(val)) {
+                    context.stackManager->push(val);
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     bool VariableExecutor::tryLoadFromInstanceField(const std::string& varName) {
@@ -253,7 +266,8 @@ namespace vm::runtime
 
         if (stackPos >= context.stackManager->size())
         {
-            throw errors::RuntimeException("Local variable slot out of bounds: " + std::to_string(slot));
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Local variable slot out of bounds: " + std::to_string(slot));
         }
 
         // Load value from stack

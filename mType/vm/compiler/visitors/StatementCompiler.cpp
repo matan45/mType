@@ -162,9 +162,9 @@ namespace vm::compiler::visitors
 
         if (ctx.functionFrameManager.isInFunction())
         {
-            // Check if variable exists anywhere in the function (including parameters)
-            // This prevents parameter shadowing and variable redefinition
-            if (ctx.variableTracker.existsInFunction(name))
+            // Check if variable exists in the current scope only
+            // This prevents redefinition in the same scope but allows shadowing in nested scopes
+            if (ctx.variableTracker.existsInCurrentScope(name))
             {
                 throw errors::EnvironmentException(
                     "Variable '" + name + "' is already defined in this scope",
@@ -334,8 +334,9 @@ namespace vm::compiler::visitors
         // it's a new local variable declaration with type inference - register it
         if (ctx.functionFrameManager.isInFunction() && !isReassignment)
         {
-            // Check if variable exists anywhere in the function (including parameters)
-            if (ctx.variableTracker.existsInFunction(name))
+            // Check if variable exists in the current scope only
+            // This prevents redefinition in the same scope but allows shadowing in nested scopes
+            if (ctx.variableTracker.existsInCurrentScope(name))
             {
                 throw errors::EnvironmentException(
                     "Variable '" + name + "' is already defined in this scope",
@@ -454,11 +455,26 @@ namespace vm::compiler::visitors
 
     value::Value StatementCompiler::compileProgram(ast::ProgramNode* node)
     {
+        // IMPORTANT: Treat the script as if it's inside a function frame
+        // This makes all script-level variables use local slots instead of globals
+        // This is critical for proper lambda capture semantics in loops
+        ctx.functionFrameManager.enterFunctionFrame("__script_main__",
+                                                     0, // Local variables start at slot 0
+                                                     ctx.variableTracker.getCurrentScopeDepth(),
+                                                     false, // Not a lambda
+                                                     false); // Not async
+        ctx.variableTracker.beginScope();
+
         const auto& statements = node->getStatements();
         for (auto& stmt : statements)
         {
             stmt->accept(ctx.visitor); // Will need delegation
         }
+
+        // Exit the script function frame
+        ctx.variableTracker.endScope();
+        ctx.functionFrameManager.exitFunctionFrame();
+
         return std::monostate{};
     }
 }

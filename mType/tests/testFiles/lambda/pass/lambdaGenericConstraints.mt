@@ -1,4 +1,7 @@
 // Lambda with interface-bound generics
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+
 interface Printable {
     function toString() : String;
 }
@@ -10,45 +13,45 @@ interface Function<T, R> {
 class Document implements Printable {
     String title;
 
-    function init(String t) {
+    constructor(String t) {
         this.title = t;
     }
 
-    function toString() : String {
-        return "Document: " + this.title;
+    public function toString() : String {
+        return new String("Document: " + this.title.getValue());
     }
 }
 
 class Report implements Printable {
     int pages;
 
-    function init(int p) {
+    constructor(int p) {
         this.pages = p;
     }
 
-    function toString() : String {
-        return "Report with " + pages + " pages";
+    public function toString() : String {
+        return new String("Report with " + pages + " pages");
     }
 }
 
 print("=== Generic Constraints Test ===");
 
 // Lambda accepting anything that implements Printable
-Function<Printable, String> printer = p -> "Printing: " + p.toString();
+Function<Printable, String> printer = p -> new String("Printing: " + p.toString().getValue());
 
-Document doc = new Document("Manual");
+Document doc = new Document(new String("Manual"));
 Report rep = new Report(50);
 
-print(printer.apply(doc));
-print(printer.apply(rep));
+print(printer.apply(doc).getValue());
+print(printer.apply(rep).getValue());
 
 // Lambda with constrained type processing
-Function<Printable, int> lengthCounter = p -> {
+Function<Printable, Int> lengthCounter = p -> {
     String s = p.toString();
-    return s.length();
+    return new Int(s.length());
 };
 
-print("Doc string length: " + lengthCounter.apply(doc));
-print("Report string length: " + lengthCounter.apply(rep));
+print("Doc string length: " + lengthCounter.apply(doc).getValue());
+print("Report string length: " + lengthCounter.apply(rep).getValue());
 
 print("Generic constraints complete");

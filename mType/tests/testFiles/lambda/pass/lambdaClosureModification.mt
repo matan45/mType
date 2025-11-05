@@ -6,15 +6,15 @@ interface Function {
 class MutableBox {
     int value;
 
-    function init(int v) {
+    constructor(int v) {
         this.value = v;
     }
 
-    function getValue() : int {
+    public function getValue() : int {
         return this.value;
     }
 
-    function setValue(int v) {
+    public function setValue(int v) {
         this.value = v;
     }
 }

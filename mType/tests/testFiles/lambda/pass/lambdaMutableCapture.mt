@@ -6,19 +6,19 @@ interface Function {
 class Counter {
     int count;
 
-    function init(int initial) {
+    constructor(int initial) {
         this.count = initial;
     }
 
-    function increment() {
+    public function increment() {
         this.count = this.count + 1;
     }
 
-    function getValue() : int {
+    public function getValue() : int {
         return this.count;
     }
 
-    function add(int n) {
+    public function add(int n) {
         this.count = this.count + n;
     }
 }

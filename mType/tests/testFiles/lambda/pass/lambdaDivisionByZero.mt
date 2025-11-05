@@ -1,4 +1,5 @@
 // Error handling for division by zero test
+import * from "../../lib/exceptions/Exception.mt";
 interface Function {
     function apply(int x) : int;
 }
@@ -23,11 +24,11 @@ print("100 / 2 = " + safeDivide.apply(2));
 Function divideWithException = x -> {
     try {
         if (x == 0) {
-            throw "Division by zero error";
+            throw new Exception("Division by zero error");
         }
         return 1000 / x;
-    } catch (String e) {
-        print("Caught: " + e);
+    } catch (Exception e) {
+        print("Caught: " + e.getMessage());
         return -1;
     }
 };

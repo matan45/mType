@@ -6,15 +6,15 @@ interface VoidFunction {
 class Printer {
     int callCount;
 
-    function init() {
+    constructor() {
         this.callCount = 0;
     }
 
-    function increment() {
+    public function increment() {
         this.callCount = this.callCount + 1;
     }
 
-    function getCount() : int {
+    public function getCount() : int {
         return this.callCount;
     }
 }

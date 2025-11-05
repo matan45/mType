@@ -1,10 +1,13 @@
 // Transform generic arrays with lambdas
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
 interface Function<T, R> {
     function apply(T input) : R;
 }
 
 class ArrayUtils {
-    function map<T, R>(T[] input, Function<T, R> transformer) : R[] {
+    public function <T, R> map(T[] input, Function<T, R> transformer) : R[] {
         R[] result = new R[input.length];
         for (int i = 0; i < input.length; i = i + 1) {
             result[i] = transformer.apply(input[i]);
@@ -12,10 +15,10 @@ class ArrayUtils {
         return result;
     }
 
-    function filter<T>(T[] input, Function<T, bool> predicate) : T[] {
+    public function <T> filter(T[] input, Function<T, Bool> predicate) : T[] {
         int count = 0;
         for (int i = 0; i < input.length; i = i + 1) {
-            if (predicate.apply(input[i])) {
+            if (predicate.apply(input[i]).value) {
                 count = count + 1;
             }
         }
@@ -23,7 +26,7 @@ class ArrayUtils {
         T[] result = new T[count];
         int idx = 0;
         for (int i = 0; i < input.length; i = i + 1) {
-            if (predicate.apply(input[i])) {
+            if (predicate.apply(input[i]).value) {
                 result[idx] = input[i];
                 idx = idx + 1;
             }
@@ -35,19 +38,19 @@ class ArrayUtils {
 print("=== Generic Array Transform Test ===");
 
 ArrayUtils utils = new ArrayUtils();
-int[] numbers = [1, 2, 3, 4, 5];
+Int[] numbers = [new Int(1), new Int(2), new Int(3), new Int(4), new Int(5)];
 
 // Map int[] to String[]
-String[] strings = utils.map(numbers, x -> "Item-" + x);
+String[] strings = utils.map<Int,String>(numbers, x -> new String("Item-" + x.value));
 for (int i = 0; i < strings.length; i = i + 1) {
-    print(strings[i]);
+    print(strings[i].toString());
 }
 
 // Filter even numbers
-int[] evens = utils.filter(numbers, x -> x % 2 == 0);
+Int[] evens = utils.filter<Int>(numbers, x -> new Bool(x.value % 2 == 0));
 print("Evens:");
 for (int i = 0; i < evens.length; i = i + 1) {
-    print(evens[i]);
+    print(evens[i].toString());
 }
 
 print("Array transform complete");

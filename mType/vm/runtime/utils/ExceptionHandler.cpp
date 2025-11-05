@@ -1,6 +1,6 @@
 #include "ExceptionHandler.hpp"
 #include "../../bytecode/OpCode.hpp"
-
+#include  <iostream>
 namespace vm::runtime::utils
 {
     ExceptionHandler::ExceptionHandler(const bytecode::BytecodeProgram* prog,
@@ -21,51 +21,42 @@ namespace vm::runtime::utils
             // We're in a function - find its end boundary
             const std::string& functionName = callStack.back().functionName;
             auto* funcMetadata = program->getFunction(functionName);
+
+            // If function metadata not found and this is a lambda, try using the lambda's actual function name
+            if (!funcMetadata && callStack.back().originatingLambda)
+            {
+                const std::string& lambdaFuncName = callStack.back().originatingLambda->functionName;
+                funcMetadata = program->getFunction(lambdaFuncName);
+            }
+
             if (funcMetadata)
             {
                 searchLimit = funcMetadata->startOffset + funcMetadata->instructionCount;
             }
             else if (functionName.find("<lambda>") != std::string::npos)
             {
-                // Lambda function - search forward to find the actual end
+                // Lambda function without metadata - search forward to find the actual end
                 // Need to handle multiple RETURNs (e.g., one in try, one in catch, one in finally)
-                // Strategy: Find all RETURNs and take the last one at the lambda's scope level
+                // Strategy: Find all RETURNs until we hit another LAMBDA (lambdas don't nest inline)
+                // Note: CALL/LAMBDA_INVOKE don't introduce nested RETURNs in the same bytecode stream
                 size_t lastReturn = SIZE_MAX;
-                int callDepth = 0; // Track nested function calls
 
                 for (size_t searchIP = currentIP + 1; searchIP < program->getInstructionCount(); ++searchIP)
                 {
                     const auto& instr = program->getInstruction(searchIP);
 
-                    // Track function call/return nesting
-                    if (instr.opcode == bytecode::OpCode::CALL ||
-                        instr.opcode == bytecode::OpCode::CALL_METHOD ||
-                        instr.opcode == bytecode::OpCode::CALL_STATIC ||
-                        instr.opcode == bytecode::OpCode::LAMBDA_INVOKE)
-                    {
-                        callDepth++;
-                    }
-
-                    if (instr.opcode == bytecode::OpCode::RETURN ||
-                        instr.opcode == bytecode::OpCode::RETURN_VALUE)
-                    {
-                        if (callDepth == 0)
-                        {
-                            // This is a return at our lambda's scope level
-                            lastReturn = searchIP;
-                            // Don't break - keep searching for more RETURNs
-                        }
-                        else
-                        {
-                            // This return belongs to a nested function call
-                            callDepth--;
-                        }
-                    }
-
-                    // Stop if we hit another lambda or function definition
+                    // Stop if we hit another lambda definition
                     if (instr.opcode == bytecode::OpCode::LAMBDA && searchIP != currentIP)
                     {
                         break;
+                    }
+
+                    // Record all RETURNs - they all belong to this lambda
+                    if (instr.opcode == bytecode::OpCode::RETURN ||
+                        instr.opcode == bytecode::OpCode::RETURN_VALUE)
+                    {
+                        lastReturn = searchIP;
+                        // Don't break - keep searching for more RETURNs (e.g., in catch/finally blocks)
                     }
                 }
 
@@ -189,6 +180,7 @@ namespace vm::runtime::utils
         // First search: Look for CATCH or FINALLY in current scope
         // But only accept CATCH/FINALLY that belongs to the same try block
         int tryDepth = 0; // Track nesting depth
+        std::vector<int> tryEndCounts; // Track how many TRY_ENDs we've seen for each nested try
         while (searchIP < searchLimit && searchIP < program->getInstructionCount())
         {
             const auto& searchInstr = program->getInstruction(searchIP);
@@ -197,6 +189,7 @@ namespace vm::runtime::utils
             if (searchInstr.opcode == bytecode::OpCode::TRY_BEGIN)
             {
                 tryDepth++;
+                tryEndCounts.push_back(0); // Start counting TRY_ENDs for this nested try
             }
 
             if (searchInstr.opcode == bytecode::OpCode::CATCH)
@@ -256,11 +249,20 @@ namespace vm::runtime::utils
             }
             else if (searchInstr.opcode == bytecode::OpCode::TRY_END)
             {
-                // TRY_END marks the end of a try block's body
-                // If we're at depth > 0, this ends the nested try we entered
-                if (tryDepth > 0)
+                // TRY_END appears twice in a try-catch-finally construct:
+                // 1. After try body (before CATCH blocks)
+                // 2. After all CATCH/FINALLY blocks (end of entire construct)
+                // We should only decrement tryDepth after seeing BOTH TRY_ENDs
+                if (tryDepth > 0 && !tryEndCounts.empty())
                 {
-                    tryDepth--;
+                    tryEndCounts.back()++;
+
+                    // If we've seen 2 TRY_ENDs, we've exited the entire nested try-catch-finally
+                    if (tryEndCounts.back() >= 2)
+                    {
+                        tryDepth--;
+                        tryEndCounts.pop_back();
+                    }
                 }
             }
 

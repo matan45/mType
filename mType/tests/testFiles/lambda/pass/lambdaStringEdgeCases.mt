@@ -1,4 +1,8 @@
 // Null string, empty string handling test
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
+
 interface Function<T, R> {
     function apply(T input) : R;
 }
@@ -10,10 +14,10 @@ Function<String, String> safeToUpper = s -> {
     if (s == null) {
         return "NULL";
     }
-    if (s.length() == 0) {
+    if (strLength(s) == 0) {
         return "EMPTY";
     }
-    return s.toUpperCase();
+    return toUpperCase(s);
 };
 
 print("Normal: " + safeToUpper.apply("hello"));
@@ -33,61 +37,61 @@ print(safeConcat.apply(null));
 print(safeConcat.apply(""));
 
 // Lambda with string length checks
-Function<String, int> categorizeLength = s -> {
+Function<String, Int> categorizeLength = s -> {
     if (s == null) {
-        return -1;
+        return new Int(-1);
     }
-    if (s.length() == 0) {
-        return 0;
+    if (strLength(s) == 0) {
+        return new Int(0);
     }
-    if (s.length() < 5) {
-        return 1;
+    if (strLength(s) < 5) {
+        return new Int(1);
     }
-    if (s.length() < 10) {
-        return 2;
+    if (strLength(s) < 10) {
+        return new Int(2);
     }
-    return 3;
+    return new Int(3);
 };
 
-print("Category 'hi': " + categorizeLength.apply("hi"));
-print("Category 'hello': " + categorizeLength.apply("hello"));
-print("Category 'hello world': " + categorizeLength.apply("hello world"));
-print("Category null: " + categorizeLength.apply(null));
-print("Category '': " + categorizeLength.apply(""));
+print("Category 'hi': " + categorizeLength.apply("hi").getValue());
+print("Category 'hello': " + categorizeLength.apply("hello").getValue());
+print("Category 'hello world': " + categorizeLength.apply("hello world").getValue());
+print("Category null: " + categorizeLength.apply(null).getValue());
+print("Category '': " + categorizeLength.apply("").getValue());
 
 // Lambda with string comparison
-Function<String, bool> isValidName = name -> {
+Function<String, Bool> isValidName = name -> {
     if (name == null) {
-        return false;
+        return new Bool(false);
     }
-    if (name.length() == 0) {
-        return false;
+    if (strLength(name) == 0) {
+        return new Bool(false);
     }
-    if (name.length() > 50) {
-        return false;
+    if (strLength(name) > 50) {
+        return new Bool(false);
     }
-    return true;
+    return new Bool(true);
 };
 
-print("Valid 'John': " + isValidName.apply("John"));
-print("Valid null: " + isValidName.apply(null));
-print("Valid '': " + isValidName.apply(""));
-print("Valid 'A': " + isValidName.apply("A"));
+print("Valid 'John': " + isValidName.apply("John").getValue());
+print("Valid null: " + isValidName.apply(null).getValue());
+print("Valid '': " + isValidName.apply("").getValue());
+print("Valid 'A': " + isValidName.apply("A").getValue());
 
 // Lambda with whitespace-like handling
 Function<String, String> normalize = s -> {
     if (s == null) {
         return "";
     }
-    if (s.length() == 0) {
+    if (strLength(s) == 0) {
         return "";
     }
     return s;
 };
 
-String n1 = normalize.apply("test");
-String n2 = normalize.apply(null);
-String n3 = normalize.apply("");
+string n1 = normalize.apply("test");
+string n2 = normalize.apply(null);
+string n3 = normalize.apply("");
 
 print("Normalized 'test': '" + n1 + "'");
 print("Normalized null: '" + n2 + "'");

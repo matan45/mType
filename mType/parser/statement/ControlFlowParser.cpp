@@ -144,6 +144,7 @@ namespace parser::statement
 
     std::unique_ptr<ASTNode> ControlFlowParser::parseReturnStatement()
     {
+        const auto returnLocation = tokenStream.current().location;
         expectToken(TokenType::RETURN);
 
         std::unique_ptr<ASTNode> value = nullptr;
@@ -153,7 +154,7 @@ namespace parser::statement
         }
 
         expectToken(TokenType::SEMICOLON);
-        return std::make_unique<ReturnNode>(std::move(value));
+        return std::make_unique<ReturnNode>(std::move(value), returnLocation);
     }
 
     bool ControlFlowParser::isControlFlowToken(TokenType type) const noexcept

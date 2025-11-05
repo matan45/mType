@@ -84,20 +84,20 @@ function testArrayReturnTypeInterface(): void {
     Transformer<String> suffixer = arr -> {
         String[] result = new String[arr.length];
         for (int i = 0; i < arr.length; i++) {
-            result[i] = arr[i] + "_transformed";
+            result[i] = new String(arr[i].value + "_transformed");
         }
         return result;
     };
 
     // Test with a string array
-    String[] input = ["hello", "world", "test"];
+    String[] input = [new String("hello"), new String("world"), new String("test")];
     String[] output = suffixer.transform(input);
 
     print("Input: ['hello', 'world', 'test']");
     print("Output: ['" + output[0] + "', '" + output[1] + "', '" + output[2] + "']");
 
     // Check if transformation worked correctly
-    if (output[0] == "hello_transformed" && output[1] == "world_transformed" && output[2] == "test_transformed") {
+    if (output[0].value == "hello_transformed" && output[1].value == "world_transformed" && output[2].value == "test_transformed") {
         print("Array return type interface works correctly!");
     } else {
         print("Array return type interface failed");

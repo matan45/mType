@@ -264,6 +264,19 @@ namespace vm::runtime
             context.stackManager->push(capturedValue);
         }
 
+        // Reserve additional local variable slots if needed (for local variables like return value temporaries)
+        // Look up lambda metadata to get localCount
+        auto* lambdaMetadata = context.program->getFunction(lambda->functionName);
+        if (lambdaMetadata) {
+            size_t pushedSlots = args.size() + lambda->capturedValues.size();  // parameters + captured
+            if (lambdaMetadata->localCount > pushedSlots) {
+                size_t additionalLocals = lambdaMetadata->localCount - pushedSlots;
+                for (size_t i = 0; i < additionalLocals; ++i) {
+                    context.stackManager->push(std::monostate{});
+                }
+            }
+        }
+
         // Jump to lambda start (subtract 1 because the VM loop will increment after this)
         context.instructionPointer = lambdaStart - 1;
     }
@@ -429,8 +442,7 @@ namespace vm::runtime
                 const std::string& funcName = context.callStack.back().functionName;
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos) {
-                    std::string className = funcName.substr(0, colonPos);
-                    return className;
+                    return funcName.substr(0, colonPos);
                 }
             }
         }
@@ -460,8 +472,10 @@ namespace vm::runtime
         bool isSubclassCheck = isSubclass(currentClassName, targetClassName);
 
         // Special case: Static field initialization (SET operations) happens in global scope
-        // Allow SET during static initialization
-        if (currentClassName.empty() && context.callStack.empty() && isSetter) {
+        // Allow SET during static initialization (either no call stack or in __script_main__)
+        bool inScriptMain = !context.callStack.empty() &&
+                           context.callStack.back().functionName == "__script_main__";
+        if (currentClassName.empty() && (context.callStack.empty() || inScriptMain) && isSetter) {
             // Allow initialization by treating it as same class access
             isSameClass = true;
         }

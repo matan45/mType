@@ -1,4 +1,6 @@
 // Throwing exception subtypes test
+import * from "../../lib/exceptions/RuntimeException.mt";
+
 interface Function {
     function apply(int x) : int;
 }
@@ -8,11 +10,11 @@ print("=== Exception Compatibility Test ===");
 Function safeDivider = x -> {
     try {
         if (x == 0) {
-            throw "Division by zero";
+            throw new RuntimeException("Division by zero");
         }
         return 100 / x;
-    } catch (String e) {
-        print("Caught exception: " + e);
+    } catch (RuntimeException e) {
+        print("Caught exception: " + e.getMessage());
         return -1;
     }
 };
@@ -25,19 +27,19 @@ print("100 / 5 = " + safeDivider.apply(5));
 Function complexHandler = x -> {
     try {
         if (x < 0) {
-            throw "Negative input";
+            throw new RuntimeException("Negative input");
         }
         try {
             if (x == 0) {
-                throw "Zero input";
+                throw new RuntimeException("Zero input");
             }
             return 1000 / x;
-        } catch (String inner) {
-            print("Inner catch: " + inner);
+        } catch (RuntimeException inner) {
+            print("Inner catch: " + inner.getMessage());
             return -2;
         }
-    } catch (String outer) {
-        print("Outer catch: " + outer);
+    } catch (RuntimeException outer) {
+        print("Outer catch: " + outer.getMessage());
         return -1;
     }
 };

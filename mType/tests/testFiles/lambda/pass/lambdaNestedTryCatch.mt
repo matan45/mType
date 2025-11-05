@@ -1,4 +1,6 @@
 // Nested exception handling test
+import * from "../../lib/primitives/String.mt";
+
 interface Function {
     function apply(int x) : String;
 }

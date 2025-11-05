@@ -633,6 +633,9 @@ namespace vm::compiler::visitors
         // Setup lambda frame with parameters and captured variables
         setupLambdaFrame(node, capturedVars);
 
+        // IMPORTANT: Lambda body should compile in the same class context as the enclosing method
+        // ctx.currentClassNode should already be set from the enclosing class/method compilation
+
         // Compile lambda body
         auto* body = node->getBody();
         if (node->isExpressionLambda())
@@ -651,7 +654,13 @@ namespace vm::compiler::visitors
         else
         {
             // Block lambda: () -> { ... }
+            // Create a new scope for the lambda body to allow shadowing of captured variables
+            ctx.variableTracker.beginScope();
+
             body->accept(ctx.visitor);
+
+            // End the lambda body scope
+            ctx.variableTracker.endScope();
 
             // Implicit return null if no explicit return
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);

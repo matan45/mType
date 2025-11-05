@@ -1,42 +1,57 @@
 // BiFunction with multiple type parameters
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+
 interface BiFunction<T, U, R> {
     function apply(T first, U second) : R;
 }
 
 print("=== Multiple Type Parameters Test ===");
 
-// BiFunction<int, int, int>
-BiFunction<int, int, int> adder = (a, b) -> a + b;
-print("Add 5 + 3 = " + adder.apply(5, 3));
+// BiFunction<Int, Int, Int>
+BiFunction<Int, Int, Int> adder = (a, b) -> new Int(a.getValue() + b.getValue());
+Int five = new Int(5);
+Int three = new Int(3);
+print("Add 5 + 3 = " + adder.apply(five, three).getValue());
 
-// BiFunction<String, int, String>
-BiFunction<String, int, String> repeater = (s, count) -> {
-    String result = "";
-    for (int i = 0; i < count; i = i + 1) {
-        result = result + s;
+// BiFunction<String, Int, String>
+BiFunction<String, Int, String> repeater = (s, count) -> {
+    String result = new String("");
+    for (int i = 0; i < count.getValue(); i = i + 1) {
+        result = new String(result.getValue() + s.getValue());
     }
     return result;
 };
-print("Repeat 'Hi' 3 times: " + repeater.apply("Hi", 3));
+String hi = new String("Hi");
+Int three2 = new Int(3);
+print("Repeat 'Hi' 3 times: " + repeater.apply(hi, three2).getValue());
 
-// BiFunction<int, String, String>
-BiFunction<int, String, String> formatter = (num, suffix) -> {
-    return "Number " + num + " " + suffix;
+// BiFunction<Int, String, String>
+BiFunction<Int, String, String> formatter = (num, suffix) -> {
+    return new String("Number " + num.getValue() + " " + suffix.getValue());
 };
-print(formatter.apply(42, "is the answer"));
+Int fortytwo = new Int(42);
+String answer = new String("is the answer");
+print(formatter.apply(fortytwo, answer).getValue());
 
 // BiFunction with more complex logic
-BiFunction<int, int, String> comparator = (a, b) -> {
-    if (a > b) {
-        return "first is greater";
-    } else if (a < b) {
-        return "second is greater";
+BiFunction<Int, Int, String> comparator = (a, b) -> {
+    if (a.getValue() > b.getValue()) {
+        return new String("first is greater");
+    } else if (a.getValue() < b.getValue()) {
+        return new String("second is greater");
     } else {
-        return "equal";
+        return new String("equal");
     }
 };
-print("Compare 10, 5: " + comparator.apply(10, 5));
-print("Compare 3, 8: " + comparator.apply(3, 8));
-print("Compare 7, 7: " + comparator.apply(7, 7));
+Int ten = new Int(10);
+Int five2 = new Int(5);
+Int three3 = new Int(3);
+Int eight = new Int(8);
+Int seven = new Int(7);
+Int seven2 = new Int(7);
+print("Compare 10, 5: " + comparator.apply(ten, five2).getValue());
+print("Compare 3, 8: " + comparator.apply(three3, eight).getValue());
+print("Compare 7, 7: " + comparator.apply(seven, seven2).getValue());
 
 print("Multiple type params complete");

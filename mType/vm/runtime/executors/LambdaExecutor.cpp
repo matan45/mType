@@ -4,7 +4,6 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
-
 namespace vm::runtime
 {
     LambdaExecutor::LambdaExecutor(ExecutionContext& ctx)

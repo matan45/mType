@@ -1,4 +1,6 @@
 // Returning subclass when parent expected test
+import * from "../../lib/primitives/Int.mt"
+
 interface Function<T, R> {
     function apply(T input) : R;
 }
@@ -36,7 +38,7 @@ class Cat extends Animal {
 print("=== Subtype Return Test ===");
 
 // Lambda declared to return Animal, but returns Dog (subtype)
-Function<int, Animal> animalFactory = x -> {
+Function<Int, Animal> animalFactory = x -> {
     if (x == 1) {
         return new Dog();
     } else if (x == 2) {

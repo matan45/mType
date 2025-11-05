@@ -1,4 +1,7 @@
 // Returning null for object types test
+import * from "../../lib/primitives/Int.mt"
+import * from "../../lib/primitives/String.mt"
+
 interface Function<T, R> {
     function apply(T input) : R;
 }
@@ -18,7 +21,7 @@ class Box {
 print("=== Null Return Test ===");
 
 // Lambda returning null for object type
-Function<int, String> nullReturner = x -> {
+Function<Int, String> nullReturner = x -> {
     if (x < 0) {
         return null;
     } else {
@@ -48,7 +51,7 @@ print("Box for 10: " + (b1 == null ? "null" : b1.getValue()));
 print("Box for 0: " + (b2 == null ? "null" : "not null"));
 
 // Lambda with null check
-Function<String, int> safeLength = s -> {
+Function<String, Int> safeLength = s -> {
     if (s == null) {
         return 0;
     } else {

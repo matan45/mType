@@ -6,11 +6,11 @@ interface Function {
 class Outer {
     int outerValue;
 
-    function init(int val) {
+    constructor(int val) {
         this.outerValue = val;
     }
 
-    function createAdder() : Function {
+    public function createAdder() : Function {
         Function adder = x -> {
             // Lambda captures 'this' from Outer class
             return this.outerValue + x;
@@ -18,7 +18,7 @@ class Outer {
         return adder;
     }
 
-    function createMultiplier() : Function {
+    public function createMultiplier() : Function {
         int localMult = 2;
         Function mult = x -> {
             // Captures both 'this' and local variable
@@ -27,11 +27,11 @@ class Outer {
         return mult;
     }
 
-    function getValue() : int {
+    public function getValue() : int {
         return this.outerValue;
     }
 
-    function setValue(int v) {
+    public function setValue(int v) {
         this.outerValue = v;
     }
 }

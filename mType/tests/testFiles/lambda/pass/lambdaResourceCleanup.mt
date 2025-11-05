@@ -1,4 +1,6 @@
 // Exception with resource cleanup pattern test
+import * from "../../lib/primitives/String.mt";
+
 interface Function {
     function apply(int x) : int;
 }
