@@ -12,9 +12,25 @@
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../ast/GenericType.hpp"
 #include <stdexcept>
+#include <algorithm>
 
 namespace vm::compiler::registration
 {
+    // Helper function to normalize type strings for comparison
+    // Removes spaces to handle formatting differences like "Function<String, Bool>" vs "Function<String,Bool>"
+    static std::string normalizeTypeString(const std::string& typeStr)
+    {
+        std::string normalized;
+        normalized.reserve(typeStr.size());
+        for (char c : typeStr)
+        {
+            if (c != ' ')
+            {
+                normalized += c;
+            }
+        }
+        return normalized;
+    }
     InterfaceRegistrar::InterfaceRegistrar(
         std::shared_ptr<environment::Environment> environment,
         const types::GenericTypeResolver& genericResolver
@@ -218,18 +234,21 @@ namespace vm::compiler::registration
                 }
 
                 // Resolve return type with substitutions
+                // Use toString() to get full type name including generic arguments
                 std::string resolvedReturnType = resolveGenericType(
-                    signature.returnType->getBaseTypeName(), typeSubstitutions);
+                    signature.returnType->toString(), typeSubstitutions);
                 std::string methodReturnType;
 
                 // Use generic return type if available, otherwise fall back to basic ValueType
                 if (method->getGenericReturnType()) {
-                    methodReturnType = method->getGenericReturnType()->getBaseTypeName();
+                    // Use toString() to include generic type arguments (e.g., "BinaryNode<T>" not just "BinaryNode")
+                    methodReturnType = method->getGenericReturnType()->toString();
                 } else {
                     methodReturnType = ::types::TypeConversionUtils::getTypeDisplayName(method->getReturnType());
                 }
 
-                if (methodReturnType != resolvedReturnType) {
+                // Normalize both type strings before comparison to handle spacing differences
+                if (normalizeTypeString(methodReturnType) != normalizeTypeString(resolvedReturnType)) {
                     throw errors::TypeException(
                         "Method '" + signature.name + "' in class '" + classDef->getName() +
                         "' has return type '" + methodReturnType +
@@ -258,15 +277,18 @@ namespace vm::compiler::registration
 
                     // Use generic parameter type if available, otherwise fall back to basic ValueType
                     if (i < methodGenericParams.size() && methodGenericParams[i].second) {
-                        methodParamType = methodGenericParams[i].second->getBaseTypeName();
+                        // Use toString() to include generic type arguments (e.g., "BinaryNode<T>" not just "BinaryNode")
+                        methodParamType = methodGenericParams[i].second->toString();
                     } else {
                         methodParamType = ::types::TypeConversionUtils::getTypeDisplayName(methodParams[i].second);
                     }
 
+                    // Use toString() to get full type name including generic arguments
                     std::string resolvedParamType = resolveGenericType(
-                        signature.parameters[i].second->getBaseTypeName(), typeSubstitutions);
+                        signature.parameters[i].second->toString(), typeSubstitutions);
 
-                    if (methodParamType != resolvedParamType) {
+                    // Normalize both type strings before comparison to handle spacing differences
+                    if (normalizeTypeString(methodParamType) != normalizeTypeString(resolvedParamType)) {
                         throw errors::TypeException(
                             "Method '" + signature.name + "' parameter " + std::to_string(i + 1) +
                             " in class '" + classDef->getName() +

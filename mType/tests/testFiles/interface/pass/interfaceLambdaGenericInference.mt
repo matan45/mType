@@ -15,13 +15,13 @@ interface Filter<T> {
 
 class IntMapper implements Mapper<Int, Int> {
     public function map(Int input): Int {
-        return new Int(input.toInt() * 2);
+        return new Int(input.value * 2);
     }
 }
 
 class IntFilter implements Filter<Int> {
     public function test(Int input): bool {
-        return input.toInt() % 2 == 0;
+        return input.value % 2 == 0;
     }
 }
 
@@ -45,7 +45,7 @@ class Pipeline<T> {
         return new Pipeline<T>(filtered);
     }
 
-    public function map<R>(Mapper<T, R> mapper): Pipeline<R> {
+    public function <R> map(Mapper<T, R> mapper): Pipeline<R> {
         List<R> mapped = new List<R>();
         int i = 0;
         while (i < this.items.size()) {
@@ -85,6 +85,6 @@ List<Int> resultList = result.collect();
 print("Results:");
 int i = 0;
 while (i < resultList.size()) {
-    print(resultList.get(i));
+    print(resultList.get(i).toString());
     i = i + 1;
 }

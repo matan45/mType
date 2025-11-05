@@ -75,9 +75,9 @@ class BinaryTree<T> implements Tree<T, BinaryNode<T>> {
 }
 
 BinaryTree<String> tree = new BinaryTree<String>();
-tree.add("Root");
-tree.add("Left");
-tree.add("Right");
+tree.add(new String("Root"));
+tree.add(new String("Left"));
+tree.add(new String("Right"));
 
 BinaryNode<String> root = tree.getRoot();
 if (root != null) {

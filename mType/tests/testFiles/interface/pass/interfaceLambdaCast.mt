@@ -1,6 +1,6 @@
 // Test lambda casting to interface type
 // @Script
-
+import * from "../../lib/primitives/String.mt";
 interface Runnable {
     function run(): void;
 }
@@ -15,9 +15,9 @@ class SimpleRunnable implements Runnable {
     }
 }
 
-class StringSupplier implements Supplier<string> {
-    public function get(): string {
-        return "Result from supplier";
+class StringSupplier implements Supplier<String> {
+    public function get(): String {
+        return new String("Result from supplier");
     }
 }
 
@@ -28,7 +28,7 @@ class TaskExecutor {
         print("Task completed");
     }
 
-    public function executeWithResult<T>(Supplier<T> supplier): T {
+    public function <T> executeWithResult(Supplier<T> supplier): T {
         print("Executing supplier...");
         T result = supplier.get();
         print("Supplier completed");
@@ -44,5 +44,5 @@ executor.execute(task);
 
 // Create supplier
 StringSupplier supplier = new StringSupplier();
-string result = executor.executeWithResult<string>(supplier);
-print(result);
+String result = executor.executeWithResult<String>(supplier);
+print(result.toString());

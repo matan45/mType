@@ -2,6 +2,7 @@
 #include "../TypeParser.hpp"
 #include "../utilities/ParserUtils.hpp"
 #include "../utilities/ParameterParser.hpp"
+#include "../class/GenericParameterParser.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/GenericType.hpp"
@@ -53,6 +54,21 @@ namespace parser
             tokenStream.advance();
         }
 
+        // Parse generic type parameters if present (method-level generics)
+        std::vector<ast::GenericTypeParameter> methodGenericParameters;
+        if (tokenStream.current().type == TokenType::LESS)
+        {
+            tokenStream.advance(); // consume '<'
+            GenericParameterParser genericParser(tokenStream, context);
+            methodGenericParameters = genericParser.parseGenericTypeParameters();
+
+            if (tokenStream.current().type != TokenType::GREATER)
+            {
+                throw ParseException("Expected '>' after generic type parameters", tokenStream.current().location);
+            }
+            tokenStream.advance(); // consume '>'
+        }
+
         // Parse function name
         if (tokenStream.current().type != TokenType::IDENTIFIER)
         {
@@ -94,6 +110,9 @@ namespace parser
         auto methodNode = std::make_unique<FunctionNode>(
             methodName, returnType, parameters, dummyBody
         );
+
+        // Set generic type parameters for the method (e.g., <T>, <K, V>)
+        methodNode->setGenericTypeParameters(methodGenericParameters);
 
         // Set async flag if this is an async method
         methodNode->setIsAsync(isAsync);

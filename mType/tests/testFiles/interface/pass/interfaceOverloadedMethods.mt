@@ -2,22 +2,22 @@
 // @Script
 
 interface Printer {
-    function print(String message): void;
-    function print(Int value): void;
-    function print(Bool flag): void;
+    function printString(string message): void;
+    function printInt(int value): void;
+    function printBool(bool flag): void;
 }
 
 class ConsolePrinter implements Printer {
-    public function print(String message): void {
+    public function printString(string message): void {
         print("[String] " + message);
     }
 
-    public function print(Int value): void {
+    public function printInt(int value): void {
         print("[Int] " + value);
     }
 
-    public function print(Bool flag): void {
-        String msg = "true";
+    public function printBool(bool flag): void {
+        string msg = "true";
         if (!flag) {
             msg = "false";
         }
@@ -26,6 +26,6 @@ class ConsolePrinter implements Printer {
 }
 
 ConsolePrinter printer = new ConsolePrinter();
-printer.print("Hello");
-printer.print(42);
-printer.print(true);
+printer.printString("Hello");
+printer.printInt(42);
+printer.printBool(true);

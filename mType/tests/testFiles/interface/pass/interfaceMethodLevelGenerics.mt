@@ -6,40 +6,41 @@ import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
 interface Container {
-    function add<T>(T item): void;
-    function get<T>(int index): T;
-    function transform<T, R>(T item, Function<T, R> mapper): R;
+    function <T> add(T item): void;
+    function <T> get(int index): T;
+    function <T, R> transform(T item, Function<T, R> mapper): R;
+}
+
+interface Function<T,R>{
+	function map(T value): R;
 }
 
 class SimpleContainer implements Container {
-    private List<Any> items;
+    private List<Int> items;
 
     public constructor() {
-        this.items = new List<Any>();
+        this.items = new List<Int>();
     }
 
-    public function add<T>(T item): void {
+    public function <T> add(T item): void {
         this.items.add(item);
     }
 
-    public function get<T>(int index): T {
+    public function <T> get(int index): T {
         return this.items.get(index);
     }
 
-    public function transform<T, R>(T item, Function<T, R> mapper): R {
-        return mapper(item);
+    public function <T, R> transform(T item, Function<T, R> mapper): R {
+        return mapper.map(item);
     }
 }
 
 SimpleContainer container = new SimpleContainer();
-container.add<String>("Hello");
-container.add<Int>(42);
+container.add<Int>(new Int(42));
 
-string str = container.get<String>(0);
-int num = container.get<Int>(1);
+Int num = container.get<Int>(0);
 
-int doubled = container.transform<Int, Int>(5, x -> x * 2);
+Int doubled = container.transform<Int, Int>(new Int(5), x -> new Int(x.value * 2));
 
-print(str);
-print(num);
-print(doubled);  // Should print 10
+print(num.toString());
+print(doubled.toString());  // Should print 10

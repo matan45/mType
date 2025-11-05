@@ -43,6 +43,6 @@ Pair<String, Int> pair = new Pair<String, Int>(new Int(42));
 pair.add(new String("Hello"));
 pair.add(new String("World"));
 
-print(pair.get(0));       // Should print "Hello"
-print(pair.get(1));       // Should print "World"
-print(pair.getExtra());   // Should print 42
+print(pair.get(0).toString());       // Should print "Hello"
+print(pair.get(1).toString());       // Should print "World"
+print(pair.getExtra().toString());   // Should print 42

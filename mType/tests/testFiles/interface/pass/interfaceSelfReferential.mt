@@ -7,9 +7,9 @@ interface Comparable<T extends Comparable<T>> {
 
 class Person implements Comparable<Person> {
     private int age;
-    private string name;
+    public string name;
 
-    public function init(string name, int age) {
+    constructor(string name, int age) {
         this.name = name;
         this.age = age;
     }
@@ -28,15 +28,14 @@ class Person implements Comparable<Person> {
 class Employee extends Person {
     private int salary;
 
-    public function init(string name, int age, int salary) {
-        super.init(name, age);
+    constructor(string name, int age, int salary): super(name, age) {
         this.salary = salary;
     }
 
     // Inherited compareTo works with Employee as well
 }
 
-function findOlder<T extends Comparable<T>>(T a, T b): T {
+function <T extends Comparable<T>> findOlder(T a, T b): T {
     if (a.compareTo(b) > 0) {
         return a;
     }

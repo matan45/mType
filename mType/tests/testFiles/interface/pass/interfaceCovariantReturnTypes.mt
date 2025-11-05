@@ -18,16 +18,13 @@ class Dog extends Animal {
     }
 }
 
-interface AnimalFactory {
-    function create(): Animal;
-}
 
 interface DogFactory {
     function create(): Dog;
 }
 
 // Covariant return types - Dog is subtype of Animal
-class PetFactory implements AnimalFactory, DogFactory {
+class PetFactory implements DogFactory {
     public function create(): Dog {
         // Returns Dog, which satisfies both Animal and Dog requirements
         return new Dog("Buddy");

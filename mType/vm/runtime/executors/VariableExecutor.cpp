@@ -3,7 +3,6 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueTypeUtils.hpp"
-#include <iostream>
 
 namespace vm::runtime
 {

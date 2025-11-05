@@ -37,7 +37,7 @@ Base base = (Base)extended;
 print(base.getId());
 
 // Cast back to Extended (downcast - needs runtime check)
-if (base instanceof Extended) {
+if (base isClassOf Extended) {
     Extended extended2 = (Extended)base;
     print(extended2.getName());
 }
@@ -46,7 +46,7 @@ if (base instanceof Extended) {
 function processBase(Base base): void {
     print("Processing base with id: " + base.getId());
 
-    if (base instanceof Extended) {
+    if (base isClassOf Extended) {
         Extended ext = (Extended)base;
         print("  Name: " + ext.getName());
     } else {
