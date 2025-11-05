@@ -56,26 +56,35 @@ namespace vm::compiler::types
             return true;
         }
 
-        // Check if derivedClass inherits from baseClass
+        // Check if derivedClass is a class
         auto classDef = environment->findClass(derivedClass);
-        if (!classDef) {
+        if (classDef) {
+            // Check parent chain
+            auto parentClass = classDef->getParentClass();
+            while (parentClass) {
+                if (parentClass->getName() == baseClass) {
+                    return true;
+                }
+                parentClass = parentClass->getParentClass();
+            }
+
+            // Check implemented interfaces (with full recursive hierarchy checking)
+            const auto& interfaces = classDef->getImplementedInterfaces();
+            for (const auto& interfaceName : interfaces) {
+                std::unordered_set<std::string> visited;
+                if (checkInterfaceHierarchy(interfaceName, baseClass, visited)) {
+                    return true;
+                }
+            }
+
             return false;
         }
 
-        // Check parent chain
-        auto parentClass = classDef->getParentClass();
-        while (parentClass) {
-            if (parentClass->getName() == baseClass) {
-                return true;
-            }
-            parentClass = parentClass->getParentClass();
-        }
-
-        // Check implemented interfaces (with full recursive hierarchy checking)
-        const auto& interfaces = classDef->getImplementedInterfaces();
-        for (const auto& interfaceName : interfaces) {
+        // Check if derivedClass is an interface that extends baseClass
+        auto interfaceDef = environment->findInterface(derivedClass);
+        if (interfaceDef) {
             std::unordered_set<std::string> visited;
-            if (checkInterfaceHierarchy(interfaceName, baseClass, visited)) {
+            if (checkInterfaceHierarchy(derivedClass, baseClass, visited)) {
                 return true;
             }
         }

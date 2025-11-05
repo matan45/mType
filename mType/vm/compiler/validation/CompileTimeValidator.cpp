@@ -107,11 +107,11 @@ namespace vm::compiler::validation
         auto interfaceDef = environment->findInterface(className);
         if (interfaceDef)
         {
-            // For interfaces, we just check if the method exists (interfaces don't track param counts)
-            if (!interfaceDef->hasMethod(methodName))
+            // For interfaces, check if the method exists in this interface or any parent interfaces
+            if (!hasMethodInInterfaceHierarchy(interfaceDef, methodName))
             {
                 throw errors::TypeException(
-                    "Method '" + methodName + "' not found in interface '" + className + "'",
+                    "Method '" + methodName + "' not found in interface '" + className + "' or its parent interfaces",
                     location
                 );
             }
@@ -365,5 +365,33 @@ namespace vm::compiler::validation
             return className + "::" + methodName;
         }
         return className + "::" + methodName + "/" + std::to_string(argCount);
+    }
+
+    bool CompileTimeValidator::hasMethodInInterfaceHierarchy(
+        std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> interfaceDef,
+        const std::string& methodName)
+    {
+        if (!interfaceDef)
+        {
+            return false;
+        }
+
+        // Check if the method exists in the current interface
+        if (interfaceDef->hasMethod(methodName))
+        {
+            return true;
+        }
+
+        // Recursively check parent interfaces
+        for (const auto& parentInterfaceName : interfaceDef->getExtendedInterfaces())
+        {
+            auto parentInterface = environment->findInterface(parentInterfaceName);
+            if (parentInterface && hasMethodInInterfaceHierarchy(parentInterface, methodName))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

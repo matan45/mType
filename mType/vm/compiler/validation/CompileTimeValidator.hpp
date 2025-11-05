@@ -53,5 +53,10 @@ namespace vm::compiler::validation
         // Helper to get fully qualified method name
         std::string getQualifiedMethodName(const std::string& className, const std::string& methodName,
                                           size_t argCount, bool isStatic = false);
+
+        // Helper to check if a method exists in an interface or any of its parent interfaces
+        bool hasMethodInInterfaceHierarchy(
+            std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> interfaceDef,
+            const std::string& methodName);
     };
 }
