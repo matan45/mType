@@ -180,9 +180,24 @@ namespace vm::compiler::registration
                     methodDef->addAnnotation(annotation);
                 }
 
+                // Check for method overloading (not allowed)
                 if (methodNode->getIsStatic()) {
+                    if (classDef->getStaticMethod(methodNode->getName()) != nullptr) {
+                        throw errors::TypeException(
+                            "Method overloading is not supported. Static method '" + methodNode->getName() +
+                            "' is already defined in class '" + classNode->getClassName() + "'",
+                            methodNode->getLocation()
+                        );
+                    }
                     classDef->addStaticMethod(methodNode->getName(), methodDef);
                 } else {
+                    if (classDef->getInstanceMethod(methodNode->getName()) != nullptr) {
+                        throw errors::TypeException(
+                            "Method overloading is not supported. Instance method '" + methodNode->getName() +
+                            "' is already defined in class '" + classNode->getClassName() + "'",
+                            methodNode->getLocation()
+                        );
+                    }
                     classDef->addMethod(methodDef);
                 }
             }

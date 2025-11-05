@@ -27,10 +27,6 @@ class Float {
         return new Float(this.value + other.value);
     }
 
-    public function add(float other): Float {
-        return new Float(this.value + other);
-    }
-
     public function subtract(Float other): Float {
         return new Float(this.value - other.value);
     }

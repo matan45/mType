@@ -5,6 +5,7 @@
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../../errors/TypeException.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
@@ -63,11 +64,19 @@ namespace vm::compiler::registration
     {
         std::string funcName = functionNode->getName();
 
-        // Check if already registered (native or previously registered)
+        // Check if already registered
         const auto* existingFunc = program.getFunction(funcName);
         if (existingFunc)
         {
-            return; // Already registered, skip
+            // Allow native functions to be skipped, but reject user-defined duplicates
+            if (!existingFunc->isNative)
+            {
+                throw errors::TypeException(
+                    "Function overloading is not supported. Global function '" + funcName + "' is already defined",
+                    functionNode->getLocation()
+                );
+            }
+            return; // Native function already registered, skip
         }
 
         // Extract parameter information
