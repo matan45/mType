@@ -2,19 +2,17 @@
 
 import { Int } from "../../lib/primitives/Int.mt";
 import { Bool } from "../../lib/primitives/Bool.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 print("=== Async Exception in Constructor Test ===");
 
-class ConstructorException {
-    string reason;
+class ConstructorException extends Exception {
 
-    public constructor(string r) {
-        this.reason = r;
+    public constructor(string r): super(r) {
+        
     }
 
-    public function getReason(): string {
-        return this.reason;
-    }
+   
 }
 
 class FailingObject {
@@ -53,7 +51,7 @@ function async createObject(Bool shouldFail): Promise<SafeObject> {
         result = new SafeObject(failing.getValue());
         print("Object created successfully");
     } catch (ConstructorException e) {
-        print("Constructor failed: " + e.getReason());
+        print("Constructor failed: " + e.getMessage());
         result = new SafeObject(999);
     }
 

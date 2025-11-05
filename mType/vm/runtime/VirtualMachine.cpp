@@ -473,23 +473,10 @@ namespace vm::runtime
     {
         suspendedByAwait = false; // Reset flag at start
 
-        // Push a call frame for the script's main execution context
-        // This is needed so that script-level variables can be captured by lambdas
-        bool pushedScriptFrame = false;
+        // Initialize source location tracking by scanning forward for first instruction with location
+        // This ensures error messages have correct location even before executing instructions
         if (callStack.empty() && instructionPointer == program->getEntryPoint())
         {
-            CallFrame scriptFrame;
-            scriptFrame.returnAddress = program->getInstructionCount(); // Return past the end (will exit)
-            scriptFrame.frameBase = 0;
-            scriptFrame.localBase = 0;
-            scriptFrame.functionName = "__script_main__";
-            scriptFrame.thisInstance = nullptr;
-            scriptFrame.definingClassName = "";
-            callStack.push_back(scriptFrame);
-            pushedScriptFrame = true;
-
-            // Initialize source location tracking by scanning forward for first instruction with location
-            // This ensures error messages have correct location even before executing instructions
             for (size_t ip = instructionPointer; ip < program->getInstructionCount(); ++ip)
             {
                 auto loc = program->getSourceLocation(ip);
@@ -691,12 +678,6 @@ namespace vm::runtime
         auto executionEnd = std::chrono::steady_clock::now();
         stats.executionTime = std::chrono::duration_cast<std::chrono::microseconds>(
             executionEnd - executionStart);
-
-        // Pop the script frame if we pushed one
-        if (pushedScriptFrame && !callStack.empty())
-        {
-            callStack.pop_back();
-        }
 
         // Return top of stack or void
         if (!stackManager->empty())

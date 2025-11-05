@@ -172,14 +172,32 @@ namespace vm::compiler::visitors
                 );
             }
 
+            // If in a lambda, prevent shadowing of captured outer variables (C# behavior)
+            if (ctx.functionFrameManager.isInLambda())
+            {
+                const auto& frame = ctx.functionFrameManager.currentFrame();
+                for (const auto& capturedName : frame.capturedVariableNames)
+                {
+                    if (name == capturedName)
+                    {
+                        throw errors::TypeException(
+                            "Local variable '" + name + "' shadows outer scope variable. "
+                            "Variable shadowing is not allowed in lambdas (C# semantics).",
+                            node->getLocation());
+                    }
+                }
+            }
+
             ctx.variableTracker.declareLocal(name, varType, node->getClassName());
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
             // STORE_LOCAL will consume the value from the stack - no DUP needed
-            size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
+            // Convert absolute slot to relative slot within this function frame
+            size_t absoluteSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            size_t relativeSlot = absoluteSlot - ctx.functionFrameManager.currentFrame().localStartSlot;
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
-                                         static_cast<uint32_t>(slot),
+                                         static_cast<uint32_t>(relativeSlot),
                                          static_cast<uint32_t>(nameIndex), node);
             return;
         }
@@ -344,14 +362,32 @@ namespace vm::compiler::visitors
                 );
             }
 
+            // If in a lambda, prevent shadowing of captured outer variables (C# behavior)
+            if (ctx.functionFrameManager.isInLambda())
+            {
+                const auto& frame = ctx.functionFrameManager.currentFrame();
+                for (const auto& capturedName : frame.capturedVariableNames)
+                {
+                    if (name == capturedName)
+                    {
+                        throw errors::TypeException(
+                            "Local variable '" + name + "' shadows outer scope variable. "
+                            "Variable shadowing is not allowed in lambdas (C# semantics).",
+                            node->getLocation());
+                    }
+                }
+            }
+
             ctx.variableTracker.declareLocal(name, varType, node->getClassName());
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
             // STORE_LOCAL will consume the value from the stack - no DUP needed
-            size_t slot = ctx.variableTracker.getNextLocalSlot() - 1;
+            // Convert absolute slot to relative slot within this function frame
+            size_t absoluteSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            size_t relativeSlot = absoluteSlot - ctx.functionFrameManager.currentFrame().localStartSlot;
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
-                                         static_cast<uint32_t>(slot),
+                                         static_cast<uint32_t>(relativeSlot),
                                          static_cast<uint32_t>(nameIndex), node);
             return;
         }
@@ -455,14 +491,8 @@ namespace vm::compiler::visitors
 
     value::Value StatementCompiler::compileProgram(ast::ProgramNode* node)
     {
-        // IMPORTANT: Treat the script as if it's inside a function frame
-        // This makes all script-level variables use local slots instead of globals
-        // This is critical for proper lambda capture semantics in loops
-        ctx.functionFrameManager.enterFunctionFrame("__script_main__",
-                                                     0, // Local variables start at slot 0
-                                                     ctx.variableTracker.getCurrentScopeDepth(),
-                                                     false, // Not a lambda
-                                                     false); // Not async
+        // Script-level code - variables are globals, not locals
+        // Functions and lambdas can access these global variables
         ctx.variableTracker.beginScope();
 
         const auto& statements = node->getStatements();
@@ -471,9 +501,8 @@ namespace vm::compiler::visitors
             stmt->accept(ctx.visitor); // Will need delegation
         }
 
-        // Exit the script function frame
         ctx.variableTracker.endScope();
-        ctx.functionFrameManager.exitFunctionFrame();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         return std::monostate{};
     }

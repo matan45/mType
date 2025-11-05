@@ -3,44 +3,13 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueTypeUtils.hpp"
+#include <iostream>
+
 namespace vm::runtime
 {
     VariableExecutor::VariableExecutor(ExecutionContext& ctx)
         : context(ctx)
     {
-    }
-
-    bool VariableExecutor::tryLoadFromLambdaParentFrame(const std::string& varName) {
-        // Check if we're in a lambda with a parent frame (for late-bound variable access)
-        if (context.callStack.empty() || !context.callStack.back().originatingLambda) {
-            return false;
-        }
-
-        auto lambda = context.callStack.back().originatingLambda;
-        if (!lambda->parentFrame) {
-            return false;
-        }
-
-        // First try the immediate parent frame
-        value::Value val = lambda->parentFrame->getLocalByName(varName);
-        if (!std::holds_alternative<std::monostate>(val)) {
-            context.stackManager->push(val);
-            return true;
-        }
-
-        // Not found in immediate parent - traverse up the call stack to find parent lambdas
-        // This supports nested lambdas where inner lambda needs access to outer lambda's parent variables
-        for (auto it = context.callStack.rbegin(); it != context.callStack.rend(); ++it) {
-            if (it->originatingLambda && it->originatingLambda->parentFrame) {
-                val = it->originatingLambda->parentFrame->getLocalByName(varName);
-                if (!std::holds_alternative<std::monostate>(val)) {
-                    context.stackManager->push(val);
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     bool VariableExecutor::tryLoadFromInstanceField(const std::string& varName) {
@@ -111,7 +80,6 @@ namespace vm::runtime
         }
 
         // Try alternative variable access methods
-        if (tryLoadFromLambdaParentFrame(varName)) return;
         if (tryLoadFromInstanceField(varName)) return;
         if (tryLoadFromStaticField(varName)) return;
 
@@ -318,20 +286,5 @@ namespace vm::runtime
 
         // Push value back for assignment expressions (e.g., int i = 0 in for loop)
         context.stackManager->push(val);
-
-        // Also update the shared frame if one exists (for lambda late-binding)
-        // This ensures lambdas see updated values of variables (including forward references)
-        if (!context.callStack.empty() && context.callStack.back().sharedFrame)
-        {
-            if (!varName.empty())
-            {
-                // Register the variable name -> slot mapping
-                context.callStack.back().sharedFrame->setLocal(varName, slot, val);
-            }
-            else
-            {
-                context.callStack.back().sharedFrame->setLocal(slot, val);
-            }
-        }
     }
 }

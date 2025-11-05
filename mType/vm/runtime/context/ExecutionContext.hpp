@@ -48,7 +48,7 @@ namespace vm::runtime
 
     /**
      * Bytecode lambda representation with closure support
-     * Uses hybrid capture: snapshot for existing variables, late-binding for forward references
+     * Uses snapshot capture only (C# semantics) - all outer variables captured at lambda creation time
      */
     struct BytecodeLambda {
         size_t instructionPointer;  // Where the lambda code starts
@@ -56,8 +56,6 @@ namespace vm::runtime
         std::vector<value::Value> capturedValues;  // Snapshot values of variables at lambda creation time
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> capturedThis;  // Captured 'this' from method context
         std::string creatingClassName;  // Class context where lambda was created (for access checks)
-        std::shared_ptr<SharedStackFrame> parentFrame;  // Shared parent frame for late-bound variable access (forward refs)
-        std::unordered_map<std::string, size_t> parentVarNames;  // Map of parent variable names to their slots
         std::vector<std::string> parameterNames;  // Names of lambda parameters (for debugging)
         std::vector<std::string> capturedNames;  // Names of captured variables (for debugging)
         std::string functionName;  // Unique lambda function name (for metadata lookup)
@@ -72,9 +70,8 @@ namespace vm::runtime
         size_t localBase;                        // Base of local variables
         std::string functionName;                // For debugging/stack traces
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> thisInstance;  // For method calls
-        std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for lambda late-binding
-        std::shared_ptr<BytecodeLambda> originatingLambda;  // If this frame is for a lambda, reference to it
-        std::string definingClassName;           // NEW: Class that defines the method (for access control in inheritance)
+        std::shared_ptr<BytecodeLambda> originatingLambda;  // If this frame is for a lambda, reference to it (for debugging)
+        std::string definingClassName;           // Class that defines the method (for access control in inheritance)
     };
 
     /**

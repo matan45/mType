@@ -522,12 +522,35 @@ namespace vm::compiler::visitors
     {
         const auto& params = node->getParameters();
 
+        // Validate that lambda parameters don't shadow outer scope variables (C# behavior)
+        for (const auto& param : params)
+        {
+            for (const auto& captured : capturedVars)
+            {
+                if (param.name == captured.name)
+                {
+                    throw errors::TypeException(
+                        "Lambda parameter '" + param.name + "' shadows outer scope variable. "
+                        "Variable shadowing is not allowed in lambdas (C# semantics).",
+                        node->getLocation());
+                }
+            }
+        }
+
         // Enter function frame for lambda
         ctx.functionFrameManager.enterFunctionFrame("auto",
                                                     0, // Lambda parameters start from slot 0
                                                     ctx.variableTracker.getCurrentScopeDepth(),
                                                     true, // Mark this frame as a lambda
                                                     node->getIsAsync()); // Mark if async lambda
+
+        // Store captured variable names in the frame for shadowing validation
+        auto& currentFrame = ctx.functionFrameManager.currentFrame();
+        for (const auto& captured : capturedVars)
+        {
+            currentFrame.capturedVariableNames.push_back(captured.name);
+        }
+
         ctx.variableTracker.beginScope();
 
         // Track lambda parameters as locals (they occupy slots 0, 1, 2, ...)

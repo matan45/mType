@@ -1,19 +1,17 @@
 // Test rethrowing exceptions across async boundaries
 
 import { Int } from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 print("=== Async Rethrow Exception Test ===");
 
-class AppError {
-    string message;
+class AppError extends Exception {
 
-    public constructor(string msg) {
-        this.message = msg;
+    public constructor(string msg): super(msg) {
+        
     }
 
-    public function getMessage(): string {
-        return this.message;
-    }
+    
 }
 
 class Data {

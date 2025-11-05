@@ -1,19 +1,17 @@
 // Test exception handling across multiple async call levels
 
 import { Int } from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 print("=== Nested Async Exception Handling Test ===");
 
-class Error {
-    string msg;
+class Error extends Exception {
 
-    public constructor(string m) {
-        this.msg = m;
+    public constructor(string m): super(m) {
+        
     }
 
-    public function getMsg(): string {
-        return this.msg;
-    }
+   
 }
 
 class Value {
@@ -50,7 +48,7 @@ function async level1(): Promise<Value> {
         result = await level2();
         print("Level 1: success");
     } catch (Error e) {
-        print("Level 1: caught error - " + e.getMsg());
+        print("Level 1: caught error - " + e.getMessage());
         result = new Value(100);
     }
 

@@ -1,19 +1,18 @@
 // Test exception propagation across async function boundaries
 
 import { Int } from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 print("=== Async Exception Propagation Test ===");
 
-class CustomException {
-    string message;
+class CustomException extends Exception  {
+    
 
-    public constructor(string msg) {
+    public constructor(string msg): super(msg) {
         this.message = msg;
     }
 
-    public function getMessage(): string {
-        return this.message;
-    }
+    
 }
 
 class Result {

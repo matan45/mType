@@ -1,6 +1,7 @@
 #include "ExceptionExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../utils/ErrorLocationHelper.hpp"
 #include <sstream>
 
 namespace vm::runtime
@@ -48,53 +49,89 @@ namespace vm::runtime
             throwLocation = errors::SourceLocation(currentLoc->filename, currentLoc->line, currentLoc->column);
         }
 
-        // Get exception type name and populate stack trace
-        std::string typeName = "Exception";
-
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue))
+        // Validate that only Exception objects (or subclasses) can be thrown
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue))
         {
-            auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue);
-            if (objInstance)
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Only classes that inherit from Exception can be thrown");
+        }
+
+        auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue);
+
+        // Verify the object inherits from Exception
+        if (objInstance)
+        {
+            auto classDef = objInstance->getClassDefinition();
+            bool inheritsFromException = false;
+
+            // Check if this is Exception class or inherits from it
+            if (classDef->getName() == "Exception")
             {
-                typeName = objInstance->getTypeName();
-
-                // Generate stack trace from call stack with source location information
-                std::ostringstream stackTrace;
-
-                // Add current location (where the throw happened)
-                if (currentLoc)
+                inheritsFromException = true;
+            }
+            else
+            {
+                // Walk up the inheritance chain
+                auto currentClass = classDef;
+                while (currentClass && currentClass->hasParentClass())
                 {
-                    stackTrace << "  at " << currentLoc->filename << ":"
-                              << currentLoc->line << ":" << currentLoc->column << "\n";
+                    currentClass = currentClass->getParentClass();
+                    if (currentClass && currentClass->getName() == "Exception")
+                    {
+                        inheritsFromException = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!inheritsFromException)
+            {
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "Can only throw objects that inherit from Exception class, got: " + classDef->getName());
+            }
+        }
+
+        // Get exception type name and populate stack trace
+        std::string typeName = objInstance ? objInstance->getTypeName() : "Exception";
+
+        if (objInstance)
+        {
+            // Generate stack trace from call stack with source location information
+            std::ostringstream stackTrace;
+
+            // Add current location (where the throw happened)
+            if (currentLoc)
+            {
+                stackTrace << "  at " << currentLoc->filename << ":"
+                          << currentLoc->line << ":" << currentLoc->column << "\n";
+            }
+            else
+            {
+                stackTrace << "  at <unknown location>\n";
+            }
+
+            // Add call stack frames
+            for (const auto& frame : context.callStack)
+            {
+                // The returnAddress points to the instruction AFTER the call
+                // We need to look at the CALL instruction itself (one before)
+                size_t callSite = frame.returnAddress > 0 ? frame.returnAddress - 1 : frame.returnAddress;
+                auto* loc = context.program->getSourceLocation(callSite);
+                if (loc)
+                {
+                    stackTrace << "  at " << frame.functionName << " ("
+                              << loc->filename << ":" << loc->line << ":"
+                              << loc->column << ")\n";
                 }
                 else
                 {
-                    stackTrace << "  at <unknown location>\n";
+                    stackTrace << "  at " << frame.functionName
+                              << " (bytecode offset " << frame.returnAddress << ")\n";
                 }
-
-                // Add call stack frames
-                for (const auto& frame : context.callStack)
-                {
-                    // The returnAddress points to the instruction AFTER the call
-                    // We need to look at the CALL instruction itself (one before)
-                    size_t callSite = frame.returnAddress > 0 ? frame.returnAddress - 1 : frame.returnAddress;
-                    auto* loc = context.program->getSourceLocation(callSite);
-                    if (loc)
-                    {
-                        stackTrace << "  at " << frame.functionName << " ("
-                                  << loc->filename << ":" << loc->line << ":"
-                                  << loc->column << ")\n";
-                    }
-                    else
-                    {
-                        stackTrace << "  at " << frame.functionName
-                                  << " (bytecode offset " << frame.returnAddress << ")\n";
-                    }
-                }
-
-                // Set the stackTrace field on the exception object
-                objInstance->setField("stackTrace", stackTrace.str());
             }
+
+            // Set the stackTrace field on the exception object
+            objInstance->setField("stackTrace", stackTrace.str());
         }
 
         // Throw UserException with proper source location

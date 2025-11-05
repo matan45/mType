@@ -57,46 +57,6 @@ namespace debugger
                 return variables;
             }
 
-            // Check if we have a shared frame (for lambdas with late-binding)
-            if (currentFrame.sharedFrame)
-            {
-                try
-                {
-                    // DEFENSIVE: Validate shared frame state
-                    if (!currentFrame.sharedFrame->nameToSlot.empty())
-                    {
-                        for (const auto& [name, slot] : currentFrame.sharedFrame->nameToSlot)
-                        {
-                            // DEFENSIVE: Validate slot is reasonable
-                            if (slot > constants::MAX_REASONABLE_SLOT)
-                            {
-                                std::cerr << "VMVariableInspector::getLocalVariables() - Invalid slot "
-                                          << slot << " for variable '" << name << "'\n";
-                                continue;
-                            }
-
-                            try
-                            {
-                                value::Value val = currentFrame.sharedFrame->getLocal(slot);
-                                variables.push_back(valueToDebugVariable(name, val));
-                            }
-                            catch (const std::exception& e)
-                            {
-                                std::cerr << "VMVariableInspector::getLocalVariables() - Error getting shared frame variable '"
-                                          << name << "': " << e.what() << "\n";
-                                // Continue with other variables
-                            }
-                        }
-                    }
-                }
-                catch (const std::exception& e)
-                {
-                    std::cerr << "VMVariableInspector::getLocalVariables() - Error accessing shared frame: "
-                              << e.what() << "\n";
-                }
-                return variables;
-            }
-
             // Check if this is a lambda invocation (has originatingLambda)
             if (currentFrame.originatingLambda)
             {

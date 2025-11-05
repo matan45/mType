@@ -1,4 +1,5 @@
 #include "ComparisonExecutor.hpp"
+#include <iostream>
 
 namespace vm::runtime
 {
@@ -50,6 +51,7 @@ namespace vm::runtime
     void ComparisonExecutor::handleLt() {
         value::Value right = context.stackManager->pop();
         value::Value left = context.stackManager->pop();
+
         if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right)) {
             context.stackManager->push(std::get<int>(left) < std::get<int>(right));
         } else if (std::holds_alternative<float>(left) && std::holds_alternative<float>(right)) {

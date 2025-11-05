@@ -1,13 +1,14 @@
 // Test exception thrown in finally block of async function
 
 import { Int } from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 print("=== Exception in Finally Block Test ===");
 
-class FinallyException {
-    string msg;
-    public constructor(string m) { this.msg = m; }
-    public function getMsg(): string { return this.msg; }
+class FinallyException extends Exception {
+   
+    public constructor(string m): super(m) {  }
+    
 }
 
 class Result {
@@ -39,7 +40,7 @@ function async catchFinallyException(): Promise<Result> {
     try {
         res = await functionWithFinallyException();
     } catch (FinallyException e) {
-        print("Caught finally exception: " + e.getMsg());
+        print("Caught finally exception: " + e.getMessage());
         res = new Result(999);
     }
 

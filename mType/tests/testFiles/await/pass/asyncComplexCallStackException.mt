@@ -1,13 +1,14 @@
 // Test exception with complex async call stack
 
 import { Int } from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 print("=== Complex Call Stack Exception Test ===");
 
-class StackException {
-    string location;
-    public constructor(string loc) { this.location = loc; }
-    public function getLocation(): string { return this.location; }
+class StackException extends Exception {
+   
+    public constructor(string loc): super(loc) {  }
+    
 }
 
 class Value {
@@ -47,7 +48,7 @@ function async deepFunction1(): Promise<Value> {
     try {
         v = await deepFunction2();
     } catch (StackException e) {
-        print("Caught at deep 1: " + e.getLocation());
+        print("Caught at deep 1: " + e.getMessage());
         v = new Value(888);
     }
     return v;

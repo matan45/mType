@@ -40,7 +40,7 @@ namespace parser
         }
         tokenStream.advance(); // consume '->'
 
-        // Parse body
+        // Parse body with lambda context guard
         auto [body, bodyType] = parseLambdaBody();
 
         return std::make_unique<LambdaNode>(parameters, std::move(body), location, bodyType);

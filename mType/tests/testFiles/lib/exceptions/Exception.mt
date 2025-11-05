@@ -2,6 +2,11 @@
 class Exception {
     public string message;
     public string stackTrace;
+	
+	public constructor() {
+        message = "";
+        stackTrace = "";
+    }
 
     // Constructor with message
     public constructor(string msg) {

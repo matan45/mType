@@ -19,6 +19,7 @@ namespace vm::compiler::variables
             bool isLambda = false;  // Track if this frame is for a lambda
             bool isAsync = false;   // Track if this frame is for an async function/lambda
             size_t maxLocalSlot = 0;  // Track the maximum local slot used in this function
+            std::vector<std::string> capturedVariableNames;  // For lambdas: names of captured outer variables (for shadowing check)
         };
 
         FunctionFrameManager() = default;

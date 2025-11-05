@@ -30,7 +30,6 @@ namespace vm::runtime
         ExecutionContext& context;
 
         // Helper methods for handleLoadVar
-        bool tryLoadFromLambdaParentFrame(const std::string& varName);
         bool tryLoadFromInstanceField(const std::string& varName);
         bool tryLoadFromStaticField(const std::string& varName);
 

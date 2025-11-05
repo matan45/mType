@@ -1,19 +1,20 @@
 // Test multiple exception handlers in async function chain
 
 import { Int } from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 print("=== Multiple Exception Handlers Test ===");
 
-class ErrorA {
-    string msg;
-    public constructor(string m) { this.msg = m; }
-    public function getMsg(): string { return this.msg; }
+class ErrorA extends Exception {
+    
+    public constructor(string m): super(m) {  }
+    
 }
 
-class ErrorB {
-    string msg;
-    public constructor(string m) { this.msg = m; }
-    public function getMsg(): string { return this.msg; }
+class ErrorB extends Exception {
+    
+    public constructor(string m): super(m) {  }
+    
 }
 
 class Result {
@@ -47,10 +48,10 @@ function async handleMultipleErrors(int testCase): Promise<Result> {
             res = await throwErrorB();
         }
     } catch (ErrorA ea) {
-        print("Caught ErrorA: " + ea.getMsg());
+        print("Caught ErrorA: " + ea.getMessage());
         res = new Result(100);
     } catch (ErrorB eb) {
-        print("Caught ErrorB: " + eb.getMsg());
+        print("Caught ErrorB: " + eb.getMessage());
         res = new Result(200);
     }
 

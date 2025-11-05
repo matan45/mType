@@ -1,12 +1,13 @@
 // Test exception after some awaits have completed successfully
 
 import { Int } from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 print("=== Partial Execution Exception Test ===");
 
-class PartialException {
+class PartialException extends Exception {
     int failedStep;
-    public constructor(int step) { this.failedStep = step; }
+    public constructor(int step): super() { this.failedStep = step; }
     public function getStep(): int { return this.failedStep; }
 }
 

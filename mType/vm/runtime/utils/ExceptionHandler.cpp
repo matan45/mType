@@ -1,6 +1,6 @@
 #include "ExceptionHandler.hpp"
 #include "../../bytecode/OpCode.hpp"
-#include  <iostream>
+
 namespace vm::runtime::utils
 {
     ExceptionHandler::ExceptionHandler(const bytecode::BytecodeProgram* prog,

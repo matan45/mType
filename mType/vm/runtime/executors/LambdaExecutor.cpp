@@ -47,45 +47,8 @@ namespace vm::runtime
             lambda->capturedNames.push_back(capturedName);
         }
 
-        // Share the parent frame for late-bound variable access
-        // This allows lambdas to access variables declared after lambda creation (forward references)
-        if (!context.callStack.empty()) {
-            // Get or create shared frame for current call frame
-            if (!context.callStack.back().sharedFrame) {
-                context.callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
-                // Initialize with current local variables
-                size_t localBase = context.callStack.back().localBase;
-                for (size_t i = localBase; i < context.stackManager->size(); ++i) {
-                    context.callStack.back().sharedFrame->setLocal(i - localBase, (*context.stackManager)[i]);
-                }
-            }
-            lambda->parentFrame = context.callStack.back().sharedFrame;
-
-            // Populate the name->slot mapping from the LAMBDA instruction operands
-            // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, functionNameIdx,
-            //                   captureSlot1, ..., captureSlotN,
-            //                   paramNameIdx1, ..., paramNameIdxN,
-            //                   capturedNameIdx1, ..., capturedNameIdxN,
-            //                   parentNameIdx1, parentSlot1, ...]
-            // Note: We ADD to the existing mapping, not replace it, so later lambdas
-            // in the same scope can see earlier ones (for forward references)
-            size_t mappingStart = 5 + captureCount + paramCount + captureCount;  // Skip header, funcNameIdx, capture slots, param names, and captured names
-            for (size_t i = 0; i < parentLocalCount; ++i) {
-                size_t nameIdx = instr.operands[mappingStart + i * 2];
-                size_t slot = instr.operands[mappingStart + i * 2 + 1];
-                std::string varName = context.program->getConstantPool().getString(nameIdx);
-                // Only add if not already present (don't overwrite)
-                if (lambda->parentFrame->nameToSlot.find(varName) == lambda->parentFrame->nameToSlot.end()) {
-                    lambda->parentFrame->nameToSlot[varName] = slot;
-                }
-            }
-        } else {
-            // Global scope - create a new shared frame
-            lambda->parentFrame = std::make_shared<SharedStackFrame>();
-            for (size_t i = 0; i < context.stackManager->size(); ++i) {
-                lambda->parentFrame->setLocal(i, (*context.stackManager)[i]);
-            }
-        }
+        // NOTE: We use snapshot-only capture (C# semantics), not late-binding
+        // All captured variables are snapshot at lambda creation time (see below)
 
         // Capture class context for access modifier checks
         if (!context.callStack.empty()) {
