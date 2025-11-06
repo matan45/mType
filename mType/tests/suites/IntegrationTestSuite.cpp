@@ -6,7 +6,8 @@ namespace tests::testSuite
     
     void IntegrationTestSuite::setupTests()
     {
-
+        addOutputVerificationTest("Pure oop",
+                                passPath + "phase4_complete.mt");
         addOutputVerificationTest("Conversion basic",
                         passPath + "test_type_conversion_basic.mt");
         addOutputVerificationTest("Generics simple",

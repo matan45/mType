@@ -54,11 +54,12 @@ public final class Bool implements Object<Bool> {
     }
 
     // Static factory methods for common values
-    public static function TRUE(): Bool {
+    // Static factory methods for common values
+    public static function getTRUE(): Bool {
         return new Bool(true);
     }
 
-    public static function FALSE(): Bool {
+    public static function getFALSE(): Bool {
         return new Bool(false);
     }
 }

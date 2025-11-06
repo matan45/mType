@@ -3,6 +3,10 @@
 #include "ArrayCompiler.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
+#include "../../../ast/nodes/expressions/IntegerNode.hpp"
+#include "../../../ast/nodes/expressions/FloatNode.hpp"
+#include "../../../ast/nodes/expressions/BoolNode.hpp"
+#include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../errors/UndefinedException.hpp"
@@ -25,17 +29,18 @@ namespace vm::compiler::visitors
         auto rightType = ctx.typeInference.inferExpressionType(node->getRight());
         auto op = node->getOperator();
 
-        // Validate binary operation
-        bool leftIsNull = dynamic_cast<ast::NullNode*>(node->getLeft()) != nullptr;
-        bool rightIsNull = dynamic_cast<ast::NullNode*>(node->getRight()) != nullptr;
-        ctx.typeValidator.validateBinaryOperation(leftType, rightType, op, leftIsNull, rightIsNull, node->getLocation());
-
-        // PHASE 4: Try operator overloading for Box types (Int, Float, Bool, String)
+        // PHASE 4: Try operator overloading FIRST for Box types (Int, Float, Bool, String)
         // This transforms operators into method calls (e.g., a + b → a.add(b))
+        // Must check BEFORE validation since Box types don't support primitive operators
         if (tryEmitOperatorOverloading(node, node->getLeft(), node->getRight(), op))
         {
             return std::monostate{};  // Operator overloading handled the compilation
         }
+
+        // Validate binary operation (only for non-overloaded operators)
+        bool leftIsNull = dynamic_cast<ast::NullNode*>(node->getLeft()) != nullptr;
+        bool rightIsNull = dynamic_cast<ast::NullNode*>(node->getRight()) != nullptr;
+        ctx.typeValidator.validateBinaryOperation(leftType, rightType, op, leftIsNull, rightIsNull, node->getLocation());
 
         // Handle short-circuit logical operators specially
         if (op == token::TokenType::AND) {
@@ -334,15 +339,46 @@ namespace vm::compiler::visitors
     {
         // Infer the type of the left operand
         value::ValueType leftType = ctx.typeInference.inferExpressionType(left);
+        value::ValueType rightType = ctx.typeInference.inferExpressionType(right);
 
-        // Only apply operator overloading for OBJECT types
-        if (leftType != value::ValueType::OBJECT)
+        // Check if left is a primitive literal that should be auto-boxed first
+        std::string leftClassName;
+        bool leftNeedsBoxing = false;
+
+        if (leftType == value::ValueType::OBJECT)
         {
-            return false;
+            // Left is already an object, get its class name
+            leftClassName = ctx.typeInference.inferExpressionClassName(left);
         }
-
-        // Get the class name of the left operand
-        std::string leftClassName = ctx.typeInference.inferExpressionClassName(left);
+        else
+        {
+            // Left is a primitive - check if it's a literal that can be boxed
+            if (dynamic_cast<ast::IntegerNode*>(left))
+            {
+                leftClassName = "Int";
+                leftNeedsBoxing = true;
+            }
+            else if (dynamic_cast<ast::FloatNode*>(left))
+            {
+                leftClassName = "Float";
+                leftNeedsBoxing = true;
+            }
+            else if (dynamic_cast<ast::BoolNode*>(left))
+            {
+                leftClassName = "Bool";
+                leftNeedsBoxing = true;
+            }
+            else if (dynamic_cast<ast::StringNode*>(left))
+            {
+                leftClassName = "String";
+                leftNeedsBoxing = true;
+            }
+            else
+            {
+                // Left is a primitive expression (not a literal), can't use operator overloading
+                return false;
+            }
+        }
 
         // Check if it's a Box type (Int, Float, Bool, String)
         bool isBoxType = (leftClassName == "Int" || leftClassName == "Float" ||
@@ -408,11 +444,55 @@ namespace vm::compiler::visitors
         // PHASE 4 OPERATOR OVERLOADING: Transform operator to method call
         // Example: a + b  →  a.add(b)
 
-        // 1. Compile left operand (receiver object)
-        left->accept(ctx.visitor);
+        // 1. Compile left operand (receiver object), auto-boxing if needed
+        if (leftNeedsBoxing)
+        {
+            // Auto-box the left operand: compile literal then wrap in NEW_OBJECT
+            left->accept(ctx.visitor);
+            size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                         static_cast<uint32_t>(classNameIndex),
+                                         1u,  // 1 constructor argument
+                                         left);
+        }
+        else
+        {
+            left->accept(ctx.visitor);
+        }
 
-        // 2. Compile right operand (method argument)
-        right->accept(ctx.visitor);
+        // 2. Compile right operand (method argument) with auto-boxing if needed
+        // For operator overloading, the right operand must match the Box type of the left
+        // Check if right needs auto-boxing: it's a primitive that should be a Box type
+        bool rightIsObject = (rightType == value::ValueType::OBJECT);
+        bool rightNeedsBoxing = false;
+
+        if (!rightIsObject)
+        {
+            // Right is a primitive - check if it matches the Box type we need
+            if ((leftClassName == "Int" && rightType == value::ValueType::INT) ||
+                (leftClassName == "Float" && rightType == value::ValueType::FLOAT) ||
+                (leftClassName == "Bool" && rightType == value::ValueType::BOOL) ||
+                (leftClassName == "String" && rightType == value::ValueType::STRING))
+            {
+                rightNeedsBoxing = true;
+            }
+        }
+
+        if (rightNeedsBoxing)
+        {
+            // Auto-box the right operand: compile it then wrap in NEW_OBJECT
+            right->accept(ctx.visitor);
+            size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                         static_cast<uint32_t>(classNameIndex),
+                                         1u,  // 1 constructor argument
+                                         right);
+        }
+        else
+        {
+            // Compile normally (already an object or incompatible type)
+            right->accept(ctx.visitor);
+        }
 
         // 3. Emit CALL_METHOD instruction
         size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);

@@ -11,6 +11,7 @@
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include <optional>
+#include <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -236,11 +237,24 @@ namespace vm::compiler::visitors
                     // null can be passed to object types
                     if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
                     {
-                        throw errors::TypeException(
-                            "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
-                            " expects " + expectedType + " but got " + argTypeStr,
-                            node->getLocation()
-                        );
+                        // PHASE 4: Allow primitive literals for Box types (auto-boxing)
+                        bool canAutoBox = false;
+                        if ((expectedType == "Int" && argType == value::ValueType::INT) ||
+                            (expectedType == "Float" && argType == value::ValueType::FLOAT) ||
+                            (expectedType == "Bool" && argType == value::ValueType::BOOL) ||
+                            (expectedType == "String" && argType == value::ValueType::STRING))
+                        {
+                            canAutoBox = true;
+                        }
+
+                        if (!canAutoBox)
+                        {
+                            throw errors::TypeException(
+                                "Function '" + functionName + "' parameter " + std::to_string(i + 1) +
+                                " expects " + expectedType + " but got " + argTypeStr,
+                                node->getLocation()
+                            );
+                        }
                     }
                 }
                 // For objects, check class name compatibility
@@ -507,10 +521,10 @@ namespace vm::compiler::visitors
         // Get function metadata for parameter type information (for auto-boxing)
         const auto* funcMetadata = ctx.program.getFunction(functionName);
 
-        // Compile all arguments (left to right) with auto-boxing support
+        // Compile all arguments (left to right) with auto-boxing/unboxing support
         for (size_t i = 0; i < arguments.size(); ++i)
         {
-            // PHASE 4: Apply auto-boxing if function metadata available
+            // PHASE 4: Apply auto-boxing/unboxing if function metadata available
             if (funcMetadata && i < funcMetadata->parameterTypes.size())
             {
                 std::string expectedType = ctx.resolveGenericType(funcMetadata->parameterTypes[i]);
@@ -520,8 +534,48 @@ namespace vm::compiler::visitors
             }
             else
             {
-                // No metadata or no type info, compile normally
-                arguments[i]->accept(ctx.visitor);
+                // No metadata - but still try auto-unboxing for common native functions
+                // For functions like print(), we want to auto-unbox String objects
+                value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
+
+                std::cerr << "[DEBUG] emitRegularFunctionCall: function=" << functionName
+                          << ", arg=" << i << ", argType=" << static_cast<int>(argType) << std::endl;
+
+                if (argType == value::ValueType::OBJECT)
+                {
+                    std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
+
+                    std::cerr << "[DEBUG] argClassName=" << argClassName << std::endl;
+
+                    // Auto-unbox Box types for native functions
+                    if (argClassName == "Int" || argClassName == "Float" ||
+                        argClassName == "Bool" || argClassName == "String")
+                    {
+                        std::cerr << "[DEBUG] AUTO-UNBOXING " << argClassName << " for native function" << std::endl;
+
+                        // Compile argument (Box object)
+                        arguments[i]->accept(ctx.visitor);
+
+                        // Call getValue() to extract primitive
+                        size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                                     static_cast<uint32_t>(methodNameIndex),
+                                                     0u,  // 0 arguments
+                                                     arguments[i].get());
+                    }
+                    else
+                    {
+                        std::cerr << "[DEBUG] Not a Box type, compile normally" << std::endl;
+                        // Not a Box type, compile normally
+                        arguments[i]->accept(ctx.visitor);
+                    }
+                }
+                else
+                {
+                    std::cerr << "[DEBUG] Not OBJECT type, compile normally" << std::endl;
+                    // Compile normally
+                    arguments[i]->accept(ctx.visitor);
+                }
             }
         }
 
@@ -570,14 +624,51 @@ namespace vm::compiler::visitors
         return std::monostate{};
     }
 
-    // Phase 4: Auto-boxing helper for function arguments
+    // Phase 4: Auto-boxing/unboxing helper for function arguments
     void FunctionCallHelper::compileArgumentWithAutoBoxing(ast::ASTNode* argument,
                                                           const std::string& expectedTypeName,
                                                           value::ValueType expectedType)
     {
         using namespace ast::nodes::expressions;
 
-        // Only try auto-boxing if expected type is OBJECT and is a Box type
+        // Get the actual type of the argument
+        value::ValueType actualType = ctx.typeInference.inferExpressionType(argument);
+
+        // PHASE 4: Auto-unboxing - if expected is primitive but argument is Box object
+        if (expectedType != value::ValueType::OBJECT && actualType == value::ValueType::OBJECT)
+        {
+            // Check if argument is a Box type that should be unboxed
+            std::string actualClassName = ctx.typeInference.inferExpressionClassName(argument);
+
+            bool canAutoUnbox = false;
+            if ((expectedType == value::ValueType::INT && actualClassName == "Int") ||
+                (expectedType == value::ValueType::FLOAT && actualClassName == "Float") ||
+                (expectedType == value::ValueType::BOOL && actualClassName == "Bool") ||
+                (expectedType == value::ValueType::STRING && actualClassName == "String"))
+            {
+                canAutoUnbox = true;
+            }
+
+            if (canAutoUnbox)
+            {
+                // Auto-unbox: compile argument (Box object) then call getValue()
+                argument->accept(ctx.visitor);
+
+                // Call getValue() method to extract primitive value
+                size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(methodNameIndex),
+                                             0u,  // 0 arguments
+                                             argument);
+                return;
+            }
+
+            // Can't auto-unbox, compile normally
+            argument->accept(ctx.visitor);
+            return;
+        }
+
+        // PHASE 4: Auto-boxing - if expected is Box object but argument is primitive
         if (expectedType != value::ValueType::OBJECT)
         {
             // Not an object type, compile normally

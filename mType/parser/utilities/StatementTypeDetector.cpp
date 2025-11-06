@@ -17,6 +17,26 @@ namespace parser::utilities
         {
             return StatementType::FUNCTION;
         }
+        // PHASE 4 FIX: Check if next is another modifier (final/abstract) that might precede class/interface
+        else if (next.type == TokenType::FINAL || next.type == TokenType::ABSTRACT)
+        {
+            // Look ahead one more token: public final CLASS or public abstract CLASS
+            Token afterModifier = stream.peekAhead(2);
+            if (afterModifier.type == TokenType::CLASS)
+            {
+                return StatementType::CLASS;
+            }
+            else if (afterModifier.type == TokenType::INTERFACE)
+            {
+                return StatementType::INTERFACE;
+            }
+            else if (afterModifier.type == TokenType::FUNCTION || afterModifier.type == TokenType::NATIVE)
+            {
+                return StatementType::FUNCTION;
+            }
+            // Otherwise, it's a declaration: public final int x;
+            return StatementType::DECLARATION;
+        }
         else if (isTypeKeyword(next.type) || isModifierKeyword(next.type) || next.type == TokenType::IDENTIFIER)
         {
             // public/private followed by type keyword, modifier, or identifier (custom class) = variable declaration

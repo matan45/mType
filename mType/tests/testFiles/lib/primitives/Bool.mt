@@ -1,34 +1,39 @@
-// Bool - Wrapper class for bool primitive
-class Bool {
-    public bool value;
+// Bool - Object wrapper for boolean values
+// Provides a pure OOP interface for boolean operations
+import * from "../Object.mt";
+public final class Bool implements Object<Bool> {
+    private bool value;
 
-    // Constructor
+    // Constructors
     public constructor(bool val) {
         this.value = val;
     }
 
-    // Default constructor
     public constructor() {
         this.value = false;
     }
 
-    // Get the primitive value
+    // Accessors
     public function getValue(): bool {
         return this.value;
     }
 
-    // Set the primitive value
     public function setValue(bool val): void {
         this.value = val;
     }
 
-    // Logical operations
+    // Logical operations - return new Bool objects
     public function and(Bool other): Bool {
         return new Bool(this.value && other.value);
     }
 
     public function or(Bool other): Bool {
         return new Bool(this.value || other.value);
+    }
+
+    public function xor(Bool other): Bool {
+        bool result = (this.value || other.value) && !(this.value && other.value);
+        return new Bool(result);
     }
 
     public function not(): Bool {
@@ -40,7 +45,7 @@ class Bool {
         return this.value == other.value;
     }
 
-    // Utility
+    // Utility methods (Object interface)
     public function toString(): string {
         return parsePrimitive(this.value);
     }
@@ -49,12 +54,12 @@ class Bool {
         return hashCode(this.value);
     }
 
-    // Static factory methods
-    public static function bool_TRUE(): Bool {
+    // Static factory methods for common values
+    public static function getTRUE(): Bool {
         return new Bool(true);
     }
 
-    public static function bool_FALSE(): Bool {
+    public static function getFALSE(): Bool {
         return new Bool(false);
     }
 }

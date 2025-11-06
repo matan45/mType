@@ -272,12 +272,29 @@ namespace vm::compiler::visitors
                         // Special case: int can be returned for float
                         if (!(expectedType == value::ValueType::FLOAT && actualType == value::ValueType::INT))
                         {
-                            std::string actualTypeStr =
-                                ::types::TypeConversionUtils::getTypeDisplayName(actualType);
-                            throw errors::TypeException(
-                                "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
-                                node->getLocation()
-                            );
+                            // PHASE 4: Allow primitive literals when returning Box types (auto-boxing)
+                            bool canAutoBox = false;
+                            if (expectedType == value::ValueType::OBJECT)
+                            {
+                                // Check if expected is a Box type and actual is corresponding primitive
+                                if ((expectedReturnType == "Int" && actualType == value::ValueType::INT) ||
+                                    (expectedReturnType == "Float" && actualType == value::ValueType::FLOAT) ||
+                                    (expectedReturnType == "Bool" && actualType == value::ValueType::BOOL) ||
+                                    (expectedReturnType == "String" && actualType == value::ValueType::STRING))
+                                {
+                                    canAutoBox = true;
+                                }
+                            }
+
+                            if (!canAutoBox)
+                            {
+                                std::string actualTypeStr =
+                                    ::types::TypeConversionUtils::getTypeDisplayName(actualType);
+                                throw errors::TypeException(
+                                    "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
+                                    node->getLocation()
+                                );
+                            }
                         }
                     }
                 }

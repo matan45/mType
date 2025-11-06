@@ -1,5 +1,6 @@
 // Int - Object wrapper for integer values
 // Provides a pure OOP interface for integer operations
+import * from "../Object.mt";
 public final class Int implements Object<Int> {
     private int value;
 

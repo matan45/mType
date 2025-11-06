@@ -444,8 +444,22 @@ namespace vm::compiler::visitors
                 std::string valueClassName = ctx.resolveGenericType(ctx.typeInference.inferExpressionClassName(value));
                 bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
 
-                ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
-                                                     valueClassName, isNullValue, node->getLocation());
+                // PHASE 4: Skip validation if we can auto-box (Box type + primitive literal)
+                bool canAutoBox = false;
+                if (varType == value::ValueType::OBJECT &&
+                    ((varClassName == "Int" && valueType == value::ValueType::INT) ||
+                     (varClassName == "Float" && valueType == value::ValueType::FLOAT) ||
+                     (varClassName == "Bool" && valueType == value::ValueType::BOOL) ||
+                     (varClassName == "String" && valueType == value::ValueType::STRING)))
+                {
+                    canAutoBox = true;
+                }
+
+                if (!canAutoBox)
+                {
+                    ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
+                                                         valueClassName, isNullValue, node->getLocation());
+                }
             }
 
             // PHASE 4: Try auto-boxing for reassignments

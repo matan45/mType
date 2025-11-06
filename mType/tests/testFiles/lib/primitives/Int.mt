@@ -1,29 +1,30 @@
-// Int - Wrapper class for int primitive
-class Int {
-    public int value;
+// Int - Object wrapper for integer values
+// Provides a pure OOP interface for integer operations
+import * from "../Object.mt";
+public final class Int implements Object<Int> {
+    private int value;
 
-    // Constructor
+    // Constructors
     public constructor(int val) {
         this.value = val;
     }
 
-    // Default constructor
     public constructor() {
         this.value = 0;
     }
 
-    // Get the primitive value
+    // Accessors
     public function getValue(): int {
         return this.value;
     }
 
-    // Set the primitive value
     public function setValue(int val): void {
         this.value = val;
     }
 
-    public function add(int other): Int {
-        return new Int(this.value + other);
+    // Arithmetic operations - return new Int objects
+    public function add(Int other): Int {
+        return new Int(this.value + other.value);
     }
 
     public function subtract(Int other): Int {
@@ -38,7 +39,22 @@ class Int {
         return new Int(this.value / other.value);
     }
 
-    // Comparison
+    public function modulo(Int other): Int {
+        return new Int(this.value % other.value);
+    }
+
+    public function negate(): Int {
+        return new Int(-this.value);
+    }
+
+    public function abs(): Int {
+        if (this.value < 0) {
+            return new Int(-this.value);
+        }
+        return new Int(this.value);
+    }
+
+    // Comparison operations
     public function equals(Int other): bool {
         return this.value == other.value;
     }
@@ -49,7 +65,23 @@ class Int {
         return 0;
     }
 
-    // Utility
+    public function lessThan(Int other): bool {
+        return this.value < other.value;
+    }
+
+    public function lessThanOrEqual(Int other): bool {
+        return this.value <= other.value;
+    }
+
+    public function greaterThan(Int other): bool {
+        return this.value > other.value;
+    }
+
+    public function greaterThanOrEqual(Int other): bool {
+        return this.value >= other.value;
+    }
+
+    // Utility methods (Object interface)
     public function toString(): string {
         return parsePrimitive(this.value);
     }
@@ -58,10 +90,18 @@ class Int {
         return hashCode(this.value);
     }
 
-    public function abs(): Int {
-        if (this.value < 0) {
-            return new Int(-this.value);
+    // Static utility methods
+    public static function min(Int a, Int b): Int {
+        if (a.value < b.value) {
+            return a;
         }
-        return new Int(this.value);
+        return b;
+    }
+
+    public static function max(Int a, Int b): Int {
+        if (a.value > b.value) {
+            return a;
+        }
+        return b;
     }
 }

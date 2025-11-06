@@ -1,28 +1,28 @@
-// Float - Wrapper class for float primitive
-class Float {
-    public float value;
+// Float - Object wrapper for floating-point values
+// Provides a pure OOP interface for float operations
+import * from "../Object.mt";
+public final class Float implements Object<Float> {
+    private float value;
 
-    // Constructor
+    // Constructors
     public constructor(float val) {
         this.value = val;
     }
 
-    // Default constructor
     public constructor() {
         this.value = 0.0;
     }
 
-    // Get the primitive value
+    // Accessors
     public function getValue(): float {
         return this.value;
     }
 
-    // Set the primitive value
     public function setValue(float val): void {
         this.value = val;
     }
 
-    // Arithmetic operations
+    // Arithmetic operations - return new Float objects
     public function add(Float other): Float {
         return new Float(this.value + other.value);
     }
@@ -39,7 +39,18 @@ class Float {
         return new Float(this.value / other.value);
     }
 
-    // Comparison
+    public function negate(): Float {
+        return new Float(-this.value);
+    }
+
+    public function abs(): Float {
+        if (this.value < 0.0) {
+            return new Float(-this.value);
+        }
+        return new Float(this.value);
+    }
+
+    // Comparison operations
     public function equals(Float other): bool {
         return this.value == other.value;
     }
@@ -50,7 +61,35 @@ class Float {
         return 0;
     }
 
-    // Utility
+    public function lessThan(Float other): bool {
+        return this.value < other.value;
+    }
+
+    public function lessThanOrEqual(Float other): bool {
+        return this.value <= other.value;
+    }
+
+    public function greaterThan(Float other): bool {
+        return this.value > other.value;
+    }
+
+    public function greaterThanOrEqual(Float other): bool {
+        return this.value >= other.value;
+    }
+
+    // Type conversion
+    public function toInt(): Int {
+        // Truncates toward zero
+        int intValue = 0;
+        if (this.value >= 0.0) {
+            intValue = this.value;  // Implicit cast truncates
+        } else {
+            intValue = this.value;
+        }
+        return new Int(intValue);
+    }
+
+    // Utility methods (Object interface)
     public function toString(): string {
         return parsePrimitive(this.value);
     }
@@ -59,20 +98,18 @@ class Float {
         return hashCode(this.value);
     }
 
-    public function abs(): Float {
-        if (this.value < 0.0) {
-            return new Float(-this.value);
+    // Static utility methods
+    public static function min(Float a, Float b): Float {
+        if (a.value < b.value) {
+            return a;
         }
-        return new Float(this.value);
+        return b;
     }
 
-    public function floor(): Int {
-        // This would need native implementation for floor operation
-        return new Int(0); // Placeholder
-    }
-
-    public function ceiling(): Int {
-        // This would need native implementation for ceiling operation
-        return new Int(0); // Placeholder
+    public static function max(Float a, Float b): Float {
+        if (a.value > b.value) {
+            return a;
+        }
+        return b;
     }
 }

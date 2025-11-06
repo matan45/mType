@@ -207,9 +207,12 @@ namespace vm::compiler::types
             return;
         }
 
-        // Exception: Allow primitive string to be assigned to String class (auto-boxing)
-        if (valueType == value::ValueType::STRING && varClassName.empty()) {
-            return;
+        // PHASE 4: Allow primitive-to-Box-type assignments (auto-boxing)
+        if ((varClassName == "Int" && valueType == value::ValueType::INT) ||
+            (varClassName == "Float" && valueType == value::ValueType::FLOAT) ||
+            (varClassName == "Bool" && valueType == value::ValueType::BOOL) ||
+            (varClassName == "String" && valueType == value::ValueType::STRING)) {
+            return; // Auto-boxing will handle this
         }
 
         // Reject primitive values when OBJECT with specific class is expected

@@ -1,9 +1,10 @@
 // Phase 4: Syntax Sugar - Comprehensive Test
 // Tests all auto-boxing and operator overloading features
 
-import * from "lib/primitives/Int.mt";
-import * from "lib/primitives/Float.mt";
-import * from "lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Float.mt";
+import * from "../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test function with auto-boxed parameters and return
 function add(Int a, Int b): Int {
@@ -158,9 +159,9 @@ function main(): void {
 
     // Complex expression: (5 + 3) * 2 - 10
     Int complex = (n1 + n2) * n3;
-    Int final = complex - 10;
+    Int finalNumber = complex - 10;
 
-    print("  (5 + 3) * 2 - 10 = " + final.toString());
+    print("  (5 + 3) * 2 - 10 = " + finalNumber.toString());
     print("");
 
     // ============================================
@@ -306,6 +307,38 @@ function main(): void {
     String greeting2 = "Hello, " + fullName + "!";
     print("  Greeting: " + greeting2.toString());
     print("");
+	
+	 print("Creating 100 Int objects with value 42...");
+
+    Int a1 = new Int(42);
+    Int b1 = new Int(42);
+    Int c1 = new Int(42);
+    Int d1 = new Int(42);
+    Int e1 = new Int(42);
+
+    print("a.toString() = " + a1.toString());
+    print("b.toString() = " + b1.toString());
+    print("c.toString() = " + c1.toString());
+    print("d.toString() = " + d1.toString());
+    print("e.toString() = " + e1.toString());
+
+    // Test arithmetic with cached values
+    Int x1 = new Int(10);
+    Int y1 = new Int(20);
+    Int sum1 = x1.add(y1);  // 10 + 20 = 30
+
+    print("10 + 20 = " + sum1.toString());
+
+    // Test with loop (many small integers)
+    print("Loop test with cached integers 0-10:");
+    int i = 0;
+    while (i < 11) {
+        Int loopInt = new Int(i);
+        print("  Int(" + parsePrimitive(i) + ") = " + loopInt.toString());
+        i = i + 1;
+    }
+
+    print("Integer caching test complete!");
 
     // ============================================
     // SUCCESS!
