@@ -2,8 +2,8 @@
 @Script
 
 class ArrayUtils<T> {
-    fun linearSearch(arr: T[], size: Int, target: T): Int {
-        let i: Int = 0;
+    public function linearSearch(T[] arr, Int size, T target): Int {
+        Int i = 0;
         while (i < size) {
             if (arr[i] == target) {
                 return i;
@@ -13,11 +13,11 @@ class ArrayUtils<T> {
         return -1;
     }
 
-    fun reverse(arr: T[], size: Int): Void {
-        let left: Int = 0;
-        let right: Int = size - 1;
+    public function reverse(T[] arr, Int size): void {
+        Int left = 0;
+        Int right = size - 1;
         while (left < right) {
-            let temp: T = arr[left];
+            T temp = arr[left];
             arr[left] = arr[right];
             arr[right] = temp;
             left = left + 1;
@@ -25,9 +25,9 @@ class ArrayUtils<T> {
         }
     }
 
-    fun count(arr: T[], size: Int, target: T): Int {
-        let result: Int = 0;
-        let i: Int = 0;
+    public function count(T[] arr, Int size, T target): Int {
+        Int result = 0;
+        Int i = 0;
         while (i < size) {
             if (arr[i] == target) {
                 result = result + 1;
@@ -38,8 +38,8 @@ class ArrayUtils<T> {
     }
 }
 
-let intUtils: ArrayUtils<Int> = ArrayUtils<Int>();
-let intArr: Int[] = Int[7];
+ArrayUtils<Int> intUtils = ArrayUtils<Int>();
+Int[] intArr = Int[7];
 intArr[0] = 5;
 intArr[1] = 10;
 intArr[2] = 5;
@@ -49,17 +49,17 @@ intArr[5] = 30;
 intArr[6] = 10;
 
 print("Original array:");
-let i: Int = 0;
+Int i = 0;
 while (i < 7) {
     print(intArr[i]);
     i = i + 1;
 }
 
-let index: Int = intUtils.linearSearch(intArr, 7, 20);
+Int index = intUtils.linearSearch(intArr, 7, 20);
 print("Index of 20:");
 print(index);
 
-let count: Int = intUtils.count(intArr, 7, 5);
+Int count = intUtils.count(intArr, 7, 5);
 print("Count of 5:");
 print(count);
 
@@ -71,13 +71,13 @@ while (i < 7) {
     i = i + 1;
 }
 
-let strUtils: ArrayUtils<String> = ArrayUtils<String>();
-let strArr: String[] = String[4];
+ArrayUtils<String> strUtils = ArrayUtils<String>();
+String[] strArr = String[4];
 strArr[0] = "hello";
 strArr[1] = "world";
 strArr[2] = "test";
 strArr[3] = "hello";
 
-let strCount: Int = strUtils.count(strArr, 4, "hello");
+Int strCount = strUtils.count(strArr, 4, "hello");
 print("Count of 'hello':");
 print(strCount);

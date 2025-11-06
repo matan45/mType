@@ -4,7 +4,7 @@ import * from "../../../lib/primitives/Int.mt";
 
 class Container<T> {
     private T value;
-    private bool hasValue;
+    private Bool hasValue;
 
     public constructor() {
         this.hasValue = false;
@@ -19,7 +19,7 @@ class Container<T> {
         return this.value;
     }
 
-    public bool isEmpty() {
+    public Bool isEmpty() {
         return !this.hasValue;
     }
 }
@@ -41,7 +41,7 @@ if (!container.isEmpty()) {
 // Test 2: Type narrowing in conditionals with type inference
 print("\nTest 2: Type narrowing in conditionals");
 
-function processValue(int val): string {
+function processValue(Int val): String {
     if (val < 0) {
         return "Negative: " + val;
     } else {
@@ -61,19 +61,19 @@ print(processValue(10));
 print("\nTest 3: Type narrowing with boolean logic");
 
 class ValueHolder {
-    private int value;
-    private bool isValid;
+    private Int value;
+    private Bool isValid;
 
-    public constructor(int v) {
+    public constructor(Int v) {
         this.value = v;
         this.isValid = v >= 0 && v <= 100;
     }
 
-    public bool check() {
+    public Bool check() {
         return this.isValid;
     }
 
-    public int get() {
+    public Int get() {
         return this.value;
     }
 }
@@ -92,11 +92,11 @@ if (!holder2.check() || holder2.get() < 0) {
 // Test 4: Type narrowing in while loops
 print("\nTest 4: Type narrowing in loops");
 
-int counter = 0;
-Container<string>[] containers = new Container<string>[3];
+Int counter = 0;
+Container<String>[] containers = new Container<String>[3];
 
 while (counter < 3) {
-    containers[counter] = new Container<string>();
+    containers[counter] = new Container<String>();
     if (counter % 2 == 0) {
         containers[counter].setValue("Even" + counter);
     }
@@ -106,7 +106,7 @@ while (counter < 3) {
 counter = 0;
 while (counter < 3) {
     if (!containers[counter].isEmpty()) {
-        string val = containers[counter].getValue();
+        String val = containers[counter].getValue();
         print("Container[" + counter + "]: " + val);
     } else {
         print("Container[" + counter + "]: empty");
@@ -118,15 +118,15 @@ while (counter < 3) {
 print("\nTest 5: Type narrowing with early returns");
 
 class Range {
-    private int min;
-    private int max;
+    private Int min;
+    private Int max;
 
-    public constructor(int min, int max) {
+    public constructor(Int min, Int max) {
         this.min = min;
         this.max = max;
     }
 
-    public bool contains(int value): bool {
+    public Bool contains(Int value): Bool {
         if (value < this.min) {
             return false;
         }
@@ -136,7 +136,7 @@ class Range {
         return true;
     }
 
-    public string describe(int value): string {
+    public String describe(Int value): String {
         if (!this.contains(value)) {
             return "Out of range";
         }
@@ -160,7 +160,7 @@ print(range.describe(25));
 // Test 6: Type narrowing with ternary operator
 print("\nTest 6: Type narrowing with ternary");
 
-function classify(int num): string {
+function classify(Int num): String {
     return num > 0 ? "positive" : (num < 0 ? "negative" : "zero");
 }
 

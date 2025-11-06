@@ -2,19 +2,19 @@
 @Script
 
 class Comparable<T> {
-    fun compareTo(other: T): Int {
+    public function compareTo(other: T): Int {
         return 0;
     }
 }
 
 class Number extends Comparable<Number> {
-    field value: Int;
+    Int value;
 
     constructor(v: Int) {
         this.value = v;
     }
 
-    fun compareTo(other: Number): Int {
+    public function compareTo(other: Number): Int {
         if (this.value < other.value) {
             return -1;
         } else if (this.value > other.value) {
@@ -25,30 +25,30 @@ class Number extends Comparable<Number> {
 }
 
 class SortableArray<T extends Comparable<T>> {
-    field items: T[];
-    field size: Int;
+    T[] items;
+    Int size;
 
     constructor(capacity: Int) {
         this.items = T[capacity];
         this.size = 0;
     }
 
-    fun add(item: T): Void {
+    public function add(item: T): void {
         this.items[this.size] = item;
         this.size = this.size + 1;
     }
 
-    fun get(index: Int): T {
+    public function get(index: Int): T {
         return this.items[index];
     }
 
-    fun bubbleSort(): Void {
-        let i: Int = 0;
+    public function bubbleSort(): void {
+        Int i = 0;
         while (i < this.size - 1) {
-            let j: Int = 0;
+            Int j = 0;
             while (j < this.size - i - 1) {
                 if (this.items[j].compareTo(this.items[j + 1]) > 0) {
-                    let temp: T = this.items[j];
+                    T temp = this.items[j];
                     this.items[j] = this.items[j + 1];
                     this.items[j + 1] = temp;
                 }
@@ -59,7 +59,7 @@ class SortableArray<T extends Comparable<T>> {
     }
 }
 
-let arr: SortableArray<Number> = SortableArray<Number>(5);
+SortableArray<Number> arr = SortableArray<Number>(5);
 arr.add(Number(42));
 arr.add(Number(10));
 arr.add(Number(99));
@@ -67,7 +67,7 @@ arr.add(Number(5));
 arr.add(Number(67));
 
 print("Before sorting:");
-let i: Int = 0;
+Int i = 0;
 while (i < 5) {
     print(arr.get(i).value);
     i = i + 1;

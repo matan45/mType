@@ -2,55 +2,55 @@
 @Script
 
 class Base<T> {
-    field baseValue: T;
+    T baseValue;
 
-    constructor(val: T) {
+    constructor(T val) {
         this.baseValue = val;
     }
 
-    fun getBase(): T {
+    public function getBase(): T {
         return this.baseValue;
     }
 
-    fun describe(): String {
+    public function describe(): String {
         return "Base";
     }
 }
 
 class Middle<T, U> extends Base<T> {
-    field middleValue: U;
+    U middleValue;
 
-    constructor(baseVal: T, midVal: U) {
+    constructor(T baseVal, U midVal) {
         super(baseVal);
         this.middleValue = midVal;
     }
 
-    fun getMiddle(): U {
+    public function getMiddle(): U {
         return this.middleValue;
     }
 
-    fun describe(): String {
+    public function describe(): String {
         return "Middle";
     }
 }
 
 class Derived<T, U, V> extends Middle<T, U> {
-    field derivedValue: V;
+    V derivedValue;
 
-    constructor(baseVal: T, midVal: U, derVal: V) {
+    constructor(T baseVal, U midVal, V derVal) {
         super(baseVal, midVal);
         this.derivedValue = derVal;
     }
 
-    fun getDerived(): V {
+    public function getDerived(): V {
         return this.derivedValue;
     }
 
-    fun describe(): String {
+    public function describe(): String {
         return "Derived";
     }
 
-    fun showAll(): Void {
+    public function showAll(): void {
         print(this.getBase());
         print(this.getMiddle());
         print(this.getDerived());
@@ -58,7 +58,7 @@ class Derived<T, U, V> extends Middle<T, U> {
 }
 
 print("Creating inheritance chain:");
-let obj: Derived<Int, String, Bool> = Derived<Int, String, Bool>(42, "test", true);
+Derived<Int, String, Bool> obj = Derived<Int, String, Bool>(42, "test", true);
 
 print("Type description:");
 print(obj.describe());
@@ -72,11 +72,11 @@ print(obj.getMiddle());
 print(obj.getDerived());
 
 print("Creating another chain:");
-let obj2: Derived<String, Float, Int> = Derived<String, Float, Int>("hello", 3.14, 100);
+Derived<String, Float, Int> obj2 = Derived<String, Float, Int>("hello", 3.14, 100);
 print(obj2.describe());
 obj2.showAll();
 
 print("Base class reference:");
-let baseRef: Base<Int> = Derived<Int, String, Bool>(99, "ref", false);
+Base<Int> baseRef = Derived<Int, String, Bool>(99, "ref", false);
 print(baseRef.describe());
 print(baseRef.getBase());

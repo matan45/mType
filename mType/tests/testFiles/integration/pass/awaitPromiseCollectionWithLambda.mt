@@ -2,10 +2,10 @@
 // @Script
 
 class PromiseCollectionTest {
-    async processAll() : Promise<Int> {
-        let promises: Promise<Int>[] = [];
+    public function async processAll() : Promise<Int> {
+        Promise<Int>[] promises = [];
 
-        let createPromise = async (value: Int) : Promise<Int> => {
+        (Int) -> Promise<Int> createPromise = async (value: Int) : Promise<Int> => {
             await delay(5);
             return value * value;
         };
@@ -14,17 +14,17 @@ class PromiseCollectionTest {
         promises.push(createPromise(3));
         promises.push(createPromise(4));
 
-        let results: Int[] = [];
-        let i: Int = 0;
+        Int[] results = [];
+        Int i = 0;
         while (i < promises.length()) {
-            let result = await promises[i];
+            Int result = await promises[i];
             results.push(result);
             i = i + 1;
         }
 
         // Sum all results
-        let sum: Int = 0;
-        let j: Int = 0;
+        Int sum = 0;
+        Int j = 0;
         while (j < results.length()) {
             sum = sum + results[j];
             j = j + 1;
@@ -34,25 +34,25 @@ class PromiseCollectionTest {
         return sum;
     }
 
-    async mapWithAsync() : Promise<String> {
-        let transform = async (x: Int) : Promise<String> => {
+    public function async mapWithAsync() : Promise<String> {
+        (Int) -> Promise<String> transform = async (x: Int) : Promise<String> => {
             await delay(5);
             return "Item-" + x.toString();
         };
 
-        let items: Int[] = [1, 2, 3];
-        let transformed: String[] = [];
+        Int[] items = [1, 2, 3];
+        String[] transformed = [];
 
-        let i: Int = 0;
+        Int i = 0;
         while (i < items.length()) {
-            let result = await transform(items[i]);
+            String result = await transform(items[i]);
             transformed.push(result);
             i = i + 1;
         }
 
         // Join results
-        let result: String = "";
-        let j: Int = 0;
+        String result = "";
+        Int j = 0;
         while (j < transformed.length()) {
             if (j > 0) {
                 result = result + ", ";
@@ -65,16 +65,16 @@ class PromiseCollectionTest {
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(ms: Int) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
-    let test = new PromiseCollectionTest();
-    let sum = await test.processAll();
+function async main() : Promise<void> {
+    PromiseCollectionTest test = new PromiseCollectionTest();
+    Int sum = await test.processAll();
     assert(sum == 29, "Promise collection should compute correctly");
 
-    let mapped = await test.mapWithAsync();
+    String mapped = await test.mapWithAsync();
     print("Mapped: " + mapped);
     assert(mapped == "Item-1, Item-2, Item-3", "Async mapping should work correctly");
 }

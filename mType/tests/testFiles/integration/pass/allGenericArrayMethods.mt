@@ -2,22 +2,22 @@
 @Script
 
 class DataStore<T> {
-    field data: T[];
-    field count: Int;
+    T[] data;
+    Int count;
 
     constructor(size: Int) {
         this.data = T[size];
         this.count = 0;
     }
 
-    fun push(item: T): Void {
+    function push(item: T): void {
         this.data[this.count] = item;
         this.count = this.count + 1;
     }
 
-    fun map(func: T -> T): T[] {
-        let result: T[] = T[this.count];
-        let i: Int = 0;
+    function map(func: T -> T): T[] {
+        T[] result = T[this.count];
+        Int i = 0;
         while (i < this.count) {
             result[i] = func(this.data[i]);
             i = i + 1;
@@ -25,17 +25,17 @@ class DataStore<T> {
         return result;
     }
 
-    fun forEach(action: T -> Void): Void {
-        let i: Int = 0;
+    function forEach(action: T -> void): void {
+        Int i = 0;
         while (i < this.count) {
             action(this.data[i]);
             i = i + 1;
         }
     }
 
-    fun reduce(initial: T, combiner: (T, T) -> T): T {
-        let result: T = initial;
-        let i: Int = 0;
+    function reduce(initial: T, combiner: (T, T) -> T): T {
+        T result = initial;
+        Int i = 0;
         while (i < this.count) {
             result = combiner(result, this.data[i]);
             i = i + 1;
@@ -43,48 +43,48 @@ class DataStore<T> {
         return result;
     }
 
-    fun getAt(index: Int): T {
+    function getAt(index: Int): T {
         return this.data[index];
     }
 
-    fun getCount(): Int {
+    function getCount(): Int {
         return this.count;
     }
 }
 
 class Wrapper<T> {
-    field value: T;
+    T value;
 
     constructor(val: T) {
         this.value = val;
     }
 
-    fun getValue(): T {
+    function getValue(): T {
         return this.value;
     }
 
-    fun setValue(val: T): Void {
+    function setValue(val: T): void {
         this.value = val;
     }
 }
 
 class WrapperStore<T> {
-    field wrappers: Wrapper<T>[];
-    field size: Int;
+    Wrapper<T>[] wrappers;
+    Int size;
 
     constructor(capacity: Int) {
         this.wrappers = Wrapper<T>[capacity];
         this.size = 0;
     }
 
-    fun add(value: T): Void {
+    function add(value: T): void {
         this.wrappers[this.size] = Wrapper<T>(value);
         this.size = this.size + 1;
     }
 
-    fun unwrapAll(): T[] {
-        let result: T[] = T[this.size];
-        let i: Int = 0;
+    function unwrapAll(): T[] {
+        T[] result = T[this.size];
+        Int i = 0;
         while (i < this.size) {
             result[i] = this.wrappers[i].getValue();
             i = i + 1;
@@ -92,14 +92,14 @@ class WrapperStore<T> {
         return result;
     }
 
-    fun getWrapper(index: Int): Wrapper<T> {
+    function getWrapper(index: Int): Wrapper<T> {
         return this.wrappers[index];
     }
 
-    fun modifyAll(modifier: T -> T): Void {
-        let i: Int = 0;
+    function modifyAll(modifier: T -> T): void {
+        Int i = 0;
         while (i < this.size) {
-            let current: T = this.wrappers[i].getValue();
+            T current = this.wrappers[i].getValue();
             this.wrappers[i].setValue(modifier(current));
             i = i + 1;
         }
@@ -107,7 +107,7 @@ class WrapperStore<T> {
 }
 
 print("DataStore<Int> with lambdas:");
-let intStore: DataStore<Int> = DataStore<Int>(5);
+DataStore<Int> intStore = DataStore<Int>(5);
 intStore.push(1);
 intStore.push(2);
 intStore.push(3);
@@ -115,34 +115,34 @@ intStore.push(4);
 intStore.push(5);
 
 print("forEach:");
-intStore.forEach((x: Int) -> Void {
+intStore.forEach((x: Int) -> void {
     print(x);
 });
 
 print("map (x * 2):");
-let doubled: Int[] = intStore.map((x: Int) -> Int {
+Int[] doubled = intStore.map((x: Int) -> Int {
     return x * 2;
 });
-let i: Int = 0;
+Int i = 0;
 while (i < 5) {
     print(doubled[i]);
     i = i + 1;
 }
 
 print("reduce (sum):");
-let sum: Int = intStore.reduce(0, (acc: Int, x: Int) -> Int {
+Int sum = intStore.reduce(0, (acc: Int, x: Int) -> Int {
     return acc + x;
 });
 print(sum);
 
 print("WrapperStore<String>:");
-let strWrapperStore: WrapperStore<String> = WrapperStore<String>(3);
+WrapperStore<String> strWrapperStore = WrapperStore<String>(3);
 strWrapperStore.add("hello");
 strWrapperStore.add("world");
 strWrapperStore.add("test");
 
 print("Unwrapped:");
-let unwrapped: String[] = strWrapperStore.unwrapAll();
+String[] unwrapped = strWrapperStore.unwrapAll();
 i = 0;
 while (i < 3) {
     print(unwrapped[i]);
@@ -153,7 +153,7 @@ print("Direct wrapper access:");
 print(strWrapperStore.getWrapper(1).getValue());
 
 print("WrapperStore<Int>:");
-let intWrapperStore: WrapperStore<Int> = WrapperStore<Int>(4);
+WrapperStore<Int> intWrapperStore = WrapperStore<Int>(4);
 intWrapperStore.add(10);
 intWrapperStore.add(20);
 intWrapperStore.add(30);
@@ -164,7 +164,7 @@ intWrapperStore.modifyAll((x: Int) -> Int {
 });
 
 print("After modification:");
-let modified: Int[] = intWrapperStore.unwrapAll();
+Int[] modified = intWrapperStore.unwrapAll();
 i = 0;
 while (i < 4) {
     print(modified[i]);

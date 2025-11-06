@@ -5,7 +5,7 @@ import * from "../../../lib/primitives/Int.mt";
 // Simulated async operations for testing
 class Promise<T> {
     private T value;
-    private bool resolved;
+    private Bool resolved;
 
     public constructor() {
         this.resolved = false;
@@ -16,11 +16,11 @@ class Promise<T> {
         this.resolved = true;
     }
 
-    public T getValue(): T {
+    public T getValue() {
         return this.value;
     }
 
-    public bool isResolved(): bool {
+    public Bool isResolved() {
         return this.resolved;
     }
 }
@@ -29,16 +29,16 @@ class Promise<T> {
 print("Test 1: Basic async type checking");
 
 class AsyncOperation {
-    public Promise<Int> computeAsync(int x): Promise<Int> {
+    public Promise<Int> computeAsync(Int x) {
         Promise<Int> promise = new Promise<Int>();
-        int result = x * 2;
+        Int result = x * 2;
         promise.resolve(new Int(result));
         return promise;
     }
 
-    public Promise<string> formatAsync(int num): Promise<string> {
-        Promise<string> promise = new Promise<string>();
-        string result = "Result: " + num;
+    public Promise<String> formatAsync(Int num) {
+        Promise<String> promise = new Promise<String>();
+        String result = "Result: " + num;
         promise.resolve(result);
         return promise;
     }
@@ -49,17 +49,17 @@ Promise<Int> intPromise = asyncOp.computeAsync(21);
 Int asyncResult = intPromise.getValue();
 print("Async computation: " + asyncResult.getValue());
 
-Promise<string> stringPromise = asyncOp.formatAsync(asyncResult.getValue());
-string formatted = stringPromise.getValue();
+Promise<String> stringPromise = asyncOp.formatAsync(asyncResult.getValue());
+String formatted = stringPromise.getValue();
 print(formatted);
 
 // Test 2: Async operations in loops
 print("\nTest 2: Async operations in loops");
 
 class AsyncProcessor {
-    public Promise<Int>[] processArray(int[] values, int size): Promise<Int>[] {
+    public Promise<Int>[] processArray(Int[] values, Int size) {
         Promise<Int>[] promises = new Promise<Int>[size];
-        int i = 0;
+        Int i = 0;
         while (i < size) {
             Promise<Int> p = new Promise<Int>();
             p.resolve(new Int(values[i] * 3));
@@ -69,9 +69,9 @@ class AsyncProcessor {
         return promises;
     }
 
-    public int sumPromises(Promise<Int>[] promises, int size): int {
-        int total = 0;
-        int i = 0;
+    public Int sumPromises(Promise<Int>[] promises, Int size) {
+        Int total = 0;
+        Int i = 0;
         while (i < size) {
             total = total + promises[i].getValue().getValue();
             i = i + 1;
@@ -81,24 +81,24 @@ class AsyncProcessor {
 }
 
 AsyncProcessor processor = new AsyncProcessor();
-int[] values = new int[5];
-int i = 0;
+Int[] values = new Int[5];
+Int i = 0;
 while (i < 5) {
     values[i] = i + 1;
     i = i + 1;
 }
 
 Promise<Int>[] promises = processor.processArray(values, 5);
-int sum = processor.sumPromises(promises, 5);
+Int sum = processor.sumPromises(promises, 5);
 print("Sum of async results: " + sum);
 
 // Test 3: Conditional async execution
 print("\nTest 3: Conditional async execution");
 
 class ConditionalAsync {
-    public Promise<string> processConditional(int value): Promise<string> {
-        Promise<string> promise = new Promise<string>();
-        string result;
+    public Promise<String> processConditional(Int value) {
+        Promise<String> promise = new Promise<String>();
+        String result;
 
         if (value < 0) {
             result = "Negative value: " + value;
@@ -116,9 +116,9 @@ class ConditionalAsync {
 }
 
 ConditionalAsync condAsync = new ConditionalAsync();
-Promise<string> p1 = condAsync.processConditional(-5);
-Promise<string> p2 = condAsync.processConditional(0);
-Promise<string> p3 = condAsync.processConditional(10);
+Promise<String> p1 = condAsync.processConditional(-5);
+Promise<String> p2 = condAsync.processConditional(0);
+Promise<String> p3 = condAsync.processConditional(10);
 
 print(p1.getValue());
 print(p2.getValue());
@@ -129,7 +129,7 @@ print("\nTest 4: Async with generic types");
 
 class AsyncContainer<T> {
     private Promise<T> promise;
-    private bool hasPromise;
+    private Bool hasPromise;
 
     public constructor() {
         this.hasPromise = false;
@@ -140,7 +140,7 @@ class AsyncContainer<T> {
         this.hasPromise = true;
     }
 
-    public T await(): T {
+    public T await() {
         if (this.hasPromise) {
             return this.promise.getValue();
         }
@@ -155,8 +155,8 @@ intProm.resolve(99);
 intContainer.setPromise(intProm);
 print("Awaited int: " + intContainer.await());
 
-AsyncContainer<string> stringContainer = new AsyncContainer<string>();
-Promise<string> strProm = new Promise<string>();
+AsyncContainer<String> stringContainer = new AsyncContainer<String>();
+Promise<String> strProm = new Promise<String>();
 strProm.resolve("Hello Async");
 stringContainer.setPromise(strProm);
 print("Awaited string: " + stringContainer.await());
@@ -165,25 +165,25 @@ print("Awaited string: " + stringContainer.await());
 print("\nTest 5: Async chain operations");
 
 class AsyncChain {
-    public Promise<Int> step1(int x): Promise<Int> {
+    public Promise<Int> step1(Int x) {
         Promise<Int> p = new Promise<Int>();
         p.resolve(new Int(x + 10));
         return p;
     }
 
-    public Promise<Int> step2(int x): Promise<Int> {
+    public Promise<Int> step2(Int x) {
         Promise<Int> p = new Promise<Int>();
         p.resolve(new Int(x * 2));
         return p;
     }
 
-    public Promise<Int> step3(int x): Promise<Int> {
+    public Promise<Int> step3(Int x) {
         Promise<Int> p = new Promise<Int>();
         p.resolve(new Int(x - 5));
         return p;
     }
 
-    public int executeChain(int initial): int {
+    public Int executeChain(Int initial) {
         Promise<Int> p1 = this.step1(initial);
         Int result1 = p1.getValue();
         print("After step1: " + result1.getValue());
@@ -201,7 +201,7 @@ class AsyncChain {
 }
 
 AsyncChain chain = new AsyncChain();
-int chainResult = chain.executeChain(5);
+Int chainResult = chain.executeChain(5);
 print("Final chain result: " + chainResult);
 
 // Test 6: Async error handling pattern
@@ -209,9 +209,9 @@ print("\nTest 6: Async error handling");
 
 class AsyncResult<T> {
     private T value;
-    private bool hasValue;
-    private string error;
-    private bool hasError;
+    private Bool hasValue;
+    private String error;
+    private Bool hasError;
 
     public constructor() {
         this.hasValue = false;
@@ -223,30 +223,30 @@ class AsyncResult<T> {
         this.hasValue = true;
     }
 
-    public void fail(string err) {
+    public void fail(String err) {
         this.error = err;
         this.hasError = true;
     }
 
-    public bool isSuccess(): bool {
+    public Bool isSuccess() {
         return this.hasValue;
     }
 
-    public bool isError(): bool {
+    public Bool isError() {
         return this.hasError;
     }
 
-    public T getValue(): T {
+    public T getValue() {
         return this.value;
     }
 
-    public string getError(): string {
+    public String getError() {
         return this.error;
     }
 }
 
 class SafeAsyncOp {
-    public AsyncResult<Int> safeDivide(int a, int b): AsyncResult<Int> {
+    public AsyncResult<Int> safeDivide(Int a, Int b) {
         AsyncResult<Int> result = new AsyncResult<Int>();
         if (b == 0) {
             result.fail("Division by zero");
@@ -278,9 +278,9 @@ safeOp.handleResult(res2);
 print("\nTest 7: Async parallel operations");
 
 class ParallelAsync {
-    public Promise<Int>[] createTasks(int count): Promise<Int>[] {
+    public Promise<Int>[] createTasks(Int count) {
         Promise<Int>[] tasks = new Promise<Int>[count];
-        int i = 0;
+        Int i = 0;
         while (i < count) {
             Promise<Int> p = new Promise<Int>();
             p.resolve(new Int((i + 1) * 10));
@@ -290,8 +290,8 @@ class ParallelAsync {
         return tasks;
     }
 
-    public void awaitAll(Promise<Int>[] tasks, int count) {
-        int i = 0;
+    public void awaitAll(Promise<Int>[] tasks, Int count) {
+        Int i = 0;
         while (i < count) {
             Int result = tasks[i].getValue();
             print("Task " + i + " result: " + result.getValue());
@@ -309,7 +309,7 @@ print("\nTest 8: Type-safe async callbacks");
 
 class Callback<T> {
     private T result;
-    private bool executed;
+    private Bool executed;
 
     public constructor() {
         this.executed = false;
@@ -320,24 +320,24 @@ class Callback<T> {
         this.executed = true;
     }
 
-    public T getResult(): T {
+    public T getResult() {
         return this.result;
     }
 
-    public bool hasExecuted(): bool {
+    public Bool hasExecuted() {
         return this.executed;
     }
 }
 
 class AsyncWithCallback {
-    public void processWithCallback(int value, Callback<string> callback) {
-        string result = "Processed: " + value;
+    public void processWithCallback(Int value, Callback<String> callback) {
+        String result = "Processed: " + value;
         callback.execute(result);
     }
 }
 
 AsyncWithCallback asyncCb = new AsyncWithCallback();
-Callback<string> callback = new Callback<string>();
+Callback<String> callback = new Callback<String>();
 asyncCb.processWithCallback(42, callback);
 
 if (callback.hasExecuted()) {

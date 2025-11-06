@@ -4,18 +4,18 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class CastException extends Exception {
-    constructor(string msg):super(msg) {
+    constructor(String msg):super(msg) {
     }
 }
 
 class Animal {
-    protected string name;
+    protected String name;
 
-    public constructor(string name) {
+    public constructor(String name) {
         this.name = name;
     }
 
-    public string getName() {
+    public String getName() {
         return this.name;
     }
 
@@ -25,9 +25,9 @@ class Animal {
 }
 
 class Dog extends Animal {
-    private string breed;
+    private String breed;
 
-    public constructor(string name, string breed) : super(name) {
+    public constructor(String name, String breed) : super(name) {
         this.breed = breed;
     }
 
@@ -35,7 +35,7 @@ class Dog extends Animal {
         print("Dog " + this.name + " barks");
     }
 
-    public string getBreed() {
+    public String getBreed() {
         return this.breed;
     }
 
@@ -45,9 +45,9 @@ class Dog extends Animal {
 }
 
 class Cat extends Animal {
-    private int lives;
+    private Int lives;
 
-    public constructor(string name, int lives) : super(name) {
+    public constructor(String name, Int lives) : super(name) {
         this.lives = lives;
     }
 
@@ -55,13 +55,13 @@ class Cat extends Animal {
         print("Cat " + this.name + " meows");
     }
 
-    public int getLives() {
+    public Int getLives() {
         return this.lives;
     }
 }
 
 // Test 1: Exception thrown during cast operation
-function safeCastToDog(Animal a): string {
+String safeCastToDog(Animal a) {
     try {
         if (a instanceof Dog) {
             Dog d = (Dog)a;
@@ -76,7 +76,7 @@ function safeCastToDog(Animal a): string {
 }
 
 // Test 2: Multiple type checks with exception handling
-function processAnimal(Animal a): string {
+String processAnimal(Animal a) {
     try {
         print("Processing: " + a.getName());
         a.speak();
@@ -98,7 +98,7 @@ function processAnimal(Animal a): string {
 }
 
 // Test 3: Exception in finally after successful cast
-function castWithFinallyCleanup(Animal a): string {
+String castWithFinallyCleanup(Animal a) {
     try {
         if (a instanceof Dog) {
             Dog d = (Dog)a;
@@ -113,12 +113,12 @@ function castWithFinallyCleanup(Animal a): string {
 }
 
 // Test 4: Nested try-catch with casting
-function nestedCastException(Animal a): string {
+String nestedCastException(Animal a) {
     try {
         try {
             if (a instanceof Cat) {
                 Cat c = (Cat)a;
-                int lives = c.getLives();
+                Int lives = c.getLives();
                 if (lives < 1) {
                     throw new CastException("Cat has no lives left");
                 }
@@ -136,7 +136,7 @@ function nestedCastException(Animal a): string {
 }
 
 // Test 5: Cast in exception handler
-function castInCatchBlock(Animal a): string {
+String castInCatchBlock(Animal a) {
     try {
         throw new CastException("Intentional exception");
     } catch (CastException e) {

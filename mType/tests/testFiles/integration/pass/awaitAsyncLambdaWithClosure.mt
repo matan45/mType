@@ -2,28 +2,28 @@
 // @Script
 
 class AsyncClosureTest {
-    async execute() : Promise<Int> {
-        let multiplier: Int = 5;
-        let adder: Int = 10;
+    public function async execute() : Promise<Int> {
+        Int multiplier = 5;
+        Int adder = 10;
 
-        let asyncOp = async (x: Int) : Promise<Int> => {
-            let captured = multiplier * x;
+        var asyncOp = async (Int x) : Promise<Int> => {
+            Int captured = multiplier * x;
             await delay(10);
             return captured + adder;
         };
 
-        let result = await asyncOp(3);
+        Int result = await asyncOp(3);
         print("Result with closure: " + result.toString()); // Should be 25
         return result;
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
-    let test = new AsyncClosureTest();
-    let result = await test.execute();
+function async main() : Promise<void> {
+    AsyncClosureTest test = new AsyncClosureTest();
+    Int result = await test.execute();
     assert(result == 25, "Async lambda with closure should compute correctly");
 }

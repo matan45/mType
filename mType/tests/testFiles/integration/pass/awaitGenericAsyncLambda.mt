@@ -2,58 +2,58 @@
 // @Script
 
 interface AsyncFunction<T, R> {
-    async apply(input: T) : Promise<R>;
+    function async apply(T input) : Promise<R>;
 }
 
-class AsyncLambdaWrapper<T, R> : AsyncFunction<T, R> {
-    private func: (T) -> Promise<R>;
+class AsyncLambdaWrapper<T, R> implements AsyncFunction<T, R> {
+    private (T) -> Promise<R> func;
 
-    constructor(f: (T) -> Promise<R>) {
+    constructor((T) -> Promise<R> f) {
         this.func = f;
     }
 
-    async apply(input: T) : Promise<R> {
+    public function async apply(T input) : Promise<R> {
         return await this.func(input);
     }
 }
 
 class GenericAsyncTest {
-    async testIntToString() : Promise<String> {
-        let converter: AsyncFunction<Int, String> = new AsyncLambdaWrapper<Int, String>(
-            async (x: Int) : Promise<String> => {
+    public function async testIntToString() : Promise<String> {
+        AsyncFunction<Int, String> converter = new AsyncLambdaWrapper<Int, String>(
+            async (Int x) : Promise<String> => {
                 await delay(5);
                 return "Value: " + x.toString();
             }
         );
 
-        let result = await converter.apply(42);
+        String result = await converter.apply(42);
         print(result);
         return result;
     }
 
-    async testStringToInt() : Promise<Int> {
-        let parser: AsyncFunction<String, Int> = new AsyncLambdaWrapper<String, Int>(
-            async (s: String) : Promise<Int> => {
+    public function async testStringToInt() : Promise<Int> {
+        AsyncFunction<String, Int> parser = new AsyncLambdaWrapper<String, Int>(
+            async (String s) : Promise<Int> => {
                 await delay(5);
                 return s.length();
             }
         );
 
-        let result = await parser.apply("Hello");
+        Int result = await parser.apply("Hello");
         print("Length: " + result.toString());
         return result;
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
-    let test = new GenericAsyncTest();
-    let result1 = await test.testIntToString();
+function async main() : Promise<void> {
+    GenericAsyncTest test = new GenericAsyncTest();
+    String result1 = await test.testIntToString();
     assert(result1 == "Value: 42", "Generic async lambda should convert correctly");
 
-    let result2 = await test.testStringToInt();
+    Int result2 = await test.testStringToInt();
     assert(result2 == 5, "Generic async lambda should parse correctly");
 }

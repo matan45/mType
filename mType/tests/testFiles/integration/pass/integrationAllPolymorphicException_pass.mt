@@ -2,50 +2,50 @@
 // @Script
 
 interface Serializable {
-    serialize() : String;
+    function serialize() : String;
 }
 
 interface Validatable {
-    validate() : Bool;
+    function validate() : Bool;
 }
 
 class BaseEntity implements Serializable {
-    protected id: Int;
-    protected name: String;
+    protected Int id;
+    protected String name;
 
-    constructor(i: Int, n: String) {
+    constructor(Int i, String n) {
         this.id = i;
         this.name = n;
     }
 
-    serialize() : String {
+    function serialize() : String {
         return "BaseEntity(" + this.id.toString() + ", " + this.name + ")";
     }
 
-    getId() : Int {
+    function getId() : Int {
         return this.id;
     }
 
-    getName() : String {
+    function getName() : String {
         return this.name;
     }
 }
 
 class User extends BaseEntity implements Validatable {
-    private email: String;
-    private isActive: Bool;
+    private String email;
+    private Bool isActive;
 
-    constructor(i: Int, n: String, e: String, active: Bool) {
+    constructor(Int i, String n, String e, Bool active) {
         super(i, n);
         this.email = e;
         this.isActive = active;
     }
 
-    serialize() : String {
+    function serialize() : String {
         return "User(" + this.id.toString() + ", " + this.name + ", " + this.email + ")";
     }
 
-    validate() : Bool {
+    function validate() : Bool {
         if (this.email.length() == 0) {
             throw "Invalid email: empty";
         }
@@ -55,26 +55,26 @@ class User extends BaseEntity implements Validatable {
         return true;
     }
 
-    getEmail() : String {
+    function getEmail() : String {
         return this.email;
     }
 
-    setActive(active: Bool) : Void {
+    function setActive(Bool active) : void {
         this.isActive = active;
     }
 }
 
 class Admin extends User {
-    private permissions: String[];
+    private String[] permissions;
 
-    constructor(i: Int, n: String, e: String, active: Bool, perms: String[]) {
+    constructor(Int i, String n, String e, Bool active, String[] perms) {
         super(i, n, e, active);
         this.permissions = perms;
     }
 
-    serialize() : String {
-        let permStr: String = "";
-        let idx: Int = 0;
+    function serialize() : String {
+        String permStr = "";
+        Int idx = 0;
         while (idx < this.permissions.length()) {
             if (idx > 0) {
                 permStr = permStr + ",";
@@ -85,7 +85,7 @@ class Admin extends User {
         return "Admin(" + this.id.toString() + ", " + this.name + ", [" + permStr + "])";
     }
 
-    validate() : Bool {
+    function validate() : Bool {
         // Call parent validation
         super.validate();
 
@@ -95,8 +95,8 @@ class Admin extends User {
         return true;
     }
 
-    hasPermission(perm: String) : Bool {
-        let i: Int = 0;
+    function hasPermission(String perm) : Bool {
+        Int i = 0;
         while (i < this.permissions.length()) {
             if (this.permissions[i] == perm) {
                 return true;
@@ -107,48 +107,48 @@ class Admin extends User {
     }
 }
 
-processEntity<T extends BaseEntity>(entity: T) : String {
+function processEntity<T extends BaseEntity>(T entity) : String {
     try {
         // Try to cast to Validatable
-        let validatable: Validatable? = entity as Validatable;
+        Validatable? validatable = entity as Validatable;
         if (validatable != null) {
             try {
                 if (validatable.validate()) {
                     print("Validation passed for: " + entity.getName());
                 }
-            } catch (e: String) {
+            } catch (String e) {
                 print("Validation error: " + e);
                 return "INVALID";
             }
         }
 
         // Serialize the entity
-        let serializable: Serializable = entity as Serializable;
-        let result: String = serializable.serialize();
+        Serializable serializable = entity as Serializable;
+        String result = serializable.serialize();
         print("Serialized: " + result);
         return result;
 
-    } catch (e: String) {
+    } catch (String e) {
         print("Processing error: " + e);
         return "ERROR";
     }
 }
 
-handleMultipleEntities(entities: BaseEntity[]) : Int {
-    let successCount: Int = 0;
-    let idx: Int = 0;
+function handleMultipleEntities(BaseEntity[] entities) : Int {
+    Int successCount = 0;
+    Int idx = 0;
 
     while (idx < entities.length()) {
         try {
-            let entity: BaseEntity = entities[idx];
+            BaseEntity entity = entities[idx];
 
             // Use polymorphic casting to determine type
-            let user: User? = entity as User;
+            User? user = entity as User;
             if (user != null) {
                 print("Processing user: " + user.getName());
 
                 // Check if it's an admin
-                let admin: Admin? = user as Admin;
+                Admin? admin = user as Admin;
                 if (admin != null) {
                     print("User is admin with permissions");
                     if (admin.hasPermission("write")) {
@@ -157,12 +157,12 @@ handleMultipleEntities(entities: BaseEntity[]) : Int {
                 }
             }
 
-            let result: String = processEntity<BaseEntity>(entity);
+            String result = processEntity<BaseEntity>(entity);
             if (result != "INVALID" && result != "ERROR") {
                 successCount = successCount + 1;
             }
 
-        } catch (e: String) {
+        } catch (String e) {
             print("Error processing entity at index " + idx.toString() + ": " + e);
         }
 
@@ -172,11 +172,11 @@ handleMultipleEntities(entities: BaseEntity[]) : Int {
     return successCount;
 }
 
-main() : Void {
+function main() : void {
     print("=== Polymorphic Exception Test ===");
 
     // Create test entities
-    let entities: BaseEntity[] = new BaseEntity[4];
+    BaseEntity[] entities = new BaseEntity[4];
 
     // Valid base entity
     entities[0] = new BaseEntity(1, "Base1");
@@ -188,25 +188,25 @@ main() : Void {
     entities[2] = new User(3, "Bob", "", true);
 
     // Valid admin
-    let perms: String[] = new String[2];
+    String[] perms = new String[2];
     perms[0] = "read";
     perms[1] = "write";
     entities[3] = new Admin(4, "Charlie", "charlie@example.com", true, perms);
 
     // Process all entities
-    let count: Int = handleMultipleEntities(entities);
+    Int count = handleMultipleEntities(entities);
     print("Successfully processed: " + count.toString() + " entities");
 
     // Test inactive user
     print("\n=== Test Inactive User ===");
-    let inactiveUser: User = new User(5, "Dave", "dave@example.com", false);
-    let result: String = processEntity<User>(inactiveUser);
+    User inactiveUser = new User(5, "Dave", "dave@example.com", false);
+    String result = processEntity<User>(inactiveUser);
 
     // Test admin without permissions
     print("\n=== Test Admin Without Permissions ===");
-    let emptyPerms: String[] = new String[0];
-    let adminNoPerms: Admin = new Admin(6, "Eve", "eve@example.com", true, emptyPerms);
-    let result2: String = processEntity<Admin>(adminNoPerms);
+    String[] emptyPerms = new String[0];
+    Admin adminNoPerms = new Admin(6, "Eve", "eve@example.com", true, emptyPerms);
+    String result2 = processEntity<Admin>(adminNoPerms);
 
     print("\n=== All tests completed ===");
 }

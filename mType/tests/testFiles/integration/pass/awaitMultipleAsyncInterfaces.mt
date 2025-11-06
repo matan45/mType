@@ -2,78 +2,78 @@
 // @Script
 
 interface AsyncValidator {
-    async validate(input: String) : Promise<Bool>;
+    function async validate(String input) : Promise<Bool>;
 }
 
 interface AsyncTransformer {
-    async transform(input: String) : Promise<String>;
+    function async transform(String input) : Promise<String>;
 }
 
 interface AsyncLogger {
-    async log(message: String) : Promise<Void>;
+    function async log(String message) : Promise<void>;
 }
 
 class DataProcessor implements AsyncValidator, AsyncTransformer, AsyncLogger {
-    private logs: String[];
+    private String[] logs;
 
     constructor() {
         this.logs = [];
     }
 
-    async validate(input: String) : Promise<Bool> {
+    public function async validate(String input) : Promise<Bool> {
         await delay(5);
         await this.log("Validating: " + input);
         return input.length() > 0;
     }
 
-    async transform(input: String) : Promise<String> {
+    public function async transform(String input) : Promise<String> {
         await delay(5);
         await this.log("Transforming: " + input);
         return input + " [processed]";
     }
 
-    async log(message: String) : Promise<Void> {
+    public function async log(String message) : Promise<void> {
         await delay(5);
         this.logs.push(message);
         print("LOG: " + message);
     }
 
-    getLogCount() : Int {
+    public function getLogCount() : Int {
         return this.logs.length();
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async processData(
-    data: String,
-    validator: AsyncValidator,
-    transformer: AsyncTransformer
+function async processData(
+    String data,
+    AsyncValidator validator,
+    AsyncTransformer transformer
 ) : Promise<String> {
-    let isValid = await validator.validate(data);
+    Bool isValid = await validator.validate(data);
     if (isValid) {
         return await transformer.transform(data);
     }
     return "Invalid";
 }
 
-async main() : Promise<Void> {
-    let processor = new DataProcessor();
+function async main() : Promise<void> {
+    DataProcessor processor = new DataProcessor();
 
     // Test as validator
-    let valid: AsyncValidator = processor;
-    let isValid = await valid.validate("test");
+    AsyncValidator valid = processor;
+    Bool isValid = await valid.validate("test");
     assert(isValid, "Should validate non-empty string");
 
     // Test as transformer
-    let transformer: AsyncTransformer = processor;
-    let transformed = await transformer.transform("data");
+    AsyncTransformer transformer = processor;
+    String transformed = await transformer.transform("data");
     assert(transformed == "data [processed]", "Should transform correctly");
 
     // Test combined
-    let result = await processData("input", processor, processor);
+    String result = await processData("input", processor, processor);
     print("Result: " + result);
     assert(result == "input [processed]", "Should process through multiple interfaces");
 

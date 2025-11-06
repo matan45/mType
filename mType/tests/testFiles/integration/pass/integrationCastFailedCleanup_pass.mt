@@ -4,15 +4,15 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class CleanupException extends Exception {
-    constructor(string msg):super(msg) {
+    constructor(String msg):super(msg) {
     }
 }
 
 class Resource {
-    protected string name;
-    protected bool isOpen;
+    protected String name;
+    protected Bool isOpen;
 
-    public constructor(string name) {
+    public constructor(String name) {
         this.name = name;
         this.isOpen = true;
         print("Resource opened: " + this.name);
@@ -25,23 +25,23 @@ class Resource {
         }
     }
 
-    public bool getIsOpen() {
+    public Bool getIsOpen() {
         return this.isOpen;
     }
 
-    public string getName() {
+    public String getName() {
         return this.name;
     }
 }
 
 class FileResource extends Resource {
-    private string path;
+    private String path;
 
-    public constructor(string name, string path) : super(name) {
+    public constructor(String name, String path) : super(name) {
         this.path = path;
     }
 
-    public string getPath() {
+    public String getPath() {
         return this.path;
     }
 
@@ -51,13 +51,13 @@ class FileResource extends Resource {
 }
 
 class DatabaseResource extends Resource {
-    private string connectionString;
+    private String connectionString;
 
-    public constructor(string name, string conn) : super(name) {
+    public constructor(String name, String conn) : super(name) {
         this.connectionString = conn;
     }
 
-    public string getConnectionString() {
+    public String getConnectionString() {
         return this.connectionString;
     }
 
@@ -67,7 +67,7 @@ class DatabaseResource extends Resource {
 }
 
 // Test 1: Cleanup in finally after failed cast
-function processCastWithCleanup(Resource r): string {
+String processCastWithCleanup(Resource r) {
     try {
         if (r instanceof FileResource) {
             FileResource fr = (FileResource)r;
@@ -86,7 +86,7 @@ function processCastWithCleanup(Resource r): string {
 }
 
 // Test 2: Multiple resource cleanup after mixed casts
-function processMultipleResources(Resource r1, Resource r2): string {
+String processMultipleResources(Resource r1, Resource r2) {
     try {
         if (r1 instanceof FileResource) {
             FileResource fr = (FileResource)r1;
@@ -114,7 +114,7 @@ function processMultipleResources(Resource r1, Resource r2): string {
 }
 
 // Test 3: Nested try with cleanup at each level
-function nestedCastCleanup(Resource r): string {
+String nestedCastCleanup(Resource r) {
     Resource temp = new Resource("temp");
     try {
         try {
@@ -139,12 +139,12 @@ function nestedCastCleanup(Resource r): string {
 }
 
 // Test 4: Array of resources with partial failure
-function processResourceArray(Resource[] resources): string {
-    int processed = 0;
-    int failed = 0;
+String processResourceArray(Resource[] resources) {
+    Int processed = 0;
+    Int failed = 0;
 
     try {
-        int i = 0;
+        Int i = 0;
         while (i < 3) {
             try {
                 if (resources[i] instanceof FileResource) {
@@ -173,7 +173,7 @@ function processResourceArray(Resource[] resources): string {
 }
 
 // Test 5: Cast failure with exception chaining
-function chainedCleanupException(Resource r): string {
+String chainedCleanupException(Resource r) {
     try {
         try {
             if (r instanceof FileResource) {

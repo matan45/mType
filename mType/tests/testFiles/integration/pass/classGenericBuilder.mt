@@ -2,33 +2,33 @@
 @Script
 
 class Product<T> {
-    field name: String;
-    field value: T;
-    field quantity: Int;
-    field active: Bool;
+    String name;
+    T value;
+    Int quantity;
+    Bool active;
 
     constructor() {
         this.active = false;
         this.quantity = 0;
     }
 
-    fun setName(n: String): Void {
+    public function setName(String n): void {
         this.name = n;
     }
 
-    fun setValue(v: T): Void {
+    public function setValue(T v): void {
         this.value = v;
     }
 
-    fun setQuantity(q: Int): Void {
+    public function setQuantity(Int q): void {
         this.quantity = q;
     }
 
-    fun setActive(a: Bool): Void {
+    public function setActive(Bool a): void {
         this.active = a;
     }
 
-    fun display(): Void {
+    public function display(): void {
         print(this.name);
         print(this.value);
         print(this.quantity);
@@ -37,40 +37,40 @@ class Product<T> {
 }
 
 class ProductBuilder<T> {
-    field product: Product<T>;
+    Product<T> product;
 
     constructor() {
         this.product = Product<T>();
     }
 
-    fun withName(name: String): ProductBuilder<T> {
+    public function withName(String name): ProductBuilder<T> {
         this.product.setName(name);
         return this;
     }
 
-    fun withValue(value: T): ProductBuilder<T> {
+    public function withValue(T value): ProductBuilder<T> {
         this.product.setValue(value);
         return this;
     }
 
-    fun withQuantity(qty: Int): ProductBuilder<T> {
+    public function withQuantity(Int qty): ProductBuilder<T> {
         this.product.setQuantity(qty);
         return this;
     }
 
-    fun withActive(active: Bool): ProductBuilder<T> {
+    public function withActive(Bool active): ProductBuilder<T> {
         this.product.setActive(active);
         return this;
     }
 
-    fun build(): Product<T> {
+    public function build(): Product<T> {
         return this.product;
     }
 }
 
 print("Building Product<Int>:");
-let intBuilder: ProductBuilder<Int> = ProductBuilder<Int>();
-let intProduct: Product<Int> = intBuilder
+ProductBuilder<Int> intBuilder = ProductBuilder<Int>();
+Product<Int> intProduct = intBuilder
     .withName("Widget")
     .withValue(100)
     .withQuantity(50)
@@ -80,8 +80,8 @@ let intProduct: Product<Int> = intBuilder
 intProduct.display();
 
 print("Building Product<String>:");
-let strBuilder: ProductBuilder<String> = ProductBuilder<String>();
-let strProduct: Product<String> = strBuilder
+ProductBuilder<String> strBuilder = ProductBuilder<String>();
+Product<String> strProduct = strBuilder
     .withName("Service")
     .withValue("Premium")
     .withQuantity(1)
@@ -91,8 +91,8 @@ let strProduct: Product<String> = strBuilder
 strProduct.display();
 
 print("Building Product<Float>:");
-let floatBuilder: ProductBuilder<Float> = ProductBuilder<Float>();
-let floatProduct: Product<Float> = floatBuilder
+ProductBuilder<Float> floatBuilder = ProductBuilder<Float>();
+Product<Float> floatProduct = floatBuilder
     .withName("Price")
     .withValue(99.99)
     .withQuantity(0)

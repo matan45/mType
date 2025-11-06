@@ -2,66 +2,66 @@
 @Script
 
 class Processor<T> {
-    field value: T;
+    T value;
 
-    constructor(val: T) {
+    constructor(T val) {
         this.value = val;
     }
 
-    fun process(): T {
+    public function process(): T {
         return this.value;
     }
 
-    fun process(modifier: T): T {
+    public function process(T modifier): T {
         return modifier;
     }
 
-    fun process(modifier1: T, modifier2: T): T {
+    public function process(T modifier1, T modifier2): T {
         return modifier1;
     }
 
-    fun getValue(): T {
+    public function getValue(): T {
         return this.value;
     }
 }
 
 class Calculator {
-    fun compute(a: Int): Int {
+    public function compute(Int a): Int {
         return a * 2;
     }
 
-    fun compute(a: Int, b: Int): Int {
+    public function compute(Int a, Int b): Int {
         return a + b;
     }
 
-    fun compute(a: Int, b: Int, c: Int): Int {
+    public function compute(Int a, Int b, Int c): Int {
         return a + b + c;
     }
 
-    fun compute(a: Float): Float {
+    public function compute(Float a): Float {
         return a * 2.0;
     }
 
-    fun compute(a: Float, b: Float): Float {
+    public function compute(Float a, Float b): Float {
         return a + b;
     }
 }
 
 print("Testing Processor<Int>:");
-let intProc: Processor<Int> = Processor<Int>(10);
+Processor<Int> intProc = Processor<Int>(10);
 print(intProc.process());
 print(intProc.process(20));
 print(intProc.process(30, 40));
 print(intProc.getValue());
 
 print("Testing Processor<String>:");
-let strProc: Processor<String> = Processor<String>("original");
+Processor<String> strProc = Processor<String>("original");
 print(strProc.process());
 print(strProc.process("modified"));
 print(strProc.process("mod1", "mod2"));
 
 print("Testing Calculator:");
-let calc: Calculator = Calculator();
+Calculator calc = Calculator();
 print(calc.compute(5));
 print(calc.compute(5, 10));
 print(calc.compute(5, 10, 15));
@@ -69,7 +69,7 @@ print(calc.compute(2.5));
 print(calc.compute(2.5, 3.5));
 
 print("Testing Processor<Bool>:");
-let boolProc: Processor<Bool> = Processor<Bool>(true);
+Processor<Bool> boolProc = Processor<Bool>(true);
 print(boolProc.process());
 print(boolProc.process(false));
 print(boolProc.process(true, false));

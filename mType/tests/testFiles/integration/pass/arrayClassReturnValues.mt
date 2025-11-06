@@ -2,9 +2,9 @@
 @Script
 
 class ArrayFactory {
-    fun createIntArray(size: Int, fillValue: Int): Int[] {
-        let arr: Int[] = Int[size];
-        let i: Int = 0;
+    function createIntArray(size: Int, fillValue: Int): Int[] {
+        Int[] arr = Int[size];
+        Int i = 0;
         while (i < size) {
             arr[i] = fillValue;
             i = i + 1;
@@ -12,9 +12,9 @@ class ArrayFactory {
         return arr;
     }
 
-    fun createSequence(start: Int, count: Int): Int[] {
-        let arr: Int[] = Int[count];
-        let i: Int = 0;
+    function createSequence(start: Int, count: Int): Int[] {
+        Int[] arr = Int[count];
+        Int i = 0;
         while (i < count) {
             arr[i] = start + i;
             i = i + 1;
@@ -22,9 +22,9 @@ class ArrayFactory {
         return arr;
     }
 
-    fun createStringArray(size: Int, prefix: String): String[] {
-        let arr: String[] = String[size];
-        let i: Int = 0;
+    function createStringArray(size: Int, prefix: String): String[] {
+        String[] arr = String[size];
+        Int i = 0;
         while (i < size) {
             arr[i] = prefix;
             i = i + 1;
@@ -34,17 +34,17 @@ class ArrayFactory {
 }
 
 class DataProcessor {
-    field data: Int[];
-    field size: Int;
+    Int[] data;
+    Int size;
 
     constructor(arr: Int[], s: Int) {
         this.data = arr;
         this.size = s;
     }
 
-    fun filter(threshold: Int): Int[] {
-        let count: Int = 0;
-        let i: Int = 0;
+    function filter(threshold: Int): Int[] {
+        Int count = 0;
+        Int i = 0;
         while (i < this.size) {
             if (this.data[i] > threshold) {
                 count = count + 1;
@@ -52,8 +52,8 @@ class DataProcessor {
             i = i + 1;
         }
 
-        let result: Int[] = Int[count];
-        let j: Int = 0;
+        Int[] result = Int[count];
+        Int j = 0;
         i = 0;
         while (i < this.size) {
             if (this.data[i] > threshold) {
@@ -65,9 +65,9 @@ class DataProcessor {
         return result;
     }
 
-    fun transform(multiplier: Int): Int[] {
-        let result: Int[] = Int[this.size];
-        let i: Int = 0;
+    function transform(multiplier: Int): Int[] {
+        Int[] result = Int[this.size];
+        Int i = 0;
         while (i < this.size) {
             result[i] = this.data[i] * multiplier;
             i = i + 1;
@@ -75,13 +75,13 @@ class DataProcessor {
         return result;
     }
 
-    fun split(): Int[][] {
-        let half: Int = this.size / 2;
-        let result: Int[][] = Int[][2];
+    function split(): Int[][] {
+        Int half = this.size / 2;
+        Int[][] result = Int[][2];
         result[0] = Int[half];
         result[1] = Int[this.size - half];
 
-        let i: Int = 0;
+        Int i = 0;
         while (i < half) {
             result[0][i] = this.data[i];
             i = i + 1;
@@ -97,17 +97,17 @@ class DataProcessor {
 }
 
 print("ArrayFactory tests:");
-let factory: ArrayFactory = ArrayFactory();
+ArrayFactory factory = ArrayFactory();
 
-let filled: Int[] = factory.createIntArray(4, 42);
+Int[] filled = factory.createIntArray(4, 42);
 print("Filled array:");
-let i: Int = 0;
+Int i = 0;
 while (i < 4) {
     print(filled[i]);
     i = i + 1;
 }
 
-let seq: Int[] = factory.createSequence(10, 5);
+Int[] seq = factory.createSequence(10, 5);
 print("Sequence:");
 i = 0;
 while (i < 5) {
@@ -115,7 +115,7 @@ while (i < 5) {
     i = i + 1;
 }
 
-let strings: String[] = factory.createStringArray(3, "test");
+String[] strings = factory.createStringArray(3, "test");
 print("String array:");
 i = 0;
 while (i < 3) {
@@ -124,7 +124,7 @@ while (i < 3) {
 }
 
 print("DataProcessor tests:");
-let data: Int[] = Int[6];
+Int[] data = Int[6];
 data[0] = 5;
 data[1] = 15;
 data[2] = 3;
@@ -132,9 +132,9 @@ data[3] = 25;
 data[4] = 8;
 data[5] = 30;
 
-let processor: DataProcessor = DataProcessor(data, 6);
+DataProcessor processor = DataProcessor(data, 6);
 
-let filtered: Int[] = processor.filter(10);
+Int[] filtered = processor.filter(10);
 print("Filtered (> 10):");
 i = 0;
 while (i < 3) {
@@ -142,7 +142,7 @@ while (i < 3) {
     i = i + 1;
 }
 
-let transformed: Int[] = processor.transform(2);
+Int[] transformed = processor.transform(2);
 print("Transformed (* 2):");
 i = 0;
 while (i < 6) {
@@ -150,7 +150,7 @@ while (i < 6) {
     i = i + 1;
 }
 
-let parts: Int[][] = processor.split();
+Int[][] parts = processor.split();
 print("Split part 1:");
 i = 0;
 while (i < 3) {

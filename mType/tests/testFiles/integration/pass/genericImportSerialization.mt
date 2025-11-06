@@ -22,13 +22,13 @@ function main(): void {
     print("First string: " + stringContainer.getFirst().getValue());
 
     // Test utility functions (type-specific since no generic functions)
-    bool containsAnswer = containsIntItem(intContainer, new Int(42));
-    bool containsTest = containsStringItem(stringContainer, new String("test"));
-    bool containsMissing = containsStringItem(stringContainer, new String("missing"));
+    Bool containsAnswer = containsIntItem(intContainer, new Int(42));
+    Bool containsTest = containsStringItem(stringContainer, new String("test"));
+    Bool containsMissing = containsStringItem(stringContainer, new String("missing"));
 
-    print("Contains 42: " + (containsAnswer ? "true" : "false"));
-    print("Contains 'test': " + (containsTest ? "true" : "false"));
-    print("Contains 'missing': " + (containsMissing ? "true" : "false"));
+    print("Contains 42: " + (containsAnswer.value ? "true" : "false"));
+    print("Contains 'test': " + (containsTest.value ? "true" : "false"));
+    print("Contains 'missing': " + (containsMissing.value ? "true" : "false"));
 
     print("Generic import serialization test completed");
 }

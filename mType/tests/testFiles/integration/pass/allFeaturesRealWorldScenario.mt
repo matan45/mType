@@ -4,44 +4,44 @@
 import "modules/ServiceInterfaces.mt";
 
 class User {
-    private id: Int;
-    private username: String;
-    private email: String;
+    private Int id;
+    private String username;
+    private String email;
 
-    constructor(id: Int, username: String, email: String) {
+    constructor(Int id, String username, String email) {
         this.id = id;
         this.username = username;
         this.email = email;
     }
 
-    getId() : Int {
+    function getId() : Int {
         return this.id;
     }
 
-    getUsername() : String {
+    function getUsername() : String {
         return this.username;
     }
 
-    getEmail() : String {
+    function getEmail() : String {
         return this.email;
     }
 }
 
 class UserServiceImpl implements AsyncUserService, AsyncLogger {
-    private users: String[];
+    private String[] users;
 
     constructor() {
         this.users = [];
     }
 
-    async authenticate(username: String, password: String) : Promise<Bool> {
+    function async authenticate(String username, String password) : Promise<Bool> {
         await this.logInfo("Authentication attempt: " + username);
         await delay(10);
         // Simplified authentication
         return username.length() > 0 && password.length() > 0;
     }
 
-    async getUserData(userId: Int) : Promise<String> {
+    function async getUserData(Int userId) : Promise<String> {
         await this.logInfo("Fetching user data: " + userId.toString());
         await delay(10);
         if (userId >= 0 && userId < this.users.length()) {
@@ -50,34 +50,34 @@ class UserServiceImpl implements AsyncUserService, AsyncLogger {
         return "Unknown user";
     }
 
-    async logInfo(message: String) : Promise<Void> {
+    function async logInfo(String message) : Promise<void> {
         await delay(5);
         print("[INFO] " + message);
     }
 
-    async logError(message: String) : Promise<Void> {
+    function async logError(String message) : Promise<void> {
         await delay(5);
         print("[ERROR] " + message);
     }
 
-    addUser(userData: String) : Void {
+    function addUser(String userData) : void {
         this.users.push(userData);
     }
 }
 
 class DataServiceImpl<T> implements AsyncDataService<T>, AsyncLogger {
-    private storage: T[];
-    private ids: Int[];
+    private T[] storage;
+    private Int[] ids;
 
     constructor() {
         this.storage = [];
         this.ids = [];
     }
 
-    async load(id: Int) : Promise<T> {
+    function async load(Int id) : Promise<T> {
         await this.logInfo("Loading data with ID: " + id.toString());
         await delay(10);
-        let i: Int = 0;
+        Int i = 0;
         while (i < this.ids.length()) {
             if (this.ids[i] == id) {
                 return this.storage[i];
@@ -87,7 +87,7 @@ class DataServiceImpl<T> implements AsyncDataService<T>, AsyncLogger {
         return this.storage[0]; // Default
     }
 
-    async save(id: Int, data: T) : Promise<Bool> {
+    function async save(Int id, T data) : Promise<Bool> {
         await this.logInfo("Saving data with ID: " + id.toString());
         await delay(10);
         this.ids.push(id);
@@ -95,11 +95,11 @@ class DataServiceImpl<T> implements AsyncDataService<T>, AsyncLogger {
         return true;
     }
 
-    async query(filter: (T) -> Bool) : Promise<T[]> {
+    function async query((T) -> Bool filter) : Promise<T[]> {
         await this.logInfo("Querying data");
         await delay(10);
-        let results: T[] = [];
-        let i: Int = 0;
+        T[] results = [];
+        Int i = 0;
         while (i < this.storage.length()) {
             if (filter(this.storage[i])) {
                 results.push(this.storage[i]);
@@ -109,35 +109,35 @@ class DataServiceImpl<T> implements AsyncDataService<T>, AsyncLogger {
         return results;
     }
 
-    async logInfo(message: String) : Promise<Void> {
+    function async logInfo(String message) : Promise<void> {
         await delay(5);
         print("[DATA-INFO] " + message);
     }
 
-    async logError(message: String) : Promise<Void> {
+    function async logError(String message) : Promise<void> {
         await delay(5);
         print("[DATA-ERROR] " + message);
     }
 }
 
-async processUserWorkflow(
-    userService: AsyncUserService,
-    dataService: AsyncDataService<User>,
-    username: String,
-    password: String
+function async processUserWorkflow(
+    AsyncUserService userService,
+    AsyncDataService<User> dataService,
+    String username,
+    String password
 ) : Promise<Bool> {
     // Authenticate
-    let authenticated = await userService.authenticate(username, password);
+    Bool authenticated = await userService.authenticate(username, password);
     if (!authenticated) {
         return false;
     }
 
     // Load user data
-    let userData = await userService.getUserData(0);
+    String userData = await userService.getUserData(0);
     print("User data: " + userData);
 
     // Query with lambda
-    let activeUsers = await dataService.query((u: User) : Bool => {
+    User[] activeUsers = await dataService.query((User u) : Bool => {
         return u.getUsername().length() > 0;
     });
 
@@ -145,33 +145,33 @@ async processUserWorkflow(
     return true;
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
-    let userService = new UserServiceImpl();
+function async main() : Promise<void> {
+    UserServiceImpl userService = new UserServiceImpl();
     userService.addUser("alice@example.com");
     userService.addUser("bob@example.com");
 
-    let dataService = new DataServiceImpl<User>();
+    DataServiceImpl<User> dataService = new DataServiceImpl<User>();
 
     // Save users
-    let user1 = new User(1, "alice", "alice@example.com");
-    let user2 = new User(2, "bob", "bob@example.com");
+    User user1 = new User(1, "alice", "alice@example.com");
+    User user2 = new User(2, "bob", "bob@example.com");
 
-    let saved1 = await dataService.save(1, user1);
-    let saved2 = await dataService.save(2, user2);
+    Bool saved1 = await dataService.save(1, user1);
+    Bool saved2 = await dataService.save(2, user2);
 
     assert(saved1 && saved2, "Should save users");
 
     // Load user
-    let loaded = await dataService.load(1);
+    User loaded = await dataService.load(1);
     print("Loaded user: " + loaded.getUsername());
     assert(loaded.getUsername() == "alice", "Should load correct user");
 
     // Process workflow
-    let success = await processUserWorkflow(
+    Bool success = await processUserWorkflow(
         userService,
         dataService,
         "alice",
@@ -180,7 +180,7 @@ async main() : Promise<Void> {
     assert(success, "Workflow should complete successfully");
 
     // Query with complex lambda
-    let emailQuery = await dataService.query((u: User) : Bool => {
+    User[] emailQuery = await dataService.query((User u) : Bool => {
         return u.getEmail().length() > 10;
     });
     print("Users with long emails: " + emailQuery.length().toString());

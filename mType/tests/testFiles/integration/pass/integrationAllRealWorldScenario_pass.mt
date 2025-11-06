@@ -4,68 +4,68 @@
 // generics, casting, and control flow
 
 interface Validator<T> {
-    validate(item: T) : Bool;
+    function validate(T item) : Bool;
 }
 
 interface Transformer<T, U> {
-    transform(item: T) : U;
+    function transform(T item) : U;
 }
 
 interface AsyncLoader<T> {
-    async load() : Promise<T>;
+    function async load() : Promise<T>;
 }
 
 class DataRecord {
-    public id: Int;
-    public content: String;
-    public timestamp: Int;
-    public isValid: Bool;
+    public Int id;
+    public String content;
+    public Int timestamp;
+    public Bool isValid;
 
-    constructor(i: Int, c: String, t: Int) {
+    constructor(Int i, String c, Int t) {
         this.id = i;
         this.content = c;
         this.timestamp = t;
         this.isValid = false;
     }
 
-    toString() : String {
+    function toString() : String {
         return "Record(" + this.id.toString() + ", " + this.content + ", " + this.timestamp.toString() + ")";
     }
 }
 
 class ProcessedRecord extends DataRecord {
-    private processedContent: String;
-    private processingTime: Int;
+    private String processedContent;
+    private Int processingTime;
 
-    constructor(i: Int, c: String, t: Int, pc: String, pt: Int) {
+    constructor(Int i, String c, Int t, String pc, Int pt) {
         super(i, c, t);
         this.processedContent = pc;
         this.processingTime = pt;
     }
 
-    getProcessedContent() : String {
+    function getProcessedContent() : String {
         return this.processedContent;
     }
 
-    getProcessingTime() : Int {
+    function getProcessingTime() : Int {
         return this.processingTime;
     }
 
-    toString() : String {
+    function toString() : String {
         return "ProcessedRecord(" + this.id.toString() + ", " + this.processedContent + ", " + this.processingTime.toString() + "ms)";
     }
 }
 
 class DataValidator<T extends DataRecord> implements Validator<T> {
-    private minContentLength: Int;
-    private maxTimestamp: Int;
+    private Int minContentLength;
+    private Int maxTimestamp;
 
-    constructor(minLen: Int, maxTime: Int) {
+    constructor(Int minLen, Int maxTime) {
         this.minContentLength = minLen;
         this.maxTimestamp = maxTime;
     }
 
-    validate(item: T) : Bool {
+    function validate(T item) : Bool {
         try {
             if (item.content.length() < this.minContentLength) {
                 throw "Content too short: " + item.content.length().toString();
@@ -78,7 +78,7 @@ class DataValidator<T extends DataRecord> implements Validator<T> {
             item.isValid = true;
             return true;
 
-        } catch (e: String) {
+        } catch (String e) {
             print("Validation failed for record " + item.id.toString() + ": " + e);
             return false;
         }
@@ -86,18 +86,18 @@ class DataValidator<T extends DataRecord> implements Validator<T> {
 }
 
 class RecordTransformer implements Transformer<DataRecord, ProcessedRecord> {
-    private processingDelay: Int;
+    private Int processingDelay;
 
-    constructor(delay: Int) {
+    constructor(Int delay) {
         this.processingDelay = delay;
     }
 
-    transform(item: DataRecord) : ProcessedRecord {
+    function transform(DataRecord item) : ProcessedRecord {
         if (!item.isValid) {
             throw "Cannot transform invalid record";
         }
 
-        let processed: String = item.content.toUpperCase();
+        String processed = item.content.toUpperCase();
         return new ProcessedRecord(
             item.id,
             item.content,
@@ -109,21 +109,21 @@ class RecordTransformer implements Transformer<DataRecord, ProcessedRecord> {
 }
 
 class AsyncDataLoader implements AsyncLoader<DataRecord[]> {
-    private recordCount: Int;
-    private failureRate: Int;
+    private Int recordCount;
+    private Int failureRate;
 
-    constructor(count: Int, failRate: Int) {
+    constructor(Int count, Int failRate) {
         this.recordCount = count;
         this.failureRate = failRate;
     }
 
-    async load() : Promise<DataRecord[]> {
+    function async load() : Promise<DataRecord[]> {
         await delay(10);
 
         print("Loading " + this.recordCount.toString() + " records...");
 
-        let records: DataRecord[] = new DataRecord[this.recordCount];
-        let i: Int = 0;
+        DataRecord[] records = new DataRecord[this.recordCount];
+        Int i = 0;
 
         while (i < this.recordCount) {
             try {
@@ -132,13 +132,13 @@ class AsyncDataLoader implements AsyncLoader<DataRecord[]> {
                     throw "Failed to load record " + i.toString();
                 }
 
-                let content: String = "Data_" + i.toString();
-                let timestamp: Int = 1000 + i * 100;
+                String content = "Data_" + i.toString();
+                Int timestamp = 1000 + i * 100;
                 records[i] = new DataRecord(i, content, timestamp);
 
                 await delay(5);
 
-            } catch (e: String) {
+            } catch (String e) {
                 print("Load error: " + e);
                 // Create placeholder record
                 records[i] = new DataRecord(i, "", 0);
@@ -153,32 +153,32 @@ class AsyncDataLoader implements AsyncLoader<DataRecord[]> {
 }
 
 class ProcessingPipeline<T extends DataRecord> {
-    private validator: Validator<T>;
-    private transformer: Transformer<DataRecord, ProcessedRecord>;
-    private errorCount: Int;
-    private successCount: Int;
+    private Validator<T> validator;
+    private Transformer<DataRecord, ProcessedRecord> transformer;
+    private Int errorCount;
+    private Int successCount;
 
-    constructor(v: Validator<T>, t: Transformer<DataRecord, ProcessedRecord>) {
+    constructor(Validator<T> v, Transformer<DataRecord, ProcessedRecord> t) {
         this.validator = v;
         this.transformer = t;
         this.errorCount = 0;
         this.successCount = 0;
     }
 
-    async processRecords(records: T[]) : Promise<ProcessedRecord[]> {
-        let results: ProcessedRecord[] = new ProcessedRecord[records.length()];
-        let resultIndex: Int = 0;
-        let i: Int = 0;
+    function async processRecords(T[] records) : Promise<ProcessedRecord[]> {
+        ProcessedRecord[] results = new ProcessedRecord[records.length()];
+        Int resultIndex = 0;
+        Int i = 0;
 
         print("\n=== Processing Pipeline Started ===");
 
         while (i < records.length()) {
             try {
-                let record: T = records[i];
+                T record = records[i];
 
                 // Stage 1: Validation
                 print("Validating record " + record.id.toString() + "...");
-                let isValid: Bool = this.validator.validate(record);
+                Bool isValid = this.validator.validate(record);
 
                 if (!isValid) {
                     this.errorCount = this.errorCount + 1;
@@ -190,8 +190,8 @@ class ProcessingPipeline<T extends DataRecord> {
                 print("Transforming record " + record.id.toString() + "...");
 
                 // Cast to base type for transformer
-                let baseRecord: DataRecord = record as DataRecord;
-                let processed: ProcessedRecord = this.transformer.transform(baseRecord);
+                DataRecord baseRecord = record as DataRecord;
+                ProcessedRecord processed = this.transformer.transform(baseRecord);
 
                 results[resultIndex] = processed;
                 resultIndex = resultIndex + 1;
@@ -199,7 +199,7 @@ class ProcessingPipeline<T extends DataRecord> {
 
                 print("Successfully processed: " + processed.toString());
 
-            } catch (e: String) {
+            } catch (String e) {
                 print("Pipeline error at record " + i.toString() + ": " + e);
                 this.errorCount = this.errorCount + 1;
             }
@@ -212,8 +212,8 @@ class ProcessingPipeline<T extends DataRecord> {
         print("Success: " + this.successCount.toString() + ", Errors: " + this.errorCount.toString());
 
         // Resize results to actual size
-        let finalResults: ProcessedRecord[] = new ProcessedRecord[resultIndex];
-        let j: Int = 0;
+        ProcessedRecord[] finalResults = new ProcessedRecord[resultIndex];
+        Int j = 0;
         while (j < resultIndex) {
             finalResults[j] = results[j];
             j = j + 1;
@@ -222,17 +222,17 @@ class ProcessingPipeline<T extends DataRecord> {
         return finalResults;
     }
 
-    getStatistics() : String {
+    function getStatistics() : String {
         return "Pipeline Stats - Success: " + this.successCount.toString() + ", Errors: " + this.errorCount.toString();
     }
 
-    resetStatistics() : Void {
+    function resetStatistics() : void {
         this.errorCount = 0;
         this.successCount = 0;
     }
 }
 
-async analyzeResults<T extends ProcessedRecord>(results: T[]) : Promise<Void> {
+function async analyzeResults<T extends ProcessedRecord>(T[] results) : Promise<void> {
     print("\n=== Results Analysis ===");
 
     if (results.length() == 0) {
@@ -240,18 +240,18 @@ async analyzeResults<T extends ProcessedRecord>(results: T[]) : Promise<Void> {
         return;
     }
 
-    let totalTime: Int = 0;
-    let maxTime: Int = 0;
-    let minTime: Int = results[0].getProcessingTime();
-    let i: Int = 0;
+    Int totalTime = 0;
+    Int maxTime = 0;
+    Int minTime = results[0].getProcessingTime();
+    Int i = 0;
 
     while (i < results.length()) {
         try {
-            let record: T = results[i];
+            T record = results[i];
 
             // Cast to ProcessedRecord to access processing time
-            let processed: ProcessedRecord = record as ProcessedRecord;
-            let time: Int = processed.getProcessingTime();
+            ProcessedRecord processed = record as ProcessedRecord;
+            Int time = processed.getProcessingTime();
 
             totalTime = totalTime + time;
 
@@ -263,14 +263,14 @@ async analyzeResults<T extends ProcessedRecord>(results: T[]) : Promise<Void> {
                 minTime = time;
             }
 
-        } catch (e: String) {
+        } catch (String e) {
             print("Analysis error at index " + i.toString() + ": " + e);
         }
 
         i = i + 1;
     }
 
-    let avgTime: Int = totalTime / results.length();
+    Int avgTime = totalTime / results.length();
 
     print("Total records: " + results.length().toString());
     print("Average processing time: " + avgTime.toString() + "ms");
@@ -278,24 +278,24 @@ async analyzeResults<T extends ProcessedRecord>(results: T[]) : Promise<Void> {
     print("Max processing time: " + maxTime.toString() + "ms");
 }
 
-async retryFailedRecords<T extends DataRecord>(
-    records: T[],
-    validator: Validator<T>,
-    maxRetries: Int
+function async retryFailedRecords<T extends DataRecord>(
+    T[] records,
+    Validator<T> validator,
+    Int maxRetries
 ) : Promise<Int> {
     print("\n=== Retry Failed Records ===");
 
-    let successCount: Int = 0;
-    let i: Int = 0;
+    Int successCount = 0;
+    Int i = 0;
 
     while (i < records.length()) {
-        let record: T = records[i];
+        T record = records[i];
 
         if (!record.isValid) {
             print("Retrying record " + record.id.toString());
 
-            let attempt: Int = 0;
-            let success: Bool = false;
+            Int attempt = 0;
+            Bool success = false;
 
             while (attempt < maxRetries && !success) {
                 try {
@@ -307,7 +307,7 @@ async retryFailedRecords<T extends DataRecord>(
                         successCount = successCount + 1;
                     }
 
-                } catch (e: String) {
+                } catch (String e) {
                     print("  Retry attempt " + (attempt + 1).toString() + " failed: " + e);
                 }
 
@@ -325,31 +325,31 @@ async retryFailedRecords<T extends DataRecord>(
     return successCount;
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
+function async main() : Promise<void> {
     print("=== Real World Scenario Test ===");
     print("Simulating data processing pipeline...\n");
 
     // Step 1: Load data asynchronously
     print("--- Step 1: Data Loading ---");
-    let loader: AsyncDataLoader = new AsyncDataLoader(8, 4);
-    let records: DataRecord[] = await loader.load();
+    AsyncDataLoader loader = new AsyncDataLoader(8, 4);
+    DataRecord[] records = await loader.load();
 
     // Step 2: Setup pipeline
     print("\n--- Step 2: Pipeline Setup ---");
-    let validator: DataValidator<DataRecord> = new DataValidator<DataRecord>(5, 2000);
-    let transformer: RecordTransformer = new RecordTransformer(50);
-    let pipeline: ProcessingPipeline<DataRecord> = new ProcessingPipeline<DataRecord>(
+    DataValidator<DataRecord> validator = new DataValidator<DataRecord>(5, 2000);
+    RecordTransformer transformer = new RecordTransformer(50);
+    ProcessingPipeline<DataRecord> pipeline = new ProcessingPipeline<DataRecord>(
         validator,
         transformer
     );
 
     // Step 3: Process records through pipeline
     print("\n--- Step 3: Pipeline Processing ---");
-    let processedRecords: ProcessedRecord[] = await pipeline.processRecords(records);
+    ProcessedRecord[] processedRecords = await pipeline.processRecords(records);
 
     // Step 4: Analyze results
     print("\n--- Step 4: Results Analysis ---");
@@ -357,7 +357,7 @@ async main() : Promise<Void> {
 
     // Step 5: Retry failed records
     print("\n--- Step 5: Retry Mechanism ---");
-    let retriedCount: Int = await retryFailedRecords<DataRecord>(records, validator, 2);
+    Int retriedCount = await retryFailedRecords<DataRecord>(records, validator, 2);
     print("Successfully retried: " + retriedCount.toString() + " records");
 
     // Step 6: Final statistics
@@ -366,22 +366,22 @@ async main() : Promise<Void> {
 
     // Step 7: Type-safe casting and validation
     print("\n--- Step 7: Type Safety Checks ---");
-    let i: Int = 0;
+    Int i = 0;
     while (i < processedRecords.length()) {
         try {
-            let record: ProcessedRecord = processedRecords[i];
+            ProcessedRecord record = processedRecords[i];
 
             // Cast to base type
-            let base: DataRecord = record as DataRecord;
+            DataRecord base = record as DataRecord;
             print("Record " + base.id.toString() + " is valid: " + base.isValid.toString());
 
             // Try to cast back
-            let processed: ProcessedRecord? = base as ProcessedRecord;
+            ProcessedRecord? processed = base as ProcessedRecord;
             if (processed != null) {
                 print("  Successful downcast, content: " + processed.getProcessedContent());
             }
 
-        } catch (e: String) {
+        } catch (String e) {
             print("Type checking error: " + e);
         }
 

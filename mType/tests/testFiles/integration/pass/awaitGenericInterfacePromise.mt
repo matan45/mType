@@ -2,45 +2,45 @@
 // @Script
 
 interface AsyncRepository<T> {
-    async save(item: T) : Promise<Void>;
-    async findById(id: Int) : Promise<T>;
-    async findAll() : Promise<T[]>;
+    function async save(T item) : Promise<void>;
+    function async findById(Int id) : Promise<T>;
+    function async findAll() : Promise<T[]>;
 }
 
 class Item {
-    private id: Int;
-    private name: String;
+    private Int id;
+    private String name;
 
-    constructor(id: Int, name: String) {
+    constructor(Int id, String name) {
         this.id = id;
         this.name = name;
     }
 
-    getId() : Int {
+    public function getId() : Int {
         return this.id;
     }
 
-    getName() : String {
+    public function getName() : String {
         return this.name;
     }
 }
 
 class ItemRepository implements AsyncRepository<Item> {
-    private items: Item[];
+    private Item[] items;
 
     constructor() {
         this.items = [];
     }
 
-    async save(item: Item) : Promise<Void> {
+    public function async save(Item item) : Promise<void> {
         await delay(10);
         this.items.push(item);
         print("Saved item: " + item.getName());
     }
 
-    async findById(id: Int) : Promise<Item> {
+    public function async findById(Int id) : Promise<Item> {
         await delay(10);
-        let i: Int = 0;
+        Int i = 0;
         while (i < this.items.length()) {
             if (this.items[i].getId() == id) {
                 return this.items[i];
@@ -50,30 +50,30 @@ class ItemRepository implements AsyncRepository<Item> {
         return this.items[0]; // Default
     }
 
-    async findAll() : Promise<Item[]> {
+    public function async findAll() : Promise<Item[]> {
         await delay(10);
         return this.items;
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
-    let repo: AsyncRepository<Item> = new ItemRepository();
+function async main() : Promise<void> {
+    AsyncRepository<Item> repo = new ItemRepository();
 
-    let item1 = new Item(1, "Item A");
-    let item2 = new Item(2, "Item B");
+    Item item1 = new Item(1, "Item A");
+    Item item2 = new Item(2, "Item B");
 
     await repo.save(item1);
     await repo.save(item2);
 
-    let found = await repo.findById(2);
+    Item found = await repo.findById(2);
     print("Found: " + found.getName());
     assert(found.getName() == "Item B", "Should find correct item");
 
-    let all = await repo.findAll();
+    Item[] all = await repo.findAll();
     print("Total items: " + all.length().toString());
     assert(all.length() == 2, "Should have 2 items");
 }

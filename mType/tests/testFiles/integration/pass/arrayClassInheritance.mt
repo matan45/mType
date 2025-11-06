@@ -2,55 +2,55 @@
 @Script
 
 class Vehicle {
-    field wheels: Int;
+    Int wheels;
 
     constructor(w: Int) {
         this.wheels = w;
     }
 
-    fun getWheels(): Int {
+    function getWheels(): Int {
         return this.wheels;
     }
 
-    fun start(): String {
+    function start(): String {
         return "Vehicle started";
     }
 }
 
 class Car extends Vehicle {
-    field doors: Int;
+    Int doors;
 
     constructor(d: Int) {
         super(4);
         this.doors = d;
     }
 
-    fun getDoors(): Int {
+    function getDoors(): Int {
         return this.doors;
     }
 
-    fun start(): String {
+    function start(): String {
         return "Car engine started";
     }
 }
 
 class Motorcycle extends Vehicle {
-    field hasKickstand: Bool;
+    Bool hasKickstand;
 
     constructor() {
         super(2);
         this.hasKickstand = true;
     }
 
-    fun start(): String {
+    function start(): String {
         return "Motorcycle ignited";
     }
 }
 
 class Garage {
-    field vehicles: Vehicle[];
-    field capacity: Int;
-    field count: Int;
+    Vehicle[] vehicles;
+    Int capacity;
+    Int count;
 
     constructor(cap: Int) {
         this.capacity = cap;
@@ -58,24 +58,24 @@ class Garage {
         this.count = 0;
     }
 
-    fun addVehicle(v: Vehicle): Void {
+    function addVehicle(v: Vehicle): void {
         if (this.count < this.capacity) {
             this.vehicles[this.count] = v;
             this.count = this.count + 1;
         }
     }
 
-    fun startAll(): Void {
-        let i: Int = 0;
+    function startAll(): void {
+        Int i = 0;
         while (i < this.count) {
             print(this.vehicles[i].start());
             i = i + 1;
         }
     }
 
-    fun countWheels(): Int {
-        let total: Int = 0;
-        let i: Int = 0;
+    function countWheels(): Int {
+        Int total = 0;
+        Int i = 0;
         while (i < this.count) {
             total = total + this.vehicles[i].getWheels();
             i = i + 1;
@@ -85,7 +85,7 @@ class Garage {
 }
 
 print("Creating garage:");
-let garage: Garage = Garage(5);
+Garage garage = Garage(5);
 
 print("Adding vehicles:");
 garage.addVehicle(Car(2));
@@ -101,12 +101,12 @@ print("Total wheels:");
 print(garage.countWheels());
 
 print("Direct array test:");
-let cars: Car[] = Car[3];
+Car[] cars = Car[3];
 cars[0] = Car(2);
 cars[1] = Car(4);
 cars[2] = Car(2);
 
-let i: Int = 0;
+Int i = 0;
 while (i < 3) {
     print(cars[i].getDoors());
     print(cars[i].getWheels());

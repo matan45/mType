@@ -2,107 +2,107 @@
 // Tests polymorphic behavior with type checking in switch/case patterns
 
 class Shape {
-    private int shapeType;
+    private Int shapeType;
 
-    public constructor(int type) {
+    public constructor(Int type) {
         this.shapeType = type;
     }
 
-    public int getType(): int {
+    public Int getType(): Int {
         return this.shapeType;
     }
 
-    public string getName(): string {
+    public String getName(): String {
         return "Shape";
     }
 }
 
 class Circle {
-    private int radius;
-    private int typeId;
+    private Int radius;
+    private Int typeId;
 
-    public constructor(int r) {
+    public constructor(Int r) {
         this.radius = r;
         this.typeId = 1;
     }
 
-    public int getType(): int {
+    public Int getType(): Int {
         return this.typeId;
     }
 
-    public string getName(): string {
+    public String getName(): String {
         return "Circle";
     }
 
-    public int getRadius(): int {
+    public Int getRadius(): Int {
         return this.radius;
     }
 
-    public int area(): int {
+    public Int area(): Int {
         return 3 * this.radius * this.radius;
     }
 }
 
 class Rectangle {
-    private int width;
-    private int height;
-    private int typeId;
+    private Int width;
+    private Int height;
+    private Int typeId;
 
-    public constructor(int w, int h) {
+    public constructor(Int w, Int h) {
         this.width = w;
         this.height = h;
         this.typeId = 2;
     }
 
-    public int getType(): int {
+    public Int getType(): Int {
         return this.typeId;
     }
 
-    public string getName(): string {
+    public String getName(): String {
         return "Rectangle";
     }
 
-    public int getWidth(): int {
+    public Int getWidth(): Int {
         return this.width;
     }
 
-    public int getHeight(): int {
+    public Int getHeight(): Int {
         return this.height;
     }
 
-    public int area(): int {
+    public Int area(): Int {
         return this.width * this.height;
     }
 }
 
 class Triangle {
-    private int base;
-    private int height;
-    private int typeId;
+    private Int base;
+    private Int height;
+    private Int typeId;
 
-    public constructor(int b, int h) {
+    public constructor(Int b, Int h) {
         this.base = b;
         this.height = h;
         this.typeId = 3;
     }
 
-    public int getType(): int {
+    public Int getType(): Int {
         return this.typeId;
     }
 
-    public string getName(): string {
+    public String getName(): String {
         return "Triangle";
     }
 
-    public int getBase(): int {
+    public Int getBase(): Int {
         return this.base;
     }
 
-    public int getHeight(): int {
+    public Int getHeight(): Int {
         return this.height;
     }
 
-    public int area(): int {
+    public Int area(): Int {
         return (this.base * this.height) / 2;
     }
 }
@@ -110,8 +110,8 @@ class Triangle {
 // Test 1: Switch with polymorphic type handling
 print("Test 1: Switch with polymorphic types");
 
-function describeShapeType(int shapeType): string {
-    string description = "";
+function describeShapeType(Int shapeType): String {
+    String description = "";
 
     if (shapeType == 0) {
         description = "Generic shape";
@@ -167,7 +167,7 @@ class ShapeProcessor {
         print("Processing triangle base:" + t.getBase() + " height:" + t.getHeight());
     }
 
-    public void processShape(int shapeType, int param1, int param2) {
+    public void processShape(Int shapeType, Int param1, Int param2) {
         if (shapeType == 1) {
             Circle c = new Circle(param1);
             this.processCircle(c);
@@ -186,12 +186,12 @@ class ShapeProcessor {
 }
 
 ShapeProcessor processor = new ShapeProcessor();
-int[] types = new int[3];
+Int[] types = new Int[3];
 types[0] = 1;
 types[1] = 2;
 types[2] = 3;
 
-int i = 0;
+Int i = 0;
 while (i < 3) {
     processor.processShape(types[i], 5 + i, 10 + i);
     i = i + 1;
@@ -201,7 +201,7 @@ while (i < 3) {
 print("\nTest 4: Polymorphic comparison");
 
 class ShapeComparator {
-    public string compare(int area1, int area2): string {
+    public String compare(Int area1, Int area2): String {
         if (area1 > area2) {
             return "First shape is larger";
         } else {
@@ -224,8 +224,8 @@ print(comparator.compare(c1.area(), r1.area()));
 print("\nTest 5: Type categories in control flow");
 
 class ShapeCategory {
-    public string categorize(int shapeType): string {
-        string category = "";
+    public String categorize(Int shapeType): String {
+        String category = "";
 
         if (shapeType >= 0 && shapeType <= 1) {
             category = "Curved shapes";
@@ -240,8 +240,8 @@ class ShapeCategory {
         return category;
     }
 
-    public string getSides(int shapeType): string {
-        string sides = "";
+    public String getSides(Int shapeType): String {
+        String sides = "";
 
         if (shapeType == 0) {
             sides = "Variable sides";
@@ -276,20 +276,20 @@ while (i < 4) {
 print("\nTest 6: Nested polymorphic dispatch");
 
 class ShapeFactory {
-    public Circle createCircle(int r): Circle {
+    public Circle createCircle(Int r): Circle {
         return new Circle(r);
     }
 
-    public Rectangle createRectangle(int w, int h): Rectangle {
+    public Rectangle createRectangle(Int w, Int h): Rectangle {
         return new Rectangle(w, h);
     }
 
-    public Triangle createTriangle(int b, int h): Triangle {
+    public Triangle createTriangle(Int b, Int h): Triangle {
         return new Triangle(b, h);
     }
 
-    public string createAndDescribe(int type, int param1, int param2): string {
-        string result = "";
+    public String createAndDescribe(Int type, Int param1, Int param2): String {
+        String result = "";
 
         if (type == 1) {
             Circle c = this.createCircle(param1);

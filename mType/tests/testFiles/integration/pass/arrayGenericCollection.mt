@@ -2,17 +2,17 @@
 @Script
 
 class ArrayList<T> {
-    field data: T[];
-    field size: Int;
-    field capacity: Int;
+    T[] data;
+    Int size;
+    Int capacity;
 
-    constructor(initialCapacity: Int) {
+    constructor(Int initialCapacity) {
         this.capacity = initialCapacity;
         this.data = T[initialCapacity];
         this.size = 0;
     }
 
-    fun add(item: T): Void {
+    public function add(T item): void {
         if (this.size >= this.capacity) {
             this.resize();
         }
@@ -20,10 +20,10 @@ class ArrayList<T> {
         this.size = this.size + 1;
     }
 
-    fun resize(): Void {
-        let newCapacity: Int = this.capacity * 2;
-        let newData: T[] = T[newCapacity];
-        let i: Int = 0;
+    public function resize(): void {
+        Int newCapacity = this.capacity * 2;
+        T[] newData = T[newCapacity];
+        Int i = 0;
         while (i < this.size) {
             newData[i] = this.data[i];
             i = i + 1;
@@ -32,16 +32,16 @@ class ArrayList<T> {
         this.capacity = newCapacity;
     }
 
-    fun get(index: Int): T {
+    public function get(Int index): T {
         return this.data[index];
     }
 
-    fun getSize(): Int {
+    public function getSize(): Int {
         return this.size;
     }
 
-    fun contains(item: T): Bool {
-        let i: Int = 0;
+    public function contains(T item): Bool {
+        Int i = 0;
         while (i < this.size) {
             if (this.data[i] == item) {
                 return true;
@@ -51,8 +51,8 @@ class ArrayList<T> {
         return false;
     }
 
-    fun remove(index: Int): Void {
-        let i: Int = index;
+    public function remove(Int index): void {
+        Int i = index;
         while (i < this.size - 1) {
             this.data[i] = this.data[i + 1];
             i = i + 1;
@@ -61,7 +61,7 @@ class ArrayList<T> {
     }
 }
 
-let list: ArrayList<Int> = ArrayList<Int>(2);
+ArrayList<Int> list = ArrayList<Int>(2);
 print("Initial capacity: 2");
 
 list.add(10);
@@ -76,7 +76,7 @@ list.add(50);
 print("Added 40, 50");
 
 print("List contents:");
-let i: Int = 0;
+Int i = 0;
 while (i < list.getSize()) {
     print(list.get(i));
     i = i + 1;
@@ -96,7 +96,7 @@ while (i < list.getSize()) {
     i = i + 1;
 }
 
-let strList: ArrayList<String> = ArrayList<String>(3);
+ArrayList<String> strList = ArrayList<String>(3);
 strList.add("alpha");
 strList.add("beta");
 strList.add("gamma");

@@ -2,13 +2,13 @@
 @Script
 
 interface Comparable<T> {
-    fun compareTo(other: T): Int;
+    function compareTo(other: T): Int;
 }
 
 class Student implements Comparable<Student> {
-    field id: Int;
-    field name: String;
-    field grade: Float;
+    Int id;
+    String name;
+    Float grade;
 
     constructor(studentId: Int, studentName: String, studentGrade: Float) {
         this.id = studentId;
@@ -16,19 +16,19 @@ class Student implements Comparable<Student> {
         this.grade = studentGrade;
     }
 
-    fun getId(): Int {
+    function getId(): Int {
         return this.id;
     }
 
-    fun getName(): String {
+    function getName(): String {
         return this.name;
     }
 
-    fun getGrade(): Float {
+    function getGrade(): Float {
         return this.grade;
     }
 
-    fun compareTo(other: Student): Int {
+    function compareTo(other: Student): Int {
         if (this.grade < other.grade) {
             return -1;
         } else if (this.grade > other.grade) {
@@ -37,7 +37,7 @@ class Student implements Comparable<Student> {
         return 0;
     }
 
-    fun display(): Void {
+    function display(): void {
         print(this.id);
         print(this.name);
         print(this.grade);
@@ -45,10 +45,10 @@ class Student implements Comparable<Student> {
 }
 
 class Course<T extends Comparable<T>> {
-    field name: String;
-    field students: T[];
-    field count: Int;
-    field capacity: Int;
+    String name;
+    T[] students;
+    Int count;
+    Int capacity;
 
     constructor(courseName: String, maxStudents: Int) {
         this.name = courseName;
@@ -57,7 +57,7 @@ class Course<T extends Comparable<T>> {
         this.count = 0;
     }
 
-    fun enroll(student: T): Bool {
+    function enroll(student: T): Bool {
         if (this.count >= this.capacity) {
             return false;
         }
@@ -66,22 +66,22 @@ class Course<T extends Comparable<T>> {
         return true;
     }
 
-    fun getStudent(index: Int): T {
+    function getStudent(index: Int): T {
         return this.students[index];
     }
 
-    fun getCount(): Int {
+    function getCount(): Int {
         return this.count;
     }
 
-    fun getName(): String {
+    function getName(): String {
         return this.name;
     }
 
-    fun getTopStudents(n: Int): T[] {
+    function getTopStudents(n: Int): T[] {
         this.sortStudents();
-        let result: T[] = T[n];
-        let i: Int = 0;
+        T[] result = T[n];
+        Int i = 0;
         while (i < n) {
             result[i] = this.students[this.count - 1 - i];
             i = i + 1;
@@ -89,13 +89,13 @@ class Course<T extends Comparable<T>> {
         return result;
     }
 
-    fun sortStudents(): Void {
-        let i: Int = 0;
+    function sortStudents(): void {
+        Int i = 0;
         while (i < this.count - 1) {
-            let j: Int = 0;
+            Int j = 0;
             while (j < this.count - i - 1) {
                 if (this.students[j].compareTo(this.students[j + 1]) > 0) {
-                    let temp: T = this.students[j];
+                    T temp = this.students[j];
                     this.students[j] = this.students[j + 1];
                     this.students[j + 1] = temp;
                 }
@@ -105,9 +105,9 @@ class Course<T extends Comparable<T>> {
         }
     }
 
-    fun calculateAverage(): Float {
-        let sum: Float = 0.0;
-        let i: Int = 0;
+    function calculateAverage(): Float {
+        Float sum = 0.0;
+        Int i = 0;
         while (i < this.count) {
             sum = sum + this.students[i].getGrade();
             i = i + 1;
@@ -115,8 +115,8 @@ class Course<T extends Comparable<T>> {
         return sum / this.count;
     }
 
-    fun listAll(): Void {
-        let i: Int = 0;
+    function listAll(): void {
+        Int i = 0;
         while (i < this.count) {
             this.students[i].display();
             i = i + 1;
@@ -125,26 +125,26 @@ class Course<T extends Comparable<T>> {
 }
 
 class Department {
-    field courses: Course<Student>[];
-    field courseCount: Int;
+    Course<Student>[] courses;
+    Int courseCount;
 
     constructor(maxCourses: Int) {
         this.courses = Course<Student>[maxCourses];
         this.courseCount = 0;
     }
 
-    fun addCourse(course: Course<Student>): Void {
+    function addCourse(course: Course<Student>): void {
         this.courses[this.courseCount] = course;
         this.courseCount = this.courseCount + 1;
     }
 
-    fun getCourse(index: Int): Course<Student> {
+    function getCourse(index: Int): Course<Student> {
         return this.courses[index];
     }
 
-    fun getTotalStudents(): Int {
-        let total: Int = 0;
-        let i: Int = 0;
+    function getTotalStudents(): Int {
+        Int total = 0;
+        Int i = 0;
         while (i < this.courseCount) {
             total = total + this.courses[i].getCount();
             i = i + 1;
@@ -152,8 +152,8 @@ class Department {
         return total;
     }
 
-    fun listAllCourses(): Void {
-        let i: Int = 0;
+    function listAllCourses(): void {
+        Int i = 0;
         while (i < this.courseCount) {
             print(this.courses[i].getName());
             print(this.courses[i].getCount());
@@ -163,11 +163,11 @@ class Department {
 }
 
 print("Creating Computer Science Department:");
-let cs: Department = Department(3);
+Department cs = Department(3);
 
 print("Creating courses:");
-let algo: Course<Student> = Course<Student>("Algorithms", 4);
-let db: Course<Student> = Course<Student>("Databases", 3);
+Course<Student> algo = Course<Student>("Algorithms", 4);
+Course<Student> db = Course<Student>("Databases", 3);
 
 print("Enrolling students in Algorithms:");
 print(algo.enroll(Student(101, "Alice", 95.5)));
@@ -197,8 +197,8 @@ print("Average grade in Algorithms:");
 print(algo.calculateAverage());
 
 print("Top 2 students in Algorithms:");
-let top: Student[] = algo.getTopStudents(2);
-let i: Int = 0;
+Student[] top = algo.getTopStudents(2);
+Int i = 0;
 while (i < 2) {
     top[i].display();
     i = i + 1;
@@ -209,5 +209,5 @@ db.sortStudents();
 db.listAll();
 
 print("Access specific student:");
-let student: Student = cs.getCourse(0).getStudent(1);
+Student student = cs.getCourse(0).getStudent(1);
 student.display();

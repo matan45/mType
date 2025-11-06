@@ -3,18 +3,18 @@
 
 import "modules/ErrorHandlingInterfaces.mt";
 
-class SafeOperation<T> : AsyncFallible<T, String>, AsyncRetryable {
-    private operation: () -> T;
-    private fallback: (String) -> T;
-    private shouldFail: Bool;
+class SafeOperation<T> implements AsyncFallible<T, String>, AsyncRetryable {
+    private () -> T operation;
+    private (String) -> T fallback;
+    private Bool shouldFail;
 
-    constructor(op: () -> T, fb: (String) -> T, fail: Bool) {
+    constructor(() -> T op, (String) -> T fb, Bool fail) {
         this.operation = op;
         this.fallback = fb;
         this.shouldFail = fail;
     }
 
-    async execute() : Promise<T> {
+    function async execute() : Promise<T> {
         await delay(5);
         if (this.shouldFail) {
             throw "Operation failed";
@@ -22,20 +22,20 @@ class SafeOperation<T> : AsyncFallible<T, String>, AsyncRetryable {
         return this.operation();
     }
 
-    async onError(error: String) : Promise<T> {
+    function async onError(String error) : Promise<T> {
         await delay(5);
         print("Handling error: " + error);
         return this.fallback(error);
     }
 
-    async retry(maxAttempts: Int) : Promise<Bool> {
-        let attempts: Int = 0;
+    function async retry(Int maxAttempts) : Promise<Bool> {
+        Int attempts = 0;
         while (attempts < maxAttempts) {
             try {
                 await delay(5);
                 await this.execute();
                 return true;
-            } catch (e: String) {
+            } catch (String e) {
                 print("Attempt " + (attempts + 1).toString() + " failed");
                 attempts = attempts + 1;
             }
@@ -43,67 +43,67 @@ class SafeOperation<T> : AsyncFallible<T, String>, AsyncRetryable {
         return false;
     }
 
-    setShouldFail(fail: Bool) : Void {
+    function setShouldFail(Bool fail) : void {
         this.shouldFail = fail;
     }
 }
 
-async safeExecute<T>(
-    operation: AsyncFallible<T, String>,
-    errorHandler: (String) -> T
+function async safeExecute<T>(
+    AsyncFallible<T, String> operation,
+    (String) -> T errorHandler
 ) : Promise<T> {
     try {
         return await operation.execute();
-    } catch (e: String) {
+    } catch (String e) {
         return await operation.onError(e);
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
+function async main() : Promise<void> {
     // Test successful operation
-    let successOp = new SafeOperation<String>(
+    SafeOperation<String> successOp = new SafeOperation<String>(
         () : String => { return "Success"; },
-        (e: String) : String => { return "Fallback"; },
+        (String e) : String => { return "Fallback"; },
         false
     );
 
-    let result1 = await safeExecute<String>(
+    String result1 = await safeExecute<String>(
         successOp,
-        (e: String) : String => { return "Error: " + e; }
+        (String e) : String => { return "Error: " + e; }
     );
     print("Result 1: " + result1);
     assert(result1 == "Success", "Should execute successfully");
 
     // Test failing operation with error handler
-    let failOp = new SafeOperation<String>(
+    SafeOperation<String> failOp = new SafeOperation<String>(
         () : String => { return "Success"; },
-        (e: String) : String => { return "Recovered: " + e; },
+        (String e) : String => { return "Recovered: " + e; },
         true
     );
 
-    let result2 = await safeExecute<String>(
+    String result2 = await safeExecute<String>(
         failOp,
-        (e: String) : String => { return "Handled"; }
+        (String e) : String => { return "Handled"; }
     );
     print("Result 2: " + result2);
     assert(result2 == "Recovered: Operation failed", "Should handle error");
 
     // Test retry
-    let retryOp = new SafeOperation<Int>(
+    SafeOperation<Int> retryOp = new SafeOperation<Int>(
         () : Int => { return 42; },
-        (e: String) : Int => { return -1; },
+        (String e) : Int => { return -1; },
         true
     );
 
-    let retrySuccess = await retryOp.retry(3);
+    Bool retrySuccess = await retryOp.retry(3);
     assert(!retrySuccess, "Should fail all retries");
 
     retryOp.setShouldFail(false);
-    let retrySuccess2 = await retryOp.retry(3);
+    Bool retrySuccess2 = await retryOp.retry(3);
     assert(retrySuccess2, "Should succeed on retry");
 
     print("Error handling test passed");

@@ -4,13 +4,13 @@
 import "modules/DataPipelineInterfaces.mt";
 
 class NumberSource implements AsyncSource<Int> {
-    private numbers: Int[];
+    private Int[] numbers;
 
-    constructor(nums: Int[]) {
+    constructor(Int[] nums) {
         this.numbers = nums;
     }
 
-    async fetch() : Promise<Int[]> {
+    function async fetch() : Promise<Int[]> {
         await delay(10);
         print("Fetching " + this.numbers.length().toString() + " numbers");
         return this.numbers;
@@ -18,28 +18,28 @@ class NumberSource implements AsyncSource<Int> {
 }
 
 class StringProcessor implements AsyncProcessor<Int, String> {
-    private transform: (Int) -> String;
+    private (Int) -> String transform;
 
-    constructor(t: (Int) -> String) {
+    constructor((Int) -> String t) {
         this.transform = t;
     }
 
-    async process(data: Int) : Promise<String> {
+    function async process(Int data) : Promise<String> {
         await delay(5);
         return this.transform(data);
     }
 }
 
 class StringSink implements AsyncSink<String> {
-    private storage: String[];
+    private String[] storage;
 
     constructor() {
         this.storage = [];
     }
 
-    async write(data: String[]) : Promise<Int> {
+    function async write(String[] data) : Promise<Int> {
         await delay(10);
-        let i: Int = 0;
+        Int i = 0;
         while (i < data.length()) {
             this.storage.push(data[i]);
             i = i + 1;
@@ -48,23 +48,23 @@ class StringSink implements AsyncSink<String> {
         return data.length();
     }
 
-    getData() : String[] {
+    function getData() : String[] {
         return this.storage;
     }
 }
 
-async runPipeline<T, R>(
-    source: AsyncSource<T>,
-    processor: AsyncProcessor<T, R>,
-    sink: AsyncSink<R>,
-    filter: (T) -> Bool
+function async runPipeline<T, R>(
+    AsyncSource<T> source,
+    AsyncProcessor<T, R> processor,
+    AsyncSink<R> sink,
+    (T) -> Bool filter
 ) : Promise<Int> {
     // Fetch data
-    let data = await source.fetch();
+    T[] data = await source.fetch();
 
     // Filter with lambda
-    let filtered: T[] = [];
-    let i: Int = 0;
+    T[] filtered = [];
+    Int i = 0;
     while (i < data.length()) {
         if (filter(data[i])) {
             filtered.push(data[i]);
@@ -73,45 +73,45 @@ async runPipeline<T, R>(
     }
 
     // Process each item
-    let processed: R[] = [];
-    let j: Int = 0;
+    R[] processed = [];
+    Int j = 0;
     while (j < filtered.length()) {
-        let result = await processor.process(filtered[j]);
+        R result = await processor.process(filtered[j]);
         processed.push(result);
         j = j + 1;
     }
 
     // Write results
-    let count = await sink.write(processed);
+    Int count = await sink.write(processed);
     return count;
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
-    let numbers: Int[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let source = new NumberSource(numbers);
+function async main() : Promise<void> {
+    Int[] numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    NumberSource source = new NumberSource(numbers);
 
-    let processor = new StringProcessor((n: Int) : String => {
+    StringProcessor processor = new StringProcessor((Int n) : String => {
         return "Value: " + (n * n).toString();
     });
 
-    let sink = new StringSink();
+    StringSink sink = new StringSink();
 
     // Run pipeline with lambda filter (only even numbers)
-    let count = await runPipeline<Int, String>(
+    Int count = await runPipeline<Int, String>(
         source,
         processor,
         sink,
-        (n: Int) : Bool => { return n % 2 == 0; }
+        (Int n) : Bool => { return n % 2 == 0; }
     );
 
     print("Processed count: " + count.toString());
     assert(count == 5, "Should process 5 even numbers");
 
-    let data = sink.getData();
+    String[] data = sink.getData();
     print("First result: " + data[0]);
     assert(data[0] == "Value: 4", "Should square and format correctly"); // 2^2 = 4
 

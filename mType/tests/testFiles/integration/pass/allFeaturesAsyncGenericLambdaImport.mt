@@ -1,13 +1,13 @@
 // Test: Importing async generic interfaces with lambdas
 // @Script
 
-import "modules/AsyncGenericInterface.mt";
+import * from "modules/AsyncGenericInterface.mt";
 
-class AsyncCollectionProcessor<T, R> : AsyncMapper<T, R>, AsyncFilter<T> {
-    async map(items: T[], transformer: (T) -> R) : Promise<R[]> {
+class AsyncCollectionProcessor<T, R> implements AsyncMapper<T, R>, AsyncFilter<T> {
+    function async map(items: T[], transformer: (T) -> R) : Promise<R[]> {
         await delay(5);
-        let result: R[] = [];
-        let i: Int = 0;
+        R[] result = [];
+        Int i = 0;
         while (i < items.length()) {
             result.push(transformer(items[i]));
             i = i + 1;
@@ -15,10 +15,10 @@ class AsyncCollectionProcessor<T, R> : AsyncMapper<T, R>, AsyncFilter<T> {
         return result;
     }
 
-    async mapAsync(items: T[], transformer: (T) -> Promise<R>) : Promise<R[]> {
+    function async mapAsync(items: T[], transformer: (T) -> Promise<R>) : Promise<R[]> {
         await delay(5);
-        let result: R[] = [];
-        let i: Int = 0;
+        R[] result = [];
+        Int i = 0;
         while (i < items.length()) {
             let mapped = await transformer(items[i]);
             result.push(mapped);
@@ -27,10 +27,10 @@ class AsyncCollectionProcessor<T, R> : AsyncMapper<T, R>, AsyncFilter<T> {
         return result;
     }
 
-    async filter(items: T[], predicate: (T) -> Bool) : Promise<T[]> {
+    function async filter(items: T[], predicate: (T) -> Bool) : Promise<T[]> {
         await delay(5);
-        let result: T[] = [];
-        let i: Int = 0;
+        T[] result = [];
+        Int i = 0;
         while (i < items.length()) {
             if (predicate(items[i])) {
                 result.push(items[i]);
@@ -40,10 +40,10 @@ class AsyncCollectionProcessor<T, R> : AsyncMapper<T, R>, AsyncFilter<T> {
         return result;
     }
 
-    async filterAsync(items: T[], predicate: (T) -> Promise<Bool>) : Promise<T[]> {
+    function async filterAsync(items: T[], predicate: (T) -> Promise<Bool>) : Promise<T[]> {
         await delay(5);
-        let result: T[] = [];
-        let i: Int = 0;
+        T[] result = [];
+        Int i = 0;
         while (i < items.length()) {
             let shouldInclude = await predicate(items[i]);
             if (shouldInclude) {
@@ -55,14 +55,14 @@ class AsyncCollectionProcessor<T, R> : AsyncMapper<T, R>, AsyncFilter<T> {
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(ms: Int) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
+function async main() : Promise<void> {
     let processor = new AsyncCollectionProcessor<Int, String>();
 
-    let numbers: Int[] = [1, 2, 3, 4, 5];
+    Int[] numbers = [1, 2, 3, 4, 5];
 
     // Test sync map with lambda
     let strings = await processor.map(numbers, (n: Int) : String => {
@@ -72,7 +72,7 @@ async main() : Promise<Void> {
     assert(strings[0] == "Item-1", "Should map synchronously");
 
     // Test async map with lambda
-    let asyncStrings = await processor.mapAsync(numbers, async (n: Int) : Promise<String> => {
+    let asyncStrings = await processor.mapAsync(numbers, function async (n: Int) : Promise<String> => {
         await delay(5);
         return "Async-" + n.toString();
     });
@@ -88,7 +88,7 @@ async main() : Promise<Void> {
     assert(evens.length() == 2, "Should filter correctly");
 
     // Test async filter
-    let asyncEvens = await filterProc.filterAsync(numbers, async (n: Int) : Promise<Bool> => {
+    let asyncEvens = await filterProc.filterAsync(numbers, function async (n: Int) : Promise<Bool> => {
         await delay(5);
         return n % 2 == 0;
     });

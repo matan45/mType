@@ -4,7 +4,7 @@
 // Test 1: Simple recursive type checking
 print("Test 1: Simple recursive type checking");
 
-function factorial(int n): int {
+function factorial(Int n): Int {
     if (n <= 1) {
         return 1;
     }
@@ -17,7 +17,7 @@ print("factorial(7) = " + factorial(7));
 // Test 2: Recursive type inference with multiple parameters
 print("\nTest 2: Recursive with multiple parameters");
 
-function gcd(int a, int b): int {
+function gcd(Int a, Int b): Int {
     if (b == 0) {
         return a;
     }
@@ -30,7 +30,7 @@ print("gcd(100, 35) = " + gcd(100, 35));
 // Test 3: Recursive function with string types
 print("\nTest 3: Recursive with string types");
 
-function reverse(string s, int len): string {
+function reverse(String s, Int len): String {
     if (len <= 0) {
         return "";
     }
@@ -41,7 +41,7 @@ function reverse(string s, int len): string {
     return s + reverse("", len - 1);
 }
 
-function repeat(string s, int times): string {
+function repeat(String s, Int times): String {
     if (times <= 0) {
         return "";
     }
@@ -58,11 +58,11 @@ print("repeat('Hi', 3) = " + repeat("Hi", 3));
 print("\nTest 4: Recursive with class types");
 
 class Node {
-    private int value;
+    private Int value;
     private Node next;
-    private bool hasNext;
+    private Bool hasNext;
 
-    public constructor(int val) {
+    public constructor(Int val) {
         this.value = val;
         this.hasNext = false;
     }
@@ -76,24 +76,24 @@ class Node {
         return this.next;
     }
 
-    public bool hasNextNode(): bool {
+    public Bool hasNextNode(): Bool {
         return this.hasNext;
     }
 
-    public int getValue(): int {
+    public Int getValue(): Int {
         return this.value;
     }
 }
 
 class LinkedList {
     private Node head;
-    private bool hasHead;
+    private Bool hasHead;
 
     public constructor() {
         this.hasHead = false;
     }
 
-    public void add(int val) {
+    public void add(Int val) {
         Node newNode = new Node(val);
         if (!this.hasHead) {
             this.head = newNode;
@@ -107,22 +107,22 @@ class LinkedList {
         }
     }
 
-    public int sumRecursive(Node node, bool hasNode): int {
+    public Int sumRecursive(Node node, Bool hasNode): Int {
         if (!hasNode) {
             return 0;
         }
-        int currentValue = node.getValue();
+        Int currentValue = node.getValue();
         if (!node.hasNextNode()) {
             return currentValue;
         }
         return currentValue + this.sumRecursive(node.getNext(), true);
     }
 
-    public int sum(): int {
+    public Int sum(): Int {
         return this.sumRecursive(this.head, this.hasHead);
     }
 
-    public int countRecursive(Node node, bool hasNode): int {
+    public Int countRecursive(Node node, Bool hasNode): Int {
         if (!hasNode) {
             return 0;
         }
@@ -132,7 +132,7 @@ class LinkedList {
         return 1 + this.countRecursive(node.getNext(), true);
     }
 
-    public int count(): int {
+    public Int count(): Int {
         return this.countRecursive(this.head, this.hasHead);
     }
 }
@@ -149,14 +149,14 @@ print("List count: " + list.count());
 // Test 5: Mutual recursion with type checking
 print("\nTest 5: Mutual recursion");
 
-function isEven(int n): bool {
+function isEven(Int n): Bool {
     if (n == 0) {
         return true;
     }
     return isOdd(n - 1);
 }
 
-function isOdd(int n): bool {
+function isOdd(Int n): Bool {
     if (n == 0) {
         return false;
     }
@@ -171,26 +171,26 @@ print("isOdd(7): " + isOdd(7));
 // Test 6: Recursive type checking with arrays
 print("\nTest 6: Recursive with arrays");
 
-function sumArrayRecursive(int[] arr, int index, int size): int {
+function sumArrayRecursive(Int[] arr, Int index, Int size): Int {
     if (index >= size) {
         return 0;
     }
     return arr[index] + sumArrayRecursive(arr, index + 1, size);
 }
 
-function maxArrayRecursive(int[] arr, int index, int size, int currentMax): int {
+function maxArrayRecursive(Int[] arr, Int index, Int size, Int currentMax): Int {
     if (index >= size) {
         return currentMax;
     }
-    int current = arr[index];
-    int newMax = currentMax;
+    Int current = arr[index];
+    Int newMax = currentMax;
     if (current > currentMax) {
         newMax = current;
     }
     return maxArrayRecursive(arr, index + 1, size, newMax);
 }
 
-int[] numbers = new int[5];
+Int[] numbers = new Int[5];
 numbers[0] = 15;
 numbers[1] = 42;
 numbers[2] = 8;
@@ -204,13 +204,13 @@ print("Array max: " + maxArrayRecursive(numbers, 0, 5, numbers[0]));
 print("\nTest 7: Recursive with complex conditionals");
 
 class TreeNode {
-    private int value;
+    private Int value;
     private TreeNode left;
     private TreeNode right;
-    private bool hasLeft;
-    private bool hasRight;
+    private Bool hasLeft;
+    private Bool hasRight;
 
-    public constructor(int val) {
+    public constructor(Int val) {
         this.value = val;
         this.hasLeft = false;
         this.hasRight = false;
@@ -226,7 +226,7 @@ class TreeNode {
         this.hasRight = true;
     }
 
-    public int getValue(): int {
+    public Int getValue(): Int {
         return this.value;
     }
 
@@ -238,20 +238,20 @@ class TreeNode {
         return this.right;
     }
 
-    public bool hasLeftChild(): bool {
+    public Bool hasLeftChild(): Bool {
         return this.hasLeft;
     }
 
-    public bool hasRightChild(): bool {
+    public Bool hasRightChild(): Bool {
         return this.hasRight;
     }
 }
 
 class BinaryTree {
     private TreeNode root;
-    private bool hasRoot;
+    private Bool hasRoot;
 
-    public constructor(int rootValue) {
+    public constructor(Int rootValue) {
         this.root = new TreeNode(rootValue);
         this.hasRoot = true;
     }
@@ -260,11 +260,11 @@ class BinaryTree {
         return this.root;
     }
 
-    public int sumRecursive(TreeNode node, bool hasNode): int {
+    public Int sumRecursive(TreeNode node, Bool hasNode): Int {
         if (!hasNode) {
             return 0;
         }
-        int sum = node.getValue();
+        Int sum = node.getValue();
         if (node.hasLeftChild()) {
             sum = sum + this.sumRecursive(node.getLeft(), true);
         }
@@ -274,15 +274,15 @@ class BinaryTree {
         return sum;
     }
 
-    public int sum(): int {
+    public Int sum(): Int {
         return this.sumRecursive(this.root, this.hasRoot);
     }
 
-    public int countRecursive(TreeNode node, bool hasNode): int {
+    public Int countRecursive(TreeNode node, Bool hasNode): Int {
         if (!hasNode) {
             return 0;
         }
-        int count = 1;
+        Int count = 1;
         if (node.hasLeftChild()) {
             count = count + this.countRecursive(node.getLeft(), true);
         }
@@ -292,7 +292,7 @@ class BinaryTree {
         return count;
     }
 
-    public int count(): int {
+    public Int count(): Int {
         return this.countRecursive(this.root, this.hasRoot);
     }
 }
@@ -310,7 +310,7 @@ print("Tree count: " + tree.count());
 // Test 8: Fibonacci with type inference
 print("\nTest 8: Fibonacci sequence");
 
-function fib(int n): int {
+function fib(Int n): Int {
     if (n <= 1) {
         return n;
     }

@@ -2,62 +2,62 @@
 @Script
 
 class Singleton<T> {
-    field value: T;
-    field initialized: Bool;
-    static field instanceCount: Int = 0;
+    T value;
+    Bool initialized;
+    static Int instanceCount = 0;
 
-    constructor(val: T) {
+    constructor(T val) {
         this.value = val;
         this.initialized = true;
         Singleton.instanceCount = Singleton.instanceCount + 1;
     }
 
-    fun getValue(): T {
+    public function getValue(): T {
         return this.value;
     }
 
-    fun setValue(val: T): Void {
+    public function setValue(T val): void {
         this.value = val;
     }
 
-    fun isInitialized(): Bool {
+    public function isInitialized(): Bool {
         return this.initialized;
     }
 
-    static fun getInstanceCount(): Int {
+    public static function getInstanceCount(): Int {
         return Singleton.instanceCount;
     }
 }
 
 class Config<T> {
-    field setting: T;
-    field name: String;
+    T setting;
+    String name;
 
-    constructor(settingName: String, defaultValue: T) {
+    constructor(String settingName, T defaultValue) {
         this.name = settingName;
         this.setting = defaultValue;
     }
 
-    fun getSetting(): T {
+    public function getSetting(): T {
         return this.setting;
     }
 
-    fun setSetting(value: T): Void {
+    public function setSetting(T value): void {
         this.setting = value;
     }
 
-    fun getName(): String {
+    public function getName(): String {
         return this.name;
     }
 
-    fun display(): Void {
+    public function display(): void {
         print(this.name);
         print(this.setting);
     }
 }
 
 print("Creating singleton instances:");
-let intSingleton: Singleton<Int> = Singleton<Int>(42);
+Singleton<Int> intSingleton = Singleton<Int>(42);
 print("Int singleton value:");
 print(intSingleton.getValue());
 print("Is initialized:");
@@ -67,7 +67,7 @@ intSingleton.setValue(100);
 print("Updated value:");
 print(intSingleton.getValue());
 
-let strSingleton: Singleton<String> = Singleton<String>("default");
+Singleton<String> strSingleton = Singleton<String>("default");
 print("String singleton value:");
 print(strSingleton.getValue());
 
@@ -79,25 +79,25 @@ print("Instance count:");
 print(Singleton.getInstanceCount());
 
 print("Creating Config instances:");
-let intConfig: Config<Int> = Config<Int>("MaxConnections", 10);
+Config<Int> intConfig = Config<Int>("MaxConnections", 10);
 intConfig.display();
 
 intConfig.setSetting(20);
 print("After update:");
 intConfig.display();
 
-let boolConfig: Config<Bool> = Config<Bool>("EnableLogging", true);
+Config<Bool> boolConfig = Config<Bool>("EnableLogging", true);
 boolConfig.display();
 
 boolConfig.setSetting(false);
 print("After toggle:");
 boolConfig.display();
 
-let floatConfig: Config<Float> = Config<Float>("Timeout", 30.5);
+Config<Float> floatConfig = Config<Float>("Timeout", 30.5);
 floatConfig.display();
 
 print("Another singleton:");
-let boolSingleton: Singleton<Bool> = Singleton<Bool>(false);
+Singleton<Bool> boolSingleton = Singleton<Bool>(false);
 print(boolSingleton.getValue());
 
 print("Final instance count:");

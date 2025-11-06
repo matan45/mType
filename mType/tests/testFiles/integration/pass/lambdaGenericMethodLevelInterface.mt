@@ -2,18 +2,18 @@
 // @Script
 
 interface Converter {
-    convert<T, R>(input: T, transformer: (T) -> R) : R;
-    convertArray<T, R>(inputs: T[], transformer: (T) -> R) : R[];
+    function convert<T, R>(input: T, transformer: (T) -> R) : R;
+    function convertArray<T, R>(inputs: T[], transformer: (T) -> R) : R[];
 }
 
 class GenericConverter implements Converter {
-    convert<T, R>(input: T, transformer: (T) -> R) : R {
+    public function convert<T, R>(input: T, transformer: (T) -> R) : R {
         return transformer(input);
     }
 
-    convertArray<T, R>(inputs: T[], transformer: (T) -> R) : R[] {
-        let results: R[] = [];
-        let i: Int = 0;
+    public function convertArray<T, R>(inputs: T[], transformer: (T) -> R) : R[] {
+        R[] results = [];
+        Int i = 0;
         while (i < inputs.length()) {
             results.push(transformer(inputs[i]));
             i = i + 1;
@@ -22,11 +22,11 @@ class GenericConverter implements Converter {
     }
 }
 
-main() : Void {
-    let converter: Converter = new GenericConverter();
+function main() : void {
+    Converter converter = new GenericConverter();
 
     // Convert single Int to String
-    let str = converter.convert<Int, String>(
+    String str = converter.convert<Int, String>(
         42,
         (n: Int) : String => { return "Number: " + n.toString(); }
     );
@@ -34,7 +34,7 @@ main() : Void {
     assert(str == "Number: 42", "Should convert Int to String");
 
     // Convert String to Int
-    let len = converter.convert<String, Int>(
+    Int len = converter.convert<String, Int>(
         "Hello",
         (s: String) : Int => { return s.length(); }
     );
@@ -42,8 +42,8 @@ main() : Void {
     assert(len == 5, "Should convert String to Int");
 
     // Convert array of Int to array of String
-    let numbers: Int[] = [1, 2, 3];
-    let strings = converter.convertArray<Int, String>(
+    Int[] numbers = [1, 2, 3];
+    String[] strings = converter.convertArray<Int, String>(
         numbers,
         (n: Int) : String => { return "Item-" + n.toString(); }
     );

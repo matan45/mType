@@ -2,47 +2,47 @@
 // Combines casting with for, while, and nested loops
 
 class Vehicle {
-    public int wheels;
+    public Int wheels;
 
-    public constructor(int w) {
+    public constructor(Int w) {
         this.wheels = w;
     }
 
-    public function getType(): string {
+    public String getType() {
         return "Vehicle";
     }
 }
 
 class Car extends Vehicle {
-    public string brand;
+    public String brand;
 
-    public constructor(int w, string b) {
+    public constructor(Int w, String b) {
         super(w);
         this.brand = b;
     }
 
-    public function getType(): string {
+    public String getType() {
         return "Car";
     }
 
-    public function getBrand(): string {
+    public String getBrand() {
         return this.brand;
     }
 }
 
 class Truck extends Vehicle {
-    public int cargo;
+    public Int cargo;
 
-    public constructor(int w, int c) {
+    public constructor(Int w, Int c) {
         super(w);
         this.cargo = c;
     }
 
-    public function getType(): string {
+    public String getType() {
         return "Truck";
     }
 
-    public function getCargo(): int {
+    public Int getCargo() {
         return this.cargo;
     }
 }
@@ -54,7 +54,7 @@ vehicles[0] = new Car(4, "Toyota");
 vehicles[1] = new Truck(6, 1000);
 vehicles[2] = new Car(4, "Honda");
 
-for (int i = 0; i < 3; i = i + 1) {
+for (Int i = 0; i < 3; i = i + 1) {
     if (vehicles[i] isClassOf Car) {
         print("Car brand: " + ((Car)vehicles[i]).getBrand());
     } else if (vehicles[i] isClassOf Truck) {
@@ -64,7 +64,7 @@ for (int i = 0; i < 3; i = i + 1) {
 
 // Test 2: Casting in while loop with dynamic condition
 print("Test 2: Casting in while loop");
-int index = 0;
+Int index = 0;
 while (index < 3) {
     Vehicle v = vehicles[index];
     if (v isClassOf Car && ((Car)v).getBrand() == "Toyota") {
@@ -83,8 +83,8 @@ fleet[0][1] = new Truck(8, 2000);
 fleet[1][0] = new Car(4, "Audi");
 fleet[1][1] = new Truck(10, 3000);
 
-for (int row = 0; row < 2; row = row + 1) {
-    for (int col = 0; col < 2; col = col + 1) {
+for (Int row = 0; row < 2; row = row + 1) {
+    for (Int col = 0; col < 2; col = col + 1) {
         if (fleet[row][col] isClassOf Car) {
             Car c = (Car)fleet[row][col];
             print("Fleet[" + row + "][" + col + "] Car: " + c.getBrand());
@@ -98,13 +98,13 @@ for (int row = 0; row < 2; row = row + 1) {
 // Test 4: Casting in loop condition
 print("Test 4: Casting in loop condition");
 Vehicle testVehicle = new Car(4, "Test");
-for (int i = 0; i < ((Car)testVehicle).getBrand().length(); i = i + 1) {
+for (Int i = 0; i < ((Car)testVehicle).getBrand().length(); i = i + 1) {
     print("Character at index " + i);
 }
 
 // Test 5: Casting with break and continue
 print("Test 5: Casting with break and continue");
-for (int i = 0; i < 3; i = i + 1) {
+for (Int i = 0; i < 3; i = i + 1) {
     if (vehicles[i] isClassOf Truck) {
         if (((Truck)vehicles[i]).getCargo() < 500) {
             print("Skipping small truck");

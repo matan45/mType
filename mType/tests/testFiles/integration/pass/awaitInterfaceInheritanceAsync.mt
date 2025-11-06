@@ -2,71 +2,71 @@
 // @Script
 
 interface AsyncReadable {
-    async read() : Promise<String>;
+    function async read() : Promise<String>;
 }
 
 interface AsyncWritable {
-    async write(data: String) : Promise<Void>;
+    function async write(String data) : Promise<void>;
 }
 
-interface AsyncStream : AsyncReadable, AsyncWritable {
-    async flush() : Promise<Void>;
+interface AsyncStream implements AsyncReadable, AsyncWritable {
+    function async flush() : Promise<void>;
 }
 
 class MemoryStream implements AsyncStream {
-    private buffer: String;
+    private String buffer;
 
     constructor() {
         this.buffer = "";
     }
 
-    async read() : Promise<String> {
+    public function async read() : Promise<String> {
         await delay(10);
-        let result = this.buffer;
+        String result = this.buffer;
         print("Read: " + result);
         return result;
     }
 
-    async write(data: String) : Promise<Void> {
+    public function async write(String data) : Promise<void> {
         await delay(10);
         this.buffer = this.buffer + data;
         print("Written: " + data);
     }
 
-    async flush() : Promise<Void> {
+    public function async flush() : Promise<void> {
         await delay(10);
         print("Flushing buffer");
         this.buffer = "";
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async testReadable(stream: AsyncReadable) : Promise<String> {
+function async testReadable(AsyncReadable stream) : Promise<String> {
     return await stream.read();
 }
 
-async testWritable(stream: AsyncWritable) : Promise<Void> {
+function async testWritable(AsyncWritable stream) : Promise<void> {
     await stream.write("Test");
 }
 
-async main() : Promise<Void> {
-    let stream: AsyncStream = new MemoryStream();
+function async main() : Promise<void> {
+    AsyncStream stream = new MemoryStream();
 
     await stream.write("Hello");
     await stream.write(" World");
 
-    let content = await stream.read();
+    String content = await stream.read();
     assert(content == "Hello World", "Should concatenate writes");
 
     await stream.flush();
-    let afterFlush = await stream.read();
+    String afterFlush = await stream.read();
     assert(afterFlush == "", "Should be empty after flush");
 
     // Test polymorphism
     await testWritable(stream);
-    let result = await testReadable(stream);
+    String result = await testReadable(stream);
     assert(result == "Test", "Polymorphic async should work");
 }

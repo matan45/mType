@@ -4,56 +4,56 @@
 import "modules/ReadableInterface.mt";
 import "modules/WritableInterface.mt";
 
-class Buffer<T> : Readable<T>, Writable<T> {
-    private data: T[];
-    private position: Int;
+class Buffer<T> implements Readable<T>, Writable<T> {
+    private T[] data;
+    private Int position;
 
     constructor() {
         this.data = [];
         this.position = 0;
     }
 
-    write(item: T) : Void {
+    public function write(item: T) : void {
         this.data.push(item);
         print("Written item at position " + this.data.length().toString());
     }
 
-    read() : T {
+    public function read() : T {
         if (this.position < this.data.length()) {
-            let item = this.data[this.position];
+            T item = this.data[this.position];
             this.position = this.position + 1;
             return item;
         }
         return this.data[0]; // Default
     }
 
-    reset() : Void {
+    public function reset() : void {
         this.position = 0;
     }
 
-    hasMore() : Bool {
+    public function hasMore() : Bool {
         return this.position < this.data.length();
     }
 }
 
-main() : Void {
-    let buffer: Buffer<String> = new Buffer<String>();
+function main() : void {
+    Buffer<String> buffer = new Buffer<String>();
 
     // Test as Writable
-    let writable: Writable<String> = buffer;
+    Writable<String> writable = buffer;
     writable.write("Hello");
     writable.write("World");
     writable.write("Test");
 
     // Test as Readable
-    let readable: Readable<String> = buffer;
+    Readable<String> readable = buffer;
     buffer.reset();
 
-    let item1 = readable.read();
+    String item1 = readable.read();
     print("Read: " + item1);
     assert(item1 == "Hello", "Should read first item");
 
-    let item2 = readable.read();
+    String item2 = readable.read();
     print("Read: " + item2);
     assert(item2 == "World", "Should read second item");
 

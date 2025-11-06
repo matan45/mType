@@ -4,23 +4,23 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class ValidationException extends Exception {
-    constructor(string msg):super(msg) {
+    constructor(String msg):super(msg) {
     }
 }
 
 class ProcessingException extends Exception {
-    constructor(string msg):super(msg) {
+    constructor(String msg):super(msg) {
     }
 }
 
 class Entity {
-    protected string id;
+    protected String id;
 
-    public constructor(string id) {
+    public constructor(String id) {
         this.id = id;
     }
 
-    public string getId() {
+    public String getId() {
         return this.id;
     }
 
@@ -30,13 +30,13 @@ class Entity {
 }
 
 class Document extends Entity {
-    private string title;
+    private String title;
 
-    public constructor(string id, string title) : super(id) {
+    public constructor(String id, String title) : super(id) {
         this.title = title;
     }
 
-    public string getTitle() {
+    public String getTitle() {
         return this.title;
     }
 
@@ -53,13 +53,13 @@ class Document extends Entity {
 }
 
 class Report extends Document {
-    private string type;
+    private String type;
 
-    public constructor(string id, string title, string type) : super(id, title) {
+    public constructor(String id, String title, String type) : super(id, title) {
         this.type = type;
     }
 
-    public string getType() {
+    public String getType() {
         return this.type;
     }
 
@@ -76,7 +76,7 @@ class Report extends Document {
 }
 
 // Test 1: Exception propagates through single cast
-function singleCastPropagation(Entity e): string {
+String singleCastPropagation(Entity e) {
     try {
         if (e instanceof Document) {
             Document d = (Document)e;
@@ -91,7 +91,7 @@ function singleCastPropagation(Entity e): string {
 }
 
 // Test 2: Exception propagates through multiple cast levels
-function multiLevelCastPropagation(Entity e): string {
+String multiLevelCastPropagation(Entity e) {
     try {
         if (e instanceof Document) {
             Document d = (Document)e;
@@ -116,21 +116,21 @@ function multiLevelCastPropagation(Entity e): string {
 }
 
 // Test 3: Exception propagates through nested functions with casts
-function validateEntity(Entity e): void {
+void validateEntity(Entity e) {
     if (e instanceof Document) {
         Document d = (Document)e;
         d.validate();
     }
 }
 
-function processEntity(Entity e): void {
+void processEntity(Entity e) {
     if (e instanceof Document) {
         Document d = (Document)e;
         d.process();
     }
 }
 
-function nestedCastPropagation(Entity e): string {
+String nestedCastPropagation(Entity e) {
     try {
         validateEntity(e);
         processEntity(e);
@@ -141,7 +141,7 @@ function nestedCastPropagation(Entity e): string {
 }
 
 // Test 4: Exception propagates through cast chain with re-throw
-function innerCastCheck(Entity e): void {
+void innerCastCheck(Entity e) {
     if (e instanceof Report) {
         Report r = (Report)e;
         print("Inner: Validating report");
@@ -151,7 +151,7 @@ function innerCastCheck(Entity e): void {
     }
 }
 
-function middleCastCheck(Entity e): void {
+void middleCastCheck(Entity e) {
     try {
         if (e instanceof Document) {
             Document d = (Document)e;
@@ -164,7 +164,7 @@ function middleCastCheck(Entity e): void {
     }
 }
 
-function outerCastPropagation(Entity e): string {
+String outerCastPropagation(Entity e) {
     try {
         middleCastCheck(e);
         return "Chain completed";
@@ -176,7 +176,7 @@ function outerCastPropagation(Entity e): string {
 }
 
 // Test 5: Mixed exception types in cast chain
-function complexCastPropagation(Entity e1, Entity e2): string {
+String complexCastPropagation(Entity e1, Entity e2) {
     try {
         if (e1 instanceof Report) {
             Report r = (Report)e1;
@@ -197,7 +197,7 @@ function complexCastPropagation(Entity e1, Entity e2): string {
     }
 }
 
-function wrapperCastPropagation(Entity e1, Entity e2): string {
+String wrapperCastPropagation(Entity e1, Entity e2) {
     try {
         return complexCastPropagation(e1, e2);
     } catch (ProcessingException e) {
@@ -206,11 +206,11 @@ function wrapperCastPropagation(Entity e1, Entity e2): string {
 }
 
 // Test 6: Array processing with exception propagation
-function processEntityArray(Entity[] entities): string {
-    int processed = 0;
+String processEntityArray(Entity[] entities) {
+    Int processed = 0;
 
     try {
-        int i = 0;
+        Int i = 0;
         while (i < 3) {
             if (entities[i] instanceof Document) {
                 Document d = (Document)entities[i];

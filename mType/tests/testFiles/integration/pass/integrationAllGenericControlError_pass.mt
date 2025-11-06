@@ -2,42 +2,42 @@
 // @Script
 
 interface Comparable<T> {
-    compareTo(other: T) : Int;
+    function compareTo(T other) : Int;
 }
 
-class NumberWrapper<T> : Comparable<NumberWrapper<T>> {
-    private value: T;
+class NumberWrapper<T> implements Comparable<NumberWrapper<T>> {
+    private T value;
 
-    constructor(v: T) {
+    constructor(T v) {
         this.value = v;
     }
 
-    getValue() : T {
+    function getValue() : T {
         return this.value;
     }
 
-    setValue(v: T) : Void {
+    function setValue(T v) : void {
         this.value = v;
     }
 
-    compareTo(other: NumberWrapper<T>) : Int {
+    function compareTo(NumberWrapper<T> other) : Int {
         // This will be overridden in specialized versions
         return 0;
     }
 
-    toString() : String {
+    function toString() : String {
         return this.value.toString();
     }
 }
 
 class IntWrapper extends NumberWrapper<Int> {
-    constructor(v: Int) {
+    constructor(Int v) {
         super(v);
     }
 
-    compareTo(other: NumberWrapper<Int>) : Int {
-        let otherVal: Int = other.getValue();
-        let myVal: Int = this.getValue();
+    function compareTo(NumberWrapper<Int> other) : Int {
+        Int otherVal = other.getValue();
+        Int myVal = this.getValue();
 
         if (myVal > otherVal) {
             return 1;
@@ -47,20 +47,20 @@ class IntWrapper extends NumberWrapper<Int> {
         return 0;
     }
 
-    add(other: IntWrapper) : IntWrapper {
-        let result: Int = this.getValue() + other.getValue();
+    function add(IntWrapper other) : IntWrapper {
+        Int result = this.getValue() + other.getValue();
         return new IntWrapper(result);
     }
 }
 
 class FloatWrapper extends NumberWrapper<Float> {
-    constructor(v: Float) {
+    constructor(Float v) {
         super(v);
     }
 
-    compareTo(other: NumberWrapper<Float>) : Int {
-        let otherVal: Float = other.getValue();
-        let myVal: Float = this.getValue();
+    function compareTo(NumberWrapper<Float> other) : Int {
+        Float otherVal = other.getValue();
+        Float myVal = this.getValue();
 
         if (myVal > otherVal) {
             return 1;
@@ -70,18 +70,18 @@ class FloatWrapper extends NumberWrapper<Float> {
         return 0;
     }
 
-    multiply(other: FloatWrapper) : FloatWrapper {
-        let result: Float = this.getValue() * other.getValue();
+    function multiply(FloatWrapper other) : FloatWrapper {
+        Float result = this.getValue() * other.getValue();
         return new FloatWrapper(result);
     }
 }
 
 class GenericContainer<T> {
-    private items: T[];
-    private capacity: Int;
-    private size: Int;
+    private T[] items;
+    private Int capacity;
+    private Int size;
 
-    constructor(cap: Int) {
+    constructor(Int cap) {
         if (cap <= 0) {
             throw "Capacity must be positive";
         }
@@ -90,7 +90,7 @@ class GenericContainer<T> {
         this.size = 0;
     }
 
-    add(item: T) : Bool {
+    function add(T item) : Bool {
         if (this.size >= this.capacity) {
             throw "Container is full";
         }
@@ -99,31 +99,31 @@ class GenericContainer<T> {
         return true;
     }
 
-    get(index: Int) : T {
+    function get(Int index) : T {
         if (index < 0 || index >= this.size) {
             throw "Index out of bounds: " + index.toString();
         }
         return this.items[index];
     }
 
-    getSize() : Int {
+    function getSize() : Int {
         return this.size;
     }
 
-    findMax<U extends Comparable<U>>(items: U[]) : U? {
+    function findMax<U extends Comparable<U>>(U[] items) : U? {
         if (items.length() == 0) {
             return null;
         }
 
-        let max: U = items[0];
-        let i: Int = 1;
+        U max = items[0];
+        Int i = 1;
 
         while (i < items.length()) {
             try {
                 if (items[i].compareTo(max) > 0) {
                     max = items[i];
                 }
-            } catch (e: String) {
+            } catch (String e) {
                 print("Error comparing at index " + i.toString() + ": " + e);
             }
             i = i + 1;
@@ -132,14 +132,14 @@ class GenericContainer<T> {
         return max;
     }
 
-    processBatch<U>(processor: (T) -> U) : U[] {
-        let results: U[] = new U[this.size];
-        let i: Int = 0;
+    function processBatch<U>((T) -> U processor) : U[] {
+        U[] results = new U[this.size];
+        Int i = 0;
 
         while (i < this.size) {
             try {
                 results[i] = processor(this.items[i]);
-            } catch (e: String) {
+            } catch (String e) {
                 print("Processing error at index " + i.toString() + ": " + e);
                 throw "Batch processing failed";
             }
@@ -150,22 +150,22 @@ class GenericContainer<T> {
     }
 }
 
-safeDivide(a: Int, b: Int) : Int {
+function safeDivide(Int a, Int b) : Int {
     if (b == 0) {
         throw "Division by zero";
     }
     return a / b;
 }
 
-processNumbers<T extends NumberWrapper<Int>>(numbers: T[], operation: String) : Int {
-    let result: Int = 0;
-    let i: Int = 0;
-    let errorCount: Int = 0;
+function processNumbers<T extends NumberWrapper<Int>>(T[] numbers, String operation) : Int {
+    Int result = 0;
+    Int i = 0;
+    Int errorCount = 0;
 
     while (i < numbers.length()) {
         try {
-            let num: T = numbers[i];
-            let val: Int = num.getValue();
+            T num = numbers[i];
+            Int val = num.getValue();
 
             if (operation == "sum") {
                 result = result + val;
@@ -181,7 +181,7 @@ processNumbers<T extends NumberWrapper<Int>>(numbers: T[], operation: String) : 
                 } else {
                     try {
                         result = safeDivide(result, val);
-                    } catch (e: String) {
+                    } catch (String e) {
                         print("Division error: " + e);
                         errorCount = errorCount + 1;
                     }
@@ -190,7 +190,7 @@ processNumbers<T extends NumberWrapper<Int>>(numbers: T[], operation: String) : 
                 throw "Unknown operation: " + operation;
             }
 
-        } catch (e: String) {
+        } catch (String e) {
             print("Error processing number at index " + i.toString() + ": " + e);
             errorCount = errorCount + 1;
         }
@@ -205,22 +205,22 @@ processNumbers<T extends NumberWrapper<Int>>(numbers: T[], operation: String) : 
     return result;
 }
 
-sortGeneric<T extends Comparable<T>>(items: T[]) : Void {
+function sortGeneric<T extends Comparable<T>>(T[] items) : void {
     // Bubble sort with error handling
-    let n: Int = items.length();
-    let i: Int = 0;
+    Int n = items.length();
+    Int i = 0;
 
     while (i < n - 1) {
-        let j: Int = 0;
+        Int j = 0;
         while (j < n - i - 1) {
             try {
                 if (items[j].compareTo(items[j + 1]) > 0) {
                     // Swap
-                    let temp: T = items[j];
+                    T temp = items[j];
                     items[j] = items[j + 1];
                     items[j + 1] = temp;
                 }
-            } catch (e: String) {
+            } catch (String e) {
                 print("Sort error at position " + j.toString() + ": " + e);
                 throw "Sorting failed";
             }
@@ -230,15 +230,15 @@ sortGeneric<T extends Comparable<T>>(items: T[]) : Void {
     }
 }
 
-main() : Void {
+function main() : void {
     print("=== Generic Control Error Test ===");
 
     // Test 1: Generic container with control flow
     print("\n--- Test 1: Generic Container ---");
     try {
-        let container: GenericContainer<IntWrapper> = new GenericContainer<IntWrapper>(5);
+        GenericContainer<IntWrapper> container = new GenericContainer<IntWrapper>(5);
 
-        let i: Int = 0;
+        Int i = 0;
         while (i < 5) {
             container.add(new IntWrapper(i * 10));
             i = i + 1;
@@ -250,25 +250,25 @@ main() : Void {
         try {
             container.add(new IntWrapper(99));
             print("Should not reach here");
-        } catch (e: String) {
+        } catch (String e) {
             print("Caught expected error: " + e);
         }
 
-    } catch (e: String) {
+    } catch (String e) {
         print("Container error: " + e);
     }
 
     // Test 2: Finding max with generics
     print("\n--- Test 2: Find Max ---");
-    let numbers: IntWrapper[] = new IntWrapper[5];
+    IntWrapper[] numbers = new IntWrapper[5];
     numbers[0] = new IntWrapper(42);
     numbers[1] = new IntWrapper(17);
     numbers[2] = new IntWrapper(99);
     numbers[3] = new IntWrapper(33);
     numbers[4] = new IntWrapper(8);
 
-    let container2: GenericContainer<IntWrapper> = new GenericContainer<IntWrapper>(1);
-    let maxNum: IntWrapper? = container2.findMax<IntWrapper>(numbers);
+    GenericContainer<IntWrapper> container2 = new GenericContainer<IntWrapper>(1);
+    IntWrapper? maxNum = container2.findMax<IntWrapper>(numbers);
     if (maxNum != null) {
         print("Max value: " + maxNum.getValue().toString());
     }
@@ -278,43 +278,43 @@ main() : Void {
     try {
         sortGeneric<IntWrapper>(numbers);
         print("Sorted values:");
-        let idx: Int = 0;
+        Int idx = 0;
         while (idx < numbers.length()) {
             print("  " + numbers[idx].getValue().toString());
             idx = idx + 1;
         }
-    } catch (e: String) {
+    } catch (String e) {
         print("Sort failed: " + e);
     }
 
     // Test 4: Arithmetic operations with error handling
     print("\n--- Test 4: Operations ---");
-    let sum: Int = processNumbers<IntWrapper>(numbers, "sum");
+    Int sum = processNumbers<IntWrapper>(numbers, "sum");
     print("Sum: " + sum.toString());
 
-    let product: Int = processNumbers<IntWrapper>(numbers, "product");
+    Int product = processNumbers<IntWrapper>(numbers, "product");
     print("Product: " + product.toString());
 
     // Test division with zero
-    let divNums: IntWrapper[] = new IntWrapper[3];
+    IntWrapper[] divNums = new IntWrapper[3];
     divNums[0] = new IntWrapper(100);
     divNums[1] = new IntWrapper(10);
     divNums[2] = new IntWrapper(0);
 
-    let divResult: Int = processNumbers<IntWrapper>(divNums, "divide");
+    Int divResult = processNumbers<IntWrapper>(divNums, "divide");
     print("Division result: " + divResult.toString());
 
     // Test 5: Float operations
     print("\n--- Test 5: Float Operations ---");
-    let floats: FloatWrapper[] = new FloatWrapper[3];
+    FloatWrapper[] floats = new FloatWrapper[3];
     floats[0] = new FloatWrapper(3.14);
     floats[1] = new FloatWrapper(2.0);
     floats[2] = new FloatWrapper(1.5);
 
-    let container3: GenericContainer<FloatWrapper> = new GenericContainer<FloatWrapper>(1);
-    let maxFloat: FloatWrapper? = container3.findMax<FloatWrapper>(floats);
+    GenericContainer<FloatWrapper> container3 = new GenericContainer<FloatWrapper>(1);
+    FloatWrapper? maxFloat = container3.findMax<FloatWrapper>(floats);
     if (maxFloat != null) {
-        print("Max float: " + maxFloat.getValue().toString());
+        print("Max Float: " + maxFloat.getValue().toString());
     }
 
     print("\n=== All tests completed ===");

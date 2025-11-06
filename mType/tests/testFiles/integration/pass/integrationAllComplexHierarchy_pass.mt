@@ -2,77 +2,77 @@
 // @Script
 
 interface Identifiable {
-    getId() : String;
+    function getId() : String;
 }
 
 interface Describable {
-    getDescription() : String;
+    function getDescription() : String;
 }
 
 interface Processable {
-    async process() : Promise<Bool>;
+    function async process() : Promise<Bool>;
 }
 
-class Entity<T> : Identifiable {
-    protected id: String;
-    protected data: T;
+class Entity<T> implements Identifiable {
+    protected String id;
+    protected T data;
 
-    constructor(i: String, d: T) {
+    constructor(String i, T d) {
         this.id = i;
         this.data = d;
     }
 
-    getId() : String {
+    function getId() : String {
         return this.id;
     }
 
-    getData() : T {
+    function getData() : T {
         return this.data;
     }
 
-    setData(d: T) : Void {
+    function setData(T d) : void {
         this.data = d;
     }
 }
 
-class DocumentEntity extends Entity<String> : Describable {
-    private title: String;
-    private version: Int;
+class DocumentEntity extends Entity<String> implements Describable {
+    private String title;
+    private Int version;
 
-    constructor(i: String, d: String, t: String, v: Int) {
+    constructor(String i, String d, String t, Int v) {
         super(i, d);
         this.title = t;
         this.version = v;
     }
 
-    getDescription() : String {
+    function getDescription() : String {
         return this.title + " v" + this.version.toString();
     }
 
-    getTitle() : String {
+    function getTitle() : String {
         return this.title;
     }
 
-    incrementVersion() : Void {
+    function incrementVersion() : void {
         this.version = this.version + 1;
     }
 
-    getVersion() : Int {
+    function getVersion() : Int {
         return this.version;
     }
 }
 
-class ProcessableDocument extends DocumentEntity : Processable {
-    private isProcessed: Bool;
-    private errorMessage: String;
+class ProcessableDocument extends DocumentEntity implements Processable {
+    private Bool isProcessed;
+    private String errorMessage;
 
-    constructor(i: String, d: String, t: String, v: Int) {
+    constructor(String i, String d, String t, Int v) {
         super(i, d, t, v);
         this.isProcessed = false;
         this.errorMessage = "";
     }
 
-    async process() : Promise<Bool> {
+    function async process() : Promise<Bool> {
         await delay(5);
 
         try {
@@ -89,34 +89,34 @@ class ProcessableDocument extends DocumentEntity : Processable {
             this.isProcessed = true;
             return true;
 
-        } catch (e: String) {
+        } catch (String e) {
             this.errorMessage = e;
             print("Processing failed: " + e);
             return false;
         }
     }
 
-    getIsProcessed() : Bool {
+    function getIsProcessed() : Bool {
         return this.isProcessed;
     }
 
-    getErrorMessage() : String {
+    function getErrorMessage() : String {
         return this.errorMessage;
     }
 }
 
 class VersionedDocument extends ProcessableDocument {
-    private history: String[];
-    private historySize: Int;
+    private String[] history;
+    private Int historySize;
 
-    constructor(i: String, d: String, t: String, v: Int, maxHistory: Int) {
+    constructor(String i, String d, String t, Int v, Int maxHistory) {
         super(i, d, t, v);
         this.history = new String[maxHistory];
         this.historySize = 0;
     }
 
-    async process() : Promise<Bool> {
-        let result: Bool = await super.process();
+    function async process() : Promise<Bool> {
+        Bool result = await super.process();
 
         if (result) {
             this.addToHistory("Processed at version " + this.getVersion().toString());
@@ -125,7 +125,7 @@ class VersionedDocument extends ProcessableDocument {
         return result;
     }
 
-    addToHistory(entry: String) : Void {
+    function addToHistory(String entry) : void {
         if (this.historySize >= this.history.length()) {
             throw "History is full";
         }
@@ -133,9 +133,9 @@ class VersionedDocument extends ProcessableDocument {
         this.historySize = this.historySize + 1;
     }
 
-    getHistory() : String[] {
-        let result: String[] = new String[this.historySize];
-        let i: Int = 0;
+    function getHistory() : String[] {
+        String[] result = new String[this.historySize];
+        Int i = 0;
         while (i < this.historySize) {
             result[i] = this.history[i];
             i = i + 1;
@@ -143,28 +143,28 @@ class VersionedDocument extends ProcessableDocument {
         return result;
     }
 
-    getHistorySize() : Int {
+    function getHistorySize() : Int {
         return this.historySize;
     }
 }
 
 class SecureDocument extends VersionedDocument {
-    private accessLevel: Int;
-    private isEncrypted: Bool;
+    private Int accessLevel;
+    private Bool isEncrypted;
 
-    constructor(i: String, d: String, t: String, v: Int, maxHistory: Int, level: Int) {
+    constructor(String i, String d, String t, Int v, Int maxHistory, Int level) {
         super(i, d, t, v, maxHistory);
         this.accessLevel = level;
         this.isEncrypted = false;
     }
 
-    async process() : Promise<Bool> {
+    function async process() : Promise<Bool> {
         try {
             if (this.accessLevel < 3) {
                 throw "Insufficient access level";
             }
 
-            let result: Bool = await super.process();
+            Bool result = await super.process();
 
             if (result && !this.isEncrypted) {
                 this.encrypt();
@@ -172,19 +172,19 @@ class SecureDocument extends VersionedDocument {
 
             return result;
 
-        } catch (e: String) {
+        } catch (String e) {
             print("Secure processing failed: " + e);
             return false;
         }
     }
 
-    encrypt() : Void {
+    function encrypt() : void {
         print("Encrypting document: " + this.getId());
         this.isEncrypted = true;
         this.addToHistory("Document encrypted");
     }
 
-    decrypt() : Void {
+    function decrypt() : void {
         if (this.accessLevel < 5) {
             throw "Insufficient access level for decryption";
         }
@@ -193,22 +193,22 @@ class SecureDocument extends VersionedDocument {
         this.addToHistory("Document decrypted");
     }
 
-    getAccessLevel() : Int {
+    function getAccessLevel() : Int {
         return this.accessLevel;
     }
 
-    getIsEncrypted() : Bool {
+    function getIsEncrypted() : Bool {
         return this.isEncrypted;
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async processHierarchy<T extends Entity<String>>(entity: T, depth: Int) : Promise<Void> {
-    let indent: String = "";
-    let i: Int = 0;
+function async processHierarchy<T extends Entity<String>>(T entity, Int depth) : Promise<void> {
+    String indent = "";
+    Int i = 0;
     while (i < depth) {
         indent = indent + "  ";
         i = i + 1;
@@ -217,87 +217,87 @@ async processHierarchy<T extends Entity<String>>(entity: T, depth: Int) : Promis
     print(indent + "Entity ID: " + entity.getId());
 
     // Try casting to different levels
-    let describable: Describable? = entity as Describable;
+    Describable? describable = entity as Describable;
     if (describable != null) {
         print(indent + "Description: " + describable.getDescription());
     }
 
-    let processable: Processable? = entity as Processable;
+    Processable? processable = entity as Processable;
     if (processable != null) {
         print(indent + "Attempting to process...");
-        let result: Bool = await processable.process();
+        Bool result = await processable.process();
         print(indent + "Process result: " + result.toString());
     }
 
-    let versioned: VersionedDocument? = entity as VersionedDocument;
+    VersionedDocument? versioned = entity as VersionedDocument;
     if (versioned != null) {
         print(indent + "History entries: " + versioned.getHistorySize().toString());
     }
 
-    let secure: SecureDocument? = entity as SecureDocument;
+    SecureDocument? secure = entity as SecureDocument;
     if (secure != null) {
         print(indent + "Access level: " + secure.getAccessLevel().toString());
         print(indent + "Encrypted: " + secure.getIsEncrypted().toString());
     }
 }
 
-testCrossLevelCasting(entity: Entity<String>) : Void {
+function testCrossLevelCasting(Entity<String> entity) : void {
     print("Testing cross-level casting for: " + entity.getId());
 
     try {
         // Try to cast to various types in the hierarchy
-        let doc: DocumentEntity? = entity as DocumentEntity;
+        DocumentEntity? doc = entity as DocumentEntity;
         if (doc != null) {
             print("  Cast to DocumentEntity successful");
             print("  Title: " + doc.getTitle());
         }
 
-        let procDoc: ProcessableDocument? = entity as ProcessableDocument;
+        ProcessableDocument? procDoc = entity as ProcessableDocument;
         if (procDoc != null) {
             print("  Cast to ProcessableDocument successful");
         }
 
-        let verDoc: VersionedDocument? = entity as VersionedDocument;
+        VersionedDocument? verDoc = entity as VersionedDocument;
         if (verDoc != null) {
             print("  Cast to VersionedDocument successful");
             print("  History size: " + verDoc.getHistorySize().toString());
         }
 
-        let secDoc: SecureDocument? = entity as SecureDocument;
+        SecureDocument? secDoc = entity as SecureDocument;
         if (secDoc != null) {
             print("  Cast to SecureDocument successful");
 
             // Try operations that might fail
             try {
                 secDoc.decrypt();
-            } catch (e: String) {
+            } catch (String e) {
                 print("  Decryption error: " + e);
             }
         }
 
         // Cast to interfaces
-        let identifiable: Identifiable = entity as Identifiable;
+        Identifiable identifiable = entity as Identifiable;
         print("  Interface cast successful: " + identifiable.getId());
 
-    } catch (e: String) {
+    } catch (String e) {
         print("  Casting error: " + e);
     }
 }
 
-async main() : Promise<Void> {
+function async main() : Promise<void> {
     print("=== Complex Hierarchy Test ===");
 
     // Test 1: Create hierarchy at different levels
     print("\n--- Test 1: Hierarchy Levels ---");
 
-    let entities: Entity<String>[] = new Entity<String>[4];
+    Entity<String>[] entities = new Entity<String>[4];
 
     entities[0] = new Entity<String>("E1", "Basic entity data");
     entities[1] = new DocumentEntity("D1", "Doc data", "Document 1", 1);
     entities[2] = new ProcessableDocument("P1", "Processable data", "Process Doc", 2);
     entities[3] = new SecureDocument("S1", "Secure data", "Secure Doc", 3, 10, 5);
 
-    let i: Int = 0;
+    Int i = 0;
     while (i < entities.length()) {
         await processHierarchy<Entity<String>>(entities[i], 0);
         print("");
@@ -306,7 +306,7 @@ async main() : Promise<Void> {
 
     // Test 2: Versioned document with history
     print("--- Test 2: Version History ---");
-    let versionedDoc: VersionedDocument = new VersionedDocument(
+    VersionedDocument versionedDoc = new VersionedDocument(
         "V1", "Version data", "Versioned Doc", 1, 5
     );
 
@@ -314,12 +314,12 @@ async main() : Promise<Void> {
     versionedDoc.incrementVersion();
     versionedDoc.addToHistory("Updated to v2");
 
-    let processed: Bool = await versionedDoc.process();
+    Bool processed = await versionedDoc.process();
     print("Processed: " + processed.toString());
 
-    let history: String[] = versionedDoc.getHistory();
+    String[] history = versionedDoc.getHistory();
     print("History:");
-    let idx: Int = 0;
+    Int idx = 0;
     while (idx < history.length()) {
         print("  " + history[idx]);
         idx = idx + 1;
@@ -327,19 +327,19 @@ async main() : Promise<Void> {
 
     // Test 3: Secure document access control
     print("\n--- Test 3: Secure Document ---");
-    let secureDoc: SecureDocument = new SecureDocument(
+    SecureDocument secureDoc = new SecureDocument(
         "SEC1", "Top secret data", "Classified", 1, 10, 3
     );
 
-    let secProcessed: Bool = await secureDoc.process();
+    Bool secProcessed = await secureDoc.process();
     print("Secure processed: " + secProcessed.toString());
 
     // Try with insufficient access
-    let lowAccessDoc: SecureDocument = new SecureDocument(
+    SecureDocument lowAccessDoc = new SecureDocument(
         "SEC2", "Data", "Low Access Doc", 1, 10, 2
     );
 
-    let lowProcessed: Bool = await lowAccessDoc.process();
+    Bool lowProcessed = await lowAccessDoc.process();
     print("Low access processed: " + lowProcessed.toString());
 
     // Test 4: Cross-level casting
@@ -348,14 +348,14 @@ async main() : Promise<Void> {
 
     // Test 5: Error handling at different levels
     print("\n--- Test 5: Error Handling ---");
-    let emptyDoc: ProcessableDocument = new ProcessableDocument("E2", "", "Empty", 1);
-    let emptyProcessed: Bool = await emptyDoc.process();
+    ProcessableDocument emptyDoc = new ProcessableDocument("E2", "", "Empty", 1);
+    Bool emptyProcessed = await emptyDoc.process();
     print("Empty doc processed: " + emptyProcessed.toString());
     print("Error message: " + emptyDoc.getErrorMessage());
 
     // Test history overflow
     print("\n--- Test 6: History Overflow ---");
-    let smallHistoryDoc: VersionedDocument = new VersionedDocument(
+    VersionedDocument smallHistoryDoc = new VersionedDocument(
         "H1", "Data", "Small History", 1, 2
     );
 
@@ -366,7 +366,7 @@ async main() : Promise<Void> {
 
         smallHistoryDoc.addToHistory("Entry 3");
         print("Should not reach here");
-    } catch (e: String) {
+    } catch (String e) {
         print("Caught expected error: " + e);
     }
 

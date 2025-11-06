@@ -2,30 +2,30 @@
 // @Script
 
 class AsyncExceptionTest {
-    async testCatchInLambda() : Promise<String> {
-        let safeOp = async (x: Int) : Promise<String> => {
+    public function async testCatchInLambda() : Promise<String> {
+        var safeOp = async (Int x) : Promise<String> => {
             try {
                 await delay(5);
                 if (x < 0) {
                     throw "Negative value not allowed";
                 }
                 return "Success: " + x.toString();
-            } catch (e: String) {
+            } catch (String e) {
                 return "Error: " + e;
             }
         };
 
-        let result1 = await safeOp(10);
+        String result1 = await safeOp(10);
         print(result1);
 
-        let result2 = await safeOp(-5);
+        String result2 = await safeOp(-5);
         print(result2);
 
         return result2;
     }
 
-    async testRethrow() : Promise<Int> {
-        let riskyOp = async (x: Int) : Promise<Int> => {
+    public function async testRethrow() : Promise<Int> {
+        var riskyOp = async (Int x) : Promise<Int> => {
             await delay(5);
             if (x == 0) {
                 throw "Division by zero";
@@ -34,25 +34,25 @@ class AsyncExceptionTest {
         };
 
         try {
-            let result = await riskyOp(10);
+            Int result = await riskyOp(10);
             print("Result: " + result.toString());
             return result;
-        } catch (e: String) {
+        } catch (String e) {
             print("Caught: " + e);
             return -1;
         }
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async main() : Promise<Void> {
-    let test = new AsyncExceptionTest();
-    let result1 = await test.testCatchInLambda();
+function async main() : Promise<void> {
+    AsyncExceptionTest test = new AsyncExceptionTest();
+    String result1 = await test.testCatchInLambda();
     assert(result1 == "Error: Negative value not allowed", "Should handle exception in lambda");
 
-    let result2 = await test.testRethrow();
+    Int result2 = await test.testRethrow();
     assert(result2 == 10, "Should compute division correctly");
 }

@@ -2,34 +2,34 @@
 // Tests casting behavior in recursive call scenarios
 
 class TreeNode {
-    public int value;
+    public Int value;
     public TreeNode left;
     public TreeNode right;
 
-    public constructor(int v) {
+    public constructor(Int v) {
         this.value = v;
         this.left = null;
         this.right = null;
     }
 
-    public function getType(): string {
+    public String getType() {
         return "TreeNode";
     }
 }
 
 class BinarySearchNode extends TreeNode {
-    public bool isRed;
+    public Bool isRed;
 
-    public constructor(int v, bool red) {
+    public constructor(Int v, Bool red) {
         super(v);
         this.isRed = red;
     }
 
-    public function getType(): string {
+    public String getType() {
         return "BinarySearchNode";
     }
 
-    public function getColor(): string {
+    public String getColor() {
         if (this.isRed) {
             return "red";
         }
@@ -38,18 +38,18 @@ class BinarySearchNode extends TreeNode {
 }
 
 class AVLNode extends TreeNode {
-    public int height;
+    public Int height;
 
-    public constructor(int v, int h) {
+    public constructor(Int v, Int h) {
         super(v);
         this.height = h;
     }
 
-    public function getType(): string {
+    public String getType() {
         return "AVLNode";
     }
 
-    public function getHeight(): int {
+    public Int getHeight() {
         return this.height;
     }
 }
@@ -57,7 +57,7 @@ class AVLNode extends TreeNode {
 // Test 1: Recursive traversal with casting
 print("Test 1: Recursive traversal with casting");
 
-function recursiveInOrder(TreeNode node): void {
+void recursiveInOrder(TreeNode node) {
     if (node == null) {
         return;
     }
@@ -90,12 +90,12 @@ recursiveInOrder(root);
 // Test 2: Recursive sum with conditional casting
 print("Test 2: Recursive sum with conditional casting");
 
-function recursiveSum(TreeNode node, bool doubleRed): int {
+Int recursiveSum(TreeNode node, Bool doubleRed) {
     if (node == null) {
         return 0;
     }
 
-    int currentValue = node.value;
+    Int currentValue = node.value;
 
     // Double the value if it's a red node and flag is set
     if (doubleRed && node isClassOf BinarySearchNode) {
@@ -105,27 +105,27 @@ function recursiveSum(TreeNode node, bool doubleRed): int {
         }
     }
 
-    int leftSum = recursiveSum(node.left, doubleRed);
-    int rightSum = recursiveSum(node.right, doubleRed);
+    Int leftSum = recursiveSum(node.left, doubleRed);
+    Int rightSum = recursiveSum(node.right, doubleRed);
 
     return currentValue + leftSum + rightSum;
 }
 
-int total = recursiveSum(root, true);
+Int total = recursiveSum(root, true);
 print("Total sum with doubling red: " + total);
 
-int regularTotal = recursiveSum(root, false);
+Int regularTotal = recursiveSum(root, false);
 print("Total sum regular: " + regularTotal);
 
 // Test 3: Recursive depth calculation with casting
 print("Test 3: Recursive depth with type-specific logic");
 
-function recursiveDepth(TreeNode node, int currentDepth): int {
+Int recursiveDepth(TreeNode node, Int currentDepth) {
     if (node == null) {
         return currentDepth;
     }
 
-    int adjustment = 0;
+    Int adjustment = 0;
 
     // AVL nodes add their height to depth calculation
     if (node isClassOf AVLNode) {
@@ -133,8 +133,8 @@ function recursiveDepth(TreeNode node, int currentDepth): int {
         adjustment = avl.getHeight();
     }
 
-    int leftDepth = recursiveDepth(node.left, currentDepth + 1 + adjustment);
-    int rightDepth = recursiveDepth(node.right, currentDepth + 1 + adjustment);
+    Int leftDepth = recursiveDepth(node.left, currentDepth + 1 + adjustment);
+    Int rightDepth = recursiveDepth(node.right, currentDepth + 1 + adjustment);
 
     if (leftDepth > rightDepth) {
         return leftDepth;
@@ -142,13 +142,13 @@ function recursiveDepth(TreeNode node, int currentDepth): int {
     return rightDepth;
 }
 
-int depth = recursiveDepth(root, 0);
+Int depth = recursiveDepth(root, 0);
 print("Tree depth: " + depth);
 
 // Test 4: Recursive search with casting and early return
 print("Test 4: Recursive search with casting");
 
-function recursiveSearch(TreeNode node, int target): bool {
+Bool recursiveSearch(TreeNode node, Int target) {
     if (node == null) {
         return false;
     }
@@ -173,9 +173,9 @@ function recursiveSearch(TreeNode node, int target): bool {
     return recursiveSearch(node.right, target);
 }
 
-bool found5 = recursiveSearch(root, 5);
-bool found15 = recursiveSearch(root, 15);
-bool found99 = recursiveSearch(root, 99);
+Bool found5 = recursiveSearch(root, 5);
+Bool found15 = recursiveSearch(root, 15);
+Bool found99 = recursiveSearch(root, 99);
 
 print("Search 5 result: " + found5);
 print("Search 15 result: " + found15);
@@ -184,7 +184,7 @@ print("Search 99 result: " + found99);
 // Test 5: Mutually recursive functions with casting
 print("Test 5: Mutually recursive with casting");
 
-function processEven(TreeNode node, int count): int {
+Int processEven(TreeNode node, Int count) {
     if (node == null || count >= 10) {
         return count;
     }
@@ -203,7 +203,7 @@ function processEven(TreeNode node, int count): int {
     return processOdd(node.right, count);
 }
 
-function processOdd(TreeNode node, int count): int {
+Int processOdd(TreeNode node, Int count) {
     if (node == null || count >= 10) {
         return count;
     }
@@ -222,19 +222,19 @@ function processOdd(TreeNode node, int count): int {
     return processEven(node.right, count);
 }
 
-int processed = processEven(root, 0);
+Int processed = processEven(root, 0);
 print("Processed count: " + processed);
 
 // Test 6: Tail-recursive style with casting
 print("Test 6: Tail-recursive with accumulator");
 
-function tailRecursiveCollect(TreeNode node, int accumulator): int {
+Int tailRecursiveCollect(TreeNode node, Int accumulator) {
     if (node == null) {
         return accumulator;
     }
 
     // Add current value
-    int newAccum = accumulator + node.value;
+    Int newAccum = accumulator + node.value;
 
     // Bonus for red nodes
     if (node isClassOf BinarySearchNode) {
@@ -251,7 +251,7 @@ function tailRecursiveCollect(TreeNode node, int accumulator): int {
     return tailRecursiveCollect(node.right, newAccum);
 }
 
-int collected = tailRecursiveCollect(root, 0);
+Int collected = tailRecursiveCollect(root, 0);
 print("Tail recursive collected: " + collected);
 
 print("All recursive casting tests completed");

@@ -2,70 +2,70 @@
 // Tests type narrowing and casting across different conditional constructs
 
 class Shape {
-    public int dimensions;
+    public Int dimensions;
 
-    public constructor(int d) {
+    public constructor(Int d) {
         this.dimensions = d;
     }
 
-    public function describe(): string {
+    public String describe() {
         return "Shape";
     }
 }
 
 class Circle extends Shape {
-    public float radius;
+    public Float radius;
 
-    public constructor(float r) {
+    public constructor(Float r) {
         super(2);
         this.radius = r;
     }
 
-    public function describe(): string {
+    public String describe() {
         return "Circle";
     }
 
-    public function getArea(): float {
+    public Float getArea() {
         return 3.14 * this.radius * this.radius;
     }
 }
 
 class Rectangle extends Shape {
-    public float width;
-    public float height;
+    public Float width;
+    public Float height;
 
-    public constructor(float w, float h) {
+    public constructor(Float w, Float h) {
         super(2);
         this.width = w;
         this.height = h;
     }
 
-    public function describe(): string {
+    public String describe() {
         return "Rectangle";
     }
 
-    public function getArea(): float {
+    public Float getArea() {
         return this.width * this.height;
     }
 
-    public function getPerimeter(): float {
+    public Float getPerimeter() {
         return 2.0 * (this.width + this.height);
     }
 }
 
 class Sphere extends Shape {
-    public float radius;
+    public Float radius;
 
-    public constructor(float r) {
+    public constructor(Float r) {
         super(3);
         this.radius = r;
     }
 
-    public function describe(): string {
+    public String describe() {
         return "Sphere";
     }
 
-    public function getVolume(): float {
+    public Float getVolume() {
         return 4.18 * this.radius * this.radius * this.radius;
     }
 }
@@ -86,7 +86,7 @@ shapes[0] = new Circle(3.0);
 shapes[1] = new Rectangle(4.0, 5.0);
 shapes[2] = new Sphere(2.0);
 
-for (int i = 0; i < 3; i = i + 1) {
+for (Int i = 0; i < 3; i = i + 1) {
     if (shapes[i] isClassOf Circle) {
         Circle c = (Circle)shapes[i];
         print("Circle - area: " + c.getArea());
@@ -138,7 +138,7 @@ if ((shape1 isClassOf Circle && ((Circle)shape1).radius > 4.0) ||
 
 // Test 6: Casting with early return pattern
 print("Test 6: Conditional return with casting");
-function checkShapeArea(Shape s): string {
+String checkShapeArea(Shape s) {
     if (s isClassOf Circle) {
         Circle c = (Circle)s;
         if (c.getArea() > 50.0) {

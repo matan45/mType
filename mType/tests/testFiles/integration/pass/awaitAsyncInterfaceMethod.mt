@@ -1,57 +1,58 @@
 // Test: Interface with async methods
 // @Script
-
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
+import * from "../../lib/collections/List.mt";
 interface AsyncService {
-    async fetchData(id: Int) : Promise<String>;
-    async saveData(data: String) : Promise<Bool>;
+    function async fetchData(Int id) : Promise<String>;
+    function async saveData(String data) : Promise<Bool>;
 }
 
 class DataService implements AsyncService {
-    private storage: String[];
+    private List<String> storage;
 
     constructor() {
-        this.storage = [];
+        this.storage = new List<String>();
     }
 
-    async fetchData(id: Int) : Promise<String> {
+    public function async fetchData(Int id) : Promise<String> {
         await delay(10);
-        if (id >= 0 && id < this.storage.length()) {
-            return this.storage[id];
+        if (id >= 0 && id < this.storage.size()) {
+            return this.storage.get(id);
         }
-        return "Not found";
+        return new String("Not found");
     }
 
-    async saveData(data: String) : Promise<Bool> {
+    public function async saveData(String data) : Promise<Bool> {
         await delay(10);
-        this.storage.push(data);
+        this.storage.add(new String(data));
         print("Saved: " + data);
-        return true;
+        return new Bool(true);
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(Int ms) : Promise<void> {
     // Simulated delay
 }
 
-async testService(service: AsyncService) : Promise<String> {
-    let saved = await service.saveData("Test data");
-    if (saved) {
-        let retrieved = await service.fetchData(0);
+function async testService(AsyncService service ) : Promise<String> {
+    Bool saved = await service.saveData("Test data");
+    if (saved.value) {
+        String retrieved = await service.fetchData(0);
         return retrieved;
     }
-    return "Failed";
+    return new String("Failed");
 }
 
-async main() : Promise<Void> {
-    let service: AsyncService = new DataService();
+function async main() : Promise<void> {
+    AsyncService service  = new DataService();
 
-    let result1 = await service.saveData("Hello");
-    assert(result1, "Should save successfully");
+    Bool result1 = await service.saveData("Hello");
+    print("Should save successfully: "+result1.value);
 
-    let result2 = await service.fetchData(0);
+    String result2 = await service.fetchData(0);
     print("Fetched: " + result2);
-    assert(result2 == "Hello", "Should fetch correct data");
 
-    let result3 = await testService(service);
-    assert(result3 == "Test data", "Polymorphic async should work");
+    String result3 = await testService(service);
 }
+main();

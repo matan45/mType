@@ -4,25 +4,25 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class CastException extends Exception {
-    constructor(string msg):super(msg) {
+    constructor(String msg):super(msg) {
     }
 }
 
 class RecoveryException extends Exception {
-    constructor(string msg):super(msg) {
+    constructor(String msg):super(msg) {
     }
 }
 
 class Component {
-    protected string name;
-    protected bool isActive;
+    protected String name;
+    protected Bool isActive;
 
-    public constructor(string name) {
+    public constructor(String name) {
         this.name = name;
         this.isActive = true;
     }
 
-    public string getName() {
+    public String getName() {
         return this.name;
     }
 
@@ -36,19 +36,19 @@ class Component {
         print("Deactivated: " + this.name);
     }
 
-    public bool getIsActive() {
+    public Bool getIsActive() {
         return this.isActive;
     }
 }
 
 class Button extends Component {
-    private string label;
+    private String label;
 
-    public constructor(string name, string label) : super(name) {
+    public constructor(String name, String label) : super(name) {
         this.label = label;
     }
 
-    public string getLabel() {
+    public String getLabel() {
         return this.label;
     }
 
@@ -58,24 +58,24 @@ class Button extends Component {
 }
 
 class TextBox extends Component {
-    private string value;
+    private String value;
 
-    public constructor(string name, string value) : super(name) {
+    public constructor(String name, String value) : super(name) {
         this.value = value;
     }
 
-    public string getValue() {
+    public String getValue() {
         return this.value;
     }
 
-    public void setValue(string v) {
+    public void setValue(String v) {
         this.value = v;
         print("TextBox value set: " + v);
     }
 }
 
 // Test 1: Recovery with fallback type
-function castWithFallback(Component c): string {
+String castWithFallback(Component c) {
     try {
         if (c instanceof Button) {
             Button b = (Button)c;
@@ -101,8 +101,8 @@ function castWithFallback(Component c): string {
 }
 
 // Test 2: Recovery with retry mechanism
-function castWithRetry(Component c, int maxAttempts): string {
-    int attempt = 0;
+String castWithRetry(Component c, Int maxAttempts) {
+    Int attempt = 0;
 
     while (attempt < maxAttempts) {
         attempt = attempt + 1;
@@ -130,8 +130,8 @@ function castWithRetry(Component c, int maxAttempts): string {
 }
 
 // Test 3: Recovery with state restoration
-function castWithStateRestore(Component c): string {
-    bool originalState = c.getIsActive();
+String castWithStateRestore(Component c) {
+    Bool originalState = c.getIsActive();
     print("Original state: " + originalState);
 
     try {
@@ -157,7 +157,7 @@ function castWithStateRestore(Component c): string {
 }
 
 // Test 4: Recovery with multiple fallback options
-function castWithMultipleFallbacks(Component c): string {
+String castWithMultipleFallbacks(Component c) {
     try {
         if (c instanceof Button) {
             Button b = (Button)c;
@@ -189,11 +189,11 @@ function castWithMultipleFallbacks(Component c): string {
 }
 
 // Test 5: Recovery from exception in cast result usage
-function castWithUsageRecovery(Component c): string {
+String castWithUsageRecovery(Component c) {
     try {
         if (c instanceof TextBox) {
             TextBox t = (TextBox)c;
-            string val = t.getValue();
+            String val = t.getValue();
 
             if (val == "error") {
                 throw new RecoveryException("Invalid value in TextBox");
@@ -222,12 +222,12 @@ function castWithUsageRecovery(Component c): string {
 }
 
 // Test 6: Batch processing with error recovery
-function batchCastWithRecovery(Component[] components): string {
-    int successful = 0;
-    int recovered = 0;
-    int failed = 0;
+String batchCastWithRecovery(Component[] components) {
+    Int successful = 0;
+    Int recovered = 0;
+    Int failed = 0;
 
-    int i = 0;
+    Int i = 0;
     while (i < 3) {
         try {
             if (components[i] instanceof Button) {

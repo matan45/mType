@@ -2,80 +2,80 @@
 // @Script
 
 interface AsyncCalculator {
-    async calculate(a: Int, b: Int) : Promise<Int>;
-    async getName() : Promise<String>;
+    function async calculate(a: Int, b: Int) : Promise<Int>;
+    function async getName() : Promise<String>;
 }
 
 class Adder implements AsyncCalculator {
-    async calculate(a: Int, b: Int) : Promise<Int> {
+    public function async calculate(a: Int, b: Int) : Promise<Int> {
         await delay(5);
         return a + b;
     }
 
-    async getName() : Promise<String> {
+    public function async getName() : Promise<String> {
         await delay(5);
         return "Adder";
     }
 }
 
 class Multiplier implements AsyncCalculator {
-    async calculate(a: Int, b: Int) : Promise<Int> {
+    public function async calculate(a: Int, b: Int) : Promise<Int> {
         await delay(5);
         return a * b;
     }
 
-    async getName() : Promise<String> {
+    public function async getName() : Promise<String> {
         await delay(5);
         return "Multiplier";
     }
 }
 
 class Subtractor implements AsyncCalculator {
-    async calculate(a: Int, b: Int) : Promise<Int> {
+    public function async calculate(a: Int, b: Int) : Promise<Int> {
         await delay(5);
         return a - b;
     }
 
-    async getName() : Promise<String> {
+    public function async getName() : Promise<String> {
         await delay(5);
         return "Subtractor";
     }
 }
 
-async delay(ms: Int) : Promise<Void> {
+function async delay(ms: Int) : Promise<void> {
     // Simulated delay
 }
 
-async performOperation(calc: AsyncCalculator, x: Int, y: Int) : Promise<String> {
-    let name = await calc.getName();
-    let result = await calc.calculate(x, y);
+function async performOperation(calc: AsyncCalculator, x: Int, y: Int) : Promise<String> {
+    String name = await calc.getName();
+    Int result = await calc.calculate(x, y);
     return name + ": " + result.toString();
 }
 
-async main() : Promise<Void> {
-    let calculators: AsyncCalculator[] = [];
+function async main() : Promise<void> {
+    AsyncCalculator[] calculators = [];
     calculators.push(new Adder());
     calculators.push(new Multiplier());
     calculators.push(new Subtractor());
 
     // Test polymorphic async calls
-    let i: Int = 0;
+    Int i = 0;
     while (i < calculators.length()) {
-        let result = await performOperation(calculators[i], 10, 5);
+        String result = await performOperation(calculators[i], 10, 5);
         print(result);
         i = i + 1;
     }
 
     // Specific tests
-    let adder = new Adder();
-    let addResult = await adder.calculate(7, 3);
+    Adder adder = new Adder();
+    Int addResult = await adder.calculate(7, 3);
     assert(addResult == 10, "Adder should add correctly");
 
-    let multiplier = new Multiplier();
-    let multResult = await multiplier.calculate(7, 3);
+    Multiplier multiplier = new Multiplier();
+    Int multResult = await multiplier.calculate(7, 3);
     assert(multResult == 21, "Multiplier should multiply correctly");
 
-    let subtractor = new Subtractor();
-    let subResult = await subtractor.calculate(7, 3);
+    Subtractor subtractor = new Subtractor();
+    Int subResult = await subtractor.calculate(7, 3);
     assert(subResult == 4, "Subtractor should subtract correctly");
 }

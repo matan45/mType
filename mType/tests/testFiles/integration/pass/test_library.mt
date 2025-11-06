@@ -12,20 +12,20 @@ class Calculator {
     constructor() {
         name = "Default Calculator";
         isActive = true;
-        Calculator::operationCount = Calculator::operationCount + 1;
+        operationCount++;
     }
 
     // Parameterized constructor
     constructor(string calcName, bool active) {
         name = calcName;
         isActive = active;
-        Calculator::operationCount = Calculator::operationCount + 1;
+        operationCount++;
     }
 
     // Instance methods
     public function add(int a, int b): int {
         if (isActive) {
-            Calculator::operationCount = Calculator::operationCount + 1;
+            operationCount++;
             return a + b;
         }
         return 0;
@@ -33,7 +33,7 @@ class Calculator {
 
     public function multiply(int x, int y): int {
         if (isActive) {
-            Calculator::operationCount = Calculator::operationCount + 1;
+            operationCount++;
             return x * y;
         }
         return 0;

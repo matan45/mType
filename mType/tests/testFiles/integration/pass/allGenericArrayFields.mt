@@ -2,10 +2,10 @@
 @Script
 
 class Repository<T> {
-    field items: T[];
-    field capacity: Int;
-    field size: Int;
-    field name: String;
+    T[] items;
+    Int capacity;
+    Int size;
+    String name;
 
     constructor(repoName: String, cap: Int) {
         this.name = repoName;
@@ -14,7 +14,7 @@ class Repository<T> {
         this.size = 0;
     }
 
-    fun add(item: T): Bool {
+    function add(item: T): Bool {
         if (this.size >= this.capacity) {
             return false;
         }
@@ -23,20 +23,20 @@ class Repository<T> {
         return true;
     }
 
-    fun get(index: Int): T {
+    function get(index: Int): T {
         return this.items[index];
     }
 
-    fun getSize(): Int {
+    function getSize(): Int {
         return this.size;
     }
 
-    fun getName(): String {
+    function getName(): String {
         return this.name;
     }
 
-    fun findFirst(target: T): Int {
-        let i: Int = 0;
+    function findFirst(target: T): Int {
+        Int i = 0;
         while (i < this.size) {
             if (this.items[i] == target) {
                 return i;
@@ -46,9 +46,9 @@ class Repository<T> {
         return -1;
     }
 
-    fun toArray(): T[] {
-        let result: T[] = T[this.size];
-        let i: Int = 0;
+    function toArray(): T[] {
+        T[] result = T[this.size];
+        Int i = 0;
         while (i < this.size) {
             result[i] = this.items[i];
             i = i + 1;
@@ -58,25 +58,25 @@ class Repository<T> {
 }
 
 class Entity {
-    field id: Int;
-    field name: String;
+    Int id;
+    String name;
 
     constructor(identifier: Int, entityName: String) {
         this.id = identifier;
         this.name = entityName;
     }
 
-    fun getId(): Int {
+    function getId(): Int {
         return this.id;
     }
 
-    fun getName(): String {
+    function getName(): String {
         return this.name;
     }
 }
 
 print("Repository<Int> test:");
-let intRepo: Repository<Int> = Repository<Int>("Numbers", 5);
+Repository<Int> intRepo = Repository<Int>("Numbers", 5);
 print(intRepo.getName());
 
 print(intRepo.add(10));
@@ -87,7 +87,7 @@ print("Size:");
 print(intRepo.getSize());
 
 print("Contents:");
-let i: Int = 0;
+Int i = 0;
 while (i < intRepo.getSize()) {
     print(intRepo.get(i));
     i = i + 1;
@@ -97,12 +97,12 @@ print("Find 20:");
 print(intRepo.findFirst(20));
 
 print("Repository<String> test:");
-let strRepo: Repository<String> = Repository<String>("Words", 4);
+Repository<String> strRepo = Repository<String>("Words", 4);
 strRepo.add("alpha");
 strRepo.add("beta");
 strRepo.add("gamma");
 
-let strArray: String[] = strRepo.toArray();
+String[] strArray = strRepo.toArray();
 print("Exported array:");
 i = 0;
 while (i < 3) {
@@ -111,7 +111,7 @@ while (i < 3) {
 }
 
 print("Repository<Entity> test:");
-let entityRepo: Repository<Entity> = Repository<Entity>("Entities", 3);
+Repository<Entity> entityRepo = Repository<Entity>("Entities", 3);
 entityRepo.add(Entity(1, "First"));
 entityRepo.add(Entity(2, "Second"));
 entityRepo.add(Entity(3, "Third"));
@@ -119,7 +119,7 @@ entityRepo.add(Entity(3, "Third"));
 print("Entity repository:");
 i = 0;
 while (i < entityRepo.getSize()) {
-    let e: Entity = entityRepo.get(i);
+    Entity e = entityRepo.get(i);
     print(e.getId());
     print(e.getName());
     i = i + 1;

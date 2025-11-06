@@ -2,80 +2,80 @@
 // Tests casting within switch cases and expressions
 
 class Animal {
-    public string name;
+    public String name;
 
-    public constructor(string n) {
+    public constructor(String n) {
         this.name = n;
     }
 
-    public function getType(): int {
+    public Int getType() {
         return 0;
     }
 
-    public function makeSound(): string {
+    public String makeSound() {
         return "Generic sound";
     }
 }
 
 class Dog extends Animal {
-    public string breed;
+    public String breed;
 
-    public constructor(string n, string b) {
+    public constructor(String n, String b) {
         super(n);
         this.breed = b;
     }
 
-    public function getType(): int {
+    public Int getType() {
         return 1;
     }
 
-    public function makeSound(): string {
+    public String makeSound() {
         return "Woof!";
     }
 
-    public function fetch(): string {
+    public String fetch() {
         return this.name + " is fetching";
     }
 }
 
 class Cat extends Animal {
-    public bool indoor;
+    public Bool indoor;
 
-    public constructor(string n, bool i) {
+    public constructor(String n, Bool i) {
         super(n);
         this.indoor = i;
     }
 
-    public function getType(): int {
+    public Int getType() {
         return 2;
     }
 
-    public function makeSound(): string {
+    public String makeSound() {
         return "Meow!";
     }
 
-    public function climb(): string {
+    public String climb() {
         return this.name + " is climbing";
     }
 }
 
 class Bird extends Animal {
-    public float wingspan;
+    public Float wingspan;
 
-    public constructor(string n, float w) {
+    public constructor(String n, Float w) {
         super(n);
         this.wingspan = w;
     }
 
-    public function getType(): int {
+    public Int getType() {
         return 3;
     }
 
-    public function makeSound(): string {
+    public String makeSound() {
         return "Tweet!";
     }
 
-    public function fly(): string {
+    public String fly() {
         return this.name + " is flying";
     }
 }
@@ -88,7 +88,7 @@ animals[1] = new Cat("Whiskers", true);
 animals[2] = new Bird("Tweety", 0.5);
 animals[3] = new Dog("Max", "Beagle");
 
-for (int i = 0; i < 4; i = i + 1) {
+for (Int i = 0; i < 4; i = i + 1) {
     switch (animals[i].getType()) {
         case 1:
             Dog d = (Dog)animals[i];
@@ -108,10 +108,10 @@ for (int i = 0; i < 4; i = i + 1) {
     }
 }
 
-// Test 2: Switch with cast in switch expression
+// Test 2: Switch on cast result
 print("Test 2: Switch on cast result");
 Animal a1 = new Dog("Buddy", "Golden");
-int typeCode = ((Dog)a1).getType();
+Int typeCode = ((Dog)a1).getType();
 
 switch (typeCode) {
     case 1:
@@ -129,7 +129,7 @@ switch (typeCode) {
 // Test 3: Nested switch with multiple casts
 print("Test 3: Nested switch with casting");
 Animal testAnimal = new Cat("Fluffy", false);
-int category = testAnimal.getType();
+Int category = testAnimal.getType();
 
 switch (category) {
     case 1:
@@ -175,8 +175,8 @@ polymorphicArray[0] = new Dog("Spot", "Dalmatian");
 polymorphicArray[1] = new Cat("Shadow", true);
 polymorphicArray[2] = new Bird("Eagle", 2.5);
 
-for (int idx = 0; idx < 3; idx = idx + 1) {
-    int type = polymorphicArray[idx].getType();
+for (Int idx = 0; idx < 3; idx = idx + 1) {
+    Int type = polymorphicArray[idx].getType();
     switch (type) {
         case 1:
             print(((Dog)polymorphicArray[idx]).fetch());
@@ -195,7 +195,7 @@ for (int idx = 0; idx < 3; idx = idx + 1) {
 
 // Test 5: Switch controlling cast behavior
 print("Test 5: Switch controlling cast flow");
-int animalId = 2;
+Int animalId = 2;
 Animal genericAnimal = new Cat("Mittens", true);
 
 switch (animalId) {

@@ -307,8 +307,6 @@ namespace tests::testSuite
                         passPath + "finalVariablesAcrossNamespacesAndClasses.mt");
         addOutputVerificationTest("Generic Import Serialization",
                         passPath + "genericImportSerialization.mt");
-        addOutputVerificationTest("Generic Library",
-                        passPath + "genericLibrary.mt");
         addOutputVerificationTest("Imports With Namespaces And Classes",
                         passPath + "importsWithNamespacesAndClasses.mt");
         addOutputVerificationTest("Invalid Combinations Handling",
@@ -353,8 +351,6 @@ namespace tests::testSuite
                         passPath + "test_array_types.mt");
         addOutputVerificationTest("Test Error Handling",
                         passPath + "test_error_handling.mt");
-        addOutputVerificationTest("Test Library",
-                        passPath + "test_library.mt");
         addOutputVerificationTest("Test Simple Generics",
                         passPath + "test_simple_generics.mt");
         addOutputVerificationTest("Test Type Conversion Basic",

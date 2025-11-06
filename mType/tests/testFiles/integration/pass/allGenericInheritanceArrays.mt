@@ -2,53 +2,53 @@
 @Script
 
 class BaseContainer<T> {
-    field items: T[];
-    field capacity: Int;
+    T[] items;
+    Int capacity;
 
     constructor(cap: Int) {
         this.capacity = cap;
         this.items = T[cap];
     }
 
-    fun set(index: Int, value: T): Void {
+    function set(index: Int, value: T): void {
         this.items[index] = value;
     }
 
-    fun get(index: Int): T {
+    function get(index: Int): T {
         return this.items[index];
     }
 
-    fun getCapacity(): Int {
+    function getCapacity(): Int {
         return this.capacity;
     }
 
-    fun describe(): String {
+    function describe(): String {
         return "BaseContainer";
     }
 }
 
 class AdvancedContainer<T> extends BaseContainer<T> {
-    field activeCount: Int;
+    Int activeCount;
 
     constructor(cap: Int) {
         super(cap);
         this.activeCount = 0;
     }
 
-    fun add(value: T): Void {
+    function add(value: T): void {
         if (this.activeCount < this.capacity) {
             this.set(this.activeCount, value);
             this.activeCount = this.activeCount + 1;
         }
     }
 
-    fun getActiveCount(): Int {
+    function getActiveCount(): Int {
         return this.activeCount;
     }
 
-    fun toArray(): T[] {
-        let result: T[] = T[this.activeCount];
-        let i: Int = 0;
+    function toArray(): T[] {
+        T[] result = T[this.activeCount];
+        Int i = 0;
         while (i < this.activeCount) {
             result[i] = this.get(i);
             i = i + 1;
@@ -56,14 +56,14 @@ class AdvancedContainer<T> extends BaseContainer<T> {
         return result;
     }
 
-    fun describe(): String {
+    function describe(): String {
         return "AdvancedContainer";
     }
 }
 
 class SmartContainer<T, U> extends AdvancedContainer<T> {
-    field metadata: U[];
-    field metaCount: Int;
+    U[] metadata;
+    Int metaCount;
 
     constructor(cap: Int, metaCap: Int) {
         super(cap);
@@ -71,36 +71,36 @@ class SmartContainer<T, U> extends AdvancedContainer<T> {
         this.metaCount = 0;
     }
 
-    fun addWithMeta(value: T, meta: U): Void {
+    function addWithMeta(value: T, meta: U): void {
         this.add(value);
         this.metadata[this.metaCount] = meta;
         this.metaCount = this.metaCount + 1;
     }
 
-    fun getMeta(index: Int): U {
+    function getMeta(index: Int): U {
         return this.metadata[index];
     }
 
-    fun describe(): String {
+    function describe(): String {
         return "SmartContainer";
     }
 }
 
 print("Testing BaseContainer<Int>:");
-let base: BaseContainer<Int> = BaseContainer<Int>(3);
+BaseContainer<Int> base = BaseContainer<Int>(3);
 base.set(0, 10);
 base.set(1, 20);
 base.set(2, 30);
 
 print(base.describe());
-let i: Int = 0;
+Int i = 0;
 while (i < 3) {
     print(base.get(i));
     i = i + 1;
 }
 
 print("Testing AdvancedContainer<String>:");
-let advanced: AdvancedContainer<String> = AdvancedContainer<String>(4);
+AdvancedContainer<String> advanced = AdvancedContainer<String>(4);
 advanced.add("alpha");
 advanced.add("beta");
 advanced.add("gamma");
@@ -108,7 +108,7 @@ advanced.add("gamma");
 print(advanced.describe());
 print(advanced.getActiveCount());
 
-let arr: String[] = advanced.toArray();
+String[] arr = advanced.toArray();
 i = 0;
 while (i < advanced.getActiveCount()) {
     print(arr[i]);
@@ -116,7 +116,7 @@ while (i < advanced.getActiveCount()) {
 }
 
 print("Testing SmartContainer<Int, String>:");
-let smart: SmartContainer<Int, String> = SmartContainer<Int, String>(3, 3);
+SmartContainer<Int, String> smart = SmartContainer<Int, String>(3, 3);
 smart.addWithMeta(100, "first");
 smart.addWithMeta(200, "second");
 smart.addWithMeta(300, "third");
@@ -132,14 +132,14 @@ while (i < smart.getActiveCount()) {
 }
 
 print("Polymorphism test:");
-let baseRef: BaseContainer<Int> = AdvancedContainer<Int>(2);
+BaseContainer<Int> baseRef = AdvancedContainer<Int>(2);
 baseRef.set(0, 99);
 baseRef.set(1, 88);
 print(baseRef.describe());
 print(baseRef.get(0));
 print(baseRef.get(1));
 
-let advRef: AdvancedContainer<Float> = SmartContainer<Float, Int>(2, 2);
+AdvancedContainer<Float> advRef = SmartContainer<Float, Int>(2, 2);
 advRef.add(1.5);
 advRef.add(2.5);
 print(advRef.describe());

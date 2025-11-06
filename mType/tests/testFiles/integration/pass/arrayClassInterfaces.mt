@@ -2,53 +2,53 @@
 @Script
 
 interface Printable {
-    fun print(): Void;
+    function print(): void;
 }
 
 interface Serializable {
-    fun serialize(): String;
+    function serialize(): String;
 }
 
 class Document implements Printable, Serializable {
-    field title: String;
-    field content: String;
+    String title;
+    String content;
 
     constructor(t: String, c: String) {
         this.title = t;
         this.content = c;
     }
 
-    fun print(): Void {
+    function print(): void {
         print(this.title);
         print(this.content);
     }
 
-    fun serialize(): String {
+    function serialize(): String {
         return this.title;
     }
 }
 
 class Report extends Document {
-    field reportId: Int;
+    Int reportId;
 
     constructor(id: Int, t: String, c: String) {
         super(t, c);
         this.reportId = id;
     }
 
-    fun serialize(): String {
+    function serialize(): String {
         return this.title;
     }
 
-    fun getId(): Int {
+    function getId(): Int {
         return this.reportId;
     }
 }
 
 class Image implements Printable {
-    field filename: String;
-    field width: Int;
-    field height: Int;
+    String filename;
+    Int width;
+    Int height;
 
     constructor(f: String, w: Int, h: Int) {
         this.filename = f;
@@ -56,7 +56,7 @@ class Image implements Printable {
         this.height = h;
     }
 
-    fun print(): Void {
+    function print(): void {
         print(this.filename);
         print(this.width);
         print(this.height);
@@ -64,21 +64,21 @@ class Image implements Printable {
 }
 
 print("Creating Printable array:");
-let printables: Printable[] = Printable[4];
+Printable[] printables = Printable[4];
 printables[0] = Document("Doc1", "Content1");
 printables[1] = Image("img.png", 800, 600);
 printables[2] = Report(101, "Report1", "Data");
 printables[3] = Document("Doc2", "Content2");
 
 print("Printing all:");
-let i: Int = 0;
+Int i = 0;
 while (i < 4) {
     printables[i].print();
     i = i + 1;
 }
 
 print("Creating Document array:");
-let docs: Document[] = Document[3];
+Document[] docs = Document[3];
 docs[0] = Document("First", "Text1");
 docs[1] = Report(201, "Second", "Text2");
 docs[2] = Document("Third", "Text3");
@@ -91,7 +91,7 @@ while (i < 3) {
 }
 
 print("Creating Report array:");
-let reports: Report[] = Report[2];
+Report[] reports = Report[2];
 reports[0] = Report(301, "Q1", "Quarterly");
 reports[1] = Report(302, "Q2", "Quarterly");
 

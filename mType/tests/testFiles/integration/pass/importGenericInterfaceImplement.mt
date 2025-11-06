@@ -4,39 +4,39 @@
 import "modules/GenericRepository.mt";
 
 class User {
-    private id: Int;
-    private name: String;
+    private Int id;
+    private String name;
 
     constructor(id: Int, name: String) {
         this.id = id;
         this.name = name;
     }
 
-    getId() : Int {
+    public function getId() : Int {
         return this.id;
     }
 
-    getName() : String {
+    public function getName() : String {
         return this.name;
     }
 }
 
 class UserRepository implements Repository<User> {
-    private users: User[];
-    private nextId: Int;
+    private User[] users;
+    private Int nextId;
 
     constructor() {
         this.users = [];
         this.nextId = 0;
     }
 
-    save(item: User) : Void {
+    public function save(item: User) : void {
         this.users.push(item);
         print("Saved user: " + item.getName());
     }
 
-    findById(id: Int) : User {
-        let i: Int = 0;
+    public function findById(id: Int) : User {
+        Int i = 0;
         while (i < this.users.length()) {
             if (this.users[i].getId() == id) {
                 return this.users[i];
@@ -46,23 +46,23 @@ class UserRepository implements Repository<User> {
         return this.users[0]; // Default
     }
 
-    count() : Int {
+    public function count() : Int {
         return this.users.length();
     }
 }
 
-main() : Void {
-    let repo: Repository<User> = new UserRepository();
-    let user1 = new User(1, "Alice");
-    let user2 = new User(2, "Bob");
+function main() : void {
+    Repository<User> repo = new UserRepository();
+    User user1 = new User(1, "Alice");
+    User user2 = new User(2, "Bob");
 
     repo.save(user1);
     repo.save(user2);
 
-    let count = repo.count();
+    Int count = repo.count();
     print("Total users: " + count.toString());
     assert(count == 2, "Should have 2 users");
 
-    let found = repo.findById(1);
+    User found = repo.findById(1);
     assert(found.getName() == "Alice", "Should find Alice");
 }

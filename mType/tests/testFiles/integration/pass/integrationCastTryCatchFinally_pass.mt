@@ -4,18 +4,18 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class TypeException extends Exception {
-    constructor(string msg):super(msg) {
+    constructor(String msg):super(msg) {
     }
 }
 
 class Vehicle {
-    protected string model;
+    protected String model;
 
-    public constructor(string model) {
+    public constructor(String model) {
         this.model = model;
     }
 
-    public string getModel() {
+    public String getModel() {
         return this.model;
     }
 
@@ -25,9 +25,9 @@ class Vehicle {
 }
 
 class Car extends Vehicle {
-    private int doors;
+    private Int doors;
 
-    public constructor(string model, int doors) : super(model) {
+    public constructor(String model, Int doors) : super(model) {
         this.doors = doors;
     }
 
@@ -35,7 +35,7 @@ class Car extends Vehicle {
         print("Car " + this.model + " engine starting");
     }
 
-    public int getDoors() {
+    public Int getDoors() {
         return this.doors;
     }
 
@@ -45,9 +45,9 @@ class Car extends Vehicle {
 }
 
 class Truck extends Vehicle {
-    private int capacity;
+    private Int capacity;
 
-    public constructor(string model, int capacity) : super(model) {
+    public constructor(String model, Int capacity) : super(model) {
         this.capacity = capacity;
     }
 
@@ -55,7 +55,7 @@ class Truck extends Vehicle {
         print("Truck " + this.model + " diesel starting");
     }
 
-    public int getCapacity() {
+    public Int getCapacity() {
         return this.capacity;
     }
 
@@ -65,7 +65,7 @@ class Truck extends Vehicle {
 }
 
 // Test 1: Cast in try block with catch and finally
-function castInTryBlock(Vehicle v): string {
+String castInTryBlock(Vehicle v) {
     try {
         print("Attempting cast in try block");
         if (v instanceof Car) {
@@ -89,7 +89,7 @@ function castInTryBlock(Vehicle v): string {
 }
 
 // Test 2: Cast in catch block
-function castInCatchBlock(Vehicle v): string {
+String castInCatchBlock(Vehicle v) {
     try {
         throw new TypeException("Intentional error");
     } catch (TypeException e) {
@@ -110,8 +110,8 @@ function castInCatchBlock(Vehicle v): string {
 }
 
 // Test 3: Cast in finally block
-function castInFinallyBlock(Vehicle v1, Vehicle v2): string {
-    string result = "not set";
+String castInFinallyBlock(Vehicle v1, Vehicle v2) {
+    String result = "not set";
     try {
         if (v1 instanceof Car) {
             Car c = (Car)v1;
@@ -130,9 +130,9 @@ function castInFinallyBlock(Vehicle v1, Vehicle v2): string {
 }
 
 // Test 4: Multiple casts across try-catch-finally
-function multipleCastsAllBlocks(Vehicle v1, Vehicle v2, Vehicle v3): string {
-    int carCount = 0;
-    int truckCount = 0;
+String multipleCastsAllBlocks(Vehicle v1, Vehicle v2, Vehicle v3) {
+    Int carCount = 0;
+    Int truckCount = 0;
 
     try {
         print("Try: Checking v1");
@@ -170,7 +170,7 @@ function multipleCastsAllBlocks(Vehicle v1, Vehicle v2, Vehicle v3): string {
 }
 
 // Test 5: Nested try-catch-finally with casts
-function nestedCastBlocks(Vehicle v): string {
+String nestedCastBlocks(Vehicle v) {
     try {
         print("Outer try");
         try {
@@ -202,7 +202,7 @@ function nestedCastBlocks(Vehicle v): string {
 }
 
 // Test 6: Cast with return in try-catch-finally
-function castWithReturns(Vehicle v): string {
+String castWithReturns(Vehicle v) {
     try {
         if (v instanceof Car) {
             Car c = (Car)v;
