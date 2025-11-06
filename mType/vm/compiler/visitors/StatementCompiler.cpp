@@ -5,7 +5,12 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
+#include "../../../ast/nodes/expressions/IntegerNode.hpp"
+#include "../../../ast/nodes/expressions/FloatNode.hpp"
+#include "../../../ast/nodes/expressions/BoolNode.hpp"
+#include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
+#include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 
 
@@ -442,7 +447,19 @@ namespace vm::compiler::visitors
                 ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
                                                      valueClassName, isNullValue, node->getLocation());
             }
-            value->accept(ctx.visitor);
+
+            // PHASE 4: Try auto-boxing for reassignments
+            bool autoBoxed = false;
+            if (isReassignment && !existingClassName.empty())
+            {
+                autoBoxed = tryEmitAutoBoxing(value, existingClassName);
+            }
+
+            // If not auto-boxed, compile value normally
+            if (!autoBoxed)
+            {
+                value->accept(ctx.visitor);
+            }
         }
         else
         {
@@ -505,5 +522,80 @@ namespace vm::compiler::visitors
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         return std::monostate{};
+    }
+
+    // Phase 4: Auto-boxing helper for assignments
+    bool StatementCompiler::tryEmitAutoBoxing(ast::ASTNode* valueNode, const std::string& targetClassName)
+    {
+        using namespace ast::nodes::expressions;
+        using namespace ast::nodes::classes;
+
+        // Only auto-box for primitive Box types
+        bool isBoxType = (targetClassName == "Int" ||
+                          targetClassName == "Float" ||
+                          targetClassName == "Bool" ||
+                          targetClassName == "String");
+
+        if (!isBoxType || !valueNode)
+        {
+            return false;  // Not a Box type or no value node
+        }
+
+        // Check if value is a primitive literal that needs boxing
+        bool needsBoxing = false;
+        ast::ASTNode* literalToBox = nullptr;
+
+        if (targetClassName == "Int")
+        {
+            if (auto* intNode = dynamic_cast<IntegerNode*>(valueNode))
+            {
+                needsBoxing = true;
+                literalToBox = intNode;
+            }
+        }
+        else if (targetClassName == "Float")
+        {
+            if (auto* floatNode = dynamic_cast<FloatNode*>(valueNode))
+            {
+                needsBoxing = true;
+                literalToBox = floatNode;
+            }
+        }
+        else if (targetClassName == "Bool")
+        {
+            if (auto* boolNode = dynamic_cast<BoolNode*>(valueNode))
+            {
+                needsBoxing = true;
+                literalToBox = boolNode;
+            }
+        }
+        else if (targetClassName == "String")
+        {
+            if (auto* stringNode = dynamic_cast<StringNode*>(valueNode))
+            {
+                needsBoxing = true;
+                literalToBox = stringNode;
+            }
+        }
+
+        if (!needsBoxing)
+        {
+            return false;  // Value is not a primitive literal
+        }
+
+        // PHASE 4 AUTO-BOXING: Emit bytecode for boxing
+        // Equivalent to: new TargetClass(literalValue)
+
+        // 1. Compile the literal value (pushes it onto stack)
+        literalToBox->accept(ctx.visitor);
+
+        // 2. Emit NEW_OBJECT for the Box class
+        size_t classNameIndex = ctx.program.getConstantPool().addString(targetClassName);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                     static_cast<uint32_t>(classNameIndex),
+                                     1u,  // 1 constructor argument
+                                     literalToBox);
+
+        return true;  // Auto-boxing was applied
     }
 }

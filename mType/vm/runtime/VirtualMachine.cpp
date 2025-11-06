@@ -11,6 +11,7 @@
 #include "executors/ObjectExecutor.hpp"
 #include "executors/LambdaExecutor.hpp"
 #include "executors/ExceptionExecutor.hpp"
+#include "executors/PrimitiveMethodExecutor.hpp"  // Phase 3
 #include "utils/ExceptionHandler.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/UserException.hpp"
@@ -506,6 +507,7 @@ namespace vm::runtime
         objectExecutor = std::make_unique<ObjectExecutor>(context);
         lambdaExecutor = std::make_unique<LambdaExecutor>(context);
         exceptionExecutor = std::make_unique<ExceptionExecutor>(context);
+        primitiveMethodExecutor = std::make_unique<PrimitiveMethodExecutor>(context);  // Phase 3
 
         // Set function executor reference in object executor for lambda-to-interface conversion
         objectExecutor->setFunctionExecutor(functionExecutor.get());
@@ -819,6 +821,45 @@ namespace vm::runtime
         case OpCode::SUPER_GET_FIELD: objectExecutor->handleSuperGetField(instr);
             break;
         case OpCode::SUPER_SET_FIELD: objectExecutor->handleSuperSetField(instr);
+            break;
+
+        // Primitive Method Optimizations - delegated to PrimitiveMethodExecutor (Phase 3)
+        // Int object methods
+        case OpCode::INVOKE_INT_ADD: primitiveMethodExecutor->handleInvokeIntAdd();
+            break;
+        case OpCode::INVOKE_INT_SUB: primitiveMethodExecutor->handleInvokeIntSub();
+            break;
+        case OpCode::INVOKE_INT_MUL: primitiveMethodExecutor->handleInvokeIntMul();
+            break;
+        case OpCode::INVOKE_INT_DIV: primitiveMethodExecutor->handleInvokeIntDiv();
+            break;
+        case OpCode::INVOKE_INT_MOD: primitiveMethodExecutor->handleInvokeIntMod();
+            break;
+        case OpCode::INVOKE_INT_NEG: primitiveMethodExecutor->handleInvokeIntNeg();
+            break;
+        case OpCode::INVOKE_INT_ABS: primitiveMethodExecutor->handleInvokeIntAbs();
+            break;
+        case OpCode::INVOKE_INT_EQUALS: primitiveMethodExecutor->handleInvokeIntEquals();
+            break;
+        case OpCode::INVOKE_INT_COMPARE: primitiveMethodExecutor->handleInvokeIntCompare();
+            break;
+
+        // Float object methods
+        case OpCode::INVOKE_FLOAT_ADD: primitiveMethodExecutor->handleInvokeFloatAdd();
+            break;
+        case OpCode::INVOKE_FLOAT_SUB: primitiveMethodExecutor->handleInvokeFloatSub();
+            break;
+        case OpCode::INVOKE_FLOAT_MUL: primitiveMethodExecutor->handleInvokeFloatMul();
+            break;
+        case OpCode::INVOKE_FLOAT_DIV: primitiveMethodExecutor->handleInvokeFloatDiv();
+            break;
+        case OpCode::INVOKE_FLOAT_NEG: primitiveMethodExecutor->handleInvokeFloatNeg();
+            break;
+        case OpCode::INVOKE_FLOAT_ABS: primitiveMethodExecutor->handleInvokeFloatAbs();
+            break;
+        case OpCode::INVOKE_FLOAT_EQUALS: primitiveMethodExecutor->handleInvokeFloatEquals();
+            break;
+        case OpCode::INVOKE_FLOAT_COMPARE: primitiveMethodExecutor->handleInvokeFloatCompare();
             break;
 
         // Arrays - delegated to ArrayExecutor

@@ -171,8 +171,33 @@ namespace vm::bytecode
         AWAIT,              // Await a Promise value
         PROMISE_RESOLVE,    // Resolve a Promise with value
 
-        // === Reserved for Future Use (131-255) ===
-        // 125 opcodes reserved for future extensions
+        // === Phase 3: Primitive Object Method Optimizations (131-150) ===
+        // These opcodes optimize method calls on primitive Box types (Int, Float, Bool, String)
+        // They unbox, perform fast operations, and re-box results (with caching for Int)
+
+        // Int object methods (131-140)
+        INVOKE_INT_ADD,         // Int.add(Int) - optimized addition with caching
+        INVOKE_INT_SUB,         // Int.subtract(Int) - optimized subtraction
+        INVOKE_INT_MUL,         // Int.multiply(Int) - optimized multiplication
+        INVOKE_INT_DIV,         // Int.divide(Int) - optimized division
+        INVOKE_INT_MOD,         // Int.modulo(Int) - optimized modulo
+        INVOKE_INT_NEG,         // Int.negate() - optimized negation
+        INVOKE_INT_ABS,         // Int.abs() - optimized absolute value
+        INVOKE_INT_EQUALS,      // Int.equals(Int) - optimized equality
+        INVOKE_INT_COMPARE,     // Int.compareTo(Int) - optimized comparison
+
+        // Float object methods (141-150)
+        INVOKE_FLOAT_ADD,       // Float.add(Float) - optimized addition
+        INVOKE_FLOAT_SUB,       // Float.subtract(Float) - optimized subtraction
+        INVOKE_FLOAT_MUL,       // Float.multiply(Float) - optimized multiplication
+        INVOKE_FLOAT_DIV,       // Float.divide(Float) - optimized division
+        INVOKE_FLOAT_NEG,       // Float.negate() - optimized negation
+        INVOKE_FLOAT_ABS,       // Float.abs() - optimized absolute value
+        INVOKE_FLOAT_EQUALS,    // Float.equals(Float) - optimized equality
+        INVOKE_FLOAT_COMPARE,   // Float.compareTo(Float) - optimized comparison
+
+        // === Reserved for Future Use (151-255) ===
+        // 105 opcodes reserved for future extensions
     };
 
     /**
@@ -319,7 +344,27 @@ namespace vm::bytecode
             case OpCode::AWAIT: return "AWAIT";
             case OpCode::PROMISE_RESOLVE: return "PROMISE_RESOLVE";
 
+            case OpCode::INVOKE_INT_ADD: return "INVOKE_INT_ADD";
+            case OpCode::INVOKE_INT_SUB: return "INVOKE_INT_SUB";
+            case OpCode::INVOKE_INT_MUL: return "INVOKE_INT_MUL";
+            case OpCode::INVOKE_INT_DIV: return "INVOKE_INT_DIV";
+            case OpCode::INVOKE_INT_MOD: return "INVOKE_INT_MOD";
+            case OpCode::INVOKE_INT_NEG: return "INVOKE_INT_NEG";
+            case OpCode::INVOKE_INT_ABS: return "INVOKE_INT_ABS";
+            case OpCode::INVOKE_INT_EQUALS: return "INVOKE_INT_EQUALS";
+            case OpCode::INVOKE_INT_COMPARE: return "INVOKE_INT_COMPARE";
+
+            case OpCode::INVOKE_FLOAT_ADD: return "INVOKE_FLOAT_ADD";
+            case OpCode::INVOKE_FLOAT_SUB: return "INVOKE_FLOAT_SUB";
+            case OpCode::INVOKE_FLOAT_MUL: return "INVOKE_FLOAT_MUL";
+            case OpCode::INVOKE_FLOAT_DIV: return "INVOKE_FLOAT_DIV";
+            case OpCode::INVOKE_FLOAT_NEG: return "INVOKE_FLOAT_NEG";
+            case OpCode::INVOKE_FLOAT_ABS: return "INVOKE_FLOAT_ABS";
+            case OpCode::INVOKE_FLOAT_EQUALS: return "INVOKE_FLOAT_EQUALS";
+            case OpCode::INVOKE_FLOAT_COMPARE: return "INVOKE_FLOAT_COMPARE";
+
             default: return "UNKNOWN";
         }
     }
 }
+

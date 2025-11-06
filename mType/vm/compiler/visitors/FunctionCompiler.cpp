@@ -4,6 +4,10 @@
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
+#include "../../../ast/nodes/expressions/IntegerNode.hpp"
+#include "../../../ast/nodes/expressions/FloatNode.hpp"
+#include "../../../ast/nodes/expressions/BoolNode.hpp"
+#include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
@@ -453,7 +457,14 @@ namespace vm::compiler::visitors
         // Compile return value expression if present
         if (returnValue)
         {
-            returnValue->accept(ctx.visitor);
+            // PHASE 4: Try auto-boxing for return statements
+            bool autoBoxed = tryEmitReturnAutoBoxing(returnValue);
+
+            // If not auto-boxed, compile value normally
+            if (!autoBoxed)
+            {
+                returnValue->accept(ctx.visitor);
+            }
         }
 
         // Check if in function context
@@ -786,5 +797,70 @@ namespace vm::compiler::visitors
         }
 
         return false;
+    }
+
+    bool FunctionCompiler::tryEmitReturnAutoBoxing(ast::ASTNode* returnValue)
+    {
+        // Only try auto-boxing if we're in a function context
+        if (!ctx.functionFrameManager.isInFunction() || !returnValue)
+        {
+            return false;
+        }
+
+        // Get expected return type from function frame
+        std::string expectedReturnType = ctx.functionFrameManager.currentFrame().returnType;
+
+        // Only auto-box for primitive Box types (Int, Float, Bool, String)
+        bool isBoxType = (expectedReturnType == "Int" || expectedReturnType == "Float" ||
+                          expectedReturnType == "Bool" || expectedReturnType == "String");
+        if (!isBoxType)
+        {
+            return false;
+        }
+
+        // Check if returnValue is a primitive literal that needs boxing
+        bool needsBoxing = false;
+        ast::ASTNode* literalToBox = nullptr;
+
+        if (expectedReturnType == "Int" && dynamic_cast<ast::IntegerNode*>(returnValue))
+        {
+            needsBoxing = true;
+            literalToBox = returnValue;
+        }
+        else if (expectedReturnType == "Float" && dynamic_cast<ast::FloatNode*>(returnValue))
+        {
+            needsBoxing = true;
+            literalToBox = returnValue;
+        }
+        else if (expectedReturnType == "Bool" && dynamic_cast<ast::BoolNode*>(returnValue))
+        {
+            needsBoxing = true;
+            literalToBox = returnValue;
+        }
+        else if (expectedReturnType == "String" && dynamic_cast<ast::StringNode*>(returnValue))
+        {
+            needsBoxing = true;
+            literalToBox = returnValue;
+        }
+
+        if (!needsBoxing)
+        {
+            return false;
+        }
+
+        // PHASE 4 AUTO-BOXING: Emit bytecode for boxing
+        // Equivalent to: return new ExpectedType(literalValue);
+
+        // 1. Compile the literal value (pushes it onto stack)
+        literalToBox->accept(ctx.visitor);
+
+        // 2. Emit NEW_OBJECT for the Box class
+        size_t classNameIndex = ctx.program.getConstantPool().addString(expectedReturnType);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                     static_cast<uint32_t>(classNameIndex),
+                                     1u, // 1 constructor argument
+                                     literalToBox);
+
+        return true; // Auto-boxing was applied
     }
 }

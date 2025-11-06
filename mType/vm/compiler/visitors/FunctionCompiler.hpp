@@ -34,6 +34,9 @@ namespace vm::compiler::visitors
         void emitReturnWithOuterFinally(ast::ReturnNode* node, ast::ASTNode* returnValue);
         void emitReturnValueBytecode(ast::ReturnNode* node, ast::ASTNode* returnValue);
 
+        // Phase 4: Auto-boxing helper for return statements
+        bool tryEmitReturnAutoBoxing(ast::ASTNode* returnValue);
+
         // Helper methods for compileLambda
         std::vector<variables::VariableTracker::LocalVariable> captureScopeVariables();
         void setupLambdaFrame(ast::LambdaNode* node,

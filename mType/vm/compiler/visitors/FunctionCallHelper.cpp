@@ -3,6 +3,10 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
+#include "../../../ast/nodes/expressions/IntegerNode.hpp"
+#include "../../../ast/nodes/expressions/FloatNode.hpp"
+#include "../../../ast/nodes/expressions/BoolNode.hpp"
+#include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
@@ -351,7 +355,10 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Compile all arguments (left to right)
+        // Compile all arguments (left to right) with auto-boxing support
+        // Note: For static method calls, we don't have easy access to parameter types
+        // Auto-boxing will be handled at the parser level or via explicit conversion
+        // For now, compile arguments normally
         for (const auto& arg : arguments)
         {
             arg->accept(ctx.visitor);
@@ -497,10 +504,25 @@ namespace vm::compiler::visitors
             ctx.compileTimeValidator->validateFunctionExists(functionName, node->getLocation());
         }
 
-        // Compile all arguments (left to right)
-        for (const auto& arg : arguments)
+        // Get function metadata for parameter type information (for auto-boxing)
+        const auto* funcMetadata = ctx.program.getFunction(functionName);
+
+        // Compile all arguments (left to right) with auto-boxing support
+        for (size_t i = 0; i < arguments.size(); ++i)
         {
-            arg->accept(ctx.visitor);
+            // PHASE 4: Apply auto-boxing if function metadata available
+            if (funcMetadata && i < funcMetadata->parameterTypes.size())
+            {
+                std::string expectedType = ctx.resolveGenericType(funcMetadata->parameterTypes[i]);
+                value::ValueType expectedValueType = ::types::TypeConversionUtils::stringToValueType(expectedType);
+
+                compileArgumentWithAutoBoxing(arguments[i].get(), expectedType, expectedValueType);
+            }
+            else
+            {
+                // No metadata or no type info, compile normally
+                arguments[i]->accept(ctx.visitor);
+            }
         }
 
         size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
@@ -546,5 +568,74 @@ namespace vm::compiler::visitors
         }
 
         return std::monostate{};
+    }
+
+    // Phase 4: Auto-boxing helper for function arguments
+    void FunctionCallHelper::compileArgumentWithAutoBoxing(ast::ASTNode* argument,
+                                                          const std::string& expectedTypeName,
+                                                          value::ValueType expectedType)
+    {
+        using namespace ast::nodes::expressions;
+
+        // Only try auto-boxing if expected type is OBJECT and is a Box type
+        if (expectedType != value::ValueType::OBJECT)
+        {
+            // Not an object type, compile normally
+            argument->accept(ctx.visitor);
+            return;
+        }
+
+        // Check if expected type is a primitive Box type
+        bool isBoxType = (expectedTypeName == "Int" ||
+                          expectedTypeName == "Float" ||
+                          expectedTypeName == "Bool" ||
+                          expectedTypeName == "String");
+
+        if (!isBoxType)
+        {
+            // Not a Box type, compile normally
+            argument->accept(ctx.visitor);
+            return;
+        }
+
+        // Check if argument is a primitive literal that needs boxing
+        bool needsBoxing = false;
+
+        if (expectedTypeName == "Int" && dynamic_cast<IntegerNode*>(argument))
+        {
+            needsBoxing = true;
+        }
+        else if (expectedTypeName == "Float" && dynamic_cast<FloatNode*>(argument))
+        {
+            needsBoxing = true;
+        }
+        else if (expectedTypeName == "Bool" && dynamic_cast<BoolNode*>(argument))
+        {
+            needsBoxing = true;
+        }
+        else if (expectedTypeName == "String" && dynamic_cast<StringNode*>(argument))
+        {
+            needsBoxing = true;
+        }
+
+        if (!needsBoxing)
+        {
+            // Argument is not a primitive literal, compile normally
+            argument->accept(ctx.visitor);
+            return;
+        }
+
+        // PHASE 4 AUTO-BOXING: Emit bytecode for boxing
+        // Equivalent to: new ExpectedType(literalValue)
+
+        // 1. Compile the literal value (pushes it onto stack)
+        argument->accept(ctx.visitor);
+
+        // 2. Emit NEW_OBJECT for the Box class
+        size_t classNameIndex = ctx.program.getConstantPool().addString(expectedTypeName);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                     static_cast<uint32_t>(classNameIndex),
+                                     1u,  // 1 constructor argument
+                                     argument);
     }
 }

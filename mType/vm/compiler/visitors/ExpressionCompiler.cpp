@@ -30,6 +30,13 @@ namespace vm::compiler::visitors
         bool rightIsNull = dynamic_cast<ast::NullNode*>(node->getRight()) != nullptr;
         ctx.typeValidator.validateBinaryOperation(leftType, rightType, op, leftIsNull, rightIsNull, node->getLocation());
 
+        // PHASE 4: Try operator overloading for Box types (Int, Float, Bool, String)
+        // This transforms operators into method calls (e.g., a + b → a.add(b))
+        if (tryEmitOperatorOverloading(node, node->getLeft(), node->getRight(), op))
+        {
+            return std::monostate{};  // Operator overloading handled the compilation
+        }
+
         // Handle short-circuit logical operators specially
         if (op == token::TokenType::AND) {
             // For &&: if left is false, skip right and return false
@@ -318,5 +325,109 @@ namespace vm::compiler::visitors
         ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF, static_cast<uint32_t>(typeNameIndex), node);
 
         return std::monostate{};
+    }
+
+    bool ExpressionCompiler::tryEmitOperatorOverloading(ast::BinaryOpNode* node,
+                                                        ast::ASTNode* left,
+                                                        ast::ASTNode* right,
+                                                        token::TokenType op)
+    {
+        // Infer the type of the left operand
+        value::ValueType leftType = ctx.typeInference.inferExpressionType(left);
+
+        // Only apply operator overloading for OBJECT types
+        if (leftType != value::ValueType::OBJECT)
+        {
+            return false;
+        }
+
+        // Get the class name of the left operand
+        std::string leftClassName = ctx.typeInference.inferExpressionClassName(left);
+
+        // Check if it's a Box type (Int, Float, Bool, String)
+        bool isBoxType = (leftClassName == "Int" || leftClassName == "Float" ||
+                         leftClassName == "Bool" || leftClassName == "String");
+        if (!isBoxType)
+        {
+            return false;
+        }
+
+        // Map operator to method name
+        std::string methodName;
+        switch (op)
+        {
+            // Arithmetic operators
+            case token::TokenType::PLUS:
+                if (leftClassName == "String")
+                    methodName = "concat";  // String concatenation
+                else
+                    methodName = "add";     // Int/Float addition
+                break;
+            case token::TokenType::MINUS:
+                methodName = "subtract";
+                break;
+            case token::TokenType::MULTIPLY:
+                methodName = "multiply";
+                break;
+            case token::TokenType::DIVIDE:
+                methodName = "divide";
+                break;
+            case token::TokenType::MODULO:
+                methodName = "modulo";
+                break;
+
+            // Equality operators
+            case token::TokenType::EQUALS:
+                methodName = "equals";
+                break;
+            case token::TokenType::NOT_EQUALS:
+                // Transform: a != b  →  !(a.equals(b))
+                // We'll handle this specially below
+                methodName = "equals";
+                break;
+
+            // Comparison operators
+            case token::TokenType::LESS:
+                methodName = "lessThan";
+                break;
+            case token::TokenType::LESS_EQUALS:
+                methodName = "lessThanOrEqual";
+                break;
+            case token::TokenType::GREATER:
+                methodName = "greaterThan";
+                break;
+            case token::TokenType::GREATER_EQUALS:
+                methodName = "greaterThanOrEqual";
+                break;
+
+            default:
+                // Operator not supported for overloading
+                return false;
+        }
+
+        // PHASE 4 OPERATOR OVERLOADING: Transform operator to method call
+        // Example: a + b  →  a.add(b)
+
+        // 1. Compile left operand (receiver object)
+        left->accept(ctx.visitor);
+
+        // 2. Compile right operand (method argument)
+        right->accept(ctx.visitor);
+
+        // 3. Emit CALL_METHOD instruction
+        size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                     static_cast<uint32_t>(methodNameIndex),
+                                     1u,  // 1 argument
+                                     node);
+
+        // 4. Special handling for NOT_EQUALS: negate the result
+        if (op == token::TokenType::NOT_EQUALS)
+        {
+            // Emit NOT instruction to negate the equals() result
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NOT, node);
+        }
+
+        return true;  // Operator overloading was applied
     }
 }

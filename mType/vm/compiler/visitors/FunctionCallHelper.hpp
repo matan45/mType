@@ -41,5 +41,10 @@ namespace vm::compiler::visitors
 
         void emitRegularFunctionCall(ast::FunctionCallNode* node, const std::string& functionName,
                                     const std::vector<std::unique_ptr<ast::ASTNode>>& arguments);
+
+        // Phase 4: Auto-boxing helper
+        void compileArgumentWithAutoBoxing(ast::ASTNode* argument,
+                                          const std::string& expectedTypeName,
+                                          value::ValueType expectedType);
     };
 }

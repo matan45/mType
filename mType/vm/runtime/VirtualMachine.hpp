@@ -22,6 +22,7 @@ namespace vm::runtime {
     class ObjectExecutor;
     class LambdaExecutor;
     class ExceptionExecutor;
+    class PrimitiveMethodExecutor;  // Phase 3
 }
 
 // Forward declarations of utility helpers
@@ -102,6 +103,7 @@ namespace vm::runtime
         std::unique_ptr<ObjectExecutor> objectExecutor;
         std::unique_ptr<LambdaExecutor> lambdaExecutor;
         std::unique_ptr<ExceptionExecutor> exceptionExecutor;
+        std::unique_ptr<PrimitiveMethodExecutor> primitiveMethodExecutor;  // Phase 3
 
         // Utility helpers
         std::unique_ptr<utils::ExceptionHandler> exceptionHandler;

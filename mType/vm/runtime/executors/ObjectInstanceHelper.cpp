@@ -4,6 +4,7 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../types/TypeRegistry.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include "../../../value/IntegerCache.hpp"
 #include <algorithm>
 
 namespace vm::runtime
@@ -101,11 +102,9 @@ namespace vm::runtime
                 continue;
             }
 
-            if (typeRegistry.isPrimitiveType(typeArg)) {
-                throw errors::TypeException(
-                    "Generic type arguments must be object types (classes/interfaces) or generic parameters. "
-                    "Primitive type '" + typeArg + "' is not allowed as a generic argument for class '" + baseClassName + "'.");
-            }
+            // PURE OOP: Primitives are now allowed as generic type arguments!
+            // They are treated as their Box class equivalents (Int, Float, Bool, String)
+            // No need to reject primitive types - they're now objects
         }
 
         // Map generic parameters to concrete types
@@ -638,7 +637,32 @@ namespace vm::runtime
         // Prepare constructor arguments from stack
         std::vector<value::Value> args = prepareConstructorArguments(argCount);
 
-        // Create object instance and initialize fields
+        // PHASE 2 OPTIMIZATION: Integer Caching
+        // If creating Int object with single int argument in cacheable range, use cached instance
+        if (baseClassName == "Int" && argCount == 1 && std::holds_alternative<int>(args[0])) {
+            int intValue = std::get<int>(args[0]);
+
+            // Check if value is cacheable
+            if (value::IntegerCache::isCacheable(intValue)) {
+                // Get Int class definition for cache
+                auto classRegistry = context.environment->getClassRegistry();
+                auto intClassDef = classRegistry ? classRegistry->findClass("Int") : nullptr;
+
+                if (intClassDef) {
+                    // Try to get from cache
+                    auto cachedInstance = value::IntegerCache::getInt(intValue, intClassDef);
+
+                    if (cachedInstance) {
+                        // Cache hit! Return cached Int object (already initialized)
+                        // Skip constructor invocation - cached object is already properly initialized
+                        invokeConstructor(cachedInstance, baseClassName, args);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Normal object creation path (non-cached or cache miss)
         auto instance = createObjectInstance(baseClassName, genericTypeBindings);
 
         // Invoke constructor

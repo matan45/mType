@@ -370,6 +370,9 @@
     <Filter Include="vm\compiler\emission">
       <UniqueIdentifier>{C8FD5645-B48C-E00E-5DAB-F4094919F1B4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\compiler\optimization">
+      <UniqueIdentifier>{28265499-144B-A319-3D96-88A9291AA237}</UniqueIdentifier>
+    </Filter>
     <Filter Include="vm\compiler\registration">
       <UniqueIdentifier>{5C6A4B02-488F-9A82-71DA-7F125D5E99A0}</UniqueIdentifier>
     </Filter>
@@ -1122,6 +1125,9 @@
     <ClInclude Include="value\IMultiDimensionalArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\IntegerCache.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\InternedString.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -1217,6 +1223,9 @@
     </ClInclude>
     <ClInclude Include="vm\compiler\emission\BytecodeEmitter.hpp">
       <Filter>vm\compiler\emission</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\optimization\PrimitiveMethodOptimizer.hpp">
+      <Filter>vm\compiler\optimization</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\registration\ClassInheritanceValidator.hpp">
       <Filter>vm\compiler\registration</Filter>
@@ -1375,6 +1384,9 @@
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\executors\ObjectInstanceHelper.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\PrimitiveMethodExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\executors\StackOperationsExecutor.hpp">
@@ -1970,6 +1982,9 @@
     <ClCompile Include="value\AsyncPromiseValue.cpp">
       <Filter>value</Filter>
     </ClCompile>
+    <ClCompile Include="value\IntegerCache.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
     <ClCompile Include="value\InternedString.cpp">
       <Filter>value</Filter>
     </ClCompile>
@@ -2023,6 +2038,9 @@
     </ClCompile>
     <ClCompile Include="vm\compiler\emission\BytecodeEmitter.cpp">
       <Filter>vm\compiler\emission</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\optimization\PrimitiveMethodOptimizer.cpp">
+      <Filter>vm\compiler\optimization</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\registration\ClassInheritanceValidator.cpp">
       <Filter>vm\compiler\registration</Filter>
@@ -2178,6 +2196,9 @@
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\PrimitiveMethodExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\StackOperationsExecutor.cpp">
@@ -6223,6 +6244,12 @@
     <None Include="tests\testFiles\generics\pass\basicGenericClass.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\boolTypeInGenerics.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\boolTypeInGenerics.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\constrainedClassGenerics.expected">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
@@ -6353,6 +6380,12 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\erasureUnchecked.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\floatTypeInGenerics.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\floatTypeInGenerics.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\genericAsync.expected">
@@ -6548,6 +6581,12 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\instanceGenericOverloading.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\intTypeInGenerics.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\intTypeInGenerics.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\lambdaBoundedTypes.expected">
@@ -6776,6 +6815,12 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\staticGenericSimpleReturns.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\stringTypeInGenerics.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\stringTypeInGenerics.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\tryCatchFinallyWithReturn.expected">
@@ -8069,6 +8114,9 @@
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\classImplementsInterface.mt">
+      <Filter>tests\testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\complexGenericParameterTest.expected">
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\complexGenericParameterTest.mt">
@@ -9969,6 +10017,9 @@
     </None>
     <None Include="tests\testFiles\typeChecking\pass\typeVarianceCovariant_pass.mt">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="vm\compiler\visitors\ExpressionCompiler.cpp~">
+      <Filter>vm\compiler\visitors</Filter>
     </None>
   </ItemGroup>
 </Project>

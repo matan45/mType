@@ -30,5 +30,11 @@ namespace parser::statement
         };
 
         ModifierInfo parseModifiers();
+
+        // Phase 4: Auto-boxing helper
+        std::unique_ptr<ASTNode> applyAutoBoxingIfNeeded(
+            std::unique_ptr<ASTNode> value,
+            const std::string& targetClassName,
+            value::ValueType targetType);
     };
 }

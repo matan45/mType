@@ -38,5 +38,12 @@ namespace vm::compiler::visitors
         CompilerContext& ctx;
         LiteralCompiler& literalCompiler;
         ArrayCompiler& arrayCompiler;
+
+        // Phase 4: Operator overloading helper
+        // Returns true if operator overloading was applied, false otherwise
+        bool tryEmitOperatorOverloading(ast::BinaryOpNode* node,
+                                       ast::ASTNode* left,
+                                       ast::ASTNode* right,
+                                       token::TokenType op);
     };
 }

@@ -33,5 +33,9 @@ namespace vm::compiler::visitors
         void validateReassignmentType(ast::AssignmentNode* node, const std::string& existingClassName);
         void emitVariableDeclaration(ast::AssignmentNode* node);
         void emitVariableReassignment(ast::AssignmentNode* node, bool isReassignment);
+
+        // Phase 4: Auto-boxing helper
+        // Returns true if auto-boxing was applied and bytecode was emitted
+        bool tryEmitAutoBoxing(ast::ASTNode* valueNode, const std::string& targetClassName);
     };
 }

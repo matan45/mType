@@ -1,6 +1,7 @@
 #include "ClassCompiler.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../bytecode/OpCode.hpp"
+#include "../optimization/PrimitiveMethodOptimizer.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../errors/AbstractClassException.hpp"
@@ -568,11 +569,22 @@ namespace vm::compiler::visitors
                 arg->accept(ctx.visitor); // Will need delegation
             }
 
-            // Emit CALL_METHOD instruction with source location
-            size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                             static_cast<uint32_t>(methodNameIndex),
-                             static_cast<uint32_t>(arguments.size()), node);
+            // PHASE 3 OPTIMIZATION: Check if this is an optimizable primitive method call
+            bytecode::OpCode opcodeToEmit = bytecode::OpCode::CALL_METHOD;
+
+            if (vm::compiler::PrimitiveMethodOptimizer::canOptimizeMethod(baseClassName, methodName, arguments.size())) {
+                // Get the optimized opcode for this primitive method
+                opcodeToEmit = vm::compiler::PrimitiveMethodOptimizer::getOptimizedOpCode(baseClassName, methodName);
+
+                // Emit optimized opcode (no method name needed - opcode encodes the operation)
+                ctx.emitter.emitWithLocation(opcodeToEmit, node);
+            } else {
+                // Emit standard CALL_METHOD instruction with method name
+                size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                 static_cast<uint32_t>(methodNameIndex),
+                                 static_cast<uint32_t>(arguments.size()), node);
+            }
         }
 
         return std::monostate{};
