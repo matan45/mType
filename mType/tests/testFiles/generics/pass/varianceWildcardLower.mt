@@ -29,8 +29,8 @@ class Sink<T> {
     }
 
     public function add(T item): void {
-        items[count.value] = item;
-        count = new Int(count.value + 1);
+        items[count.getValue()] = item;
+        count = new Int(count.getValue() + 1);
     }
 
     public function size(): Int {

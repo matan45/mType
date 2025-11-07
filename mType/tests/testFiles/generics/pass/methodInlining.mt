@@ -20,7 +20,7 @@ function main(): void {
     Int result1 = Math::identity<Int>(new Int(42));
     print("Identity: " + result1.toString());
 
-    Int result2 = Math::apply<Int>(new Int(10), x -> new Int(x.value * 2));
+    Int result2 = Math::apply<Int>(new Int(10), x -> new Int(x.getValue() * 2));
     print("Applied: " + result2.toString());
 
     String result3 = Math::identity<String>(new String("test"));

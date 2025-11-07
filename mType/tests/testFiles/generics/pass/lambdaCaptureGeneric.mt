@@ -27,7 +27,7 @@ class Accumulator<T> {
 function main(): void {
     Accumulator<Int> intAccum = new Accumulator<Int>(
         new Int(0),
-        (a, b) -> new Int(a.value + b.value)
+        (a, b) -> new Int(a.getValue() + b.getValue())
     );
 
     intAccum.add(new Int(10));

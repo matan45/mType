@@ -227,6 +227,9 @@ namespace vm::compiler::types
 
         // PHASE 4: Only use operator overloading if at least one operand is already a Box object
         // Don't auto-box primitive literals for operator overloading (e.g., 2 * 3 stays primitive)
+        //
+        // IMPORTANT: For string concatenation, prefer primitive operations over operator overloading
+        // because primitive string concat handles objects via toString() without needing String class
         if (leftType == value::ValueType::OBJECT)
         {
             leftClassName = inferExpressionClassName(binOp->getLeft());
@@ -235,8 +238,14 @@ namespace vm::compiler::types
         }
         else if (rightType == value::ValueType::OBJECT)
         {
+            // SPECIAL CASE: Don't use operator overloading for primitive string concatenation
+            // Primitive string + object already works via toString(), no String class needed
+            if (leftType == value::ValueType::STRING && op == token::TokenType::PLUS)
+            {
+                willUseOperatorOverloading = false;  // Use primitive string concatenation
+            }
             // Left is primitive but right is a Box object - we can auto-box left for operator overloading
-            if (dynamic_cast<IntegerNode*>(binOp->getLeft()))
+            else if (dynamic_cast<IntegerNode*>(binOp->getLeft()))
             {
                 leftClassName = "Int";
                 willUseOperatorOverloading = true;
@@ -249,11 +258,6 @@ namespace vm::compiler::types
             else if (dynamic_cast<BoolNode*>(binOp->getLeft()))
             {
                 leftClassName = "Bool";
-                willUseOperatorOverloading = true;
-            }
-            else if (dynamic_cast<StringNode*>(binOp->getLeft()))
-            {
-                leftClassName = "String";
                 willUseOperatorOverloading = true;
             }
         }
@@ -697,23 +701,48 @@ namespace vm::compiler::types
             auto rightType = inferExpressionType(binOp->getRight());
             auto op = binOp->getOperator();
 
-            // Determine left class name (either from object or from literal that will be auto-boxed)
+            // PHASE 4: Only return className if operator overloading is actually used
+            // Match the logic in inferBinaryOperationType for consistency
+
+            // Determine left class name
             std::string leftClassName;
+            bool willUseOperatorOverloading = false;
+
             if (leftType == value::ValueType::OBJECT)
             {
                 leftClassName = inferExpressionClassName(binOp->getLeft());
+                willUseOperatorOverloading = (leftClassName == "Int" || leftClassName == "Float" ||
+                                             leftClassName == "Bool" || leftClassName == "String");
             }
-            else
+            else if (rightType == value::ValueType::OBJECT)
             {
-                // Check if left is a primitive literal that will be auto-boxed
-                if (dynamic_cast<IntegerNode*>(binOp->getLeft()))
+                // SPECIAL CASE: Don't use operator overloading for primitive string concatenation
+                if (leftType == value::ValueType::STRING && op == token::TokenType::PLUS)
+                {
+                    willUseOperatorOverloading = false;  // Primitive string concat, no Box class
+                }
+                // Left is primitive but right is a Box object - check for operator overloading
+                else if (dynamic_cast<IntegerNode*>(binOp->getLeft()))
+                {
                     leftClassName = "Int";
+                    willUseOperatorOverloading = true;
+                }
                 else if (dynamic_cast<FloatNode*>(binOp->getLeft()))
+                {
                     leftClassName = "Float";
+                    willUseOperatorOverloading = true;
+                }
                 else if (dynamic_cast<BoolNode*>(binOp->getLeft()))
+                {
                     leftClassName = "Bool";
-                else if (dynamic_cast<StringNode*>(binOp->getLeft()))
-                    leftClassName = "String";
+                    willUseOperatorOverloading = true;
+                }
+            }
+
+            // If not using operator overloading, return empty (result is primitive, not object)
+            if (!willUseOperatorOverloading)
+            {
+                return "";
             }
 
             // Check if this is a Box type operation

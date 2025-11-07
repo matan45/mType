@@ -25,8 +25,8 @@ class Consumer<T> {
     }
 
     public function accept(T item): void {
-        items[count.value] = item;
-        count = new Int(count.value + 1);
+        items[count.getValue()] = item;
+        count = new Int(count.getValue() + 1);
     }
 
     public function getCount(): Int {

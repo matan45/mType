@@ -40,9 +40,9 @@ class Repository<T extends Serializable> {
     }
 
     public function store(T item): void {
-        items[count.value] = item;
+        items[count.getValue()] = item;
         print("Stored: " + item.serialize());
-        count = new Int(count.value + 1);
+        count = new Int(count.getValue() + 1);
     }
 }
 

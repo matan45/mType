@@ -8,15 +8,15 @@ class ArrayWrapper<T> {
 
     constructor(Int cap) {
         capacity = cap;
-        items = new T[cap.value];
+        items = new T[cap.getValue()];
     }
 
     public function set(Int index, T value): void {
-        items[index.value] = value;
+        items[index.getValue()] = value;
     }
 
     public function get(Int index): T {
-        return items[index.value];
+        return items[index.getValue()];
     }
 }
 

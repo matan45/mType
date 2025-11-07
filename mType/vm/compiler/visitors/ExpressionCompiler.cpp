@@ -406,6 +406,9 @@ namespace vm::compiler::visitors
         // PHASE 4: Only use operator overloading if at least one operand is already a Box object
         // Don't auto-box primitive literals for operator overloading (e.g., 2 * 3 stays primitive)
         // This ensures that expressions like array indices (calcTest[2 * 3][4 * 5]) work without needing Box classes
+        //
+        // IMPORTANT: For string concatenation, prefer primitive operations over operator overloading
+        // because primitive string concat handles objects via toString() without needing String class
 
         std::string leftClassName;
         bool leftNeedsBoxing = false;
@@ -424,7 +427,14 @@ namespace vm::compiler::visitors
                 return false;  // Both operands are primitives, use normal primitive operations
             }
 
-            // Right is a Box object, so we can auto-box the left literal
+            // SPECIAL CASE: Don't use operator overloading for primitive string concatenation
+            // Primitive string + object already works via toString(), no String class needed
+            if (leftType == value::ValueType::STRING && op == token::TokenType::PLUS)
+            {
+                return false;  // Use primitive string concatenation (no String class required)
+            }
+
+            // Right is a Box object, so we can auto-box the left literal (non-string only)
             if (dynamic_cast<ast::IntegerNode*>(left))
             {
                 leftClassName = "Int";
@@ -438,11 +448,6 @@ namespace vm::compiler::visitors
             else if (dynamic_cast<ast::BoolNode*>(left))
             {
                 leftClassName = "Bool";
-                leftNeedsBoxing = true;
-            }
-            else if (dynamic_cast<ast::StringNode*>(left))
-            {
-                leftClassName = "String";
                 leftNeedsBoxing = true;
             }
             else

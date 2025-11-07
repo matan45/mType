@@ -262,6 +262,29 @@ namespace vm::compiler::visitors
             else if (expectedReturnType.find("Array<") == 0 || expectedReturnType.find("[]") != std::string::npos) {
                 expectedType = value::ValueType::ARRAY; // Array types (Array<T> or T[])
             }
+            // PHASE 4: Handle Promise<Array<T>> or Promise<T[]> for async functions
+            else if (expectedReturnType.find("Promise<") == 0) {
+                // Extract inner type from Promise<T>
+                size_t start = expectedReturnType.find('<') + 1;
+                size_t end = expectedReturnType.rfind('>');
+                if (start != std::string::npos && end != std::string::npos && end > start) {
+                    std::string innerType = expectedReturnType.substr(start, end - start);
+                    // Trim whitespace
+                    innerType.erase(0, innerType.find_first_not_of(" \t"));
+                    innerType.erase(innerType.find_last_not_of(" \t") + 1);
+
+                    // Check if inner type is an array
+                    if (innerType.find("Array<") == 0 || innerType.find("[]") != std::string::npos) {
+                        expectedType = value::ValueType::ARRAY;
+                    }
+                    else {
+                        expectedType = value::ValueType::OBJECT; // Promise<Object>
+                    }
+                }
+                else {
+                    expectedType = value::ValueType::OBJECT;
+                }
+            }
             else expectedType = value::ValueType::OBJECT; // Class/interface types
 
             // Check if types match (allow VOID for unknown types)

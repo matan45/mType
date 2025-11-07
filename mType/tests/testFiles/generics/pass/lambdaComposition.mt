@@ -27,9 +27,9 @@ function main(): void {
     Pipeline<Int> intPipeline = new Pipeline<Int>(new Int(10));
 
     Int result = intPipeline
-        .map(x -> new Int(x.value * 2))
-        .map(x -> new Int(x.value + 5))
-        .map(x -> new Int(x.value * 3))
+        .map(x -> new Int(x.getValue() * 2))
+        .map(x -> new Int(x.getValue() + 5))
+        .map(x -> new Int(x.getValue() * 3))
         .getValue();
 
     print("Result: " + result);

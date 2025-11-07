@@ -12,9 +12,9 @@ function <T> createArray(T first, T second, T third): T[] {
 
 function <T> printArray(T[] array, Int size): void {
     Int i = new Int(0);
-    while (i.value < size.value) {
-        print(array[i.value].toString());
-        i = new Int(i.value + 1);
+    while (i.getValue() < size.getValue()) {
+        print(array[i.getValue()].toString());
+        i = new Int(i.getValue() + 1);
     }
 }
 
