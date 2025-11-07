@@ -77,6 +77,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Array Operations Comprehensive (Edge Cases, Chains, Mixed)",
                                   passPath + "arrayOperationsComprehensive.mt");
 
+        // Phase 4: Box Type Arrays with SIMD/SoA Optimization
+        addOutputVerificationTest("Int[] Box Arrays with SIMD",
+                                  passPath + "intBoxSIMD.mt");
+
+        addOutputVerificationTest("Int[] SoA Storage with SIMD (100 elements)",
+                                  passPath + "intBoxSoASIMD.mt");
+
+        addOutputVerificationTest("Float[] Box Arrays with SIMD",
+                                  passPath + "floatBoxSIMD.mt");
+
         // === NULL & SPECIAL VALUES TESTS ===
         // Tests for null elements, special float values, boundary conditions, and defaults
 

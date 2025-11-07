@@ -1,0 +1,12 @@
+Creating Int[100] array (SoA + SIMD)...
+Testing element access:
+numbers[0]: 1
+numbers[50]: 51
+numbers[99]: 100
+Computing sum...
+Sum of all 100 elements: 5050
+Expected: 5050
+Testing arithmetic operations:
+results[0] (1+11): 12
+results[9] (10+20): 30
+Int[] SoA + SIMD test completed!

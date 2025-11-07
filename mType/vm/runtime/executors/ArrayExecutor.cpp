@@ -302,7 +302,15 @@ namespace vm::runtime
 
         // Set element using unchecked access (bounds already verified)
         // PERFORMANCE: Eliminates redundant bounds check in array->set()
-        array->setUnchecked(static_cast<size_t>(index), valueToSet);
+        try {
+            array->setUnchecked(static_cast<size_t>(index), valueToSet);
+        } catch (const std::runtime_error& e) {
+            // Re-throw with source location information
+            utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+                context,
+                std::string(e.what())
+            );
+        }
     }
 
     void ArrayExecutor::setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int index, const value::Value& valueToSet) {
