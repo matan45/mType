@@ -99,9 +99,25 @@ namespace vm::compiler::visitors
     {
         std::vector<std::string> typeArguments;
 
-        // Check if there are generic type arguments
+        // Extract base class name
+        std::string baseClassName = fullClassName;
         size_t genericStart = fullClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseClassName = fullClassName.substr(0, genericStart);
+        }
+
+        // Check if there are generic type arguments
         if (genericStart == std::string::npos) {
+            // No type arguments provided - validate that class is not generic
+            auto classDef = ctx.environment->findClass(baseClassName);
+            if (classDef && !classDef->getGenericParameters().empty()) {
+                throw errors::TypeException(
+                    "Generic class '" + baseClassName + "' requires " +
+                    std::to_string(classDef->getGenericParameters().size()) +
+                    " type argument(s)",
+                    location
+                );
+            }
             return typeArguments; // No generics
         }
 
@@ -115,6 +131,13 @@ namespace vm::compiler::visitors
 
         // Extract the type arguments string (between < and >)
         std::string argsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
+
+        // PHASE 4: Handle diamond operator <> for type inference
+        // If argsStr is empty, this is the diamond operator (e.g., "Container<>")
+        // Return empty vector - types will be inferred from context
+        if (argsStr.empty() || (argsStr.find_first_not_of(" \t") == std::string::npos)) {
+            return typeArguments; // Diamond operator - types will be inferred
+        }
 
         // Parse individual type arguments, respecting nested generics (depth-aware)
         // This correctly handles: Container<List<String>, HashMap<Int, String>, HashSet<Int>>
@@ -145,6 +168,30 @@ namespace vm::compiler::visitors
         lastTypeArg.erase(lastTypeArg.find_last_not_of(" \t") + 1);
         if (!lastTypeArg.empty()) {
             typeArguments.push_back(lastTypeArg);
+        }
+
+        // PHASE 4: Validate type arguments against class definition
+        auto classDef = ctx.environment->findClass(baseClassName);
+        if (classDef) {
+            const auto& genericParams = classDef->getGenericParameters();
+
+            // Validate: Non-generic class cannot be used with type arguments
+            if (genericParams.empty()) {
+                throw errors::TypeException(
+                    "Class '" + baseClassName + "' is not generic but used with type arguments",
+                    location
+                );
+            }
+
+            // Validate: Number of type arguments must match number of generic parameters
+            if (typeArguments.size() != genericParams.size()) {
+                throw errors::TypeException(
+                    "Class '" + baseClassName + "' expects " +
+                    std::to_string(genericParams.size()) +
+                    " type argument(s) but " + std::to_string(typeArguments.size()) + " provided",
+                    location
+                );
+            }
         }
 
         return typeArguments;
@@ -348,10 +395,12 @@ namespace vm::compiler::visitors
             }
             std::string qualifiedName = className + "::" + methodName;
 
-            // Validate: Generic type arguments must be object types, not primitives
+            // PHASE 4: Validate generic type arguments
             if (node->hasGenericTypeArguments())
             {
                 const auto& typeArgs = node->getGenericTypeArguments();
+
+                // Validate: Generic type arguments must be object types, not primitives
                 for (const auto& typeArg : typeArgs)
                 {
                     if (typeArg == "int" || typeArg == "float" || typeArg == "string" ||
@@ -362,6 +411,58 @@ namespace vm::compiler::visitors
                             "Generics only support object types. Use wrapper classes like Int, Float, String, Bool instead.",
                             node->getLocation()
                         );
+                    }
+                }
+
+                // Validate: Method must be generic
+                const auto* funcMetadata = ctx.program.getFunction(qualifiedName);
+                if (funcMetadata) {
+                    const auto& genericParams = funcMetadata->genericTypeParameters;
+
+                    // Validate: Non-generic method cannot be used with type arguments
+                    if (genericParams.empty()) {
+                        throw errors::TypeException(
+                            "Method '" + qualifiedName + "' is not generic but used with type arguments",
+                            node->getLocation()
+                        );
+                    }
+
+                    // Validate: Number of type arguments must match number of generic parameters
+                    if (typeArgs.size() != genericParams.size()) {
+                        throw errors::TypeException(
+                            "Method '" + qualifiedName + "' expects " +
+                            std::to_string(genericParams.size()) +
+                            " type argument(s) but " + std::to_string(typeArgs.size()) + " provided",
+                            node->getLocation()
+                        );
+                    }
+                }
+                else {
+                    // Fallback: Check environment if metadata not yet registered
+                    auto classDef = ctx.environment->findClass(className);
+                    if (classDef) {
+                        auto methodDef = classDef->getMethod(methodName);
+                        if (methodDef) {
+                            const auto& genericParams = methodDef->getGenericTypeParameters();
+
+                            // Validate: Non-generic method cannot be used with type arguments
+                            if (genericParams.empty()) {
+                                throw errors::TypeException(
+                                    "Method '" + qualifiedName + "' is not generic but used with type arguments",
+                                    node->getLocation()
+                                );
+                            }
+
+                            // Validate: Number of type arguments must match number of generic parameters
+                            if (typeArgs.size() != genericParams.size()) {
+                                throw errors::TypeException(
+                                    "Method '" + qualifiedName + "' expects " +
+                                    std::to_string(genericParams.size()) +
+                                    " type argument(s) but " + std::to_string(typeArgs.size()) + " provided",
+                                    node->getLocation()
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -468,15 +569,27 @@ namespace vm::compiler::visitors
             }
 
             // Build qualified method name for metadata lookup
-            std::string qualifiedMethodName = baseClassName + "::" + methodName;
+            std::string qualifiedMethodName = baseClassName.empty() ? methodName : (baseClassName + "::" + methodName);
             const auto* methodMetadata = ctx.program.getFunction(qualifiedMethodName);
 
             if (node->hasGenericTypeArguments())
             {
+                const auto& methodTypeArgs = node->getGenericTypeArguments();
+
+                // PHASE 4: Validate that method is generic (only if we have metadata)
+                if (methodMetadata && methodMetadata->genericTypeParameters.empty())
+                {
+                    throw errors::TypeException(
+                        "Method '" + qualifiedMethodName + "' is not generic but used with type arguments",
+                        node->getLocation()
+                    );
+                }
+                // If we don't have metadata, we can't validate - allow it through
+                // This handles cases where type inference couldn't determine the class name
+
                 if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
                 {
                     const auto& methodGenericParams = methodMetadata->genericTypeParameters;
-                    const auto& methodTypeArgs = node->getGenericTypeArguments();
 
                     // Validate type argument count matches parameter count
                     if (methodTypeArgs.size() != methodGenericParams.size())

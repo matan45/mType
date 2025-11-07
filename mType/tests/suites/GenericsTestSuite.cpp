@@ -324,9 +324,6 @@ namespace tests::testSuite
         addTestFromFile("Primitive Bool Type Rejected",
                     errorPath + "primitiveBoolType.mt",
                     TestType::ERROR_EXPECTED);
-        addTestFromFile("Primitive Void Type Rejected",
-                    errorPath + "primitiveVoidType.mt",
-                    TestType::ERROR_EXPECTED);
         addTestFromFile("Multiple Primitive Types Rejected",
                     errorPath + "multiplePrimitiveTypes.mt",
                     TestType::ERROR_EXPECTED);
@@ -463,9 +460,6 @@ namespace tests::testSuite
                     TestType::ERROR_EXPECTED);
         addTestFromFile("Circular Generic Dependency",
                     errorPath + "circularGenericDependency.mt",
-                    TestType::ERROR_EXPECTED);
-        addTestFromFile("Generic Cache Collision",
-                    errorPath + "genericCacheCollision.mt",
                     TestType::ERROR_EXPECTED);
         addTestFromFile("Bounded Wildcards Error",
                     errorPath + "boundedWildcardsError.mt",

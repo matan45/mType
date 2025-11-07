@@ -15,13 +15,13 @@ interface Filter<T> {
 
 class IntMapper implements Mapper<Int, Int> {
     public function map(Int input): Int {
-        return new Int(input.value * 2);
+        return new Int(input.getValue() * 2);
     }
 }
 
 class IntFilter implements Filter<Int> {
     public function test(Int input): bool {
-        return input.value % 2 == 0;
+        return input.getValue() % 2 == 0;
     }
 }
 

@@ -183,14 +183,36 @@ namespace vm::compiler::types
             // Look up the method in the bytecode program's function registry
             const auto* funcMetadata = program.getFunction(methodName);
             if (funcMetadata && !funcMetadata->returnType.empty()) {
-                if (funcMetadata->returnType == "int") return value::ValueType::INT;
-                if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
-                if (funcMetadata->returnType == "string") return value::ValueType::STRING;
-                if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
-                if (funcMetadata->returnType == "void") return value::ValueType::VOID;
+                std::string returnType = funcMetadata->returnType;
+
+                // PHASE 4: If this is a generic method call, resolve the return type using the provided type arguments
+                if (methodCall->hasGenericTypeArguments() && !funcMetadata->genericTypeParameters.empty())
+                {
+                    const auto& genericTypeArgs = methodCall->getGenericTypeArguments();
+                    const auto& genericTypeParams = funcMetadata->genericTypeParameters;
+
+                    // Build temporary bindings for this method call
+                    for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
+                    {
+                        if (returnType == genericTypeParams[i])
+                        {
+                            // The return type is a generic parameter, substitute it
+                            returnType = genericTypeArgs[i];
+                            break;
+                        }
+                    }
+                }
+
+                // Check primitive types
+                if (returnType == "int") return value::ValueType::INT;
+                if (returnType == "float") return value::ValueType::FLOAT;
+                if (returnType == "string") return value::ValueType::STRING;
+                if (returnType == "bool") return value::ValueType::BOOL;
+                if (returnType == "void") return value::ValueType::VOID;
+
                 // Check if return type is an array
-                if (funcMetadata->returnType.find("[]") != std::string::npos ||
-                    funcMetadata->returnType.find("Array<") == 0) {
+                if (returnType.find("[]") != std::string::npos ||
+                    returnType.find("Array<") == 0) {
                     return value::ValueType::ARRAY;
                 }
                 return value::ValueType::OBJECT;
@@ -224,6 +246,7 @@ namespace vm::compiler::types
 
         std::string leftClassName;
         bool willUseOperatorOverloading = false;
+        bool usePrimitiveStringConcat = false;  // Track if we're using primitive string concatenation
 
         // PHASE 4: Only use operator overloading if at least one operand is already a Box object
         // Don't auto-box primitive literals for operator overloading (e.g., 2 * 3 stays primitive)
@@ -243,6 +266,7 @@ namespace vm::compiler::types
             if (leftType == value::ValueType::STRING && op == token::TokenType::PLUS)
             {
                 willUseOperatorOverloading = false;  // Use primitive string concatenation
+                usePrimitiveStringConcat = true;     // Mark that we're using primitive string concat
             }
             // Left is primitive but right is a Box object - we can auto-box left for operator overloading
             else if (dynamic_cast<IntegerNode*>(binOp->getLeft()))
@@ -296,7 +320,8 @@ namespace vm::compiler::types
         }
 
         // If right operand is also a Box type object, operator overloading definitely applies
-        if (!willUseOperatorOverloading && rightType == value::ValueType::OBJECT && rightIsSimple)
+        // UNLESS we've explicitly chosen primitive string concatenation
+        if (!willUseOperatorOverloading && rightType == value::ValueType::OBJECT && rightIsSimple && !usePrimitiveStringConcat)
         {
             std::string rightClassName = inferExpressionClassName(binOp->getRight());
             willUseOperatorOverloading = (rightClassName == "Int" || rightClassName == "Float" ||
@@ -642,12 +667,32 @@ namespace vm::compiler::types
 
             // Look up the method in the bytecode program's function registry
             const auto* funcMetadata = program.getFunction(methodName);
+
+            // PHASE 4: If this is a generic method call, resolve the return type using the provided type arguments
+            if (methodCall->hasGenericTypeArguments() && funcMetadata && !funcMetadata->genericTypeParameters.empty())
+            {
+                const auto& genericTypeArgs = methodCall->getGenericTypeArguments();
+                const auto& genericTypeParams = funcMetadata->genericTypeParameters;
+                std::string returnType = funcMetadata->returnType;
+
+                // Build temporary bindings for this method call
+                for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
+                {
+                    if (returnType == genericTypeParams[i])
+                    {
+                        // The return type is a generic parameter, substitute it
+                        return genericTypeArgs[i];
+                    }
+                }
+            }
+
             if (funcMetadata && !funcMetadata->returnType.empty()) {
                 // Don't return primitive type names as class names
                 if (funcMetadata->returnType != "int" && funcMetadata->returnType != "float" &&
                     funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
                     funcMetadata->returnType != "void") {
-                    return funcMetadata->returnType;
+                    // Resolve generic type if applicable (from context stack)
+                    return resolveGenericType(funcMetadata->returnType);
                 }
             }
         }
@@ -707,6 +752,7 @@ namespace vm::compiler::types
             // Determine left class name
             std::string leftClassName;
             bool willUseOperatorOverloading = false;
+            bool usePrimitiveStringConcat = false;  // Track if we're using primitive string concatenation
 
             if (leftType == value::ValueType::OBJECT)
             {
@@ -720,6 +766,7 @@ namespace vm::compiler::types
                 if (leftType == value::ValueType::STRING && op == token::TokenType::PLUS)
                 {
                     willUseOperatorOverloading = false;  // Primitive string concat, no Box class
+                    usePrimitiveStringConcat = true;     // Mark that we're using primitive string concat
                 }
                 // Left is primitive but right is a Box object - check for operator overloading
                 else if (dynamic_cast<IntegerNode*>(binOp->getLeft()))
@@ -735,6 +782,18 @@ namespace vm::compiler::types
                 else if (dynamic_cast<BoolNode*>(binOp->getLeft()))
                 {
                     leftClassName = "Bool";
+                    willUseOperatorOverloading = true;
+                }
+            }
+
+            // Check if right operand is also a Box type object (unless using primitive string concat)
+            if (!willUseOperatorOverloading && rightType == value::ValueType::OBJECT && !usePrimitiveStringConcat)
+            {
+                std::string rightClassName = inferExpressionClassName(binOp->getRight());
+                if (rightClassName == "Int" || rightClassName == "Float" ||
+                    rightClassName == "Bool" || rightClassName == "String")
+                {
+                    leftClassName = rightClassName;
                     willUseOperatorOverloading = true;
                 }
             }

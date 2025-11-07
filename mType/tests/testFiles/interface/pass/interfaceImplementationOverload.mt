@@ -23,7 +23,7 @@ class AdvancedCalculator implements Calculator {
     public function addList(List<Int> numbers): int {
         int sum = 0;
         for (int i = 0; i < numbers.size(); i++) {
-            sum = sum + numbers.get(i).value;
+            sum = sum + numbers.get(i).getValue();
         }
         return sum;
     }

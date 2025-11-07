@@ -20,7 +20,7 @@ class StringArrayProcessor implements ArrayProcessor<String> {
         List<String> result = new List<String>();
         for (int i = 0; i < items.size(); i++) {
             String item = items.get(i);
-            result.add(new String(item.value + "!"));
+            result.add(new String(item.getValue() + "!"));
         }
         return result;
     }

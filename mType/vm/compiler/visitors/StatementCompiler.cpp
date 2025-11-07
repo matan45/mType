@@ -507,6 +507,7 @@ namespace vm::compiler::visitors
                         (varType == value::ValueType::FLOAT && valueClassName == "Float") ||
                         (varType == value::ValueType::BOOL && valueClassName == "Bool") ||
                         (varType == value::ValueType::STRING && valueClassName == "String"))
+                        
                     {
                         needsAutoUnbox = true;
                     }

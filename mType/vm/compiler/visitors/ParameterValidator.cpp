@@ -228,8 +228,15 @@ namespace vm::compiler::visitors
                             return; // Compatible generic types
                         }
 
+                        // PHASE 4: Allow generic type parameters to pass validation
+                        // If argClassName is a single uppercase letter (T, E, K, V, R, etc.), it's likely a generic type parameter
+                        // These will be bound to concrete types at call time, so allow them through
+                        bool isGenericTypeParameter = (argClassName.length() <= 2 &&
+                                                       !argClassName.empty() &&
+                                                       std::isupper(argClassName[0]));
+
                         // Check if argClassName is assignable to expectedType (inheritance)
-                        if (!ctx.typeValidator.isClassCompatible(argClassName, resolvedExpectedType))
+                        if (!isGenericTypeParameter && !ctx.typeValidator.isClassCompatible(argClassName, resolvedExpectedType))
                         {
                             throw errors::TypeException(
                                 "Method '" + methodName + "' parameter " + std::to_string(paramIndex + 1) +

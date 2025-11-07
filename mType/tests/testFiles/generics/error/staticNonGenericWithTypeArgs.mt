@@ -1,8 +1,8 @@
-import "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/String.mt";
 
 class TestClass {
     // This is NOT a generic method
-    static function regularMethod(String value): void {
+    public static function regularMethod(String value): void {
         print("Regular method: " + value);
     }
 }

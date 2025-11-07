@@ -16,7 +16,7 @@ class StringProcessor extends Processor<String> {
 
 class IntProcessor extends Processor<Int> {
     public function process(Int item): String {
-        return new String("Int: " + item.value);
+        return new String("Int: " + item.getValue());
     }
 }
 

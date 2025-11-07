@@ -40,7 +40,7 @@ container.add<Int>(new Int(42));
 
 Int num = container.get<Int>(0);
 
-Int doubled = container.transform<Int, Int>(new Int(5), x -> new Int(x.value * 2));
+Int doubled = container.transform<Int, Int>(new Int(5), x -> new Int(x.getValue() * 2));
 
 print(num.toString());
 print(doubled.toString());  // Should print 10

@@ -42,11 +42,11 @@ Function<String, Int> strLen = s -> new Int(s.length());
 print(strLen.apply(new String("Hello")).toString());  // Should print 5
 
 // int addition function
-BiFunction<Int, Int, Int> add = (a, b) -> new Int(a.value + b.value);
+BiFunction<Int, Int, Int> add = (a, b) -> new Int(a.getValue() + b.getValue());
 
 print(add.apply(new Int(10), new Int(20)).toString());  // Should print 30
 
 // String concatenation function
-BiFunction<String, String, String> concat = (a, b) -> new String(a.value + " " + b.value);
+BiFunction<String, String, String> concat = (a, b) -> new String(a.getValue() + " " + b.getValue());
 
 print(concat.apply(new String("Hello"), new String("World")).toString());  // Should print "Hello World"
