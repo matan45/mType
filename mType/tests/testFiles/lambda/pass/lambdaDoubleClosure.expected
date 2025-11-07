@@ -2,6 +2,6 @@
 mult5(3) = 25
 mult10(3) = 40
 After changing base:
-mult5(3) = 25
+mult5(3) = 115
 Triple nesting: 36
 Double closure complete

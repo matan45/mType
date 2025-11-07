@@ -116,6 +116,9 @@ namespace tests::testSuite
         addTestFromFile("Lambda Super In Static Context Error",
                         errorPath + "lambdaSuperStaticContext.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Circular Reference Error",
+                        errorPath + "lambdaCircularReference.mt",
+                        TestType::ERROR_EXPECTED);
 
         // ====================================
         // Generics & Type Inference Tests
@@ -148,8 +151,6 @@ namespace tests::testSuite
         // ====================================
         // Advanced Closures Tests
         // ====================================
-        addOutputVerificationTest("Lambda Closure Shadowing",
-                        passPath + "lambdaClosureShadowing.mt");
         addOutputVerificationTest("Lambda Double Closure",
                         passPath + "lambdaDoubleClosure.mt");
         addOutputVerificationTest("Lambda Recursive Closure",
@@ -188,6 +189,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Lambda Conflicting Returns Error",
                         errorPath + "lambdaConflictingReturns.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Closure Shadowing",
+                        errorPath + "lambdaClosureShadowing.mt",
                         TestType::ERROR_EXPECTED);
 
         // ====================================

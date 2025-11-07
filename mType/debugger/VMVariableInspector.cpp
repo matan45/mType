@@ -115,7 +115,7 @@ namespace debugger
                 }
 
                 // Captured variables come after parameters
-                for (size_t i = 0; i < lambda->capturedValues.size(); ++i)
+                for (size_t i = 0; i < lambda->capturedSlots.size(); ++i)
                 {
                     // DEFENSIVE: Check for overflow in index calculation
                     size_t offset = lambda->parameterCount + i;
@@ -159,7 +159,7 @@ namespace debugger
                     if (lambdaMetadata && !lambdaMetadata->localVariableNames.empty())
                     {
                         // Show locals starting after parameters + captured variables
-                        size_t localStartIndex = lambda->parameterCount + lambda->capturedValues.size();
+                        size_t localStartIndex = lambda->parameterCount + lambda->capturedSlots.size();
 
                         // DEFENSIVE: Check for overflow in localStartIndex
                         if (localStartIndex < lambda->parameterCount)

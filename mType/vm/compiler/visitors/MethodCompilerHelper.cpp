@@ -256,7 +256,8 @@ namespace vm::compiler::visitors
         ctx.functionFrameManager.enterFunctionFrame(params.returnTypeStr,
                                                     ctx.variableTracker.getNextLocalSlot(),
                                                     ctx.variableTracker.getCurrentScopeDepth(),
-                                                    false);
+                                                    false,
+                                                    node->getIsAsync());
         ctx.variableTracker.beginScope(); // Method body scope
 
         // Track parameters as locals (including 'this' for instance methods)

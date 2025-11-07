@@ -253,22 +253,61 @@ namespace vm::runtime
             }
         }
 
+        // Create a SharedStackFrame for this lambda invocation to support nested closures
+        // Link it to the parent frame so nested lambdas can access parent variables
+        auto newSharedFrame = std::make_shared<SharedStackFrame>();
+        newSharedFrame->parentFrame = lambda->capturedFrame;  // Link to parent
+        if (!context.callStack.empty()) {
+            context.callStack.back().sharedFrame = newSharedFrame;
+        }
+
         // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
+        // Also register them by name in SharedStackFrame so nested lambdas can capture them
         for (size_t i = 0; i < args.size(); ++i) {
             context.stackManager->push(args[i]);
+
+            // Register parameter by name in SharedStackFrame
+            if (i < lambda->parameterNames.size()) {
+                std::string paramName = lambda->parameterNames[i];
+                if (!paramName.empty()) {
+                    newSharedFrame->setLocal(paramName, i, args[i]);
+                }
+            }
         }
 
         // Push captured variables onto stack (they become local variables after the parameters)
-        // Use snapshot values (immutable capture semantics)
-        for (const auto& capturedValue : lambda->capturedValues) {
-            context.stackManager->push(capturedValue);
+        // Read current values from shared frame (reference capture semantics)
+        // IMPORTANT: Do NOT register them in the new SharedStackFrame - they should be accessed
+        // through the parent chain to ensure we always read the latest values
+        size_t capturedCount = 0;
+        if (lambda->capturedFrame) {
+            for (size_t i = 0; i < lambda->capturedSlots.size(); ++i) {
+                size_t slot = lambda->capturedSlots[i];
+                std::string varName = (i < lambda->capturedNames.size()) ? lambda->capturedNames[i] : "";
+
+                value::Value capturedValue;
+                if (!varName.empty()) {
+                    // Look up by name through the parent chain
+                    capturedValue = lambda->capturedFrame->getLocalByName(varName);
+                    if (std::holds_alternative<std::monostate>(capturedValue)) {
+                        // Fallback to slot-based lookup if name lookup failed
+                        capturedValue = lambda->capturedFrame->getLocal(slot);
+                    }
+                } else {
+                    // No name available, use slot-based lookup
+                    capturedValue = lambda->capturedFrame->getLocal(slot);
+                }
+
+                context.stackManager->push(capturedValue);
+                capturedCount++;
+            }
         }
 
         // Reserve additional local variable slots if needed (for local variables like return value temporaries)
         // Look up lambda metadata to get localCount
         auto* lambdaMetadata = context.program->getFunction(lambda->functionName);
         if (lambdaMetadata) {
-            size_t pushedSlots = args.size() + lambda->capturedValues.size();  // parameters + captured
+            size_t pushedSlots = args.size() + capturedCount;  // parameters + captured
             if (lambdaMetadata->localCount > pushedSlots) {
                 size_t additionalLocals = lambdaMetadata->localCount - pushedSlots;
                 for (size_t i = 0; i < additionalLocals; ++i) {

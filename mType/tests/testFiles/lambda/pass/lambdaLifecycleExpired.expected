@@ -18,13 +18,6 @@ Stored callback for later execution with value: 20
 Stored callback for later execution with value: 30
 Stored callback for later execution with value: 40
 Delayed execution result: 200
-=== Testing potential circular references ===
-Lambda1 processing: 3
-Lambda2 processing: 2
-Lambda1 processing: 1
-Lambda2 processing: 0
-Circular reference test result: 0
 === Testing massive callback cleanup ===
-Massive array results: 50, 250, 450
-Lambda lifecycle error test completed!
-Note: Some errors might be expected in this test as it explores edge cases
+Massive array results: 495, 495, 495
+Lambda lifecycle test completed!

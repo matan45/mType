@@ -6,7 +6,7 @@
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include <algorithm>
-
+#include  <iostream>
 namespace vm::runtime
 {
     FunctionExecutor::FunctionExecutor(ExecutionContext& ctx)
@@ -247,10 +247,125 @@ namespace vm::runtime
         // NOTE: Bytecode VM uses BytecodeLambda which are handled directly by ObjectExecutor::handleCallMethod
         // and don't need interface wrapping
 
-        for (size_t i = 0; i < args.size() && i < parameterTypes.size(); ++i)
+        // Calculate parameter type offset
+        // For instance methods, parameterTypes includes 'this' as the first element, but args doesn't
+        // So if parameterTypes.size() > args.size(), we need to skip the first parameter type
+        size_t paramOffset = 0;
+        if (parameterTypes.size() > args.size()) {
+            paramOffset = 1; // Skip 'this' parameter
+        }
+
+        for (size_t i = 0; i < args.size(); ++i)
         {
-            const std::string& paramType = parameterTypes[i];
+            size_t paramIndex = i + paramOffset;
+            if (paramIndex >= parameterTypes.size()) break;
+
+            const std::string& paramType = parameterTypes[paramIndex];
             value::Value& arg = args[i];
+
+            // AUTO-UNBOXING: Convert wrapper objects to primitives (Int → int, Float → float, etc.)
+            if (paramType == "int" && std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+            {
+                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                if (obj->getTypeName() == "Int")
+                {
+                    value::Value unboxedValue = obj->getFieldValue("value");
+                    if (std::holds_alternative<int>(unboxedValue))
+                    {
+                        arg = unboxedValue;
+                    }
+                }
+                continue;
+            }
+            else if (paramType == "float" && std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+            {
+                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                if (obj->getTypeName() == "Float")
+                {
+                    value::Value unboxedValue = obj->getFieldValue("value");
+                    if (std::holds_alternative<float>(unboxedValue))
+                    {
+                        arg = unboxedValue;
+                    }
+                }
+                continue;
+            }
+            else if (paramType == "bool" && std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+            {
+                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                if (obj->getTypeName() == "Bool")
+                {
+                    value::Value unboxedValue = obj->getFieldValue("value");
+                    if (std::holds_alternative<bool>(unboxedValue))
+                    {
+                        arg = unboxedValue;
+                    }
+                }
+                continue;
+            }
+            else if (paramType == "string" && std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+            {
+                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                if (obj->getTypeName() == "String")
+                {
+                    value::Value unboxedValue = obj->getFieldValue("value");
+                    if (std::holds_alternative<std::string>(unboxedValue))
+                    {
+                        arg = unboxedValue;
+                    }
+                }
+                continue;
+            }
+
+            // AUTO-BOXING: Convert primitives to wrapper objects (Int, Float, Bool, String)
+            if (paramType == "Int" && std::holds_alternative<int>(arg))
+            {
+                // Auto-box int to Int
+                auto intClass = context.environment->findClass("Int");
+                if (intClass)
+                {
+                    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(intClass);
+                    instance->setField("value", arg);
+                    arg = instance;
+                }
+                continue;
+            }
+            else if (paramType == "Float" && std::holds_alternative<float>(arg))
+            {
+                // Auto-box float to Float
+                auto floatClass = context.environment->findClass("Float");
+                if (floatClass)
+                {
+                    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(floatClass);
+                    instance->setField("value", arg);
+                    arg = instance;
+                }
+                continue;
+            }
+            else if (paramType == "Bool" && std::holds_alternative<bool>(arg))
+            {
+                // Auto-box bool to Bool
+                auto boolClass = context.environment->findClass("Bool");
+                if (boolClass)
+                {
+                    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(boolClass);
+                    instance->setField("value", arg);
+                    arg = instance;
+                }
+                continue;
+            }
+            else if (paramType == "String" && std::holds_alternative<std::string>(arg))
+            {
+                // Auto-box string to String
+                auto stringClass = context.environment->findClass("String");
+                if (stringClass)
+                {
+                    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(stringClass);
+                    instance->setField("value", arg);
+                    arg = instance;
+                }
+                continue;
+            }
 
             // BytecodeLambda (bytecode VM) - no conversion needed
             // ObjectExecutor::handleCallMethod handles BytecodeLambda invocation directly

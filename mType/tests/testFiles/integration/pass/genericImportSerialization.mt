@@ -26,9 +26,9 @@ function main(): void {
     Bool containsTest = containsStringItem(stringContainer, new String("test"));
     Bool containsMissing = containsStringItem(stringContainer, new String("missing"));
 
-    print("Contains 42: " + (containsAnswer.value ? "true" : "false"));
-    print("Contains 'test': " + (containsTest.value ? "true" : "false"));
-    print("Contains 'missing': " + (containsMissing.value ? "true" : "false"));
+    print("Contains 42: " + (containsAnswer.getValue() ? "true" : "false"));
+    print("Contains 'test': " + (containsTest.getValue() ? "true" : "false"));
+    print("Contains 'missing': " + (containsMissing.getValue() ? "true" : "false"));
 
     print("Generic import serialization test completed");
 }

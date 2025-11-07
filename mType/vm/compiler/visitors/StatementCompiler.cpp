@@ -13,7 +13,6 @@
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 
-
 namespace vm::compiler::visitors
 {
     StatementCompiler::StatementCompiler(CompilerContext& context)
@@ -165,7 +164,24 @@ namespace vm::compiler::visitors
         std::string name = node->getVariableName();
         value::ValueType varType = node->getVariableType();
 
-        if (ctx.functionFrameManager.isInFunction())
+        // Check if we're in a real function or just the top-level pseudo-frame
+        // Top-level pseudo-frame has scopeDepthStart=0 and localStartSlot=0
+        bool isInRealFunction = false;
+        try {
+            if (ctx.functionFrameManager.isInFunction()) {
+                const auto& frame = ctx.functionFrameManager.currentFrame();
+                // If we're in the top-level pseudo-frame (scopeDepthStart=0, localStartSlot=0), treat as global
+                if (frame.scopeDepthStart == 0 && frame.localStartSlot == 0) {
+                    isInRealFunction = false;
+                } else {
+                    isInRealFunction = true;
+                }
+            }
+        } catch (...) {
+            isInRealFunction = false;
+        }
+
+        if (isInRealFunction)
         {
             // Check if variable exists in the current scope only
             // This prevents redefinition in the same scope but allows shadowing in nested scopes
@@ -216,8 +232,8 @@ namespace vm::compiler::visitors
             );
         }
 
-        ctx.globalRegistry.registerGlobal(name, varType, node->getClassName(),
-                                          ctx.variableTracker.getCurrentScopeDepth());
+        int scopeDepth = ctx.variableTracker.getCurrentScopeDepth();
+        ctx.globalRegistry.registerGlobal(name, varType, node->getClassName(), scopeDepth);
 
         // Register global variable metadata for debugger
         std::string typeName = node->getClassName().empty() ? "auto" : node->getClassName();

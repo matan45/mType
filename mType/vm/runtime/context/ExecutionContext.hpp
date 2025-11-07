@@ -2,6 +2,8 @@
 #include <memory>
 #include <vector>
 #include <chrono>
+#include <unordered_map>
+#include <iostream>
 #include "../../../value/ValueType.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
@@ -13,10 +15,12 @@ namespace vm::runtime
     /**
      * Shared stack frame for late-bound variable access in lambdas
      * This allows multiple lambdas to share and access the same local variable space
+     * Supports parent frame references for nested closures
      */
     struct SharedStackFrame {
         std::vector<value::Value> locals;  // Local variables in this frame
         std::unordered_map<std::string, size_t> nameToSlot;  // Map variable names to slots
+        std::shared_ptr<SharedStackFrame> parentFrame;  // Parent frame for nested closures
 
         value::Value getLocal(size_t slot) const {
             if (slot < locals.size()) {
@@ -26,9 +30,14 @@ namespace vm::runtime
         }
 
         value::Value getLocalByName(const std::string& name) const {
+            // First check this frame
             auto it = nameToSlot.find(name);
             if (it != nameToSlot.end()) {
                 return getLocal(it->second);
+            }
+            // If not found, check parent frame
+            if (parentFrame) {
+                return parentFrame->getLocalByName(name);
             }
             return std::monostate{};
         }
@@ -44,16 +53,30 @@ namespace vm::runtime
             nameToSlot[name] = slot;
             setLocal(slot, value);
         }
+
+        void setLocalByName(const std::string& name, const value::Value& value) {
+            // First check this frame
+            auto it = nameToSlot.find(name);
+            if (it != nameToSlot.end()) {
+                setLocal(it->second, value);
+                return;
+            }
+            // If not found in this frame, check parent frame
+            if (parentFrame) {
+                parentFrame->setLocalByName(name, value);
+            }
+        }
     };
 
     /**
      * Bytecode lambda representation with closure support
-     * Uses snapshot capture only (C# semantics) - all outer variables captured at lambda creation time
+     * Uses reference capture - captured variables are accessed from shared frame at invocation time
      */
     struct BytecodeLambda {
         size_t instructionPointer;  // Where the lambda code starts
         size_t parameterCount;      // Number of parameters
-        std::vector<value::Value> capturedValues;  // Snapshot values of variables at lambda creation time
+        std::shared_ptr<SharedStackFrame> capturedFrame;  // Shared frame containing captured variables
+        std::vector<size_t> capturedSlots;  // Slot indices in the shared frame to capture
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> capturedThis;  // Captured 'this' from method context
         std::string creatingClassName;  // Class context where lambda was created (for access checks)
         std::vector<std::string> parameterNames;  // Names of lambda parameters (for debugging)
@@ -72,6 +95,7 @@ namespace vm::runtime
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> thisInstance;  // For method calls
         std::shared_ptr<BytecodeLambda> originatingLambda;  // If this frame is for a lambda, reference to it (for debugging)
         std::string definingClassName;           // Class that defines the method (for access control in inheritance)
+        std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for closure capture (if this function creates lambdas)
     };
 
     /**

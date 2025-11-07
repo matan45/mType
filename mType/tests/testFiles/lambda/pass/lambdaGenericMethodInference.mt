@@ -1,6 +1,7 @@
 // Passing lambda to generic method test
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
+
 interface Function<T, R> {
     function apply(T input) : R;
 }
@@ -21,13 +22,13 @@ Processor p = new Processor();
 Int[] numbers = [new Int(1), new Int(2), new Int(3), new Int(4), new Int(5)];
 
 // Lambda inferred as Function<int, String>
-String[] strings = p.process<Int,String>(numbers, x -> new String("Value:" + x.value));
+String[] strings = p.process<Int,String>(numbers, x -> new String("Value:" + x.getValue()));
 for (int i = 0; i < strings.length; i = i + 1) {
     print(strings[i].toString());
 }
 
 // Lambda inferred as Function<int, int>
-Int[] doubled = p.process<Int,Int>(numbers, x -> new Int(x.value * 2));
+Int[] doubled = p.process<Int,Int>(numbers, x -> new Int(x.getValue() * 2));
 for (int i = 0; i < doubled.length; i = i + 1) {
     print("Doubled: " + doubled[i].toString());
 }

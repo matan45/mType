@@ -87,6 +87,18 @@ namespace vm::runtime
             instructionPointer = program->getEntryPoint();
             executionStart = std::chrono::steady_clock::now();
             stats = ExecutionStats{};
+
+            // Create an initial call frame for the implicit "main" function
+            // This allows global scope variables to be captured by lambdas
+            // Use "__script_main__" to match the expected name for global scope access checks
+            CallFrame mainFrame;
+            mainFrame.returnAddress = program->getInstructionCount(); // Return past end (halt)
+            mainFrame.frameBase = 0;
+            mainFrame.localBase = 0;
+            mainFrame.functionName = "__script_main__";
+            mainFrame.thisInstance = nullptr;
+            mainFrame.definingClassName = "";
+            callStack.push_back(mainFrame);
         }
 
         // Note: Executors are now initialized in interpretLoop() to ensure
@@ -98,6 +110,12 @@ namespace vm::runtime
         try
         {
             value::Value result = interpretLoop();
+
+            // Pop the main frame if it's still on the stack
+            if (!callStack.empty() && callStack.back().functionName == "__script_main__") {
+                callStack.pop_back();
+            }
+
             return result;
         }
         catch (...)

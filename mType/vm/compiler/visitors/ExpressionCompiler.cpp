@@ -343,11 +343,13 @@ namespace vm::compiler::visitors
 
         // Global variable lookup - validate
         bool inLambda = ctx.functionFrameManager.isInLambda();
+
         if (!inLambda) {
             if (!ctx.globalRegistry.exists(name)) {
                 throw errors::UndefinedException("Variable '" + name + "' is not defined", node->getLocation());
             }
-            if (!ctx.globalRegistry.isInScope(name, ctx.variableTracker.getCurrentScopeDepth())) {
+            bool inScope = ctx.globalRegistry.isInScope(name, ctx.variableTracker.getCurrentScopeDepth());
+            if (!inScope) {
                 throw errors::UndefinedException("Variable '" + name + "' is not defined or is out of scope", node->getLocation());
             }
         }

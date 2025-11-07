@@ -575,6 +575,8 @@ namespace vm::compiler::visitors
             if (local.slot >= currentFrameStart)
             {
                 capturedVars.push_back(local);
+                // Mark this variable as captured to prevent slot reuse
+                ctx.variableTracker.markVariableAsCaptured(local.slot);
             }
         }
 

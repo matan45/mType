@@ -26,7 +26,9 @@ namespace vm::compiler::variables
 
     bool FunctionFrameManager::isInFunction() const
     {
-        return !functionFrameStack.empty();
+        bool result = !functionFrameStack.empty();
+        // Don't log this as it's called very frequently
+        return result;
     }
 
     const FunctionFrameManager::FunctionFrame& FunctionFrameManager::currentFrame() const

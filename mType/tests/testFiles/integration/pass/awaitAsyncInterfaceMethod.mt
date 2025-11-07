@@ -1,8 +1,10 @@
 // Test: Interface with async methods
 // @Script
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/Bool.mt";
 import * from "../../lib/collections/List.mt";
+
 interface AsyncService {
     function async fetchData(Int id) : Promise<String>;
     function async saveData(String data) : Promise<Bool>;
@@ -17,7 +19,7 @@ class DataService implements AsyncService {
 
     public function async fetchData(Int id) : Promise<String> {
         await delay(10);
-        if (id >= 0 && id < this.storage.size()) {
+        if (id.getValue() >= 0 && id.getValue() < this.storage.size()) {
             return this.storage.get(id);
         }
         return new String("Not found");
@@ -25,7 +27,7 @@ class DataService implements AsyncService {
 
     public function async saveData(String data) : Promise<Bool> {
         await delay(10);
-        this.storage.add(new String(data));
+        this.storage.add(data);
         print("Saved: " + data);
         return new Bool(true);
     }
@@ -37,7 +39,7 @@ function async delay(Int ms) : Promise<void> {
 
 function async testService(AsyncService service ) : Promise<String> {
     Bool saved = await service.saveData("Test data");
-    if (saved.value) {
+    if (saved.getValue()) {
         String retrieved = await service.fetchData(0);
         return retrieved;
     }
@@ -48,11 +50,12 @@ function async main() : Promise<void> {
     AsyncService service  = new DataService();
 
     Bool result1 = await service.saveData("Hello");
-    print("Should save successfully: "+result1.value);
+    print("Should save successfully: "+result1.getValue());
 
     String result2 = await service.fetchData(0);
     print("Fetched: " + result2);
 
     String result3 = await testService(service);
+    print("Test service result: " + result3);
 }
 main();

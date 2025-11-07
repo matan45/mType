@@ -18,7 +18,7 @@ class ArrayUtils {
     public function <T> filter(T[] input, Function<T, Bool> predicate) : T[] {
         int count = 0;
         for (int i = 0; i < input.length; i = i + 1) {
-            if (predicate.apply(input[i]).value) {
+            if (predicate.apply(input[i]).getValue()) {
                 count = count + 1;
             }
         }
@@ -26,7 +26,7 @@ class ArrayUtils {
         T[] result = new T[count];
         int idx = 0;
         for (int i = 0; i < input.length; i = i + 1) {
-            if (predicate.apply(input[i]).value) {
+            if (predicate.apply(input[i]).getValue()) {
                 result[idx] = input[i];
                 idx = idx + 1;
             }
@@ -41,13 +41,13 @@ ArrayUtils utils = new ArrayUtils();
 Int[] numbers = [new Int(1), new Int(2), new Int(3), new Int(4), new Int(5)];
 
 // Map int[] to String[]
-String[] strings = utils.map<Int,String>(numbers, x -> new String("Item-" + x.value));
+String[] strings = utils.map<Int,String>(numbers, x -> new String("Item-" + x.getValue()));
 for (int i = 0; i < strings.length; i = i + 1) {
     print(strings[i].toString());
 }
 
 // Filter even numbers
-Int[] evens = utils.filter<Int>(numbers, x -> new Bool(x.value % 2 == 0));
+Int[] evens = utils.filter<Int>(numbers, x -> new Bool(x.getValue() % 2 == 0));
 print("Evens:");
 for (int i = 0; i < evens.length; i = i + 1) {
     print(evens[i].toString());

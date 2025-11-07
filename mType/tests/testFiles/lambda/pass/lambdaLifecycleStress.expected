@@ -18,15 +18,15 @@ Task 13 result: 1690
 Task 14 result: 126
 All tasks completed
 === Mass lambda creation test ===
-Worker 0 result: 5
-Worker 1 result: 11
-Worker 2 result: 17
-Worker 3 result: 23
-Worker 4 result: 29
-Worker 5 result: 35
-Worker 6 result: 41
-Worker 7 result: 47
-Worker 8 result: 53
+Worker 0 result: 50
+Worker 1 result: 51
+Worker 2 result: 52
+Worker 3 result: 53
+Worker 4 result: 54
+Worker 5 result: 55
+Worker 6 result: 56
+Worker 7 result: 57
+Worker 8 result: 58
 Worker 9 result: 59
 === Lambda chaining test ===
 Chain results: 25, 50, 45, 15
@@ -57,13 +57,13 @@ Task 4 result: 44
 All tasks completed
 === Test 5: Memory pressure simulation ===
 BigArray[0] result: 0
-BigArray[5] result: 45
-BigArray[10] result: 70
-BigArray[15] result: 75
-BigArray[20] result: 200
-BigArray[25] result: 200
-BigArray[30] result: 180
+BigArray[5] result: 20
+BigArray[10] result: 40
+BigArray[15] result: 60
+BigArray[20] result: 80
+BigArray[25] result: 100
+BigArray[30] result: 120
 BigArray[35] result: 140
-BigArray[40] result: 360
-BigArray[45] result: 315
+BigArray[40] result: 160
+BigArray[45] result: 180
 Lambda stress test completed!

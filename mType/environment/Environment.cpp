@@ -1,7 +1,6 @@
 ﻿#include "Environment.hpp"
 #include "../circularDependency/TrueCyclicException.hpp"
 #include "../circularDependency/DepthLimitException.hpp"
-
 namespace environment
 {
     Environment::Environment(
@@ -131,10 +130,8 @@ namespace environment
             }
         }
 
-        // Only check global variables if we're in global scope
-        // This prevents dynamic scoping behavior where variables from active function calls
-        // become accessible to other functions
-        if (variableManager && scopeManager && scopeManager->getCurrentScope() == scopeManager->getGlobalScope())
+        // Then check global variables (accessible from all scopes)
+        if (variableManager)
         {
             return variableManager->findVariable(name);
         }

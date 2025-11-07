@@ -84,8 +84,21 @@ namespace vm::compiler
         // Sixth, validate @Throw annotations now that all classes are registered
         functionRegistrar.validateThrowAnnotations(root);
 
+        // Create implicit "main" function frame for global scope
+        // This allows variables at global scope to be tracked and captured by lambdas
+        context.functionFrameManager.enterFunctionFrame("void",
+                                                        context.variableTracker.getNextLocalSlot(),
+                                                        context.variableTracker.getCurrentScopeDepth(),
+                                                        false, // Not a lambda
+                                                        false); // Not async
+        context.variableTracker.beginScope();
+
         // Visit the root node to generate bytecode
         root->accept(*this);
+
+        // Exit the implicit main function frame
+        context.variableTracker.endScope();
+        context.functionFrameManager.exitFunctionFrame();
 
         // Validate all class methods have bytecode implementations
         // Skip validation in Release mode as AST optimizer may have removed unused methods

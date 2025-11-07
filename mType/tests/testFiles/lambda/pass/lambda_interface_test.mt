@@ -63,13 +63,13 @@ function testGenericLambdaInterface(): void {
     print("Testing generic lambda-to-interface conversion...");
 
     // Create Processor<String> from lambda
-    Processor<String> stringProcessor = x -> new String(x.value + "_processed");
+    Processor<String> stringProcessor = x -> new String(x.getValue() + "_processed");
 
     // Test method invocation
     String result = stringProcessor.process(new String("test"));
-    print(stringProcessor.process(new String("test")) + " = " + result.value);
+    print(stringProcessor.process(new String("test")) + " = " + result.getValue());
 
-    if (result.value == "test_processed") {
+    if (result.getValue() == "test_processed") {
         print("Generic lambda-to-interface conversion works!");
     } else {
         print("Generic test failed - expected 'test_processed', got " + result.toString());
@@ -144,12 +144,12 @@ function testClosureCapture(): void {
     int multiplier = 5;
 
     // Lambda should capture the multiplier variable
-    Processor<String> multiplierProcessor = x -> new String(x.value +"_" + multiplier);
+    Processor<String> multiplierProcessor = x -> new String(x.getValue() +"_" + multiplier);
 
     String result = multiplierProcessor.process(new String("test"));
     print("Closure capture result: " + result);
 
-    if (result.value == "test_5") {
+    if (result.getValue() == "test_5") {
         print("Closure capture works correctly!");
     } else {
         print("Closure capture failed - expected 'test_5', got " + result);
