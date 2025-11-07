@@ -403,7 +403,10 @@ namespace vm::compiler::visitors
         value::ValueType leftType = ctx.typeInference.inferExpressionType(left);
         value::ValueType rightType = ctx.typeInference.inferExpressionType(right);
 
-        // Check if left is a primitive literal that should be auto-boxed first
+        // PHASE 4: Only use operator overloading if at least one operand is already a Box object
+        // Don't auto-box primitive literals for operator overloading (e.g., 2 * 3 stays primitive)
+        // This ensures that expressions like array indices (calcTest[2 * 3][4 * 5]) work without needing Box classes
+
         std::string leftClassName;
         bool leftNeedsBoxing = false;
 
@@ -414,7 +417,14 @@ namespace vm::compiler::visitors
         }
         else
         {
-            // Left is a primitive - check if it's a literal that can be boxed
+            // Left is a primitive - only allow operator overloading if right is already a Box object
+            // This prevents auto-boxing primitive-only operations like 2 + 3
+            if (rightType != value::ValueType::OBJECT)
+            {
+                return false;  // Both operands are primitives, use normal primitive operations
+            }
+
+            // Right is a Box object, so we can auto-box the left literal
             if (dynamic_cast<ast::IntegerNode*>(left))
             {
                 leftClassName = "Int";

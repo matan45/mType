@@ -7,7 +7,7 @@
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../errors/TypeException.hpp"
-#include  <iostream>
+
 namespace vm::compiler::visitors
 {
     ArrayCompiler::ArrayCompiler(CompilerContext& context)
@@ -140,37 +140,10 @@ namespace vm::compiler::visitors
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
                            static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(static_cast<int>(i))), node);
 
-            // PHASE 4: Compile element value with potential auto-boxing
-            // Check if this is a primitive literal that might need boxing
-            using namespace ast::nodes::expressions;
-            bool needsBoxing = false;
-            std::string boxClassName;
-
-            if (dynamic_cast<IntegerNode*>(elements[i].get())) {
-                needsBoxing = true;
-                boxClassName = "Int";
-            } else if (dynamic_cast<FloatNode*>(elements[i].get())) {
-                needsBoxing = true;
-                boxClassName = "Float";
-            } else if (dynamic_cast<BoolNode*>(elements[i].get())) {
-                needsBoxing = true;
-                boxClassName = "Bool";
-            } else if (dynamic_cast<StringNode*>(elements[i].get())) {
-                needsBoxing = true;
-                boxClassName = "String";
-            }
-
-            // Compile element
+            // Compile element value
+            // Note: Auto-boxing for array literals is handled by VariableCompiler
+            // during array variable declaration, not here
             elements[i]->accept(ctx.visitor);
-
-            // Auto-box primitive literals
-            if (needsBoxing) {
-                size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
-                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                             static_cast<uint32_t>(classNameIndex),
-                                             1u,  // 1 constructor argument
-                                             elements[i].get());
-            }
 
             // Set array element with source location
             ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_SET, node);

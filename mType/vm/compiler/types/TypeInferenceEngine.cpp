@@ -16,7 +16,7 @@
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../token/TokenType.hpp"
-
+#include  <iostream>
 namespace vm::compiler::types
 {
     TypeInferenceEngine::TypeInferenceEngine(
@@ -133,12 +133,38 @@ namespace vm::compiler::types
                 // Check if it's a field
                 auto field = classDef->getField(memberName);
                 if (field) {
+                    // Check basic type first - if it's already ARRAY, return that
+                    if (field->getType() == value::ValueType::ARRAY) {
+                        return value::ValueType::ARRAY;
+                    }
+
+                    // Check if the field type is an array by checking the generic type
+                    if (field->hasGenericType()) {
+                        std::string fieldTypeName = field->getGenericType()->toString();
+                        if (!fieldTypeName.empty() &&
+                            (fieldTypeName.find("[]") != std::string::npos || fieldTypeName.find("Array<") == 0)) {
+                            return value::ValueType::ARRAY;
+                        }
+                    }
                     return field->getType();
                 }
 
                 // Check if it's a method
                 auto method = classDef->getMethod(memberName);
                 if (method) {
+                    // Check basic return type first - if it's already ARRAY, return that
+                    if (method->getReturnType() == value::ValueType::ARRAY) {
+                        return value::ValueType::ARRAY;
+                    }
+
+                    // Check if the return type is an array
+                    if (method->getGenericReturnType()) {
+                        std::string returnTypeName = method->getGenericReturnType()->toString();
+                        if (!returnTypeName.empty() &&
+                            (returnTypeName.find("[]") != std::string::npos || returnTypeName.find("Array<") == 0)) {
+                            return value::ValueType::ARRAY;
+                        }
+                    }
                     return method->getReturnType();
                 }
             }
@@ -162,6 +188,11 @@ namespace vm::compiler::types
                 if (funcMetadata->returnType == "string") return value::ValueType::STRING;
                 if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
                 if (funcMetadata->returnType == "void") return value::ValueType::VOID;
+                // Check if return type is an array
+                if (funcMetadata->returnType.find("[]") != std::string::npos ||
+                    funcMetadata->returnType.find("Array<") == 0) {
+                    return value::ValueType::ARRAY;
+                }
                 return value::ValueType::OBJECT;
             }
         }
@@ -194,16 +225,17 @@ namespace vm::compiler::types
         std::string leftClassName;
         bool willUseOperatorOverloading = false;
 
-        // Check if left is an object or a literal that will be auto-boxed
+        // PHASE 4: Only use operator overloading if at least one operand is already a Box object
+        // Don't auto-box primitive literals for operator overloading (e.g., 2 * 3 stays primitive)
         if (leftType == value::ValueType::OBJECT)
         {
             leftClassName = inferExpressionClassName(binOp->getLeft());
             willUseOperatorOverloading = (leftClassName == "Int" || leftClassName == "Float" ||
                                          leftClassName == "Bool" || leftClassName == "String");
         }
-        else
+        else if (rightType == value::ValueType::OBJECT)
         {
-            // Left is primitive - check if it's a literal that will be auto-boxed for operator overloading
+            // Left is primitive but right is a Box object - we can auto-box left for operator overloading
             if (dynamic_cast<IntegerNode*>(binOp->getLeft()))
             {
                 leftClassName = "Int";
@@ -225,6 +257,7 @@ namespace vm::compiler::types
                 willUseOperatorOverloading = true;
             }
         }
+        // else: both operands are primitives, use normal primitive operations (no operator overloading)
 
         // PHASE 4: Check if right operand is a "simple" expression
         // Operator overloading is only used for simple operands, not complex expressions like method calls
@@ -553,6 +586,70 @@ namespace vm::compiler::types
         return "";
     }
 
+    std::string TypeInferenceEngine::inferMemberAccessClassName(ast::MemberAccessNode* memberAccess) const
+    {
+        // Get the object's class name
+        std::string className = inferExpressionClassName(memberAccess->getObject());
+        if (!className.empty()) {
+            // Look up the class definition
+            auto classDef = environment->findClass(className);
+            if (classDef) {
+                std::string memberName = memberAccess->getMemberName();
+
+                // Check if it's a field
+                auto field = classDef->getField(memberName);
+                if (field) {
+                    if (field->hasGenericType()) {
+                        std::string fieldTypeName = field->getGenericType()->toString();
+                        // Don't return primitive type names as class names
+                        if (fieldTypeName != "int" && fieldTypeName != "float" &&
+                            fieldTypeName != "string" && fieldTypeName != "bool" &&
+                            fieldTypeName != "void") {
+                            return fieldTypeName;
+                        }
+                    }
+                }
+
+                // Check if it's a method
+                auto method = classDef->getMethod(memberName);
+                if (method) {
+                    if (method->getGenericReturnType()) {
+                        std::string returnTypeName = method->getGenericReturnType()->toString();
+                        // Don't return primitive type names as class names
+                        if (returnTypeName != "int" && returnTypeName != "float" &&
+                            returnTypeName != "string" && returnTypeName != "bool" &&
+                            returnTypeName != "void") {
+                            return returnTypeName;
+                        }
+                    }
+                }
+            }
+        }
+        return "";
+    }
+
+    std::string TypeInferenceEngine::inferMethodCallClassName(ast::MethodCallNode* methodCall) const
+    {
+        // Get the object's class name
+        std::string className = inferExpressionClassName(methodCall->getObject());
+        if (!className.empty()) {
+            // Construct the fully qualified method name (ClassName::methodName)
+            std::string methodName = className + "::" + methodCall->getMethodName();
+
+            // Look up the method in the bytecode program's function registry
+            const auto* funcMetadata = program.getFunction(methodName);
+            if (funcMetadata && !funcMetadata->returnType.empty()) {
+                // Don't return primitive type names as class names
+                if (funcMetadata->returnType != "int" && funcMetadata->returnType != "float" &&
+                    funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
+                    funcMetadata->returnType != "void") {
+                    return funcMetadata->returnType;
+                }
+            }
+        }
+        return "";
+    }
+
     std::string TypeInferenceEngine::inferExpressionClassName(ast::ASTNode* node) const
     {
         if (!node) return "";
@@ -580,6 +677,16 @@ namespace vm::compiler::types
         // Index access (array element access)
         if (auto* indexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(node)) {
             return inferIndexAccessClassName(indexAccess);
+        }
+
+        // Member access (field or method)
+        if (auto* memberAccess = dynamic_cast<ast::MemberAccessNode*>(node)) {
+            return inferMemberAccessClassName(memberAccess);
+        }
+
+        // Method calls
+        if (auto* methodCall = dynamic_cast<ast::MethodCallNode*>(node)) {
+            return inferMethodCallClassName(methodCall);
         }
 
         // PHASE 4: Binary operations with operator overloading

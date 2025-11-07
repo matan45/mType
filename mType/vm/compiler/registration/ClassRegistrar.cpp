@@ -238,6 +238,7 @@ namespace vm::compiler::registration
                 auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
                     fieldNode->getName(),
                     fieldNode->getType(),
+                    fieldNode->getGenericType(),  // Pass generic type information (e.g., int[], Array<T>)
                     defaultValue,
                     fieldNode->getIsStatic(),
                     fieldNode->getIsFinal(),

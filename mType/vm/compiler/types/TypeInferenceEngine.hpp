@@ -61,5 +61,7 @@ namespace vm::compiler::types
         std::string inferVariableClassName(ast::VariableNode* varNode) const;
         std::string inferFunctionCallClassName(ast::FunctionCallNode* funcCall) const;
         std::string inferIndexAccessClassName(ast::nodes::expressions::IndexAccessNode* indexAccess) const;
+        std::string inferMemberAccessClassName(ast::MemberAccessNode* memberAccess) const;
+        std::string inferMethodCallClassName(ast::MethodCallNode* methodCall) const;
     };
 }

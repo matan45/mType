@@ -259,6 +259,9 @@ namespace vm::compiler::visitors
             else if (expectedReturnType == "string") expectedType = value::ValueType::STRING;
             else if (expectedReturnType == "bool") expectedType = value::ValueType::BOOL;
             else if (expectedReturnType == "void") expectedType = value::ValueType::VOID;
+            else if (expectedReturnType.find("Array<") == 0 || expectedReturnType.find("[]") != std::string::npos) {
+                expectedType = value::ValueType::ARRAY; // Array types (Array<T> or T[])
+            }
             else expectedType = value::ValueType::OBJECT; // Class/interface types
 
             // Check if types match (allow VOID for unknown types)

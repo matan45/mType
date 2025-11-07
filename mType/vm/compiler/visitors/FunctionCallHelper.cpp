@@ -231,6 +231,15 @@ namespace vm::compiler::visitors
                 expectedType != "string" && expectedType != "bool" &&
                 expectedType != "void")
             {
+                // Special handling for array types
+                bool expectedIsArray = (expectedType.find("[]") != std::string::npos ||
+                                       expectedType.find("Array<") == 0);
+                if (expectedIsArray && argType == value::ValueType::ARRAY)
+                {
+                    // Array type matches - skip detailed validation for now
+                    continue;
+                }
+
                 // Expected type is an object/class
                 if (argType != value::ValueType::OBJECT)
                 {

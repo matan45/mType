@@ -143,14 +143,20 @@ namespace vm::compiler::visitors
             return;
         }
 
-        // Skip validation for generic array types (like T[], E[], Array<T>, etc.)
-        if (resolvedExpectedType == "Array" || resolvedExpectedType.find("Array<") == 0)
+        // Skip validation for array types (like T[], E[], Array<T>, int[], etc.)
+        if (resolvedExpectedType == "Array" || resolvedExpectedType.find("Array<") == 0 ||
+            resolvedExpectedType.find("[]") != std::string::npos)
         {
-            // Check if argument is any array type (Int[], String[], etc.)
+            // Check if argument is any array type
+            if (argType == value::ValueType::ARRAY)
+            {
+                return; // Any array type is acceptable for array parameter
+            }
+            // Also check for object arrays (like Int[], String[] which are stored as objects)
             std::string argClassName = ctx.typeInference.inferExpressionClassName(argument);
             if (argType == value::ValueType::OBJECT && argClassName.find("[]") != std::string::npos)
             {
-                return; // Any array type is acceptable for generic array parameter
+                return; // Object array types are also acceptable
             }
         }
 

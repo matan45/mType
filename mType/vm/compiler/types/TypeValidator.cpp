@@ -264,6 +264,23 @@ namespace vm::compiler::types
             return;
         }
 
+        // Special handling for array assignments
+        // Arrays can be ARRAY type or OBJECT type depending on context
+        bool varIsArray = (varType == value::ValueType::ARRAY) ||
+                         (varType == value::ValueType::OBJECT && !varClassName.empty() &&
+                          (varClassName.find("[]") != std::string::npos || varClassName.find("Array<") == 0));
+        bool valueIsArray = (valueType == value::ValueType::ARRAY) ||
+                           (valueType == value::ValueType::OBJECT && !valueClassName.empty() &&
+                            (valueClassName.find("[]") != std::string::npos || valueClassName.find("Array<") == 0));
+
+        if (varIsArray && valueIsArray) {
+            // Both are arrays - validate array type compatibility
+            if (!varClassName.empty() && !valueClassName.empty()) {
+                validateObjectTypeAssignment(varClassName, valueClassName, location);
+            }
+            return;
+        }
+
         // For OBJECT types, check class compatibility
         if (varType == value::ValueType::OBJECT && valueType == value::ValueType::OBJECT) {
             if (!varClassName.empty() && !valueClassName.empty()) {
