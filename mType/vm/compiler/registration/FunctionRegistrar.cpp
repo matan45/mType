@@ -6,6 +6,7 @@
 #include "../../../validation/AnnotationValidator.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/TypeException.hpp"
+#include "../types/GenericPatternAnalyzer.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
@@ -123,6 +124,22 @@ namespace vm::compiler::registration
             for (const auto& param : genericParams)
             {
                 metadata.genericTypeParameters.push_back(param.name);
+            }
+
+            // PHASE 2: Analyze parameter types for nested generic inference
+            // Build set of declared type parameters for quick lookup
+            std::unordered_set<std::string> declaredTypeParams;
+            for (const auto& param : genericParams)
+            {
+                declaredTypeParams.insert(param.name);
+            }
+
+            // For each parameter, extract which type parameters it uses
+            for (const auto& paramType : paramTypes)
+            {
+                std::unordered_set<std::string> usedParams =
+                    types::GenericPatternAnalyzer::extractUsedTypeParameters(paramType, declaredTypeParams);
+                metadata.parameterTypeParameterUsage.push_back(usedParams);
             }
         }
 

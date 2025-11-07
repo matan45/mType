@@ -517,7 +517,24 @@ namespace vm::compiler::visitors
             // Compile value
             if (!autoBoxed)
             {
+                // PHASE 1: Push expected type context for bidirectional type inference
+                // This allows type inference from assignment target (e.g., Box<Int> x = createBox();)
+                bool pushedContext = false;
+                if (varType != value::ValueType::VOID)
+                {
+                    std::string expectedClassName = isReassignment ? existingClassName : ctx.resolveGenericType(node->getClassName());
+                    types::ExpectedTypeContext expectedCtx(varType, expectedClassName);
+                    ctx.pushExpectedTypeContext(expectedCtx);
+                    pushedContext = true;
+                }
+
                 value->accept(ctx.visitor);
+
+                // PHASE 1: Pop expected type context
+                if (pushedContext)
+                {
+                    ctx.popExpectedTypeContext();
+                }
 
                 // PHASE 4: Auto-unbox if needed
                 if (needsAutoUnbox)

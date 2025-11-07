@@ -156,6 +156,18 @@ namespace tests::testSuite
         addOutputVerificationTest("Infer Recursive",
                         passPath + "inferRecursive.mt");
 
+        // === ADVANCED TYPE INFERENCE TESTS (Phase 2 & 3) ===
+        // Tests for nested generic inference and return type inference
+
+        addOutputVerificationTest("Nested Generic Inference",
+                        passPath + "nestedGenericInference.mt");
+        addOutputVerificationTest("Deep Nested Generic Inference",
+                        passPath + "deepNestedGenericInference.mt");
+        addOutputVerificationTest("Return Type Inference",
+                        passPath + "returnTypeInference.mt");
+        addOutputVerificationTest("Partial Inference Combined",
+                        passPath + "partialInferenceCombined.mt");
+
         // === VARIANCE TESTS ===
         // Tests for covariance and contravariance
 
@@ -490,6 +502,14 @@ namespace tests::testSuite
                     TestType::ERROR_EXPECTED);
         addTestFromFile("Infer Ambiguous",
                     errorPath + "inferAmbiguous.mt",
+                    TestType::ERROR_EXPECTED);
+
+        // Advanced type inference error tests (Phase 2 & 3)
+        addTestFromFile("Nested Inference Conflict",
+                    errorPath + "nestedInferenceConflict.mt",
+                    TestType::ERROR_EXPECTED);
+        addTestFromFile("Return Type Inference Conflict",
+                    errorPath + "returnTypeInferenceConflict.mt",
                     TestType::ERROR_EXPECTED);
 
         // === ADVANCED CONSTRAINTS ERROR TESTS ===

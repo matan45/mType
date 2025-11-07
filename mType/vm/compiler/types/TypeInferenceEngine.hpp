@@ -35,12 +35,16 @@ namespace vm::compiler::types
         // Set generic type bindings stack (reference to context's stack)
         void setGenericTypeBindingsStack(const std::vector<std::unordered_map<std::string, std::string>>* stack);
 
+        // PHASE 3: Set reference to resolved function call types cache
+        void setResolvedFunctionCallTypes(const std::unordered_map<const ast::ASTNode*, std::string>* cache);
+
     private:
         const bytecode::BytecodeProgram& program;
         std::shared_ptr<environment::Environment> environment;
         const variables::VariableTracker& variableTracker;
         const variables::GlobalVariableRegistry& globalRegistry;
         const std::vector<std::unordered_map<std::string, std::string>>* genericTypeBindingsStack = nullptr;
+        const std::unordered_map<const ast::ASTNode*, std::string>* resolvedFunctionCallTypes = nullptr;  // PHASE 3
 
         // Helper to resolve generic types
         std::string resolveGenericType(const std::string& typeName) const;

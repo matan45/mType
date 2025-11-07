@@ -11,6 +11,7 @@
 #include "../types/TypeInferenceEngine.hpp"
 #include "../types/TypeValidator.hpp"
 #include "../types/GenericTypeResolver.hpp"
+#include "../types/ExpectedTypeContext.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../ast/ASTVisitor.hpp"
 #include "../../../value/ValueType.hpp"
@@ -63,6 +64,15 @@ namespace vm::compiler::visitors
 
         // Generic type binding stack for functions and methods
         std::vector<std::unordered_map<std::string, std::string>> genericTypeBindingStack;
+
+        // Expected type context stack for bidirectional type checking
+        std::vector<types::ExpectedTypeContext> expectedTypeContextStack;
+
+        // PHASE 3: Cache for resolved generic function call return types
+        // Maps FunctionCallNode* -> resolved className (e.g., "Int" instead of "T")
+        // This cache is populated during function call compilation (while bindings are active)
+        // and queried later during type checking (after bindings are popped)
+        std::unordered_map<const ast::ASTNode*, std::string> resolvedFunctionCallTypes;
 
         CompilerContext(
             ast::ASTVisitor<value::Value>& vis,
@@ -129,6 +139,35 @@ namespace vm::compiler::visitors
             // Use GenericTypeResolver to handle nested generics (e.g., "TypeToken<T>" -> "TypeToken<Int>")
             types::GenericTypeResolver resolver;
             return resolver.resolveGenericType(typeName, genericTypeBindingStack.back());
+        }
+
+        // Expected type context management for bidirectional type checking
+        void pushExpectedTypeContext(const types::ExpectedTypeContext& context)
+        {
+            expectedTypeContextStack.push_back(context);
+        }
+
+        void popExpectedTypeContext()
+        {
+            if (!expectedTypeContextStack.empty())
+            {
+                expectedTypeContextStack.pop_back();
+            }
+        }
+
+        types::ExpectedTypeContext getCurrentExpectedTypeContext() const
+        {
+            if (expectedTypeContextStack.empty())
+            {
+                return types::ExpectedTypeContext::none();
+            }
+            return expectedTypeContextStack.back();
+        }
+
+        bool hasExpectedTypeContext() const
+        {
+            return !expectedTypeContextStack.empty() &&
+                   expectedTypeContextStack.back().isActive;
         }
     };
 }

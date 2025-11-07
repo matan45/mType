@@ -1,0 +1,2 @@
+Partial inference (combined sources) compilation test passed!
+Note: Full partial inference requires Phase 3 return type + nested generic integration

@@ -40,6 +40,9 @@ namespace vm::compiler
         // Set up type inference engine to use context's generic type bindings stack
         typeInference.setGenericTypeBindingsStack(&context.genericTypeBindingStack);
 
+        // PHASE 3: Set up type inference engine to use context's resolved function call types cache
+        typeInference.setResolvedFunctionCallTypes(&context.resolvedFunctionCallTypes);
+
         // Set up compile-time validator in context and registrar
         context.compileTimeValidator = compileTimeValidator.get();
         classRegistrar.setCompileTimeValidator(compileTimeValidator.get());

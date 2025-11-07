@@ -1239,6 +1239,12 @@
     <ClInclude Include="vm\compiler\registration\InterfaceRegistrar.hpp">
       <Filter>vm\compiler\registration</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\types\ExpectedTypeContext.hpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\types\GenericPatternAnalyzer.hpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\types\GenericTypeResolver.hpp">
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
@@ -2054,6 +2060,12 @@
     <ClCompile Include="vm\compiler\registration\InterfaceRegistrar.cpp">
       <Filter>vm\compiler\registration</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\types\ExpectedTypeContext.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\GenericPatternAnalyzer.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\types\GenericTypeResolver.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
@@ -2812,6 +2824,12 @@
     <None Include="tests\testFiles\arrays\pass\collectionInteroperability.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\floatBoxSIMD.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\floatBoxSIMD.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\pass\genericArrays.expected">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
@@ -2822,6 +2840,18 @@
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\genericArraysOptimized.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\intBoxSIMD.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\intBoxSIMD.mt">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\intBoxSoASIMD.expected">
+      <Filter>tests\testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\intBoxSoASIMD.mt">
       <Filter>tests\testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\linkedListComprehensive.expected">
@@ -6136,13 +6166,7 @@
     <None Include="tests\testFiles\generics\error\interfaceExtendsGenericClass.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
-    <None Include="tests\testFiles\generics\error\invalidReturnTypeAssignment.expected">
-      <Filter>tests\testFiles\generics\error</Filter>
-    </None>
     <None Include="tests\testFiles\generics\error\invalidReturnTypeAssignment.mt">
-      <Filter>tests\testFiles\generics\error</Filter>
-    </None>
-    <None Include="tests\testFiles\generics\error\invalidTypeArgumentCount.expected">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\invalidTypeArgumentCount.mt">
@@ -6175,7 +6199,7 @@
     <None Include="tests\testFiles\generics\error\multiplePrimitiveTypes.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
-    <None Include="tests\testFiles\generics\error\nonGenericWithTypeArgs.expected">
+    <None Include="tests\testFiles\generics\error\nestedInferenceConflict.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\nonGenericWithTypeArgs.mt">
@@ -6193,10 +6217,10 @@
     <None Include="tests\testFiles\generics\error\primitiveStringType.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
-    <None Include="tests\testFiles\generics\error\primitiveVoidType.mt">
+    <None Include="tests\testFiles\generics\error\recursiveTypeBounds.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
-    <None Include="tests\testFiles\generics\error\recursiveTypeBounds.mt">
+    <None Include="tests\testFiles\generics\error\returnTypeInferenceConflict.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\staticGenericWrongTypeArgCount.mt">
@@ -6211,9 +6235,6 @@
     <None Include="tests\testFiles\generics\error\tooManyGenericParamsInterface.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
-    <None Include="tests\testFiles\generics\error\typeMismatchInMethod.expected">
-      <Filter>tests\testFiles\generics\error</Filter>
-    </None>
     <None Include="tests\testFiles\generics\error\typeMismatchInMethod.mt">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
@@ -6221,9 +6242,6 @@
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\unboundedWildcardError.mt">
-      <Filter>tests\testFiles\generics\error</Filter>
-    </None>
-    <None Include="tests\testFiles\generics\error\undefinedGenericClass.expected">
       <Filter>tests\testFiles\generics\error</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\undefinedGenericClass.mt">
@@ -6326,6 +6344,12 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\constraintWithInheritance.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\deepNestedGenericInference.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\deepNestedGenericInference.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\deeplyNestedGenericsStressTest.expected">
@@ -6709,6 +6733,12 @@
     <None Include="tests\testFiles\generics\pass\nestedGenericArrays.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\nestedGenericInference.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\nestedGenericInference.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\nestedGenericInheritance.expected">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
@@ -6749,6 +6779,18 @@
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\parameterTypesPromise.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\partialInferenceCombined.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\partialInferenceCombined.mt">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypeInference.expected">
+      <Filter>tests\testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\returnTypeInference.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\returnTypesArrays.expected">
@@ -7916,6 +7958,12 @@
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\performanceWithLargeNamespaces.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\phase4_complete.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\phase4_complete.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\recursiveNamespaceClassInteractions.expected">

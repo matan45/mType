@@ -532,26 +532,20 @@ namespace vm::compiler::types
 
     std::string TypeInferenceEngine::inferFunctionCallClassName(ast::FunctionCallNode* funcCall) const
     {
-        std::string functionName = funcCall->getFunctionName();
-        const auto* funcMetadata = program.getFunction(functionName);
-
-        // If this is a generic function call, resolve the return type using the provided type arguments
-        if (funcCall->hasGenericTypeArguments() && funcMetadata && !funcMetadata->genericTypeParameters.empty())
+        // PHASE 3: Check cache first for resolved generic function return types
+        // The cache is populated during function call compilation (while bindings are active)
+        // and queried here during type checking (after bindings are popped)
+        if (resolvedFunctionCallTypes)
         {
-            const auto& genericTypeArgs = funcCall->getGenericTypeArguments();
-            const auto& genericTypeParams = funcMetadata->genericTypeParameters;
-            std::string returnType = funcMetadata->returnType;
-
-            // Build temporary bindings for this function call
-            for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
+            auto it = resolvedFunctionCallTypes->find(funcCall);
+            if (it != resolvedFunctionCallTypes->end())
             {
-                if (returnType == genericTypeParams[i])
-                {
-                    // The return type is a generic parameter, substitute it
-                    return genericTypeArgs[i];
-                }
+                return it->second;  // Return cached resolved type
             }
         }
+
+        std::string functionName = funcCall->getFunctionName();
+        const auto* funcMetadata = program.getFunction(functionName);
 
         if (funcMetadata && !funcMetadata->returnType.empty()) {
             // If return type is not a primitive, it's a class name
@@ -882,6 +876,12 @@ namespace vm::compiler::types
         const std::vector<std::unordered_map<std::string, std::string>>* stack)
     {
         genericTypeBindingsStack = stack;
+    }
+
+    void TypeInferenceEngine::setResolvedFunctionCallTypes(
+        const std::unordered_map<const ast::ASTNode*, std::string>* cache)
+    {
+        resolvedFunctionCallTypes = cache;
     }
 
     std::string TypeInferenceEngine::resolveGenericType(const std::string& typeName) const
