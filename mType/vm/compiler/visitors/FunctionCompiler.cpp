@@ -105,7 +105,8 @@ namespace vm::compiler::visitors
         }
 
         // Enter function frame for local variable tracking
-        ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
+        ctx.functionFrameManager.enterFunctionFrame(funcName,
+                                                    returnTypeStr,
                                                     ctx.variableTracker.getNextLocalSlot(),
                                                     ctx.variableTracker.getCurrentScopeDepth(),
                                                     false, // Not a lambda
@@ -230,6 +231,12 @@ namespace vm::compiler::visitors
             {
                 metadata.parameterTypeParameterUsage = existingMetadata->parameterTypeParameterUsage;
             }
+        }
+
+        // Preserve exception table from existing metadata (built during body compilation)
+        if (existingMetadata)
+        {
+            metadata.exceptionTable = existingMetadata->exceptionTable;
         }
 
         ctx.program.registerFunction(funcName, metadata);
@@ -584,7 +591,8 @@ namespace vm::compiler::visitors
     }
 
     void FunctionCompiler::setupLambdaFrame(ast::LambdaNode* node,
-                                            const std::vector<variables::VariableTracker::LocalVariable>& capturedVars)
+                                            const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
+                                            const std::string& lambdaFuncName)
     {
         const auto& params = node->getParameters();
 
@@ -604,7 +612,8 @@ namespace vm::compiler::visitors
         }
 
         // Enter function frame for lambda
-        ctx.functionFrameManager.enterFunctionFrame("auto",
+        ctx.functionFrameManager.enterFunctionFrame(lambdaFuncName,
+                                                    "auto",
                                                     0, // Lambda parameters start from slot 0
                                                     ctx.variableTracker.getCurrentScopeDepth(),
                                                     true, // Mark this frame as a lambda
@@ -808,8 +817,21 @@ namespace vm::compiler::visitors
         // Reset local slot counter for lambda's own scope
         ctx.variableTracker.resetLocalSlot();
 
+        // Pre-register lambda metadata so exception tables can be added during body compilation
+        bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
+        tempMetadata.name = lambdaFuncName;
+        tempMetadata.startOffset = lambdaStart;
+        tempMetadata.instructionCount = 0;  // Will be updated after compilation
+        tempMetadata.localCount = 0;        // Will be updated after compilation
+        tempMetadata.parameterCount = node->getParameters().size();
+        tempMetadata.returnType = "auto";
+        tempMetadata.isAsync = node->getIsAsync();
+        tempMetadata.isStatic = false;
+        tempMetadata.isNative = false;
+        ctx.program.registerFunction(lambdaFuncName, tempMetadata);
+
         // Setup lambda frame with parameters and captured variables
-        setupLambdaFrame(node, capturedVars);
+        setupLambdaFrame(node, capturedVars, lambdaFuncName);
 
         // IMPORTANT: Lambda body should compile in the same class context as the enclosing method
         // ctx.currentClassNode should already be set from the enclosing class/method compilation
@@ -879,8 +901,11 @@ namespace vm::compiler::visitors
         // Patch the skip jump to here
         ctx.program.patchJump(skipJump, static_cast<uint32_t>(lambdaEnd));
 
-        // Register lambda metadata for peephole optimizer
-        // This ensures lambda offsets are updated when instructions are removed
+        // Update lambda metadata (preserving exception table from body compilation)
+        auto* existingMetadata = const_cast<bytecode::BytecodeProgram::FunctionMetadata*>(
+            ctx.program.getFunction(lambdaFuncName)
+        );
+
         bytecode::BytecodeProgram::FunctionMetadata metadata;
         metadata.name = lambdaFuncName;
         metadata.startOffset = lambdaStart;
@@ -891,6 +916,12 @@ namespace vm::compiler::visitors
         metadata.isNative = false;
         metadata.isAsync = node->getIsAsync();
         metadata.localVariableNames = localVarNames;
+
+        // Preserve exception table built during body compilation
+        if (existingMetadata) {
+            metadata.exceptionTable = existingMetadata->exceptionTable;
+        }
+
         ctx.program.registerFunction(lambdaFuncName, metadata);
 
         // Emit lambda instruction with captured environment

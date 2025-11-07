@@ -88,6 +88,9 @@ namespace tests::testSuite
         addTestFromFile("Lambda Return Type Mismatch",
                         errorPath + "lambdaReturnTypeMismatch.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Lambda Catch NonException",
+                        errorPath + "lambdaCatchNonException.mt",
+                        TestType::ERROR_EXPECTED);
         addTestFromFile("Lambda Parameter Count Mismatch",
                         errorPath + "lambdaParameterCountMismatch.mt",
                         TestType::ERROR_EXPECTED);

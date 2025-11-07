@@ -148,10 +148,10 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;  // Return to next instruction
         frame.frameBase = context.stackManager->size();
         frame.localBase = context.stackManager->size();
-        // Preserve class context for access validation: ClassName::<lambda> or just <lambda>
-        frame.functionName = lambda->creatingClassName.empty() ?
-            "<lambda>" :
-            lambda->creatingClassName + "::<lambda>";
+        // Use the lambda's unique function name (e.g., __lambda_0) for metadata/exception table lookup
+        frame.functionName = lambda->functionName.empty() ?
+            (lambda->creatingClassName.empty() ? "<lambda>" : lambda->creatingClassName + "::<lambda>") :
+            lambda->functionName;
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
         frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
         frame.originatingLambda = lambda;  // Store lambda reference for variable access

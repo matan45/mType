@@ -86,7 +86,8 @@ namespace vm::compiler
 
         // Create implicit "main" function frame for global scope
         // This allows variables at global scope to be tracked and captured by lambdas
-        context.functionFrameManager.enterFunctionFrame("void",
+        context.functionFrameManager.enterFunctionFrame("", // Empty name = global scope
+                                                        "void",
                                                         context.variableTracker.getNextLocalSlot(),
                                                         context.variableTracker.getCurrentScopeDepth(),
                                                         false, // Not a lambda

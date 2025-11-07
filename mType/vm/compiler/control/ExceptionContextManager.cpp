@@ -268,4 +268,17 @@ namespace vm::compiler::control
         }
         return contextStack.back().hasReturnFlagSlot;
     }
+
+    uint32_t ExceptionContextManager::getNestingLevel() const
+    {
+        // Context stack size gives us the nesting level
+        // Size 0 = not in try (should not be called)
+        // Size 1 = outermost try (level 0)
+        // Size 2 = first nested try (level 1)
+        // etc.
+        if (contextStack.empty()) {
+            return 0;  // Not in try context
+        }
+        return static_cast<uint32_t>(contextStack.size() - 1);
+    }
 }

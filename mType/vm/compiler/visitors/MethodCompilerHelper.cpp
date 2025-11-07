@@ -20,8 +20,25 @@ namespace vm::compiler::visitors
         // Default constructor has only 'this' as parameter
         std::vector<std::string> paramNames = {"this"};
 
+        // Generate constructor name for exception table tracking
+        std::string className = node->getClassName();
+        std::string constructorName = className + "::<init>/0"; // 0 args
+
+        // Pre-register constructor metadata so exception tables can be added during initialization
+        bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
+        tempMetadata.name = constructorName;
+        tempMetadata.startOffset = constructorStart;
+        tempMetadata.instructionCount = 0;  // Will be updated after compilation
+        tempMetadata.localCount = 0;        // Will be updated after compilation
+        tempMetadata.parameterCount = 1;    // Just 'this'
+        tempMetadata.returnType = "object";
+        tempMetadata.isStatic = false;
+        tempMetadata.isNative = false;
+        ctx.program.registerFunction(constructorName, tempMetadata);
+
         // Enter function frame
-        ctx.functionFrameManager.enterFunctionFrame("object",
+        ctx.functionFrameManager.enterFunctionFrame(constructorName,
+                                                    "object",
                                                     ctx.variableTracker.getNextLocalSlot(),
                                                     ctx.variableTracker.getCurrentScopeDepth(),
                                                     false);
@@ -81,9 +98,10 @@ namespace vm::compiler::visitors
         size_t constructorEnd = ctx.program.getCurrentOffset();
         ctx.emitter.patchJump(skipJump);
 
-        // Register default constructor
-        std::string className = node->getClassName();
-        std::string constructorName = className + "::<init>/0"; // 0 args
+        // Update default constructor metadata (preserving exception table from initialization)
+        auto* existingMetadata = const_cast<bytecode::BytecodeProgram::FunctionMetadata*>(
+            ctx.program.getFunction(constructorName)
+        );
 
         bytecode::BytecodeProgram::FunctionMetadata metadata;
         metadata.name = constructorName;
@@ -96,6 +114,11 @@ namespace vm::compiler::visitors
         metadata.isStatic = false;
         metadata.isNative = false;
         metadata.localVariableNames = localVarNames;
+
+        // Preserve exception table built during initialization
+        if (existingMetadata) {
+            metadata.exceptionTable = existingMetadata->exceptionTable;
+        }
 
         ctx.program.registerFunction(metadata.name, metadata);
 
@@ -252,8 +275,20 @@ namespace vm::compiler::visitors
 
     MethodCompilerHelper::MethodBodyInfo MethodCompilerHelper::compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic)
     {
+        // Build qualified method name for exception table tracking
+        std::string qualifiedMethodName = node->getName();
+        if (ctx.currentClassNode)
+        {
+            qualifiedMethodName = ctx.currentClassNode->getClassName() + "::" + node->getName();
+            if (isStatic)
+            {
+                qualifiedMethodName += "$static";
+            }
+        }
+
         // Enter function frame for local variable tracking
-        ctx.functionFrameManager.enterFunctionFrame(params.returnTypeStr,
+        ctx.functionFrameManager.enterFunctionFrame(qualifiedMethodName,
+                                                    params.returnTypeStr,
                                                     ctx.variableTracker.getNextLocalSlot(),
                                                     ctx.variableTracker.getCurrentScopeDepth(),
                                                     false,
@@ -366,7 +401,11 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Register method metadata
+        // Update method metadata (preserving exception table from body compilation)
+        auto* existingMetadata = const_cast<bytecode::BytecodeProgram::FunctionMetadata*>(
+            ctx.program.getFunction(qualifiedMethodName)
+        );
+
         bytecode::BytecodeProgram::FunctionMetadata metadata;
         metadata.name = qualifiedMethodName;
         metadata.startOffset = methodStart;
@@ -389,6 +428,11 @@ namespace vm::compiler::visitors
             {
                 metadata.genericTypeParameters.push_back(param.name);
             }
+        }
+
+        // Preserve exception table built during body compilation
+        if (existingMetadata) {
+            metadata.exceptionTable = existingMetadata->exceptionTable;
         }
 
         ctx.program.registerFunction(qualifiedMethodName, metadata);
@@ -444,6 +488,31 @@ namespace vm::compiler::visitors
         // Collect method parameters and return type
         MethodParameters params = collectMethodParameters(node, isStatic);
 
+        // Pre-register method metadata so exception tables can be added during body compilation
+        std::string qualifiedMethodName = node->getName();
+        if (ctx.currentClassNode)
+        {
+            qualifiedMethodName = ctx.currentClassNode->getClassName() + "::" + node->getName();
+            if (isStatic)
+            {
+                qualifiedMethodName += "$static";
+            }
+        }
+
+        bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
+        tempMetadata.name = qualifiedMethodName;
+        tempMetadata.startOffset = methodStart;
+        tempMetadata.instructionCount = 0;  // Will be updated after compilation
+        tempMetadata.localCount = 0;        // Will be updated after compilation
+        tempMetadata.parameterCount = params.paramNames.size();  // Set correct count now
+        tempMetadata.parameterNames = params.paramNames;
+        tempMetadata.parameterTypes = params.paramTypes;
+        tempMetadata.returnType = params.returnTypeStr;
+        tempMetadata.isAsync = node->getIsAsync();
+        tempMetadata.isStatic = isStatic;
+        tempMetadata.isNative = false;
+        ctx.program.registerFunction(qualifiedMethodName, tempMetadata);
+
         // Compile method body with frame management
         MethodBodyInfo bodyInfo = compileMethodBodyWithFrame(node, params, isStatic);
 
@@ -482,8 +551,26 @@ namespace vm::compiler::visitors
         // Constructor returns an object instance
         std::string returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(value::ValueType::OBJECT);
 
+        // Generate constructor name for exception table tracking
+        std::string className = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
+        std::string constructorName = className + "::<init>/" + std::to_string(params.size());
+
+        // Pre-register constructor metadata so exception tables can be added during body compilation
+        bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
+        tempMetadata.name = constructorName;
+        tempMetadata.startOffset = constructorStart;
+        tempMetadata.instructionCount = 0;  // Will be updated after compilation
+        tempMetadata.localCount = 0;        // Will be updated after compilation
+        tempMetadata.parameterCount = paramNames.size();  // Set correct count now
+        tempMetadata.parameterNames = paramNames;
+        tempMetadata.returnType = returnTypeStr;
+        tempMetadata.isStatic = false;
+        tempMetadata.isNative = false;
+        ctx.program.registerFunction(constructorName, tempMetadata);
+
         // Enter function frame for local variable tracking
-        ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
+        ctx.functionFrameManager.enterFunctionFrame(constructorName,
+                                                    returnTypeStr,
                                                     ctx.variableTracker.getNextLocalSlot(),
                                                     ctx.variableTracker.getCurrentScopeDepth(),
                                                     false);
@@ -604,9 +691,10 @@ namespace vm::compiler::visitors
         // Patch skip jump to here (after constructor)
         ctx.emitter.patchJump(skipJump);
 
-        // Register constructor metadata
-        std::string className = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
-        std::string constructorName = className + "::<init>/" + std::to_string(params.size());
+        // Update constructor metadata (preserving exception table from body compilation)
+        auto* existingMetadata = const_cast<bytecode::BytecodeProgram::FunctionMetadata*>(
+            ctx.program.getFunction(constructorName)
+        );
 
         bytecode::BytecodeProgram::FunctionMetadata metadata;
         metadata.name = constructorName;
@@ -619,6 +707,11 @@ namespace vm::compiler::visitors
         metadata.isStatic = false;
         metadata.localVariableNames = localVarNames;
         metadata.isNative = false;
+
+        // Preserve exception table built during body compilation
+        if (existingMetadata) {
+            metadata.exceptionTable = existingMetadata->exceptionTable;
+        }
 
         ctx.program.registerFunction(constructorName, metadata);
 

@@ -48,13 +48,21 @@ namespace vm::runtime::utils
         std::vector<CallFrame>& callStack;
 
         // Helper methods
+        /**
+         * Get the appropriate exception table for the current execution context
+         * Returns function/lambda/global exception table based on call stack
+         */
+        const bytecode::ExceptionTable* getExceptionTable() const;
+
+        void unwindCallFrames(size_t targetIP);
+        bool isInFinallyBlock(size_t catchIP, size_t currentFinallyOffset) const;
+        void cleanupStack(size_t targetFrameBase);
+
+        // Legacy methods (kept for backwards compatibility during transition)
         size_t determineSearchLimit(size_t currentIP) const;
         bool searchForCatchBlock(const errors::UserException& e,
                                 size_t startIP,
                                 size_t searchLimit,
                                 size_t& catchIP) const;
-        void unwindCallFrames(size_t targetIP);
-        bool isInFinallyBlock(size_t catchIP, size_t currentFinallyOffset) const;
-        void cleanupStack(size_t targetFrameBase);
     };
 }

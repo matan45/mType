@@ -101,6 +101,9 @@ namespace vm::compiler::control
         void setHasReturnFlagSlot(size_t slot);
         size_t getHasReturnFlagSlot() const;
 
+        // Get nesting level (0 = outermost try, 1 = first nested try, etc.)
+        uint32_t getNestingLevel() const;
+
     private:
         std::vector<ExceptionContext> contextStack;
     };

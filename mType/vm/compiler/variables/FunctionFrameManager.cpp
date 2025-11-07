@@ -3,13 +3,14 @@
 
 namespace vm::compiler::variables
 {
-    void FunctionFrameManager::enterFunctionFrame(const std::string& returnType, size_t localStartSlot,
+    void FunctionFrameManager::enterFunctionFrame(const std::string& functionName, const std::string& returnType, size_t localStartSlot,
                                                   int scopeDepthStart, bool isLambda, bool isAsync)
     {
         FunctionFrame frame;
         frame.localStartSlot = localStartSlot;
         frame.scopeDepthStart = scopeDepthStart;
         frame.returnType = returnType;
+        frame.functionName = functionName;
         frame.isLambda = isLambda;
         frame.isAsync = isAsync;
         frame.maxLocalSlot = localStartSlot;
@@ -53,6 +54,14 @@ namespace vm::compiler::variables
             return "";
         }
         return functionFrameStack.back().returnType;
+    }
+
+    std::string FunctionFrameManager::getCurrentFunctionName() const
+    {
+        if (functionFrameStack.empty()) {
+            return "";  // Global scope (no function)
+        }
+        return functionFrameStack.back().functionName;
     }
 
     size_t FunctionFrameManager::getLocalCount() const

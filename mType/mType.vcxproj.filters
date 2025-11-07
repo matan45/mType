@@ -1203,6 +1203,9 @@
     <ClInclude Include="vm\bytecode\BytecodeProgram.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
+    <ClInclude Include="vm\bytecode\ExceptionTable.hpp">
+      <Filter>vm\bytecode</Filter>
+    </ClInclude>
     <ClInclude Include="vm\bytecode\OpCode.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
@@ -2025,6 +2028,9 @@
       <Filter>vm\bytecode</Filter>
     </ClCompile>
     <ClCompile Include="vm\bytecode\BytecodeProgram.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\ExceptionTable.cpp">
       <Filter>vm\bytecode</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\BytecodeCompiler.cpp">
@@ -8521,6 +8527,12 @@
     <None Include="tests\testFiles\lambda\error\continueInLambdaError.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
+    <None Include="tests\testFiles\lambda\error\lambdaCircularReference.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\error\lambdaClosureShadowing.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
     <None Include="tests\testFiles\lambda\error\lambdaConflictingReturns.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
@@ -8687,12 +8699,6 @@
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\lambdaClosureModification.mt">
-      <Filter>tests\testFiles\lambda\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\lambda\pass\lambdaClosureShadowing.expected">
-      <Filter>tests\testFiles\lambda\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\lambda\pass\lambdaClosureShadowing.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\lambdaConditionalChain.expected">
