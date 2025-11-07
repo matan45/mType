@@ -170,6 +170,22 @@ namespace vm::compiler::visitors
             typeArguments.push_back(lastTypeArg);
         }
 
+        // PHASE 4: Validate that generic type arguments are not primitives
+        // Like Java, generics only support object types - use Int, Float, Bool, String instead of primitives
+        for (const auto& typeArg : typeArguments) {
+            if (typeArg == "int" || typeArg == "float" || typeArg == "bool" || typeArg == "string" || typeArg == "void") {
+                throw errors::TypeException(
+                    "Generic type argument '" + typeArg + "' is a primitive type. " +
+                    "Generics only support object types. Use wrapper classes instead:\n" +
+                    "  - Use 'Int' instead of 'int'\n" +
+                    "  - Use 'Float' instead of 'float'\n" +
+                    "  - Use 'Bool' instead of 'bool'\n" +
+                    "  - Use 'String' instead of 'string'",
+                    location
+                );
+            }
+        }
+
         // PHASE 4: Validate type arguments against class definition
         auto classDef = ctx.environment->findClass(baseClassName);
         if (classDef) {
@@ -408,7 +424,11 @@ namespace vm::compiler::visitors
                     {
                         throw errors::TypeException(
                             "Generic type argument '" + typeArg + "' is a primitive type. " +
-                            "Generics only support object types. Use wrapper classes like Int, Float, String, Bool instead.",
+                            "Generics only support object types. Use wrapper classes instead:\n" +
+                            "  - Use 'Int' instead of 'int'\n" +
+                            "  - Use 'Float' instead of 'float'\n" +
+                            "  - Use 'Bool' instead of 'bool'\n" +
+                            "  - Use 'String' instead of 'string'",
                             node->getLocation()
                         );
                     }
@@ -611,7 +631,11 @@ namespace vm::compiler::visitors
                         {
                             throw errors::TypeException(
                                 "Generic type argument '" + typeArg + "' is a primitive type. " +
-                                "Generics only support object types. Use wrapper classes like Int, Float, String, Bool instead.",
+                                "Generics only support object types. Use wrapper classes instead:\n" +
+                                "  - Use 'Int' instead of 'int'\n" +
+                                "  - Use 'Float' instead of 'float'\n" +
+                                "  - Use 'Bool' instead of 'bool'\n" +
+                                "  - Use 'String' instead of 'string'",
                                 node->getLocation()
                             );
                         }

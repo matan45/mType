@@ -467,6 +467,9 @@ namespace tests::testSuite
         addTestFromFile("Unbounded Wildcard Error",
                     errorPath + "unboundedWildcardError.mt",
                     TestType::ERROR_EXPECTED);
+        addTestFromFile("Generic Cache Collision",
+                    errorPath + "genericCacheCollision.mt",
+                    TestType::ERROR_EXPECTED);
         addTestFromFile("Contravariant Type Error",
                     errorPath + "contravariantTypeError.mt",
                     TestType::ERROR_EXPECTED);
