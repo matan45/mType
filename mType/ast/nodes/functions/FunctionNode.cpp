@@ -91,12 +91,20 @@ namespace ast::nodes::functions
             // or a class/interface name (like Vehicle, Animal, GenericContainer<Int>)
             std::string typeName = paramType->getGenericName();
             if (typeName.length() == 1 && std::isupper(typeName[0])) {
-                // Real generic parameter - treat as plain object type
-                return ParameterType(ValueType::OBJECT);
+                // PHASE 2 FIX: Real generic parameter - store the type parameter name (e.g., "T", "K", "V")
+                // This preserves the type information for generic type inference
+                return ParameterType::forClass(typeName);
             } else {
-                // Class or interface name - store as class type with full type info
-                // Use toString() to preserve generic type arguments like GenericContainer<Int>
-                return ParameterType::forClass(paramType->toString());
+                // PHASE 2 FIX: Class or interface name - check if it has type arguments
+                // For "Pair<K, V>", we need to use toString() to preserve the type arguments
+                // For "Pair", we can just use the typeName
+                if (paramType->isParameterized()) {
+                    // Has type arguments like "Pair<K, V>" - use toString()
+                    return ParameterType::forClass(paramType->toString());
+                } else {
+                    // No type arguments like "Pair" - use typeName
+                    return ParameterType::forClass(typeName);
+                }
             }
         } else if (paramType->getConcreteType() == ValueType::OBJECT) {
             // Object type (class or interface) - store as class type with full type info

@@ -427,55 +427,23 @@ namespace vm::compiler::visitors
         // Validate lambda assignments
         validateLambdaAssignment(node, isReassignment, existingClassName);
 
-        // Type compatibility validation for reassignments
-        if (isReassignment)
-        {
-            validateReassignmentType(node, existingClassName);
-        }
+        // PHASE 3: Move reassignment validation to after compilation (for cache to work)
+        // Type compatibility validation for reassignments will happen after value compilation
 
         // Compile the value expression
         if (value)
         {
-            // Type validation for declarations
-            if (varType != value::ValueType::VOID)
-            {
-                value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
-                std::string varClassName = ctx.resolveGenericType(node->getClassName());
-                std::string valueClassName = ctx.resolveGenericType(ctx.typeInference.inferExpressionClassName(value));
-                bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
-
-                // PHASE 4: Skip validation if we can auto-box (Box type + primitive literal)
-                bool canAutoBox = false;
-                if (varType == value::ValueType::OBJECT &&
-                    ((varClassName == "Int" && valueType == value::ValueType::INT) ||
-                     (varClassName == "Float" && valueType == value::ValueType::FLOAT) ||
-                     (varClassName == "Bool" && valueType == value::ValueType::BOOL) ||
-                     (varClassName == "String" && valueType == value::ValueType::STRING)))
-                {
-                    canAutoBox = true;
-                }
-
-                if (!canAutoBox)
-                {
-                    ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
-                                                         valueClassName, isNullValue, node->getLocation());
-                }
-            }
-
-            // PHASE 4: Determine if auto-boxing or auto-unboxing is needed
+            // PHASE 3: Compile value FIRST to populate type cache for generic functions
+            // PHASE 1: Push expected type context for bidirectional type inference
+            // This allows type inference from assignment target (e.g., Box<Int> x = createBox();)
+            bool pushedContext = false;
             bool autoBoxed = false;
             bool needsAutoUnbox = false;
-            value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
-            std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
 
-            // PHASE 4: Check for auto-boxing (primitive to Box type)
-            // For new declarations: use varClassName from the declaration
-            // For reassignments: use existingClassName from the existing variable
+            // Determine target class name for auto-boxing check
             std::string targetClassName = isReassignment ? existingClassName : ctx.resolveGenericType(node->getClassName());
 
-            // Auto-box if:
-            // 1. New declaration with OBJECT type (varType == OBJECT), OR
-            // 2. Reassignment to a Box type variable (isReassignment && targetClassName is Box type)
+            // Try auto-boxing first (for primitive literals assigned to Box types)
             bool shouldAutoBox = false;
             if (!targetClassName.empty())
             {
@@ -497,29 +465,9 @@ namespace vm::compiler::visitors
                 autoBoxed = tryEmitAutoBoxing(value, targetClassName);
             }
 
-            // Check for auto-unboxing (Box type to primitive)
-            if (!autoBoxed && varType != value::ValueType::VOID && varType != value::ValueType::OBJECT)
-            {
-                // Variable is primitive, check if value is a Box object
-                if (valueType == value::ValueType::OBJECT)
-                {
-                    if ((varType == value::ValueType::INT && valueClassName == "Int") ||
-                        (varType == value::ValueType::FLOAT && valueClassName == "Float") ||
-                        (varType == value::ValueType::BOOL && valueClassName == "Bool") ||
-                        (varType == value::ValueType::STRING && valueClassName == "String"))
-                        
-                    {
-                        needsAutoUnbox = true;
-                    }
-                }
-            }
-
-            // Compile value
+            // Compile value (if not auto-boxed)
             if (!autoBoxed)
             {
-                // PHASE 1: Push expected type context for bidirectional type inference
-                // This allows type inference from assignment target (e.g., Box<Int> x = createBox();)
-                bool pushedContext = false;
                 if (varType != value::ValueType::VOID)
                 {
                     std::string expectedClassName = isReassignment ? existingClassName : ctx.resolveGenericType(node->getClassName());
@@ -535,15 +483,77 @@ namespace vm::compiler::visitors
                 {
                     ctx.popExpectedTypeContext();
                 }
+            }
 
-                // PHASE 4: Auto-unbox if needed
-                if (needsAutoUnbox)
+            // PHASE 3: NOW do type validation AFTER compilation (so cache is populated)
+
+            // Type compatibility validation for reassignments
+            if (isReassignment)
+            {
+                if (!existingClassName.empty())
                 {
-                    size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                                 static_cast<uint32_t>(methodNameIndex),
-                                                 0u,  // 0 arguments
-                                                 value);
+                    std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
+                    value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
+                    bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
+
+                    // Only validate if we have actual type information
+                    if (!valueClassName.empty() || valueType != value::ValueType::OBJECT)
+                    {
+                        // Resolve generic type parameters if present
+                        std::string resolvedExistingClassName = ctx.resolveGenericType(existingClassName);
+                        std::string resolvedValueClassName = ctx.resolveGenericType(valueClassName);
+
+                        // Validate that the assigned value is compatible with the variable's type
+                        ctx.typeValidator.validateAssignment(value::ValueType::OBJECT, resolvedExistingClassName,
+                                                             valueType, resolvedValueClassName, isNullValue, node->getLocation());
+                    }
+                }
+            }
+            // Type validation for declarations
+            else if (varType != value::ValueType::VOID)
+            {
+                value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
+                std::string varClassName = ctx.resolveGenericType(node->getClassName());
+                std::string valueClassName = ctx.resolveGenericType(ctx.typeInference.inferExpressionClassName(value));
+                bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
+
+                // PHASE 4: Skip validation if we auto-boxed or can auto-box
+                bool canAutoBox = autoBoxed;
+                if (!canAutoBox && varType == value::ValueType::OBJECT &&
+                    ((varClassName == "Int" && valueType == value::ValueType::INT) ||
+                     (varClassName == "Float" && valueType == value::ValueType::FLOAT) ||
+                     (varClassName == "Bool" && valueType == value::ValueType::BOOL) ||
+                     (varClassName == "String" && valueType == value::ValueType::STRING)))
+                {
+                    canAutoBox = true;
+                }
+
+                if (!canAutoBox)
+                {
+                    ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
+                                                         valueClassName, isNullValue, node->getLocation());
+                }
+
+                // Check for auto-unboxing (Box type to primitive)
+                if (!autoBoxed && varType != value::ValueType::OBJECT)
+                {
+                    // Variable is primitive, check if value is a Box object
+                    if (valueType == value::ValueType::OBJECT)
+                    {
+                        if ((varType == value::ValueType::INT && valueClassName == "Int") ||
+                            (varType == value::ValueType::FLOAT && valueClassName == "Float") ||
+                            (varType == value::ValueType::BOOL && valueClassName == "Bool") ||
+                            (varType == value::ValueType::STRING && valueClassName == "String"))
+                        {
+                            needsAutoUnbox = true;
+                            // Emit auto-unbox call
+                            size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                                         static_cast<uint32_t>(methodNameIndex),
+                                                         0u,  // 0 arguments
+                                                         value);
+                        }
+                    }
                 }
             }
         }

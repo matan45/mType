@@ -21,10 +21,14 @@ namespace vm::compiler::types
     {
         std::unordered_set<std::string> usedParams;
 
-        // Check if the whole expression is a type parameter
+        // PHASE 2 FIX: Only return type parameters that are NESTED inside generic types
+        // Direct type parameters (e.g., "T" in function<T> foo(T x)) should return empty set
+        // Nested type parameters (e.g., "T" in function<T> foo(Box<T> x)) should return {"T"}
+
+        // Check if the whole expression is a direct type parameter
         if (isTypeParameter(typeExpression, declaredTypeParams))
         {
-            usedParams.insert(typeExpression);
+            // Direct type parameter - return empty set (not nested)
             return usedParams;
         }
 
@@ -32,11 +36,21 @@ namespace vm::compiler::types
         GenericTypeResolver resolver;
         std::vector<std::string> typeArgs = resolver.extractTypeArguments(typeExpression);
 
-        // Recursively check each type argument
+        // Recursively check each type argument for nested type parameters
         for (const auto& arg : typeArgs)
         {
-            auto nestedParams = extractUsedTypeParameters(arg, declaredTypeParams);
-            usedParams.insert(nestedParams.begin(), nestedParams.end());
+            // Check if this arg is a type parameter or contains one
+            if (isTypeParameter(arg, declaredTypeParams))
+            {
+                // Found a nested type parameter!
+                usedParams.insert(arg);
+            }
+            else
+            {
+                // Recursively search deeper
+                auto nestedParams = extractUsedTypeParameters(arg, declaredTypeParams);
+                usedParams.insert(nestedParams.begin(), nestedParams.end());
+            }
         }
 
         return usedParams;

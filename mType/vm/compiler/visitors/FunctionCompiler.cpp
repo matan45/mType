@@ -198,6 +198,10 @@ namespace vm::compiler::visitors
         // Patch skip jump to here (after function)
         ctx.emitter.patchJump(skipJump);
 
+        // PHASE 2 FIX: Get existing metadata to preserve parameterTypeParameterUsage
+        // The function was already registered during FunctionRegistrar phase with this data
+        const auto* existingMetadata = ctx.program.getFunction(funcName);
+
         // Register function metadata
         bytecode::BytecodeProgram::FunctionMetadata metadata;
         metadata.name = funcName;
@@ -219,6 +223,12 @@ namespace vm::compiler::visitors
             for (const auto& param : genericParams)
             {
                 metadata.genericTypeParameters.push_back(param.name);
+            }
+
+            // PHASE 2 FIX: Preserve parameterTypeParameterUsage from initial registration
+            if (existingMetadata)
+            {
+                metadata.parameterTypeParameterUsage = existingMetadata->parameterTypeParameterUsage;
             }
         }
 
