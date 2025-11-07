@@ -1,6 +1,6 @@
 // Returning null for object types test
-import * from "../../lib/primitives/Int.mt"
-import * from "../../lib/primitives/String.mt"
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Function<T, R> {
     function apply(T input) : R;
@@ -9,11 +9,11 @@ interface Function<T, R> {
 class Box {
     int value;
 
-    function init(int v) {
+    constructor(int v) {
         this.value = v;
     }
 
-    function getValue() : int {
+    public function getValue() : int {
         return this.value;
     }
 }
@@ -36,11 +36,11 @@ print("Result for 5: " + (result1 == null ? "null" : result1));
 print("Result for -1: " + (result2 == null ? "null" : result2));
 
 // Lambda returning null objects
-Function<int, Box> boxCreator = x -> {
-    if (x == 0) {
+Function<Int, Box> boxCreator = x -> {
+    if (x.getValue() == 0) {
         return null;
     } else {
-        return new Box(x);
+        return new Box(x.getValue());
     }
 };
 

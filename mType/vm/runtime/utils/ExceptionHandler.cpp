@@ -1,5 +1,6 @@
 #include "ExceptionHandler.hpp"
 #include "../../bytecode/OpCode.hpp"
+#include <map>
 
 namespace vm::runtime::utils
 {
@@ -168,6 +169,8 @@ namespace vm::runtime::utils
         size_t currentIP,
         size_t currentFinallyOffset)
     {
+        std::cerr << "\n[EXCEPTION] Thrown at IP " << currentIP << ": " << e.getExceptionTypeName() << std::endl;
+
         HandlingResult result;
         result.handled = false;
         result.newInstructionPointer = currentIP;
@@ -270,32 +273,119 @@ namespace vm::runtime::utils
         }
 
         // No handler found in current scope - unwind call stack to search callers
+        // First, pop the current frame (the one we just searched) since it has no handler
+        if (!callStack.empty())
+        {
+            CallFrame currentFrame = callStack.back();
+            callStack.pop_back();
+            cleanupStack(currentFrame.frameBase);
+        }
+
+        // Now search in caller frames
         while (!callStack.empty())
         {
-            // Pop the call frame
-            CallFrame frame = callStack.back();
-            callStack.pop_back();
+            // Get the caller frame (but don't pop it yet - we might find a handler in it)
+            const CallFrame& frame = callStack.back();
 
-            // Clean up the stack - pop all locals from the function
-            cleanupStack(frame.frameBase);
+            // Determine where to start searching in this frame
+            // For lambda/function frames, search from the function start to find try-catch blocks
+            // that contain the call site
+            size_t functionStart = 0;
+            size_t functionEnd = program->getInstructionCount();
 
-            // Restore instruction pointer to the caller (right after the CALL)
-            searchIP = frame.returnAddress;
+            // Try to get function metadata to determine the function boundaries
+            auto* funcMetadata = program->getFunction(frame.functionName);
+            if (!funcMetadata && frame.originatingLambda)
+            {
+                funcMetadata = program->getFunction(frame.originatingLambda->functionName);
+            }
+
+            if (funcMetadata)
+            {
+                functionStart = funcMetadata->startOffset;
+                functionEnd = funcMetadata->startOffset + funcMetadata->instructionCount;
+            }
+
+            // The call site is just before the return address
+            // Search backward to find which try block contains the call site, then forward to find its CATCH
+            size_t callSite = frame.returnAddress > 0 ? frame.returnAddress - 1 : frame.returnAddress;
+
+            std::cerr << "\n[DEBUG] Unwound to frame: " << frame.functionName << std::endl;
+            std::cerr << "[DEBUG] CallSite: " << callSite << ", Return: " << frame.returnAddress << std::endl;
+
+            // Find the most recent TRY_BEGIN before the call site that hasn't been closed
+            // Track try blocks: each TRY_BEGIN is pushed, pop after seeing 2 TRY_ENDs
+            std::vector<size_t> tryStack;
+            std::map<size_t, int> tryEndCount; // Count TRY_ENDs seen for each TRY_BEGIN
+
+            for (size_t scanIP = functionStart; scanIP <= callSite && scanIP < program->getInstructionCount(); ++scanIP)
+            {
+                const auto& instr = program->getInstruction(scanIP);
+                if (instr.opcode == bytecode::OpCode::TRY_BEGIN)
+                {
+                    tryStack.push_back(scanIP);
+                    tryEndCount[scanIP] = 0;
+                    std::cerr << "[DEBUG] TRY_BEGIN at " << scanIP << ", stack size: " << tryStack.size() << std::endl;
+                }
+                else if (instr.opcode == bytecode::OpCode::TRY_END && !tryStack.empty())
+                {
+                    // TRY_END appears twice: once after try body, once after catch/finally
+                    // The FIRST TRY_END marks the end of the try body
+                    // Calls after the first TRY_END are NOT protected by this try-catch
+                    size_t currentTry = tryStack.back();
+                    tryEndCount[currentTry]++;
+
+                    std::cerr << "[DEBUG] TRY_END at " << scanIP << " for TRY_BEGIN " << currentTry
+                              << ", count: " << tryEndCount[currentTry] << std::endl;
+
+                    // Pop after FIRST TRY_END (end of try body)
+                    if (tryEndCount[currentTry] >= 1)
+                    {
+                        tryStack.pop_back();
+                        std::cerr << "[DEBUG] Popped try block (try body ended), stack size: " << tryStack.size() << std::endl;
+                    }
+                }
+            }
+
+            size_t tryBeginIP = tryStack.empty() ? SIZE_MAX : tryStack.back();
+            std::cerr << "[DEBUG] Active try block: " << (tryBeginIP == SIZE_MAX ? "NONE" : std::to_string(tryBeginIP)) << std::endl;
+
+            if (tryBeginIP == SIZE_MAX)
+            {
+                callStack.pop_back();
+                cleanupStack(frame.frameBase);
+                continue;
+            }
+
+            // Now search forward from the TRY_BEGIN to find the corresponding CATCH
+            searchIP = tryBeginIP + 1;
 
             // Safety check: ensure searchIP is within bounds
             if (searchIP >= program->getInstructionCount())
             {
+                callStack.pop_back();
+                cleanupStack(frame.frameBase);
                 continue;  // Try next call frame
             }
 
-            // Search for handler in this caller's context
-            while (searchIP < program->getInstructionCount())
+            // Track nesting as we search forward
+            int nestedTryDepth = 0;
+
+            // Search for handler in this caller's context, starting from return address
+            while (searchIP < functionEnd && searchIP < program->getInstructionCount())
             {
                 const auto& searchInstr = program->getInstruction(searchIP);
 
+                // Track nested try blocks
+                if (searchInstr.opcode == bytecode::OpCode::TRY_BEGIN)
+                {
+                    nestedTryDepth++;
+                }
+
                 if (searchInstr.opcode == bytecode::OpCode::CATCH)
                 {
-                    if (!searchInstr.operands.empty())
+                    // Only accept CATCH at depth 0 (not inside a nested try)
+                    if (nestedTryDepth == 0 && !searchInstr.operands.empty())
                     {
                         std::string catchType = program->getConstantPool().getString(searchInstr.operands[0]);
 
@@ -313,6 +403,12 @@ namespace vm::runtime::utils
                         }
                     }
                 }
+
+                // Track when we exit nested try blocks
+                if (searchInstr.opcode == bytecode::OpCode::TRY_END && nestedTryDepth > 0)
+                {
+                    nestedTryDepth--;
+                }
                 else if (searchInstr.opcode == bytecode::OpCode::FINALLY)
                 {
                     if (isInFinallyBlock(searchIP, currentFinallyOffset))
@@ -326,18 +422,13 @@ namespace vm::runtime::utils
                     result.jumpedToFinally = true;  // Jumped to FINALLY, need to re-throw after
                     return result;
                 }
-                else if (searchInstr.opcode == bytecode::OpCode::RETURN ||
-                    searchInstr.opcode == bytecode::OpCode::RETURN_VALUE)
-                {
-                    // Hit end of this function - no handler found in this frame
-                    // Break inner loop to continue unwinding to next call frame
-                    break;
-                }
-
                 searchIP++;
             }
 
-            // No handler found in this frame, continue to next frame (outer while loop)
+            // No handler found in this frame - now we can pop it and clean up
+            callStack.pop_back();
+            cleanupStack(frame.frameBase);
+            // Continue to next frame (outer while loop)
         }
 
         // Call stack is now empty - no handler found anywhere

@@ -1,5 +1,6 @@
 // Lambda returning arrays test
-import * from "../../lib/primitives/Int.mt"
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Function<T, R> {
     function apply(T input) : R;
@@ -8,24 +9,24 @@ interface Function<T, R> {
 print("=== Array Return Test ===");
 
 // Lambda returning int array
-Function<Int, int[]> rangeGenerator = n -> {
-    int[] result = new int[n];
-    for (int i = 0; i < n; i = i + 1) {
+Function<Int, Int[]> rangeGenerator = n -> {
+    Int[] result = new Int[n.getValue()];
+    for (int i = 0; i < n.getValue(); i = i + 1) {
         result[i] = i + 1;
     }
     return result;
 };
 
-int[] arr1 = rangeGenerator.apply(5);
+Int[] arr1 = rangeGenerator.apply(5);
 print("Range of 5:");
 for (int i = 0; i < arr1.length; i = i + 1) {
-    print(arr1[i]);
+    print(arr1[i].toString());
 }
 
 // Lambda returning String array
 Function<Int, String[]> stringArrayGen = count -> {
-    String[] result = new String[count];
-    for (int i = 0; i < count; i = i + 1) {
+    String[] result = new String[count.getValue()];
+    for (int i = 0; i < count.getValue(); i = i + 1) {
         result[i] = "Item-" + i;
     }
     return result;

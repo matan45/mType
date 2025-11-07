@@ -22,7 +22,7 @@ function main(): void {
         string result = riskyProcessor.process(50);
         print(result);
     } catch (Exception e) {
-        print("Caught: " + e);
+        print("Caught: " + e.getMessage());
     }
 
     // Test with negative value

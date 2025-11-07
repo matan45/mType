@@ -1,12 +1,13 @@
 // Exception during parameter evaluation test
+import * from "../../lib/exceptions/Exception.mt";
 interface Function {
     function apply(int x) : int;
 }
 
 class Calculator {
-    function riskyOperation(int x) : int {
+    public function riskyOperation(int x) : int {
         if (x < 0) {
-            throw "Negative input not allowed";
+            throw new Exception("Negative input not allowed");
         }
         return x * x;
     }
@@ -20,8 +21,8 @@ Function processor = x -> {
     try {
         int value = calc.riskyOperation(x);
         return value + 10;
-    } catch (String e) {
-        print("Caught in lambda: " + e);
+    } catch (Exception e) {
+        print("Caught in lambda: " + e.getMessage());
         return -1;
     }
 };
@@ -36,8 +37,8 @@ Function outer = x -> {
     try {
         int result = inner.apply(calc.riskyOperation(x));
         return result;
-    } catch (String e) {
-        print("Error during invocation: " + e);
+    } catch (Exception e) {
+        print("Error during invocation: " + e.getMessage());
         return 0;
     }
 };

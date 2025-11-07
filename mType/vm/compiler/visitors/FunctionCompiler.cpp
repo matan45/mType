@@ -619,10 +619,99 @@ namespace vm::compiler::visitors
 
         ctx.variableTracker.beginScope();
 
-        // Track lambda parameters as locals (they occupy slots 0, 1, 2, ...)
-        for (const auto& param : params)
+        // Resolve lambda parameter types from expected type context
+        std::vector<std::pair<value::ValueType, std::string>> resolvedParamTypes;
+        if (ctx.hasExpectedTypeContext())
         {
-            ctx.variableTracker.declareLocal(param.name, value::ValueType::VOID, "");
+            auto expectedCtx = ctx.getCurrentExpectedTypeContext();
+            if (expectedCtx.expectedType == value::ValueType::OBJECT)
+            {
+                std::string baseClassName = expectedCtx.getBaseClassName();
+
+                // Check if this is an interface type
+                auto interfaceDef = ctx.environment->findInterface(baseClassName);
+                if (interfaceDef && interfaceDef->isFunctionalInterface())
+                {
+                    auto* samMethod = interfaceDef->getFunctionalMethod();
+                    if (samMethod && samMethod->parameters.size() == params.size())
+                    {
+                        // Build generic bindings if interface is generic
+                        std::unordered_map<std::string, std::string> bindings;
+                        if (expectedCtx.hasGenericArguments())
+                        {
+                            auto genericArgs = expectedCtx.extractGenericArguments();
+                            const auto& interfaceGenericParams = interfaceDef->getGenericParameters();
+                            for (size_t i = 0; i < interfaceGenericParams.size() && i < genericArgs.size(); ++i)
+                            {
+                                bindings[interfaceGenericParams[i].name] = genericArgs[i];
+                            }
+                        }
+
+                        // Resolve parameter types using bindings (or use concrete types directly)
+                        for (size_t i = 0; i < samMethod->parameters.size(); ++i)
+                        {
+                            std::string paramTypeName = samMethod->parameters[i].second->toString();
+
+                            // Resolve generic type parameters (T -> Int, etc.)
+                            if (!bindings.empty())
+                            {
+                                auto it = bindings.find(paramTypeName);
+                                if (it != bindings.end())
+                                {
+                                    paramTypeName = it->second;
+                                }
+                            }
+
+                            // Determine ValueType and className from the resolved type name
+                            value::ValueType paramType;
+                            std::string paramClassName = "";
+
+                            // Map type names to ValueType
+                            if (paramTypeName == "int")
+                            {
+                                paramType = value::ValueType::INT;
+                            }
+                            else if (paramTypeName == "float")
+                            {
+                                paramType = value::ValueType::FLOAT;
+                            }
+                            else if (paramTypeName == "bool")
+                            {
+                                paramType = value::ValueType::BOOL;
+                            }
+                            else if (paramTypeName == "string")
+                            {
+                                paramType = value::ValueType::STRING;
+                            }
+                            else if (paramTypeName == "void")
+                            {
+                                paramType = value::ValueType::VOID;
+                            }
+                            else
+                            {
+                                // Object type (Int, Float, Bool, String, or custom classes)
+                                paramType = value::ValueType::OBJECT;
+                                paramClassName = paramTypeName;
+                            }
+
+                            resolvedParamTypes.push_back({paramType, paramClassName});
+                        }
+                    }
+                }
+            }
+        }
+
+        // Track lambda parameters as locals (they occupy slots 0, 1, 2, ...)
+        for (size_t i = 0; i < params.size(); ++i)
+        {
+            if (i < resolvedParamTypes.size())
+            {
+                ctx.variableTracker.declareLocal(params[i].name, resolvedParamTypes[i].first, resolvedParamTypes[i].second);
+            }
+            else
+            {
+                ctx.variableTracker.declareLocal(params[i].name, value::ValueType::VOID, "");
+            }
         }
 
         // Add captured variables as locals (they occupy slots after parameters)

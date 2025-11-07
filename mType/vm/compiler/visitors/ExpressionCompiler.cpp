@@ -105,7 +105,36 @@ namespace vm::compiler::visitors
 
         // Compile operands for other operators
         node->getLeft()->accept(ctx.visitor);  // Will need delegation
+
+        // Auto-unbox left operand for comparison operators if it's Int or Float
+        bool isComparisonOp = (op == token::TokenType::LESS || op == token::TokenType::GREATER ||
+                              op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS);
+        if (isComparisonOp && leftType == value::ValueType::OBJECT)
+        {
+            std::string leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
+            if (leftClassName == "Int" || leftClassName == "Float")
+            {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getLeft());
+            }
+        }
+
         node->getRight()->accept(ctx.visitor);  // Will need delegation
+
+        // Auto-unbox right operand for comparison operators if it's Int or Float
+        if (isComparisonOp && rightType == value::ValueType::OBJECT)
+        {
+            std::string rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
+            if (rightClassName == "Int" || rightClassName == "Float")
+            {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getRight());
+            }
+        }
 
         // Emit appropriate opcode
         bool typeSpecialized = (leftType == value::ValueType::INT && rightType == value::ValueType::INT);

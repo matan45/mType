@@ -1,36 +1,37 @@
 // Returning subclass when parent expected test
-import * from "../../lib/primitives/Int.mt"
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Function<T, R> {
     function apply(T input) : R;
 }
 
 class Animal {
-    function makeSound() : String {
+    public function makeSound() : String {
         return "Some sound";
     }
 
-    function getType() : String {
+    public function getType() : String {
         return "Animal";
     }
 }
 
 class Dog extends Animal {
-    function makeSound() : String {
+    public function makeSound() : String {
         return "Woof";
     }
 
-    function getType() : String {
+    public function getType() : String {
         return "Dog";
     }
 }
 
 class Cat extends Animal {
-    function makeSound() : String {
+    public function makeSound() : String {
         return "Meow";
     }
 
-    function getType() : String {
+    public function getType() : String {
         return "Cat";
     }
 }

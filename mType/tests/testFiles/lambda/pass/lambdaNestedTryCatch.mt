@@ -1,5 +1,6 @@
 // Nested exception handling test
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 interface Function {
     function apply(int x) : String;
@@ -14,21 +15,21 @@ Function nestedHandler = x -> {
         try {
             result = result + "Inner-try ";
             if (x == 1) {
-                throw "Inner-exception";
+                throw new Exception("Inner-exception");
             }
             if (x == 2) {
-                throw "Outer-exception";
+                throw new Exception("Outer-exception");
             }
             result = result + "No-exception ";
-        } catch (String e) {
-            if (e == "Inner-exception") {
+        } catch (Exception e) {
+            if (e.getMessage() == "Inner-exception") {
                 result = result + "Inner-catch ";
             } else {
                 throw e;  // Re-throw to outer
             }
         }
         result = result + "After-inner ";
-    } catch (String e) {
+    } catch (Exception e) {
         result = result + "Outer-catch ";
     }
     return result;
@@ -44,26 +45,26 @@ Function tripleNested = x -> {
         try {
             try {
                 if (x == 1) {
-                    throw "Level-1";
+                    throw new Exception("Level-1");
                 } else if (x == 2) {
-                    throw "Level-2";
+                    throw new Exception("Level-2");
                 } else if (x == 3) {
-                    throw "Level-3";
+                    throw new Exception("Level-3");
                 }
                 return "No error";
-            } catch (String e) {
-                if (e == "Level-1") {
+            } catch (Exception e) {
+                if (e.getMessage() == "Level-1") {
                     return "Caught at level 1";
                 }
                 throw e;
             }
-        } catch (String e) {
-            if (e == "Level-2") {
+        } catch (Exception e) {
+            if (e.getMessage() == "Level-2") {
                 return "Caught at level 2";
             }
             throw e;
         }
-    } catch (String e) {
+    } catch (Exception e) {
         return "Caught at level 3";
     }
 };
