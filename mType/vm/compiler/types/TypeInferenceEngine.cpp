@@ -52,12 +52,21 @@ namespace vm::compiler::types
         const auto& locals = variableTracker.getLocals();
         for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
             if (it->name == varName) {
+                // PHASE 4: If the variable has a className that ends with [], it's an array
+                if (!it->className.empty() && it->className.back() == ']') {
+                    return value::ValueType::ARRAY;
+                }
                 return it->type;
             }
         }
 
         // Check globals
         if (globalRegistry.exists(varName)) {
+            // PHASE 4: Check if it's an array type by class name
+            std::string className = globalRegistry.getClassName(varName);
+            if (!className.empty() && className.back() == ']') {
+                return value::ValueType::ARRAY;
+            }
             return globalRegistry.getType(varName);
         }
 
@@ -165,13 +174,130 @@ namespace vm::compiler::types
         auto rightType = inferExpressionType(binOp->getRight());
         auto op = binOp->getOperator();
 
-        // String concatenation with + always results in string
+        // PHASE 4: Logical operations (&&, ||) are NOT operator overloads
+        // They always return primitive bool, even if operands are Bool objects (which get auto-unboxed)
+        if (op == token::TokenType::AND || op == token::TokenType::OR) {
+            return value::ValueType::BOOL;
+        }
+
+        // PHASE 4: Check if operator overloading applies
+        // Operator overloading applies if:
+        // 1. Either operand is already a Box type object, OR
+        // 2. Left operand is a primitive literal that will be auto-boxed
+        //
+        // IMPORTANT: Operator overloading is NOT used for complex expressions (method calls, etc.)
+        // to avoid complications. Only simple operands (literals, variables, member access, index access)
+        // are eligible for operator overloading.
+
+        using namespace ast::nodes::expressions;
+
+        std::string leftClassName;
+        bool willUseOperatorOverloading = false;
+
+        // Check if left is an object or a literal that will be auto-boxed
+        if (leftType == value::ValueType::OBJECT)
+        {
+            leftClassName = inferExpressionClassName(binOp->getLeft());
+            willUseOperatorOverloading = (leftClassName == "Int" || leftClassName == "Float" ||
+                                         leftClassName == "Bool" || leftClassName == "String");
+        }
+        else
+        {
+            // Left is primitive - check if it's a literal that will be auto-boxed for operator overloading
+            if (dynamic_cast<IntegerNode*>(binOp->getLeft()))
+            {
+                leftClassName = "Int";
+                willUseOperatorOverloading = true;
+            }
+            else if (dynamic_cast<FloatNode*>(binOp->getLeft()))
+            {
+                leftClassName = "Float";
+                willUseOperatorOverloading = true;
+            }
+            else if (dynamic_cast<BoolNode*>(binOp->getLeft()))
+            {
+                leftClassName = "Bool";
+                willUseOperatorOverloading = true;
+            }
+            else if (dynamic_cast<StringNode*>(binOp->getLeft()))
+            {
+                leftClassName = "String";
+                willUseOperatorOverloading = true;
+            }
+        }
+
+        // PHASE 4: Check if right operand is a "simple" expression
+        // Operator overloading is only used for simple operands, not complex expressions like method calls
+        bool rightIsSimple = false;
+        if (rightType == value::ValueType::OBJECT)
+        {
+            // Right is an object - check if it's a simple expression
+            if (dynamic_cast<ast::VariableNode*>(binOp->getRight()) ||
+                dynamic_cast<ast::NewNode*>(binOp->getRight()) ||
+                dynamic_cast<ast::MemberAccessNode*>(binOp->getRight()) ||
+                dynamic_cast<IndexAccessNode*>(binOp->getRight()))
+            {
+                rightIsSimple = true;
+            }
+        }
+        else
+        {
+            // Right is primitive - check if it's a literal
+            if (dynamic_cast<IntegerNode*>(binOp->getRight()) ||
+                dynamic_cast<FloatNode*>(binOp->getRight()) ||
+                dynamic_cast<BoolNode*>(binOp->getRight()) ||
+                dynamic_cast<StringNode*>(binOp->getRight()))
+            {
+                rightIsSimple = true;
+            }
+        }
+
+        // If right operand is not simple, operator overloading won't be used
+        if (!rightIsSimple)
+        {
+            willUseOperatorOverloading = false;
+        }
+
+        // If right operand is also a Box type object, operator overloading definitely applies
+        if (!willUseOperatorOverloading && rightType == value::ValueType::OBJECT && rightIsSimple)
+        {
+            std::string rightClassName = inferExpressionClassName(binOp->getRight());
+            willUseOperatorOverloading = (rightClassName == "Int" || rightClassName == "Float" ||
+                                         rightClassName == "Bool" || rightClassName == "String");
+        }
+
+        if (willUseOperatorOverloading)
+        {
+            // Operator overloading on Box types returns OBJECT
+            // For arithmetic: Int.add() returns Int object, Float.add() returns Float object
+            // For comparison: Int.lessThan() returns Bool object
+            // For string: String.concat() returns String object
+
+            // PHASE 4: Equality operators (==, !=) use equals() which returns primitive bool
+            // This is defined by the Object interface: function equals(T other): bool
+            if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS)
+            {
+                return value::ValueType::BOOL;  // equals() returns primitive bool
+            }
+
+            // Comparison operators (<, <=, >, >=) use lessThan/greaterThan which return Bool objects
+            if (op == token::TokenType::LESS || op == token::TokenType::GREATER ||
+                op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS)
+            {
+                return value::ValueType::OBJECT;  // lessThan() etc. return Bool objects
+            }
+
+            // Arithmetic and string concatenation return OBJECT
+            return value::ValueType::OBJECT;
+        }
+
+        // String concatenation with + always results in string (primitive)
         if (op == token::TokenType::PLUS &&
             (leftType == value::ValueType::STRING || rightType == value::ValueType::STRING)) {
             return value::ValueType::STRING;
         }
 
-        // Arithmetic operations on int/float
+        // Arithmetic operations on int/float (primitives)
         if (op == token::TokenType::PLUS || op == token::TokenType::MINUS ||
             op == token::TokenType::MULTIPLY || op == token::TokenType::DIVIDE) {
             if (leftType == value::ValueType::FLOAT || rightType == value::ValueType::FLOAT) {
@@ -182,17 +308,14 @@ namespace vm::compiler::types
             }
         }
 
-        // Comparison operations return bool
+        // Comparison operations return bool (primitive)
         if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
             op == token::TokenType::LESS || op == token::TokenType::GREATER ||
             op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
             return value::ValueType::BOOL;
         }
 
-        // Logical operations return bool
-        if (op == token::TokenType::AND || op == token::TokenType::OR) {
-            return value::ValueType::BOOL;
-        }
+        // Note: Logical operations (&&, ||) are handled at the top of this function
 
         return value::ValueType::VOID;
     }
@@ -457,6 +580,64 @@ namespace vm::compiler::types
         // Index access (array element access)
         if (auto* indexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(node)) {
             return inferIndexAccessClassName(indexAccess);
+        }
+
+        // PHASE 4: Binary operations with operator overloading
+        if (auto* binOp = dynamic_cast<ast::BinaryOpNode*>(node)) {
+            using namespace ast::nodes::expressions;
+
+            auto leftType = inferExpressionType(binOp->getLeft());
+            auto rightType = inferExpressionType(binOp->getRight());
+            auto op = binOp->getOperator();
+
+            // Determine left class name (either from object or from literal that will be auto-boxed)
+            std::string leftClassName;
+            if (leftType == value::ValueType::OBJECT)
+            {
+                leftClassName = inferExpressionClassName(binOp->getLeft());
+            }
+            else
+            {
+                // Check if left is a primitive literal that will be auto-boxed
+                if (dynamic_cast<IntegerNode*>(binOp->getLeft()))
+                    leftClassName = "Int";
+                else if (dynamic_cast<FloatNode*>(binOp->getLeft()))
+                    leftClassName = "Float";
+                else if (dynamic_cast<BoolNode*>(binOp->getLeft()))
+                    leftClassName = "Bool";
+                else if (dynamic_cast<StringNode*>(binOp->getLeft()))
+                    leftClassName = "String";
+            }
+
+            // Check if this is a Box type operation
+            bool isBoxTypeOp = (leftClassName == "Int" || leftClassName == "Float" ||
+                               leftClassName == "Bool" || leftClassName == "String");
+
+            if (isBoxTypeOp)
+            {
+                // PHASE 4: Equality operators (==, !=) return primitive bool (via equals())
+                if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS)
+                {
+                    return "";  // equals() returns primitive bool, not Bool object
+                }
+
+                // Comparison operators (<, <=, >, >=) return Bool objects
+                if (op == token::TokenType::LESS || op == token::TokenType::GREATER ||
+                    op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS)
+                {
+                    return "Bool";  // lessThan() etc. return Bool objects
+                }
+
+                // For arithmetic/concatenation operators, result is same type as left operand
+                if (op == token::TokenType::PLUS || op == token::TokenType::MINUS ||
+                    op == token::TokenType::MULTIPLY || op == token::TokenType::DIVIDE ||
+                    op == token::TokenType::MODULO)
+                {
+                    return leftClassName;  // Returns same Box type as left operand
+                }
+            }
+
+            return "";  // Primitive operations don't have class names
         }
 
         // Await expressions - unwrap Promise<T> to get T's class name

@@ -1,6 +1,8 @@
 // Int - Object wrapper for integer values
 // Provides a pure OOP interface for integer operations
 import * from "../Object.mt";
+import * from "./Bool.mt";
+
 public final class Int implements Object<Int> {
     private int value;
 
@@ -65,20 +67,20 @@ public final class Int implements Object<Int> {
         return 0;
     }
 
-    public function lessThan(Int other): bool {
-        return this.value < other.value;
+    public function lessThan(Int other): Bool {
+        return new Bool(this.value < other.value);
     }
 
-    public function lessThanOrEqual(Int other): bool {
-        return this.value <= other.value;
+    public function lessThanOrEqual(Int other): Bool {
+        return new Bool(this.value <= other.value);
     }
 
-    public function greaterThan(Int other): bool {
-        return this.value > other.value;
+    public function greaterThan(Int other): Bool {
+        return new Bool(this.value > other.value);
     }
 
-    public function greaterThanOrEqual(Int other): bool {
-        return this.value >= other.value;
+    public function greaterThanOrEqual(Int other): Bool {
+        return new Bool(this.value >= other.value);
     }
 
     // Utility methods (Object interface)

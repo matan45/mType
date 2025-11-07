@@ -78,12 +78,12 @@ function main(): void {
     Int val1 = 10;
     Int val2 = 20;
 
-    bool isLess = val1 < val2;           // Transforms to: val1.lessThan(val2)
-    bool isLessEq = val1 <= val2;        // Transforms to: val1.lessThanOrEqual(val2)
-    bool isGreater = val1 > val2;        // Transforms to: val1.greaterThan(val2)
-    bool isGreaterEq = val1 >= val2;     // Transforms to: val1.greaterThanOrEqual(val2)
-    bool isEqual = val1 == val2;         // Transforms to: val1.equals(val2)
-    bool isNotEqual = val1 != val2;      // Transforms to: !(val1.equals(val2))
+    Bool isLess = val1 < val2;           // Transforms to: val1.lessThan(val2)
+    Bool isLessEq = val1 <= val2;        // Transforms to: val1.lessThanOrEqual(val2)
+    Bool isGreater = val1 > val2;        // Transforms to: val1.greaterThan(val2)
+    Bool isGreaterEq = val1 >= val2;     // Transforms to: val1.greaterThanOrEqual(val2)
+    Bool isEqual = val1 == val2;         // Transforms to: val1.equals(val2)
+    Bool isNotEqual = val1 != val2;      // Transforms to: !(val1.equals(val2))
 
     if (isLess) {
         print("  10 < 20:  true");

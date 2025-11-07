@@ -15,6 +15,22 @@ namespace vm::compiler::visitors
         // Compile condition
         node->getCondition()->accept(ctx.visitor);  // Will need delegation
 
+        // PHASE 4: Auto-unbox Bool objects to primitive bool
+        value::ValueType conditionType = ctx.typeInference.inferExpressionType(node->getCondition());
+        if (conditionType == value::ValueType::OBJECT)
+        {
+            std::string conditionClassName = ctx.typeInference.inferExpressionClassName(node->getCondition());
+            if (conditionClassName == "Bool")
+            {
+                // Auto-unbox: call getValue() to get primitive bool
+                size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(methodNameIndex),
+                                             0u,  // 0 arguments
+                                             node->getCondition());
+            }
+        }
+
         // Jump to else/end if condition is false
         size_t elseJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
@@ -57,6 +73,22 @@ namespace vm::compiler::visitors
 
         // Compile condition
         node->getCondition()->accept(ctx.visitor);  // Will need delegation
+
+        // PHASE 4: Auto-unbox Bool objects to primitive bool
+        value::ValueType conditionType = ctx.typeInference.inferExpressionType(node->getCondition());
+        if (conditionType == value::ValueType::OBJECT)
+        {
+            std::string conditionClassName = ctx.typeInference.inferExpressionClassName(node->getCondition());
+            if (conditionClassName == "Bool")
+            {
+                // Auto-unbox: call getValue() to get primitive bool
+                size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(methodNameIndex),
+                                             0u,  // 0 arguments
+                                             node->getCondition());
+            }
+        }
 
         // Jump to end if condition is false
         size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
@@ -107,6 +139,22 @@ namespace vm::compiler::visitors
 
         // Compile condition
         node->getCondition()->accept(ctx.visitor);  // Will need delegation
+
+        // PHASE 4: Auto-unbox Bool objects to primitive bool
+        value::ValueType conditionType = ctx.typeInference.inferExpressionType(node->getCondition());
+        if (conditionType == value::ValueType::OBJECT)
+        {
+            std::string conditionClassName = ctx.typeInference.inferExpressionClassName(node->getCondition());
+            if (conditionClassName == "Bool")
+            {
+                // Auto-unbox: call getValue() to get primitive bool
+                size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(methodNameIndex),
+                                             0u,  // 0 arguments
+                                             node->getCondition());
+            }
+        }
 
         // Jump back to start if condition is true
         size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);

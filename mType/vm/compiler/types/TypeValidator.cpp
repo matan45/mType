@@ -275,6 +275,19 @@ namespace vm::compiler::types
         // Check if trying to assign a primitive to an OBJECT type
         validatePrimitiveToObjectAssignment(varType, varClassName, valueType, location);
 
+        // PHASE 4: Allow Box object to primitive assignment (auto-unboxing)
+        if (varType != value::ValueType::OBJECT && valueType == value::ValueType::OBJECT)
+        {
+            // Check if value is a Box type that can be auto-unboxed
+            if ((varType == value::ValueType::INT && valueClassName == "Int") ||
+                (varType == value::ValueType::FLOAT && valueClassName == "Float") ||
+                (varType == value::ValueType::BOOL && valueClassName == "Bool") ||
+                (varType == value::ValueType::STRING && valueClassName == "String"))
+            {
+                return;  // Auto-unboxing will handle this
+            }
+        }
+
         // For non-OBJECT types, check primitive type compatibility
         validatePrimitiveTypeAssignment(varType, valueType, location);
     }
@@ -328,7 +341,13 @@ namespace vm::compiler::types
 
     bool TypeValidator::isLogicalOperationValid(value::ValueType leftType, value::ValueType rightType) const
     {
-        return (leftType == value::ValueType::BOOL && rightType == value::ValueType::BOOL);
+        // PHASE 4: Allow Bool objects (which will be auto-unboxed) or primitive bools
+        // Logical operations work with: bool && bool, Bool && Bool, bool && Bool, Bool && bool
+        if ((leftType == value::ValueType::BOOL || leftType == value::ValueType::OBJECT) &&
+            (rightType == value::ValueType::BOOL || rightType == value::ValueType::OBJECT)) {
+            return true;
+        }
+        return false;
     }
 
     void TypeValidator::throwBinaryOperationError(value::ValueType leftType, value::ValueType rightType, token::TokenType op,

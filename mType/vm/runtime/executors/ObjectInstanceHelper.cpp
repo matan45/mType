@@ -6,7 +6,7 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
 #include <algorithm>
-
+#include  <iostream>
 namespace vm::runtime
 {
     // Helper function to parse type arguments with proper bracket depth tracking

@@ -1,5 +1,9 @@
 // Float - Object wrapper for floating-point values
 // Provides a pure OOP interface for float operations
+import * from "../Object.mt";
+import * from "Bool.mt";
+import * from "Int.mt";
+
 public final class Float implements Object<Float> {
     private float value;
 
@@ -60,20 +64,20 @@ public final class Float implements Object<Float> {
         return 0;
     }
 
-    public function lessThan(Float other): bool {
-        return this.value < other.value;
+    public function lessThan(Float other): Bool {
+        return new Bool(this.value < other.value);
     }
 
-    public function lessThanOrEqual(Float other): bool {
-        return this.value <= other.value;
+    public function lessThanOrEqual(Float other): Bool {
+        return new Bool(this.value <= other.value);
     }
 
-    public function greaterThan(Float other): bool {
-        return this.value > other.value;
+    public function greaterThan(Float other): Bool {
+        return new Bool(this.value > other.value);
     }
 
-    public function greaterThanOrEqual(Float other): bool {
-        return this.value >= other.value;
+    public function greaterThanOrEqual(Float other): Bool {
+        return new Bool(this.value >= other.value);
     }
 
     // Type conversion

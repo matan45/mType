@@ -1,6 +1,5 @@
 // Bool - Object wrapper for boolean values
 // Provides a pure OOP interface for boolean operations
-import * from "../Object.mt";
 public final class Bool implements Object<Bool> {
     private bool value;
 
@@ -54,6 +53,7 @@ public final class Bool implements Object<Bool> {
         return hashCode(this.value);
     }
 
+    // Static factory methods for common values
     // Static factory methods for common values
     public static function getTRUE(): Bool {
         return new Bool(true);

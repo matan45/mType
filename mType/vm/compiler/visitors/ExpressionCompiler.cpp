@@ -9,6 +9,8 @@
 #include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../../../ast/nodes/classes/NewNode.hpp"
+#include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../errors/UndefinedException.hpp"
 #include  <iostream>
 
@@ -45,18 +47,58 @@ namespace vm::compiler::visitors
         // Handle short-circuit logical operators specially
         if (op == token::TokenType::AND) {
             // For &&: if left is false, skip right and return false
+
+            // PHASE 4: Auto-unbox left operand if it's a Bool object
+            std::string leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
             node->getLeft()->accept(ctx.visitor);
+            if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getLeft());
+            }
+
             size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE_OR_POP, node);
+
+            // PHASE 4: Auto-unbox right operand if it's a Bool object
+            std::string rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
             node->getRight()->accept(ctx.visitor);
+            if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getRight());
+            }
+
             ctx.emitter.patchJump(jumpOffset);
             return std::monostate{};
         }
 
         if (op == token::TokenType::OR) {
             // For ||: if left is true, skip right and return true
+
+            // PHASE 4: Auto-unbox left operand if it's a Bool object
+            std::string leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
             node->getLeft()->accept(ctx.visitor);
+            if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getLeft());
+            }
+
             size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE_OR_POP, node);
+
+            // PHASE 4: Auto-unbox right operand if it's a Bool object
+            std::string rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
             node->getRight()->accept(ctx.visitor);
+            if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getRight());
+            }
+
             ctx.emitter.patchJump(jumpOffset);
             return std::monostate{};
         }
@@ -166,6 +208,26 @@ namespace vm::compiler::visitors
 
         // For other unary operators
         node->getOperand()->accept(ctx.visitor);  // Will need delegation
+
+        // PHASE 4: Auto-unbox Bool objects for NOT operator
+        if (op == token::TokenType::NOT)
+        {
+            value::ValueType operandType = ctx.typeInference.inferExpressionType(node->getOperand());
+            if (operandType == value::ValueType::OBJECT)
+            {
+                std::string operandClassName = ctx.typeInference.inferExpressionClassName(node->getOperand());
+                if (operandClassName == "Bool")
+                {
+                    // Auto-unbox: call getValue() to get primitive bool
+                    size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                                 static_cast<uint32_t>(methodNameIndex),
+                                                 0u,  // 0 arguments
+                                                 node->getOperand());
+                }
+            }
+        }
+
         bytecode::OpCode opcode = ctx.emitter.getUnaryOpCode(op);
         ctx.emitter.emitWithLocation(opcode, node);
 
@@ -385,6 +447,63 @@ namespace vm::compiler::visitors
                          leftClassName == "Bool" || leftClassName == "String");
         if (!isBoxType)
         {
+            return false;
+        }
+
+        // PHASE 4: For operator overloading, both operands must be simple (literals or variables)
+        // Don't use operator overloading for complex expressions like function calls
+        using namespace ast::nodes::expressions;
+
+        // Check if right is a simple operand (literal, variable, member access, or index access)
+        bool rightIsSimple = false;
+        if (rightType == value::ValueType::OBJECT)
+        {
+            // Right is an object - check if it's a variable, NewNode, member access, or index access
+            if (dynamic_cast<ast::VariableNode*>(right) ||
+                dynamic_cast<ast::nodes::classes::NewNode*>(right) ||
+                dynamic_cast<ast::MemberAccessNode*>(right) ||
+                dynamic_cast<IndexAccessNode*>(right))
+            {
+                rightIsSimple = true;
+            }
+        }
+        else
+        {
+            // Right is primitive - only use operator overloading if it's a literal
+            if (dynamic_cast<IntegerNode*>(right) || dynamic_cast<FloatNode*>(right) ||
+                dynamic_cast<BoolNode*>(right) || dynamic_cast<StringNode*>(right))
+            {
+                rightIsSimple = true;
+            }
+        }
+
+        if (!rightIsSimple)
+        {
+            // Right operand is a complex expression (function call, binary op, etc.)
+            // Don't use operator overloading - fall back to primitive operations
+            return false;
+        }
+
+        // Check if right operand has compatible type
+        std::string rightClassName;
+        if (rightType == value::ValueType::OBJECT)
+        {
+            rightClassName = ctx.typeInference.inferExpressionClassName(right);
+        }
+        else
+        {
+            // Right is primitive - determine its Box type
+            if (rightType == value::ValueType::INT) rightClassName = "Int";
+            else if (rightType == value::ValueType::FLOAT) rightClassName = "Float";
+            else if (rightType == value::ValueType::BOOL) rightClassName = "Bool";
+            else if (rightType == value::ValueType::STRING) rightClassName = "String";
+        }
+
+        // Operands must be the same Box type (or compatible primitives that will be boxed)
+        if (leftClassName != rightClassName)
+        {
+            // Mixed types - don't use operator overloading
+            // Fall back to primitive operations (e.g., primitive string concat)
             return false;
         }
 

@@ -538,21 +538,14 @@ namespace vm::compiler::visitors
                 // For functions like print(), we want to auto-unbox String objects
                 value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
 
-                std::cerr << "[DEBUG] emitRegularFunctionCall: function=" << functionName
-                          << ", arg=" << i << ", argType=" << static_cast<int>(argType) << std::endl;
-
                 if (argType == value::ValueType::OBJECT)
                 {
                     std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
-
-                    std::cerr << "[DEBUG] argClassName=" << argClassName << std::endl;
 
                     // Auto-unbox Box types for native functions
                     if (argClassName == "Int" || argClassName == "Float" ||
                         argClassName == "Bool" || argClassName == "String")
                     {
-                        std::cerr << "[DEBUG] AUTO-UNBOXING " << argClassName << " for native function" << std::endl;
-
                         // Compile argument (Box object)
                         arguments[i]->accept(ctx.visitor);
 
@@ -565,14 +558,12 @@ namespace vm::compiler::visitors
                     }
                     else
                     {
-                        std::cerr << "[DEBUG] Not a Box type, compile normally" << std::endl;
                         // Not a Box type, compile normally
                         arguments[i]->accept(ctx.visitor);
                     }
                 }
                 else
                 {
-                    std::cerr << "[DEBUG] Not OBJECT type, compile normally" << std::endl;
                     // Compile normally
                     arguments[i]->accept(ctx.visitor);
                 }

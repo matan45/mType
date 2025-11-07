@@ -1,7 +1,6 @@
 // String - Object wrapper for string values
 // Provides a pure OOP interface for string operations
 // Internally uses string pooling for memory efficiency
-import * from "../Object.mt";
 public final class String implements Object<String> {
     private string value;
 
@@ -33,18 +32,18 @@ public final class String implements Object<String> {
     }
 
     public function concat(String other): String {
-        return new String(this.value + other.getValue());
+        return new String(this.value + other.value);
     }
 
     // Comparison operations
     public function equals(String other): bool {
-        return this.value == other.getValue();
+        return this.value == other.value;
     }
 
     public function compareTo(String other): int {
         // Lexicographic comparison
-        if (this.value < other.getValue()) return -1;
-        if (this.value > other.getValue()) return 1;
+        if (this.value < other.value) return -1;
+        if (this.value > other.value) return 1;
         return 0;
     }
 

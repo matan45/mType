@@ -462,17 +462,71 @@ namespace vm::compiler::visitors
                 }
             }
 
-            // PHASE 4: Try auto-boxing for reassignments
+            // PHASE 4: Determine if auto-boxing or auto-unboxing is needed
             bool autoBoxed = false;
-            if (isReassignment && !existingClassName.empty())
+            bool needsAutoUnbox = false;
+            value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
+            std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
+
+            // PHASE 4: Check for auto-boxing (primitive to Box type)
+            // For new declarations: use varClassName from the declaration
+            // For reassignments: use existingClassName from the existing variable
+            std::string targetClassName = isReassignment ? existingClassName : ctx.resolveGenericType(node->getClassName());
+
+            // Auto-box if:
+            // 1. New declaration with OBJECT type (varType == OBJECT), OR
+            // 2. Reassignment to a Box type variable (isReassignment && targetClassName is Box type)
+            bool shouldAutoBox = false;
+            if (!targetClassName.empty())
             {
-                autoBoxed = tryEmitAutoBoxing(value, existingClassName);
+                if (varType == value::ValueType::OBJECT)
+                {
+                    // New declaration of Box type
+                    shouldAutoBox = true;
+                }
+                else if (isReassignment)
+                {
+                    // Reassignment - check if target is a Box type
+                    shouldAutoBox = (targetClassName == "Int" || targetClassName == "Float" ||
+                                    targetClassName == "Bool" || targetClassName == "String");
+                }
             }
 
-            // If not auto-boxed, compile value normally
+            if (shouldAutoBox)
+            {
+                autoBoxed = tryEmitAutoBoxing(value, targetClassName);
+            }
+
+            // Check for auto-unboxing (Box type to primitive)
+            if (!autoBoxed && varType != value::ValueType::VOID && varType != value::ValueType::OBJECT)
+            {
+                // Variable is primitive, check if value is a Box object
+                if (valueType == value::ValueType::OBJECT)
+                {
+                    if ((varType == value::ValueType::INT && valueClassName == "Int") ||
+                        (varType == value::ValueType::FLOAT && valueClassName == "Float") ||
+                        (varType == value::ValueType::BOOL && valueClassName == "Bool") ||
+                        (varType == value::ValueType::STRING && valueClassName == "String"))
+                    {
+                        needsAutoUnbox = true;
+                    }
+                }
+            }
+
+            // Compile value
             if (!autoBoxed)
             {
                 value->accept(ctx.visitor);
+
+                // PHASE 4: Auto-unbox if needed
+                if (needsAutoUnbox)
+                {
+                    size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                                 static_cast<uint32_t>(methodNameIndex),
+                                                 0u,  // 0 arguments
+                                                 value);
+                }
             }
         }
         else
@@ -555,60 +609,45 @@ namespace vm::compiler::visitors
             return false;  // Not a Box type or no value node
         }
 
-        // Check if value is a primitive literal that needs boxing
+        // PHASE 4: Check if value expression returns a primitive type matching the target Box type
+        value::ValueType valueType = ctx.typeInference.inferExpressionType(valueNode);
         bool needsBoxing = false;
-        ast::ASTNode* literalToBox = nullptr;
 
-        if (targetClassName == "Int")
+        // Check if we're trying to box a primitive to its corresponding Box type
+        if (targetClassName == "Int" && valueType == value::ValueType::INT)
         {
-            if (auto* intNode = dynamic_cast<IntegerNode*>(valueNode))
-            {
-                needsBoxing = true;
-                literalToBox = intNode;
-            }
+            needsBoxing = true;
         }
-        else if (targetClassName == "Float")
+        else if (targetClassName == "Float" && valueType == value::ValueType::FLOAT)
         {
-            if (auto* floatNode = dynamic_cast<FloatNode*>(valueNode))
-            {
-                needsBoxing = true;
-                literalToBox = floatNode;
-            }
+            needsBoxing = true;
         }
-        else if (targetClassName == "Bool")
+        else if (targetClassName == "Bool" && valueType == value::ValueType::BOOL)
         {
-            if (auto* boolNode = dynamic_cast<BoolNode*>(valueNode))
-            {
-                needsBoxing = true;
-                literalToBox = boolNode;
-            }
+            needsBoxing = true;
         }
-        else if (targetClassName == "String")
+        else if (targetClassName == "String" && valueType == value::ValueType::STRING)
         {
-            if (auto* stringNode = dynamic_cast<StringNode*>(valueNode))
-            {
-                needsBoxing = true;
-                literalToBox = stringNode;
-            }
+            needsBoxing = true;
         }
 
         if (!needsBoxing)
         {
-            return false;  // Value is not a primitive literal
+            return false;  // Value type doesn't match target Box type
         }
 
         // PHASE 4 AUTO-BOXING: Emit bytecode for boxing
-        // Equivalent to: new TargetClass(literalValue)
+        // Equivalent to: new TargetClass(value)
 
-        // 1. Compile the literal value (pushes it onto stack)
-        literalToBox->accept(ctx.visitor);
+        // 1. Compile the value expression (pushes it onto stack)
+        valueNode->accept(ctx.visitor);
 
         // 2. Emit NEW_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(targetClassName);
         ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
                                      static_cast<uint32_t>(classNameIndex),
                                      1u,  // 1 constructor argument
-                                     literalToBox);
+                                     valueNode);
 
         return true;  // Auto-boxing was applied
     }
