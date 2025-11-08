@@ -6,7 +6,7 @@ for (int i = 0; i < numbers.length; i++) {
     numbers[i] = i * 5;
 }
 
-function indexOf(int[] arr, int target): int {
+function findIndex(int[] arr, int target): int {
     for (int i = 0; i < arr.length; i++) {
         if (arr[i] == target) {
             return i;
@@ -16,10 +16,10 @@ function indexOf(int[] arr, int target): int {
 }
 
 print("Array: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]");
-print("indexOf(20) = " + indexOf(numbers, 20));
-print("indexOf(45) = " + indexOf(numbers, 45));
-print("indexOf(0) = " + indexOf(numbers, 0));
-print("indexOf(99) = " + indexOf(numbers, 99));
+print("indexOf(20) = " + findIndex(numbers, 20));
+print("indexOf(45) = " + findIndex(numbers, 45));
+print("indexOf(0) = " + findIndex(numbers, 0));
+print("indexOf(99) = " + findIndex(numbers, 99));
 
 // Test with string array
 string[] names = new string[5];
@@ -29,7 +29,7 @@ names[2] = "Charlie";
 names[3] = "David";
 names[4] = "Eve";
 
-function indexOfString(string[] arr, string target): int {
+function findStringIndex(string[] arr, string target): int {
     for (int i = 0; i < arr.length; i++) {
         if (arr[i] == target) {
             return i;
@@ -39,8 +39,8 @@ function indexOfString(string[] arr, string target): int {
 }
 
 print("String array search:");
-print("indexOf(Charlie) = " + indexOfString(names, "Charlie"));
-print("indexOf(Alice) = " + indexOfString(names, "Alice"));
-print("indexOf(Frank) = " + indexOfString(names, "Frank"));
+print("indexOf(Charlie) = " + findStringIndex(names, "Charlie"));
+print("indexOf(Alice) = " + findStringIndex(names, "Alice"));
+print("indexOf(Frank) = " + findStringIndex(names, "Frank"));
 
 print("Linear search test completed");

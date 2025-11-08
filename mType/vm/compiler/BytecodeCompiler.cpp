@@ -93,13 +93,15 @@ namespace vm::compiler
                                                         context.variableTracker.getCurrentScopeDepth(),
                                                         false, // Not a lambda
                                                         false); // Not async
-        context.variableTracker.beginScope();
+        context.variableTracker.beginScope(); 
+        context.variableTracker.beginScope(); 
 
         // Visit the root node to generate bytecode
         root->accept(*this);
 
         // Exit the implicit main function frame
-        context.variableTracker.endScope();
+        context.variableTracker.endScope();   
+        context.variableTracker.endScope();   
         context.functionFrameManager.exitFunctionFrame();
 
         // Validate all class methods have bytecode implementations

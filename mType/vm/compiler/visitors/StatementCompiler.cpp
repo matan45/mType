@@ -398,7 +398,7 @@ namespace vm::compiler::visitors
                 // but in an anonymous block (scope depth > 3), treat as local for lambda capture
                 if (frame.scopeDepthStart == 0 && frame.localStartSlot == 0) {
                     // Check if we're in an anonymous block
-                    // Module-level globals are at depth 3, anonymous blocks are at depth 4+
+                    // Module-level globals are at depth 2-3, anonymous blocks/loops are at depth 4+
                     if (ctx.variableTracker.getCurrentScopeDepth() > 3) {
                         isInRealFunction = true;  // Treat as local for capture semantics
                     } else {
@@ -874,7 +874,15 @@ namespace vm::compiler::visitors
     {
         // Script-level code - variables are globals, not locals
         // Functions and lambdas can access these global variables
-        ctx.variableTracker.beginScope();
+
+        // Only add a scope if we're compiling the MAIN file (at scope 2)
+        // Imported files are already at scope 3, so they shouldn't add another scope
+        bool shouldManageScope = (ctx.variableTracker.getCurrentScopeDepth() == 2);
+
+        if (shouldManageScope) {
+            // Create scope 3 for module-level globals (both main file and imported files)
+            ctx.variableTracker.beginScope();
+        }
 
         const auto& statements = node->getStatements();
         for (auto& stmt : statements)
@@ -882,7 +890,11 @@ namespace vm::compiler::visitors
             stmt->accept(ctx.visitor); // Will need delegation
         }
 
-        ctx.variableTracker.endScope();
+        if (shouldManageScope) {
+            ctx.variableTracker.endScope();
+        }
+
+        // Clean up any variables that went out of scope (e.g., from nested blocks/loops at scope 4+)
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         return std::monostate{};
