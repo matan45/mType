@@ -1,7 +1,7 @@
 // Test circular dependency in type checking - should pass
 class Node {
     int value;
-    Node? next;
+    public Node next;
 
     constructor(int v) {
         value = v;
@@ -14,7 +14,7 @@ class Node {
 }
 
 class LinkedList {
-    Node? head;
+    Node head;
 
     constructor() {
         head = null;

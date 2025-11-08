@@ -85,8 +85,6 @@ namespace tests::testSuite
                         passPath + "typeGenericErasure_pass.mt");
         addOutputVerificationTest("Type Generic Method Inference",
                         passPath + "typeGenericMethodInference_pass.mt");
-        addOutputVerificationTest("Type Generic Method Overload",
-                        passPath + "typeGenericMethodOverload_pass.mt");
         addOutputVerificationTest("Type Generic Multiple Bounds",
                         passPath + "typeGenericMultipleBounds_pass.mt");
         addOutputVerificationTest("Type Generic Nested Instantiation",

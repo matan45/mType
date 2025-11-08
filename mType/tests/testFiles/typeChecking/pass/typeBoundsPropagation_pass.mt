@@ -1,5 +1,5 @@
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test: Type constraint propagation through nested generics
 // Constraints should propagate correctly through multiple levels
@@ -13,8 +13,8 @@ interface Named {
 }
 
 class Entity implements Identifiable, Named {
-    int id;
-    string name;
+    protected int id;
+    protected string name;
 
     constructor(int entityId, string entityName) {
         id = entityId;
@@ -37,8 +37,7 @@ class Entity implements Identifiable, Named {
 class Document extends Entity {
     string content;
 
-    constructor(int docId, string docName, string docContent) {
-        super(docId, docName);
+    constructor(int docId, string docName, string docContent): super(docId, docName) {
         content = docContent;
     }
 
@@ -163,7 +162,7 @@ function main(): void {
     print("Entity from wrapper: " + entityWrapper.unwrap().describe());
 
     // Test repository with multiple bound propagation
-    Repository<Entity> entityRepo = new Repository<Entity>(10);
+    Repository<Entity,Entity> entityRepo = new Repository<Entity,Entity>(10);
     entityRepo.add(entity1);
     entityRepo.add(entity2);
 
@@ -180,7 +179,7 @@ function main(): void {
     }
 
     // Test with derived type (Document extends Entity)
-    Repository<Document> docRepo = new Repository<Document>(10);
+    Repository<Document,Document> docRepo = new Repository<Document,Document>(10);
     docRepo.add(doc1);
     docRepo.add(doc2);
 
@@ -197,10 +196,10 @@ function main(): void {
     }
 
     // Test generic function with propagated bounds
-    print(processEntity<Entity>(entity1));
-    print(processEntity<Entity>(entity2));
-    print(processEntity<Document>(doc1));
-    print(processEntity<Document>(doc2));
+    print(processEntity<Entity,Entity>(entity1));
+    print(processEntity<Entity,Entity>(entity2));
+    print(processEntity<Document,Document>(doc1));
+    print(processEntity<Document,Document>(doc2));
 
     print("Type constraint propagation test completed successfully");
 }

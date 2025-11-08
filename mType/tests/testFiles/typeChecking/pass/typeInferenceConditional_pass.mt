@@ -1,6 +1,6 @@
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/String.mt";
-import * from "../../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Test conditional expression type inference
 

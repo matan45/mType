@@ -1,5 +1,5 @@
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test: Recursive type bounds
 // This tests the F-bounded polymorphism pattern (Curiously Recurring Template Pattern)
@@ -11,7 +11,7 @@ interface Comparable<T> {
 // Recursive bound: T extends ComparableEntity<T>
 // This means T must extend ComparableEntity with itself as the type parameter
 class ComparableEntity<T extends ComparableEntity<T>> implements Comparable<T> {
-    int id;
+    protected int id;
 
     constructor(int entityId) {
         id = entityId;
@@ -35,8 +35,7 @@ class ComparableEntity<T extends ComparableEntity<T>> implements Comparable<T> {
 class User extends ComparableEntity<User> {
     string name;
 
-    constructor(int userId, string userName) {
-        super(userId);
+    constructor(int userId, string userName): super(userId) {
         name = userName;
     }
 
@@ -45,7 +44,7 @@ class User extends ComparableEntity<User> {
     }
 
     public function describe(): string {
-        return "User{id=" + id + ", name=" + name + "}";
+        return "User{id=" + super.id + ", name=" + name + "}";
     }
 }
 
@@ -54,8 +53,7 @@ class Product extends ComparableEntity<Product> {
     string productName;
     int price;
 
-    constructor(int productId, string name, int productPrice) {
-        super(productId);
+    constructor(int productId, string name, int productPrice): super(productId) {
         productName = name;
         price = productPrice;
     }
@@ -69,7 +67,7 @@ class Product extends ComparableEntity<Product> {
     }
 
     public function describe(): string {
-        return "Product{id=" + id + ", name=" + productName + ", price=" + price + "}";
+        return "Product{id=" + super.id + ", name=" + productName + ", price=" + price + "}";
     }
 }
 

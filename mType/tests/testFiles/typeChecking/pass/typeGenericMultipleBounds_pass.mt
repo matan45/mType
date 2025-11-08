@@ -1,5 +1,5 @@
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test multiple bounds on type parameters
 interface Comparable<T> {
@@ -74,7 +74,7 @@ function main(): void {
     DataItem item2 = new DataItem(2, "Second");
     DataItem item3 = new DataItem(3, "Third");
 
-    BoundedContainer<DataItem> container = new BoundedContainer<DataItem>(item1);
+    BoundedContainer<DataItem,DataItem> container = new BoundedContainer<DataItem,DataItem>(item1);
     print("Container item: " + container.toString());
 
     int cmp1 = container.compare(item2);
@@ -83,9 +83,9 @@ function main(): void {
     int cmp2 = item2.compareTo(item3);
     print("Comparing item2 to item3: " + cmp2);
 
-    print(processItem<DataItem>(item1));
-    print(processItem<DataItem>(item2));
-    print(processItem<DataItem>(item3));
+    print(processItem<DataItem,DataItem>(item1));
+    print(processItem<DataItem,DataItem>(item2));
+    print(processItem<DataItem,DataItem>(item3));
 
     print("Multiple bounds test completed");
 }

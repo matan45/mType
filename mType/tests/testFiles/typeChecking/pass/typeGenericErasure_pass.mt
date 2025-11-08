@@ -1,5 +1,5 @@
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test type erasure scenarios - runtime behavior when type info is lost
 class Container<T> {

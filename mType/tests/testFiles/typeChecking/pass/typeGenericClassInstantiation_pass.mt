@@ -1,5 +1,5 @@
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test generic class instantiation with proper type checking
 class Pair<T, U> {
@@ -40,7 +40,7 @@ class Triple<T, U, V> {
     }
 
     public function getAll(): string {
-        return "" + first + ", " + second + ", " + third;
+        return "" + first.toString() + ", " + second.toString() + ", " + third.toString();
     }
 }
 

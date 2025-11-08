@@ -1,5 +1,5 @@
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Test wildcard with lower bounds conceptually (super semantics)
 // Since mType may not have explicit 'super' keyword, we test contravariance

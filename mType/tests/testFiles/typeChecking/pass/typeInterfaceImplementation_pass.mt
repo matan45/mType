@@ -1,19 +1,20 @@
 // Test interface implementation validation with proper type checking
-import * from "../../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Validator<T> {
     public function validate(T value): bool;
     public function getMessage(): string;
 }
 
-class StringValidator implements Validator<string> {
+class StringValidator implements Validator<String> {
     string message;
 
     constructor() {
         this.message = "Invalid string";
     }
 
-    public function validate(string value): bool {
+    public function validate(String value): bool {
         return value != null && value.length() > 0;
     }
 

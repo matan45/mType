@@ -8,8 +8,8 @@ class Person {
         age = a;
     }
 
-    string getInfo(): string {
-        return name + " is " + toString(age) + " years old";
+    public function getInfo(): string {
+        return name + " is " + age + " years old";
     }
 }
 
@@ -20,7 +20,7 @@ class TypeInfo {
         typeName = t;
     }
 
-    string describe(): string {
+    public function describe(): string {
         return "Type: " + typeName;
     }
 }

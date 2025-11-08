@@ -1,7 +1,7 @@
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/String.mt";
-import * from "../../../lib/primitives/Float.mt";
-import * from "../../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Float.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 // Test local variable type inference
 

@@ -8,11 +8,11 @@ class Food {
         this.name = name;
     }
 
-    public string getName() {
+    public function getName(): string {
         return this.name;
     }
 
-    public void describe() {
+    public function describe(): void {
         print("Food: " + this.name);
     }
 }
@@ -24,11 +24,11 @@ class Fruit extends Food {
         this.color = color;
     }
 
-    public void describe() {
+    public function describe(): void {
         print("Fruit: " + this.name + " (" + this.color + ")");
     }
 
-    public string getColor() {
+    public function getColor(): string {
         return this.color;
     }
 }
@@ -40,33 +40,33 @@ class Apple extends Fruit {
         this.variety = variety;
     }
 
-    public void describe() {
+    public function describe(): void {
         print("Apple: " + this.variety);
     }
 
-    public string getVariety() {
+    public function getVariety(): string {
         return this.variety;
     }
 }
 
 // Test covariant return types through factories
 class FoodFactory {
-    public Food createFood() {
+    public function createFood(): Food {
         return new Food("Generic Food");
     }
 
-    public void displayFood() {
+    public function displayFood(): void {
         Food f = this.createFood();
         f.describe();
     }
 }
 
 class FruitFactory extends FoodFactory {
-    public Fruit createFood() {
+    public function createFood(): Fruit {
         return new Fruit("Generic Fruit", "Yellow");
     }
 
-    public void displayFood() {
+    public function displayFood(): void {
         Fruit f = this.createFood();
         f.describe();
         print("Color: " + f.getColor());
@@ -74,11 +74,11 @@ class FruitFactory extends FoodFactory {
 }
 
 class AppleFactory extends FruitFactory {
-    public Apple createFood() {
+    public function createFood(): Apple {
         return new Apple("Granny Smith");
     }
 
-    public void displayFood() {
+    public function displayFood(): void {
         Apple a = this.createFood();
         a.describe();
         print("Variety: " + a.getVariety());
@@ -120,23 +120,23 @@ class Builder {
         this.data = "";
     }
 
-    public Builder addData(string d) {
+    public function addData(string d): Builder {
         this.data = this.data + d;
         return this;
     }
 
-    public string build() {
+    public function build(): string {
         return this.data;
     }
 }
 
 class EnhancedBuilder extends Builder {
-    public EnhancedBuilder addData(string d) {
+    public function addData(string d): EnhancedBuilder {
         this.data = this.data + "[" + d + "]";
         return this;
     }
 
-    public string build() {
+    public function build(): string {
         return "Enhanced: " + this.data;
     }
 }
