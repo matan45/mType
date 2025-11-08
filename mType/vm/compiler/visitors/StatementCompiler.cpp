@@ -179,13 +179,21 @@ namespace vm::compiler::visitors
 
         // Check if we're in a real function or just the top-level pseudo-frame
         // Top-level pseudo-frame has scopeDepthStart=0 and localStartSlot=0
+        // IMPORTANT: Variables in anonymous blocks (scope depth > 2) should be treated as locals
+        // even at global scope, so they can be captured by lambdas
         bool isInRealFunction = false;
         try {
             if (ctx.functionFrameManager.isInFunction()) {
                 const auto& frame = ctx.functionFrameManager.currentFrame();
-                // If we're in the top-level pseudo-frame (scopeDepthStart=0, localStartSlot=0), treat as global
+                // If we're in the top-level pseudo-frame (scopeDepthStart=0, localStartSlot=0)
+                // but in an anonymous block (scope depth > 2), treat as local for lambda capture
                 if (frame.scopeDepthStart == 0 && frame.localStartSlot == 0) {
-                    isInRealFunction = false;
+                    // Check if we're in an anonymous block
+                    if (ctx.variableTracker.getCurrentScopeDepth() > 2) {
+                        isInRealFunction = true;  // Treat as local for capture semantics
+                    } else {
+                        isInRealFunction = false;  // Top-level global
+                    }
                 } else {
                     isInRealFunction = true;
                 }

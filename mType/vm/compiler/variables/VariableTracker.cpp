@@ -1,5 +1,5 @@
 #include "VariableTracker.hpp"
-
+#include  <iostream>
 namespace vm::compiler::variables
 {
     VariableTracker::VariableTracker()
@@ -44,6 +44,7 @@ namespace vm::compiler::variables
         // Only decrement nextLocalSlot if the removed variable wasn't captured
         while (!locals.empty() && locals.back().scopeDepth > currentScopeDepth) {
             bool wasCaptured = locals.back().isCaptured;
+
             locals.pop_back();
             if (!wasCaptured) {
                 nextLocalSlot--;

@@ -248,12 +248,14 @@ namespace vm::runtime
                 size_t capturedIndex = slot - paramCount;
                 if (capturedIndex < lambda->capturedNames.size())
                 {
-                    std::string varName = lambda->capturedNames[capturedIndex];
+                    // Use the slot number directly instead of looking up by name
+                    // This allows multiple variables with the same name to coexist
+                    size_t capturedSlot = lambda->capturedSlots[capturedIndex];
 
-                    if (!varName.empty() && lambda->capturedFrame)
+                    if (lambda->capturedFrame)
                     {
-                        // Look up by name through parent chain (reference capture)
-                        value::Value val = lambda->capturedFrame->getLocalByName(varName);
+                        // Access by slot number (reference capture)
+                        value::Value val = lambda->capturedFrame->getLocal(capturedSlot);
 
                         if (!std::holds_alternative<std::monostate>(val))
                         {
@@ -357,17 +359,9 @@ namespace vm::runtime
             }
             auto sharedFrame = context.callStack.back().sharedFrame;
 
-            // Check if this variable exists anywhere in the parent chain
-            value::Value existingVal = sharedFrame->getLocalByName(varName);
-            bool existsInChain = !std::holds_alternative<std::monostate>(existingVal);
-
-            if (existsInChain) {
-                // Update through parent chain
-                sharedFrame->setLocalByName(varName, val);
-            } else {
-                // New variable in this frame - register it
-                sharedFrame->setLocal(varName, slot, val);
-            }
+            // Use slot-based storage to avoid name collisions
+            // Multiple variables with the same name at different slots should not interfere
+            sharedFrame->setLocal(varName, slot, val);
         }
 
         // Push value back for assignment expressions (e.g., int i = 0 in for loop)

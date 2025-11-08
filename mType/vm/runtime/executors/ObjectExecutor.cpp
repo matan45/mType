@@ -329,20 +329,10 @@ namespace vm::runtime
         if (lambda->capturedFrame) {
             for (size_t i = 0; i < lambda->capturedSlots.size(); ++i) {
                 size_t slot = lambda->capturedSlots[i];
-                std::string varName = (i < lambda->capturedNames.size()) ? lambda->capturedNames[i] : "";
 
-                value::Value capturedValue;
-                if (!varName.empty()) {
-                    // Look up by name through the parent chain
-                    capturedValue = lambda->capturedFrame->getLocalByName(varName);
-                    if (std::holds_alternative<std::monostate>(capturedValue)) {
-                        // Fallback to slot-based lookup if name lookup failed
-                        capturedValue = lambda->capturedFrame->getLocal(slot);
-                    }
-                } else {
-                    // No name available, use slot-based lookup
-                    capturedValue = lambda->capturedFrame->getLocal(slot);
-                }
+                // Always use slot-based lookup to avoid name collisions
+                // This allows multiple variables with the same name to coexist
+                value::Value capturedValue = lambda->capturedFrame->getLocal(slot);
 
                 context.stackManager->push(capturedValue);
                 capturedCount++;
