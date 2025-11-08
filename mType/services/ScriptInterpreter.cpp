@@ -22,6 +22,10 @@
 #include "../ast/nodes/statements/ImportNode.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../environment/registry/NativeRegistry.hpp"
+#include "../environment/registry/ClassRegistry.hpp"
+#include "../environment/registry/FunctionRegistry.hpp"
+#include "../environment/manager/VariableManager.hpp"
+#include "../environment/manager/ScopeManager.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
@@ -31,6 +35,7 @@
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
+#include "../runtimeTypes/global/ArrayOperationsNative.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
@@ -61,8 +66,10 @@ namespace services
         bool skipStrictValidation = (optLevel == constants::OptimizationLevel::Release);
         compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, skipStrictValidation, optLevel);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
+
         // ScriptAPI initialized with VM support (program will be set when bytecode is loaded)
         scriptAPI = std::make_unique<ScriptAPI>(environment, vm.get(), nullptr);
+
         // BytecodeService needs ScriptAPI reference to update program during execution
         bytecodeService = std::make_unique<BytecodeService>(environment, optimizationService.get(), vm, scriptAPI.get());
 

@@ -1,23 +1,23 @@
 class Container<T> {
-    var item: T;
+    T item;
 
-    constructor(i: T) {
+    constructor(T i) {
         this.item = i;
     }
 
-    fun getItem(): T {
+    public function getItem(): T {
         return this.item;
     }
 }
 
 class Wrapper<T> {
-    var wrapped: Container<T>;
+    Container<T> wrapped;
 
-    constructor(c: Container<T>) {
+    constructor(Container<T> c) {
         this.wrapped = c;
     }
 
-    fun unwrap(): Container<T> {
+    public function unwrap(): Container<T> {
         return this.wrapped;
     }
 }

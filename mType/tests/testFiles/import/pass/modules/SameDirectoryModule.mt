@@ -1,11 +1,11 @@
 class ExportedClass {
-    var value: Int;
+    int value;
 
-    constructor(val: Int) {
+    constructor(int val) {
         this.value = val;
     }
 
-    fun getValue(): Int {
+    public function getValue(): int {
         return this.value;
     }
 }

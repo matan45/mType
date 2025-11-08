@@ -1,5 +1,5 @@
 class DeepClass {
-    fun getDepth(): Int {
+    public function getDepth(): int {
         return 3;
     }
 }

@@ -1,16 +1,13 @@
-class Processor {
-    fun process<T>(item: T): T {
+public interface Converter<T, U> {
+    function apply(T input): U;
+}
+
+public class Processor {
+    public function <T> process(T item): T {
         return item;
     }
 
-    fun convert<T, U>(from: T, converter: (T) -> U): U {
-        return converter(from);
-    }
-
-    fun swap<T, U>(first: T, second: U): Array<Object> {
-        var result = Array<Object>(2);
-        result[0] = second;
-        result[1] = first;
-        return result;
+    public function <T, U> convert(T input, Converter<T, U> converter): U {
+        return converter.apply(input);
     }
 }

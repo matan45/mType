@@ -1,28 +1,28 @@
-interface Collection<T> {
-    fun add(item: T): Void;
-    fun size(): Int;
-    fun get(index: Int): T;
+public interface Collection<T> {
+    function add(T item): void;
+    function size(): int;
+    function get(int index): T;
 }
 
-class SimpleCollection<T> implements Collection<T> {
-    var items: Array<T>;
-    var count: Int;
+public class SimpleCollection<T> implements Collection<T> {
+    T[] items;
+    int count;
 
     constructor() {
-        this.items = Array<T>(10);
+        this.items = new T[10];
         this.count = 0;
     }
 
-    fun add(item: T): Void {
+    public function add(T item): void {
         this.items[this.count] = item;
         this.count = this.count + 1;
     }
 
-    fun size(): Int {
+    public function size(): int {
         return this.count;
     }
 
-    fun get(index: Int): T {
+    public function get(int index): T {
         return this.items[index];
     }
 }

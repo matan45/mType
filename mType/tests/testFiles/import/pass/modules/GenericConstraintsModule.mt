@@ -1,22 +1,22 @@
 interface Comparable<T> {
-    fun compareTo(other: T): Int;
+    function compareTo(T other): int;
 }
 
 class SortedBox<T extends Comparable<T>> {
-    var items: Array<T>;
-    var count: Int;
+    T[] items;
+    int count;
 
     constructor() {
-        this.items = Array<T>(10);
+        this.items = new T[10];
         this.count = 0;
     }
 
-    fun add(item: T): Void {
+    public function add(T item ): void {
         this.items[this.count] = item;
         this.count = this.count + 1;
     }
 
-    fun getCount(): Int {
+    public function getCount(): int {
         return this.count;
     }
 }

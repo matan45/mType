@@ -1,24 +1,25 @@
+import * from "../../../lib/primitives/Int.mt";
+import * from "../../../lib/primitives/String.mt";
 class GenericPair<T, U> {
-    var first: T;
-    var second: U;
+    T first;
+    U second;
 
-    constructor(f: T, s: U) {
+    constructor(T f, U s) {
         this.first = f;
         this.second = s;
     }
 
-    fun getFirst(): T {
+    public function getFirst(): T {
         return this.first;
     }
 
-    fun getSecond(): U {
+    public function getSecond(): U {
         return this.second;
     }
 }
 
 // Pre-specialized version
 class IntStringPair extends GenericPair<Int, String> {
-    constructor(i: Int, s: String) {
-        super(i, s);
+    constructor(Int i,String s): super(i, s) {
     }
 }

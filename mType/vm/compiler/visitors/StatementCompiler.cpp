@@ -393,11 +393,13 @@ namespace vm::compiler::visitors
         try {
             if (ctx.functionFrameManager.isInFunction()) {
                 const auto& frame = ctx.functionFrameManager.currentFrame();
+
                 // If we're in the top-level pseudo-frame (scopeDepthStart=0, localStartSlot=0)
-                // but in an anonymous block (scope depth > 2), treat as local for lambda capture
+                // but in an anonymous block (scope depth > 3), treat as local for lambda capture
                 if (frame.scopeDepthStart == 0 && frame.localStartSlot == 0) {
                     // Check if we're in an anonymous block
-                    if (ctx.variableTracker.getCurrentScopeDepth() > 2) {
+                    // Module-level globals are at depth 3, anonymous blocks are at depth 4+
+                    if (ctx.variableTracker.getCurrentScopeDepth() > 3) {
                         isInRealFunction = true;  // Treat as local for capture semantics
                     } else {
                         isInRealFunction = false;  // Top-level global

@@ -352,12 +352,25 @@ namespace vm::compiler::visitors
                     // Allow null
                     if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
                     {
-                        std::string argTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(argType);
-                        throw errors::TypeException(
-                            "Constructor parameter " + std::to_string(i + 1) +
-                            " expects " + expectedClass + " but got " + argTypeStr,
-                            location
-                        );
+                        // PHASE 4: Allow primitive literals for Box types (auto-boxing)
+                        bool canAutoBox = false;
+                        if ((expectedClass == "Int" && argType == value::ValueType::INT) ||
+                            (expectedClass == "Float" && argType == value::ValueType::FLOAT) ||
+                            (expectedClass == "Bool" && argType == value::ValueType::BOOL) ||
+                            (expectedClass == "String" && argType == value::ValueType::STRING))
+                        {
+                            canAutoBox = true;
+                        }
+
+                        if (!canAutoBox)
+                        {
+                            std::string argTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(argType);
+                            throw errors::TypeException(
+                                "Constructor parameter " + std::to_string(i + 1) +
+                                " expects " + expectedClass + " but got " + argTypeStr,
+                                location
+                            );
+                        }
                     }
                 }
                 else

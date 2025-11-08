@@ -1,5 +1,5 @@
 class ReexportedClass {
-    fun getValue(): String {
+    public function getValue(): string {
         return "Reexported from A";
     }
 }

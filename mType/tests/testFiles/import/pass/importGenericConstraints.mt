@@ -1,20 +1,21 @@
 // Test: Import generic with type constraints
-@Script
-import { SortedBox, Comparable } from "./modules/GenericConstraintsModule.mt"
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import { SortedBox, Comparable } from "modules/GenericConstraintsModule.mt";
 
 class Number implements Comparable<Number> {
-    var value: Int;
+    public int value;
 
-    constructor(v: Int) {
+    constructor(int v) {
         this.value = v;
     }
 
-    fun compareTo(other: Number): Int {
+    public function compareTo(Number other): int {
         return this.value - other.value;
     }
 }
 
-var box = SortedBox<Number>();
-box.add(Number(5));
-box.add(Number(3));
+SortedBox<Number> box = new SortedBox<Number>();
+box.add(new Number(5));
+box.add(new Number(3));
 print(box.getCount());

@@ -1,5 +1,5 @@
 class RelativeClass2 {
-    fun getValue(): Int {
+    public function getValue(): int {
         return 2;
     }
 }

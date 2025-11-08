@@ -1,17 +1,17 @@
 class SelectiveClass1 {
-    fun test1(): String {
+    public function test1(): string {
         return "Selective1";
     }
 }
 
 class SelectiveClass2 {
-    fun test2(): String {
+    public function test2(): string {
         return "Selective2";
     }
 }
 
 class SelectiveClass3 {
-    fun test3(): String {
+    public function test3(): string {
         return "Selective3";
     }
 }

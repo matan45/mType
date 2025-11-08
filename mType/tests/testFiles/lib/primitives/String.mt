@@ -63,21 +63,50 @@ public final class String implements Object<String> {
         if (prefixLen > this.length()) {
             return false;
         }
-        // Compare character by character would need substring support
-        // For now, simple implementation
-        return false;  // TODO: Implement when substring available
+        if (prefixLen == 0) {
+            return true;
+        }
+        int idx = indexOf(this.value, prefix.value);
+        return idx == 0;
     }
 
     public function endsWith(String suffix): bool {
         int suffixLen = suffix.length();
-        if (suffixLen > this.length()) {
+        int thisLen = this.length();
+        if (suffixLen > thisLen) {
             return false;
         }
-        return false;  // TODO: Implement when substring available
+        if (suffixLen == 0) {
+            return true;
+        }
+        string sub = substring(this.value, thisLen - suffixLen, suffixLen);
+        return sub == suffix.value;
     }
 
     public function contains(String substring): bool {
-        // Would need indexOf implementation
-        return false;  // TODO: Implement when indexOf available
+        int idx = indexOf(this.value, substring.value);
+        return idx != -1;
+    }
+
+    // Substring operations
+    public function substring(int startIndex, int length): String {
+        string sub = substring(this.value, startIndex, length);
+        return new String(sub);
+    }
+
+    // Case conversion operations
+    public function toUpperCase(): String {
+        string upper = toUpperCase(this.value);
+        return new String(upper);
+    }
+
+    public function toLowerCase(): String {
+        string lower = toLowerCase(this.value);
+        return new String(lower);
+    }
+
+    // Index operations
+    public function indexOf(String needle): int {
+        return indexOf(this.value, needle.value);
     }
 }

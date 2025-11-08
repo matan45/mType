@@ -1,8 +1,8 @@
-import { SharedClass } from "./ModuleD.mt"
+import { SharedClass } from "./ModuleD.mt";
 
 class ClassB {
-    fun useShared(): String {
-        var shared = SharedClass();
+    public function useShared(): string {
+        SharedClass shared = new SharedClass();
         return "B: " + shared.getValue();
     }
 }

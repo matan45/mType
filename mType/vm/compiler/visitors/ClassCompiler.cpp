@@ -213,14 +213,65 @@ namespace vm::compiler::visitors
         return typeArguments;
     }
 
-    void ClassCompiler::emitNewObjectBytecode(ast::NewNode* node, const std::string& fullClassName)
+    void ClassCompiler::emitNewObjectBytecode(ast::NewNode* node, const std::string& fullClassName,
+                                              const runtimeTypes::klass::ConstructorDefinition* constructor,
+                                              const std::unordered_map<std::string, std::string>& genericTypeBindings)
     {
         const auto& arguments = node->getArguments();
 
-        // Push constructor arguments onto stack (left to right)
-        for (const auto& arg : arguments)
+        // Create resolver for generic type substitution
+        types::GenericTypeResolver resolver;
+
+        // Push constructor arguments onto stack (left to right) with auto-boxing
+        for (size_t i = 0; i < arguments.size(); ++i)
         {
-            arg->accept(ctx.visitor);
+            // Check if we need to apply auto-boxing
+            bool needsAutoBoxing = false;
+            std::string boxClassName;
+
+            if (constructor && i < constructor->getParameterCount())
+            {
+                const auto& params = constructor->getParametersWithTypes();
+                const auto& paramType = params[i].second;
+
+                // Check if parameter expects an object type
+                if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
+                {
+                    std::string expectedClass = paramType.className.value();
+
+                    // Resolve generic type parameters (T -> Int)
+                    if (!genericTypeBindings.empty())
+                    {
+                        expectedClass = resolver.resolveGenericType(expectedClass, genericTypeBindings);
+                    }
+
+                    // Infer argument type
+                    value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
+
+                    // Check if auto-boxing is needed
+                    if ((expectedClass == "Int" && argType == value::ValueType::INT) ||
+                        (expectedClass == "Float" && argType == value::ValueType::FLOAT) ||
+                        (expectedClass == "Bool" && argType == value::ValueType::BOOL) ||
+                        (expectedClass == "String" && argType == value::ValueType::STRING))
+                    {
+                        needsAutoBoxing = true;
+                        boxClassName = expectedClass;
+                    }
+                }
+            }
+
+            // Compile the argument
+            arguments[i]->accept(ctx.visitor);
+
+            // Apply auto-boxing if needed
+            if (needsAutoBoxing)
+            {
+                size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                           static_cast<uint32_t>(classNameIndex),
+                                           1u,  // 1 constructor argument (the primitive value)
+                                           arguments[i].get());
+            }
         }
 
         // Store the FULL class name including generics (e.g., "Box<Int>")
@@ -256,6 +307,9 @@ namespace vm::compiler::visitors
 
         // Validate constructor parameters if class definition exists
         auto classDef = ctx.environment->findClass(baseClassName);
+        runtimeTypes::klass::ConstructorDefinition* matchingConstructor = nullptr;
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+
         if (classDef)
         {
             // Validate: Cannot instantiate abstract classes
@@ -268,7 +322,6 @@ namespace vm::compiler::visitors
 
             // Build generic type bindings map for parameter validation
             // Maps generic parameter names (e.g., "T") to concrete types (e.g., "Int")
-            std::unordered_map<std::string, std::string> genericTypeBindings;
             const auto& genericParams = classDef->getGenericParameters();
             for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
             {
@@ -282,13 +335,14 @@ namespace vm::compiler::visitors
                 if (constructor->getParameterCount() == arguments.size())
                 {
                     paramValidator->validateConstructorParameters(arguments, constructor.get(), node->getLocation(), genericTypeBindings);
+                    matchingConstructor = constructor.get();
                     break;
                 }
             }
         }
 
-        // Emit bytecode for object creation
-        emitNewObjectBytecode(node, fullClassName);
+        // Emit bytecode for object creation with auto-boxing support
+        emitNewObjectBytecode(node, fullClassName, matchingConstructor, genericTypeBindings);
 
         return std::monostate{};
     }

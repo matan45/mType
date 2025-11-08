@@ -7,6 +7,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../runtime/optimization/LoopOptimizer.hpp"
 #include "../optimization/PeepholeOptimizer.hpp"
+#include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include <stdexcept>
 #include <iostream>
 namespace vm::compiler
@@ -476,6 +477,9 @@ namespace vm::compiler
             // Compile the imported file to generate bytecode for functions and methods
             // This will register all functions/methods in the BytecodeProgram
             importedAST->accept(*this);
+
+            // Note: Global variables from imported files are registered in globalRegistry during compilation
+            // and persist across file boundaries (see GlobalVariableRegistry::removeVariablesOutOfScope)
 
             // Restore previous current file
             importManager->setCurrentFilePath(savedCurrentFile);

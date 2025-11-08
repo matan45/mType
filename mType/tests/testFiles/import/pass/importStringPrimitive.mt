@@ -1,6 +1,5 @@
 // Test: Import String from lib/primitives
-@Script
-import { String } from "../../../../../../lib/primitives/String.mt"
+import { String } from "../../lib/primitives/String.mt";
 
-var text: String = "Hello, mType!";
-print(text);
+String text = "Hello, mType!";
+print(text.toString());

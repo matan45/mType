@@ -702,6 +702,9 @@
     <ClInclude Include="environment\registry\builtin\HashCodeFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\builtin\IndexOfFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\builtin\ParsePrimitiveFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
@@ -712,6 +715,15 @@
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\builtin\StrLengthFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\SubstringFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ToLowerCaseFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ToUpperCaseFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\builtin\ValuePrinter.hpp">
@@ -1664,6 +1676,9 @@
     <ClCompile Include="environment\registry\builtin\HashCodeFunction.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\builtin\IndexOfFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\builtin\ParsePrimitiveFunction.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
@@ -1674,6 +1689,15 @@
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\builtin\StrLengthFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\SubstringFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ToLowerCaseFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ToUpperCaseFunction.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\builtin\ValuePrinter.cpp">
@@ -6943,6 +6967,9 @@
     <None Include="tests\testFiles\generics\pass\varianceWildcardUpper.mt">
       <Filter>tests\testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\ParentModule.mt">
+      <Filter>tests\testFiles\import</Filter>
+    </None>
     <None Include="tests\testFiles\import\error\circular4way\ModuleA.mt">
       <Filter>tests\testFiles\import\error\circular4way</Filter>
     </None>
@@ -7129,10 +7156,19 @@
     <None Include="tests\testFiles\import\pass\importAllCollections.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importDeepNesting.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importDeepNesting.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importDiamondDependency.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importDiamondDependency.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importEmptyFile.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importEmptyFile.mt">
@@ -7144,10 +7180,19 @@
     <None Include="tests\testFiles\import\pass\importGenericClass.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importGenericConstraints.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importGenericConstraints.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importGenericInterface.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importGenericInterface.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importGenericMethod.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importGenericMethod.mt">
@@ -7159,6 +7204,9 @@
     <None Include="tests\testFiles\import\pass\importHashMapCollection.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importIntPrimitive.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importIntPrimitive.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
@@ -7166,6 +7214,9 @@
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importListCollection.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importMultiplePrimitives.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importMultiplePrimitives.mt">
@@ -7177,37 +7228,73 @@
     <None Include="tests\testFiles\import\pass\importNestedCollections.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importNestedGenerics.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importNestedGenerics.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importObjectBase.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importObjectBase.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importParentDirectory.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importParentDirectory.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importPrivateOnly.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importPrivateOnly.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importRedundant.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importRedundant.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importReexport.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importReexport.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importRelativeComplex.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importRelativeComplex.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importSameDirectory.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importSameDirectory.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importSelectiveAndWildcard.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importSelectiveAndWildcard.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importSpecializedGeneric.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importSpecializedGeneric.mt">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importStringPrimitive.expected">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importStringPrimitive.mt">
+      <Filter>tests\testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importWithDotSlash.expected">
       <Filter>tests\testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importWithDotSlash.mt">
@@ -8527,6 +8614,9 @@
     <None Include="tests\testFiles\lambda\error\continueInLambdaError.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
+    <None Include="tests\testFiles\lambda\error\lambdaCatchNonException.mt">
+      <Filter>tests\testFiles\lambda\error</Filter>
+    </None>
     <None Include="tests\testFiles\lambda\error\lambdaCircularReference.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
@@ -8551,9 +8641,6 @@
     <None Include="tests\testFiles\lambda\error\lambdaRawGenericType.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
-    <None Include="tests\testFiles\lambda\error\lambdaReassignmentNotAllowed.mt">
-      <Filter>tests\testFiles\lambda\error</Filter>
-    </None>
     <None Include="tests\testFiles\lambda\error\lambdaReturnTypeMismatch.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
@@ -8567,12 +8654,6 @@
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
     <None Include="tests\testFiles\lambda\error\lambdaToUndefinedInterface.mt">
-      <Filter>tests\testFiles\lambda\error</Filter>
-    </None>
-    <None Include="tests\testFiles\lambda\error\lambdaUncaughtException.mt">
-      <Filter>tests\testFiles\lambda\error</Filter>
-    </None>
-    <None Include="tests\testFiles\lambda\error\lambdaUnreachableCode.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\basicBlockLambda.expected">

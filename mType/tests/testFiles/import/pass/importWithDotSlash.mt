@@ -1,6 +1,5 @@
 // Test: Import with explicit ./
-@Script
-import { DotSlashClass } from "./modules/DotSlashModule.mt"
+import { DotSlashClass } from "./modules/DotSlashModule.mt";
 
-var obj = DotSlashClass();
+DotSlashClass obj = new DotSlashClass();
 print(obj.greet());

@@ -1,13 +1,13 @@
 // Test: Import multiple primitives together
-@Script
-import { Int } from "../../../../../../lib/primitives/Int.mt"
-import { String } from "../../../../../../lib/primitives/String.mt"
-import { Bool } from "../../../../../../lib/primitives/Bool.mt"
 
-var num: Int = 100;
-var text: String = "Testing";
-var flag: Bool = true;
+import { Int } from "../../lib/primitives/Int.mt";
+import { String } from "../../lib/primitives/String.mt";
+import { Bool } from "../../lib/primitives/Bool.mt";
 
-print(num);
-print(text);
-print(flag);
+Int num = 100;
+String text = "Testing";
+Bool flag = true;
+
+print(num.toString());
+print(text.toString());
+print(flag.toString());

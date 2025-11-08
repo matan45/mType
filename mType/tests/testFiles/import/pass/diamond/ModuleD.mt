@@ -1,5 +1,5 @@
 class SharedClass {
-    fun getValue(): String {
+    public function getValue(): string {
         return "Shared by B and C";
     }
 }

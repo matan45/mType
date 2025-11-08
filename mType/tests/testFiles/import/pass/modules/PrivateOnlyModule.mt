@@ -1,12 +1,12 @@
 // Module with only private members (if mType supports private)
-class PrivateClass {
-    private var secret: Int;
+private class PrivateClass {
+    private int secret;
 
     private constructor() {
         this.secret = 42;
     }
 
-    private fun getSecret(): Int {
+    private function getSecret(): int {
         return this.secret;
     }
 }

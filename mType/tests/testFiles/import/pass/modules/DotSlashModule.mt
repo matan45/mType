@@ -1,5 +1,5 @@
 class DotSlashClass {
-    fun greet(): String {
+    public function greet(): string {
         return "Hello from DotSlash";
     }
 }

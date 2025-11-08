@@ -1,11 +1,12 @@
 // Test: Import class with generic methods
-@Script
-import { Processor } from "./modules/GenericMethodModule.mt"
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import { Processor } from "modules/GenericMethodModule.mt";
 
-var processor = Processor();
+Processor processor = new Processor();
 
-var intResult = processor.process<Int>(42);
-var stringResult = processor.process<String>("test");
+Int intResult = processor.process<Int>(42);
+String stringResult = processor.process<String>("test");
 
 print(intResult);
 print(stringResult);

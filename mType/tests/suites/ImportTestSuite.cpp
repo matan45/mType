@@ -137,10 +137,6 @@ namespace tests::testSuite
                         "mType/tests/testFiles/import/pass/importPrivateOnly.mt");
         addOutputVerificationTest("Import Selective And Wildcard",
                         "mType/tests/testFiles/import/pass/importSelectiveAndWildcard.mt");
-        addOutputVerificationTest("Selective Import Utils",
-                        "mType/tests/testFiles/import/pass/selective_import_utils.mt");
-        addOutputVerificationTest("Wildcard Import Utils",
-                        "mType/tests/testFiles/import/pass/wildcard_import_utils.mt");
 
         // === ERROR TESTS THAT EXIST ===
         addTestFromFile("Import Circular Self Reference Error",

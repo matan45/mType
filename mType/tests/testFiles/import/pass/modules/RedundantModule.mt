@@ -1,5 +1,5 @@
 class RedundantClass {
-    fun test(): String {
+    public function test(): string {
         return "Redundant import";
     }
 }
