@@ -7,7 +7,7 @@ Max user between user2 and user3: User{id=3, name=Charlie}
 Product{id=100, name=Laptop, price=1200}
 Product{id=101, name=Mouse, price=25}
 Product{id=102, name=Keyboard, price=75}
-Max product between prod1 and prod2: Product{id=100, name=Laptop, price=1200}
+Max product between prod1 and prod2: Product{id=101, name=Mouse, price=25}
 Max product between prod2 and prod3: Product{id=102, name=Keyboard, price=75}
 user1.compareTo(user2) = -1
 prod2.compareTo(prod3) = -1

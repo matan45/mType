@@ -1,6 +1,7 @@
 // Test: Dependent types (types depending on values)
 // Expected: Pass - type behavior influenced by runtime values
-import * from "../../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Generic container with size-dependent behavior
 class BoundedArray<T> {
@@ -14,7 +15,7 @@ class BoundedArray<T> {
         this.size = 0;
     }
 
-    public bool add(T item): bool {
+    public function add(T item): bool {
         if (this.size < this.capacity) {
             this.data[this.size] = item;
             this.size = this.size + 1;
@@ -23,19 +24,19 @@ class BoundedArray<T> {
         return false;
     }
 
-    public T get(int index): T {
+    public function get(int index): T {
         return this.data[index];
     }
 
-    public int getSize() {
+    public function getSize(): int {
         return this.size;
     }
 
-    public int getCapacity() {
+    public function getCapacity(): int {
         return this.capacity;
     }
 
-    public bool isFull() {
+    public function isFull(): bool {
         return this.size == this.capacity;
     }
 }
@@ -80,7 +81,7 @@ class Matrix {
         }
     }
 
-    public void set(int row, int col, int value) {
+    public function set(int row, int col, int value): void {
         if (row < this.rows) {
             if (col < this.cols) {
                 this.data[row][col] = value;
@@ -88,19 +89,19 @@ class Matrix {
         }
     }
 
-    public int get(int row, int col): int {
+    public function get(int row, int col): int {
         return this.data[row][col];
     }
 
-    public int getRows() {
+    public function getRows(): int {
         return this.rows;
     }
 
-    public int getCols() {
+    public function getCols(): int {
         return this.cols;
     }
 
-    public void display() {
+    public function display(): void {
         print("Matrix " + this.rows + "x" + this.cols + ":");
         int r = 0;
         while (r < this.rows) {
@@ -142,7 +143,7 @@ class RangeValidator<T> {
         this.max = max;
     }
 
-    public bool validate(int value): bool {
+    public function validate(int value): bool {
         if (value >= this.min) {
             if (value <= this.max) {
                 return true;
@@ -151,7 +152,7 @@ class RangeValidator<T> {
         return false;
     }
 
-    public string getRange(): string {
+    public function getRange(): string {
         return "[" + this.min + ", " + this.max + "]";
     }
 }
@@ -182,7 +183,7 @@ class ConfigurableBuffer<T> {
         this.writeIndex = 0;
     }
 
-    public bool write(T value): bool {
+    public function write(T value): bool {
         if (this.writeIndex < this.maxSize) {
             this.buffer[this.writeIndex] = value;
             this.writeIndex = this.writeIndex + 1;
@@ -199,23 +200,23 @@ class ConfigurableBuffer<T> {
         return false;
     }
 
-    public T read(int index): T {
+    public function read(int index): T {
         return this.buffer[index];
     }
 
-    public int getSize() {
+    public function getSize(): int {
         return this.maxSize;
     }
 }
 
 print("\nTest 4: Configuration-dependent buffer");
-ConfigurableBuffer<string> noOverwrite = new ConfigurableBuffer<string>(3, false);
+ConfigurableBuffer<String> noOverwrite = new ConfigurableBuffer<String>(3, false);
 noOverwrite.write("A");
 noOverwrite.write("B");
 noOverwrite.write("C");
 noOverwrite.write("D");  // Should fail
 
-ConfigurableBuffer<string> withOverwrite = new ConfigurableBuffer<string>(3, true);
+ConfigurableBuffer<String> withOverwrite = new ConfigurableBuffer<String>(3, true);
 withOverwrite.write("X");
 withOverwrite.write("Y");
 withOverwrite.write("Z");
@@ -231,20 +232,11 @@ class PaddedString {
         this.targetLength = targetLength;
     }
 
-    public string padRight(): string {
+    public function padRight(): string {
         string result = this.value;
-        int currentLen = 0;
-        // Simple length approximation
-        int i = 0;
-        while (i < 100) {
-            i = i + 1;
-            currentLen = currentLen + 1;
-            if (i > 1000) {
-                break;
-            }
-        }
+        int currentLen = strLength(this.value);
 
-        // Simplified padding
+        // Pad with spaces until we reach target length
         while (currentLen < this.targetLength) {
             result = result + " ";
             currentLen = currentLen + 1;
@@ -252,7 +244,7 @@ class PaddedString {
         return result;
     }
 
-    public int getTargetLength() {
+    public function getTargetLength(): int {
         return this.targetLength;
     }
 }

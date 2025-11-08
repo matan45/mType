@@ -7,12 +7,14 @@ Distance squared: 169
 Test 2: Interface structural typing
 Rectangle area: 50
 Rectangle perimeter: 30
+Circle area: 153.938
+Circle perimeter: 43.9823
 
 Test 3: Array of shapes
 Shape 0 area: 12
-Shape 1 area: 78.53975
+Shape 1 area: 78.5397
 
 Test 4: Function with structural types
-Total area: 90.53975
+Total area: 90.5397
 
 Structural typing tests completed

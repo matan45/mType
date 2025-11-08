@@ -31,6 +31,10 @@ class TypeInfo {
     public function getTypeName(): string {
         return typeName;
     }
+
+    public function toString(): string {
+        return typeName;
+    }
 }
 
 // Generic function that works regardless of type erasure
@@ -43,7 +47,7 @@ function <T> createContainer(T item): Container<T> {
 // Test runtime type checking after erasure
 function <T> checkAndProcess(Container<T> container): string {
     if (container.hasValue()) {
-        return "Container has value: " + container.getValue();
+        return "Container has value: " + container.getValue().toString();
     }
     return "Container is empty";
 }

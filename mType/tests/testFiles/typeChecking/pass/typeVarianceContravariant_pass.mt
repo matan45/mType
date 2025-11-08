@@ -8,11 +8,11 @@ class Event {
         this.eventType = type;
     }
 
-    public string getType() {
+    public function getType(): string {
         return this.eventType;
     }
 
-    public void describe() {
+    public function describe(): void {
         print("Event: " + this.eventType);
     }
 }
@@ -26,15 +26,15 @@ class MouseEvent extends Event {
         this.y = y;
     }
 
-    public void describe() {
+    public function describe(): void {
         print("MouseEvent at (" + this.x + ", " + this.y + ")");
     }
 
-    public int getX() {
+    public function getX(): int {
         return this.x;
     }
 
-    public int getY() {
+    public function getY(): int {
         return this.y;
     }
 }
@@ -46,37 +46,37 @@ class ClickEvent extends MouseEvent {
         this.button = button;
     }
 
-    public void describe() {
+    public function describe(): void {
         print("ClickEvent at (" + this.getX() + ", " + this.getY() + ") button: " + this.button);
     }
 
-    public int getButton() {
+    public function getButton(): int {
         return this.button;
     }
 }
 
 // Handler hierarchy demonstrating contravariance in parameter acceptance
 class EventHandler {
-    public void handle(Event e) {
+    public function handle(Event e): void {
         print("Handling generic event");
         e.describe();
     }
 
-    public void process(Event e) {
+    public function process(Event e): void {
         print("Processing event of type: " + e.getType());
         this.handle(e);
     }
 }
 
 class MouseEventHandler extends EventHandler {
-    public void handle(Event e) {
+    public function handle(Event e): void {
         print("Handling as mouse event");
         e.describe();
     }
 }
 
 class ClickEventHandler extends MouseEventHandler {
-    public void handle(Event e) {
+    public function handle(Event e): void {
         print("Handling as click event");
         e.describe();
     }
@@ -126,11 +126,11 @@ dispatchEvent(specificHandler, broadEvent);
 
 // Test 6: Parameter type flexibility
 class Processor {
-    public void processItem(Event item) {
+    public function processItem(Event item): void {
         print("Processing: " + item.getType());
     }
 
-    public void batchProcess(Event[] items, int count) {
+    public function batchProcess(Event[] items, int count): void {
         int idx = 0;
         while (idx < count) {
             this.processItem(items[idx]);

@@ -341,14 +341,13 @@ namespace vm::compiler::validation
         const auto& constructors = classDef->getConstructors();
         for (const auto& constructor : constructors)
         {
-            std::string constructorName = className + "::<init>/" +
-                                        std::to_string(constructor->getParameterCount());
+            std::string typeSignature = constructor->getTypeSignature();
+            std::string constructorName = className + "::<init>/" + typeSignature;
             if (!program.getFunction(constructorName))
             {
                 throw errors::TypeException(
-                    "Constructor for class '" + className + "' with " +
-                    std::to_string(constructor->getParameterCount()) +
-                    " parameters declared but not implemented. All constructors must have bytecode implementation.",
+                    "Constructor for class '" + className + "' with signature (" + typeSignature + ") " +
+                    "declared but not implemented. All constructors must have bytecode implementation.",
                     location
                 );
             }

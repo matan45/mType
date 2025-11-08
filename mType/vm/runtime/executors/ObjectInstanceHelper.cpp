@@ -255,13 +255,16 @@ namespace vm::runtime
             throw errors::RuntimeException("Parent class not found: " + baseParentClassName);
         }
 
-        auto parentConstructor = parentClass->findConstructor(argCount);
+        // Use type-aware constructor lookup for overload resolution
+        auto parentConstructor = parentClass->findConstructorByTypes(args);
         if (!parentConstructor) {
             throw errors::RuntimeException("No constructor found in parent class " + baseParentClassName +
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        std::string constructorName = baseParentClassName + "::<init>/" + std::to_string(argCount);
+        // Build constructor name with type signature for overload resolution
+        std::string typeSignature = parentConstructor->getTypeSignature();
+        std::string constructorName = baseParentClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -335,14 +338,16 @@ namespace vm::runtime
             throw errors::RuntimeException("Current class not found: " + currentClassName);
         }
 
-        // Find another constructor in the same class with the given argument count
-        auto targetConstructor = classDef->findConstructor(argCount);
+        // Use type-aware constructor lookup for overload resolution
+        auto targetConstructor = classDef->findConstructorByTypes(args);
         if (!targetConstructor) {
             throw errors::RuntimeException("No constructor found in class " + currentClassName +
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        std::string constructorName = currentClassName + "::<init>/" + std::to_string(argCount);
+        // Build constructor name with type signature for overload resolution
+        std::string typeSignature = targetConstructor->getTypeSignature();
+        std::string constructorName = currentClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -562,7 +567,8 @@ namespace vm::runtime
         auto classRegistry = context.environment->getClassRegistry();
         auto classDef = classRegistry->findClass(baseClassName);
 
-        auto constructor = classDef->findConstructor(argCount);
+        // Use type-aware constructor lookup for overload resolution
+        auto constructor = classDef->findConstructorByTypes(args);
         if (!constructor) {
             bool hasAnyConstructor = !classDef->getConstructors().empty();
 
@@ -578,7 +584,10 @@ namespace vm::runtime
         auto accessContext = createAccessContext(baseClassName, false);
         validation::AccessValidator::validateConstructorAccess(baseClassName, constructor->getAccessModifier(), accessContext);
 
-        std::string constructorName = baseClassName + "::<init>/" + std::to_string(argCount);
+        // Build type signature from runtime argument values for overload resolution
+        std::string typeSignature = constructor->getTypeSignature();
+
+        std::string constructorName = baseClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
         if (!funcMetadata) {
             throw errors::RuntimeException("Constructor '" + constructorName + "' for class '" + baseClassName +

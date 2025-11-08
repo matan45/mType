@@ -16,7 +16,7 @@
 #include "../../../circularDependency/TrueCyclicException.hpp"
 #include "../../../circularDependency/DepthLimitException.hpp"
 #include <unordered_set>
-
+#include <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -328,16 +328,31 @@ namespace vm::compiler::visitors
                 genericTypeBindings[genericParams[i].name] = typeArguments[i];
             }
 
-            // Find matching constructor and validate parameter types
+            // Find matching constructor by trying all constructors with matching parameter count
+            // Constructor overload resolution: try each constructor and pick the first one that validates
             const auto& constructors = classDef->getConstructors();
+            std::string lastError;
+
             for (const auto& constructor : constructors)
             {
                 if (constructor->getParameterCount() == arguments.size())
                 {
-                    paramValidator->validateConstructorParameters(arguments, constructor.get(), node->getLocation(), genericTypeBindings);
-                    matchingConstructor = constructor.get();
-                    break;
+                    try {
+                        paramValidator->validateConstructorParameters(arguments, constructor.get(), node->getLocation(), genericTypeBindings);
+                        matchingConstructor = constructor.get();
+                        break;  // Found a matching constructor
+                    }
+                    catch (const std::exception& e) {
+                        // This constructor didn't match - try the next one
+                        lastError = e.what();
+                        continue;
+                    }
                 }
+            }
+
+            // If no constructor matched, throw the last error
+            if (!matchingConstructor && !lastError.empty()) {
+                throw std::runtime_error(lastError);
             }
         }
 

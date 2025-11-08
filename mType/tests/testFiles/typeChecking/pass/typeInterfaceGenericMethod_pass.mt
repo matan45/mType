@@ -1,13 +1,14 @@
 // Test generic interface method implementation with type checking
-import * from "../../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Transformer<T> {
-    public function transform<U>(T input, U context): U;
+    public function <U> transform(T input, U context): U;
     public function getType(): string;
 }
 
 class StringTransformer implements Transformer<string> {
-    public function transform<U>(string input, U context): U {
+    public function <U> transform(string input, U context): U {
         print("Transforming: " + input);
         return context;
     }
@@ -18,7 +19,7 @@ class StringTransformer implements Transformer<string> {
 }
 
 class IntTransformer implements Transformer<Int> {
-    public function transform<U>(Int input, U context): U {
+    public function <U> transform(Int input, U context): U {
         print("Transforming: " + input.getValue());
         return context;
     }
@@ -31,7 +32,7 @@ class IntTransformer implements Transformer<Int> {
 StringTransformer strTrans = new StringTransformer();
 IntTransformer intTrans = new IntTransformer();
 
-string result1 = strTrans.transform<string>("hello", "world");
+String result1 = strTrans.transform<String>("hello", "world");
 Int result2 = intTrans.transform<Int>(new Int(42), new Int(100));
 
 print(result1);

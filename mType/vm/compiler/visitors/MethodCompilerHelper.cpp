@@ -20,9 +20,9 @@ namespace vm::compiler::visitors
         // Default constructor has only 'this' as parameter
         std::vector<std::string> paramNames = {"this"};
 
-        // Generate constructor name for exception table tracking
+        // Generate constructor name for exception table tracking (empty signature for 0 params)
         std::string className = node->getClassName();
-        std::string constructorName = className + "::<init>/0"; // 0 args
+        std::string constructorName = className + "::<init>/"; // Empty signature for default constructor
 
         // Pre-register constructor metadata so exception tables can be added during initialization
         bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
@@ -126,7 +126,7 @@ namespace vm::compiler::visitors
         if (node->isGeneric())
         {
             std::string fullClassName = node->getFullClassName();
-            std::string genericConstructorName = fullClassName + "::<init>/0";
+            std::string genericConstructorName = fullClassName + "::<init>/"; // Empty signature
             metadata.name = genericConstructorName;
             ctx.program.registerFunction(genericConstructorName, metadata);
         }
@@ -551,9 +551,22 @@ namespace vm::compiler::visitors
         // Constructor returns an object instance
         std::string returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(value::ValueType::OBJECT);
 
-        // Generate constructor name for exception table tracking
+        // Generate constructor name with type signature for overload resolution
         std::string className = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
-        std::string constructorName = className + "::<init>/" + std::to_string(params.size());
+
+        // Build type signature from parameters
+        std::string typeSignature;
+        for (size_t i = 0; i < params.size(); ++i) {
+            if (i > 0) typeSignature += ",";
+            const auto& paramType = params[i].second;
+            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
+                typeSignature += paramType.className.value();
+            } else {
+                typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
+            }
+        }
+
+        std::string constructorName = className + "::<init>/" + typeSignature;
 
         // Pre-register constructor metadata so exception tables can be added during body compilation
         bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
@@ -719,7 +732,7 @@ namespace vm::compiler::visitors
         if (ctx.currentClassNode && ctx.currentClassNode->isGeneric())
         {
             std::string fullClassName = ctx.currentClassNode->getFullClassName();
-            std::string genericConstructorName = fullClassName + "::<init>/" + std::to_string(params.size());
+            std::string genericConstructorName = fullClassName + "::<init>/" + typeSignature;
             ctx.program.registerFunction(genericConstructorName, metadata);
         }
 

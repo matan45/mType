@@ -36,6 +36,67 @@ namespace runtimeTypes::klass
         return nullptr;
     }
 
+    ConstructorDefinition* ClassDefinition::findConstructorByTypes(const std::vector<value::Value>& args) const
+    {
+        size_t argCount = args.size();
+
+        // Try each constructor with matching parameter count
+        for (const auto& constructor : constructors) {
+            if (constructor->getParameterCount() != argCount) {
+                continue;
+            }
+
+            // Check if all argument types match parameter types
+            const auto& params = constructor->getParametersWithTypes();
+            bool allMatch = true;
+
+            for (size_t i = 0; i < argCount; ++i) {
+                const auto& arg = args[i];
+                const auto& paramType = params[i].second;
+
+                // Get the runtime type of the argument
+                value::ValueType argType;
+                if (std::holds_alternative<int>(arg)) {
+                    argType = value::ValueType::INT;
+                } else if (std::holds_alternative<float>(arg)) {
+                    argType = value::ValueType::FLOAT;
+                } else if (std::holds_alternative<bool>(arg)) {
+                    argType = value::ValueType::BOOL;
+                } else if (std::holds_alternative<std::string>(arg) || std::holds_alternative<value::InternedString>(arg)) {
+                    argType = value::ValueType::STRING;
+                } else if (std::holds_alternative<std::monostate>(arg) || std::holds_alternative<std::nullptr_t>(arg)) {
+                    argType = value::ValueType::VOID; // null
+                } else {
+                    argType = value::ValueType::OBJECT;
+                }
+
+                // Check if type matches
+                if (argType != paramType.basicType) {
+                    // Special case: allow auto-boxing primitives to objects
+                    if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
+                        const std::string& expectedClass = paramType.className.value();
+                        if ((expectedClass == "Int" && argType == value::ValueType::INT) ||
+                            (expectedClass == "Float" && argType == value::ValueType::FLOAT) ||
+                            (expectedClass == "Bool" && argType == value::ValueType::BOOL) ||
+                            (expectedClass == "String" && argType == value::ValueType::STRING)) {
+                            // Auto-boxing allowed
+                            continue;
+                        }
+                    }
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch) {
+                return constructor.get();
+            }
+        }
+
+        // Fallback to old behavior if no type match found
+        return findConstructor(argCount);
+    }
+
     // Getter methods for AST node integration
     const std::string& ClassDefinition::getClassName() const
     {
