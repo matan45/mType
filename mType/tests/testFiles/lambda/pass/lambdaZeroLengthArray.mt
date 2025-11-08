@@ -1,13 +1,13 @@
 // Lambda on empty arrays test
-import * from "../../lib/primitives/Int.mt"
-import * from "../../lib/primitives/Bool.mt"
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 interface Function<T, R> {
     function apply(T input) : R;
 }
 
 class ArrayProcessor {
-    function map(int[] input, Function<Int, Int> mapper) : int[] {
+    public function map(int[] input, Function<Int, Int> mapper) : int[] {
         int[] result = new int[input.length];
         for (int i = 0; i < input.length; i = i + 1) {
             result[i] = mapper.apply(input[i]);
@@ -15,7 +15,7 @@ class ArrayProcessor {
         return result;
     }
 
-    function filter(int[] input, Function<Int, Bool> predicate) : int[] {
+    public function filter(int[] input, Function<Int, Bool> predicate) : int[] {
         int count = 0;
         for (int i = 0; i < input.length; i = i + 1) {
             if (predicate.apply(input[i])) {
@@ -34,7 +34,7 @@ class ArrayProcessor {
         return result;
     }
 
-    function reduce(int[] input, int initial, Function<Int, Int> accumulator) : int {
+    public function reduce(int[] input, int initial, Function<Int, Int> accumulator) : int {
         int result = initial;
         for (int i = 0; i < input.length; i = i + 1) {
             result = accumulator.apply(result + input[i]);

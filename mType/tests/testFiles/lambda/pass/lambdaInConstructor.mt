@@ -7,7 +7,7 @@ class LambdaHolder {
     Function func;
     int baseValue;
 
-    function init(int base) {
+    constructor(int base) {
         this.baseValue = base;
         // Create lambda in constructor
         this.func = x -> {
@@ -15,11 +15,11 @@ class LambdaHolder {
         };
     }
 
-    function execute(int x) : int {
+    public function execute(int x) : int {
         return this.func.apply(x);
     }
 
-    function setBase(int newBase) {
+    public function setBase(int newBase) {
         this.baseValue = newBase;
     }
 }
@@ -29,18 +29,18 @@ class MultiLambdaHolder {
     Function multiplier;
     int value;
 
-    function init(int val) {
+    constructor(int val) {
         this.value = val;
         // Multiple lambdas in constructor
         this.adder = x -> this.value + x;
         this.multiplier = x -> this.value * x;
     }
 
-    function add(int x) : int {
+    public function add(int x) : int {
         return this.adder.apply(x);
     }
 
-    function multiply(int x) : int {
+    public function multiply(int x) : int {
         return this.multiplier.apply(x);
     }
 }

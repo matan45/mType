@@ -115,10 +115,32 @@ namespace vm::runtime
     value::Value ArithmeticExecutor::performBinaryOp(const value::Value& left, const value::Value& right, bytecode::OpCode op) {
         using OpCode = bytecode::OpCode;
 
+        // Auto-unbox boxed types (Int, Float, Bool, String) to primitives
+        value::Value unboxedLeft = left;
+        value::Value unboxedRight = right;
+
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left)) {
+            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left);
+            std::string typeName = obj->getTypeName();
+            if (typeName == "Int" || typeName == "Float" ||
+                typeName == "Bool" || typeName == "String") {
+                unboxedLeft = obj->getFieldValue("value");
+            }
+        }
+
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right)) {
+            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right);
+            std::string typeName = obj->getTypeName();
+            if (typeName == "Int" || typeName == "Float" ||
+                typeName == "Bool" || typeName == "String") {
+                unboxedRight = obj->getFieldValue("value");
+            }
+        }
+
         // Integer operations
-        if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right)) {
-            int l = std::get<int>(left);
-            int r = std::get<int>(right);
+        if (std::holds_alternative<int>(unboxedLeft) && std::holds_alternative<int>(unboxedRight)) {
+            int l = std::get<int>(unboxedLeft);
+            int r = std::get<int>(unboxedRight);
             switch (op) {
                 case OpCode::ADD: return l + r;
                 case OpCode::SUB: return l - r;
@@ -138,10 +160,10 @@ namespace vm::runtime
         }
 
         // Float operations
-        if ((std::holds_alternative<float>(left) || std::holds_alternative<int>(left)) &&
-            (std::holds_alternative<float>(right) || std::holds_alternative<int>(right))) {
-            float l = std::holds_alternative<float>(left) ? std::get<float>(left) : static_cast<float>(std::get<int>(left));
-            float r = std::holds_alternative<float>(right) ? std::get<float>(right) : static_cast<float>(std::get<int>(right));
+        if ((std::holds_alternative<float>(unboxedLeft) || std::holds_alternative<int>(unboxedLeft)) &&
+            (std::holds_alternative<float>(unboxedRight) || std::holds_alternative<int>(unboxedRight))) {
+            float l = std::holds_alternative<float>(unboxedLeft) ? std::get<float>(unboxedLeft) : static_cast<float>(std::get<int>(unboxedLeft));
+            float r = std::holds_alternative<float>(unboxedRight) ? std::get<float>(unboxedRight) : static_cast<float>(std::get<int>(unboxedRight));
             switch (op) {
                 case OpCode::ADD: return l + r;
                 case OpCode::SUB: return l - r;

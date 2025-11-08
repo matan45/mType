@@ -52,5 +52,8 @@ namespace vm::compiler::visitors
         std::vector<std::string> parseAndValidateGenericTypeArguments(const std::string& fullClassName,
                                                                        const ast::SourceLocation& location);
         void emitNewObjectBytecode(ast::NewNode* node, const std::string& fullClassName);
+
+        // Helper method for auto-boxing method arguments
+        bool tryAutoBoxArgument(ast::ASTNode* argument, const std::string& expectedType);
     };
 }

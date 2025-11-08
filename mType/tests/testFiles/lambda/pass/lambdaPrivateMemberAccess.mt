@@ -6,11 +6,11 @@ interface Function {
 class PrivateExample {
     int privateField;
 
-    function init(int val) {
+    constructor(int val) {
         this.privateField = val;
     }
 
-    function createAccessor() : Function {
+    public function createAccessor() : Function {
         // Lambda can access private fields of its enclosing class
         Function accessor = x -> {
             return this.privateField + x;
@@ -18,7 +18,7 @@ class PrivateExample {
         return accessor;
     }
 
-    function createModifier() : Function {
+    public function createModifier() : Function {
         Function modifier = x -> {
             this.privateField = this.privateField + x;
             return this.privateField;
@@ -26,7 +26,7 @@ class PrivateExample {
         return modifier;
     }
 
-    function getPrivateField() : int {
+    public function getPrivateField() : int {
         return this.privateField;
     }
 }

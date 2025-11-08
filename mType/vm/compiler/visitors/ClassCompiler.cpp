@@ -496,10 +496,33 @@ namespace vm::compiler::visitors
             // Validate parameter count and types
             paramValidator->validateMethodParameters(qualifiedName, qualifiedName, arguments, node->getLocation());
 
-            // Push all arguments onto stack
-            for (const auto& arg : arguments)
+            // Get method metadata for auto-boxing
+            const auto* methodMetadata = ctx.program.getFunction(qualifiedName);
+
+            // Push all arguments onto stack (with auto-boxing if needed)
+            for (size_t i = 0; i < arguments.size(); ++i)
             {
-                arg->accept(ctx.visitor); // Will need delegation
+                bool autoBoxed = false;
+
+                // Try auto-boxing if we have method metadata
+                if (methodMetadata && !methodMetadata->isNative)
+                {
+                    // For instance methods, parameterTypes[0] is 'this', so offset by 1
+                    size_t paramOffset = (!methodMetadata->isStatic && !methodMetadata->parameterTypes.empty()) ? 1 : 0;
+
+                    if (i + paramOffset < methodMetadata->parameterTypes.size())
+                    {
+                        std::string expectedType = methodMetadata->parameterTypes[i + paramOffset];
+                        expectedType = ctx.resolveGenericType(expectedType);
+                        autoBoxed = tryAutoBoxArgument(arguments[i].get(), expectedType);
+                    }
+                }
+
+                // If not auto-boxed, compile argument normally
+                if (!autoBoxed)
+                {
+                    arguments[i]->accept(ctx.visitor);
+                }
             }
 
             // Emit CALL_STATIC instruction with fully qualified name
@@ -668,16 +691,39 @@ namespace vm::compiler::visitors
             }
             else
             {
-                // Validate: If method is generic, type arguments are required
+                // Type inference for generic methods using Expected Type Context
                 if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
                 {
-                    throw errors::TypeException(
-                        "Generic method '" + methodName + "' requires explicit type arguments. " +
-                        "Use '" + methodName + "<" +
-                        std::string(methodMetadata->genericTypeParameters.size() > 1 ? "T, U, ..." : "T") +
-                        ">(...)'",
-                        node->getLocation()
-                    );
+                    // Try to infer type arguments from the expected return type context
+                    if (ctx.hasExpectedTypeContext())
+                    {
+                        auto expectedCtx = ctx.getCurrentExpectedTypeContext();
+
+                        // If the expected type is an object with generic arguments, try to infer method type params
+                        if (expectedCtx.expectedType == value::ValueType::OBJECT &&
+                            expectedCtx.hasGenericArguments())
+                        {
+                            // Extract generic arguments from expected type
+                            // e.g., "Pipeline<Int>" -> ["Int"]
+                            auto expectedGenericArgs = expectedCtx.extractGenericArguments();
+
+                            // For now, assume the method's type parameter maps to the expected type's parameter
+                            // This is a simplification - full inference would need to match return type structure
+                            if (!expectedGenericArgs.empty() &&
+                                methodMetadata->genericTypeParameters.size() == 1)
+                            {
+                                // Infer: R = Int (from Pipeline<Int>)
+                                methodGenericBindings[methodMetadata->genericTypeParameters[0]] = expectedGenericArgs[0];
+
+                                // Push the inferred bindings
+                                ctx.pushGenericTypeBindings(methodGenericBindings);
+                                hasMethodGenericBindings = true;
+                            }
+                        }
+                    }
+
+                    // If we couldn't infer type arguments, allow it anyway for now
+                    // Runtime will handle the actual types
                 }
             }
 
@@ -758,6 +804,17 @@ namespace vm::compiler::visitors
                 if (hasExpectedType)
                 {
                     // Resolve generic type parameters using the bindings
+                    // Check method-level bindings first, then class-level bindings
+                    // E.g., if expectedType is "A" and methodGenericBindings has {A: String}, resolve to "String"
+                    if (!methodGenericBindings.empty())
+                    {
+                        auto it = methodGenericBindings.find(expectedType);
+                        if (it != methodGenericBindings.end())
+                        {
+                            expectedType = it->second;
+                        }
+                    }
+                    // If not found in method bindings, check class-level bindings
                     // E.g., if expectedType is "T" and genericBindings has {T: Int}, resolve to "Int"
                     if (!genericBindings.empty())
                     {
@@ -1035,5 +1092,61 @@ namespace vm::compiler::visitors
                          }, node);
 
         return std::monostate{};
+    }
+
+    bool ClassCompiler::tryAutoBoxArgument(ast::ASTNode* argument, const std::string& expectedType)
+    {
+        // Only auto-box for primitive Box types
+        bool isBoxType = (expectedType == "Int" ||
+                          expectedType == "Float" ||
+                          expectedType == "Bool" ||
+                          expectedType == "String");
+
+        if (!isBoxType || !argument)
+        {
+            return false;  // Not a Box type or no argument node
+        }
+
+        // Check if argument expression returns a primitive type matching the target Box type
+        value::ValueType argType = ctx.typeInference.inferExpressionType(argument);
+        bool needsBoxing = false;
+
+        // Check if we're trying to box a primitive to its corresponding Box type
+        if (expectedType == "Int" && argType == value::ValueType::INT)
+        {
+            needsBoxing = true;
+        }
+        else if (expectedType == "Float" && argType == value::ValueType::FLOAT)
+        {
+            needsBoxing = true;
+        }
+        else if (expectedType == "Bool" && argType == value::ValueType::BOOL)
+        {
+            needsBoxing = true;
+        }
+        else if (expectedType == "String" && argType == value::ValueType::STRING)
+        {
+            needsBoxing = true;
+        }
+
+        if (!needsBoxing)
+        {
+            return false;  // Argument type doesn't match target Box type
+        }
+
+        // AUTO-BOXING: Emit bytecode for boxing
+        // Equivalent to: new TargetClass(argument)
+
+        // 1. Compile the argument expression (pushes it onto stack)
+        argument->accept(ctx.visitor);
+
+        // 2. Emit NEW_OBJECT for the Box class
+        size_t classNameIndex = ctx.program.getConstantPool().addString(expectedType);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                     static_cast<uint32_t>(classNameIndex),
+                                     1u,  // 1 constructor argument
+                                     argument);
+
+        return true;  // Auto-boxing was applied
     }
 }

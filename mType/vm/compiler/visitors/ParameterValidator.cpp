@@ -189,11 +189,24 @@ namespace vm::compiler::visitors
                 // null can be passed to object types
                 if (!dynamic_cast<ast::NullNode*>(argument))
                 {
-                    throw errors::TypeException(
-                        "Method '" + methodName + "' parameter " + std::to_string(paramIndex + 1) +
-                        " expects " + resolvedExpectedType + " but got " + argTypeStr,
-                        location
-                    );
+                    // Check if auto-boxing can handle this (primitive -> boxed type)
+                    bool canAutoBox = false;
+                    if ((resolvedExpectedType == "Int" && argType == value::ValueType::INT) ||
+                        (resolvedExpectedType == "Float" && argType == value::ValueType::FLOAT) ||
+                        (resolvedExpectedType == "Bool" && argType == value::ValueType::BOOL) ||
+                        (resolvedExpectedType == "String" && argType == value::ValueType::STRING))
+                    {
+                        canAutoBox = true;
+                    }
+
+                    if (!canAutoBox)
+                    {
+                        throw errors::TypeException(
+                            "Method '" + methodName + "' parameter " + std::to_string(paramIndex + 1) +
+                            " expects " + resolvedExpectedType + " but got " + argTypeStr,
+                            location
+                        );
+                    }
                 }
             }
             else if (resolvedExpectedType != "object")
@@ -315,8 +328,9 @@ namespace vm::compiler::visitors
                 continue;
             }
 
-            // For object types, check class names
-            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
+            // For object types and array types, check class names
+            if ((paramType.basicType == value::ValueType::OBJECT || paramType.basicType == value::ValueType::ARRAY)
+                && paramType.className.has_value())
             {
                 std::string expectedClass = paramType.className.value();
 
@@ -333,7 +347,7 @@ namespace vm::compiler::visitors
                     continue;
                 }
 
-                if (argType != value::ValueType::OBJECT)
+                if (argType != value::ValueType::OBJECT && argType != value::ValueType::ARRAY)
                 {
                     // Allow null
                     if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))

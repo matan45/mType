@@ -33,7 +33,7 @@ public final class String implements Object<String> {
     }
 
     public function concat(String other): String {
-        return new String(this.value + other.value);
+        return new String(this.getValue() + other.getValue());
     }
 
     // Comparison operations

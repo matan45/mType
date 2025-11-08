@@ -1,3 +1,6 @@
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Bool.mt";
 // Passing null to lambda parameters test
 interface Function<T, R> {
     function apply(T input) : R;
@@ -6,7 +9,7 @@ interface Function<T, R> {
 print("=== Null Parameter Test ===");
 
 // Lambda handling null string
-Function<String, int> safeLength = s -> {
+Function<String, Int> safeLength = s -> {
     if (s == null) {
         return 0;
     } else {
@@ -22,16 +25,16 @@ print("Length of '': " + safeLength.apply(""));
 class Box {
     int value;
 
-    function init(int v) {
+    constructor(int v) {
         this.value = v;
     }
 
-    function getValue() : int {
+    public function getValue() : int {
         return this.value;
     }
 }
 
-Function<Box, int> safeExtractor = box -> {
+Function<Box, Int> safeExtractor = box -> {
     if (box == null) {
         return -1;
     } else {
@@ -44,23 +47,23 @@ print("Extract from box: " + safeExtractor.apply(b1));
 print("Extract from null: " + safeExtractor.apply(null));
 
 // Lambda with null array
-Function<int[], int> arraySum = arr -> {
+Function<Int[], Int> arraySum = arr -> {
     if (arr == null) {
         return 0;
     }
     int sum = 0;
     for (int i = 0; i < arr.length; i = i + 1) {
-        sum = sum + arr[i];
+        sum = sum + arr[i].getValue();
     }
     return sum;
 };
 
-int[] nums = [1, 2, 3, 4, 5];
+Int[] nums = [1, 2, 3, 4, 5];
 print("Sum of array: " + arraySum.apply(nums));
 print("Sum of null: " + arraySum.apply(null));
 
 // Lambda returning null or value
-Function<bool, String> conditionalString = flag -> {
+Function<Bool, String> conditionalString = flag -> {
     if (flag) {
         return "Not null";
     } else {

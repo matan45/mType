@@ -4,23 +4,23 @@ interface Function {
 }
 
 class Base {
-    int protectedValue;
+    protected int protectedValue;
 
-    function init(int val) {
+    constructor(int val) {
         this.protectedValue = val;
     }
 
-    function getProtected() : int {
+    public function getProtected() : int {
         return this.protectedValue;
     }
 }
 
 class Derived extends Base {
-    function init(int val) {
-        super.init(val);
+    constructor(int val):super(val) {
+    
     }
 
-    function createProtectedAccessor() : Function {
+    public function createProtectedAccessor() : Function {
         // Lambda accessing protected member from parent
         Function accessor = x -> {
             return this.protectedValue + x;
@@ -28,7 +28,7 @@ class Derived extends Base {
         return accessor;
     }
 
-    function createProtectedModifier() : Function {
+    public function createProtectedModifier() : Function {
         Function modifier = x -> {
             this.protectedValue = this.protectedValue * x;
             return this.protectedValue;

@@ -590,11 +590,12 @@ namespace vm::compiler::visitors
         return capturedVars;
     }
 
-    void FunctionCompiler::setupLambdaFrame(ast::LambdaNode* node,
+    std::vector<std::string> FunctionCompiler::setupLambdaFrame(ast::LambdaNode* node,
                                             const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
                                             const std::string& lambdaFuncName)
     {
         const auto& params = node->getParameters();
+        std::vector<std::string> parameterTypeNames; // Will store parameter type names for metadata
 
         // Validate that lambda parameters don't shadow outer scope variables (C# behavior)
         for (const auto& param : params)
@@ -630,26 +631,35 @@ namespace vm::compiler::visitors
 
         // Resolve lambda parameter types from expected type context
         std::vector<std::pair<value::ValueType, std::string>> resolvedParamTypes;
+
         if (ctx.hasExpectedTypeContext())
         {
             auto expectedCtx = ctx.getCurrentExpectedTypeContext();
+
             if (expectedCtx.expectedType == value::ValueType::OBJECT)
             {
                 std::string baseClassName = expectedCtx.getBaseClassName();
 
                 // Check if this is an interface type
                 auto interfaceDef = ctx.environment->findInterface(baseClassName);
+
                 if (interfaceDef && interfaceDef->isFunctionalInterface())
                 {
                     auto* samMethod = interfaceDef->getFunctionalMethod();
+
+                    if (samMethod) {
+                    }
+
                     if (samMethod && samMethod->parameters.size() == params.size())
                     {
                         // Build generic bindings if interface is generic
                         std::unordered_map<std::string, std::string> bindings;
+
                         if (expectedCtx.hasGenericArguments())
                         {
                             auto genericArgs = expectedCtx.extractGenericArguments();
                             const auto& interfaceGenericParams = interfaceDef->getGenericParameters();
+
                             for (size_t i = 0; i < interfaceGenericParams.size() && i < genericArgs.size(); ++i)
                             {
                                 bindings[interfaceGenericParams[i].name] = genericArgs[i];
@@ -716,10 +726,29 @@ namespace vm::compiler::visitors
             if (i < resolvedParamTypes.size())
             {
                 ctx.variableTracker.declareLocal(params[i].name, resolvedParamTypes[i].first, resolvedParamTypes[i].second);
+
+                // Store parameter type name for metadata
+                if (!resolvedParamTypes[i].second.empty()) {
+                    // Object type with className
+                    parameterTypeNames.push_back(resolvedParamTypes[i].second);
+                } else {
+                    // Primitive type - convert ValueType to string
+                    std::string typeName;
+                    switch (resolvedParamTypes[i].first) {
+                        case value::ValueType::INT: typeName = "int"; break;
+                        case value::ValueType::FLOAT: typeName = "float"; break;
+                        case value::ValueType::BOOL: typeName = "bool"; break;
+                        case value::ValueType::STRING: typeName = "string"; break;
+                        case value::ValueType::VOID: typeName = "void"; break;
+                        default: typeName = "object"; break;
+                    }
+                    parameterTypeNames.push_back(typeName);
+                }
             }
             else
             {
                 ctx.variableTracker.declareLocal(params[i].name, value::ValueType::VOID, "");
+                parameterTypeNames.push_back("auto"); // Unknown type
             }
         }
 
@@ -731,6 +760,8 @@ namespace vm::compiler::visitors
 
         // Update max local slot
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+
+        return parameterTypeNames;
     }
 
     void FunctionCompiler::emitLambdaInstruction(size_t lambdaStart, ast::LambdaNode* node,
@@ -831,7 +862,7 @@ namespace vm::compiler::visitors
         ctx.program.registerFunction(lambdaFuncName, tempMetadata);
 
         // Setup lambda frame with parameters and captured variables
-        setupLambdaFrame(node, capturedVars, lambdaFuncName);
+        std::vector<std::string> parameterTypes = setupLambdaFrame(node, capturedVars, lambdaFuncName);
 
         // IMPORTANT: Lambda body should compile in the same class context as the enclosing method
         // ctx.currentClassNode should already be set from the enclosing class/method compilation
@@ -912,6 +943,7 @@ namespace vm::compiler::visitors
         metadata.instructionCount = lambdaEnd - lambdaStart;
         metadata.localCount = localCount;
         metadata.parameterCount = node->getParameters().size();
+        metadata.parameterTypes = parameterTypes; // Store parameter types for runtime auto-boxing
         metadata.returnType = "auto"; // Lambda return type is inferred
         metadata.isNative = false;
         metadata.isAsync = node->getIsAsync();

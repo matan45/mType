@@ -11,6 +11,7 @@
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "../../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
@@ -41,6 +42,7 @@ namespace vm::compiler::types
         if (dynamic_cast<ast::NullNode*>(node)) return value::ValueType::OBJECT;
         if (dynamic_cast<ast::NewNode*>(node)) return value::ValueType::OBJECT;
         if (dynamic_cast<ast::LambdaNode*>(node)) return value::ValueType::OBJECT;
+        if (dynamic_cast<ast::nodes::expressions::ArrayLiteralNode*>(node)) return value::ValueType::ARRAY;
         return value::ValueType::VOID;
     }
 
@@ -705,6 +707,30 @@ namespace vm::compiler::types
         // NewNode
         if (auto* newNode = dynamic_cast<ast::NewNode*>(node)) {
             return newNode->getClassName();
+        }
+
+        // Array literals - infer element type from first element
+        if (auto* arrayLit = dynamic_cast<ast::nodes::expressions::ArrayLiteralNode*>(node)) {
+            if (arrayLit->getElementCount() > 0) {
+                // Infer element type from first element
+                const auto& elements = arrayLit->getElements();
+                value::ValueType elementType = inferExpressionType(elements[0].get());
+
+                // Convert to type name with [] suffix
+                if (elementType == value::ValueType::INT) return "int[]";
+                if (elementType == value::ValueType::FLOAT) return "float[]";
+                if (elementType == value::ValueType::STRING) return "string[]";
+                if (elementType == value::ValueType::BOOL) return "bool[]";
+                if (elementType == value::ValueType::OBJECT) {
+                    // For object arrays, get the class name and append []
+                    std::string elementClassName = inferExpressionClassName(elements[0].get());
+                    if (!elementClassName.empty()) {
+                        return elementClassName + "[]";
+                    }
+                }
+            }
+            // Empty array - return generic array type
+            return "int[]";  // Default to int[] for empty arrays
         }
 
         // Variable references

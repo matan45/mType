@@ -6,11 +6,11 @@ interface Function {
 class Outer {
     int outerPrivate;
 
-    function init(int val) {
+    constructor(int val) {
         this.outerPrivate = val;
     }
 
-    function createInnerLambda() : Function {
+    public function createInnerLambda() : Function {
         int methodLocal = 50;
 
         // Lambda accessing outer private field and method local
@@ -21,11 +21,11 @@ class Outer {
         return lambda;
     }
 
-    function getPrivate() : int {
+    public function getPrivate() : int {
         return this.outerPrivate;
     }
 
-    function setPrivate(int val) {
+    public function setPrivate(int val) {
         this.outerPrivate = val;
     }
 }
@@ -34,12 +34,12 @@ class ComplexOuter {
     int privateA;
     int privateB;
 
-    function init(int a, int b) {
+    constructor(int a, int b) {
         this.privateA = a;
         this.privateB = b;
     }
 
-    function createComplexLambda() : Function {
+    public function createComplexLambda() : Function {
         Function lambda = x -> {
             // Lambda can access multiple private fields
             int sum = this.privateA + this.privateB;

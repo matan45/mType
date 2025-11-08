@@ -39,7 +39,7 @@ namespace vm::compiler::visitors
 
         // Helper methods for compileLambda
         std::vector<variables::VariableTracker::LocalVariable> captureScopeVariables();
-        void setupLambdaFrame(ast::LambdaNode* node,
+        std::vector<std::string> setupLambdaFrame(ast::LambdaNode* node,
                              const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
                              const std::string& lambdaFuncName);
         void emitLambdaInstruction(size_t lambdaStart, ast::LambdaNode* node,

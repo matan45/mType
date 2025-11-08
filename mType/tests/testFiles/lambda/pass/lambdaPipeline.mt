@@ -1,6 +1,6 @@
 // Stream-like lambda pipeline test
-import * from "../../../lib/primitives/Int.mt";
-import * from "../../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
 
 interface Function<T, R> {
     function apply(T input) : R;
@@ -9,16 +9,16 @@ interface Function<T, R> {
 class Pipeline<T> {
     T value;
 
-    function init(T val) {
+    constructor(T val) {
         this.value = val;
     }
 
-    function map<R>(Function<T, R> mapper) : Pipeline<R> {
+    public function <R> map(Function<T, R> mapper) : Pipeline<R> {
         R newValue = mapper.apply(this.value);
         return new Pipeline<R>(newValue);
     }
 
-    function get() : T {
+    public function get() : T {
         return this.value;
     }
 }
@@ -26,11 +26,11 @@ class Pipeline<T> {
 class ArrayPipeline {
     int[] data;
 
-    function init(int[] arr) {
+    constructor(int[] arr) {
         this.data = arr;
     }
 
-    function map(Function<int, int> mapper) : ArrayPipeline {
+    public function map(Function<Int, Int> mapper) : ArrayPipeline {
         int[] result = new int[this.data.length];
         for (int i = 0; i < this.data.length; i = i + 1) {
             result[i] = mapper.apply(this.data[i]);
@@ -38,7 +38,7 @@ class ArrayPipeline {
         return new ArrayPipeline(result);
     }
 
-    function filter(Function<int, bool> predicate) : ArrayPipeline {
+    public function filter(Function<Int, Bool> predicate) : ArrayPipeline {
         int count = 0;
         for (int i = 0; i < this.data.length; i = i + 1) {
             if (predicate.apply(this.data[i])) {
@@ -57,7 +57,7 @@ class ArrayPipeline {
         return new ArrayPipeline(result);
     }
 
-    function sum() : int {
+    public function sum() : int {
         int total = 0;
         for (int i = 0; i < this.data.length; i = i + 1) {
             total = total + this.data[i];

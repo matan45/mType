@@ -1,5 +1,6 @@
 // Chaining based on predicates test
-import * from "../../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Function<T, R> {
     function apply(T input) : R;
@@ -12,18 +13,18 @@ interface Predicate<T> {
 class ConditionalProcessor<T> {
     T value;
 
-    function init(T val) {
+    constructor(T val) {
         this.value = val;
     }
 
-    function when(Predicate<T> condition, Function<T, T> action) : ConditionalProcessor<T> {
+    public function when(Predicate<T> condition, Function<T, T> action) : ConditionalProcessor<T> {
         if (condition.test(this.value)) {
             this.value = action.apply(this.value);
         }
         return this;
     }
 
-    function get() : T {
+    public function get() : T {
         return this.value;
     }
 }
@@ -74,12 +75,12 @@ class Validator {
     String[] errors;
     int errorCount;
 
-    function init() {
+    constructor() {
         this.errors = new String[10];
         this.errorCount = 0;
     }
 
-    function validate(int value, Predicate<Int> check, String errorMsg) : Validator {
+    public function validate(int value, Predicate<Int> check, String errorMsg) : Validator {
         if (!check.test(new Int(value))) {
             this.errors[this.errorCount] = errorMsg;
             this.errorCount = this.errorCount + 1;
@@ -87,11 +88,11 @@ class Validator {
         return this;
     }
 
-    function isValid() : bool {
+    public function isValid() : bool {
         return this.errorCount == 0;
     }
 
-    function printErrors() {
+    public function printErrors() {
         for (int i = 0; i < this.errorCount; i = i + 1) {
             print("Error: " + this.errors[i]);
         }

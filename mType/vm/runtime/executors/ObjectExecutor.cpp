@@ -261,16 +261,62 @@ namespace vm::runtime
             context.callStack.back().sharedFrame = newSharedFrame;
         }
 
+        // Get lambda metadata for parameter type information
+        auto* lambdaMetadata = context.program->getFunction(lambda->functionName);
+
         // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
         // Also register them by name in SharedStackFrame so nested lambdas can capture them
         for (size_t i = 0; i < args.size(); ++i) {
-            context.stackManager->push(args[i]);
+            value::Value argValue = args[i];
+
+            // Auto-box primitive arguments if lambda expects boxed types
+            if (lambdaMetadata && i < lambdaMetadata->parameterTypes.size()) {
+                std::string expectedType = lambdaMetadata->parameterTypes[i];
+
+                // Check if we need to box a primitive to a wrapper class
+                bool needsBoxing = false;
+                std::string boxClassName;
+
+                if (expectedType == "Int" && std::holds_alternative<int>(argValue)) {
+                    needsBoxing = true;
+                    boxClassName = "Int";
+                }
+                else if (expectedType == "Float" && (std::holds_alternative<float>(argValue) || std::holds_alternative<int>(argValue))) {
+                    needsBoxing = true;
+                    boxClassName = "Float";
+                }
+                else if (expectedType == "Bool" && std::holds_alternative<bool>(argValue)) {
+                    needsBoxing = true;
+                    boxClassName = "Bool";
+                }
+                else if (expectedType == "String" && std::holds_alternative<std::string>(argValue)) {
+                    needsBoxing = true;
+                    boxClassName = "String";
+                }
+
+                if (needsBoxing) {
+                    // Create boxed instance: new BoxClass(primitiveValue)
+                    auto classDef = context.environment->findClass(boxClassName);
+                    if (classDef) {
+                        std::unordered_map<std::string, std::string> emptyBindings;
+                        auto boxedInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, emptyBindings);
+
+                        // Directly set the 'value' field to avoid constructor call complexity
+                        // This is safe for primitive wrappers (Int, Float, Bool, String) which just store the primitive
+                        boxedInstance->setField("value", argValue);
+
+                        argValue = boxedInstance;
+                    }
+                }
+            }
+
+            context.stackManager->push(argValue);
 
             // Register parameter by name in SharedStackFrame
             if (i < lambda->parameterNames.size()) {
                 std::string paramName = lambda->parameterNames[i];
                 if (!paramName.empty()) {
-                    newSharedFrame->setLocal(paramName, i, args[i]);
+                    newSharedFrame->setLocal(paramName, i, argValue);
                 }
             }
         }
@@ -304,8 +350,7 @@ namespace vm::runtime
         }
 
         // Reserve additional local variable slots if needed (for local variables like return value temporaries)
-        // Look up lambda metadata to get localCount
-        auto* lambdaMetadata = context.program->getFunction(lambda->functionName);
+        // lambdaMetadata already looked up above for parameter type checking
         if (lambdaMetadata) {
             size_t pushedSlots = args.size() + capturedCount;  // parameters + captured
             if (lambdaMetadata->localCount > pushedSlots) {

@@ -1,28 +1,28 @@
 // Exception with resource cleanup pattern test
-import * from "../../lib/primitives/String.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 interface Function {
     function apply(int x) : int;
 }
 
 class Resource {
-    String name;
+    string name;
     bool isOpen;
 
-    function init(String n) {
+    constructor(string n) {
         this.name = n;
         this.isOpen = true;
         print("Resource '" + this.name + "' opened");
     }
 
-    function close() {
+    public function close() {
         if (this.isOpen) {
             this.isOpen = false;
             print("Resource '" + this.name + "' closed");
         }
     }
 
-    function use(int value) : int {
+    public function use(int value) : int {
         if (!this.isOpen) {
             throw "Resource is closed";
         }
@@ -36,12 +36,12 @@ Function safeProcessor = x -> {
     Resource r = new Resource("Lambda-Resource");
     try {
         if (x < 0) {
-            throw "Invalid input";
+            throw new Exception("Invalid input");
         }
         int result = r.use(x);
         return result;
-    } catch (String e) {
-        print("Error: " + e);
+    } catch (Exception e) {
+        print("Error: " + e.getMessage());
         return -1;
     } finally {
         r.close();

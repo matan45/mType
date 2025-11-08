@@ -12,7 +12,7 @@
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../validation/CompileTimeValidator.hpp"
-
+#include  <iostream>
 namespace vm::compiler::visitors
 {
     StatementCompiler::StatementCompiler(CompilerContext& context)
@@ -123,13 +123,26 @@ namespace vm::compiler::visitors
         // Lambda reassignment validation
         if (isReassignment)
         {
-            // If the variable is an interface type, reject reassignment
-            if (!existingClassName.empty() && ctx.environment->findInterface(existingClassName))
+            // If the variable is an interface type, validate it's a functional interface
+            if (!existingClassName.empty())
             {
-                throw errors::TypeException(
-                    "Type mismatch for variable '" + node->getVariableName() + "': expected object but got void",
-                    node->getLocation()
-                );
+                auto interfaceDef = ctx.environment->findInterface(existingClassName);
+                if (interfaceDef)
+                {
+                    // Validate that the interface is functional (has exactly one method)
+                    if (!interfaceDef->isFunctionalInterface())
+                    {
+                        auto methodSignatures = interfaceDef->getMethodSignatures();
+                        throw errors::TypeException(
+                            "Cannot assign lambda to non-functional interface '" + existingClassName + "'. " +
+                            "Lambdas can only be assigned to interfaces with exactly one method. " +
+                            "Interface '" + existingClassName + "' has " + std::to_string(methodSignatures.size()) +
+                            " methods. " +
+                            "Consider using a functional interface (single method) or implement the interface explicitly.",
+                            node->getLocation()
+                        );
+                    }
+                }
             }
         }
     }
@@ -487,6 +500,7 @@ namespace vm::compiler::visitors
                 if (varType != value::ValueType::VOID)
                 {
                     std::string expectedClassName = isReassignment ? existingClassName : ctx.resolveGenericType(node->getClassName());
+
                     types::ExpectedTypeContext expectedCtx(varType, expectedClassName);
                     ctx.pushExpectedTypeContext(expectedCtx);
                     pushedContext = true;
@@ -596,7 +610,27 @@ namespace vm::compiler::visitors
         // IMPORTANT: Function body blocks should NOT create their own scope!
         // The function already creates a scope, and if we create another one here,
         // all variables will be cleared before FunctionCompiler can capture their names.
-        bool shouldManageScope = !ctx.functionFrameManager.isInFunction();
+        // However, anonymous blocks SHOULD create their own scopes, even inside functions.
+
+        // Determine if we should manage scope for this block:
+        // - Always manage scope if not in a function
+        // - If in the global pseudo-frame (scopeDepthStart=0, localStartSlot=0), manage scope for anonymous blocks
+        // - For real function bodies, the scope is managed by the function compiler
+        bool shouldManageScope = false;
+
+        if (!ctx.functionFrameManager.isInFunction())
+        {
+            shouldManageScope = true;
+        }
+        else
+        {
+            const auto& frame = ctx.functionFrameManager.currentFrame();
+            // If we're in the global pseudo-frame, anonymous blocks should manage their own scopes
+            if (frame.scopeDepthStart == 0 && frame.localStartSlot == 0)
+            {
+                shouldManageScope = true;
+            }
+        }
 
         if (shouldManageScope)
         {

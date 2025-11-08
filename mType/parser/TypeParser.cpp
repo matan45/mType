@@ -101,9 +101,45 @@ namespace parser
                     {
                         auto typeArg = parseGenericType(stream);
 
-                        // PURE OOP: Primitives are now allowed as generic type arguments!
-                        // They will be treated as their Box class equivalents (Int, Float, Bool, String)
-                        // No validation needed - all types are now objects
+                        // Validate: Reject primitive types in generic type arguments
+                        // Users must use boxed class versions (Int, Bool, String, Float)
+                        if (!typeArg->isGenericParameter() && !typeArg->isParameterized())
+                        {
+                            ValueType argType = typeArg->getConcreteType();
+                            if (argType == ValueType::INT || argType == ValueType::BOOL ||
+                                argType == ValueType::STRING || argType == ValueType::FLOAT)
+                            {
+                                std::string primitiveTypeName;
+                                std::string boxedTypeName;
+
+                                switch (argType)
+                                {
+                                    case ValueType::INT:
+                                        primitiveTypeName = "int";
+                                        boxedTypeName = "Int";
+                                        break;
+                                    case ValueType::BOOL:
+                                        primitiveTypeName = "bool";
+                                        boxedTypeName = "Bool";
+                                        break;
+                                    case ValueType::STRING:
+                                        primitiveTypeName = "string";
+                                        boxedTypeName = "String";
+                                        break;
+                                    case ValueType::FLOAT:
+                                        primitiveTypeName = "float";
+                                        boxedTypeName = "Float";
+                                        break;
+                                    default:
+                                        break;
+                                }
+
+                                throw ParseException(
+                                    "Primitive type '" + primitiveTypeName + "' cannot be used as generic type argument. Use boxed type '" + boxedTypeName + "' instead",
+                                    stream.location()
+                                );
+                            }
+                        }
 
                         typeArgs.push_back(typeArg);
 

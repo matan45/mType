@@ -1,5 +1,6 @@
 // Multiple lambda callbacks in sequence test
-import * from "../../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 interface Function<T, R> {
     function apply(T input) : R;
@@ -13,17 +14,17 @@ class CallbackChain {
     VoidFunction<String>[] callbacks;
     int count;
 
-    function init() {
+    constructor() {
         this.callbacks = new VoidFunction<String>[10];
         this.count = 0;
     }
 
-    function addCallback(VoidFunction<String> callback) {
+    public function addCallback(VoidFunction<String> callback) {
         this.callbacks[this.count] = callback;
         this.count = this.count + 1;
     }
 
-    function execute(String input) {
+    public function execute(String input) {
         for (int i = 0; i < this.count; i = i + 1) {
             this.callbacks[i].execute(input);
         }
@@ -34,17 +35,17 @@ class ValueTransformer<T> {
     Function<T, T>[] transformers;
     int count;
 
-    function init() {
+    constructor() {
         this.transformers = new Function<T, T>[10];
         this.count = 0;
     }
 
-    function addTransformer(Function<T, T> transformer) {
+    public function addTransformer(Function<T, T> transformer) {
         this.transformers[this.count] = transformer;
         this.count = this.count + 1;
     }
 
-    function transform(T value) : T {
+    public function transform(T value) : T {
         T result = value;
         for (int i = 0; i < this.count; i = i + 1) {
             result = this.transformers[i].apply(result);

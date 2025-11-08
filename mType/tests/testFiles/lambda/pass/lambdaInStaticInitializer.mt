@@ -5,26 +5,24 @@ interface Function {
 
 class StaticLambdaExample {
     static Function staticFunc;
-    static int staticValue;
 
-    static {
-        // Lambda in static initializer
-        staticValue = 1000;
-        staticFunc = x -> staticValue + x;
-    }
+    public static int staticValue = 1000;
+          
+    static Function staticFunc = x -> staticValue + x;
+    
 
-    function useStaticFunc(int x) : int {
+    public function useStaticFunc(int x) : int {
         return staticFunc.apply(x);
     }
 
-    static function getStaticValue() : int {
+    public static function getStaticValue() : int {
         return staticValue;
     }
 }
 
 print("=== Lambda In Static Initializer Test ===");
 
-print("Static value: " + StaticLambdaExample.getStaticValue());
+print("Static value: " + StaticLambdaExample::getStaticValue());
 
 StaticLambdaExample obj1 = new StaticLambdaExample();
 print("obj1.useStaticFunc(50): " + obj1.useStaticFunc(50));
@@ -33,7 +31,7 @@ StaticLambdaExample obj2 = new StaticLambdaExample();
 print("obj2.useStaticFunc(100): " + obj2.useStaticFunc(100));
 
 // Modify static value
-StaticLambdaExample.staticValue = 2000;
+StaticLambdaExample::staticValue = 2000;
 print("After changing static value to 2000:");
 print("obj1.useStaticFunc(50): " + obj1.useStaticFunc(50));
 
