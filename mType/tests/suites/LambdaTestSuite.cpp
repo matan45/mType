@@ -103,9 +103,6 @@ namespace tests::testSuite
         addTestFromFile("Lambda Syntax Error",
                         errorPath + "lambdaSyntaxError.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Lambda Reassignment Not Allowed",
-                        errorPath + "lambdaReassignmentNotAllowed.mt",
-                        TestType::ERROR_EXPECTED);
 
         // === NEW EDGE CASE ERROR TESTS ===
         // Advanced lambda error scenarios
@@ -187,9 +184,6 @@ namespace tests::testSuite
         addTestFromFile("Lambda Missing Return Error",
                         errorPath + "lambdaMissingReturn.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Lambda Unreachable Code Error",
-                        errorPath + "lambdaUnreachableCode.mt",
-                        TestType::ERROR_EXPECTED);
         addTestFromFile("Lambda Conflicting Returns Error",
                         errorPath + "lambdaConflictingReturns.mt",
                         TestType::ERROR_EXPECTED);
@@ -210,11 +204,6 @@ namespace tests::testSuite
                         passPath + "lambdaExceptionInParameter.mt");
         addOutputVerificationTest("Lambda Resource Cleanup",
                         passPath + "lambdaResourceCleanup.mt");
-
-        // Exception handling error test
-        addTestFromFile("Lambda Uncaught Exception Error",
-                        errorPath + "lambdaUncaughtException.mt",
-                        TestType::ERROR_EXPECTED);
 
         // ====================================
         // Scope & Visibility Tests

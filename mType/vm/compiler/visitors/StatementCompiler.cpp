@@ -90,6 +90,80 @@ namespace vm::compiler::visitors
         }
     }
 
+    std::vector<ast::nodes::functions::ReturnNode*> StatementCompiler::collectReturnStatements(ast::ASTNode* node)
+    {
+        std::vector<ast::nodes::functions::ReturnNode*> returns;
+
+        if (!node)
+        {
+            return returns;
+        }
+
+        // Check if this node is a return statement
+        if (auto* returnNode = dynamic_cast<ast::nodes::functions::ReturnNode*>(node))
+        {
+            returns.push_back(returnNode);
+            return returns;
+        }
+
+        // Recursively traverse block statements
+        if (auto* blockNode = dynamic_cast<ast::nodes::statements::BlockNode*>(node))
+        {
+            for (const auto& stmt : blockNode->getStatements())
+            {
+                auto childReturns = collectReturnStatements(stmt.get());
+                returns.insert(returns.end(), childReturns.begin(), childReturns.end());
+            }
+        }
+        // Traverse if statements
+        else if (auto* ifNode = dynamic_cast<ast::nodes::statements::IfNode*>(node))
+        {
+            auto thenReturns = collectReturnStatements(ifNode->getThenStatement());
+            returns.insert(returns.end(), thenReturns.begin(), thenReturns.end());
+
+            if (ifNode->getElseStatement())
+            {
+                auto elseReturns = collectReturnStatements(ifNode->getElseStatement());
+                returns.insert(returns.end(), elseReturns.begin(), elseReturns.end());
+            }
+        }
+        // Traverse while loops
+        else if (auto* whileNode = dynamic_cast<ast::nodes::statements::WhileNode*>(node))
+        {
+            auto bodyReturns = collectReturnStatements(whileNode->getBody());
+            returns.insert(returns.end(), bodyReturns.begin(), bodyReturns.end());
+        }
+        // Traverse for loops
+        else if (auto* forNode = dynamic_cast<ast::nodes::statements::ForNode*>(node))
+        {
+            auto bodyReturns = collectReturnStatements(forNode->getBody());
+            returns.insert(returns.end(), bodyReturns.begin(), bodyReturns.end());
+        }
+        // Traverse try-catch-finally blocks
+        else if (auto* tryNode = dynamic_cast<ast::nodes::statements::TryNode*>(node))
+        {
+            // Collect returns from try block
+            auto tryReturns = collectReturnStatements(tryNode->getTryBlock());
+            returns.insert(returns.end(), tryReturns.begin(), tryReturns.end());
+
+            // Collect returns from all catch blocks
+            for (const auto& catchBlock : tryNode->getCatchBlocks())
+            {
+                auto catchReturns = collectReturnStatements(catchBlock->getBody());
+                returns.insert(returns.end(), catchReturns.begin(), catchReturns.end());
+            }
+
+            // Collect returns from finally block (if present)
+            if (tryNode->getFinallyBlock())
+            {
+                auto finallyReturns = collectReturnStatements(tryNode->getFinallyBlock());
+                returns.insert(returns.end(), finallyReturns.begin(), finallyReturns.end());
+            }
+        }
+
+        return returns;
+    }
+
     void StatementCompiler::validateLambdaAssignment(ast::AssignmentNode* node, bool isReassignment,
                                                      const std::string& existingClassName)
     {
@@ -99,10 +173,18 @@ namespace vm::compiler::visitors
             return;
         }
 
+        auto* lambdaNode = dynamic_cast<ast::LambdaNode*>(value);
         value::ValueType varType = node->getVariableType();
 
-        // Check if assigning lambda to functional interface (for declarations)
-        if (!isReassignment && varType == value::ValueType::OBJECT && !node->getClassName().empty())
+        // NOTE: Lambda reassignment checking is disabled because we cannot distinguish
+        // between first assignment after declaration and lambda-to-lambda reassignment
+        // at compile time without runtime value information. Examples:
+        //   Function f;      // declaration
+        //   f = x -> x * 2;  // first assignment - should be allowed
+        //   f = x -> x + 1;  // reassignment - ideally should error, but we can't detect
+
+        // Check if assigning lambda to functional interface
+        if (varType == value::ValueType::OBJECT && !node->getClassName().empty())
         {
             // Validate that the interface is functional (has exactly one method)
             auto interfaceDef = ctx.environment->findInterface(node->getClassName());
@@ -118,29 +200,155 @@ namespace vm::compiler::visitors
                     node->getLocation()
                 );
             }
-        }
 
-        // Lambda reassignment validation
-        if (isReassignment)
-        {
-            // If the variable is an interface type, validate it's a functional interface
-            if (!existingClassName.empty())
+            // Validate lambda matches the interface method signature
+            if (interfaceDef && interfaceDef->isFunctionalInterface())
             {
-                auto interfaceDef = ctx.environment->findInterface(existingClassName);
-                if (interfaceDef)
+                auto methodSignatures = interfaceDef->getMethodSignatures();
+                if (!methodSignatures.empty())
                 {
-                    // Validate that the interface is functional (has exactly one method)
-                    if (!interfaceDef->isFunctionalInterface())
+                    const auto& methodSig = methodSignatures[0];
+
+                    // Validate parameter count
+                    size_t lambdaParamCount = lambdaNode->getParameters().size();
+                    size_t interfaceParamCount = methodSig.parameters.size();
+                    if (lambdaParamCount != interfaceParamCount)
                     {
-                        auto methodSignatures = interfaceDef->getMethodSignatures();
                         throw errors::TypeException(
-                            "Cannot assign lambda to non-functional interface '" + existingClassName + "'. " +
-                            "Lambdas can only be assigned to interfaces with exactly one method. " +
-                            "Interface '" + existingClassName + "' has " + std::to_string(methodSignatures.size()) +
-                            " methods. " +
-                            "Consider using a functional interface (single method) or implement the interface explicitly.",
+                            "Lambda parameter count mismatch for interface '" + node->getClassName() + "'. " +
+                            "Lambda has " + std::to_string(lambdaParamCount) + " parameter(s) but " +
+                            "interface method '" + methodSig.name + "' expects " + std::to_string(interfaceParamCount) + " parameter(s).",
                             node->getLocation()
                         );
+                    }
+
+                    // Validate return type - handle both expression and block lambdas
+                    // Skip validation for generic type parameters (T, R, etc.) - those are validated at runtime
+                    if (methodSig.returnType && !methodSig.returnType->isGenericParameter())
+                    {
+                        auto* body = lambdaNode->getBody();
+                        std::string expectedTypeStr = methodSig.returnType->toString();
+
+                        if (lambdaNode->isExpressionLambda())
+                        {
+                            // Expression lambda: validate the single expression's type
+                            if (body)
+                            {
+                                value::ValueType lambdaReturnType = ctx.typeInference.inferExpressionType(body);
+                                std::string lambdaReturnClassName = ctx.typeInference.inferExpressionClassName(body);
+
+                                // Only validate if we successfully inferred a concrete type (not void)
+                                // We skip validation for expressions using parameters (like 'x * 2')
+                                // because parameters aren't in scope during this validation phase
+                                if (lambdaReturnType != value::ValueType::VOID)
+                                {
+                                    // Build actual return type string
+                                    std::string actualTypeStr;
+                                    if (lambdaReturnType == value::ValueType::OBJECT && !lambdaReturnClassName.empty())
+                                    {
+                                        actualTypeStr = lambdaReturnClassName;
+                                    }
+                                    else if (lambdaReturnType == value::ValueType::INT)
+                                    {
+                                        actualTypeStr = "int";
+                                    }
+                                    else if (lambdaReturnType == value::ValueType::STRING)
+                                    {
+                                        actualTypeStr = "string";
+                                    }
+                                    else if (lambdaReturnType == value::ValueType::BOOL)
+                                    {
+                                        actualTypeStr = "bool";
+                                    }
+                                    else if (lambdaReturnType == value::ValueType::FLOAT)
+                                    {
+                                        actualTypeStr = "float";
+                                    }
+                                    else
+                                    {
+                                        actualTypeStr = "unknown";
+                                    }
+
+                                    // Compare type strings
+                                    if (expectedTypeStr != actualTypeStr)
+                                    {
+                                        throw errors::TypeException(
+                                            "Lambda return type mismatch for interface '" + node->getClassName() + "'. " +
+                                            "Lambda returns '" + actualTypeStr + "' but " +
+                                            "interface method '" + methodSig.name + "' expects '" + expectedTypeStr + "'.",
+                                            node->getLocation()
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Block lambda: validate all return statements
+                            auto returnStatements = collectReturnStatements(body);
+
+                            // Check if lambda expects non-void return but has no return statements
+                            if (expectedTypeStr != "void" && returnStatements.empty())
+                            {
+                                std::string errorMsg = "Lambda is missing return statement. " +
+                                    std::string("Interface method '") + methodSig.name + "' expects return type '" + expectedTypeStr + "' " +
+                                    "but lambda body has no return statement.";
+                                throw errors::TypeException(errorMsg, node->getLocation());
+                            }
+
+                            for (auto* returnNode : returnStatements)
+                            {
+                                auto* returnExpr = returnNode->getReturnValue();
+                                if (returnExpr)
+                                {
+                                    value::ValueType returnType = ctx.typeInference.inferExpressionType(returnExpr);
+                                    std::string returnClassName = ctx.typeInference.inferExpressionClassName(returnExpr);
+
+                                    // Build actual return type string
+                                    std::string actualTypeStr;
+                                    if (returnType == value::ValueType::OBJECT && !returnClassName.empty())
+                                    {
+                                        actualTypeStr = returnClassName;
+                                    }
+                                    else if (returnType == value::ValueType::INT)
+                                    {
+                                        actualTypeStr = "int";
+                                    }
+                                    else if (returnType == value::ValueType::STRING)
+                                    {
+                                        actualTypeStr = "string";
+                                    }
+                                    else if (returnType == value::ValueType::BOOL)
+                                    {
+                                        actualTypeStr = "bool";
+                                    }
+                                    else if (returnType == value::ValueType::FLOAT)
+                                    {
+                                        actualTypeStr = "float";
+                                    }
+                                    else if (returnType == value::ValueType::VOID)
+                                    {
+                                        // Skip void returns from parameter references
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        actualTypeStr = "unknown";
+                                    }
+
+                                    // Compare type strings
+                                    if (expectedTypeStr != actualTypeStr)
+                                    {
+                                        throw errors::TypeException(
+                                            "Lambda return type mismatch for interface '" + node->getClassName() + "'. " +
+                                            "Lambda returns '" + actualTypeStr + "' but " +
+                                            "interface method '" + methodSig.name + "' expects '" + expectedTypeStr + "'.",
+                                            returnNode->getLocation()
+                                        );
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

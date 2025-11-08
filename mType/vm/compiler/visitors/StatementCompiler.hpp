@@ -3,7 +3,14 @@
 #include "../../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
+#include "../../../ast/nodes/statements/IfNode.hpp"
+#include "../../../ast/nodes/statements/WhileNode.hpp"
+#include "../../../ast/nodes/statements/ForNode.hpp"
+#include "../../../ast/nodes/statements/TryNode.hpp"
+#include "../../../ast/nodes/statements/CatchNode.hpp"
+#include "../../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../../value/ValueType.hpp"
+#include <vector>
 
 namespace vm::compiler::visitors
 {
@@ -33,6 +40,9 @@ namespace vm::compiler::visitors
         void validateReassignmentType(ast::AssignmentNode* node, const std::string& existingClassName);
         void emitVariableDeclaration(ast::AssignmentNode* node);
         void emitVariableReassignment(ast::AssignmentNode* node, bool isReassignment);
+
+        // Helper for lambda return type validation
+        std::vector<ast::nodes::functions::ReturnNode*> collectReturnStatements(ast::ASTNode* node);
 
         // Phase 4: Auto-boxing helper
         // Returns true if auto-boxing was applied and bytecode was emitted
