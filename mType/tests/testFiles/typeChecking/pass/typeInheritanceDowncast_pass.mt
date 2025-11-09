@@ -8,11 +8,11 @@ class Shape {
         this.color = color;
     }
 
-    public void draw() {
+    public function draw(): void {
         print("Drawing shape in " + this.color);
     }
 
-    public string getColor() {
+    public function getColor(): string {
         return this.color;
     }
 }
@@ -26,19 +26,19 @@ class Rectangle extends Shape {
         this.height = height;
     }
 
-    public void draw() {
+    public function draw(): void {
         print("Drawing " + this.color + " rectangle: " + this.width + "x" + this.height);
     }
 
-    public int getArea() {
+    public function getArea(): int {
         return this.width * this.height;
     }
 
-    public int getWidth() {
+    public function getWidth(): int {
         return this.width;
     }
 
-    public int getHeight() {
+    public function getHeight(): int {
         return this.height;
     }
 }
@@ -50,11 +50,11 @@ class Circle extends Shape {
         this.radius = radius;
     }
 
-    public void draw() {
+    public function draw(): void {
         print("Drawing " + this.color + " circle with radius " + this.radius);
     }
 
-    public int getRadius() {
+    public function getRadius(): int {
         return this.radius;
     }
 }
@@ -64,7 +64,7 @@ print("Test 1: Downcast Rectangle");
 Shape s1 = new Rectangle("red", 10, 5);
 s1.draw();
 
-if (s1 instanceof Rectangle) {
+if (s1 isClassOf Rectangle) {
     Rectangle rect = (Rectangle)s1;
     print("Successfully downcast to Rectangle");
     print("Area: " + rect.getArea());
@@ -77,7 +77,7 @@ print("\nTest 2: Downcast Circle");
 Shape s2 = new Circle("blue", 7);
 s2.draw();
 
-if (s2 instanceof Circle) {
+if (s2 isClassOf Circle) {
     Circle circ = (Circle)s2;
     print("Successfully downcast to Circle");
     print("Radius: " + circ.getRadius());
@@ -87,9 +87,9 @@ if (s2 instanceof Circle) {
 print("\nTest 3: Type safety check");
 Shape s3 = new Rectangle("green", 8, 4);
 
-if (s3 instanceof Circle) {
+if (s3 isClassOf Circle) {
     print("This should not print - s3 is not a Circle");
-} else if (s3 instanceof Rectangle) {
+} else if (s3 isClassOf Rectangle) {
     print("Correctly identified as Rectangle");
     Rectangle r = (Rectangle)s3;
     print("Area: " + r.getArea());
@@ -108,11 +108,11 @@ int totalRectArea = 0;
 int totalCircleCount = 0;
 
 while (i < 4) {
-    if (shapes[i] instanceof Rectangle) {
+    if (shapes[i] isClassOf Rectangle) {
         Rectangle r = (Rectangle)shapes[i];
         totalRectArea = totalRectArea + r.getArea();
         print("Found rectangle with area: " + r.getArea());
-    } else if (shapes[i] instanceof Circle) {
+    } else if (shapes[i] isClassOf Circle) {
         Circle c = (Circle)shapes[i];
         totalCircleCount = totalCircleCount + 1;
         print("Found circle with radius: " + c.getRadius());

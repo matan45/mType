@@ -29,15 +29,15 @@ class Circle implements Drawable {
         this.radius = r;
     }
 
-    public void draw() {
+    public function draw(): void {
         print("Drawing circle with radius: " + this.radius);
     }
 
-    public string getDescription() {
+    public function getDescription(): string {
         return "Circle";
     }
 
-    public int getRadius() {
+    public function getRadius(): int {
         return this.radius;
     }
 }
@@ -52,25 +52,25 @@ class Rectangle implements Drawable, Resizable {
         this.height = h;
     }
 
-    public void draw() {
+    public function draw(): void {
         print("Drawing rectangle: " + this.width + "x" + this.height);
     }
 
-    public string getDescription() {
+    public function getDescription(): string {
         return "Rectangle";
     }
 
-    public void resize(int w, int h) {
+    public function resize(int w, int h): void {
         this.width = w;
         this.height = h;
         print("Resized to: " + w + "x" + h);
     }
 
-    public int getWidth() {
+    public function getWidth(): int {
         return this.width;
     }
 
-    public int getHeight() {
+    public function getHeight(): int {
         return this.height;
     }
 }
@@ -91,38 +91,38 @@ class Sprite implements Drawable, Resizable, Movable {
         this.y = y;
     }
 
-    public void draw() {
+    public function draw(): void {
         print("Drawing sprite '" + this.name + "' at (" + this.x + "," + this.y + ") size " + this.width + "x" + this.height);
     }
 
-    public string getDescription() {
+    public function getDescription(): string {
         return "Sprite: " + this.name;
     }
 
-    public void resize(int w, int h) {
+    public function resize(int w, int h): void {
         this.width = w;
         this.height = h;
     }
 
-    public int getWidth() {
+    public function getWidth(): int {
         return this.width;
     }
 
-    public int getHeight() {
+    public function getHeight(): int {
         return this.height;
     }
 
-    public void move(int newX, int newY) {
+    public function move(int newX, int newY): void {
         this.x = newX;
         this.y = newY;
         print("Moved to: (" + newX + "," + newY + ")");
     }
 
-    public int getX() {
+    public function getX(): int {
         return this.x;
     }
 
-    public int getY() {
+    public function getY(): int {
         return this.y;
     }
 }

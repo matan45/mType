@@ -10,19 +10,19 @@ class Product {
         this.price = price;
     }
 
-    public Product clone() {
+    public function clone():Product {
         return new Product(this.name, this.price);
     }
 
-    public string getName() {
+    public function getName(): string {
         return this.name;
     }
 
-    public float getPrice() {
+    public function getPrice(): float {
         return this.price;
     }
 
-    public void display() {
+    public function display(): void {
         print("Product: " + this.name + ", Price: " + this.price);
     }
 }
@@ -37,19 +37,19 @@ class Book extends Product {
     }
 
     // Covariant return type: Book instead of Product
-    public Book clone() {
+    public function clone(): Book {
         return new Book(this.name, this.price, this.author, this.pages);
     }
 
-    public string getAuthor() {
+    public function getAuthor(): string {
         return this.author;
     }
 
-    public int getPages() {
+    public function getPages(): int {
         return this.pages;
     }
 
-    public void display() {
+    public function display(): void {
         print("Book: " + this.name + " by " + this.author + ", " + this.pages + " pages, Price: " + this.price);
     }
 }
@@ -64,19 +64,19 @@ class Electronics extends Product {
     }
 
     // Covariant return type: Electronics instead of Product
-    public Electronics clone() {
+    public function clone() :Electronics{
         return new Electronics(this.name, this.price, this.brand, this.warranty);
     }
 
-    public string getBrand() {
+    public function getBrand(): string {
         return this.brand;
     }
 
-    public int getWarranty() {
+    public function getWarranty(): int {
         return this.warranty;
     }
 
-    public void display() {
+    public function display(): void {
         print("Electronics: " + this.name + " by " + this.brand + ", " + this.warranty + " year warranty, Price: " + this.price);
     }
 }

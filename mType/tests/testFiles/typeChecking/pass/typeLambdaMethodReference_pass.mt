@@ -8,7 +8,7 @@ class Calculator {
         return x * 3;
     }
 
-    static function quadruple(int x) : int {
+    public static function quadruple(int x) : int {
         return x * 4;
     }
 }
@@ -29,7 +29,7 @@ UnaryOp op2 = x -> calc.triple(x);
 print("Triple 5: " + op2.apply(5));
 
 // Static method reference - types must match interface
-UnaryOp op3 = x -> Calculator.quadruple(x);
+UnaryOp op3 = x -> Calculator::quadruple(x);
 print("Quadruple 5: " + op3.apply(5));
 
 // Chain method calls with type checking

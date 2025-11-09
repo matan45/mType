@@ -9,11 +9,11 @@ class Value {
         this.typeName = type;
     }
 
-    public string getTypeName() {
+    public function getTypeName(): string {
         return this.typeName;
     }
 
-    public void display() {
+    public function display(): void {
         print("Value of type: " + this.typeName);
     }
 }
@@ -25,11 +25,11 @@ class IntValue extends Value {
         this.data = value;
     }
 
-    public void display() {
+    public function display(): void {
         print("Int: " + this.data);
     }
 
-    public int getData() {
+    public function getData(): int {
         return this.data;
     }
 }
@@ -41,11 +41,11 @@ class StringValue extends Value {
         this.data = value;
     }
 
-    public void display() {
+    public function display(): void {
         print("String: " + this.data);
     }
 
-    public string getData() {
+    public function getData(): string {
         return this.data;
     }
 }
@@ -57,7 +57,7 @@ class BoolValue extends Value {
         this.data = value;
     }
 
-    public void display() {
+    public function display(): void {
         if (this.data) {
             print("Bool: true");
         } else {
@@ -65,7 +65,7 @@ class BoolValue extends Value {
         }
     }
 
-    public bool getData() {
+    public function getData(): bool {
         return this.data;
     }
 }
@@ -110,13 +110,13 @@ processValue(new BoolValue(true));
 
 // Test 4: Union type with conditional processing
 class ValueProcessor {
-    public void process(Value v) {
+    public function process(Value v): void {
         string type = v.getTypeName();
         print("Processing " + type + " type");
         v.display();
     }
 
-    public void processArray(Value[] arr, int count) {
+    public function processArray(Value[] arr, int count): void {
         int idx = 0;
         while (idx < count) {
             this.process(arr[idx]);
@@ -141,7 +141,7 @@ class Container<T> {
         this.item = value;
     }
 
-    public T getItem() {
+    public function getItem(): T {
         return this.item;
     }
 }
@@ -155,7 +155,7 @@ container2.getItem().display();
 
 // Test 6: Union type return values
 class ValueFactory {
-    public Value createValue(int type, string data): Value {
+    public function createValue(int type, string data): Value {
         if (type == 0) {
             return new IntValue(123);
         }

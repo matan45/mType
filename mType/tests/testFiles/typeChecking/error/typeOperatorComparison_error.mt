@@ -18,7 +18,7 @@ class Color {
     }
 }
 
-@Script
+
 function main(): void {
     Point p = new Point(10, 20);
     Color c = new Color("Red");

@@ -10,19 +10,19 @@ class Animal {
         this.age = age;
     }
 
-    public void speak() {
+    public function speak(): void {
         print(this.name + " makes a sound");
     }
 
-    public void move() {
+    public function move(): void {
         print(this.name + " moves");
     }
 
-    public string getName() {
+    public function getName(): string {
         return this.name;
     }
 
-    public int getAge() {
+    public function getAge(): int {
         return this.age;
     }
 }
@@ -34,15 +34,15 @@ class Dog extends Animal {
         this.breed = breed;
     }
 
-    public void speak() {
+    public function speak(): void {
         print(this.name + " barks: Woof! Woof!");
     }
 
-    public void move() {
+    public function move(): void {
         print(this.name + " runs on four legs");
     }
 
-    public string getBreed() {
+    public function getBreed(): string {
         return this.breed;
     }
 }
@@ -54,15 +54,15 @@ class Cat extends Animal {
         this.isIndoor = isIndoor;
     }
 
-    public void speak() {
+    public function speak(): void {
         print(this.name + " meows: Meow!");
     }
 
-    public void move() {
+    public function move(): void {
         print(this.name + " walks gracefully");
     }
 
-    public bool getIsIndoor() {
+    public function getIsIndoor(): bool {
         return this.isIndoor;
     }
 }
@@ -74,15 +74,15 @@ class Bird extends Animal {
         this.wingspan = wingspan;
     }
 
-    public void speak() {
+    public function speak(): void {
         print(this.name + " chirps: Tweet! Tweet!");
     }
 
-    public void move() {
+    public function move(): void {
         print(this.name + " flies with wingspan " + this.wingspan);
     }
 
-    public int getWingspan() {
+    public function getWingspan(): int {
         return this.wingspan;
     }
 }

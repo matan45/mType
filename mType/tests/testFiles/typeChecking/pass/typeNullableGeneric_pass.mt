@@ -1,6 +1,7 @@
 // Test nullable generic type parameters
 // Validates that generic types can be instantiated with nullable type arguments
-import * from "../../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 class Box<T> {
     T value;
@@ -42,7 +43,7 @@ function main(): void {
     print("Testing nullable generic type parameters");
 
     // Generic with nullable string
-    Box<string> strBox = new Box<string>("Hello");
+    Box<String> strBox = new Box<String>("Hello");
     print("String box value: " + strBox.getValue());
     strBox.setValue(null);
     if (strBox.hasValue()) {

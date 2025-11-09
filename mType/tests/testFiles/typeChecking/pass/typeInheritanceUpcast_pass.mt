@@ -8,11 +8,11 @@ class Vehicle {
         this.make = make;
     }
 
-    public void drive() {
+    public function drive(): void {
         print("Driving vehicle: " + this.make);
     }
 
-    public string getMake() {
+    public function getMake(): string {
         return this.make;
     }
 }
@@ -24,11 +24,11 @@ class Car extends Vehicle {
         this.doors = doors;
     }
 
-    public void drive() {
+    public function drive(): void {
         print("Driving car: " + this.make + " with " + this.doors + " doors");
     }
 
-    public int getDoors() {
+    public function getDoors(): int {
         return this.doors;
     }
 }
@@ -40,11 +40,11 @@ class Motorcycle extends Vehicle {
         this.hasSidecar = hasSidecar;
     }
 
-    public void drive() {
+    public function drive(): void {
         print("Riding motorcycle: " + this.make);
     }
 
-    public bool getHasSidecar() {
+    public function getHasSidecar(): bool {
         return this.hasSidecar;
     }
 }

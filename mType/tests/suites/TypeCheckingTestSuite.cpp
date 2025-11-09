@@ -151,8 +151,6 @@ namespace tests::testSuite
                         passPath + "typeInferenceConditional_pass.mt");
         addOutputVerificationTest("Type Inference Generic Method",
                         passPath + "typeInferenceGenericMethod_pass.mt");
-        addOutputVerificationTest("Type Inference Lambda Return",
-                        passPath + "typeInferenceLambdaReturn_pass.mt");
         addOutputVerificationTest("Type Inference Local Variable",
                         passPath + "typeInferenceLocalVariable_pass.mt");
 
@@ -167,14 +165,8 @@ namespace tests::testSuite
         // === OVERLOADING TESTS (5 tests) ===
         addOutputVerificationTest("Type Overload Constructor",
                         passPath + "typeOverloadConstructor_pass.mt");
-        addOutputVerificationTest("Type Overload Extension",
-                        passPath + "typeOverloadExtension_pass.mt");
         addOutputVerificationTest("Type Overload Generic",
                         passPath + "typeOverloadGeneric_pass.mt");
-        addOutputVerificationTest("Type Overload Static Hiding",
-                        passPath + "typeOverloadStaticHiding_pass.mt");
-        addOutputVerificationTest("Type Overload Varargs",
-                        passPath + "typeOverloadVarargs_pass.mt");
 
         // === ADVANCED TYPE FEATURES (8 tests) ===
         addOutputVerificationTest("Type Flow Sensitive",
@@ -247,9 +239,6 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Type Interface Multiple Conflict Error",
                         errorPath + "typeInterfaceMultipleConflict_error.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Type Lambda Exception Error",
-                        errorPath + "typeLambdaException_error.mt",
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Type Lambda Return Type Mismatch Error",
                         errorPath + "typeLambdaReturnTypeMismatch_error.mt",

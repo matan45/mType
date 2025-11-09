@@ -1,6 +1,7 @@
 // Test: Flow-sensitive typing with conditional branches
 // Expected: Pass - type information flows through control structures
-import * from "../../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 class Container<T> {
     private T value;
@@ -10,16 +11,16 @@ class Container<T> {
         this.hasValue = false;
     }
 
-    public void setValue(T v) {
+    public function setValue(T v): void {
         this.value = v;
         this.hasValue = true;
     }
 
-    public T getValue() {
+    public function getValue(): T {
         return this.value;
     }
 
-    public bool isEmpty() {
+    public function isEmpty(): bool {
         return !this.hasValue;
     }
 }
@@ -39,10 +40,10 @@ if (!intContainer.isEmpty()) {
 
 // Test 2: Flow through loops
 print("\nTest 2: Flow-sensitive in loops");
-Container<string>[] containers = new Container<string>[3];
+Container<String>[] containers = new Container<String>[3];
 int i = 0;
 while (i < 3) {
-    containers[i] = new Container<string>();
+    containers[i] = new Container<String>();
     i = i + 1;
 }
 
@@ -80,11 +81,11 @@ class State {
         }
     }
 
-    public string getMessage() {
+    public function getMessage(): string {
         return this.message;
     }
 
-    public int getStatus() {
+    public function getStatus(): int {
         return this.status;
     }
 }
@@ -107,11 +108,11 @@ class NumberWrapper {
         this.value = v;
     }
 
-    public int getValue() {
+    public function getValue(): int {
         return this.value;
     }
 
-    public void setValue(int v) {
+    public function setValue(int v): void {
         this.value = v;
     }
 }
@@ -131,7 +132,7 @@ if (wrapper.getValue() >= 20) {
 
 // Test 5: Flow through nested conditions
 class Validator {
-    public bool validate(int value): bool {
+    public function validate(int value): bool {
         bool result = false;
         if (value > 0) {
             if (value < 100) {
@@ -141,7 +142,7 @@ class Validator {
         return result;
     }
 
-    public string validateAndReport(int value): string {
+    public function validateAndReport(int value): string {
         if (this.validate(value)) {
             return "Valid: " + value;
         }
@@ -157,7 +158,7 @@ print(validator.validateAndReport(150));
 
 // Test 6: Flow-sensitive with early returns
 class Calculator {
-    public int divide(int a, int b): int {
+    public function divide(int a, int b): int {
         if (b == 0) {
             print("Cannot divide by zero, returning 0");
             return 0;
@@ -165,7 +166,7 @@ class Calculator {
         return a / b;
     }
 
-    public int safeDivide(int a, int b): int {
+    public function safeDivide(int a, int b): int {
         int result = this.divide(a, b);
         if (result == 0) {
             if (b != 0) {
