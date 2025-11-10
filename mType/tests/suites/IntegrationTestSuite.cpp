@@ -110,6 +110,56 @@ namespace tests::testSuite
         addOutputVerificationTest("Test Import Main",
                                   passPath + "test_import_main.mt");
 
+        // ====================================
+        // NEW COMPREHENSIVE INTEGRATION TESTS
+        // ====================================
+
+        // Phase 1: Complex Feature Mix Tests
+        addOutputVerificationTest("Test 01: Polymorphic Collections with Generics",
+                                  passPath + "test01_polymorphicCollectionsWithGenerics.mt");
+        addOutputVerificationTest("Test 02: Async Exception Handling with Inheritance",
+                                  passPath + "test02_asyncExceptionHandlingWithInheritance.mt");
+        addOutputVerificationTest("Test 03: Abstract Classes with Generic Constraints",
+                                  passPath + "test03_abstractClassesWithGenericConstraints.mt");
+        addOutputVerificationTest("Test 04: Lambda Closures with Auto-Boxing",
+                                  passPath + "test04_lambdaClosuresWithAutoBoxing.mt");
+        addOutputVerificationTest("Test 05: Imported Interfaces with Async Lambdas",
+                                  passPath + "test05_importedInterfacesWithAsyncLambdas.mt");
+        addOutputVerificationTest("Test 06: Complex Control Flow with Exceptions",
+                                  passPath + "test06_complexControlFlowWithExceptions.mt");
+        addOutputVerificationTest("Test 07: Polymorphic Calls with Final Classes",
+                                  passPath + "test07_polymorphicCallsWithFinalClasses.mt");
+        addOutputVerificationTest("Test 08: Multi-Dimensional Arrays with Generics",
+                                  passPath + "test08_multiDimensionalArraysWithGenerics.mt");
+
+        // Phase 2: Edge Case Tests
+        addOutputVerificationTest("Test 09: Nested Generic Constraints Edge Cases",
+                                  passPath + "test09_nestedGenericConstraintsEdgeCases.mt");
+        addOutputVerificationTest("Test 10: Exception Hierarchy with Finally",
+                                  passPath + "test10_exceptionHierarchyWithFinally.mt");
+        addOutputVerificationTest("Test 11: Scoping Edge Cases with Lambdas",
+                                  passPath + "test11_scopingEdgeCasesWithLambdas.mt");
+        addOutputVerificationTest("Test 12: Auto-Boxing with Operator Overloading",
+                                  passPath + "test12_autoBoxingWithOperatorOverloading.mt");
+        addOutputVerificationTest("Test 13: Async/Await with Nested Try-Catch",
+                                  passPath + "test13_asyncAwaitWithNestedTryCatch.mt");
+        addOutputVerificationTest("Test 14: Interface Multiple Implementation Edge Cases",
+                                  passPath + "test14_interfaceMultipleImplementationEdgeCases.mt");
+
+        // Phase 3: Real-World Scenario Tests
+        addOutputVerificationTest("Test 15: Repository Pattern with Generics",
+                                  passPath + "test15_repositoryPatternWithGenerics.mt");
+        addOutputVerificationTest("Test 16: Observer Pattern with Lambdas",
+                                  passPath + "test16_observerPatternWithLambdas.mt");
+        addOutputVerificationTest("Test 17: Builder Pattern with Method Chaining",
+                                  passPath + "test17_builderPatternWithMethodChaining.mt");
+        addOutputVerificationTest("Test 18: Strategy Pattern with Async Operations",
+                                  passPath + "test18_strategyPatternWithAsyncOperations.mt");
+        addOutputVerificationTest("Test 19: Factory Pattern with Imports",
+                                  passPath + "test19_factoryPatternWithImports.mt");
+        addOutputVerificationTest("Test 20: Decorator Pattern with Inheritance",
+                                  passPath + "test20_decoratorPatternWithInheritance.mt");
+
 
         addOutputVerificationTest("Circular Namespace References",
                                   passPath + "circularNamespaceReferences.mt");

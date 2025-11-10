@@ -1,0 +1,51 @@
+=== Test 06: Complex Control Flow with Exceptions ===
+--- Testing switch with exceptions ---
+Case 1: Normal processing
+Finally: Cleanup for value 1
+Result: success-1
+Case 2: Validation required
+Caught ValidationError: Validation failed for case 2
+Finally: Cleanup for value 2
+Result: error-validation
+Case 4: Critical error
+Caught ProcessingError: Processing failed (code: 404)
+Finally: Cleanup for value 4
+Result: error-processing
+Default case
+Finally: Cleanup for value 99
+Result: default
+--- Nested loops with break/continue ---
+Row 0:
+  Odd value: 1
+  Odd value: 3
+Row 1:
+  Odd value: 5
+Row 2:
+  Odd value: 7
+  Breaking inner loop at 7
+--- Loops with exception handling ---
+Processing: 1
+Processing: 2
+Skipping 3
+Processing: 4
+Processing: 5
+Skipping 6
+Caught error: Number 7 not allowed
+Processing: 8
+Skipping 9
+Processing: 10
+--- Switch in loop ---
+1 -> Group A
+2 -> Group A
+3 -> Group A
+4 -> Group B
+5 -> Group B
+6 -> Group B
+7 -> Group C
+Breaking at 7
+--- Do-while with exceptions ---
+Counter: 1
+Counter: 2
+Error at counter 3: Counter reached 3
+Final counter: 3
+=== Test 06 Complete ===

@@ -7,7 +7,6 @@
 #include "../constants/ExceptionConstants.hpp"
 #include <sstream>
 #include <unordered_set>
-
 namespace validation
 {
     void AnnotationValidator::validateClassAnnotations(
@@ -92,10 +91,21 @@ namespace validation
         // Check parent class hierarchy
         if (containingClass->hasParentClass())
         {
+            std::string fullParentName = containingClass->getParentClassName();
+
+            // Extract base class name (strip generic type parameters if present)
+            // E.g., "Container<DataItem>" -> "Container"
+            std::string baseParentName = fullParentName;
+            size_t genericStart = fullParentName.find('<');
+            if (genericStart != std::string::npos)
+            {
+                baseParentName = fullParentName.substr(0, genericStart);
+            }
+
             auto classRegistry = environment->getClassRegistry();
             if (classRegistry)
             {
-                auto parentClass = classRegistry->findClass(containingClass->getParentClassName());
+                auto parentClass = classRegistry->findClass(baseParentName);
                 if (parentClass)
                 {
                     auto parentMethod = findMatchingMethodInParent(method, parentClass);
@@ -142,6 +152,7 @@ namespace validation
         {
             // Check instance methods
             const auto& instanceMethods = parentClass->getInstanceMethods();
+
             auto it = instanceMethods.find(method->getName());
             if (it != instanceMethods.end())
             {

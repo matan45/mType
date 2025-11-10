@@ -1,0 +1,46 @@
+=== Test 07: Polymorphic Calls with Final Classes ===
+--- Shape polymorphism ---
+Initial shape count: 0
+Total shapes created: 3
+Processing: Circle: MyCircle, radius=5
+Area: 78.53975
+Name (final method): MyCircle
+Type: Circle detected
+Radius: 5
+---
+Processing: Rectangle: MyRect, 4x6
+Area: 24
+Name (final method): MyRect
+Type: Rectangle detected
+---
+Processing: Square: MySquare, size=3
+Area: 9
+Name (final method): MySquare
+Type: Square detected
+--- Final method access ---
+Circle name: MyCircle
+Rectangle name: MyRect
+Square name: MySquare
+--- Animal polymorphism ---
+Initial animal count: 0
+Total animals: 2
+Species (final method): Canine
+Sound: Woof! I am a Labrador
+This is a Dog
+Breed: Labrador
+---
+Species (final method): Canine
+Sound: Woof! I am a Bulldog
+This is a Dog
+Breed: Bulldog
+--- Static method calls ---
+Shape count via static method: 3
+Animal count via static method: 2
+--- Type hierarchy with isClassOf ---
+square isClassOf Square: true
+square isClassOf Rectangle: true
+square isClassOf Shape: true
+circle isClassOf Square: false
+dog1 isClassOf Dog: true
+dog1 isClassOf Animal: true
+=== Test 07 Complete ===

@@ -1,0 +1,22 @@
+=== Test 05: Imported Interfaces with Async Lambdas ===
+--- Basic async function ---
+Double 21: 42
+Add 100 to 50: 150
+--- Async transformers ---
+Value: 42
+String length: 11
+--- Async list processing ---
+Mapped list:
+15
+20
+25
+--- Global generic async function ---
+Value: 99
+Transformed string length: 7
+--- Chained async operations ---
+Step 1: Value: 10
+Step 2: 10
+--- Multiple async calls ---
+First operation: 20
+Second operation: 25
+=== Test 05 Complete ===

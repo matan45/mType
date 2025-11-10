@@ -143,6 +143,14 @@ namespace vm::runtime
                 throwCastError("Cannot cast string to int: " + std::get<std::string>(val));
             }
         }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+            if (obj && obj->getClassDefinition()->getName() == "Int") {
+                // Return the Int object itself (it's already the right type)
+                return val;
+            }
+            throwCastError("Cannot cast object to int");
+        }
         else {
             throwCastError("Cannot cast to int from this type");
         }

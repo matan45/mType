@@ -1,0 +1,40 @@
+=== Test 18: Strategy Pattern with Async Operations ===
+--- Test 1: Credit card ---
+--- Executing payment via CreditCard ---
+Processing credit card payment: $150
+Validating credit card...
+Result: Credit card payment of $150 successful
+--- Test 2: Switch to PayPal ---
+Payment strategy changed to: PayPal
+--- Executing payment via PayPal ---
+Processing PayPal payment: $75.5
+Validating PayPal account...
+Result: PayPal payment of $75.5 successful
+--- Test 3: Switch to Crypto ---
+Payment strategy changed to: Crypto
+--- Executing payment via Crypto ---
+Processing crypto payment: $500
+Validating crypto wallet...
+Result: Crypto payment of $500 successful
+--- Test 4: Invalid payment ---
+--- Executing payment via Crypto ---
+Processing crypto payment: $75000
+Validating crypto wallet...
+Result: Crypto payment failed
+--- Test 5: Sorting strategies ---
+QuickSort: Sorting 6 elements
+Result: QuickSort completed
+Switching to MergeSort:
+MergeSort: Sorting 6 elements
+Result: MergeSort completed
+--- Test 6: Sequential payments ---
+--- Executing payment via CreditCard ---
+Processing credit card payment: $100
+Validating credit card...
+Credit card payment of $100 successful
+Payment strategy changed to: PayPal
+--- Executing payment via PayPal ---
+Processing PayPal payment: $200
+Validating PayPal account...
+PayPal payment of $200 successful
+=== Test 18 Complete ===

@@ -1,0 +1,57 @@
+=== Test 16: Observer Pattern with Lambdas ===
+--- Test 1: Basic observer pattern ---
+Observer attached. Total: 1
+Observer attached. Total: 2
+Publisher: Breaking: Markets up 10%
+Notifying 2 observers
+  EmailSubscriber[user@example.com]: Received - Breaking: Markets up 10%
+  SMSSubscriber[555-1234]: Received - Breaking: Markets up 10%
+--- Test 2: Lambda-based observers ---
+Observer attached. Total: 3
+Observer attached. Total: 4
+Publisher: Tech: New product launched
+Notifying 4 observers
+  EmailSubscriber[user@example.com]: Received - Tech: New product launched
+  SMSSubscriber[555-1234]: Received - Tech: New product launched
+  LambdaObserver[lambda1]: Processed - Tech: New product launched
+  LambdaObserver[lambda2]: Processed - Tech: New product launched
+--- Test 3: Stats observer ---
+Observer attached. Total: 5
+Publisher: Sports: Team wins championship
+Notifying 5 observers
+  EmailSubscriber[user@example.com]: Received - Sports: Team wins championship
+  SMSSubscriber[555-1234]: Received - Sports: Team wins championship
+  LambdaObserver[lambda1]: Processed - Sports: Team wins championship
+  LambdaObserver[lambda2]: Processed - Sports: Team wins championship
+  StatsObserver: Event #1
+Publisher: Weather: Sunny tomorrow
+Notifying 5 observers
+  EmailSubscriber[user@example.com]: Received - Weather: Sunny tomorrow
+  SMSSubscriber[555-1234]: Received - Weather: Sunny tomorrow
+  LambdaObserver[lambda1]: Processed - Weather: Sunny tomorrow
+  LambdaObserver[lambda2]: Processed - Weather: Sunny tomorrow
+  StatsObserver: Event #2
+Total events tracked: 2
+--- Test 4: Multiple publishers ---
+Observer attached. Total: 1
+Observer attached. Total: 1
+Tech news:
+Publisher: AI breakthrough announced
+Notifying 1 observers
+  EmailSubscriber[tech@example.com]: Received - AI breakthrough announced
+Sports news:
+Publisher: Championship game tonight
+Notifying 1 observers
+  EmailSubscriber[sports@example.com]: Received - Championship game tonight
+--- Test 5: Event aggregator ---
+Publisher registered. Total: 1
+Publisher registered. Total: 2
+Aggregator managing 2 publishers
+--- Test 6: Selective notification ---
+Observer attached. Total: 1
+Observer attached. Total: 2
+Publisher: VIP: Exclusive content
+Notifying 2 observers
+  EmailSubscriber[vip@example.com]: Received - VIP: Exclusive content
+  SMSSubscriber[555-VIP1]: Received - VIP: Exclusive content
+=== Test 16 Complete ===

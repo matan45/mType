@@ -1,0 +1,43 @@
+=== Test 19: Factory Pattern with Imports ===
+--- Test 1: Vehicle factory ---
+Factory: Creating vehicle #1
+Testing: Vehicle: Car, Speed: 120
+Car engine starting...
+Car engine stopping...
+Factory: Creating vehicle #2
+Testing: Vehicle: Motorcycle, Speed: 180
+Motorcycle ignition on...
+Motorcycle ignition off...
+Factory: Creating vehicle #3
+Testing: Vehicle: Truck, Speed: 90
+Truck diesel engine starting...
+Truck diesel engine stopping...
+Total vehicles created: 3
+--- Test 2: Type checking ---
+Car has 4 doors
+Truck capacity: 5000 kg
+--- Test 3: Abstract factory (PDF) ---
+Applying PDF template: PDF Standard
+Rendering PDF: PDF Report
+--- Test 3: Abstract factory (HTML) ---
+Applying HTML template: HTML5 Boilerplate
+Rendering HTML: Web Page
+--- Test 4: Unknown vehicle type ---
+Factory: Creating vehicle #4
+Unknown vehicle type, creating default car
+Vehicle: Car, Speed: 100
+--- Test 5: Multiple vehicles ---
+Factory: Creating vehicle #5
+Factory: Creating vehicle #6
+Factory: Creating vehicle #7
+Total vehicles created: 7
+--- Test 6: Polymorphic array ---
+Factory: Creating vehicle #8
+Factory: Creating vehicle #9
+Factory: Creating vehicle #10
+Fleet test:
+Vehicle 0: Car
+Vehicle 1: Motorcycle
+Vehicle 2: Truck
+Final vehicle count: 10
+=== Test 19 Complete ===

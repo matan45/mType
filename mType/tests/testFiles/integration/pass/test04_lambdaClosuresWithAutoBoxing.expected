@@ -1,0 +1,38 @@
+=== Test 04: Lambda Closures with Auto-Boxing ===
+--- Auto-boxing tests ---
+Sum: 30
+Difference: -10
+Product: 200
+10 < 20: true
+10 == 10: true
+String value: Hello
+--- Lambda closure tests ---
+Mapped results (add 100):
+105
+110
+115
+120
+125
+Filtered results (> 12):
+15
+20
+25
+Transformed to strings:
+Number: 5
+Number: 10
+Number: 15
+Number: 20
+Number: 25
+--- Nested closure test ---
+Apply to 1: 51
+Apply to 2: 52
+Apply to 3: 53
+--- Scoping tests ---
+Outer: 100
+Block: 200
+Nested: 300
+Can access outer: 100
+Loop var: 10
+Loop var: 20
+Loop var: 30
+=== Test 04 Complete ===
