@@ -3,198 +3,198 @@
 namespace tests::testSuite
 {
     using namespace testFramework;
-    
+
     void IntegrationTestSuite::setupTests()
     {
         addOutputVerificationTest("Pure oop",
-                                passPath + "phase4_complete.mt");
+                                  passPath + "phase4_complete.mt");
         addOutputVerificationTest("Conversion basic",
-                        passPath + "test_type_conversion_basic.mt");
+                                  passPath + "test_type_conversion_basic.mt");
         addOutputVerificationTest("Generics simple",
-                        passPath + "test_simple_generics.mt");
+                                  passPath + "test_simple_generics.mt");
         addOutputVerificationTest("Arrays simple",
-                        passPath + "test_array_types.mt");
+                                  passPath + "test_array_types.mt");
         addOutputVerificationTest("Error Handling comprehensive",
-                        passPath + "test_error_handling.mt");
+                                  passPath + "test_error_handling.mt");
         // Complex Feature Integration tests
         addOutputVerificationTest("Classes with Final Variables and Loops",
-                        passPath + "classesWithFinalVariablesAndLoops.mt");
+                                  passPath + "classesWithFinalVariablesAndLoops.mt");
         addOutputVerificationTest("Nested Namespaces with Static Methods",
-                        passPath + "nestedNamespacesWithStaticMethods.mt");
+                                  passPath + "nestedNamespacesWithStaticMethods.mt");
         addOutputVerificationTest("Control Flow with Class Members and Namespaces",
-                        passPath + "controlFlowWithClassMembersAndNamespaces.mt");
+                                  passPath + "controlFlowWithClassMembersAndNamespaces.mt");
         addOutputVerificationTest("Imports with Namespaces and Classes",
-                        passPath + "importsWithNamespacesAndClasses.mt");
+                                  passPath + "importsWithNamespacesAndClasses.mt");
         addOutputVerificationTest("Complex Inheritance with Namespaces",
-                        passPath + "complexInheritanceWithNamespaces.mt");
+                                  passPath + "complexInheritanceWithNamespaces.mt");
         addOutputVerificationTest("Final Variables Across Namespaces and Classes",
-                        passPath + "finalVariablesAcrossNamespacesAndClasses.mt");
+                                  passPath + "finalVariablesAcrossNamespacesAndClasses.mt");
         addOutputVerificationTest("Loops with Class Creation and Namespaces",
-                        passPath + "loopsWithClassCreationAndNamespaces.mt");
+                                  passPath + "loopsWithClassCreationAndNamespaces.mt");
         addOutputVerificationTest("Recursive Namespace Class Interactions",
-                        passPath + "recursiveNamespaceClassInteractions.mt");
+                                  passPath + "recursiveNamespaceClassInteractions.mt");
         addOutputVerificationTest("Concurrent Namespace and Class Modifications",
-                        passPath + "concurrentNamespaceAndClassModifications.mt");
+                                  passPath + "concurrentNamespaceAndClassModifications.mt");
         addOutputVerificationTest("Return Types with Namespaces",
-                        passPath + "returnWithNamespace.mt");
-        
+                                  passPath + "returnWithNamespace.mt");
+
         // Edge Cases and Potential Bugs tests
         addOutputVerificationTest("Circular Namespace References",
-                        passPath + "circularNamespaceReferences.mt");
+                                  passPath + "circularNamespaceReferences.mt");
         addOutputVerificationTest("Namespace Class Name Collisions",
-                        passPath + "namespaceClassNameCollisions.mt");
+                                  passPath + "namespaceClassNameCollisions.mt");
         addOutputVerificationTest("Deep Nesting Limits",
-                        passPath + "deepNestingLimits.mt");
+                                  passPath + "deepNestingLimits.mt");
         addOutputVerificationTest("Memory Leaks with Complex Objects",
-                        passPath + "memoryLeaksWithComplexObjects.mt");
+                                  passPath + "memoryLeaksWithComplexObjects.mt");
         addOutputVerificationTest("Large Data Structures",
-                        passPath + "largeDataStructures.mt");
-        
+                                  passPath + "largeDataStructures.mt");
+
         // Object Destruction Order and Cleanup Tests
         addOutputVerificationTest("Object Destruction Order Basic",
-                        passPath + "objectDestructionOrderBasic.mt");
+                                  passPath + "objectDestructionOrderBasic.mt");
         addOutputVerificationTest("Complex Object Cleanup Scenarios",
-                        passPath + "complexObjectCleanupScenarios.mt");
+                                  passPath + "complexObjectCleanupScenarios.mt");
         addOutputVerificationTest("Object Lifecycle Edge Cases",
-                        passPath + "objectLifecycleEdgeCases.mt");
+                                  passPath + "objectLifecycleEdgeCases.mt");
         addOutputVerificationTest("Memory Leak Prevention",
-                        passPath + "memoryLeakPrevention.mt");
+                                  passPath + "memoryLeakPrevention.mt");
         addOutputVerificationTest("Resource Cleanup Patterns",
-                        passPath + "resourceCleanupPatterns.mt");
+                                  passPath + "resourceCleanupPatterns.mt");
         addOutputVerificationTest("Type System Edge Cases",
-                        passPath + "typeSystemEdgeCases.mt");
-        
+                                  passPath + "typeSystemEdgeCases.mt");
+
         // Performance and Stress tests
         addOutputVerificationTest("Performance with Large Namespaces",
-                        passPath + "performanceWithLargeNamespaces.mt");
+                                  passPath + "performanceWithLargeNamespaces.mt");
         addOutputVerificationTest("Stress Test with Many Classes",
-                        passPath + "stressTestWithManyClasses.mt");
+                                  passPath + "stressTestWithManyClasses.mt");
         addOutputVerificationTest("Complex Control Flow Performance",
-                        passPath + "complexControlFlowPerformance.mt");
+                                  passPath + "complexControlFlowPerformance.mt");
         addOutputVerificationTest("Memory Usage with Deep Nesting",
-                        passPath + "memoryUsageWithDeepNesting.mt");
-        
+                                  passPath + "memoryUsageWithDeepNesting.mt");
+
         // Error Handling and Recovery tests
         addOutputVerificationTest("Error Recovery with Partial Failures",
-                        passPath + "errorRecoveryWithPartialFailures.mt");
+                                  passPath + "errorRecoveryWithPartialFailures.mt");
         addOutputVerificationTest("Invalid Combinations Handling",
-                        passPath + "invalidCombinationsHandling.mt");
+                                  passPath + "invalidCombinationsHandling.mt");
         addOutputVerificationTest("Corrupted State Recovery",
-                        passPath + "corruptedStateRecovery.mt");
+                                  passPath + "corruptedStateRecovery.mt");
 
         // Exception Handling tests
         addOutputVerificationTest("Exception Inheritance Hierarchy",
-                        passPath + "exceptionInheritanceHierarchy.mt");
+                                  passPath + "exceptionInheritanceHierarchy.mt");
         addOutputVerificationTest("Exception in Finally Block",
-                        passPath + "exceptionInFinally.mt");
+                                  passPath + "exceptionInFinally.mt");
         addOutputVerificationTest("Exception Memory Lifecycle",
-                        passPath + "exceptionMemoryLifecycle.mt");
+                                  passPath + "exceptionMemoryLifecycle.mt");
 
         addOutputVerificationTest("complex generic substitution",
-                        passPath + "test_type_substitution_edge_cases.mt");
-        
+                                  passPath + "test_type_substitution_edge_cases.mt");
+
         addOutputVerificationTest("Class Generic Serialization",
-                        passPath + "classGenericSerialization.mt");
+                                  passPath + "classGenericSerialization.mt");
         addOutputVerificationTest("Collections As Data Members",
-                        passPath + "collectionsAsDataMembers.mt");
+                                  passPath + "collectionsAsDataMembers.mt");
         addOutputVerificationTest("Generic Class Compilation",
-                        passPath + "genericClassCompilation.mt");
+                                  passPath + "genericClassCompilation.mt");
         addOutputVerificationTest("Generic Import Serialization",
-                        passPath + "genericImportSerialization.mt");
+                                  passPath + "genericImportSerialization.mt");
         addOutputVerificationTest("Multi Type Generic Serialization",
-                        passPath + "multiTypeGenericSerialization.mt");
+                                  passPath + "multiTypeGenericSerialization.mt");
         addOutputVerificationTest("Static Generic Methods Serialization",
-                        passPath + "staticGenericMethodsSerialization.mt");
+                                  passPath + "staticGenericMethodsSerialization.mt");
         addOutputVerificationTest("Switch Nested In Loops",
-                        passPath + "switchNestedInLoops.mt");
+                                  passPath + "switchNestedInLoops.mt");
         addOutputVerificationTest("Test Import Main",
-                        passPath + "test_import_main.mt");
-        
-        
+                                  passPath + "test_import_main.mt");
+
+
         addOutputVerificationTest("Circular Namespace References",
-                        passPath + "circularNamespaceReferences.mt");
+                                  passPath + "circularNamespaceReferences.mt");
         addOutputVerificationTest("Classes With Final Variables And Loops",
-                        passPath + "classesWithFinalVariablesAndLoops.mt");
+                                  passPath + "classesWithFinalVariablesAndLoops.mt");
         addOutputVerificationTest("Class Generic Serialization",
-                        passPath + "classGenericSerialization.mt");
+                                  passPath + "classGenericSerialization.mt");
         addOutputVerificationTest("Collections As Data Members",
-                        passPath + "collectionsAsDataMembers.mt");
+                                  passPath + "collectionsAsDataMembers.mt");
         addOutputVerificationTest("Complex Control Flow Performance",
-                        passPath + "complexControlFlowPerformance.mt");
+                                  passPath + "complexControlFlowPerformance.mt");
         addOutputVerificationTest("Complex Inheritance With Namespaces",
-                        passPath + "complexInheritanceWithNamespaces.mt");
+                                  passPath + "complexInheritanceWithNamespaces.mt");
         addOutputVerificationTest("Complex Object Cleanup Scenarios",
-                        passPath + "complexObjectCleanupScenarios.mt");
+                                  passPath + "complexObjectCleanupScenarios.mt");
         addOutputVerificationTest("Concurrent Namespace And Class Modifications",
-                        passPath + "concurrentNamespaceAndClassModifications.mt");
+                                  passPath + "concurrentNamespaceAndClassModifications.mt");
         addOutputVerificationTest("Control Flow With Class Members And Namespaces",
-                        passPath + "controlFlowWithClassMembersAndNamespaces.mt");
+                                  passPath + "controlFlowWithClassMembersAndNamespaces.mt");
         addOutputVerificationTest("Corrupted State Recovery",
-                        passPath + "corruptedStateRecovery.mt");
+                                  passPath + "corruptedStateRecovery.mt");
         addOutputVerificationTest("Deep Nesting Limits",
-                        passPath + "deepNestingLimits.mt");
+                                  passPath + "deepNestingLimits.mt");
         addOutputVerificationTest("Error Recovery With Partial Failures",
-                        passPath + "errorRecoveryWithPartialFailures.mt");
+                                  passPath + "errorRecoveryWithPartialFailures.mt");
         addOutputVerificationTest("Exception In Finally",
-                        passPath + "exceptionInFinally.mt");
+                                  passPath + "exceptionInFinally.mt");
         addOutputVerificationTest("Exception Inheritance Hierarchy",
-                        passPath + "exceptionInheritanceHierarchy.mt");
+                                  passPath + "exceptionInheritanceHierarchy.mt");
         addOutputVerificationTest("Exception Memory Lifecycle",
-                        passPath + "exceptionMemoryLifecycle.mt");
+                                  passPath + "exceptionMemoryLifecycle.mt");
         addOutputVerificationTest("Final Variables Across Namespaces And Classes",
-                        passPath + "finalVariablesAcrossNamespacesAndClasses.mt");
+                                  passPath + "finalVariablesAcrossNamespacesAndClasses.mt");
         addOutputVerificationTest("Generic Import Serialization",
-                        passPath + "genericImportSerialization.mt");
+                                  passPath + "genericImportSerialization.mt");
         addOutputVerificationTest("Imports With Namespaces And Classes",
-                        passPath + "importsWithNamespacesAndClasses.mt");
+                                  passPath + "importsWithNamespacesAndClasses.mt");
         addOutputVerificationTest("Invalid Combinations Handling",
-                        passPath + "invalidCombinationsHandling.mt");
+                                  passPath + "invalidCombinationsHandling.mt");
         addOutputVerificationTest("Large Data Structures",
-                        passPath + "largeDataStructures.mt");
+                                  passPath + "largeDataStructures.mt");
         addOutputVerificationTest("Loops With Class Creation And Namespaces",
-                        passPath + "loopsWithClassCreationAndNamespaces.mt");
+                                  passPath + "loopsWithClassCreationAndNamespaces.mt");
         addOutputVerificationTest("Memory Leak Prevention",
-                        passPath + "memoryLeakPrevention.mt");
+                                  passPath + "memoryLeakPrevention.mt");
         addOutputVerificationTest("Memory Leaks With Complex Objects",
-                        passPath + "memoryLeaksWithComplexObjects.mt");
+                                  passPath + "memoryLeaksWithComplexObjects.mt");
         addOutputVerificationTest("Memory Usage With Deep Nesting",
-                        passPath + "memoryUsageWithDeepNesting.mt");
+                                  passPath + "memoryUsageWithDeepNesting.mt");
         addOutputVerificationTest("Multi Type Generic Serialization",
-                        passPath + "multiTypeGenericSerialization.mt");
+                                  passPath + "multiTypeGenericSerialization.mt");
         addOutputVerificationTest("Namespace Class Name Collisions",
-                        passPath + "namespaceClassNameCollisions.mt");
+                                  passPath + "namespaceClassNameCollisions.mt");
         addOutputVerificationTest("Nested Namespaces With Static Methods",
-                        passPath + "nestedNamespacesWithStaticMethods.mt");
+                                  passPath + "nestedNamespacesWithStaticMethods.mt");
         addOutputVerificationTest("Object Destruction Order Basic",
-                        passPath + "objectDestructionOrderBasic.mt");
+                                  passPath + "objectDestructionOrderBasic.mt");
         addOutputVerificationTest("Object Lifecycle Edge Cases",
-                        passPath + "objectLifecycleEdgeCases.mt");
+                                  passPath + "objectLifecycleEdgeCases.mt");
         addOutputVerificationTest("Performance With Large Namespaces",
-                        passPath + "performanceWithLargeNamespaces.mt");
+                                  passPath + "performanceWithLargeNamespaces.mt");
         addOutputVerificationTest("Recursive Namespace Class Interactions",
-                        passPath + "recursiveNamespaceClassInteractions.mt");
+                                  passPath + "recursiveNamespaceClassInteractions.mt");
         addOutputVerificationTest("Resource Cleanup Patterns",
-                        passPath + "resourceCleanupPatterns.mt");
+                                  passPath + "resourceCleanupPatterns.mt");
         addOutputVerificationTest("Return With Namespace",
-                        passPath + "returnWithNamespace.mt");
+                                  passPath + "returnWithNamespace.mt");
         addOutputVerificationTest("Static Generic Methods Serialization",
-                        passPath + "staticGenericMethodsSerialization.mt");
+                                  passPath + "staticGenericMethodsSerialization.mt");
         addOutputVerificationTest("Stress Test With Many Classes",
-                        passPath + "stressTestWithManyClasses.mt");
+                                  passPath + "stressTestWithManyClasses.mt");
         addOutputVerificationTest("Switch Nested In Loops",
-                        passPath + "switchNestedInLoops.mt");
+                                  passPath + "switchNestedInLoops.mt");
         addOutputVerificationTest("Test Array Types",
-                        passPath + "test_array_types.mt");
+                                  passPath + "test_array_types.mt");
         addOutputVerificationTest("Test Error Handling",
-                        passPath + "test_error_handling.mt");
+                                  passPath + "test_error_handling.mt");
         addOutputVerificationTest("Test Simple Generics",
-                        passPath + "test_simple_generics.mt");
+                                  passPath + "test_simple_generics.mt");
         addOutputVerificationTest("Test Type Conversion Basic",
-                        passPath + "test_type_conversion_basic.mt");
+                                  passPath + "test_type_conversion_basic.mt");
         addOutputVerificationTest("Test Type Substitution Edge Cases",
-                        passPath + "test_type_substitution_edge_cases.mt");
+                                  passPath + "test_type_substitution_edge_cases.mt");
         addOutputVerificationTest("Type System Edge Cases",
-                        passPath + "typeSystemEdgeCases.mt");
+                                  passPath + "typeSystemEdgeCases.mt");
 
         // ====================================
         // COMMENTED OUT - Test files were not created
@@ -295,7 +295,7 @@ namespace tests::testSuite
                         passPath + "integrationAllTypeSafeError_pass.mt");
         addOutputVerificationTest("Integration All Feature Showcase",
                         passPath + "integrationAllFeatureShowcase_pass.mt");
-        */;
+        */
+        ;
     }
 }
-
