@@ -47,13 +47,15 @@ function testContinueInCatchWithNested(): void {
     }
 }
 
-function testContinueWithMultipleCatches(): void {
-    print("Testing continue with multiple catch blocks");
-
-    class CustomException extends Exception {
+class CustomException extends Exception {
         constructor(string msg): super(msg) {
     }
     }
+
+function testContinueWithMultipleCatches(): void {
+    print("Testing continue with multiple catch blocks");
+
+    
 
     for (int i = 0; i < 6; i++) {
         try {

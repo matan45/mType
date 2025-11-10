@@ -7,9 +7,9 @@ class InitException extends Exception {
 }
 
 class TestClass {
-    static int staticField = getInitValue();
+    public static int staticField = getInitValue();
 
-    static function getInitValue(): int {
+    public static function getInitValue(): int {
         try {
             print("Initializing static field");
             throw new InitException("Error during static initialization");
@@ -22,7 +22,7 @@ class TestClass {
 
 function main(): void {
     print("Testing exception in static initializer");
-    int value = TestClass.staticField;
+    int value = TestClass::staticField;
     print("Static field value: " + value);
     print("Test completed");
 }

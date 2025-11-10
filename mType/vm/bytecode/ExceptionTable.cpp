@@ -80,20 +80,37 @@ namespace vm::bytecode
             return true;
         }
 
-        // Exact type match
-        if (exceptionType == catchType)
+        // Extract base class names from generic types (e.g., "Exception<T>" -> "Exception")
+        std::string baseExceptionType = exceptionType;
+        std::string baseCatchType = catchType;
+
+        size_t exceptionGenericStart = exceptionType.find('<');
+        if (exceptionGenericStart != std::string::npos)
+        {
+            baseExceptionType = exceptionType.substr(0, exceptionGenericStart);
+        }
+
+        size_t catchGenericStart = catchType.find('<');
+        if (catchGenericStart != std::string::npos)
+        {
+            baseCatchType = catchType.substr(0, catchGenericStart);
+        }
+
+        // Exact type match (comparing base class names)
+        if (baseExceptionType == baseCatchType)
         {
             return true;
         }
 
         // Check inheritance: if exception is an ObjectInstance, use isInstanceOf()
         // This properly handles exception hierarchies (e.g., InitializationException extends Exception)
+        // Use the base catch type (without generics) for inheritance checking
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue))
         {
             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue);
             if (objInstance)
             {
-                return objInstance->isInstanceOf(catchType);
+                return objInstance->isInstanceOf(baseCatchType);
             }
         }
 

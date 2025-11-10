@@ -23,7 +23,8 @@ namespace vm::compiler::validation
         ~CompileTimeValidator() = default;
 
         // Function validation
-        void validateFunctionExists(const std::string& functionName, const ast::SourceLocation& location);
+        void validateFunctionExists(const std::string& functionName, const ast::SourceLocation& location,
+                                   const std::string& currentClassName = "");
         void validateStaticMethodExists(const std::string& className, const std::string& methodName,
                                        size_t argCount, const ast::SourceLocation& location);
 

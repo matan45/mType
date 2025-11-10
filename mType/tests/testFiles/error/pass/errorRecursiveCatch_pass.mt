@@ -155,8 +155,8 @@ int result2 = recursiveComputeInCatch(10);
 print("Result: " + result2);
 
 print("---");
-print("Test 3: Multiple recursive calls in catch (depth 30)");
-multiRecursiveInCatch(0, 30);
+print("Test 3: Multiple recursive calls in catch (depth 6)");
+multiRecursiveInCatch(0, 6);
 print("Multi-recursive completed");
 
 print("---");

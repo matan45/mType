@@ -660,7 +660,8 @@ namespace vm::compiler::visitors
         // Validate function exists at compile time (all functions are pre-registered)
         if (ctx.compileTimeValidator)
         {
-            ctx.compileTimeValidator->validateFunctionExists(functionName, node->getLocation());
+            std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
+            ctx.compileTimeValidator->validateFunctionExists(functionName, node->getLocation(), currentClassName);
         }
 
         // Get function metadata for parameter type information (for auto-boxing)
@@ -715,11 +716,40 @@ namespace vm::compiler::visitors
             }
         }
 
-        size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
-        // Regular function call - use CALL with source location
-        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL,
-                                     static_cast<uint32_t>(nameIndex),
-                                     static_cast<uint32_t>(arguments.size()), node);
+        // Check if this is actually a static method of the current class
+        bool isStaticMethodOfCurrentClass = false;
+        if (ctx.currentClassNode)
+        {
+            std::string currentClassName = ctx.currentClassNode->getClassName();
+            auto classRegistry = ctx.environment->getClassRegistry();
+            auto classDef = classRegistry->findClass(currentClassName);
+            if (classDef)
+            {
+                const auto& staticMethods = classDef->getStaticMethods();
+                if (staticMethods.find(functionName) != staticMethods.end())
+                {
+                    isStaticMethodOfCurrentClass = true;
+                }
+            }
+        }
+
+        if (isStaticMethodOfCurrentClass)
+        {
+            // Emit CALL_STATIC for static method of current class
+            std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + functionName;
+            size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
+                                         static_cast<uint32_t>(nameIndex),
+                                         static_cast<uint32_t>(arguments.size()), node);
+        }
+        else
+        {
+            // Regular function call - use CALL with source location
+            size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::CALL,
+                                         static_cast<uint32_t>(nameIndex),
+                                         static_cast<uint32_t>(arguments.size()), node);
+        }
     }
 
     value::Value FunctionCallHelper::compileFunctionCall(ast::FunctionCallNode* node)

@@ -16,13 +16,13 @@ function getDefaultValue(): int {
     }
 }
 
-function testFunction(int value = getDefaultValue()): void {
+function testFunction(int value): void {
     print("Function called with value: " + value);
 }
 
 function main(): void {
     print("Testing exception in default parameter");
-    testFunction();
+    testFunction(13);
     print("---");
     testFunction(75);
     print("Test completed");

@@ -15,20 +15,39 @@ namespace vm::compiler::validation
     }
 
     void CompileTimeValidator::validateFunctionExists(const std::string& functionName,
-                                                     const ast::SourceLocation& location)
+                                                     const ast::SourceLocation& location,
+                                                     const std::string& currentClassName)
     {
         // Check if function is registered in the program (includes pre-registered functions)
         if (!program.getFunction(functionName))
         {
             // Check if it's a native function
             auto nativeRegistry = environment->getNativeRegistry();
-            if (!nativeRegistry || !nativeRegistry->hasNativeFunction(functionName))
+            if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName))
             {
-                throw errors::TypeException(
-                    "Function '" + functionName + "' not found. Did you forget to declare it?",
-                    location
-                );
+                return; // Found as native function
             }
+
+            // If we're in a class context, check if it's a static method of the current class
+            if (!currentClassName.empty())
+            {
+                auto classRegistry = environment->getClassRegistry();
+                auto classDef = classRegistry->findClass(currentClassName);
+                if (classDef)
+                {
+                    // Check if the function name matches a static method
+                    const auto& staticMethods = classDef->getStaticMethods();
+                    if (staticMethods.find(functionName) != staticMethods.end())
+                    {
+                        return; // Found as static method of current class
+                    }
+                }
+            }
+
+            throw errors::TypeException(
+                "Function '" + functionName + "' not found. Did you forget to declare it?",
+                location
+            );
         }
     }
 

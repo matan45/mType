@@ -69,8 +69,17 @@ namespace vm::compiler::visitors
 
             // Validate that the catch type is Exception or inherits from Exception
             std::string exceptionType = catchBlock->getExceptionType();
+
+            // Extract base class name from generic type (e.g., "ResultException<Int>" -> "ResultException")
+            std::string baseClassName = exceptionType;
+            size_t genericStart = exceptionType.find('<');
+            if (genericStart != std::string::npos)
+            {
+                baseClassName = exceptionType.substr(0, genericStart);
+            }
+
             auto classRegistry = ctx.environment->getClassRegistry();
-            auto exceptionClass = classRegistry->findClass(exceptionType);
+            auto exceptionClass = classRegistry->findClass(baseClassName);
 
             if (!exceptionClass)
             {
@@ -223,6 +232,10 @@ namespace vm::compiler::visitors
         if (returnValueSlot != SIZE_MAX && hasReturnFlagSlot == returnValueSlot) {
             hasReturnFlagSlot++;
         }
+
+        // Reserve the flag slot by declaring a dummy variable
+        // This prevents the finally block's local variables from reusing this slot
+        ctx.variableTracker.declareLocal("__finally_flag__", value::ValueType::INT, "int");
 
         ctx.functionFrameManager.updateMaxLocalSlot(hasReturnFlagSlot + 1);
         ctx.exceptionManager.setHasReturnFlagSlot(hasReturnFlagSlot);

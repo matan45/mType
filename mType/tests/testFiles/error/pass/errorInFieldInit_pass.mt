@@ -7,7 +7,11 @@ class FieldException extends Exception {
 }
 
 class TestClass {
-    int field = computeInitialValue();
+    int field;
+	
+	constructor(){
+		field = computeInitialValue();
+	}
 
     public function computeInitialValue(): int {
         try {

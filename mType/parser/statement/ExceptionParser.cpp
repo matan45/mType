@@ -3,6 +3,7 @@
 #include "../../ast/nodes/statements/CatchNode.hpp"
 #include "../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../errors/ParseException.hpp"
+#include "../TypeParser.hpp"
 #include <unordered_set>
 
 namespace parser::statement
@@ -93,13 +94,11 @@ namespace parser::statement
         expectToken(TokenType::CATCH);
         expectToken(TokenType::LPAREN);
 
-        // Parse exception type
-        if (!tokenStream.check(TokenType::IDENTIFIER))
-        {
-            throw ParseException("Expected exception type in catch clause", tokenStream.current().location);
-        }
-        std::string exceptionType = tokenStream.current().stringValue.getString();
-        tokenStream.advance();
+        // Parse exception type (supports generics like ResultException<Int>)
+        auto exceptionType = TypeParser::parseGenericType(tokenStream);
+
+        // Convert GenericType to string representation for CatchNode
+        std::string exceptionTypeStr = exceptionType->toString();
 
         // Parse variable name
         if (!tokenStream.check(TokenType::IDENTIFIER))
@@ -115,7 +114,7 @@ namespace parser::statement
         auto body = context.parseStatement();
 
         return std::make_unique<CatchNode>(
-            exceptionType,
+            exceptionTypeStr,
             variableName,
             std::move(body),
             catchLocation
