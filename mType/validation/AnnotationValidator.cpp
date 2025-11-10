@@ -7,6 +7,7 @@
 #include "../constants/ExceptionConstants.hpp"
 #include <sstream>
 #include <unordered_set>
+
 namespace validation
 {
     void AnnotationValidator::validateClassAnnotations(
@@ -45,7 +46,7 @@ namespace validation
                     methodDef.get(),
                     classDefinition,
                     environment,
-                    methodDef->getSourceLocation()  // Use stored source location for accurate error reporting
+                    methodDef->getSourceLocation() // Use stored source location for accurate error reporting
                 );
             }
 
@@ -337,7 +338,8 @@ namespace validation
         if (!hasUpdateMethod)
         {
             std::ostringstream oss;
-            oss << "Class '" << className << "' is marked with @Script but does not have the required update method.\n\n"
+            oss << "Class '" << className <<
+                "' is marked with @Script but does not have the required update method.\n\n"
                 << "@Script classes must have an update method with signature:\n"
                 << " function update(float dt ): void\n\n"
                 << "Please add this method to your class.";
