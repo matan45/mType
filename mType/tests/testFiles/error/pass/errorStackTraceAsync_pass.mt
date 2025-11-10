@@ -106,25 +106,25 @@ function async topAsync(): Promise<void> {
 }
 
 // Test 4: Await in loop with exception
-function async processItem(Int index): Promise<Int> {
-    print("Processing item: " + index.toString());
-    if (index.toInt() == 2) {
+function async processItem(int index): Promise<Int> {
+    print("Processing item: " + index);
+    if (index == 2) {
         RuntimeException e = new RuntimeException("Item 2 failed");
         throw e;
     }
-    return new Int(index.toInt() * 10);
+    return new Int(index * 10);
 }
 
 function async testAwaitLoop(): Promise<void> {
     print("=== Test 4: Await in loop ===");
     try {
-        Int i = new Int(0);
-        while (i.toInt() < 4) {
-            print("Loop iteration: " + i.toString());
+        int i = 0;
+        while (i < 4) {
+            print("Loop iteration: " + i);
             Promise<Int> p = processItem(i);
             Int result = await p;
-            print("Processed: " + result.toString());
-            i = new Int(i.toInt() + 1);
+            print("Processed: " + result);
+            i = i + 1;
         }
         print("Loop completed");
     } catch (RuntimeException e) {
@@ -140,20 +140,20 @@ function async testAwaitLoop(): Promise<void> {
 
 // Test 5: Async method with exception
 class AsyncService {
-    public function async fetchData(Int id): Promise<String> {
-        print("Fetching data for ID: " + id.toString());
-        if (id.toInt() < 0) {
+    public function async fetchData(int id): Promise<String> {
+        print("Fetching data for ID: " + id);
+        if (id < 0) {
             RuntimeException e = new RuntimeException("Invalid ID");
             throw e;
         }
-        return new String("Data_" + id.toString());
+        return new String("Data_" + id);
     }
 
-    public function async processData(Int id): Promise<String> {
+    public function async processData(int id): Promise<String> {
         print("Processing data");
         Promise<String> p = fetchData(id);
-        String data = await p;
-        return new String("Processed: " + data.toString());
+        string data = await p;
+        return new String("Processed: " + data);
     }
 }
 
@@ -162,9 +162,9 @@ function async testAsyncMethod(): Promise<void> {
     AsyncService service = new AsyncService();
 
     try {
-        Promise<String> p = service.processData(new Int(-1));
-        String result = await p;
-        print("Result: " + result.toString());
+        Promise<String> p = service.processData(-1);
+        string result = await p;
+        print("Result: " + result);
     } catch (RuntimeException e) {
         print("Caught async method error: " + e.getMessage());
         string trace = e.getStackTrace();
@@ -193,8 +193,8 @@ function async testConditionalAwait(): Promise<void> {
     try {
         print("Testing success case");
         Promise<Int> p1 = conditionalAsync(false);
-        Int result1 = await p1;
-        print("Success result: " + result1.toString());
+        int result1 = await p1;
+        print("Success result: " + result1);
     } catch (RuntimeException e) {
         print("Unexpected error: " + e.getMessage());
     }
@@ -203,8 +203,8 @@ function async testConditionalAwait(): Promise<void> {
     try {
         print("Testing failure case");
         Promise<Int> p2 = conditionalAsync(true);
-        Int result2 = await p2;
-        print("Failure result: " + result2.toString());
+        int result2 = await p2;
+        print("Failure result: " + result2);
     } catch (RuntimeException e) {
         print("Caught conditional error: " + e.getMessage());
         string trace = e.getStackTrace();

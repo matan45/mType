@@ -7,7 +7,7 @@ import * from "../../lib/primitives/String.mt";
 
 // Base class with general exception
 class BaseService {
-    public function execute(string command) throws Exception: string {
+    public function execute(string command): string {
         print("BaseService executing: " + command);
         if (command == "fail") {
             throw new Exception("Base execution failed");
@@ -18,7 +18,7 @@ class BaseService {
 
 // Derived class narrows to RuntimeException (covariant)
 class DerivedService extends BaseService {
-    public function execute(string command) throws RuntimeException: string {
+    public function execute(string command): string {
         print("DerivedService executing: " + command);
         if (command == "runtime_fail") {
             throw new RuntimeException("Derived runtime failure");
@@ -29,7 +29,7 @@ class DerivedService extends BaseService {
 
 // Further derived class narrows to IllegalArgumentException
 class SpecializedService extends DerivedService {
-    public function execute(string command) throws IllegalArgumentException: string {
+    public function execute(string command): string {
         print("SpecializedService executing: " + command);
         if (command == "illegal") {
             throw new IllegalArgumentException("Specialized illegal argument");

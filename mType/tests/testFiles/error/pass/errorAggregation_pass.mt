@@ -8,8 +8,7 @@ import * from "../../lib/primitives/String.mt";
 class ValidationException extends Exception {
     public string field;
 
-    public constructor(string msg, string fieldName) {
-        super(msg);
+    public constructor(string msg, string fieldName): super(msg) {
         field = fieldName;
     }
 
@@ -23,8 +22,7 @@ class AggregateException extends Exception {
     private Exception[] innerExceptions;
     private int count;
 
-    public constructor(string msg, Exception[] exceptions) {
-        super(msg);
+    public constructor(string msg, Exception[] exceptions): super(msg) {
         innerExceptions = exceptions;
         count = 0;
 
@@ -62,10 +60,10 @@ print("=== Test 1: Form validation with multiple errors ===");
 
 class FormData {
     public string name;
-    public string email;
+    public String email;
     public int age;
 
-    public constructor(string n, string e, int a) {
+    public constructor(string n, String e, int a) {
         name = n;
         email = e;
         age = a;
@@ -308,7 +306,7 @@ function flattenExceptions(AggregateException ae): Exception[] {
         Exception current = inner[i];
 
         // Check if it's another AggregateException (simple check)
-        if (current.getMessage().contains("failed")) {
+        if (current.getMessage() == "failed") {
             print("Found nested aggregate: " + current.getMessage());
             flat[flatCount] = current;
             flatCount = flatCount + 1;

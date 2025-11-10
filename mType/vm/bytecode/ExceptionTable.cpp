@@ -1,4 +1,5 @@
 #include "ExceptionTable.hpp"
+#include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include <algorithm>
 
 namespace vm::bytecode
@@ -25,7 +26,8 @@ namespace vm::bytecode
 
     const ExceptionTableEntry* ExceptionTable::findHandler(
         size_t ip,
-        const std::string& exceptionTypeName
+        const std::string& exceptionTypeName,
+        const value::Value& exceptionValue
     ) const
     {
         // Algorithm:
@@ -45,7 +47,7 @@ namespace vm::bytecode
             // Step 2: Check if this entry has a CATCH handler with matching type
             if (entry.hasCatchHandler())
             {
-                if (isTypeCompatible(exceptionTypeName, entry.exceptionType))
+                if (isTypeCompatible(exceptionTypeName, entry.exceptionType, exceptionValue))
                 {
                     // Found matching CATCH handler - return immediately
                     return &entry;
@@ -68,7 +70,8 @@ namespace vm::bytecode
 
     bool ExceptionTable::isTypeCompatible(
         const std::string& exceptionType,
-        const std::string& catchType
+        const std::string& catchType,
+        const value::Value& exceptionValue
     ) const
     {
         // Empty catchType means "catch all exceptions"
@@ -83,17 +86,16 @@ namespace vm::bytecode
             return true;
         }
 
-        // TODO: Implement exception type inheritance hierarchy checking
-        // For now, we only support exact matches and catch-all
-        //
-        // Future implementation should:
-        // 1. Look up exceptionType in type registry
-        // 2. Walk inheritance chain (parent classes)
-        // 3. Check if any parent matches catchType
-        //
-        // Example:
-        //   class IOException extends Exception { }
-        //   throw new IOException() -> caught by catch(Exception e)
+        // Check inheritance: if exception is an ObjectInstance, use isInstanceOf()
+        // This properly handles exception hierarchies (e.g., InitializationException extends Exception)
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue))
+        {
+            auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue);
+            if (objInstance)
+            {
+                return objInstance->isInstanceOf(catchType);
+            }
+        }
 
         return false;
     }

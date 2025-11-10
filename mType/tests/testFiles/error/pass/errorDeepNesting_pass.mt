@@ -6,8 +6,7 @@ import * from "../../lib/primitives/Int.mt";
 class DeepException extends Exception {
     public Int level;
 
-    public constructor(string msg, Int lvl) {
-        super(msg);
+    public constructor(string msg, Int lvl): super(msg) {
         level = lvl;
     }
 

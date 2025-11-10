@@ -5,20 +5,19 @@ import * from "../../lib/exceptions/RuntimeException.mt";
 import * from "../../lib/exceptions/IllegalArgumentException.mt";
 import * from "../../lib/primitives/String.mt";
 
-// First interface declares general Exception
+// First interface declares general validation
 interface Validator {
-    public function validate(string input) throws Exception: bool;
+    public function validate(string input): bool;
 }
 
-// Second interface declares RuntimeException
+// Second interface declares processing
 interface Processor {
-    public function validate(string input) throws RuntimeException: bool;
+    public function validate(string input): bool;
 }
 
-// Implementation must handle both throws clauses
-// Should declare the most general exception (Exception)
+// Implementation satisfies both interfaces
 class DataHandler implements Validator, Processor {
-    public function validate(string input) throws Exception: bool {
+    public function validate(string input): bool {
         print("Validating: " + input);
         if (input == "exception") {
             throw new Exception("General exception thrown");
@@ -30,14 +29,14 @@ class DataHandler implements Validator, Processor {
     }
 }
 
-// Interface with more specific exception
+// Interface for strict validation
 interface StrictValidator {
-    public function validate(string input) throws IllegalArgumentException: bool;
+    public function validate(string input): bool;
 }
 
-// Implementation combining general and specific
+// Implementation combining multiple interfaces
 class CombinedHandler implements Validator, StrictValidator {
-    public function validate(string input) throws Exception: bool {
+    public function validate(string input): bool {
         print("Combined validation: " + input);
         if (input == "illegal") {
             throw new IllegalArgumentException("Illegal argument");
@@ -49,22 +48,22 @@ class CombinedHandler implements Validator, StrictValidator {
     }
 }
 
-// Three interfaces with different exception hierarchies
+// Three interfaces for different services
 interface ServiceA {
-    public function execute(string cmd) throws Exception: string;
+    public function execute(string cmd): string;
 }
 
 interface ServiceB {
-    public function execute(string cmd) throws RuntimeException: string;
+    public function execute(string cmd): string;
 }
 
 interface ServiceC {
-    public function execute(string cmd) throws IllegalArgumentException: string;
+    public function execute(string cmd): string;
 }
 
-// Implementation must satisfy all three
+// Implementation satisfies all three interfaces
 class MultiService implements ServiceA, ServiceB, ServiceC {
-    public function execute(string cmd) throws Exception: string {
+    public function execute(string cmd): string {
         print("Multi-service executing: " + cmd);
         if (cmd == "illegal") {
             throw new IllegalArgumentException("Illegal command");

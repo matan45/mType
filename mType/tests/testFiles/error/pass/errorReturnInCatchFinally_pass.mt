@@ -46,9 +46,8 @@ function testReturnInCatchWithNestedTry(): int {
 
 function testReturnInMultipleCatches(): int {
     class CustomException extends Exception {
-        constructor(String msg) {
-            super(msg);
-        }
+        constructor(string msg): super(msg) {
+    }
     }
 
     try {

@@ -149,22 +149,22 @@ function testNestedClasses(): void {
 }
 
 // Test 3: Recursive function with depth limit
-function recursiveFunction(Int depth): void {
-    print("Recursion depth: " + depth.toString());
+function recursiveFunction(int depth): void {
+    print("Recursion depth: " + depth);
 
-    if (depth.toInt() >= 8) {
+    if (depth >= 8) {
         print("Max depth reached, throwing");
-        RuntimeException e = new RuntimeException("Recursion limit at depth " + depth.toString());
+        RuntimeException e = new RuntimeException("Recursion limit at depth " + depth);
         throw e;
     }
 
-    recursiveFunction(new Int(depth.toInt() + 1));
+    recursiveFunction(depth + 1);
 }
 
 function testRecursiveStack(): void {
     print("=== Test 3: Recursive function stack ===");
     try {
-        recursiveFunction(new Int(0));
+        recursiveFunction(0);
     } catch (RuntimeException e) {
         print("Caught: " + e.getMessage());
         string trace = e.getStackTrace();
@@ -177,28 +177,28 @@ function testRecursiveStack(): void {
 
 // Test 4: Mixed function and method calls
 class Processor {
-    public function process(Int value): Int {
-        print("Processor.process: " + value.toString());
+    public function process(int value): int {
+        print("Processor.process: " + value);
         return helperFunction(value);
     }
 }
 
-function helperFunction(Int val): Int {
-    print("helperFunction: " + val.toString());
+function helperFunction(int val): int {
+    print("helperFunction: " + val);
     Validator v = new Validator();
     return v.validate(val);
 }
 
 class Validator {
-    public function validate(Int input): Int {
-        print("Validator.validate: " + input.toString());
+    public function validate(int input): int {
+        print("Validator.validate: " + input);
         return checkValue(input);
     }
 }
 
-function checkValue(Int n): Int {
-    print("checkValue: " + n.toString());
-    if (n.toInt() > 50) {
+function checkValue(int n): int {
+    print("checkValue: " + n);
+    if (n > 50) {
         RuntimeException e = new RuntimeException("Value exceeds maximum");
         throw e;
     }
@@ -210,8 +210,8 @@ function testMixedCalls(): void {
     Processor proc = new Processor();
 
     try {
-        Int result = proc.process(new Int(75));
-        print("Result: " + result.toString());
+        int result = proc.process(75);
+        print("Result: " + result);
     } catch (RuntimeException e) {
         print("Caught: " + e.getMessage());
         string trace = e.getStackTrace();

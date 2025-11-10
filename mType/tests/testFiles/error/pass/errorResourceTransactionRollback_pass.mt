@@ -3,17 +3,16 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class TransactionException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
 class DatabaseTransaction {
-    public String transactionId;
+    public string transactionId;
     public Bool isActive;
     public Int operationCount;
 
-    public constructor(String txId) {
+    public constructor(string txId) {
         transactionId = txId;
         isActive = false;
         operationCount = 0;
@@ -25,7 +24,7 @@ class DatabaseTransaction {
         operationCount = 0;
     }
 
-    public function execute(String operation): void {
+    public function execute(string operation): void {
         if (!isActive) {
             throw new TransactionException("Transaction not active");
         }

@@ -11,8 +11,7 @@ class LargeDataException extends Exception {
     public List<String> dataList;
     public Int dataSize;
 
-    public constructor(string msg, String data, List<String> list, Int size) {
-        super(msg);
+    public constructor(string msg, String data, List<String> list, Int size): super(msg) {
         largeData = data;
         dataList = list;
         dataSize = size;
@@ -28,9 +27,9 @@ class LargeDataException extends Exception {
 }
 
 // Build a large string by concatenation
-function buildLargeString(Int size): String {
-    String result = new String("");
-    Int i = new Int(0);
+function buildLargeString(int size): String {
+    string result = "";
+    int i = 0;
 
     while (i < size) {
         result = result + "Data" + i + "|";
@@ -57,7 +56,7 @@ function buildLargeList(Int size): List<String> {
 function testLargeStringException(): void {
     print("Creating exception with large string (100 elements):");
     try {
-        Int size = new Int(100);
+        int size = 100;
         String largeStr = buildLargeString(size);
         List<String> emptyList = new List<String>();
 
@@ -87,8 +86,8 @@ function testLargeListException(): void {
 function testCombinedLargeDataException(): void {
     print("Creating exception with both large string and list:");
     try {
-        Int strSize = new Int(50);
-        Int listSize = new Int(100);
+        int strSize = 50;
+        int listSize = 100;
         String largeStr = buildLargeString(strSize);
         List<String> largeList = buildLargeList(listSize);
 
@@ -109,7 +108,7 @@ function testMultipleLargeExceptions(): void {
     Int iterations = new Int(10);
     while (i < iterations) {
         try {
-            Int size = new Int(50);
+            int size = 50;
             String data = buildLargeString(size);
             List<String> list = buildLargeList(size);
 
@@ -128,8 +127,7 @@ class NestedLargeException extends Exception {
     public LargeDataException innerException;
     public String additionalData;
 
-    public constructor(string msg, LargeDataException inner, String data) {
-        super(msg);
+    public constructor(string msg, LargeDataException inner, String data): super(msg) {
         innerException = inner;
         additionalData = data;
     }
@@ -143,13 +141,13 @@ function testNestedLargeException(): void {
     print("Testing nested exception with large data:");
     try {
         try {
-            Int size = new Int(50);
+            int size = 50;
             String data = buildLargeString(size);
             List<String> list = buildLargeList(size);
 
             throw new LargeDataException("Inner large exception", data, list, size);
         } catch (LargeDataException inner) {
-            String additionalData = buildLargeString(new Int(30));
+            String additionalData = buildLargeString(30);
             throw new NestedLargeException("Nested with large data", inner, additionalData);
         }
     } catch (NestedLargeException e) {

@@ -6,9 +6,13 @@ import * from "../../lib/primitives/String.mt";
 
 // Custom exception for retry testing
 class RetryableException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
+}
+
+// Supplier interface for string operations
+interface StringSupplier {
+    function get(): string;
 }
 
 // Function that fails the first N-1 times, succeeds on the Nth attempt
@@ -24,13 +28,13 @@ function unstableOperation(int maxAttempts): string {
     return "Success after " + attemptCount + " attempts";
 }
 
-// Generic retry mechanism
-function retry<T>(function(): T operation, int maxRetries): T {
+// Retry mechanism for string operations
+function retryString(StringSupplier operation, int maxRetries): string {
     int attempt = 0;
 
     while (attempt < maxRetries) {
         try {
-            T result = operation();
+            string result = operation.get();
             print("Operation succeeded on attempt " + (attempt + 1));
             return result;
         } catch (RetryableException e) {
@@ -53,7 +57,7 @@ function retry<T>(function(): T operation, int maxRetries): T {
 print("=== Test 1: Success after retries ===");
 attemptCount = 0;
 try {
-    string result = retry(() => unstableOperation(3), 5);
+    string result = retryString(() -> unstableOperation(3), 5);
     print("Final result: " + result);
 } catch (Exception e) {
     print("Test 1 failed: " + e.getMessage());
@@ -63,7 +67,7 @@ try {
 print("\n=== Test 2: Exceeds retry limit ===");
 attemptCount = 0;
 try {
-    string result = retry(() => unstableOperation(10), 3);
+    string result = retryString(() -> unstableOperation(10), 3);
     print("Final result: " + result);
 } catch (RetryableException e) {
     print("Operation failed after retries: " + e.getMessage());
@@ -73,7 +77,7 @@ try {
 print("\n=== Test 3: Immediate success ===");
 attemptCount = 0;
 try {
-    string result = retry(() => unstableOperation(1), 5);
+    string result = retryString(() -> unstableOperation(1), 5);
     print("Final result: " + result);
 } catch (Exception e) {
     print("Test 3 failed: " + e.getMessage());
@@ -84,13 +88,13 @@ print("\n=== Test 4: Retry with delay tracking ===");
 attemptCount = 0;
 int delayMs = 100;
 
-function retryWithBackoff(function(): string operation, int maxRetries): string {
+function retryWithBackoff(StringSupplier operation, int maxRetries): string {
     int attempt = 0;
     int currentDelay = delayMs;
 
     while (attempt < maxRetries) {
         try {
-            return operation();
+            return operation.get();
         } catch (RetryableException e) {
             attempt = attempt + 1;
 
@@ -107,7 +111,7 @@ function retryWithBackoff(function(): string operation, int maxRetries): string 
 }
 
 try {
-    string result = retryWithBackoff(() => unstableOperation(3), 5);
+    string result = retryWithBackoff(() -> unstableOperation(3), 5);
     print("Backoff result: " + result);
 } catch (Exception e) {
     print("Backoff failed: " + e.getMessage());

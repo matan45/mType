@@ -4,15 +4,15 @@ import * from "../../lib/exceptions/Exception.mt";
 import * from "../../lib/exceptions/RuntimeException.mt";
 import * from "../../lib/primitives/String.mt";
 
-// Interface with method that declares throws clause
+// Interface with method signatures
 interface DataValidator {
-    public function validate(string data) throws Exception: bool;
-    public function process(string data) throws RuntimeException: string;
+    public function validate(string data): bool;
+    public function process(string data): string;
 }
 
-// Implementation that throws declared exceptions
+// Implementation that may throw exceptions
 class InputValidator implements DataValidator {
-    public function validate(string data) throws Exception: bool {
+    public function validate(string data): bool {
         print("Validating: " + data);
         if (data == "invalid") {
             throw new Exception("Invalid data detected");
@@ -20,7 +20,7 @@ class InputValidator implements DataValidator {
         return true;
     }
 
-    public function process(string data) throws RuntimeException: string {
+    public function process(string data): string {
         print("Processing: " + data);
         if (data == "error") {
             throw new RuntimeException("Processing error occurred");

@@ -5,14 +5,14 @@ import * from "../../lib/exceptions/RuntimeException.mt";
 import * from "../../lib/exceptions/IllegalArgumentException.mt";
 import * from "../../lib/primitives/String.mt";
 
-// Interface declares general Exception
+// Interface declares process method
 interface DataProcessor {
-    public function process(string input) throws Exception: string;
+    public function process(string input): string;
 }
 
-// Implementation declares more specific RuntimeException
+// Implementation that may throw RuntimeException
 class SpecificProcessor implements DataProcessor {
-    public function process(string input) throws RuntimeException: string {
+    public function process(string input): string {
         print("Processing with RuntimeException: " + input);
         if (input == "runtime_error") {
             throw new RuntimeException("Specific runtime error");
@@ -21,9 +21,9 @@ class SpecificProcessor implements DataProcessor {
     }
 }
 
-// Implementation declares even more specific IllegalArgumentException
+// Implementation that may throw IllegalArgumentException
 class VerySpecificProcessor implements DataProcessor {
-    public function process(string input) throws IllegalArgumentException: string {
+    public function process(string input): string {
         print("Processing with IllegalArgumentException: " + input);
         if (input == "illegal") {
             throw new IllegalArgumentException("Illegal argument detected");

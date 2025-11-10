@@ -6,14 +6,13 @@ import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Int.mt";
 
 class TaskException extends Exception {
-    public Int taskId;
+    public int taskId;
 
-    public constructor(string msg, Int id) {
-        super(msg);
+    public constructor(string msg, int id): super(msg) {
         taskId = id;
     }
 
-    public function getTaskId(): Int {
+    public function getTaskId(): int {
         return taskId;
     }
 }
@@ -28,7 +27,7 @@ function async task1(): Promise<String> {
 function async task2(): Promise<String> {
     print("Task 2: Starting");
     print("Task 2: Throwing exception");
-    TaskException e = new TaskException("Task 2 failed", new Int(2));
+    TaskException e = new TaskException("Task 2 failed", 2);
     throw e;
     return new String("Task2-OK");
 }
@@ -42,7 +41,7 @@ function async task3(): Promise<String> {
 function async task4(): Promise<String> {
     print("Task 4: Starting");
     print("Task 4: Throwing exception");
-    TaskException e = new TaskException("Task 4 failed", new Int(4));
+    TaskException e = new TaskException("Task 4 failed", 4);
     throw e;
     return new String("Task4-OK");
 }
@@ -70,7 +69,7 @@ function async independentTasks(): Promise<String> {
         print("Task 2 result: " + result2.toString());
     } catch (TaskException e) {
         result2 = new String("Task2-Failed");
-        print("Task 2 caught: " + e.getMessage() + " (ID: " + e.getTaskId().toString() + ")");
+        print("Task 2 caught: " + e.getMessage() + " (ID: " + e.getTaskId() + ")");
     }
 
     // Task 3 - should succeed
@@ -92,7 +91,7 @@ function async independentTasks(): Promise<String> {
         print("Task 4 result: " + result4.toString());
     } catch (TaskException e) {
         result4 = new String("Task4-Failed");
-        print("Task 4 caught: " + e.getMessage() + " (ID: " + e.getTaskId().toString() + ")");
+        print("Task 4 caught: " + e.getMessage() + " (ID: " + e.getTaskId() + ")");
     }
 
     return new String("All tasks completed");
@@ -109,11 +108,11 @@ class ResultCollector {
     }
 
     public function recordSuccess(): void {
-        successCount = new Int(successCount.toInt() + 1);
+        successCount = new Int(successCount.getValue() + 1);
     }
 
     public function recordFailure(): void {
-        failureCount = new Int(failureCount.toInt() + 1);
+        failureCount = new Int(failureCount.getValue() + 1);
     }
 
     public function report(): string {
@@ -219,14 +218,12 @@ function async failFast(): Promise<String> {
 
 // Test 4: Different exception types in parallel
 class NetworkException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
 class ValidationException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 

@@ -3,17 +3,16 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class AcquisitionException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
 class ResourceHandle {
-    public String resourceId;
-    public Int level;
-    public Bool acquired;
+    public string resourceId;
+    public int level;
+    public bool acquired;
 
-    public constructor(String id, Int acquisitionLevel) {
+    public constructor(string id, int acquisitionLevel) {
         resourceId = id;
         level = acquisitionLevel;
         acquired = false;

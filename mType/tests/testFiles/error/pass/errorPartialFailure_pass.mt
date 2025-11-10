@@ -8,8 +8,7 @@ import * from "../../lib/primitives/String.mt";
 class ProcessingException extends Exception {
     public int itemId;
 
-    public constructor(string msg, int id) {
-        super(msg);
+    public constructor(string msg, int id): super(msg) {
         itemId = id;
     }
 
@@ -21,10 +20,10 @@ class ProcessingException extends Exception {
 // Result wrapper for partial operations
 class OperationResult<T> {
     public bool success;
-    public T? value;
-    public Exception? error;
+    public T value;
+    public Exception error;
 
-    public constructor(bool s, T? v, Exception? e) {
+    public constructor(bool s, T v, Exception e) {
         success = s;
         value = v;
         error = e;
@@ -44,7 +43,7 @@ class OperationResult<T> {
 }
 
 // Batch result tracking
-class BatchResult<T> {
+class BatchResult {
     public int totalCount;
     public int successCount;
     public int failureCount;
@@ -91,7 +90,7 @@ function processItem(int item): string {
     return "Processed-" + item;
 }
 
-BatchResult<string> batch1 = new BatchResult<string>();
+BatchResult batch1 = new BatchResult();
 int[] items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 int i = 0;
@@ -112,16 +111,16 @@ print("Batch results: " + batch1.toString());
 // Test 2: Collect all results (success and failure)
 print("\n=== Test 2: Collect all results ===");
 
-OperationResult<string>[] results = new OperationResult<string>[5];
+OperationResult<String>[] results = new OperationResult<String>[5];
 
 int j = 0;
 while (j < 5) {
     int itemId = j + 1;
     try {
         string processed = processItem(itemId);
-        results[j] = new OperationResult<string>(true, processed, null);
+        results[j] = new OperationResult<String>(true, processed, null);
     } catch (ProcessingException e) {
-        results[j] = new OperationResult<string>(false, null, e);
+        results[j] = new OperationResult<String>(false, null, e);
     }
     j = j + 1;
 }
@@ -130,7 +129,7 @@ while (j < 5) {
 print("Processing results:");
 int k = 0;
 while (k < 5) {
-    OperationResult<string> result = results[k];
+    OperationResult<String> result = results[k];
     if (result.isSuccess()) {
         print("Item " + k + ": SUCCESS - " + result.getValue());
     } else {
@@ -170,7 +169,7 @@ Task[] tasks = [
     new Task(5, "Finalize")
 ];
 
-BatchResult<string> taskResults = new BatchResult<string>();
+BatchResult taskResults = new BatchResult();
 int m = 0;
 while (m < 5) {
     try {
@@ -191,7 +190,7 @@ print("Task execution summary: " + taskResults.toString());
 print("\n=== Test 4: Success threshold check ===");
 
 function executeWithThreshold(int successThreshold): bool {
-    BatchResult<string> batch = new BatchResult<string>();
+    BatchResult batch = new BatchResult();
     int n = 1;
 
     while (n <= 10) {

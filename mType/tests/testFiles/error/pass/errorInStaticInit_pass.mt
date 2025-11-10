@@ -2,15 +2,14 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class InitException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
 class TestClass {
-    static Int staticField = getInitValue();
+    static int staticField = getInitValue();
 
-    static function getInitValue(): Int {
+    static function getInitValue(): int {
         try {
             print("Initializing static field");
             throw new InitException("Error during static initialization");
@@ -23,7 +22,7 @@ class TestClass {
 
 function main(): void {
     print("Testing exception in static initializer");
-    Int value = TestClass.staticField;
+    int value = TestClass.staticField;
     print("Static field value: " + value);
     print("Test completed");
 }

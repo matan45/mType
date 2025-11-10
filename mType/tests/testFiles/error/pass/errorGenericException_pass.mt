@@ -1,15 +1,14 @@
 // Test: Exception class with generic type parameters
 // Expected: Should compile and run successfully
 import * from "../../lib/exceptions/Exception.mt";
-import * from "../../lib/primitives/Int.mt";
-import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/int.mt";
+import * from "../../lib/primitives/string.mt";
 
 // Generic exception with additional context data
 class DataException<T> extends Exception {
     public T data;
 
-    public constructor(string msg, T contextData) {
-        super(msg);
+    public constructor(string msg, T contextData): super(msg) {
         data = contextData;
     }
 
@@ -25,8 +24,8 @@ class DataException<T> extends Exception {
 // Test with integer data
 function testIntException(): void {
     try {
-        throw new DataException<Int>("Integer error occurred", new Int(404));
-    } catch (DataException<Int> e) {
+        throw new DataException<int>("Integer error occurred", new int(404));
+    } catch (DataException<int> e) {
         print("Caught int exception: " + e.getMessage());
         print("Error code: " + e.getData());
     }
@@ -35,8 +34,8 @@ function testIntException(): void {
 // Test with string data
 function testStringException(): void {
     try {
-        throw new DataException<String>("String error occurred", new String("INVALID_INPUT"));
-    } catch (DataException<String> e) {
+        throw new DataException<string>("String error occurred", new string("INVALID_INPUT"));
+    } catch (DataException<string> e) {
         print("Caught string exception: " + e.getMessage());
         print("Error type: " + e.getData());
     }

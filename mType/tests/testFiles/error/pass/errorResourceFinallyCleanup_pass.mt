@@ -3,10 +3,10 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class CleanupResource {
-    public String name;
-    public Bool cleaned;
+    public string name;
+    public bool cleaned;
 
-    public constructor(String resourceName) {
+    public constructor(string resourceName) {
         name = resourceName;
         cleaned = false;
         print("Created: " + name);
@@ -19,7 +19,7 @@ class CleanupResource {
         }
     }
 
-    public function isClean(): Bool {
+    public function isClean(): bool {
         return cleaned;
     }
 }

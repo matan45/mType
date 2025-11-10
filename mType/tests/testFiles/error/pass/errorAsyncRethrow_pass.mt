@@ -8,8 +8,7 @@ import * from "../../lib/primitives/Int.mt";
 class LoggedException extends Exception {
     public bool wasLogged;
 
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
         wasLogged = false;
     }
 

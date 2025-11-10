@@ -1,8 +1,8 @@
 // Test: Bounded generic exception types
 // Expected: Should compile and run successfully
 import * from "../../lib/exceptions/Exception.mt";
-import * from "../../lib/primitives/Int.mt";
-import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/int.mt";
+import * from "../../lib/primitives/string.mt";
 
 // Base error info interface
 interface ErrorInfo {
@@ -32,8 +32,7 @@ class ValidationErrorInfo implements ErrorInfo {
 class BoundedException<T extends ErrorInfo> extends Exception {
     public T errorInfo;
 
-    public constructor(string msg, T info) {
-        super(msg);
+    public constructor(string msg, T info): super(msg) {
         errorInfo = info;
     }
 

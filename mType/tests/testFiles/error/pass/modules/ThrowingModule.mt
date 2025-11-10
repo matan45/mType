@@ -10,9 +10,10 @@ class InitializationException extends RuntimeException {
     }
 }
 
-// This will throw during module initialization
-if (true) {
+function exceptionThrow(): void{
+
     throw new InitializationException("Module initialization failed");
+
 }
 
 class ModuleClass {

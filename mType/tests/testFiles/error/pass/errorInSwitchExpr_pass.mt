@@ -2,12 +2,11 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class SwitchException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
-function computeCaseValue(Int caseNum): Int {
+function computeCaseValue(int caseNum): int {
     try {
         print("Computing case " + caseNum + " expression");
         if (caseNum == 2) {
@@ -23,8 +22,8 @@ function computeCaseValue(Int caseNum): Int {
 function main(): void {
     print("Testing exception in switch case expression");
 
-    for (Int i = 0; i < 4; i = i + 1) {
-        Int value = computeCaseValue(i);
+    for (int i = 0; i < 4; i = i + 1) {
+        int value = computeCaseValue(i);
 
         switch (value) {
             case 0:

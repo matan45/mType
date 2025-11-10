@@ -6,14 +6,13 @@ import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Int.mt";
 
 class DataException extends Exception {
-    public Int errorCode;
+    public int errorCode;
 
-    public constructor(string msg, Int code) {
-        super(msg);
+    public constructor(string msg, int code): super(msg) {
         errorCode = code;
     }
 
-    public function getCode(): Int {
+    public function getCode(): int {
         return errorCode;
     }
 }
@@ -21,7 +20,7 @@ class DataException extends Exception {
 // Bottom level - throws exception
 function async deepFunction(): Promise<Int> {
     print("Deep function executing");
-    DataException e = new DataException("Deep error", new Int(500));
+    DataException e = new DataException("Deep error", 500);
     throw e;
     return new Int(1);
 }
@@ -44,7 +43,7 @@ function async topFunction(): Promise<String> {
         return new String("success: " + value.toString());
     } catch (DataException e) {
         print("Caught at top: " + e.getMessage());
-        print("Error code: " + e.getCode().toString());
+        print("Error code: " + e.getCode());
         return new String("error handled");
     }
 }
@@ -99,7 +98,7 @@ function async outerAsync(): Promise<Int> {
     Promise<Int> p = innerAsync();
     Int value = await p;
     print("Outer async end: " + value.toString());
-    return new Int(value.toInt() + 50);
+    return new Int(value.getValue() + 50);
 }
 
 function async wrapperAsync(): Promise<String> {

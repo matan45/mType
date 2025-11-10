@@ -9,13 +9,11 @@ class ResultException<T> extends Exception {
     public T result;
     public bool hasResult;
 
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
         hasResult = false;
     }
 
-    public constructor(string msg, T res) {
-        super(msg);
+    public constructor(string msg, T res): super(msg) {
         result = res;
         hasResult = true;
     }

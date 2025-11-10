@@ -2,14 +2,13 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class WhileException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
-Int iterCount = 0;
+int iterCount = 0;
 
-function checkWhileCondition(): Bool {
+function checkWhileCondition(): bool {
     iterCount = iterCount + 1;
     try {
         print("Checking while condition (iteration " + iterCount + ")");

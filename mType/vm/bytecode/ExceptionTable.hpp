@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <cstddef>
+#include "../../value/ValueType.hpp"
 
 namespace vm::bytecode
 {
@@ -119,11 +120,13 @@ namespace vm::bytecode
          *
          * @param ip Current instruction pointer where exception was thrown
          * @param exceptionTypeName Fully qualified exception type name
+         * @param exceptionValue The exception value (for inheritance checking)
          * @return Pointer to matching entry, or nullptr if no handler found
          */
         const ExceptionTableEntry* findHandler(
             size_t ip,
-            const std::string& exceptionTypeName
+            const std::string& exceptionTypeName,
+            const value::Value& exceptionValue = std::monostate{}
         ) const;
 
         /**
@@ -176,15 +179,17 @@ namespace vm::bytecode
          * Type matching rules:
          * - Empty catchType matches all exceptions
          * - Exact type match always succeeds
-         * - TODO: Support exception type inheritance hierarchy
+         * - Uses inheritance hierarchy checking via ObjectInstance::isInstanceOf
          *
          * @param exceptionType The type of the thrown exception
          * @param catchType The type filter in the catch block
+         * @param exceptionValue The exception value (for inheritance checking)
          * @return true if exception can be caught by this handler
          */
         bool isTypeCompatible(
             const std::string& exceptionType,
-            const std::string& catchType
+            const std::string& catchType,
+            const value::Value& exceptionValue
         ) const;
     };
 }

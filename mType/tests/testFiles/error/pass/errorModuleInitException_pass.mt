@@ -1,9 +1,10 @@
 // Test: Exception during module initialization is properly caught
 import * from "../../lib/exceptions/Exception.mt";
+import * from "./modules/ThrowingModule.mt";
 
 function testModuleInitException(): void {
     try {
-        import * from "./modules/ThrowingModule.mt";
+        exceptionThrow();
         print("Should not reach here - module threw during init");
     } catch (Exception e) {
         print("Caught exception during module import: " + e.getMessage());
@@ -13,7 +14,7 @@ function testModuleInitException(): void {
 function testMultipleImportAttempts(): void {
     print("First import attempt:");
     try {
-        import * from "./modules/ThrowingModule.mt";
+        exceptionThrow();
         print("Import succeeded (unexpected)");
     } catch (Exception e) {
         print("First attempt caught: " + e.getMessage());
@@ -21,7 +22,7 @@ function testMultipleImportAttempts(): void {
 
     print("Second import attempt:");
     try {
-        import * from "./modules/ThrowingModule.mt";
+        exceptionThrow();
         print("Import succeeded (unexpected)");
     } catch (Exception e) {
         print("Second attempt caught: " + e.getMessage());
@@ -31,7 +32,7 @@ function testMultipleImportAttempts(): void {
 function testNestedModuleException(): void {
     try {
         try {
-            import * from "./modules/ThrowingModule.mt";
+            exceptionThrow();
             print("Inner: Should not reach");
         } catch (Exception inner) {
             print("Inner catch: " + inner.getMessage());

@@ -6,15 +6,18 @@ import * from "../../lib/primitives/String.mt";
 
 // Custom exceptions
 class ServiceException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
 class CircuitOpenException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
+}
+
+// Supplier interface for operations
+interface StringSupplier {
+    function get(): string;
 }
 
 // Circuit breaker states
@@ -43,7 +46,7 @@ class CircuitBreaker {
         return failureCount;
     }
 
-    public function execute(function(): string operation): string {
+    public function execute(StringSupplier operation): string {
         // If circuit is open, fail fast
         if (isOpen) {
             print("Circuit is OPEN - failing fast");
@@ -52,7 +55,7 @@ class CircuitBreaker {
 
         // Try to execute the operation
         try {
-            string result = operation();
+            string result = operation.get();
 
             // Success - reset failure count
             failureCount = 0;
@@ -115,7 +118,7 @@ shouldFail = true;
 int i = 0;
 while (i < 5) {
     try {
-        string result = cb1.execute(() => simulatedService());
+        string result = cb1.execute(() -> simulatedService());
         print("Call " + (i + 1) + ": " + result);
     } catch (CircuitOpenException e) {
         print("Call " + (i + 1) + ": Circuit open - " + e.getMessage());
@@ -136,7 +139,7 @@ shouldFail = true;
 i = 0;
 while (i < 3) {
     try {
-        cb2.execute(() => simulatedService());
+        cb2.execute(() -> simulatedService());
     } catch (Exception e) {
         print("Failure " + (i + 1) + ": " + e.getMessage());
     }
@@ -152,7 +155,7 @@ shouldFail = false;
 i = 0;
 while (i < 4) {
     try {
-        string result = cb2.execute(() => simulatedService());
+        string result = cb2.execute(() -> simulatedService());
         print("Success " + (i + 1) + ": " + result);
     } catch (Exception e) {
         print("Error " + (i + 1) + ": " + e.getMessage());
@@ -172,7 +175,7 @@ shouldFail = true;
 i = 0;
 while (i < 2) {
     try {
-        cb3.execute(() => simulatedService());
+        cb3.execute(() -> simulatedService());
     } catch (Exception e) {
         // Ignore
     }
@@ -186,7 +189,7 @@ cb3.attemptReset();
 print("State after reset: " + cb3.getState());
 
 try {
-    cb3.execute(() => simulatedService());
+    cb3.execute(() -> simulatedService());
 } catch (ServiceException e) {
     print("Half-open test failed: " + e.getMessage());
 }
@@ -195,7 +198,7 @@ print("State after failure in half-open: " + cb3.getState());
 
 // Try again - should fail fast
 try {
-    cb3.execute(() => simulatedService());
+    cb3.execute(() -> simulatedService());
 } catch (CircuitOpenException e) {
     print("Failed fast: " + e.getMessage());
 }

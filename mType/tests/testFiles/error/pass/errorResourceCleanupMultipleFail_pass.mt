@@ -3,16 +3,15 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class ResourceException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
 class Resource {
-    public String name;
-    public Bool shouldFailOnClose;
+    public string name;
+    public bool shouldFailOnClose;
 
-    public constructor(String resourceName, Bool failOnClose) {
+    public constructor(string resourceName, bool failOnClose) {
         name = resourceName;
         shouldFailOnClose = failOnClose;
         print("Acquired resource: " + name);

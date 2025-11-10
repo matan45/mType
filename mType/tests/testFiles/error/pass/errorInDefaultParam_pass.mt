@@ -2,12 +2,11 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class ParamException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
-function getDefaultValue(): Int {
+function getDefaultValue(): int {
     try {
         print("Computing default parameter value");
         throw new ParamException("Error during default parameter computation");
@@ -17,7 +16,7 @@ function getDefaultValue(): Int {
     }
 }
 
-function testFunction(Int value = getDefaultValue()): void {
+function testFunction(int value = getDefaultValue()): void {
     print("Function called with value: " + value);
 }
 

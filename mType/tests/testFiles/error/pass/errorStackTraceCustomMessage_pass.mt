@@ -10,8 +10,7 @@ class DetailedException extends RuntimeException {
     public string context;
     public Int errorCode;
 
-    public constructor(string msg, string ctx, Int code) {
-        super(msg);
+    public constructor(string msg, string ctx, Int code): super(msg) {
         context = ctx;
         errorCode = code;
     }
@@ -44,14 +43,13 @@ function testDetailedException(): void {
 
 // Test 2: Exception with formatted message
 class FormattedException extends Exception {
-    public constructor(string operation, Int value, string reason) {
-        super("Failed to " + operation + " with value " + value.toString() + ": " + reason);
+    public constructor(string operation, Int value, string reason): super("Failed to " + operation + " with value " + value.toString() + ": " + reason) {
     }
 }
 
-function operationThatFails(Int val): void {
-    print("Performing operation with: " + val.toString());
-    if (val.toInt() == 0) {
+function operationThatFails(int val): void {
+    print("Performing operation with: " + val);
+    if (val == 0) {
         FormattedException e = new FormattedException("process", val, "zero value not allowed");
         throw e;
     }
@@ -61,7 +59,7 @@ function operationThatFails(Int val): void {
 function testFormattedException(): void {
     print("=== Test 2: Formatted exception message ===");
     try {
-        operationThatFails(new Int(0));
+        operationThatFails(0);
     } catch (FormattedException e) {
         print("Caught: " + e.getMessage());
         string trace = e.getStackTrace();
@@ -78,8 +76,7 @@ class ValidationException extends RuntimeException {
     public string expectedValue;
     public string actualValue;
 
-    public constructor(string field, string expected, string actual) {
-        super("Validation failed for field '" + field + "'");
+    public constructor(string field, string expected, string actual):  super("Validation failed for field '" + field + "'") {
         fieldName = field;
         expectedValue = expected;
         actualValue = actual;
@@ -116,8 +113,7 @@ function testValidationException(): void {
 
 // Test 4: Exception with special characters in message
 class SpecialCharException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
@@ -142,8 +138,7 @@ class NumericException extends RuntimeException {
     public Int threshold;
     public Int actualValue;
 
-    public constructor(string msg, Int thresh, Int actual) {
-        super(msg);
+    public constructor(string msg, Int thresh, Int actual):super(msg) {
         threshold = thresh;
         actualValue = actual;
     }
@@ -153,9 +148,9 @@ class NumericException extends RuntimeException {
     }
 }
 
-function checkThreshold(Int value, Int limit): void {
-    print("Checking: " + value.toString() + " against limit: " + limit.toString());
-    if (value.toInt() > limit.toInt()) {
+function checkThreshold(int value, int limit): void {
+    print("Checking: " + value + " against limit: " + limit);
+    if (value > limit) {
         NumericException e = new NumericException(
             "Value exceeds threshold",
             limit,
@@ -169,7 +164,7 @@ function checkThreshold(Int value, Int limit): void {
 function testNumericContext(): void {
     print("=== Test 5: Numeric context in message ===");
     try {
-        checkThreshold(new Int(150), new Int(100));
+        checkThreshold(150, 100);
     } catch (NumericException e) {
         print("Caught: " + e.getMessage());
         print("Comparison: " + e.getComparison());
@@ -183,8 +178,7 @@ function testNumericContext(): void {
 
 // Test 6: Exception with concatenated message
 class ConcatenatedMessageException extends Exception {
-    public constructor(string part1, string part2, string part3) {
-        super(part1 + " | " + part2 + " | " + part3);
+    public constructor(string part1, string part2, string part3):super(part1 + " | " + part2 + " | " + part3) {
     }
 }
 
@@ -214,8 +208,7 @@ class StateException extends RuntimeException {
     public string expectedState;
     public Int stateId;
 
-    public constructor(string current, string expected, Int id) {
-        super("Invalid state transition");
+    public constructor(string current, string expected, Int id): super("Invalid state transition") {
         currentState = current;
         expectedState = expected;
         stateId = id;
@@ -226,10 +219,10 @@ class StateException extends RuntimeException {
     }
 }
 
-function transitionState(string from, string to, Int id): void {
-    print("Transitioning state: " + from + " to " + to);
-    if (from == "CLOSED" && to == "PROCESSING") {
-        StateException e = new StateException(from, to, id);
+function transitionState(string from2, string to, Int id): void {
+    print("Transitioning state: " + from2 + " to " + to);
+    if (from2 == "CLOSED" && to == "PROCESSING") {
+        StateException e = new StateException(from2, to, id);
         throw e;
     }
     print("Transition successful");
@@ -252,8 +245,7 @@ function testStateException(): void {
 
 // Test 8: Exception with long message
 class LongMessageException extends Exception {
-    public constructor() {
-        super("This is a very long exception message that contains detailed information about what went wrong in the system and provides context for debugging purposes");
+    public constructor(): super("This is a very long exception message that contains detailed information about what went wrong in the system and provides context for debugging purposes") {
     }
 }
 

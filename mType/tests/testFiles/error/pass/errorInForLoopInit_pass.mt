@@ -2,12 +2,11 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class InitException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
-function computeInitValue(): Int {
+function computeInitValue(): int {
     try {
         print("Computing for-loop init value");
         throw new InitException("Error in for-loop initializer");
@@ -20,7 +19,7 @@ function computeInitValue(): Int {
 function main(): void {
     print("Testing exception in for-loop initializer");
 
-    for (Int i = computeInitValue(); i < 3; i = i + 1) {
+    for (int i = computeInitValue(); i < 3; i = i + 1) {
         print("Loop iteration: " + i);
     }
 

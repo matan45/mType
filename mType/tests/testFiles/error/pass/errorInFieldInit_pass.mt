@@ -2,15 +2,14 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class FieldException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
 class TestClass {
-    Int field = computeInitialValue();
+    int field = computeInitialValue();
 
-    public function computeInitialValue(): Int {
+    public function computeInitialValue(): int {
         try {
             print("Computing field initial value");
             throw new FieldException("Error during field initialization");
@@ -20,7 +19,7 @@ class TestClass {
         }
     }
 
-    public function getField(): Int {
+    public function getField(): int {
         return this.field;
     }
 }

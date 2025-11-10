@@ -2,12 +2,11 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class IncrementException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
-function computeIncrement(Int current): Int {
+function computeIncrement(int current): int {
     try {
         print("Computing increment for i=" + current);
         if (current == 2) {
@@ -23,7 +22,7 @@ function computeIncrement(Int current): Int {
 function main(): void {
     print("Testing exception in for-loop increment");
 
-    for (Int i = 0; i < 5; i = computeIncrement(i)) {
+    for (int i = 0; i < 5; i = computeIncrement(i)) {
         print("Loop iteration: " + i);
     }
 

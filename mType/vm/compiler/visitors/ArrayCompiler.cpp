@@ -189,12 +189,15 @@ namespace vm::compiler::visitors
             {
                 std::string elementType = arrayClassName.substr(0, bracketPos);
 
+                // Get value type information for validation
+                value::ValueType valueType = ctx.typeInference.inferExpressionType(node->getValue());
+                std::string valueClassName = ctx.typeInference.inferExpressionClassName(node->getValue());
+                bool isNullValue = dynamic_cast<ast::NullNode*>(node->getValue()) != nullptr;
+
                 // Check if element type is a Box type and value needs boxing
                 if (elementType == "Int" || elementType == "Float" ||
                     elementType == "Bool" || elementType == "String")
                 {
-                    value::ValueType valueType = ctx.typeInference.inferExpressionType(node->getValue());
-
                     if ((elementType == "Int" && valueType == value::ValueType::INT) ||
                         (elementType == "Float" && valueType == value::ValueType::FLOAT) ||
                         (elementType == "Bool" && valueType == value::ValueType::BOOL) ||
@@ -208,6 +211,25 @@ namespace vm::compiler::visitors
                                                      1u,  // 1 constructor argument
                                                      node->getValue());
                         autoBoxed = true;
+                    }
+                }
+
+                // Type validation: ensure value is compatible with array element type
+                // Skip validation if auto-boxing occurred (already validated above)
+                if (!autoBoxed)
+                {
+                    // Only validate for object array elements (not primitives)
+                    bool isPrimitiveArray = (elementType == "int" || elementType == "float" ||
+                                            elementType == "bool" || elementType == "string");
+
+                    if (!isPrimitiveArray && valueType == value::ValueType::OBJECT)
+                    {
+                        // Use TypeValidator to check if value type is compatible with element type
+                        ctx.typeValidator.validateAssignment(
+                            value::ValueType::OBJECT, elementType,  // Expected: array element type
+                            valueType, valueClassName,               // Actual: value being assigned
+                            isNullValue, node->getLocation()
+                        );
                     }
                 }
             }

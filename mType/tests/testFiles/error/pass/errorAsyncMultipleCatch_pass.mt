@@ -6,20 +6,17 @@ import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Int.mt";
 
 class ValidationException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
 class NetworkException extends RuntimeException {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg):super(msg) {
     }
 }
 
 class DatabaseException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
@@ -28,17 +25,17 @@ function async multipleCatchTypes(Int errorType): Promise<String> {
     try {
         print("Executing operation with type: " + errorType.toString());
 
-        if (errorType.toInt() == 1) {
+        if (errorType.getValue() == 1) {
             ValidationException e = new ValidationException("Validation failed");
             throw e;
         }
 
-        if (errorType.toInt() == 2) {
+        if (errorType.getValue() == 2) {
             NetworkException e = new NetworkException("Network error");
             throw e;
         }
 
-        if (errorType.toInt() == 3) {
+        if (errorType.getValue() == 3) {
             DatabaseException e = new DatabaseException("Database error");
             throw e;
         }
@@ -102,14 +99,12 @@ function async nestedMultipleCatch(): Promise<String> {
 
 // Test exception inheritance hierarchy
 class BaseError extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
 class SpecificError extends BaseError {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 

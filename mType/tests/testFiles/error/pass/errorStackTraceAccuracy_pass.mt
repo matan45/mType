@@ -7,8 +7,7 @@ import * from "../../lib/primitives/Int.mt";
 
 // Custom exception to test stack trace
 class StackTraceException extends RuntimeException {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
@@ -50,17 +49,17 @@ function testSimpleStack(): void {
 
 // Test 2: Stack trace from method call
 class Calculator {
-    public function divide(Int a, Int b): Int {
-        if (b.toInt() == 0) {
+    public function divide(int a, int b): int {
+        if (b == 0) {
             print("Division by zero detected");
             RuntimeException e = new RuntimeException("Cannot divide by zero");
             throw e;
         }
-        return new Int(a.toInt() / b.toInt());
+        return a / b;
     }
 
-    public function calculate(Int x, Int y): Int {
-        print("Calculating: " + x.toString() + " / " + y.toString());
+    public function calculate(int x, int y): int {
+        print("Calculating: " + x + " / " + y);
         return divide(x, y);
     }
 }
@@ -69,8 +68,8 @@ function testMethodStack(): void {
     print("=== Test 2: Method call stack ===");
     Calculator calc = new Calculator();
     try {
-        Int result = calc.calculate(new Int(10), new Int(0));
-        print("Result: " + result.toString());
+        int result = calc.calculate(10, 0);
+        print("Result: " + result);
     } catch (RuntimeException e) {
         print("Caught exception: " + e.getMessage());
         string trace = e.getStackTrace();
@@ -144,18 +143,17 @@ function testRethrowStack(): void {
 
 // Test 5: Multiple exception types with stack traces
 class ValidationException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
-function validateInput(Int value): void {
-    print("Validating input: " + value.toString());
-    if (value.toInt() < 0) {
+function validateInput(int value): void {
+    print("Validating input: " + value);
+    if (value < 0) {
         ValidationException e = new ValidationException("Value cannot be negative");
         throw e;
     }
-    if (value.toInt() > 100) {
+    if (value > 100) {
         ValidationException e = new ValidationException("Value cannot exceed 100");
         throw e;
     }
@@ -167,7 +165,7 @@ function testMultipleExceptionTypes(): void {
 
     // Test negative value
     try {
-        validateInput(new Int(-5));
+        validateInput(-5);
     } catch (ValidationException e) {
         print("Caught validation error: " + e.getMessage());
         string trace = e.getStackTrace();
@@ -178,7 +176,7 @@ function testMultipleExceptionTypes(): void {
 
     // Test exceeding value
     try {
-        validateInput(new Int(150));
+        validateInput(150);
     } catch (ValidationException e) {
         print("Caught validation error: " + e.getMessage());
         string trace = e.getStackTrace();

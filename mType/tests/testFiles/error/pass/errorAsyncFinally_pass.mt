@@ -82,10 +82,10 @@ function async catchPropagated(): Promise<String> {
 function async multipleReturnsFinally(Int choice): Promise<String> {
     try {
         print("Choice: " + choice.toString());
-        if (choice.toInt() == 1) {
+        if (choice.getValue() == 1) {
             return new String("first");
         }
-        if (choice.toInt() == 2) {
+        if (choice.getValue() == 2) {
             Exception e = new Exception("Error case");
             throw e;
         }

@@ -3,8 +3,8 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class ResourceTracker {
-    public static Int totalAllocated = 0;
-    public static Int totalReleased = 0;
+    public static int totalAllocated = 0;
+    public static int totalReleased = 0;
 
     public static function allocate(): void {
         totalAllocated = totalAllocated + 1;
@@ -14,7 +14,7 @@ class ResourceTracker {
         totalReleased = totalReleased + 1;
     }
 
-    public static function getLeakCount(): Int {
+    public static function getLeakCount(): int {
         return totalAllocated - totalReleased;
     }
 
@@ -32,13 +32,13 @@ class ResourceTracker {
 }
 
 class TrackedResource {
-    public String name;
+    public string name;
     public Bool isReleased;
 
-    public constructor(String resourceName) {
+    public constructor(string resourceName) {
         name = resourceName;
         isReleased = false;
-        ResourceTracker.allocate();
+        ResourceTracker::allocate();
         print("Allocated: " + name);
     }
 
@@ -51,7 +51,7 @@ class TrackedResource {
 
     public function release(): void {
         if (!isReleased) {
-            ResourceTracker.release();
+            ResourceTracker::release();
             isReleased = true;
             print("Released: " + name);
         }
@@ -60,7 +60,7 @@ class TrackedResource {
 
 function testNoLeak(): void {
     print("Test 1: No resource leaks");
-    ResourceTracker.reset();
+    ResourceTracker::reset();
 
     TrackedResource r1 = new TrackedResource("Resource1");
     TrackedResource r2 = new TrackedResource("Resource2");
@@ -71,12 +71,12 @@ function testNoLeak(): void {
     r1.release();
     r2.release();
 
-    ResourceTracker.report();
+    ResourceTracker::report();
 }
 
 function testWithLeak(): void {
     print("Test 2: Resource leak detection");
-    ResourceTracker.reset();
+    ResourceTracker::reset();
 
     TrackedResource r1 = new TrackedResource("LeakyResource1");
     TrackedResource r2 = new TrackedResource("LeakyResource2");
@@ -89,12 +89,12 @@ function testWithLeak(): void {
     // Only release r3, r1 and r2 leak
     r3.release();
 
-    ResourceTracker.report();
+    ResourceTracker::report();
 }
 
 function testExceptionLeak(): void {
     print("Test 3: Leak on exception without finally");
-    ResourceTracker.reset();
+    ResourceTracker::reset();
 
     try {
         TrackedResource r1 = new TrackedResource("ExceptionResource1");
@@ -108,12 +108,12 @@ function testExceptionLeak(): void {
         print("Caught: " + e.getMessage());
     }
 
-    ResourceTracker.report();
+    ResourceTracker::report();
 }
 
 function testExceptionNoLeak(): void {
     print("Test 4: No leak with finally block");
-    ResourceTracker.reset();
+    ResourceTracker::reset();
 
     TrackedResource r1 = null;
     TrackedResource r2 = null;
@@ -135,12 +135,12 @@ function testExceptionNoLeak(): void {
         }
     }
 
-    ResourceTracker.report();
+    ResourceTracker::report();
 }
 
 function testPartialLeak(): void {
     print("Test 5: Partial leak detection");
-    ResourceTracker.reset();
+    ResourceTracker::reset();
 
     TrackedResource r1 = new TrackedResource("Partial1");
     TrackedResource r2 = new TrackedResource("Partial2");
@@ -157,12 +157,12 @@ function testPartialLeak(): void {
     r3.release();
     // r2 and r4 leak
 
-    ResourceTracker.report();
+    ResourceTracker::report();
 }
 
 function testNestedLeakTracking(): void {
     print("Test 6: Nested scope leak tracking");
-    ResourceTracker.reset();
+    ResourceTracker::reset();
 
     TrackedResource outer = null;
 
@@ -191,7 +191,7 @@ function testNestedLeakTracking(): void {
         print("Error: " + e.getMessage());
     }
 
-    ResourceTracker.report();
+    ResourceTracker::report();
 }
 
 function main(): void {

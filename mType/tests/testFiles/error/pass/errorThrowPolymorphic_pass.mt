@@ -17,6 +17,7 @@ class AuthenticationException extends ServiceException {
 class AuthorizationException extends ServiceException {
     public constructor(string msg) : super(msg) {
     }
+}
 
 class ConnectionException extends ServiceException {
     public constructor(string msg) : super(msg) {

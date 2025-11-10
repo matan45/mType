@@ -2,12 +2,11 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class ArrayException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
-function getArrayElement(Int index): Int {
+function getArrayElement(int index): int {
     try {
         print("Computing array element " + index);
         if (index == 2) {
@@ -22,10 +21,10 @@ function getArrayElement(Int index): Int {
 
 function main(): void {
     print("Testing exception in array initializer");
-    Int[] arr = [getArrayElement(0), getArrayElement(1), getArrayElement(2), getArrayElement(3)];
+    int[] arr = [getArrayElement(0), getArrayElement(1), getArrayElement(2), getArrayElement(3)];
 
     print("Array values:");
-    for (Int i = 0; i < 4; i = i + 1) {
+    for (int i = 0; i < 4; i = i + 1) {
         print("arr[" + i + "] = " + arr[i]);
     }
 

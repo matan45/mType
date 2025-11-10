@@ -51,9 +51,8 @@ function testContinueWithMultipleCatches(): void {
     print("Testing continue with multiple catch blocks");
 
     class CustomException extends Exception {
-        constructor(String msg) {
-            super(msg);
-        }
+        constructor(string msg): super(msg) {
+    }
     }
 
     for (int i = 0; i < 6; i++) {

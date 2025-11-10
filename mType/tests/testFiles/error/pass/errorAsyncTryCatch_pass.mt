@@ -7,14 +7,12 @@ import * from "../../lib/primitives/Int.mt";
 
 // Custom exception types
 class ValidationException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
 class NetworkException extends RuntimeException {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
@@ -53,7 +51,7 @@ function async multipleOperations(): Promise<Int> {
         Int value = new Int(10);
 
         print("Step 2: Process");
-        Int doubled = new Int(value.toInt() * 2);
+        Int doubled = new Int(value.getValue() * 2);
 
         print("Step 3: Throw error");
         NetworkException e = new NetworkException("Connection failed");

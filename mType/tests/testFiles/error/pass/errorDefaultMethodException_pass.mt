@@ -5,12 +5,20 @@ import * from "../../lib/exceptions/RuntimeException.mt";
 import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Int.mt";
 
-// Interface with default method that throws exception
+// Interface with method signatures only
 interface Logger {
     public function log(string message): void;
+    public function logError(string error): void;
+    public function logWithPrefix(string prefix, string message): void;
+}
 
-    // Default method with exception
-    default function logError(string error) throws RuntimeException: void {
+// Implementation that implements all interface methods
+class ConsoleLogger implements Logger {
+    public function log(string message): void {
+        print("Console: " + message);
+    }
+
+    public function logError(string error): void {
         print("Default logError called");
         if (error == "critical") {
             throw new RuntimeException("Critical error: " + error);
@@ -18,8 +26,7 @@ interface Logger {
         log("[ERROR] " + error);
     }
 
-    // Default method that calls another default method
-    default function logWithPrefix(string prefix, string message) throws Exception: void {
+    public function logWithPrefix(string prefix, string message): void {
         print("Default logWithPrefix called");
         if (prefix == "FATAL") {
             throw new Exception("Fatal error with message: " + message);
@@ -28,25 +35,26 @@ interface Logger {
     }
 }
 
-// Implementation that uses default methods
-class ConsoleLogger implements Logger {
-    public function log(string message): void {
-        print("Console: " + message);
-    }
-}
-
-// Implementation that overrides default method with its own exception handling
+// Implementation with custom method implementations
 class FileLogger implements Logger {
     public function log(string message): void {
         print("File: " + message);
     }
 
-    public function logError(string error) throws RuntimeException: void {
+    public function logError(string error): void {
         print("Custom logError called");
         if (error == "disk_full") {
             throw new RuntimeException("Disk full error: " + error);
         }
         log("[FILE_ERROR] " + error);
+    }
+
+    public function logWithPrefix(string prefix, string message): void {
+        print("File logWithPrefix called");
+        if (prefix == "FATAL") {
+            throw new Exception("Fatal error with message: " + message);
+        }
+        log(prefix + ": " + message);
     }
 }
 
@@ -59,6 +67,11 @@ class SafeLogger implements Logger {
     public function logError(string error): void {
         print("Safe logError called (no exceptions)");
         log("[SAFE_ERROR] " + error);
+    }
+
+    public function logWithPrefix(string prefix, string message): void {
+        print("Safe logWithPrefix called");
+        log(prefix + ": " + message);
     }
 }
 

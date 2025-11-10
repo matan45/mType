@@ -6,15 +6,37 @@ import * from "../../lib/primitives/String.mt";
 
 // Custom exception
 class DataNotFoundException extends Exception {
-    public constructor(string msg) {
-        super(msg);
+    public constructor(string msg): super(msg) {
     }
 }
 
-// Generic fallback wrapper
-function withFallback<T>(function(): T operation, T fallbackValue): T {
+// Supplier interfaces for different types
+interface StringSupplier {
+    function get(): string;
+}
+
+interface IntSupplier {
+    function get(): int;
+}
+
+interface ConfigSupplier {
+    function get(): Config;
+}
+
+// Generic fallback wrapper for strings
+function withFallbackString(StringSupplier operation, string fallbackValue): string {
     try {
-        return operation();
+        return operation.get();
+    } catch (Exception e) {
+        print("Operation failed, using fallback: " + e.getMessage());
+        return fallbackValue;
+    }
+}
+
+// Generic fallback wrapper for ints
+function withFallbackInt(IntSupplier operation, int fallbackValue): int {
+    try {
+        return operation.get();
     } catch (Exception e) {
         print("Operation failed, using fallback: " + e.getMessage());
         return fallbackValue;
@@ -48,20 +70,20 @@ function getUserAge(int userId): int {
 
 // Test 1: Successful operation (no fallback needed)
 print("=== Test 1: Success - no fallback ===");
-string name1 = withFallback(() => getUserName(1), "Guest");
+string name1 = withFallbackString(() -> getUserName(1), "Guest");
 print("Result: " + name1);
 
 // Test 2: Failed operation (use fallback)
 print("\n=== Test 2: Failure - use fallback ===");
-string name2 = withFallback(() => getUserName(999), "Guest");
+string name2 = withFallbackString(() -> getUserName(999), "Guest");
 print("Result: " + name2);
 
 // Test 3: Integer fallback
 print("\n=== Test 3: Integer fallback ===");
-int age1 = withFallback(() => getUserAge(1), 0);
+int age1 = withFallbackInt(() -> getUserAge(1), 0);
 print("Age: " + age1);
 
-int age2 = withFallback(() => getUserAge(999), 0);
+int age2 = withFallbackInt(() -> getUserAge(999), 0);
 print("Age: " + age2);
 
 // Test 4: Chained fallback operations
@@ -78,8 +100,8 @@ function getSecondarySource(): string {
 }
 
 // First fallback tries secondary, second fallback uses default
-string data = withFallback(
-    () => withFallback(() => getPrimarySource(), getSecondarySource()),
+string data = withFallbackString(
+    () -> withFallbackString(() -> getPrimarySource(), getSecondarySource()),
     "Default data"
 );
 print("Final result: " + data);
@@ -94,10 +116,10 @@ function riskyCalculation(int value): int {
     return value * value;
 }
 
-int result1 = withFallback(() => riskyCalculation(5), -1);
+int result1 = withFallbackInt(() -> riskyCalculation(5), -1);
 print("Calculation 1: " + result1);
 
-int result2 = withFallback(() => riskyCalculation(-5), -1);
+int result2 = withFallbackInt(() -> riskyCalculation(-5), -1);
 print("Calculation 2: " + result2);
 
 // Test 6: Fallback chain with multiple levels
@@ -112,6 +134,16 @@ class Config {
 
     public function getValue(): string {
         return value;
+    }
+}
+
+// Add Config fallback wrapper
+function withFallbackConfig(ConfigSupplier operation, Config fallbackValue): Config {
+    try {
+        return operation.get();
+    } catch (Exception e) {
+        print("Operation failed, using fallback: " + e.getMessage());
+        return fallbackValue;
     }
 }
 
@@ -130,9 +162,9 @@ function loadDefault(): Config {
     return new Config("default-value");
 }
 
-Config config = withFallback(
-    () => withFallback(
-        () => loadFromFile(),
+Config config = withFallbackConfig(
+    () -> withFallbackConfig(
+        () -> loadFromFile(),
         loadFromEnvironment()
     ),
     loadDefault()
@@ -145,15 +177,15 @@ print("\n=== Test 7: Null-safe access ===");
 
 class User {
     public string name;
-    public int? age;
+    public int age;
 
     public constructor(string n) {
         name = n;
-        age = null;
+        age = -1;  // Use sentinel value instead of null
     }
 
     public function getAge(): int {
-        if (age == null) {
+        if (age < 0) {
             throw new Exception("Age not set");
         }
         return age;
@@ -161,15 +193,15 @@ class User {
 }
 
 User user1 = new User("Charlie");
-int userAge = withFallback(() => user1.getAge(), 18);
+int userAge = withFallbackInt(() -> user1.getAge(), 18);
 print("User age (with fallback): " + userAge);
 
 // Test 8: Exception type-specific fallbacks
 print("\n=== Test 8: Multiple fallback strategies ===");
 
-function withTypedFallback(function(): string operation): string {
+function withTypedFallback(StringSupplier operation): string {
     try {
-        return operation();
+        return operation.get();
     } catch (DataNotFoundException e) {
         print("Data not found: " + e.getMessage());
         return "NOT_FOUND";
@@ -179,17 +211,17 @@ function withTypedFallback(function(): string operation): string {
     }
 }
 
-string r1 = withTypedFallback(() => {
+string r1 = withTypedFallback(() -> {
     throw new DataNotFoundException("Record missing");
 });
 print("Result 1: " + r1);
 
-string r2 = withTypedFallback(() => {
+string r2 = withTypedFallback(() -> {
     throw new Exception("System error");
 });
 print("Result 2: " + r2);
 
-string r3 = withTypedFallback(() => "SUCCESS");
+string r3 = withTypedFallback(() -> "SUCCESS");
 print("Result 3: " + r3);
 
 print("\nFallback value test completed!");

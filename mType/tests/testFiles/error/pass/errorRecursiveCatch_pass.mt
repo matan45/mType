@@ -1,29 +1,27 @@
 // Test: Catch block with recursive calls
 // Expected: Should handle recursion within exception handlers correctly
 import * from "../../lib/exceptions/Exception.mt";
-import * from "../../lib/primitives/Int.mt";
 
 class RecursiveException extends Exception {
-    public Int depth;
-    public Int maxDepth;
+    public int depth;
+    public int maxDepth;
 
-    public constructor(string msg, Int d, Int max) {
-        super(msg);
+    public constructor(string msg, int d, int max): super(msg) {
         depth = d;
         maxDepth = max;
     }
 
-    public function getDepth(): Int {
+    public function getDepth(): int {
         return depth;
     }
 
-    public function getMaxDepth(): Int {
+    public function getMaxDepth(): int {
         return maxDepth;
     }
 }
 
 // Recursive function that throws and catches exceptions
-function recursiveThrowCatch(Int depth, Int maxDepth): Int {
+function recursiveThrowCatch(int depth, int maxDepth): int {
     if (depth >= maxDepth) {
         throw new RecursiveException("Max depth reached", depth, maxDepth);
     }
@@ -45,21 +43,21 @@ function recursiveThrowCatch(Int depth, Int maxDepth): Int {
 }
 
 // Recursive exception handling with computation in catch block
-function recursiveComputeInCatch(Int n): Int {
+function recursiveComputeInCatch(int n): int {
     if (n <= 1) {
-        return new Int(1);
+        return 1;
     }
 
     try {
         throw new RecursiveException("Computing factorial", n, n);
     } catch (RecursiveException e) {
-        Int prev = recursiveComputeInCatch(n - 1);
+        int prev = recursiveComputeInCatch(n - 1);
         return n * prev;
     }
 }
 
 // Multiple recursive calls in catch block
-function multiRecursiveInCatch(Int depth, Int maxDepth): void {
+function multiRecursiveInCatch(int depth, int maxDepth): void {
     if (depth >= maxDepth) {
         return;
     }
@@ -78,7 +76,7 @@ function multiRecursiveInCatch(Int depth, Int maxDepth): void {
 }
 
 // Recursive exception with finally and recursive calls
-function recursiveWithFinally(Int depth, Int maxDepth): Int {
+function recursiveWithFinally(int depth, int maxDepth): int {
     if (depth >= maxDepth) {
         throw new RecursiveException("Finally recursion", depth, maxDepth);
     }
@@ -101,7 +99,7 @@ function recursiveWithFinally(Int depth, Int maxDepth): Int {
 }
 
 // Tail-recursive exception handling
-function tailRecursiveCatch(Int count, Int target, Int accumulated): Int {
+function tailRecursiveCatch(int count, int target, int accumulated): int {
     if (count >= target) {
         return accumulated;
     }
@@ -114,11 +112,8 @@ function tailRecursiveCatch(Int count, Int target, Int accumulated): Int {
     }
 }
 
-// Mutually recursive exception handling
-function mutualRecursiveA(Int depth, Int maxDepth): void;
-function mutualRecursiveB(Int depth, Int maxDepth): void;
 
-function mutualRecursiveA(Int depth, Int maxDepth): void {
+function mutualRecursiveA(int depth, int maxDepth): void {
     if (depth >= maxDepth) {
         return;
     }
@@ -133,7 +128,7 @@ function mutualRecursiveA(Int depth, Int maxDepth): void {
     }
 }
 
-function mutualRecursiveB(Int depth, Int maxDepth): void {
+function mutualRecursiveB(int depth, int maxDepth): void {
     if (depth >= maxDepth) {
         return;
     }
@@ -151,32 +146,32 @@ function mutualRecursiveB(Int depth, Int maxDepth): void {
 print("Starting recursive catch performance test");
 
 print("Test 1: Basic recursive throw and catch (depth 50)");
-Int result1 = recursiveThrowCatch(new Int(0), new Int(50));
+int result1 = recursiveThrowCatch(0, 50);
 print("Result: " + result1);
 
 print("---");
 print("Test 2: Recursive computation in catch (factorial of 10)");
-Int result2 = recursiveComputeInCatch(new Int(10));
+int result2 = recursiveComputeInCatch(10);
 print("Result: " + result2);
 
 print("---");
 print("Test 3: Multiple recursive calls in catch (depth 30)");
-multiRecursiveInCatch(new Int(0), new Int(30));
+multiRecursiveInCatch(0, 30);
 print("Multi-recursive completed");
 
 print("---");
 print("Test 4: Recursive with finally blocks (depth 60)");
-Int result4 = recursiveWithFinally(new Int(0), new Int(60));
+int result4 = recursiveWithFinally(0, 60);
 print("Result: " + result4);
 
 print("---");
 print("Test 5: Tail-recursive catch (100 iterations)");
-Int result5 = tailRecursiveCatch(new Int(0), new Int(100), new Int(0));
+int result5 = tailRecursiveCatch(0, 100, 0);
 print("Result: " + result5);
 
 print("---");
 print("Test 6: Mutually recursive exception handling (depth 50)");
-mutualRecursiveA(new Int(0), new Int(50));
+mutualRecursiveA(0, 50);
 print("Mutual recursion completed");
 
 print("---");

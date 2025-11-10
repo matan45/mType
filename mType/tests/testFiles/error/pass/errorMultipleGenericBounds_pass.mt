@@ -1,8 +1,8 @@
 // Test: Exception with multiple generic constraints
 // Expected: Should compile and run successfully
 import * from "../../lib/exceptions/Exception.mt";
-import * from "../../lib/primitives/Int.mt";
-import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/int.mt";
+import * from "../../lib/primitives/string.mt";
 
 // Multiple interfaces for constraints
 interface Serializable {
@@ -59,8 +59,7 @@ class ErrorRecord implements Serializable, Comparable<ErrorRecord>, Identifiable
 class ConstrainedException<T extends Serializable> extends Exception {
     public T data;
 
-    public constructor(string msg, T contextData) {
-        super(msg);
+    public constructor(string msg, T contextData): super(msg) {
         data = contextData;
     }
 
@@ -77,8 +76,7 @@ class ConstrainedException<T extends Serializable> extends Exception {
 class TrackedException<T extends Identifiable> extends Exception {
     public T trackingData;
 
-    public constructor(string msg, T tracking) {
-        super(msg);
+    public constructor(string msg, T tracking): super(msg) {
         trackingData = tracking;
     }
 

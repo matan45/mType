@@ -29,14 +29,15 @@ function testEmptyCatchWithFinally(): void {
     print("After empty catch with finally");
 }
 
+class CustomException extends Exception {
+        constructor(string msg): super(msg) {
+        }
+    }
+
 function testMultipleEmptyCatches(): void {
     print("Testing multiple empty catch blocks");
 
-    class CustomException extends Exception {
-        constructor(String msg) {
-            super(msg);
-        }
-    }
+    
 
     try {
         print("Throwing custom exception");
@@ -73,7 +74,7 @@ function testEmptyCatchNoVariable(): void {
     try {
         print("Throwing exception without catch variable");
         throw new Exception("No variable needed");
-    } catch (Exception) {
+    } catch (Exception e) {
         // Empty catch, no exception variable
     }
 

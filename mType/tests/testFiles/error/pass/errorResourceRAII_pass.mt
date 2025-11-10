@@ -3,10 +3,10 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class FileHandle {
-    public String filename;
-    public Bool isOpen;
+    public string filename;
+    public bool isOpen;
 
-    public constructor(String name) {
+    public constructor(string name) {
         filename = name;
         isOpen = true;
         print("Opened file: " + filename);
@@ -23,11 +23,11 @@ class FileHandle {
 class ScopedResource {
     public FileHandle handle;
 
-    public constructor(String filename) {
+    public constructor(string filename) {
         handle = new FileHandle(filename);
     }
 
-    public function read(): String {
+    public function read(): string {
         if (!handle.isOpen) {
             throw new Exception("Cannot read from closed file");
         }
@@ -45,7 +45,7 @@ function testRAIISuccess(): void {
 
     try {
         resource = new ScopedResource("data.txt");
-        String data = resource.read();
+        string data = resource.read();
         print("Read: " + data);
     } finally {
         if (resource != null) {
@@ -61,7 +61,7 @@ function testRAIIWithException(): void {
 
     try {
         resource = new ScopedResource("config.json");
-        String data = resource.read();
+        string data = resource.read();
         print("Read: " + data);
         throw new Exception("Processing error");
     } catch (Exception e) {

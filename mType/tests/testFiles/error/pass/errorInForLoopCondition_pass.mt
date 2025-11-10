@@ -2,14 +2,13 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class ConditionException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
-Int checkCount = 0;
+int checkCount = 0;
 
-function checkCondition(Int i): Bool {
+function checkCondition(int i): bool {
     checkCount = checkCount + 1;
     try {
         print("Checking condition for i=" + i + " (check #" + checkCount + ")");
@@ -26,7 +25,7 @@ function checkCondition(Int i): Bool {
 function main(): void {
     print("Testing exception in for-loop condition");
 
-    for (Int i = 0; checkCondition(i); i = i + 1) {
+    for (int i = 0; checkCondition(i); i = i + 1) {
         print("Loop iteration: " + i);
     }
 

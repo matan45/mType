@@ -1,6 +1,5 @@
 #include "ExceptionHandler.hpp"
 #include "../../bytecode/OpCode.hpp"
-#include <iostream>
 
 namespace vm::runtime::utils
 {
@@ -210,7 +209,7 @@ namespace vm::runtime::utils
 
         // Try to find handler in current scope using exception table
         const bytecode::ExceptionTable* exceptionTable = getExceptionTable();
-        const bytecode::ExceptionTableEntry* handler = exceptionTable->findHandler(currentIP, e.getExceptionTypeName());
+        const bytecode::ExceptionTableEntry* handler = exceptionTable->findHandler(currentIP, e.getExceptionTypeName(), e.getExceptionValue());
 
         if (handler)
         {
@@ -258,15 +257,15 @@ namespace vm::runtime::utils
         }
 
         // Check if the call site where the exception occurred is covered by the caller's exception table
-        if (!callStack.empty() && callSiteIP != SIZE_MAX)
+        // IMPORTANT: Even if call stack is empty (unwound to global scope), we still need to check
+        // the global exception table if we have a valid call site IP
+        if (callSiteIP != SIZE_MAX)
         {
-            const CallFrame& callerFrame = callStack.back();
-
-            // Get caller's exception table
+            // Get caller's exception table (will be global table if call stack is empty)
             const bytecode::ExceptionTable* callerTable = getExceptionTable();
 
             // Look for handler at call site in caller's exception table
-            const bytecode::ExceptionTableEntry* callerHandler = callerTable->findHandler(callSiteIP, e.getExceptionTypeName());
+            const bytecode::ExceptionTableEntry* callerHandler = callerTable->findHandler(callSiteIP, e.getExceptionTypeName(), e.getExceptionValue());
 
             if (callerHandler)
             {
@@ -316,7 +315,7 @@ namespace vm::runtime::utils
             const bytecode::ExceptionTable* frameTable = getExceptionTable();
 
             // Look for handler at the call site in the caller's exception table
-            const bytecode::ExceptionTableEntry* frameHandler = frameTable->findHandler(frameCallSite, e.getExceptionTypeName());
+            const bytecode::ExceptionTableEntry* frameHandler = frameTable->findHandler(frameCallSite, e.getExceptionTypeName(), e.getExceptionValue());
 
             if (frameHandler)
             {

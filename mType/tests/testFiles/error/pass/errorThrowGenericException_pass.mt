@@ -1,16 +1,15 @@
 // Test: Throwing generic exception instance
 // Expected: Should compile and run successfully
 import * from "../../lib/exceptions/Exception.mt";
-import * from "../../lib/primitives/Int.mt";
-import * from "../../lib/primitives/String.mt";
-import * from "../../lib/primitives/Bool.mt";
+import * from "../../lib/primitives/int.mt";
+import * from "../../lib/primitives/string.mt";
+import * from "../../lib/primitives/bool.mt";
 
 // Generic exception with metadata
 class MetadataException<T> extends Exception {
     public T metadata;
 
-    public constructor(string msg, T meta) {
-        super(msg);
+    public constructor(string msg, T meta): super(msg) {
         metadata = meta;
     }
 
@@ -53,7 +52,7 @@ function processFile(string filename): void {
 // Function that throws generic exception with Int
 function divide(int a, int b): int {
     if (b == 0) {
-        throw new MetadataException<Int>("Division by zero", new Int(b));
+        throw new MetadataException<int>("Division by zero", new int(b));
     }
     return a / b;
 }
@@ -61,7 +60,7 @@ function divide(int a, int b): int {
 // Function that throws generic exception with String
 function validateInput(string input): bool {
     if (input == "") {
-        throw new MetadataException<String>("Empty input", new String("EMPTY_STRING"));
+        throw new MetadataException<string>("Empty input", new string("EMPTY_STRING"));
     }
     return true;
 }
@@ -81,7 +80,7 @@ try {
 print("Testing throw with Int metadata:");
 try {
     int result = divide(10, 0);
-} catch (MetadataException<Int> e) {
+} catch (MetadataException<int> e) {
     print("Caught: " + e.getMessage());
     print("Divisor: " + e.getMetadata());
 }
@@ -89,7 +88,7 @@ try {
 print("Testing throw with String metadata:");
 try {
     bool valid = validateInput("");
-} catch (MetadataException<String> e) {
+} catch (MetadataException<string> e) {
     print("Caught: " + e.getMessage());
     print("Error type: " + e.getMetadata());
 }

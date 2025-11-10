@@ -2,14 +2,12 @@
 import * from "../../lib/exceptions/Exception.mt";
 
 class FirstException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 
 class SecondException extends Exception {
-    constructor(String message) {
-        super(message);
+    constructor(string message): super(message) {
     }
 }
 

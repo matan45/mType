@@ -8,8 +8,7 @@ import * from "../../lib/primitives/Int.mt";
 class AsyncOperationException extends Exception {
     public Int operationId;
 
-    public constructor(string msg, Int id) {
-        super(msg);
+    public constructor(string msg, Int id): super(msg) {
         operationId = id;
     }
 
@@ -109,16 +108,16 @@ function async awaitInConditional(bool shouldFail): Promise<String> {
 function async awaitInLoop(): Promise<String> {
     try {
         Int i = new Int(0);
-        while (i.toInt() < 3) {
+        while (i.getValue() < 3) {
             print("Loop iteration: " + i.toString());
 
-            if (i.toInt() == 1) {
+            if (i.getValue() == 1) {
                 Promise<Int> p = throwingOperation(i);
                 Int result = await p;
                 print("Never reached: " + result.toString());
             }
 
-            i = new Int(i.toInt() + 1);
+            i = new Int(i.getValue() + 1);
         }
         return new String("loop completed");
     } catch (AsyncOperationException e) {
@@ -181,7 +180,7 @@ function async middleAwait(): Promise<Int> {
     Promise<Int> p = innerAwait();
     Int result = await p;
     print("Middle got: " + result.toString());
-    return new Int(result.toInt() + 50);
+    return new Int(result.getValue() + 50);
 }
 
 function async outerAwait(): Promise<String> {
