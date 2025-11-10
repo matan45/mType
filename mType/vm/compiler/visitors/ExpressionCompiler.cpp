@@ -29,6 +29,8 @@ namespace vm::compiler::visitors
     {
         auto leftType = ctx.typeInference.inferExpressionType(node->getLeft());
         auto rightType = ctx.typeInference.inferExpressionType(node->getRight());
+        auto leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
+        auto rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
         auto op = node->getOperator();
 
         // PHASE 4: Try operator overloading FIRST for Box types (Int, Float, Bool, String)
@@ -42,7 +44,7 @@ namespace vm::compiler::visitors
         // Validate binary operation (only for non-overloaded operators)
         bool leftIsNull = dynamic_cast<ast::NullNode*>(node->getLeft()) != nullptr;
         bool rightIsNull = dynamic_cast<ast::NullNode*>(node->getRight()) != nullptr;
-        ctx.typeValidator.validateBinaryOperation(leftType, rightType, op, leftIsNull, rightIsNull, node->getLocation());
+        ctx.typeValidator.validateBinaryOperation(leftType, leftClassName, rightType, rightClassName, op, leftIsNull, rightIsNull, node->getLocation());
 
         // Handle short-circuit logical operators specially
         if (op == token::TokenType::AND) {

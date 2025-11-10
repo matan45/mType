@@ -42,6 +42,18 @@ namespace vm::compiler::types
             const ast::SourceLocation& location
         ) const;
 
+        // Binary operation validation with class names (for object comparison checking)
+        void validateBinaryOperation(
+            value::ValueType leftType,
+            const std::string& leftClassName,
+            value::ValueType rightType,
+            const std::string& rightClassName,
+            token::TokenType op,
+            bool leftIsNull,
+            bool rightIsNull,
+            const ast::SourceLocation& location
+        ) const;
+
     private:
         std::shared_ptr<environment::Environment> environment;
 
@@ -68,6 +80,9 @@ namespace vm::compiler::types
         bool isArithmeticOperationValid(value::ValueType leftType, value::ValueType rightType, token::TokenType op) const;
         bool isComparisonOperationValid(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
                                        bool leftIsNull, bool rightIsNull) const;
+        bool isComparisonOperationValid(value::ValueType leftType, const std::string& leftClassName,
+                                       value::ValueType rightType, const std::string& rightClassName,
+                                       token::TokenType op, bool leftIsNull, bool rightIsNull) const;
         bool isLogicalOperationValid(value::ValueType leftType, value::ValueType rightType) const;
         void throwBinaryOperationError(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
                                        const ast::SourceLocation& location) const;

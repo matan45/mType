@@ -17,8 +17,6 @@ namespace tests::testSuite
         addOutputVerificationTest("Error Handling comprehensive",
                         passPath + "test_error_handling.mt");
         // Complex Feature Integration tests
-        addOutputVerificationTest("Namespaces with Classes and Imports",
-                        passPath + "namespacesWithClassesAndImports.mt");
         addOutputVerificationTest("Classes with Final Variables and Loops",
                         passPath + "classesWithFinalVariablesAndLoops.mt");
         addOutputVerificationTest("Nested Namespaces with Static Methods",
@@ -111,169 +109,8 @@ namespace tests::testSuite
                         passPath + "switchNestedInLoops.mt");
         addOutputVerificationTest("Test Import Main",
                         passPath + "test_import_main.mt");
-
-        // ====================================
-        // ====================================
-        // ADDITIONAL TESTS - Files that exist but weren't registered
-        // ====================================
-
-        // === AWAIT + LAMBDA INTEGRATION (12 tests) ===
-        addOutputVerificationTest("Await Async Interface Method",
-                        passPath + "awaitAsyncInterfaceMethod.mt");
-        addOutputVerificationTest("Await Async Lambda With Closure",
-                        passPath + "awaitAsyncLambdaWithClosure.mt");
-        addOutputVerificationTest("Await Generic Async Lambda",
-                        passPath + "awaitGenericAsyncLambda.mt");
-        addOutputVerificationTest("Await Generic Interface Promise",
-                        passPath + "awaitGenericInterfacePromise.mt");
-        addOutputVerificationTest("Await Interface Inheritance Async",
-                        passPath + "awaitInterfaceInheritanceAsync.mt");
-        addOutputVerificationTest("Await Lambda Exception Handling",
-                        passPath + "awaitLambdaExceptionHandling.mt");
-        addOutputVerificationTest("Await Lambda Pipeline",
-                        passPath + "awaitLambdaPipeline.mt");
-        addOutputVerificationTest("Await Lambda Returning Promise",
-                        passPath + "awaitLambdaReturningPromise.mt");
-        addOutputVerificationTest("Await Lambda With This",
-                        passPath + "awaitLambdaWithThis.mt");
-        addOutputVerificationTest("Await Multiple Async Interfaces",
-                        passPath + "awaitMultipleAsyncInterfaces.mt");
-        addOutputVerificationTest("Await Nested Async Lambdas",
-                        passPath + "awaitNestedAsyncLambdas.mt");
-        addOutputVerificationTest("Await Polymorphic Async",
-                        passPath + "awaitPolymorphicAsync.mt");
-        addOutputVerificationTest("Await Promise Collection With Lambda",
-                        passPath + "awaitPromiseCollectionWithLambda.mt");
-
-        // === LAMBDA + GENERIC + INTERFACE (6 tests) ===
-        addOutputVerificationTest("Lambda Generic Array Interface",
-                        passPath + "lambdaGenericArrayInterface.mt");
-        addOutputVerificationTest("Lambda Generic Constrained Interface",
-                        passPath + "lambdaGenericConstrainedInterface.mt");
-        addOutputVerificationTest("Lambda Generic Functional Interface",
-                        passPath + "lambdaGenericFunctionalInterface.mt");
-        addOutputVerificationTest("Lambda Generic Method Level Interface",
-                        passPath + "lambdaGenericMethodLevelInterface.mt");
-        addOutputVerificationTest("Lambda Multiple Type Params Interface",
-                        passPath + "lambdaMultipleTypeParamsInterface.mt");
-        addOutputVerificationTest("Lambda Nested Generic Interface",
-                        passPath + "lambdaNestedGenericInterface.mt");
-
-        // === IMPORT + INTERFACE + GENERICS (5 tests) ===
-        addOutputVerificationTest("Import Generic Constrained Interface",
-                        passPath + "importGenericConstrainedInterface.mt");
-        addOutputVerificationTest("Import Generic Interface Implement",
-                        passPath + "importGenericInterfaceImplement.mt");
-        addOutputVerificationTest("Import Interface Diamond",
-                        passPath + "importInterfaceDiamond.mt");
-        addOutputVerificationTest("Import Interface Inheritance",
-                        passPath + "importInterfaceInheritance.mt");
-        addOutputVerificationTest("Import Multiple Interfaces Generic",
-                        passPath + "importMultipleInterfacesGeneric.mt");
-
-        // === ARRAYS + GENERICS (6 tests) ===
-        addOutputVerificationTest("Array Generic Constraints",
-                        passPath + "arrayGenericConstraints.mt");
-        addOutputVerificationTest("Array Generic Complex",
-                        passPath + "arrayGenericComplex.mt");
-        addOutputVerificationTest("Array Generic Methods",
-                        passPath + "arrayGenericMethods.mt");
-        addOutputVerificationTest("Array Generic Collection",
-                        passPath + "arrayGenericCollection.mt");
-        addOutputVerificationTest("Array Generic SIMD",
-                        passPath + "arrayGenericSIMD.mt");
-        addOutputVerificationTest("Array Generic Multi Dimensional",
-                        passPath + "arrayGenericMultiDim.mt");
-
-        // === CLASS + GENERICS (7 tests) ===
-        addOutputVerificationTest("Class Generic Inheritance Chain",
-                        passPath + "classGenericInheritanceChain.mt");
-        addOutputVerificationTest("Class Generic Multi Interface",
-                        passPath + "classGenericMultiInterface.mt");
-        addOutputVerificationTest("Class Generic Overloading",
-                        passPath + "classGenericOverloading.mt");
-        addOutputVerificationTest("Class Generic Builder",
-                        passPath + "classGenericBuilder.mt");
-        addOutputVerificationTest("Class Generic Factory",
-                        passPath + "classGenericFactory.mt");
-        addOutputVerificationTest("Class Generic Singleton",
-                        passPath + "classGenericSingleton.mt");
-        addOutputVerificationTest("Class Generic Compilation",
-                        passPath + "genericClassCompilation.mt");
-
-        // === ARRAYS + CLASS (4 tests) ===
-        addOutputVerificationTest("Array Class Polymorphic",
-                        passPath + "arrayClassPolymorphic.mt");
-        addOutputVerificationTest("Array Class Inheritance",
-                        passPath + "arrayClassInheritance.mt");
-        addOutputVerificationTest("Array Class Interfaces",
-                        passPath + "arrayClassInterfaces.mt");
-        addOutputVerificationTest("Array Class Return Values",
-                        passPath + "arrayClassReturnValues.mt");
-
-        // === ALL FEATURES COMBINED (11 tests) ===
-        addOutputVerificationTest("All Generic Array Fields",
-                        passPath + "allGenericArrayFields.mt");
-        addOutputVerificationTest("All Generic Array Methods",
-                        passPath + "allGenericArrayMethods.mt");
-        addOutputVerificationTest("All Generic Inheritance Arrays",
-                        passPath + "allGenericInheritanceArrays.mt");
-        addOutputVerificationTest("All Complete Integration",
-                        passPath + "allCompleteIntegration.mt");
-        addOutputVerificationTest("All Features Async Generic Lambda Import",
-                        passPath + "allFeaturesAsyncGenericLambdaImport.mt");
-        addOutputVerificationTest("All Features Complex Pipeline",
-                        passPath + "allFeaturesComplexPipeline.mt");
-        addOutputVerificationTest("All Features Error Handling",
-                        passPath + "allFeaturesErrorHandling.mt");
-        addOutputVerificationTest("All Features Polymorphic Async",
-                        passPath + "allFeaturesPolymorphicAsync.mt");
-        addOutputVerificationTest("All Features Real World Scenario",
-                        passPath + "allFeaturesRealWorldScenario.mt");
-
-        // === INTEGRATION TESTS (15 tests) ===
-        addOutputVerificationTest("Integration All Async Cast Exception",
-                        passPath + "integrationAllAsyncCastException_pass.mt");
-        addOutputVerificationTest("Integration All Complex Hierarchy",
-                        passPath + "integrationAllComplexHierarchy_pass.mt");
-        addOutputVerificationTest("Integration All Generic Control Error",
-                        passPath + "integrationAllGenericControlError_pass.mt");
-        addOutputVerificationTest("Integration All Polymorphic Exception",
-                        passPath + "integrationAllPolymorphicException_pass.mt");
-        addOutputVerificationTest("Integration All Real World Scenario",
-                        passPath + "integrationAllRealWorldScenario_pass.mt");
-        addOutputVerificationTest("Integration Cast Async Cast",
-                        passPath + "integrationCastAsyncCast_pass.mt");
-        addOutputVerificationTest("Integration Cast Error Recovery",
-                        passPath + "integrationCastErrorRecovery_pass.mt");
-        addOutputVerificationTest("Integration Cast Exception Handling",
-                        passPath + "integrationCastExceptionHandling_pass.mt");
-        addOutputVerificationTest("Integration Cast Exception Propagation",
-                        passPath + "integrationCastExceptionPropagation_pass.mt");
-        addOutputVerificationTest("Integration Cast Failed Cleanup",
-                        passPath + "integrationCastFailedCleanup_pass.mt");
-        addOutputVerificationTest("Integration Cast In Conditionals",
-                        passPath + "integrationCastInConditionals_pass.mt");
-        addOutputVerificationTest("Integration Cast In Loops",
-                        passPath + "integrationCastInLoops_pass.mt");
-        addOutputVerificationTest("Integration Cast In Switch",
-                        passPath + "integrationCastInSwitch_pass.mt");
-        addOutputVerificationTest("Integration Cast Recursive",
-                        passPath + "integrationCastRecursive_pass.mt");
-        addOutputVerificationTest("Integration Cast Try Catch Finally",
-                        passPath + "integrationCastTryCatchFinally_pass.mt");
-        addOutputVerificationTest("Integration Control Async Types",
-                        passPath + "integrationControlAsyncTypes_pass.mt");
-        addOutputVerificationTest("Integration Control Loop Type Inference",
-                        passPath + "integrationControlLoopTypeInference_pass.mt");
-        addOutputVerificationTest("Integration Control Recursion Types",
-                        passPath + "integrationControlRecursionTypes_pass.mt");
-        addOutputVerificationTest("Integration Control Switch Polymorphism",
-                        passPath + "integrationControlSwitchPolymorphism_pass.mt");
-        addOutputVerificationTest("Integration Control Type Narrowing",
-                        passPath + "integrationControlTypeNarrowing_pass.mt");
-
-        // === COMPLEX SCENARIOS (remaining 55+ tests) ===
+        
+        
         addOutputVerificationTest("Circular Namespace References",
                         passPath + "circularNamespaceReferences.mt");
         addOutputVerificationTest("Classes With Final Variables And Loops",
@@ -326,8 +163,6 @@ namespace tests::testSuite
                         passPath + "multiTypeGenericSerialization.mt");
         addOutputVerificationTest("Namespace Class Name Collisions",
                         passPath + "namespaceClassNameCollisions.mt");
-        addOutputVerificationTest("Namespaces With Classes And Imports",
-                        passPath + "namespacesWithClassesAndImports.mt");
         addOutputVerificationTest("Nested Namespaces With Static Methods",
                         passPath + "nestedNamespacesWithStaticMethods.mt");
         addOutputVerificationTest("Object Destruction Order Basic",

@@ -356,6 +356,77 @@ namespace vm::compiler::types
         return false;
     }
 
+    bool TypeValidator::isComparisonOperationValid(
+        value::ValueType leftType,
+        const std::string& leftClassName,
+        value::ValueType rightType,
+        const std::string& rightClassName,
+        token::TokenType op,
+        bool leftIsNull,
+        bool rightIsNull
+    ) const
+    {
+        // For == and !=, allow comparing any type with null
+        if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS) {
+            if (leftIsNull || rightIsNull) {
+                return true;
+            }
+
+            // Allow comparing numeric primitives
+            if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                return true;
+            }
+
+            // For objects, check class names
+            if (leftType == value::ValueType::OBJECT && rightType == value::ValueType::OBJECT) {
+                // Disallow comparing unrelated object types
+                // EXCEPTION: Allow boxed primitives (Int, Float, Bool, String) for auto-boxing
+                static const std::unordered_set<std::string> boxedPrimitives = {"Int", "Float", "Bool", "String"};
+
+                bool leftIsBoxed = boxedPrimitives.find(leftClassName) != boxedPrimitives.end();
+                bool rightIsBoxed = boxedPrimitives.find(rightClassName) != boxedPrimitives.end();
+
+                // Allow comparison if:
+                // 1. Both are the same class
+                // 2. Both are boxed primitives (for auto-boxing)
+                if (leftClassName == rightClassName) {
+                    return true;
+                }
+                if (leftIsBoxed && rightIsBoxed) {
+                    return true;  // Allow comparing different boxed primitives for auto-boxing
+                }
+
+                // Otherwise, disallow comparing unrelated object types
+                return false;
+            }
+
+            // For same primitive types
+            if (leftType == rightType && leftType != value::ValueType::OBJECT) {
+                return true;
+            }
+
+        } else {
+            // For <, >, <=, >=: only same types or numeric types
+            if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                return true;
+            }
+
+            // For objects, only allow if same class
+            if (leftType == value::ValueType::OBJECT && rightType == value::ValueType::OBJECT) {
+                return leftClassName == rightClassName;
+            }
+
+            // For same primitive types
+            if (leftType == rightType && leftType != value::ValueType::OBJECT) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     bool TypeValidator::isLogicalOperationValid(value::ValueType leftType, value::ValueType rightType) const
     {
         // PHASE 4: Allow Bool objects (which will be auto-unboxed) or primitive bools
@@ -418,6 +489,50 @@ namespace vm::compiler::types
                  op == token::TokenType::LESS || op == token::TokenType::GREATER ||
                  op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
             isValid = isComparisonOperationValid(leftType, rightType, op, leftIsNull, rightIsNull);
+        }
+        // Logical operations: &&, ||
+        else if (op == token::TokenType::AND || op == token::TokenType::OR) {
+            isValid = isLogicalOperationValid(leftType, rightType);
+        }
+        else {
+            // Unknown operator, allow it
+            isValid = true;
+        }
+
+        if (!isValid) {
+            throwBinaryOperationError(leftType, rightType, op, location);
+        }
+    }
+
+    void TypeValidator::validateBinaryOperation(
+        value::ValueType leftType,
+        const std::string& leftClassName,
+        value::ValueType rightType,
+        const std::string& rightClassName,
+        token::TokenType op,
+        bool leftIsNull,
+        bool rightIsNull,
+        const ast::SourceLocation& location
+    ) const
+    {
+        // Skip validation if we don't know both types
+        if (leftType == value::ValueType::VOID || rightType == value::ValueType::VOID) {
+            return;
+        }
+
+        bool isValid = false;
+
+        // Arithmetic operations: +, -, *, /, %
+        if (op == token::TokenType::PLUS || op == token::TokenType::MINUS ||
+            op == token::TokenType::MULTIPLY || op == token::TokenType::DIVIDE ||
+            op == token::TokenType::MODULO) {
+            isValid = isArithmeticOperationValid(leftType, rightType, op);
+        }
+        // Comparison operations: ==, !=, <, >, <=, >=
+        else if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
+                 op == token::TokenType::LESS || op == token::TokenType::GREATER ||
+                 op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
+            isValid = isComparisonOperationValid(leftType, leftClassName, rightType, rightClassName, op, leftIsNull, rightIsNull);
         }
         // Logical operations: &&, ||
         else if (op == token::TokenType::AND || op == token::TokenType::OR) {
