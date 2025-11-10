@@ -2,6 +2,7 @@
 #include "../../../value/PromiseValue.hpp"
 #include "../../../value/AsyncPromiseValue.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include <iostream>
 namespace vm::runtime
 {
@@ -134,6 +135,17 @@ namespace vm::runtime
         }
         if (std::holds_alternative<std::monostate>(val)) {
             return false;
+        }
+        // Check if it's a Bool object (auto-boxed boolean)
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+            if (obj && obj->getClassDefinition()->getName() == "Bool") {
+                // Extract the primitive boolean value from the Bool object
+                value::Value valueField = obj->getFieldValue("value");
+                if (std::holds_alternative<bool>(valueField)) {
+                    return std::get<bool>(valueField);
+                }
+            }
         }
         return true;  // Objects, strings, etc. are truthy
     }

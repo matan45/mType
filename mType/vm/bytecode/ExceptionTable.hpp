@@ -172,7 +172,6 @@ namespace vm::bytecode
          */
         void updateFinallyIP(size_t startIP, size_t endIP, uint32_t nestingLevel, size_t finallyIP);
 
-    private:
         /**
          * Check if exceptionType matches or is a subclass of catchType
          *
@@ -191,5 +190,7 @@ namespace vm::bytecode
             const std::string& catchType,
             const value::Value& exceptionValue
         ) const;
+
+    private:
     };
 }

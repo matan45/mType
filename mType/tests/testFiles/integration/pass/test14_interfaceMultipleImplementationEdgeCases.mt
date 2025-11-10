@@ -201,6 +201,7 @@ Player player = new Player("Hero", 0, 0);
 
 GameObject gameObj = player;
 gameObj.draw();
+print(gameObj.getPosition());
 gameObj.move(50, 50);
 gameObj.update();
 

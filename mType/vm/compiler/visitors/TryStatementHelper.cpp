@@ -322,7 +322,19 @@ namespace vm::compiler::visitors
         size_t finallyOffset = ctx.program.getCurrentOffset();
         ctx.exceptionManager.setFinallyOffset(finallyOffset);
 
-        // Patch new jumps to finally
+        // Emit FINALLY instruction
+        ctx.emitter.emitWithLocation(bytecode::OpCode::FINALLY, finallyBlock);
+
+        // IMPORTANT: Initialize hasReturnFlagSlot to 0 (normal exit) as default
+        // This runs when exception handler jumps to finallyOffset (FINALLY instruction)
+        // Trampolines will jump to AFTER this initialization (afterInit), skipping it
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(normalExitIndex), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
+
+        // afterInit: Trampolines jump here, skipping the default initialization above
+        size_t afterInit = ctx.program.getCurrentOffset();
+
+        // Patch trampoline jumps to afterInit (skip default initialization)
         for (size_t jump : newExitJumps) {
             ctx.emitter.patchJump(jump);
         }
@@ -335,9 +347,6 @@ namespace vm::compiler::visitors
         for (size_t jump : newContinueJumps) {
             ctx.emitter.patchJump(jump);
         }
-
-        // Emit FINALLY instruction
-        ctx.emitter.emitWithLocation(bytecode::OpCode::FINALLY, finallyBlock);
 
         // Update exception table entries with finally offset
         std::string currentFunctionName = ctx.functionFrameManager.getCurrentFunctionName();

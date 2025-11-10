@@ -556,6 +556,12 @@ namespace vm::compiler::visitors
                 // Store return value and jump to outer finally instead of returning immediately
                 emitReturnWithOuterFinally(node, returnValue);
             }
+            else if (!ctx.exceptionManager.isInFinally() && ctx.exceptionManager.hasOuterFinally())
+            {
+                // We're in a try-catch (without finally), but there's an outer finally that must execute
+                // Store return value and jump to outer finally
+                emitReturnWithOuterFinally(node, returnValue);
+            }
             else
             {
                 emitReturnValueBytecode(node, returnValue);

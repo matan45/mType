@@ -220,9 +220,9 @@ namespace vm::runtime::utils
                 // We're already in this finally block - don't jump to it again
                 // Instead, fall through to unwind to caller
             }
-            else if (handler->hasCatchHandler())
+            else if (handler->hasCatchHandler() && exceptionTable->isTypeCompatible(e.getExceptionTypeName(), handler->exceptionType, e.getExceptionValue()))
             {
-                // Jump to CATCH handler
+                // Jump to CATCH handler (catch type matches the exception)
                 // Unwind call frames if necessary (in case handler is in outer function)
                 unwindCallFrames(handler->catchIP);
 
@@ -274,9 +274,9 @@ namespace vm::runtime::utils
                 {
                     // Already in this finally - continue unwinding
                 }
-                else if (callerHandler->hasCatchHandler())
+                else if (callerHandler->hasCatchHandler() && callerTable->isTypeCompatible(e.getExceptionTypeName(), callerHandler->exceptionType, e.getExceptionValue()))
                 {
-                    // Jump to caller's CATCH handler
+                    // Jump to caller's CATCH handler (catch type matches the exception)
                     unwindCallFrames(callerHandler->catchIP);
 
                     stackManager->push(e.getExceptionValue());
@@ -287,7 +287,7 @@ namespace vm::runtime::utils
                 }
                 else if (callerHandler->hasFinallyHandler())
                 {
-                    // Jump to caller's FINALLY handler
+                    // Jump to caller's FINALLY handler (no catch, or catch didn't match)
                     result.handled = true;
                     result.newInstructionPointer = callerHandler->finallyIP;
                     result.jumpedToFinally = true;
@@ -326,9 +326,9 @@ namespace vm::runtime::utils
                     continue;
                 }
 
-                if (frameHandler->hasCatchHandler())
+                if (frameHandler->hasCatchHandler() && frameTable->isTypeCompatible(e.getExceptionTypeName(), frameHandler->exceptionType, e.getExceptionValue()))
                 {
-                    // Jump to CATCH handler
+                    // Jump to CATCH handler (catch type matches the exception)
                     unwindCallFrames(frameHandler->catchIP);
 
                     stackManager->push(e.getExceptionValue());
@@ -339,7 +339,7 @@ namespace vm::runtime::utils
                 }
                 else if (frameHandler->hasFinallyHandler())
                 {
-                    // Jump to FINALLY handler
+                    // Jump to FINALLY handler (no catch, or catch didn't match)
                     result.handled = true;
                     result.newInstructionPointer = frameHandler->finallyIP;
                     result.jumpedToFinally = true;

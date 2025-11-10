@@ -100,16 +100,32 @@ namespace vm::runtime
                 }
 
                 // Also check if object implements an interface with that name
+                // IMPORTANT: Must check interface hierarchy recursively
+                // AND check parent classes' interfaces too
                 if (!result) {
-                    const auto& interfaces = classDef->getImplementedInterfaces();
-                    for (const auto& iface : interfaces) {
-                        // Extract base interface name for comparison
-                        std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
+                    // Walk up the inheritance chain checking interfaces at each level
+                    auto currentClass = classDef;
+                    while (currentClass && !result) {
+                        const auto& interfaces = currentClass->getImplementedInterfaces();
+                        for (const auto& iface : interfaces) {
+                            // Extract base interface name for comparison
+                            std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
 
-                        if (iface == targetTypeName || baseIfaceName == baseTargetName) {
-                            result = true;
-                            break;
+                            if (iface == targetTypeName || baseIfaceName == baseTargetName) {
+                                result = true;
+                                break;
+                            }
+
+                            // Check if this interface extends the target interface (interface inheritance)
+                            std::unordered_set<std::string> visited;
+                            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+                                result = true;
+                                break;
+                            }
                         }
+
+                        // Move to parent class
+                        currentClass = currentClass->getParentClass();
                     }
                 }
 

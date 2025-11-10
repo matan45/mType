@@ -44,16 +44,16 @@ Sequential operations finally
 Result: 0
 --- Test 6: Async loop ---
 Processing: -60
-Loop 0 failed: Value too large
+Loop 0 success: -120
 Processing: -30
-Loop 1 failed: Value too large
+Loop 1 success: -60
 Processing: 0
 Loop 2 success: 0
 Processing: 30
 Loop 3 success: 60
 Processing: 60
 Loop 4 success: 120
-Success count: 3
+Success count: 5
 --- Test 7: Rethrow ---
 Validating: -20
 Caught and rethrowing: Negative value

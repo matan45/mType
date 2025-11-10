@@ -140,6 +140,17 @@ class InMemoryRepository<T extends Entity> implements Repository<T> {
         List<T> result = new List<T>();
         Int[] keys = this.storage.getKeys();
 
+        // Sort keys by ID for consistent ordering
+        for (int i = 0; i < keys.length - 1; i = i + 1) {
+            for (int j = 0; j < keys.length - i - 1; j = j + 1) {
+                if (keys[j].getValue() > keys[j + 1].getValue()) {
+                    Int temp = keys[j];
+                    keys[j] = keys[j + 1];
+                    keys[j + 1] = temp;
+                }
+            }
+        }
+
         for (int i = 0; i < keys.length; i = i + 1) {
             T entity = this.storage.get(keys[i]);
             if (entity != null) {

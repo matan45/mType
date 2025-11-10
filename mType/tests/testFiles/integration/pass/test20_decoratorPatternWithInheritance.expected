@@ -10,7 +10,7 @@ Order: Simple Coffee, Milk, Sugar(2)
 Cost: $2.9
 --- Test 4: Fully loaded coffee ---
 Order: Simple Coffee, Milk, Sugar(3), Whip Cream, Caramel
-Cost: $4.3
+Cost: $4.4
 --- Test 5: Different order ---
 Order: Simple Coffee, Milk, Whip Cream
 Cost: $3.2
@@ -28,7 +28,7 @@ Order 5: Simple Coffee, Caramel = $2.6
 Total: $7.3
 --- Test 8: Deep decoration ---
 Order: Simple Coffee, Milk, Whip Cream, Sugar(2), Milk, Sugar(1)
-Cost: $4.6
+Cost: $4.3
 --- Test 9: Type checking ---
 Is Coffee: true
 Is MilkDecorator: true

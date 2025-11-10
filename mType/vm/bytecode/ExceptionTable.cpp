@@ -32,9 +32,15 @@ namespace vm::bytecode
     {
         // Algorithm:
         // 1. Iterate through entries (already sorted by nesting level, innermost first)
-        // 2. Check if entry covers the IP
-        // 3. Check if entry's exception type matches thrown exception
-        // 4. Prioritize CATCH handlers, but return FINALLY-only entries if no CATCH found
+        // 2. Find all entries at the same nesting level that cover the IP
+        // 3. Check ALL catch handlers at that level for a type match
+        // 4. If no match found, return finally handler if present
+        // 5. IMPORTANT: Finally blocks execute before exception propagates to outer scopes
+
+        // Track entries we've seen at the current nesting level
+        const ExceptionTableEntry* finallyEntry = nullptr;
+        uint32_t currentNestingLevel = UINT32_MAX;
+        bool atLeastOneEntryFound = false;
 
         for (const auto& entry : entries)
         {
@@ -44,7 +50,29 @@ namespace vm::bytecode
                 continue;
             }
 
-            // Step 2: Check if this entry has a CATCH handler with matching type
+            // If we found entries at a previous nesting level and now hit a different level,
+            // we're done checking the current scope - return finally if we found one
+            if (atLeastOneEntryFound && entry.nestingLevel != currentNestingLevel)
+            {
+                // Finished checking all entries at current nesting level
+                if (finallyEntry != nullptr)
+                {
+                    return finallyEntry;
+                }
+                // No finally at this level, entry at new level might match
+                // Reset and continue checking new level
+                finallyEntry = nullptr;
+                atLeastOneEntryFound = false;
+            }
+
+            // Update current nesting level
+            if (!atLeastOneEntryFound)
+            {
+                currentNestingLevel = entry.nestingLevel;
+                atLeastOneEntryFound = true;
+            }
+
+            // Step 2: Check if this entry has a matching CATCH handler
             if (entry.hasCatchHandler())
             {
                 if (isTypeCompatible(exceptionTypeName, entry.exceptionType, exceptionValue))
@@ -52,16 +80,23 @@ namespace vm::bytecode
                     // Found matching CATCH handler - return immediately
                     return &entry;
                 }
+                // CATCH doesn't match - remember if there's a FINALLY for later
+                if (entry.hasFinallyHandler() && finallyEntry == nullptr)
+                {
+                    finallyEntry = &entry;
+                }
             }
-
             // Step 3: FINALLY-only entries (FINALLY without CATCH)
-            // Return immediately to respect nesting level - innermost FINALLY executes first
-            // even if an outer scope has a CATCH handler
-            if (entry.hasFinallyHandler() && !entry.hasCatchHandler())
+            else if (entry.hasFinallyHandler() && finallyEntry == nullptr)
             {
-                // Return immediately - don't search outer scopes
-                return &entry;
+                finallyEntry = &entry;
             }
+        }
+
+        // Return finally handler if we found one at the last checked nesting level
+        if (finallyEntry != nullptr)
+        {
+            return finallyEntry;
         }
 
         // No handler found at all
