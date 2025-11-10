@@ -1,0 +1,8 @@
+=== Multiple Type Parameters Test ===
+Add 5 + 3 = 8
+Repeat 'Hi' 3 times: HiHiHi
+Number 42 is the answer
+Compare 10, 5: first is greater
+Compare 3, 8: second is greater
+Compare 7, 7: equal
+Multiple type params complete

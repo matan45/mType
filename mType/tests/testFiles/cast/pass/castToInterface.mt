@@ -1,6 +1,6 @@
 // Test: Cast class to interface
 interface Drawable {
-    function draw(): void;
+    public function draw(): void;
 }
 
 class Circle implements Drawable {

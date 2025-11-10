@@ -1,0 +1,12 @@
+Testing exception in array initializer
+Computing array element 0
+Computing array element 1
+Computing array element 2
+Caught in array init: Error at index 2
+Computing array element 3
+Array values:
+arr[0] = 0
+arr[1] = 10
+arr[2] = -1
+arr[3] = 30
+Test completed

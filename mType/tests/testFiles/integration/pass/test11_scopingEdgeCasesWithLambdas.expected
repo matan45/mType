@@ -1,0 +1,40 @@
+=== Test 11: Scoping Edge Cases with Lambdas ===
+--- Class-level scoping ---
+Adder result: 75
+Multiplier result: 180
+Static function result: 105
+--- Nested block scoping ---
+Outer: 10
+Middle: 20
+Can access outer: 10
+Inner: 30
+Can access middle: 20
+Can access outer: 10
+After inner block, can still access middle: 20
+After all blocks, can still access outer: 10
+--- Loop variable scoping ---
+Loop 0: loopLocal = 0
+Loop 1: loopLocal = 10
+Loop 2: loopLocal = 20
+After loop, i is out of scope
+Second loop i: 10
+Second loop i: 11
+Second loop i: 12
+--- Lambda capture in loop ---
+Applying captured functions:
+Function 0 result: 100
+Function 1 result: 101
+Function 2 result: 102
+--- Mutable capture ---
+Count: 0
+After 1st call: 1
+After 2nd call: 2
+After 3rd call: 3
+--- Parameter scoping ---
+Parameter value: 42
+Local derived from param: 84
+Block var: 52
+--- Multiple instances ---
+f1 result: 15
+f2 result: 25
+=== Test 11 Complete ===

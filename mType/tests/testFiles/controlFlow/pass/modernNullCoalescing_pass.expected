@@ -1,0 +1,24 @@
+Test 1: Simple null coalescing
+Default (0)
+Alice (30)
+Test 2: Chained null coalescing
+Tertiary (25)
+Test 3: Null coalescing with function returns
+Default Function (50)
+Function Person (45)
+Test 4: String null coalescing
+default value
+actual value
+Test 5: Null coalescing in variable assignment
+Assigned (33)
+Test 6: Nested null coalescing
+Safe (100)
+Safe (100)
+Nested (28)
+Test 7: Null coalescing with wrapped values
+-1
+42
+Test 8: Null coalescing in conditionals
+Test 9: Multiple null coalescing operations
+null | Second | Third
+Test passed

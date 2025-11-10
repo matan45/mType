@@ -1,0 +1,14 @@
+Testing multiple cleanup failures
+Acquired resource: Connection1
+Acquired resource: Connection2
+Acquired resource: Connection3
+Performing operations...
+Caught operation exception: Operation failed
+Cleaning up resources...
+Successfully closed resource: Connection1
+Failed to close resource: Connection2
+Cleanup error for r2: Cleanup failed for Connection2
+Failed to close resource: Connection3
+Cleanup error for r3: Cleanup failed for Connection3
+All cleanup attempts completed
+Test completed successfully

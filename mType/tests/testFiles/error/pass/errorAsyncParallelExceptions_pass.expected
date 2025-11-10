@@ -1,0 +1,48 @@
+=== Test 1: Independent parallel tasks ===
+Starting independent tasks
+Task 1: Starting
+Task 1: Completed successfully
+Task 1 result: Task1-OK
+Task 2: Starting
+Task 2: Throwing exception
+Task 2 caught: Task 2 failed (ID: 2)
+Task 3: Starting
+Task 3: Completed successfully
+Task 3 result: Task3-OK
+Task 4: Starting
+Task 4: Throwing exception
+Task 4 caught: Task 4 failed (ID: 4)
+Result: All tasks completed
+
+=== Test 2: Aggregated results ===
+Starting aggregated parallel operations
+Operation 1 running
+Op 1 succeeded: 1
+Operation 2 running
+Op 2 failed: Operation 2 error
+Operation 3 running
+Op 3 succeeded: 3
+Operation 4 running
+Op 4 failed: Operation 4 error
+Operation 5 running
+Op 5 succeeded: 5
+Final report: Success: 3, Failures: 2
+Result: Aggregation complete
+
+=== Test 3: Fail-fast ===
+Starting fail-fast operations
+Operation 1 running
+Op 1 done: 1
+Operation 2 running
+Fail-fast caught: Operation 2 error
+Result: stopped early
+
+=== Test 4: Mixed exception types ===
+Starting mixed exception types
+Network task running
+Caught network exception: Network error
+Validation task running
+Caught validation exception: Validation error
+Result: Mixed exceptions handled
+
+Parallel exception test completed

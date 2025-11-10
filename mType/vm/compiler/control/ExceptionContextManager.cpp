@@ -77,6 +77,22 @@ namespace vm::compiler::control
         contextStack.back().returnJumps.push_back(jumpOffset);
     }
 
+    void ExceptionContextManager::registerBreakJump(size_t jumpOffset)
+    {
+        if (contextStack.empty()) {
+            throw errors::RuntimeException("Break jump outside of try context");
+        }
+        contextStack.back().breakJumps.push_back(jumpOffset);
+    }
+
+    void ExceptionContextManager::registerContinueJump(size_t jumpOffset)
+    {
+        if (contextStack.empty()) {
+            throw errors::RuntimeException("Continue jump outside of try context");
+        }
+        contextStack.back().continueJumps.push_back(jumpOffset);
+    }
+
     void ExceptionContextManager::setTryEndOffset(size_t offset)
     {
         if (contextStack.empty()) {
@@ -131,6 +147,22 @@ namespace vm::compiler::control
             throw errors::RuntimeException("Not in an exception handling context");
         }
         return contextStack.back().returnJumps;
+    }
+
+    const std::vector<size_t>& ExceptionContextManager::getBreakJumps() const
+    {
+        if (contextStack.empty()) {
+            throw errors::RuntimeException("Not in an exception handling context");
+        }
+        return contextStack.back().breakJumps;
+    }
+
+    const std::vector<size_t>& ExceptionContextManager::getContinueJumps() const
+    {
+        if (contextStack.empty()) {
+            throw errors::RuntimeException("Not in an exception handling context");
+        }
+        return contextStack.back().continueJumps;
     }
 
     void ExceptionContextManager::setReturnValueSlot(size_t slot)
@@ -235,5 +267,18 @@ namespace vm::compiler::control
             throw errors::RuntimeException("Not in an exception handling context");
         }
         return contextStack.back().hasReturnFlagSlot;
+    }
+
+    uint32_t ExceptionContextManager::getNestingLevel() const
+    {
+        // Context stack size gives us the nesting level
+        // Size 0 = not in try (should not be called)
+        // Size 1 = outermost try (level 0)
+        // Size 2 = first nested try (level 1)
+        // etc.
+        if (contextStack.empty()) {
+            return 0;  // Not in try context
+        }
+        return static_cast<uint32_t>(contextStack.size() - 1);
     }
 }

@@ -1,0 +1,10 @@
+Testing arrays of generic types
+IntBox[0]: 10
+IntBox[2]: 30
+StringBox[0]: Hello
+StringBox[1]: World
+Pair[0] key: age
+Pair[0] value: 25
+Pair[1] key: score
+Pair[1] value: 100
+Generic array type checking passed

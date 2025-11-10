@@ -2,6 +2,7 @@
 // Expected: Should compile and validate successfully
 import * from "../../lib/exceptions/Exception.mt";
 import * from "../../lib/exceptions/RuntimeException.mt";
+
 class IOException extends Exception {
     constructor(string message): super(message) {
     }
@@ -12,8 +13,8 @@ class FileReader {
     public function read(string path): string {
         return "default content";
     }
-	
-	@Throw(IOException,RuntimeException)
+
+    @Throw(IOException, RuntimeException)
     public static function read2(string path): string {
         return "default content";
     }

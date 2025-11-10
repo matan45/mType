@@ -1,0 +1,13 @@
+Testing exception with Serializable constraint:
+Caught: System error occurred
+Serialized: ErrorRecord[500,HIGH,1699000000]
+Severity: HIGH
+Testing exception with Identifiable constraint:
+Caught: Tracked error
+Tracking ID: 404
+Severity: MEDIUM
+Timestamp: 1699000100
+Testing comparable constraint:
+Caught: Earlier error found
+Error ID: 100
+Multiple generic bounds test passed!

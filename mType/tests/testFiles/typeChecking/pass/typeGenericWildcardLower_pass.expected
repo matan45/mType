@@ -1,0 +1,9 @@
+Testing wildcard with lower bound semantics
+First consumption: 42
+Consumed: 42
+Consumed: 42
+Consumed: 42
+String consumption: Hello
+Consumed: Hello
+Consumed: Hello
+Lower bound wildcard test completed

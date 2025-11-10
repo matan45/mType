@@ -1,0 +1,19 @@
+Creating InitOrder:
+Initializing field: first = 1
+Initializing field: second = 2
+Initializing field: third = 3
+Constructor start
+Initializing field: fourth = 4
+Constructor end
+first=1, second=2, third=3, fourth=4
+
+Creating DerivedInit:
+Initializing field: first = 1
+Initializing field: second = 2
+Initializing field: third = 3
+Constructor start
+Initializing field: fourth = 4
+Constructor end
+Initializing field: fifth = 5
+DerivedInit constructor
+first=1, second=2, third=3, fourth=4

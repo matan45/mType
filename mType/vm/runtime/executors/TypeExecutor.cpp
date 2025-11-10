@@ -2,8 +2,9 @@
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../value/StringPool.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../../errors/UserException.hpp"
 #include <sstream>
-
+#include <iostream>
 namespace vm::runtime
 {
     TypeExecutor::TypeExecutor(ExecutionContext& ctx)
@@ -99,16 +100,32 @@ namespace vm::runtime
                 }
 
                 // Also check if object implements an interface with that name
+                // IMPORTANT: Must check interface hierarchy recursively
+                // AND check parent classes' interfaces too
                 if (!result) {
-                    const auto& interfaces = classDef->getImplementedInterfaces();
-                    for (const auto& iface : interfaces) {
-                        // Extract base interface name for comparison
-                        std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
+                    // Walk up the inheritance chain checking interfaces at each level
+                    auto currentClass = classDef;
+                    while (currentClass && !result) {
+                        const auto& interfaces = currentClass->getImplementedInterfaces();
+                        for (const auto& iface : interfaces) {
+                            // Extract base interface name for comparison
+                            std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
 
-                        if (iface == targetTypeName || baseIfaceName == baseTargetName) {
-                            result = true;
-                            break;
+                            if (iface == targetTypeName || baseIfaceName == baseTargetName) {
+                                result = true;
+                                break;
+                            }
+
+                            // Check if this interface extends the target interface (interface inheritance)
+                            std::unordered_set<std::string> visited;
+                            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+                                result = true;
+                                break;
+                            }
                         }
+
+                        // Move to parent class
+                        currentClass = currentClass->getParentClass();
                     }
                 }
 
@@ -139,13 +156,19 @@ namespace vm::runtime
             try {
                 return std::stoi(std::get<std::string>(val));
             } catch (...) {
-                utils::ErrorLocationHelper::throwRuntimeError(context,
-                    "Cannot cast string to int: " + std::get<std::string>(val));
+                throwCastError("Cannot cast string to int: " + std::get<std::string>(val));
             }
         }
+        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+            if (obj && obj->getClassDefinition()->getName() == "Int") {
+                // Return the Int object itself (it's already the right type)
+                return val;
+            }
+            throwCastError("Cannot cast object to int");
+        }
         else {
-            utils::ErrorLocationHelper::throwRuntimeError(context,
-                "Cannot cast to int from this type");
+            throwCastError("Cannot cast to int from this type");
         }
     }
 
@@ -160,13 +183,11 @@ namespace vm::runtime
             try {
                 return std::stof(std::get<std::string>(val));
             } catch (...) {
-                utils::ErrorLocationHelper::throwRuntimeError(context,
-                    "Cannot cast string to float: " + std::get<std::string>(val));
+                throwCastError("Cannot cast string to float: " + std::get<std::string>(val));
             }
         }
         else {
-            utils::ErrorLocationHelper::throwRuntimeError(context,
-                "Cannot cast to float from this type");
+            throwCastError("Cannot cast to float from this type");
         }
     }
 
@@ -195,8 +216,7 @@ namespace vm::runtime
             return str.length() > 0;
         }
         else {
-            utils::ErrorLocationHelper::throwRuntimeError(context,
-                "Cannot cast to bool from this type");
+            throwCastError("Cannot cast to bool from this type");
         }
     }
 
@@ -222,6 +242,11 @@ namespace vm::runtime
         }
         // 2. Base class match without type parameters (e.g., Box<Int> -> Box)
         if (classComp.baseName == targetComp.baseName && targetComp.typeParams.empty()) {
+            return true;
+        }
+        // 3. Type erasure compatibility: allow casting from erased type to parameterized type
+        // (e.g., Box -> Box<Int>). This happens because mType uses type erasure at runtime.
+        if (classComp.baseName == targetComp.baseName && classComp.typeParams.empty()) {
             return true;
         }
         return false;
@@ -282,9 +307,20 @@ namespace vm::runtime
     }
 
     void TypeExecutor::throwIncompatibleCastError(const std::string& className, const std::string& targetTypeName) {
-        utils::ErrorLocationHelper::throwRuntimeError(context,
-            "Cannot cast " + className + " to " + targetTypeName +
-            ": incompatible types in inheritance hierarchy");
+        throwCastError("Cannot cast " + className + " to " + targetTypeName +
+                      ": incompatible types in inheritance hierarchy");
+    }
+
+    void TypeExecutor::throwCastError(const std::string& message) {
+        // Get source location
+        auto* loc = context.program->getSourceLocation(context.instructionPointer);
+        errors::SourceLocation errorLoc = loc ?
+            errors::SourceLocation(loc->filename, loc->line, loc->column) :
+            errors::SourceLocation();
+
+        // Throw as UserException with type "Exception" so it can be caught by catch(Exception e)
+        // In the future, we could create actual CastError exception objects that extend Exception
+        throw errors::UserException(message, "Exception", errorLoc);
     }
 
     value::Value TypeExecutor::castToObject(const value::Value& val, const std::string& targetTypeName) {
@@ -295,15 +331,13 @@ namespace vm::runtime
 
         // Handle non-object types
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            utils::ErrorLocationHelper::throwRuntimeError(context,
-                "Cannot cast primitive type to " + targetTypeName);
+            throwCastError("Cannot cast primitive type to " + targetTypeName);
         }
 
         // Object cast - check if it's a valid object type
         auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
         if (!obj) {
-            utils::ErrorLocationHelper::throwRuntimeError(context,
-                "Cannot cast null to " + targetTypeName);
+            throwCastError("Cannot cast null to " + targetTypeName);
         }
 
         auto classDef = obj->getClassDefinition();

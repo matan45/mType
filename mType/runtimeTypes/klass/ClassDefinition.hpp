@@ -72,6 +72,7 @@ namespace runtimeTypes::klass
         bool hasStaticField(const std::string& fieldName) const;
         bool hasStaticMethod(const std::string& methodName) const;
         ConstructorDefinition* findConstructor(size_t argCount) const;
+        ConstructorDefinition* findConstructorByTypes(const std::vector<value::Value>& args) const;
 
         // Getter methods for AST node integration
         const std::string& getClassName() const;

@@ -1,5 +1,6 @@
 import * from "../../lib/collections/List.mt";
 import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
 import * from "../../lib/primitives/String.mt";
 
 // Generic library for testing imports with generics
@@ -14,19 +15,19 @@ class GenericContainer<T> {
         this.items.add(item);
     }
 
-    public function size(): int {
+    public function size(): Int {
         return this.items.size();
     }
 
-    public function contains(T item): bool {
+    public function contains(T item): Bool {
         // Check if list contains the item
         for (int i = 0; i < this.items.size(); i++) {
             T current = this.items.get(i);
             if (current != null && current.equals(item)) {
-                return true;
+                return new Bool(true);
             }
         }
-        return false;
+        return new Bool(false);
     }
 
     public function getFirst(): T {
@@ -47,10 +48,10 @@ function createStringContainer(): GenericContainer<String> {
     return new GenericContainer<String>();
 }
 
-function containsIntItem(GenericContainer<Int> container, Int item): bool {
+function containsIntItem(GenericContainer<Int> container, Int item): Bool {
     return container.contains(item);
 }
 
-function containsStringItem(GenericContainer<String> container, String item): bool {
+function containsStringItem(GenericContainer<String> container, String item): Bool {
     return container.contains(item);
 }

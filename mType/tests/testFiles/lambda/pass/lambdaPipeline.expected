@@ -1,0 +1,6 @@
+=== Pipeline Test ===
+Pipeline result: 25
+Chained result: 50
+Sum of doubled evens: 60
+Complex pipeline: 53
+Pipeline complete

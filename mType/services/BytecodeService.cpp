@@ -290,10 +290,39 @@ namespace services
                                         ? ast::AccessModifier::PROTECTED
                                         : ast::AccessModifier::PUBLIC);
 
+            // Initialize static fields with default values based on type
+            value::Value defaultValue;
+            if (isStatic)
+            {
+                switch (fieldType)
+                {
+                case value::ValueType::INT:
+                    defaultValue = 0;
+                    break;
+                case value::ValueType::FLOAT:
+                    defaultValue = 0.0f;
+                    break;
+                case value::ValueType::STRING:
+                    defaultValue = std::string("");
+                    break;
+                case value::ValueType::BOOL:
+                    defaultValue = false;
+                    break;
+                default:
+                    defaultValue = std::monostate{}; // null for objects
+                    break;
+                }
+            }
+            else
+            {
+                // Instance fields don't need default values here (initialized in constructor)
+                defaultValue = std::monostate{};
+            }
+
             auto fieldDef = std::make_shared<FieldDefinition>(
                 fieldMeta.name,
                 fieldType,
-                std::monostate{}, // Empty value - bytecode will initialize
+                defaultValue,
                 isStatic,
                 fieldMeta.isFinal,
                 accessMod

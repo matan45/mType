@@ -1,4 +1,4 @@
-import "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Non-generic function
 function regularFunc(String value): String {

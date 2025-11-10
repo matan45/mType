@@ -1,0 +1,33 @@
+Test 1: Is 4 even?
+isEven(4)
+isOdd(3)
+isEven(2)
+isOdd(1)
+isEven(0)
+Result: true
+
+Test 2: Is 5 even?
+isEven(5)
+isOdd(4)
+isEven(3)
+isOdd(2)
+isEven(1)
+isOdd(0)
+Result: false
+
+Test 3: Is 3 odd?
+isOdd(3)
+isEven(2)
+isOdd(1)
+isEven(0)
+Result: true
+
+Test 4: Is 6 odd?
+isOdd(6)
+isEven(5)
+isOdd(4)
+isEven(3)
+isOdd(2)
+isEven(1)
+isOdd(0)
+Result: false

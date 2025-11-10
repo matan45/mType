@@ -1,0 +1,29 @@
+Test 1: Normal resource usage
+Opening resource: File1
+Using resource: File1
+Using resource: File1
+Closing resource: File1
+Resource open: false
+
+Test 2: Resource usage with error
+Opening resource: File2
+Using resource: File2
+Throwing error during resource use
+Caught error: ResourceError
+Finally block - cleanup
+Closing resource: File2
+Resource open: false
+
+Test 3: Resource usage without error
+Opening resource: File3
+Using resource: File3
+Using resource: File3
+Finally block - cleanup
+Closing resource: File3
+Resource open: false
+
+Test 4: Manual cleanup
+Opening resource: File4
+Using resource: File4
+Closing resource: File4
+Error: Cannot use closed resource File4

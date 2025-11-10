@@ -1,0 +1,9 @@
+=== Async Main Function Test ===
+Main function started
+Fetching user data for ID: 101
+Got user: User-101
+Fetching user data for ID: 102
+Got user: User-102
+Processing: User-101
+Processed count: 1
+Main function completed

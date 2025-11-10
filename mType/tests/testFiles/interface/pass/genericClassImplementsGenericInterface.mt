@@ -5,18 +5,18 @@ import * from "../../lib/primitives/String.mt";
 interface Container<T> {
     function add(T item): bool;
     function get(int index): T;
-    function size(): Int;
+    function size(): int;
 }
 
 class GenericList<T> implements Container<T> {
-    Int listSize;
+    private int listSize;
 
-    constructor() {
-        this.listSize = new Int(0);
+    public constructor() {
+        this.listSize = 0;
     }
 
     public function add(T item): bool {
-        this.listSize = new Int(this.listSize.getValue() + 1);
+        this.listSize = this.listSize + 1;
         print("Added item to generic list");
         return true;
     }
@@ -25,7 +25,7 @@ class GenericList<T> implements Container<T> {
         return null; // Simplified implementation
     }
 
-    public function size(): Int {
+    public function size(): int {
         return this.listSize;
     }
 }
@@ -33,6 +33,6 @@ class GenericList<T> implements Container<T> {
 GenericList<String> stringList = new GenericList<String>();
 stringList.add(new String("42"));
 stringList.add(new String("17"));
-print("List size: " + stringList.size().getValue());
+print("List size: " + stringList.size());
 
 print("Generic class implements generic interface successful");

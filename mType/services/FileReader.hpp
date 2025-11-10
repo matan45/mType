@@ -17,15 +17,18 @@ namespace lexer
         static constexpr size_t DEFAULT_BUFFER_SIZE = 8192;  // 8KB buffer
         static constexpr size_t LARGE_FILE_THRESHOLD = 10 * 1024 * 1024; // 10MB
         static constexpr size_t MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
-        
+
+        // Virtual destructor for proper cleanup of derived classes
+        virtual ~FileReader() = default;
+
         // Main interface - automatically chooses optimal strategy
-        std::string readFile(const std::string& filePath);
-        
+        virtual std::string readFile(const std::string& filePath);
+
         // Advanced interface for custom buffer sizes
-        std::string readFileBuffered(const std::string& filePath, size_t bufferSize = DEFAULT_BUFFER_SIZE);
-        
+        virtual std::string readFileBuffered(const std::string& filePath, size_t bufferSize = DEFAULT_BUFFER_SIZE);
+
         // Streaming interface for processing large files chunk by chunk
-        void streamFile(const std::string& filePath, 
+        virtual void streamFile(const std::string& filePath,
                        std::function<void(std::string_view)> chunkProcessor,
                        size_t bufferSize = DEFAULT_BUFFER_SIZE);
 

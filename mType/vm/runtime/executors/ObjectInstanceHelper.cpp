@@ -4,8 +4,9 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../types/TypeRegistry.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include "../../../value/IntegerCache.hpp"
 #include <algorithm>
-
+#include  <iostream>
 namespace vm::runtime
 {
     // Helper function to parse type arguments with proper bracket depth tracking
@@ -101,11 +102,9 @@ namespace vm::runtime
                 continue;
             }
 
-            if (typeRegistry.isPrimitiveType(typeArg)) {
-                throw errors::TypeException(
-                    "Generic type arguments must be object types (classes/interfaces) or generic parameters. "
-                    "Primitive type '" + typeArg + "' is not allowed as a generic argument for class '" + baseClassName + "'.");
-            }
+            // PURE OOP: Primitives are now allowed as generic type arguments!
+            // They are treated as their Box class equivalents (Int, Float, Bool, String)
+            // No need to reject primitive types - they're now objects
         }
 
         // Map generic parameters to concrete types
@@ -256,13 +255,16 @@ namespace vm::runtime
             throw errors::RuntimeException("Parent class not found: " + baseParentClassName);
         }
 
-        auto parentConstructor = parentClass->findConstructor(argCount);
+        // Use type-aware constructor lookup for overload resolution
+        auto parentConstructor = parentClass->findConstructorByTypes(args);
         if (!parentConstructor) {
             throw errors::RuntimeException("No constructor found in parent class " + baseParentClassName +
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        std::string constructorName = baseParentClassName + "::<init>/" + std::to_string(argCount);
+        // Build constructor name with type signature for overload resolution
+        std::string typeSignature = parentConstructor->getTypeSignature();
+        std::string constructorName = baseParentClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -277,7 +279,7 @@ namespace vm::runtime
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = "<init>";
+            frame.functionName = constructorName;  // Use qualified name for proper exception handling
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for constructor
 
@@ -305,6 +307,89 @@ namespace vm::runtime
             context.instructionPointer = funcMetadata->startOffset - 1;
         } else {
             throw errors::RuntimeException("Parent constructor '" + constructorName + "' has no bytecode.");
+        }
+    }
+
+    void ObjectInstanceHelper::handleThisConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Operand[0] is classNameIndex, Operand[1] is argCount
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("THIS_CONSTRUCTOR requires 2 operands (classNameIndex, argCount)");
+        }
+
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i) {
+            args.push_back(context.stackManager->pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+            throw errors::RuntimeException("THIS_CONSTRUCTOR can only be called from within an instance context");
+        }
+
+        auto instance = context.callStack.back().thisInstance;
+
+        // Find the current class
+        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Current class not found: " + currentClassName);
+        }
+
+        // Use type-aware constructor lookup for overload resolution
+        auto targetConstructor = classDef->findConstructorByTypes(args);
+        if (!targetConstructor) {
+            throw errors::RuntimeException("No constructor found in class " + currentClassName +
+                                         " with " + std::to_string(argCount) + " arguments");
+        }
+
+        // Build constructor name with type signature for overload resolution
+        std::string typeSignature = targetConstructor->getTypeSignature();
+        std::string constructorName = currentClassName + "::<init>/" + typeSignature;
+        auto funcMetadata = context.program->getFunction(constructorName);
+        if (funcMetadata) {
+            size_t frameBase = context.stackManager->size();
+
+            context.stackManager->push(instance);
+
+            for (size_t i = 0; i < argCount; ++i) {
+                context.stackManager->push(args[i]);
+            }
+
+            CallFrame frame;
+            frame.returnAddress = context.instructionPointer;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
+            frame.functionName = constructorName;  // Use qualified name for proper exception handling
+            frame.thisInstance = instance;
+            frame.definingClassName = currentClassName;  // Same class as defining class
+
+            context.pushCallFrame(frame);
+            context.stats.functionCalls++;
+
+            // Notify debugger of constructor delegation entry
+            if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+                auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+                if (sourceLoc) {
+                    errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(constructorName, errorsLoc);
+                } else {
+                    // Fallback: use constructor start location
+                    auto ctorStartLoc = context.program->getSourceLocation(funcMetadata->startOffset);
+                    if (ctorStartLoc) {
+                        errors::SourceLocation errorsLoc(ctorStartLoc->filename, ctorStartLoc->line, ctorStartLoc->column);
+                        debugger::DebugHookHelper::enterFunctionHook(constructorName, errorsLoc);
+                    } else {
+                        debugger::DebugHookHelper::enterFunctionHook(constructorName, errors::SourceLocation());
+                    }
+                }
+            }
+
+            context.instructionPointer = funcMetadata->startOffset - 1;
+        } else {
+            throw errors::RuntimeException("Constructor '" + constructorName + "' has no bytecode.");
         }
     }
 
@@ -482,7 +567,8 @@ namespace vm::runtime
         auto classRegistry = context.environment->getClassRegistry();
         auto classDef = classRegistry->findClass(baseClassName);
 
-        auto constructor = classDef->findConstructor(argCount);
+        // Use type-aware constructor lookup for overload resolution
+        auto constructor = classDef->findConstructorByTypes(args);
         if (!constructor) {
             bool hasAnyConstructor = !classDef->getConstructors().empty();
 
@@ -498,7 +584,10 @@ namespace vm::runtime
         auto accessContext = createAccessContext(baseClassName, false);
         validation::AccessValidator::validateConstructorAccess(baseClassName, constructor->getAccessModifier(), accessContext);
 
-        std::string constructorName = baseClassName + "::<init>/" + std::to_string(argCount);
+        // Build type signature from runtime argument values for overload resolution
+        std::string typeSignature = constructor->getTypeSignature();
+
+        std::string constructorName = baseClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
         if (!funcMetadata) {
             throw errors::RuntimeException("Constructor '" + constructorName + "' for class '" + baseClassName +
@@ -509,7 +598,7 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;
         frame.frameBase = context.stackManager->size();
         frame.localBase = context.stackManager->size();
-        frame.functionName = "<init>";
+        frame.functionName = constructorName;  // Use qualified name for proper exception handling
         frame.thisInstance = instance;
         frame.definingClassName = baseClassName;  // Set class as defining class for its own constructor
 
@@ -557,7 +646,32 @@ namespace vm::runtime
         // Prepare constructor arguments from stack
         std::vector<value::Value> args = prepareConstructorArguments(argCount);
 
-        // Create object instance and initialize fields
+        // PHASE 2 OPTIMIZATION: Integer Caching
+        // If creating Int object with single int argument in cacheable range, use cached instance
+        if (baseClassName == "Int" && argCount == 1 && std::holds_alternative<int>(args[0])) {
+            int intValue = std::get<int>(args[0]);
+
+            // Check if value is cacheable
+            if (value::IntegerCache::isCacheable(intValue)) {
+                // Get Int class definition for cache
+                auto classRegistry = context.environment->getClassRegistry();
+                auto intClassDef = classRegistry ? classRegistry->findClass("Int") : nullptr;
+
+                if (intClassDef) {
+                    // Try to get from cache
+                    auto cachedInstance = value::IntegerCache::getInt(intValue, intClassDef);
+
+                    if (cachedInstance) {
+                        // Cache hit! Return cached Int object (already initialized)
+                        // Skip constructor invocation - cached object is already properly initialized
+                        invokeConstructor(cachedInstance, baseClassName, args);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Normal object creation path (non-cached or cache miss)
         auto instance = createObjectInstance(baseClassName, genericTypeBindings);
 
         // Invoke constructor

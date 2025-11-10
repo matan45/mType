@@ -1,0 +1,9 @@
+Testing array garbage collection
+Round 0 created array with first value: 0
+Round 1 created array with first value: 10
+Round 2 created array with first value: 20
+Persistent array:
+  100
+  200
+  300
+Garbage collection test completed

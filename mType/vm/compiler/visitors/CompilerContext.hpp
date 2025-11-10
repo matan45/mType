@@ -11,9 +11,11 @@
 #include "../types/TypeInferenceEngine.hpp"
 #include "../types/TypeValidator.hpp"
 #include "../types/GenericTypeResolver.hpp"
+#include "../types/ExpectedTypeContext.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../ast/ASTVisitor.hpp"
 #include "../../../value/ValueType.hpp"
+#include "../../../circularDependency/CircularDependencyDetector.hpp"
 #include <memory>
 
 namespace vm::compiler
@@ -52,14 +54,25 @@ namespace vm::compiler::visitors
         types::TypeValidator& typeValidator;
         types::GenericTypeResolver& genericResolver;
         validation::CompileTimeValidator* compileTimeValidator = nullptr;
+        std::shared_ptr<circularDependency::CircularDependencyDetector> staticFieldInitDetector;
 
         // Class context (for member access)
         ast::ClassNode* currentClassNode = nullptr;
         bool inInstanceMethod = false;
         bool inStaticMethod = false;
+        bool inStaticFieldInitializer = false;  // Track if we're compiling a static field initializer
 
         // Generic type binding stack for functions and methods
         std::vector<std::unordered_map<std::string, std::string>> genericTypeBindingStack;
+
+        // Expected type context stack for bidirectional type checking
+        std::vector<types::ExpectedTypeContext> expectedTypeContextStack;
+
+        // PHASE 3: Cache for resolved generic function call return types
+        // Maps FunctionCallNode* -> resolved className (e.g., "Int" instead of "T")
+        // This cache is populated during function call compilation (while bindings are active)
+        // and queried later during type checking (after bindings are popped)
+        std::unordered_map<const ast::ASTNode*, std::string> resolvedFunctionCallTypes;
 
         CompilerContext(
             ast::ASTVisitor<value::Value>& vis,
@@ -117,17 +130,44 @@ namespace vm::compiler::visitors
 
         std::string resolveGenericType(const std::string& typeName) const
         {
-            // Check from most recent to oldest binding context
-            for (auto it = genericTypeBindingStack.rbegin(); it != genericTypeBindingStack.rend(); ++it)
+            // Get the most recent generic type bindings
+            if (genericTypeBindingStack.empty())
             {
-                auto found = it->find(typeName);
-                if (found != it->end())
-                {
-                    return found->second;
-                }
+                return typeName;  // No bindings available
             }
-            // Not a generic type parameter, return as-is
-            return typeName;
+
+            // Use GenericTypeResolver to handle nested generics (e.g., "TypeToken<T>" -> "TypeToken<Int>")
+            types::GenericTypeResolver resolver;
+            return resolver.resolveGenericType(typeName, genericTypeBindingStack.back());
+        }
+
+        // Expected type context management for bidirectional type checking
+        void pushExpectedTypeContext(const types::ExpectedTypeContext& context)
+        {
+            expectedTypeContextStack.push_back(context);
+        }
+
+        void popExpectedTypeContext()
+        {
+            if (!expectedTypeContextStack.empty())
+            {
+                expectedTypeContextStack.pop_back();
+            }
+        }
+
+        types::ExpectedTypeContext getCurrentExpectedTypeContext() const
+        {
+            if (expectedTypeContextStack.empty())
+            {
+                return types::ExpectedTypeContext::none();
+            }
+            return expectedTypeContextStack.back();
+        }
+
+        bool hasExpectedTypeContext() const
+        {
+            return !expectedTypeContextStack.empty() &&
+                   expectedTypeContextStack.back().isActive;
         }
     };
 }

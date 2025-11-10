@@ -14,8 +14,8 @@ interface Action {
 
 // Test 1: Static class member capture edge cases
 class StaticCapture {
-    static int globalCounter = 100;
-    static final int CONSTANT = 42;
+    public static int globalCounter = 100;
+    public static final int CONSTANT = 42;
     int instanceField = 10;
 
     public static function testStaticCapture(): void {
@@ -115,7 +115,7 @@ class MutabilityCapture {
 
 // Test 4: Complex capture scenarios
 class ComplexCapture {
-    static int staticCounter = 0;
+    public static int staticCounter = 0;
     int instanceId;
 
     constructor(int id) {

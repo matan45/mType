@@ -1,0 +1,13 @@
+Creating circular reference structure...
+Circular structure created
+Starting circular traversal with casting...
+Node 1 weight: 10
+Node 2 weight: 20
+Node 3 weight: 30
+Node 4 weight: 40
+Completed 20 iterations
+Node1 id: 1
+Node2 id: 2
+Node3 id: 3
+Node4 id: 4
+Test completed successfully

@@ -1,0 +1,53 @@
+Testing break in try blocks
+Testing break in try with finally
+Try block iteration: 0
+Finally block iteration: 0
+After try-finally: 0
+Try block iteration: 1
+Finally block iteration: 1
+After try-finally: 1
+Try block iteration: 2
+Finally block iteration: 2
+After try-finally: 2
+Try block iteration: 3
+Breaking at iteration: 3
+Finally block iteration: 3
+After loop
+Testing break with exception handling
+Normal iteration: 0
+Cleanup iteration: 0
+End of iteration: 0
+Normal iteration: 1
+Cleanup iteration: 1
+End of iteration: 1
+Caught: Exception at 2
+Cleanup iteration: 2
+Normal iteration: 3
+Cleanup iteration: 3
+End of iteration: 3
+Normal iteration: 4
+Cleanup iteration: 4
+Loop completed
+Testing nested break with finally
+Inner loop: i=0 j=0
+Inner finally: j=0
+Inner loop: i=0 j=1
+Inner finally: j=1
+Inner loop: i=0 j=2
+Inner finally: j=2
+Outer finally: i=0
+Inner loop: i=1 j=0
+Inner finally: j=0
+Inner loop: i=1 j=1
+Inner finally: j=1
+Inner loop: i=1 j=2
+Inner finally: j=2
+Outer finally: i=1
+Inner loop: i=2 j=0
+Inner finally: j=0
+Inner loop: i=2 j=1
+Inner finally: j=1
+Inner loop: i=2 j=2
+Inner finally: j=2
+Outer finally: i=2
+Test completed

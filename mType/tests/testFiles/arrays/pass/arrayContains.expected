@@ -1,0 +1,9 @@
+Testing array contains operation
+Array: [10, 20, 30, 40, 50, 60]
+contains(30): true
+contains(10): true
+contains(60): true
+contains(25): false
+contains(100): false
+Empty array contains(10): false
+Contains operation test completed

@@ -1,0 +1,6 @@
+Testing arrays with error handling
+Array: [10, 20, 30, 40, 50]
+Safe access data[2] = 30
+Error accessing index 10 (out of bounds)
+Error accessing index -1 (negative)
+Error handling test completed

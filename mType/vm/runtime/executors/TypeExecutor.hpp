@@ -65,5 +65,6 @@ namespace vm::runtime
         bool checkInterfaceMatch(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
                                 const std::string& targetTypeName);
         void throwIncompatibleCastError(const std::string& className, const std::string& targetTypeName);
+        [[noreturn]] void throwCastError(const std::string& message);
     };
 }

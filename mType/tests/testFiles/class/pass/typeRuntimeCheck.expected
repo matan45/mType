@@ -1,0 +1,16 @@
+Test 1: Process individual items
+Processing: 1984
+  Type: Book
+  Author: George Orwell
+
+Processing: Inception
+  Type: DVD
+  Duration: 148 minutes
+
+Processing: Generic Item
+  Type: Generic Item
+
+Processing: Dune
+  Type: Book
+  Author: Frank Herbert
+

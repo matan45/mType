@@ -1,0 +1,9 @@
+Testing exception in ternary operator
+Computing true branch
+Caught in true branch: Error in true branch
+Result 1: 100
+---
+Computing false branch
+Caught in false branch: Error in false branch
+Result 2: 200
+Test completed

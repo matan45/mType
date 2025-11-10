@@ -1,0 +1,10 @@
+Testing arrays in closures
+Initial counts:
+  counter[0] = 0
+  counter[1] = 0
+  counter[2] = 0
+After increments:
+  counter[0] = 2
+  counter[1] = 1
+  counter[2] = 3
+Arrays in closures test completed

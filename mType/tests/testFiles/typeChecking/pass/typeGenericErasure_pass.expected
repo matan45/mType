@@ -1,0 +1,9 @@
+Testing type erasure scenarios
+Container has value: 42
+Container has value: Hello
+Container has value: TestType
+Container is empty
+Int value: 42
+String value: Hello
+TypeInfo: TestType
+Type erasure test completed

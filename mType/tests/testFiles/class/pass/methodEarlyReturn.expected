@@ -1,0 +1,39 @@
+Test 1: Invalid age
+Validating: age=-5, name=John, email=john@test.com
+Early return: invalid age
+Result: Error: Age cannot be negative
+
+Test 2: Too young
+Validating: age=15, name=Jane, email=jane@test.com
+Early return: too young
+Result: Error: Must be 18 or older
+
+Test 3: Empty name
+Validating: age=25, name=, email=test@test.com
+Early return: empty name
+Result: Error: Name is required
+
+Test 4: Valid input
+Validating: age=30, name=Bob, email=bob@test.com
+All validations passed
+Result: Valid
+
+Test 5: Find first
+Finding first occurrence of 5
+Checking position 0
+Checking position 1
+Checking position 2
+Checking position 3
+Checking position 4
+Checking position 5
+Found at position 5
+Position: 5
+
+Test 6: Exception handling
+Processing with shouldThrow=true
+Throwing exception
+Caught exception: TestException
+Result: Error: TestException
+Processing with shouldThrow=false
+No exception, returning success
+Result: Success

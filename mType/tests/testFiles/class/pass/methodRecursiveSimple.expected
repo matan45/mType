@@ -1,0 +1,31 @@
+Test 1: Factorial of 5
+factorial(5)
+factorial(4)
+factorial(3)
+factorial(2)
+factorial(1)
+Result: 120
+
+Test 2: Fibonacci of 5
+fibonacci(5)
+fibonacci(4)
+fibonacci(3)
+fibonacci(2)
+fibonacci(1)
+fibonacci(0)
+fibonacci(1)
+fibonacci(2)
+fibonacci(1)
+fibonacci(0)
+fibonacci(3)
+fibonacci(2)
+fibonacci(1)
+fibonacci(0)
+fibonacci(1)
+Result: 5
+
+Test 3: Countdown from 3
+Count: 3
+Count: 2
+Count: 1
+Done!

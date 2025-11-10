@@ -1,0 +1,5 @@
+Initializing static field
+Caught in static init: Error during static initialization
+Testing exception in static initializer
+Static field value: 42
+Test completed

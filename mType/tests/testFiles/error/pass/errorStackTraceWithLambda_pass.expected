@@ -1,0 +1,57 @@
+=== Test 1: Exception in lambda ===
+Calling lambda
+Lambda executing
+Caught: Exception from lambda
+Stack trace includes lambda: true
+Lambda exception handled
+
+=== Test 2: Lambda callback exception ===
+Triggering event with callback
+Callback lambda executing
+Caught callback exception: Callback failed
+Stack trace from callback: true
+Callback exception handled
+
+=== Test 3: Nested lambda exception ===
+Calling outer lambda
+Outer lambda executing
+Outer calling inner
+Inner lambda executing
+Caught: Inner lambda error
+Stack trace includes nested lambdas: true
+Nested lambda exception handled
+
+=== Test 4: Lambda with parameters ===
+Calling lambda with -5
+Processing value: -5
+Caught: Negative value not allowed
+Stack trace from parameterized lambda: true
+Parameterized lambda exception handled
+
+=== Test 5: Lambda in array processing ===
+Processing array with lambda
+Processing index: 0
+Lambda processing: 10
+Transformed: 110
+Processing index: 1
+Lambda processing: 0
+Caught array processing error: Cannot process zero
+Stack trace from array lambda: true
+Array lambda exception handled
+
+=== Test 6: Lambda closure exception ===
+Calling closure lambda
+Closure lambda with captured value: 42
+Caught closure exception: Captured value too large
+Stack trace includes closure: true
+Closure exception handled
+
+=== Test 7: Returned lambda exception ===
+Creating throwing lambda
+Executing returned lambda
+Returned lambda executing
+Caught: Returned lambda error
+Stack trace from returned lambda: true
+Returned lambda exception handled
+
+Lambda stack trace test completed

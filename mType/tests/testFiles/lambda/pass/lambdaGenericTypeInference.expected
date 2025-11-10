@@ -1,0 +1,6 @@
+=== Generic Type Inference Test ===
+Number: 42
+Length of 'hello': 5
+null
+test
+Generic type inference complete

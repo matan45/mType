@@ -1,0 +1,5 @@
+Testing cross-module exception handling
+Caught CustomException: Cross-module exception test
+Caught as Exception: Caught as base type
+Caught specific: Multiple module test
+All cross-module exception tests passed

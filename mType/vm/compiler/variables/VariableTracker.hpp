@@ -19,6 +19,7 @@ namespace vm::compiler::variables
             int scopeDepth;
             value::ValueType type = value::ValueType::VOID;
             std::string className;  // For OBJECT types (interfaces/classes)
+            bool isCaptured = false;  // True if captured by a lambda
         };
 
         VariableTracker();
@@ -56,6 +57,9 @@ namespace vm::compiler::variables
 
         // Get class name for a local variable by name
         std::string getLocalClassNameByName(const std::string& name) const;
+
+        // Mark a variable as captured by a lambda
+        void markVariableAsCaptured(size_t slot);
 
     private:
         std::vector<LocalVariable> locals;

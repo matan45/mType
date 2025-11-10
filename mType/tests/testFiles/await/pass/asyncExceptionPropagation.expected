@@ -1,0 +1,6 @@
+=== Async Exception Propagation Test ===
+Attempting to call throwing function
+About to throw exception
+Caught exception: Async function error
+Returning result: 100
+Final value: 100

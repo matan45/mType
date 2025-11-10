@@ -1,0 +1,14 @@
+=== Async Await in Loop Condition Test ===
+Checking hasMore: 5
+Processing: 5
+Checking hasMore: 4
+Processing: 4
+Checking hasMore: 3
+Processing: 3
+Checking hasMore: 2
+Processing: 2
+Checking hasMore: 1
+Processing: 1
+Checking hasMore: 0
+Loop finished, total: 15
+Final result: 15

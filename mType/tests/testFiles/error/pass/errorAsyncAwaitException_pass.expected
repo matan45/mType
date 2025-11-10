@@ -1,0 +1,51 @@
+=== Test 1: Simple await exception ===
+Awaiting throwing function
+Async operation starting
+Caught from await: Await error
+Result: caught
+
+=== Test 2: Multiple awaits ===
+Starting multiple operations
+Operation 1 executing
+Operation 1 result: 10
+Operation 2 throwing
+Caught during operations: Operation 2 failed
+Result: operation failed
+
+=== Test 3: Await in conditional (fail) ===
+Conditional branch - will fail
+Operation 1 starting
+Caught in conditional: Operation failed
+Failed operation ID: 1
+Result: handled
+
+=== Test 4: Await in conditional (success) ===
+Conditional branch - success
+Result: success
+
+=== Test 5: Await in loop ===
+Loop iteration: 0
+Loop iteration: 1
+Operation 1 starting
+Caught in loop: Operation failed
+At operation: 1
+Result: loop interrupted
+
+=== Test 6: Sequential awaits ===
+Sequential operations start
+Success operation
+First result: OK
+Success operation
+Second result: OK
+Fail operation
+Sequential caught: Failed operation
+Result: sequence stopped
+
+=== Test 7: Nested awaits ===
+Outer await calling middle
+Middle await calling inner
+Inner await throwing
+Outer caught: Inner error
+Result: outer handled
+
+Await exception test completed

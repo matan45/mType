@@ -1,0 +1,43 @@
+Test 1: Union-like behavior
+Int: 42
+String: Hello
+Bool: true
+
+Test 2: Array of union values
+Index 0 - Type: Int
+Int: 10
+Index 1 - Type: String
+String: Test
+Index 2 - Type: Bool
+Bool: false
+Index 3 - Type: Int
+Int: 20
+Index 4 - Type: String
+String: World
+
+Test 3: Function with union parameter
+Processing value of type: Int
+Int: 99
+Processing value of type: String
+String: Union
+Processing value of type: Bool
+Bool: true
+
+Test 4: Conditional union processing
+Processing Int type
+Int: 100
+Processing String type
+String: Mixed
+Processing Bool type
+Bool: false
+
+Test 5: Containers with union values
+Int: 50
+String: Contained
+
+Test 6: Factory returning union types
+Int: 123
+String: Factory
+Bool: true
+
+Union type tests completed

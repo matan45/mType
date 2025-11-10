@@ -1,0 +1,7 @@
+=== Lambda In Static Initializer Test ===
+Static value: 1000
+obj1.useStaticFunc(50): 1050
+obj2.useStaticFunc(100): 1100
+After changing static value to 2000:
+obj1.useStaticFunc(50): 2050
+Lambda in static initializer complete

@@ -34,13 +34,20 @@ namespace vm::compiler::visitors
         void emitReturnWithOuterFinally(ast::ReturnNode* node, ast::ASTNode* returnValue);
         void emitReturnValueBytecode(ast::ReturnNode* node, ast::ASTNode* returnValue);
 
+        // Phase 4: Auto-boxing helper for return statements
+        bool tryEmitReturnAutoBoxing(ast::ASTNode* returnValue);
+
         // Helper methods for compileLambda
         std::vector<variables::VariableTracker::LocalVariable> captureScopeVariables();
-        void setupLambdaFrame(ast::LambdaNode* node,
-                             const std::vector<variables::VariableTracker::LocalVariable>& capturedVars);
+        std::vector<std::string> setupLambdaFrame(ast::LambdaNode* node,
+                             const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
+                             const std::string& lambdaFuncName);
         void emitLambdaInstruction(size_t lambdaStart, ast::LambdaNode* node,
                                    const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
                                    size_t currentFrameStart, const std::vector<variables::VariableTracker::LocalVariable>& currentLocals,
                                    const std::string& lambdaFuncName);
+
+        // Type validation helper
+        bool isValidTypeName(const std::string& typeName, const std::vector<std::string>& validGenericParams);
     };
 }

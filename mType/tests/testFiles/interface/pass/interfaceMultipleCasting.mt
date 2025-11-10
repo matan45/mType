@@ -13,32 +13,32 @@ interface Resizable {
 }
 
 class GameObject implements Drawable, Moveable, Resizable {
-    int x;
-    int y;
-    int width;
-    int height;
+    private int x;
+    private int y;
+    private int width;
+    private int height;
 
-    constructor() {
-        x = 0;
-        y = 0;
-        width = 100;
-        height = 100;
+    public constructor() {
+        this.x = 0;
+        this.y = 0;
+        this.width = 100;
+        this.height = 100;
     }
 
     public function draw(): string {
-        return "Drawing at (" + x + ", " + y + ") size " + width + "x" + height;
+        return "Drawing at (" + this.x + ", " + this.y + ") size " + this.width + "x" + this.height;
     }
 
     public function move(int newX, int newY): string {
-        x = newX;
-        y = newY;
-        return "Moved to (" + x + ", " + y + ")";
+        this.x = newX;
+        this.y = newY;
+        return "Moved to (" + this.x + ", " + this.y + ")";
     }
 
     public function resize(int w, int h): string {
-        width = w;
-        height = h;
-        return "Resized to " + width + "x" + height;
+        this.width = w;
+        this.height = h;
+        return "Resized to " + this.width + "x" + this.height;
     }
 }
 

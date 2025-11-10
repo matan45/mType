@@ -1,0 +1,18 @@
+Testing rectangular vs jagged array types
+Creating rectangular 2D array
+Rectangular[0][0]: 1
+Rectangular[0][3]: 2
+Rectangular[2][3]: 3
+Creating jagged array
+Jagged[0] length: 2
+Jagged[1] length: 4
+Jagged[2] length: 1
+Jagged[0][0]: A
+Jagged[1][3]: F
+Jagged[2][0]: G
+Creating 3D jagged array
+Jagged3D[0][0][0]: 100
+Jagged3D[0][0][2]: 101
+Jagged3D[0][1][1]: 102
+Jagged3D[1][0][3]: 103
+Rectangular vs jagged array type checking passed

@@ -1,0 +1,13 @@
+Creating Level3 object:
+Level1 constructor start
+Level3 initialize with value 42
+Level1 constructor end
+Level2 constructor start
+Level3 initialize with value 42
+Level2 constructor end
+Level3 constructor start
+Level3 initialize with value 42
+Level3 constructor end
+
+Final state:
+Level: 3, Name: Test, Value: 42

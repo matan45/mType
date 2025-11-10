@@ -1,0 +1,17 @@
+=== Test 1: Valid call ===
+Fetching data from: http://example.com
+Result: Data fetched successfully
+
+=== Test 2: IOException ===
+Fetching data from: invalid
+Caught IOException: Invalid URL provided
+
+=== Test 3: NetworkException ===
+Fetching data from: network-error
+Caught NetworkException: Network connection failed
+
+=== Test 4: IllegalArgumentException ===
+Fetching data from: http://example.com
+Caught IllegalArgumentException: Timeout cannot be negative
+
+All tests passed!

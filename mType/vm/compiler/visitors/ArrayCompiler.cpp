@@ -131,7 +131,7 @@ namespace vm::compiler::visitors
         // Array is now on stack. For each element:
         // 1. Duplicate array reference
         // 2. Push index
-        // 3. Push element value
+        // 3. Push element value (with auto-boxing if needed)
         // 4. Call ARRAY_SET
         for (size_t i = 0; i < elementCount; ++i) {
             ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);  // Duplicate array reference
@@ -140,7 +140,9 @@ namespace vm::compiler::visitors
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
                            static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(static_cast<int>(i))), node);
 
-            // Compile and push element value
+            // Compile element value
+            // Note: Auto-boxing for array literals is handled by VariableCompiler
+            // during array variable declaration, not here
             elements[i]->accept(ctx.visitor);
 
             // Set array element with source location
@@ -174,8 +176,70 @@ namespace vm::compiler::visitors
         // Compile index expression
         node->getIndex()->accept(ctx.visitor);  // Will need visitor delegation
 
-        // Compile value expression
-        node->getValue()->accept(ctx.visitor);  // Will need visitor delegation
+        // PHASE 4: Check for auto-boxing (primitive value to Box array element)
+        bool autoBoxed = false;
+        value::ValueType arrayType = ctx.typeInference.inferExpressionType(node->getObject());
+
+        if (arrayType == value::ValueType::ARRAY)
+        {
+            std::string arrayClassName = ctx.typeInference.inferExpressionClassName(node->getObject());
+            // Extract element type from array type (e.g., "Int[]" -> "Int")
+            size_t bracketPos = arrayClassName.find('[');
+            if (bracketPos != std::string::npos && arrayClassName.back() == ']')
+            {
+                std::string elementType = arrayClassName.substr(0, bracketPos);
+
+                // Get value type information for validation
+                value::ValueType valueType = ctx.typeInference.inferExpressionType(node->getValue());
+                std::string valueClassName = ctx.typeInference.inferExpressionClassName(node->getValue());
+                bool isNullValue = dynamic_cast<ast::NullNode*>(node->getValue()) != nullptr;
+
+                // Check if element type is a Box type and value needs boxing
+                if (elementType == "Int" || elementType == "Float" ||
+                    elementType == "Bool" || elementType == "String")
+                {
+                    if ((elementType == "Int" && valueType == value::ValueType::INT) ||
+                        (elementType == "Float" && valueType == value::ValueType::FLOAT) ||
+                        (elementType == "Bool" && valueType == value::ValueType::BOOL) ||
+                        (elementType == "String" && valueType == value::ValueType::STRING))
+                    {
+                        // Auto-box: compile value, then wrap in NEW_OBJECT
+                        node->getValue()->accept(ctx.visitor);
+                        size_t classNameIndex = ctx.program.getConstantPool().addString(elementType);
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                                     static_cast<uint32_t>(classNameIndex),
+                                                     1u,  // 1 constructor argument
+                                                     node->getValue());
+                        autoBoxed = true;
+                    }
+                }
+
+                // Type validation: ensure value is compatible with array element type
+                // Skip validation if auto-boxing occurred (already validated above)
+                if (!autoBoxed)
+                {
+                    // Only validate for object array elements (not primitives)
+                    bool isPrimitiveArray = (elementType == "int" || elementType == "float" ||
+                                            elementType == "bool" || elementType == "string");
+
+                    if (!isPrimitiveArray && valueType == value::ValueType::OBJECT)
+                    {
+                        // Use TypeValidator to check if value type is compatible with element type
+                        ctx.typeValidator.validateAssignment(
+                            value::ValueType::OBJECT, elementType,  // Expected: array element type
+                            valueType, valueClassName,               // Actual: value being assigned
+                            isNullValue, node->getLocation()
+                        );
+                    }
+                }
+            }
+        }
+
+        // If not auto-boxed, compile value normally
+        if (!autoBoxed)
+        {
+            node->getValue()->accept(ctx.visitor);
+        }
 
         // Emit ARRAY_SET to store element with source location
         ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_SET, node);

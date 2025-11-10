@@ -1,0 +1,17 @@
+Testing partially initialized arrays
+Partial initialization (only indices 0, 5, 9 set):
+  partial[0] = 100
+  partial[1] = 0
+  partial[2] = 0
+  partial[3] = 0
+  partial[4] = 0
+  partial[5] = 500
+  partial[6] = 0
+  partial[7] = 0
+  partial[8] = 0
+  partial[9] = 900
+Sparse pattern (every 5th element):
+  sparse[5] = 50
+  sparse[10] = 100
+  sparse[15] = 150
+Partial initialization test completed

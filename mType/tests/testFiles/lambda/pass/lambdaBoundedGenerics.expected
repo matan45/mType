@@ -1,0 +1,6 @@
+=== Bounded Generics Test ===
+Extract from n1: 42
+Extract from n2: 100
+n1 is: small
+n2 is: large
+Bounded generics complete

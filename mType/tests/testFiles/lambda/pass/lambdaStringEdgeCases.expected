@@ -1,0 +1,20 @@
+=== String Edge Cases Test ===
+Normal: HELLO
+Null: NULL
+Empty: EMPTY
+Value is test
+Value is null
+Value is
+Category 'hi': 1
+Category 'hello': 2
+Category 'hello world': 3
+Category null: -1
+Category '': 0
+Valid 'John': true
+Valid null: false
+Valid '': false
+Valid 'A': true
+Normalized 'test': 'test'
+Normalized null: ''
+Normalized '': ''
+String edge cases complete

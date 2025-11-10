@@ -1,0 +1,7 @@
+=== Lambda Closure Type Checking Test ===
+Captured int: 42
+Captured string: Hello
+Computed from closure: 30
+First increment: 1
+Second increment: 2
+Closure type checking passed

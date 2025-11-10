@@ -1,0 +1,11 @@
+Testing exception in while condition
+Checking while condition (iteration 1)
+While loop body executing (iteration 1)
+Checking while condition (iteration 2)
+While loop body executing (iteration 2)
+Checking while condition (iteration 3)
+While loop body executing (iteration 3)
+Checking while condition (iteration 4)
+Caught in while condition: Error in while condition at iteration 4
+While loop ended at iteration: 4
+Test completed

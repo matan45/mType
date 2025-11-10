@@ -1,6 +1,6 @@
 // Test enhanced argument count mismatch exception with location info
 class Calculator {
-    function add(x: int, y: int): int {
+    function add(int x, int y): int {
         return x + y;
     }
 }

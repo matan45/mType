@@ -1,0 +1,10 @@
+=== Multiple Exception Handlers Test ===
+Test case: 1
+Throwing ErrorA
+Caught ErrorA: Error type A
+Result 1: 100
+Test case: 2
+Throwing ErrorB
+Caught ErrorB: Error type B
+Result 2: 200
+Total: 300

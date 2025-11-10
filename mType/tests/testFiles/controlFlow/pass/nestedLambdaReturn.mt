@@ -3,11 +3,11 @@ import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
 interface Function<T, R> {
-    function apply(T input): R;
+    public function apply(T input): R;
 }
 
 interface Supplier<T> {
-    function get(): T;
+    public function get(): T;
 }
 
 function processWithLambda(Int value, Function<Int, String> func): String {
@@ -19,7 +19,7 @@ function main(): void {
 
     // Simple lambda return
     Function<Int, String> func1 = x -> {
-        if (x.value > 10) {
+        if (x.getValue() > 10) {
             return new String("Large");
         }
         return new String("Small");
@@ -30,10 +30,10 @@ function main(): void {
 
     // Nested lambda usage
     String result = processWithLambda(new Int(20), x -> {
-        if (x.value > 10) {
-            return new String("Value is large: " + x.value);
+        if (x.getValue() > 10) {
+            return new String("Value is large: " + x.getValue());
         }
-        return new String("Value is small: " + x.value);
+        return new String("Value is small: " + x.getValue());
     });
 
     print("Nested result: " + result.toString());
@@ -41,7 +41,7 @@ function main(): void {
     // Lambda returning lambda
     Supplier<Function<Int, String>> factory = () -> {
         return x -> {
-            return new String("Nested: " + x.value);
+            return new String("Nested: " + x.getValue());
         };
     };
 

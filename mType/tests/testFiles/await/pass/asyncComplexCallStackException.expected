@@ -1,0 +1,8 @@
+=== Complex Call Stack Exception Test ===
+Deep 1
+Deep 2
+Deep 3
+Deep 4
+Deep 5
+Caught at deep 1: Deep level 5
+Final value: 888

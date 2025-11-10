@@ -9,7 +9,7 @@
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include <algorithm>
-
+#include <iostream>
 namespace vm::runtime
 {
     ObjectExecutor::ObjectExecutor(ExecutionContext& ctx)
@@ -25,7 +25,7 @@ namespace vm::runtime
 
     void ObjectExecutor::handleGetField(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
-            throw errors::RuntimeException("GET_FIELD requires operand");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires operand");
         }
 
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
@@ -37,7 +37,7 @@ namespace vm::runtime
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("GET_FIELD requires an object instance");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires an object instance");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
@@ -63,7 +63,7 @@ namespace vm::runtime
 
     void ObjectExecutor::handleSetField(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
-            throw errors::RuntimeException("SET_FIELD requires operand");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires operand");
         }
 
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
@@ -76,7 +76,7 @@ namespace vm::runtime
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("SET_FIELD requires an object instance");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires an object instance");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
@@ -113,14 +113,15 @@ namespace vm::runtime
 
     void ObjectExecutor::handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
-            throw errors::RuntimeException("GET_STATIC requires operand");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "GET_STATIC requires operand");
         }
 
         const std::string& qualifiedName = context.program->getConstantPool().getString(instr.operands[0]);
 
         size_t colonPos = qualifiedName.find("::");
         if (colonPos == std::string::npos) {
-            throw errors::RuntimeException("GET_STATIC requires qualified name (ClassName::fieldName): " + qualifiedName);
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "GET_STATIC requires qualified name (ClassName::fieldName): " + qualifiedName);
         }
 
         std::string className = qualifiedName.substr(0, colonPos);
@@ -129,7 +130,7 @@ namespace vm::runtime
         auto classRegistry = context.environment->getClassRegistry();
         auto classDef = classRegistry->findClass(className);
         if (!classDef) {
-            throw errors::RuntimeException("Class not found: " + className);
+            utils::ErrorLocationHelper::throwRuntimeError(context, "Class not found: " + className);
         }
 
         auto fieldDef = classDef->getField(fieldName);
@@ -138,7 +139,8 @@ namespace vm::runtime
         }
 
         if (!fieldDef->isStatic()) {
-            throw errors::RuntimeException("Field '" + fieldName + "' is not static");
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Field '" + fieldName + "' is not static");
         }
 
         auto accessContext = createAccessContext(className, false);
@@ -150,7 +152,7 @@ namespace vm::runtime
 
     void ObjectExecutor::handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
-            throw errors::RuntimeException("SET_STATIC requires operand");
+            utils::ErrorLocationHelper::throwRuntimeError(context, "SET_STATIC requires operand");
         }
 
         const std::string& qualifiedName = context.program->getConstantPool().getString(instr.operands[0]);
@@ -158,7 +160,8 @@ namespace vm::runtime
 
         size_t colonPos = qualifiedName.find("::");
         if (colonPos == std::string::npos) {
-            throw errors::RuntimeException("SET_STATIC requires qualified name (ClassName::fieldName): " + qualifiedName);
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "SET_STATIC requires qualified name (ClassName::fieldName): " + qualifiedName);
         }
 
         std::string className = qualifiedName.substr(0, colonPos);
@@ -167,7 +170,7 @@ namespace vm::runtime
         auto classRegistry = context.environment->getClassRegistry();
         auto classDef = classRegistry->findClass(className);
         if (!classDef) {
-            throw errors::RuntimeException("Class not found: " + className);
+            utils::ErrorLocationHelper::throwRuntimeError(context, "Class not found: " + className);
         }
 
         auto fieldDef = classDef->getField(fieldName);
@@ -176,7 +179,8 @@ namespace vm::runtime
         }
 
         if (!fieldDef->isStatic()) {
-            throw errors::RuntimeException("Field '" + fieldName + "' is not static");
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Field '" + fieldName + "' is not static");
         }
 
         if (fieldDef->isFinal()) {
@@ -211,8 +215,9 @@ namespace vm::runtime
 
         // Validate argument count
         if (args.size() != paramCount) {
-            throw errors::RuntimeException("Lambda expects " + std::to_string(paramCount) +
-                                         " arguments but got " + std::to_string(args.size()));
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Lambda expects " + std::to_string(paramCount) +
+                " arguments but got " + std::to_string(args.size()));
         }
 
         // Create call frame
@@ -220,10 +225,10 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;  // Return to next instruction
         frame.frameBase = context.stackManager->size();
         frame.localBase = context.stackManager->size();
-        // Preserve class context for access validation: ClassName::<lambda> or just <lambda>
-        frame.functionName = lambda->creatingClassName.empty() ?
-            "<lambda>" :
-            lambda->creatingClassName + "::<lambda>";
+        // Use the lambda's unique function name (e.g., __lambda_0) for metadata/exception table lookup
+        frame.functionName = lambda->functionName.empty() ?
+            (lambda->creatingClassName.empty() ? "<lambda>" : lambda->creatingClassName + "::<lambda>") :
+            lambda->functionName;
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
         frame.originatingLambda = lambda;  // Store lambda reference for variable access
         frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
@@ -248,15 +253,102 @@ namespace vm::runtime
             }
         }
 
+        // Create a SharedStackFrame for this lambda invocation to support nested closures
+        // Link it to the parent frame so nested lambdas can access parent variables
+        auto newSharedFrame = std::make_shared<SharedStackFrame>();
+        newSharedFrame->parentFrame = lambda->capturedFrame;  // Link to parent
+        if (!context.callStack.empty()) {
+            context.callStack.back().sharedFrame = newSharedFrame;
+        }
+
+        // Get lambda metadata for parameter type information
+        auto* lambdaMetadata = context.program->getFunction(lambda->functionName);
+
         // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
+        // Also register them by name in SharedStackFrame so nested lambdas can capture them
         for (size_t i = 0; i < args.size(); ++i) {
-            context.stackManager->push(args[i]);
+            value::Value argValue = args[i];
+
+            // Auto-box primitive arguments if lambda expects boxed types
+            if (lambdaMetadata && i < lambdaMetadata->parameterTypes.size()) {
+                std::string expectedType = lambdaMetadata->parameterTypes[i];
+
+                // Check if we need to box a primitive to a wrapper class
+                bool needsBoxing = false;
+                std::string boxClassName;
+
+                if (expectedType == "Int" && std::holds_alternative<int>(argValue)) {
+                    needsBoxing = true;
+                    boxClassName = "Int";
+                }
+                else if (expectedType == "Float" && (std::holds_alternative<float>(argValue) || std::holds_alternative<int>(argValue))) {
+                    needsBoxing = true;
+                    boxClassName = "Float";
+                }
+                else if (expectedType == "Bool" && std::holds_alternative<bool>(argValue)) {
+                    needsBoxing = true;
+                    boxClassName = "Bool";
+                }
+                else if (expectedType == "String" && std::holds_alternative<std::string>(argValue)) {
+                    needsBoxing = true;
+                    boxClassName = "String";
+                }
+
+                if (needsBoxing) {
+                    // Create boxed instance: new BoxClass(primitiveValue)
+                    auto classDef = context.environment->findClass(boxClassName);
+                    if (classDef) {
+                        std::unordered_map<std::string, std::string> emptyBindings;
+                        auto boxedInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, emptyBindings);
+
+                        // Directly set the 'value' field to avoid constructor call complexity
+                        // This is safe for primitive wrappers (Int, Float, Bool, String) which just store the primitive
+                        boxedInstance->setField("value", argValue);
+
+                        argValue = boxedInstance;
+                    }
+                }
+            }
+
+            context.stackManager->push(argValue);
+
+            // Register parameter by name in SharedStackFrame
+            if (i < lambda->parameterNames.size()) {
+                std::string paramName = lambda->parameterNames[i];
+                if (!paramName.empty()) {
+                    newSharedFrame->setLocal(paramName, i, argValue);
+                }
+            }
         }
 
         // Push captured variables onto stack (they become local variables after the parameters)
-        // Use snapshot values (immutable capture semantics)
-        for (const auto& capturedValue : lambda->capturedValues) {
-            context.stackManager->push(capturedValue);
+        // Read current values from shared frame (reference capture semantics)
+        // IMPORTANT: Do NOT register them in the new SharedStackFrame - they should be accessed
+        // through the parent chain to ensure we always read the latest values
+        size_t capturedCount = 0;
+        if (lambda->capturedFrame) {
+            for (size_t i = 0; i < lambda->capturedSlots.size(); ++i) {
+                size_t slot = lambda->capturedSlots[i];
+
+                // Always use slot-based lookup to avoid name collisions
+                // This allows multiple variables with the same name to coexist
+                value::Value capturedValue = lambda->capturedFrame->getLocal(slot);
+
+                context.stackManager->push(capturedValue);
+                capturedCount++;
+            }
+        }
+
+        // Reserve additional local variable slots if needed (for local variables like return value temporaries)
+        // lambdaMetadata already looked up above for parameter type checking
+        if (lambdaMetadata) {
+            size_t pushedSlots = args.size() + capturedCount;  // parameters + captured
+            if (lambdaMetadata->localCount > pushedSlots) {
+                size_t additionalLocals = lambdaMetadata->localCount - pushedSlots;
+                for (size_t i = 0; i < additionalLocals; ++i) {
+                    context.stackManager->push(std::monostate{});
+                }
+            }
         }
 
         // Jump to lambda start (subtract 1 because the VM loop will increment after this)
@@ -272,8 +364,9 @@ namespace vm::runtime
         // Use findInstanceMethodInHierarchy to search only instance methods in parent classes
         auto method = classDef->findInstanceMethodInHierarchy(methodName, argCount);
         if (!method) {
-            throw errors::RuntimeException("Instance method not found: " + methodName +
-                                         " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Instance method not found: " + methodName +
+                " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
         }
 
         // Find which class actually defines this method by walking up the hierarchy
@@ -296,7 +389,8 @@ namespace vm::runtime
         std::string qualifiedName = definingClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (!funcMetadata) {
-            throw errors::RuntimeException("Method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
         }
 
         // Convert lambda arguments to interface implementations if needed
@@ -364,6 +458,7 @@ namespace vm::runtime
 
         // Pop object and check for null
         value::Value objectValue = context.stackManager->pop();
+
         if (std::holds_alternative<std::nullptr_t>(objectValue)) {
             utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
                 "Cannot call method '" + methodName + "' on null object");
@@ -378,7 +473,8 @@ namespace vm::runtime
 
         // Handle regular instance method invocation
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            throw errors::RuntimeException("CALL_METHOD requires an object instance or lambda");
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "CALL_METHOD requires an object instance or lambda");
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
@@ -387,6 +483,10 @@ namespace vm::runtime
 
     void ObjectExecutor::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
         instanceHelper->handleSuperConstructor(instr);
+    }
+
+    void ObjectExecutor::handleThisConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
+        instanceHelper->handleThisConstructor(instr);
     }
 
     void ObjectExecutor::handleSuperInvoke(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -416,8 +516,7 @@ namespace vm::runtime
                 const std::string& funcName = context.callStack.back().functionName;
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos) {
-                    std::string className = funcName.substr(0, colonPos);
-                    return className;
+                    return funcName.substr(0, colonPos);
                 }
             }
         }
@@ -428,10 +527,23 @@ namespace vm::runtime
         if (derivedClass.empty()) return false;
         auto currentClass = context.environment->getClassRegistry()->findClass(derivedClass);
         while (currentClass && currentClass->hasParentClass()) {
-            if (currentClass->getParentClassName() == baseClass) {
+            std::string parentClassName = currentClass->getParentClassName();
+
+            // Extract base class name (strip generic type parameters if present)
+            // E.g., "Container<T>" -> "Container"
+            std::string baseParentName = parentClassName;
+            size_t genericStart = parentClassName.find('<');
+            if (genericStart != std::string::npos) {
+                baseParentName = parentClassName.substr(0, genericStart);
+            }
+
+            // Compare both full name and base name
+            if (parentClassName == baseClass || baseParentName == baseClass) {
                 return true;
             }
-            auto parentClass = context.environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+
+            // Use base name for registry lookup
+            auto parentClass = context.environment->getClassRegistry()->findClass(baseParentName);
             currentClass = parentClass;
         }
         return false;
@@ -447,11 +559,20 @@ namespace vm::runtime
         bool isSubclassCheck = isSubclass(currentClassName, targetClassName);
 
         // Special case: Static field initialization (SET operations) happens in global scope
-        // Allow SET during static initialization
-        if (currentClassName.empty() && context.callStack.empty() && isSetter) {
+        // Allow SET during static initialization (either no call stack or in __script_main__)
+        bool inScriptMain = !context.callStack.empty() &&
+                           context.callStack.back().functionName == "__script_main__";
+        if (currentClassName.empty() && (context.callStack.empty() || inScriptMain) && isSetter) {
             // Allow initialization by treating it as same class access
             isSameClass = true;
         }
+
+        // Get the current source location from execution context
+        errors::SourceLocation location(
+            context.currentSourceFile,
+            context.currentSourceLine,
+            1  // Column information not currently tracked
+        );
 
         return validation::AccessContext(
             currentClassName,
@@ -459,7 +580,7 @@ namespace vm::runtime
             isSameClass,
             isSubclassCheck,
             isSetter,
-            errors::SourceLocation()
+            location
         );
     }
 }

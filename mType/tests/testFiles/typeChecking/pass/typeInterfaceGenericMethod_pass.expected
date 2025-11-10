@@ -1,0 +1,7 @@
+Transforming: hello
+Transforming: 42
+world
+100
+StringTransformer
+IntTransformer
+Generic interface methods successful

@@ -1,0 +1,11 @@
+=== Functional Interface SAM Verification Test ===
+Task executed
+Supplied value: 42
+Log: Test message
+5 + 3 = 8
+4 * 7 = 28
+10 is even: true
+10 is positive: true
+-5 is even: false
+-5 is positive: false
+SAM verification successful

@@ -1,0 +1,11 @@
+=== Promise Array Test ===
+Creating promise array
+Making promise with value: 10
+Making promise with value: 20
+Making promise with value: 30
+Awaiting promises from array
+Array[0] resolved: 10
+Array[1] resolved: 20
+Array[2] resolved: 30
+Sum: 60
+Final: 60

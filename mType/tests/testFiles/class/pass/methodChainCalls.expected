@@ -1,0 +1,22 @@
+Test 1: Chained calls
+append('Hello') -> 'Hello'
+append(' ') -> 'Hello '
+append('World') -> 'Hello World'
+Result: 'Hello World'
+
+Test 2: Mixed chaining
+append('First') -> 'First'
+appendLine(' Line') -> length 0
+append('Second') -> 'First Line
+Second'
+appendLine(' Line') -> length 0
+Result: 'First Line
+Second Line
+'
+
+Test 3: Chain with clear
+append('Temp') -> 'Temp'
+clear() -> empty
+append('New') -> 'New'
+append(' Content') -> 'New Content'
+Result: 'New Content'

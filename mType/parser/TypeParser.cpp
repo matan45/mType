@@ -101,18 +101,41 @@ namespace parser
                     {
                         auto typeArg = parseGenericType(stream);
 
-                        // Validate: Generic type arguments cannot be primitive types
-                        // Only object types (classes/interfaces), void, or generic parameters (T, K, V) are allowed
-                        if (!typeArg->isGenericParameter())
+                        // Validate: Reject primitive types in generic type arguments
+                        // Users must use boxed class versions (Int, Bool, String, Float)
+                        if (!typeArg->isGenericParameter() && !typeArg->isParameterized())
                         {
-                            // This is a concrete type, check if it's a primitive
-                            ValueType concreteType = typeArg->getConcreteType();
-                            // Allow OBJECT and VOID, reject other primitives (int, float, string, bool)
-                            if (concreteType != ValueType::OBJECT && concreteType != ValueType::VOID)
+                            ValueType argType = typeArg->getConcreteType();
+                            if (argType == ValueType::INT || argType == ValueType::BOOL ||
+                                argType == ValueType::STRING || argType == ValueType::FLOAT)
                             {
+                                std::string primitiveTypeName;
+                                std::string boxedTypeName;
+
+                                switch (argType)
+                                {
+                                    case ValueType::INT:
+                                        primitiveTypeName = "int";
+                                        boxedTypeName = "Int";
+                                        break;
+                                    case ValueType::BOOL:
+                                        primitiveTypeName = "bool";
+                                        boxedTypeName = "Bool";
+                                        break;
+                                    case ValueType::STRING:
+                                        primitiveTypeName = "string";
+                                        boxedTypeName = "String";
+                                        break;
+                                    case ValueType::FLOAT:
+                                        primitiveTypeName = "float";
+                                        boxedTypeName = "Float";
+                                        break;
+                                    default:
+                                        break;
+                                }
+
                                 throw ParseException(
-                                    "Generic type arguments must be object types (classes/interfaces), void, or generic parameters. "
-                                    "Primitive types (int, float, string, bool) are not allowed as generic arguments.",
+                                    "Primitive type '" + primitiveTypeName + "' cannot be used as generic type argument. Use boxed type '" + boxedTypeName + "' instead",
                                     stream.location()
                                 );
                             }
@@ -355,17 +378,9 @@ namespace parser
                     TypeInfo elementTypeInfo = convertGenericTypeToTypeInfo(elementType);
 
                     // Build array type name with brackets
+                    // The recursive call already handles nested Array types,
+                    // so we just need to add one [] for this level
                     std::string arrayTypeName = elementTypeInfo.toString() + "[]";
-
-                    // Handle multi-dimensional arrays
-                    auto currentElement = elementType;
-                    while (currentElement->isGenericParameter() &&
-                        currentElement->getGenericName() == "Array" &&
-                        currentElement->isParameterized())
-                    {
-                        arrayTypeName += "[]";
-                        currentElement = currentElement->getTypeArguments()[0];
-                    }
 
                     return TypeInfo(ValueType::OBJECT, arrayTypeName);
                 }

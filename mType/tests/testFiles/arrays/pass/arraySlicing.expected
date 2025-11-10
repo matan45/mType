@@ -1,0 +1,25 @@
+Testing array slicing
+Source array:
+  source[0] = 0
+  source[1] = 10
+  source[2] = 20
+  source[3] = 30
+  source[4] = 40
+  source[5] = 50
+  source[6] = 60
+  source[7] = 70
+  source[8] = 80
+  source[9] = 90
+Slice [2:5]:
+  slice1[0] = 20
+  slice1[1] = 30
+  slice1[2] = 40
+Slice [0:3]:
+  slice2[0] = 0
+  slice2[1] = 10
+  slice2[2] = 20
+Slice [7:10]:
+  slice3[0] = 70
+  slice3[1] = 80
+  slice3[2] = 90
+Array slicing test completed

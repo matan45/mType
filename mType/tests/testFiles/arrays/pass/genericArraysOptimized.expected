@@ -1,7 +1,7 @@
 Int Container[5]: 25
 Int Container Size: 20
 Float Container[10]: 25.0
-True Bool Count in Container: 30
+True Bool Count in Container: 10
 String Container[4]: Red
 DataPoint Container[10] ID: 110
 DataPoint Container[10] Label: Data10

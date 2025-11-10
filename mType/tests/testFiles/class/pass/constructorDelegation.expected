@@ -1,0 +1,14 @@
+Creating point with full constructor:
+Full constructor: (5, 10) - Custom
+Result: (5, 10) - Custom
+
+Creating point with two-arg constructor:
+Full constructor: (3, 7) - Point
+Delegated constructor with default label
+Result: (3, 7) - Point
+
+Creating point with default constructor:
+Full constructor: (0, 0) - Point
+Delegated constructor with default label
+Default constructor - origin point
+Result: (0, 0) - Point

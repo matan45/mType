@@ -81,7 +81,7 @@ function async testPromiseInCollections(): Promise<Int> {
     for (int i = 0; i < promises.size(); i = i + 1) {
         Promise<Int> p = promises.get(i);
         Int value = await p;
-        total = total + value.value;
+        total = total + value.getValue();
     }
     print("Sum of all promises: " + new Int(total).toString());
     return new Int(total);
@@ -90,7 +90,7 @@ function async testPromiseInCollections(): Promise<Int> {
 // Test 5: Promise as function parameter
 function async processPromise(Promise<Int> p): Promise<Int> {
     Int value = await p;
-    return new Int(value.value * 2);
+    return new Int(value.getValue() * 2);
 }
 
 function async testPromiseAsParameter(): Promise<Int> {
@@ -174,10 +174,10 @@ function async testPromiseChaining(): Promise<Int> {
     Promise<Int> p1 = getValue(5);
     Int v1 = await p1;
 
-    Promise<Int> p2 = getValue(v1.value * 2);
+    Promise<Int> p2 = getValue(v1.getValue() * 2);
     Int v2 = await p2;
 
-    Promise<Int> p3 = getValue(v2.value + 10);
+    Promise<Int> p3 = getValue(v2.getValue() + 10);
     Int v3 = await p3;
 
     print("Chained result: " + v3.toString());

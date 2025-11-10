@@ -13,7 +13,9 @@
 #include "../../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../../../ast/nodes/classes/SuperMethodCallNode.hpp"
 #include "../../../value/ValueType.hpp"
+#include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include <memory>
+#include <unordered_map>
 
 namespace vm::compiler::visitors
 {
@@ -38,6 +40,7 @@ namespace vm::compiler::visitors
         value::Value compileMemberAssignment(ast::MemberAssignmentNode* node);
         value::Value compileMethodCall(ast::MethodCallNode* node);
         value::Value compileSuperConstructorCall(ast::SuperConstructorCallNode* node);
+        value::Value compileThisConstructorCall(ast::ThisConstructorCallNode* node);
         value::Value compileSuperMethodCall(ast::SuperMethodCallNode* node);
         value::Value compileSuperMemberAccess(ast::SuperMemberAccessNode* node);
         value::Value compileSuperMemberAssignment(ast::SuperMemberAssignmentNode* node);
@@ -50,6 +53,11 @@ namespace vm::compiler::visitors
         // Helper methods for compileNew
         std::vector<std::string> parseAndValidateGenericTypeArguments(const std::string& fullClassName,
                                                                        const ast::SourceLocation& location);
-        void emitNewObjectBytecode(ast::NewNode* node, const std::string& fullClassName);
+        void emitNewObjectBytecode(ast::NewNode* node, const std::string& fullClassName,
+                                  const runtimeTypes::klass::ConstructorDefinition* constructor,
+                                  const std::unordered_map<std::string, std::string>& genericTypeBindings);
+
+        // Helper method for auto-boxing method arguments
+        bool tryAutoBoxArgument(ast::ASTNode* argument, const std::string& expectedType);
     };
 }

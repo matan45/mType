@@ -1,0 +1,15 @@
+Test 1: Animal reproduction
+Animal.reproduce() -> Animal
+Offspring: Generic_offspring
+
+Test 2: Mammal reproduction
+Mammal.reproduce() -> Mammal
+Offspring: Whale_baby, gestation: 365
+
+Test 3: Dog reproduction
+Dog.reproduce() -> Dog
+Offspring: Buddy_puppy, breed: Labrador, gestation: 63
+
+Test 4: Polymorphic call
+Dog.reproduce() -> Dog
+Polymorphic offspring: Max_puppy

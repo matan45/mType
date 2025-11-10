@@ -1,0 +1,36 @@
+=== Test 20: Decorator Pattern with Inheritance ===
+--- Test 1: Simple coffee ---
+Order: Simple Coffee
+Cost: $2
+--- Test 2: Coffee with milk ---
+Order: Simple Coffee, Milk
+Cost: $2.5
+--- Test 3: Coffee with milk and sugar ---
+Order: Simple Coffee, Milk, Sugar(2)
+Cost: $2.9
+--- Test 4: Fully loaded coffee ---
+Order: Simple Coffee, Milk, Sugar(3), Whip Cream, Caramel
+Cost: $4.4
+--- Test 5: Different order ---
+Order: Simple Coffee, Milk, Whip Cream
+Cost: $3.2
+Order: Simple Coffee, Whip Cream, Milk
+Cost: $3.2
+--- Test 6: Text formatting ---
+Plain: Hello
+Bold: <b>Hello</b>
+Bold+Italic: <i><b>Hello</b></i>
+All: <u><i><b>Hello</b></i></u>
+--- Test 7: Multiple orders ---
+Order 3: Simple Coffee, Milk = $2.5
+Order 4: Simple Coffee, Sugar(1) = $2.2
+Order 5: Simple Coffee, Caramel = $2.6
+Total: $7.3
+--- Test 8: Deep decoration ---
+Order: Simple Coffee, Milk, Whip Cream, Sugar(2), Milk, Sugar(1)
+Cost: $4.3
+--- Test 9: Type checking ---
+Is Coffee: true
+Is MilkDecorator: true
+Is CoffeeDecorator: true
+=== Test 20 Complete ===

@@ -10,8 +10,8 @@ class MixedClass {
         instanceField = field;
     }
 
-    // Instance generic method
-    public function instanceGeneric(T value): T {
+    // Instance generic method with its own type parameter
+    public function <T> instanceGeneric(T value): T {
         print("Instance generic: " + value);
         return value;
     }
@@ -38,7 +38,7 @@ MixedClass obj = new MixedClass(new String("test"));
 
 // Instance methods
 obj.regularInstance();
-String instanceResult = obj.instanceGeneric(new String("instance"));
+String instanceResult = obj.instanceGeneric<String>(new String("instance"));
 print("Instance result: " + instanceResult);
 
 // Static methods

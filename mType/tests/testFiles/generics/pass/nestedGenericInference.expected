@@ -1,0 +1,6 @@
+Unboxed Int: 42
+Unboxed String: hello
+Extracted Int from pair: 25
+Extracted String from pair: score
+Combined boxes: true
+All nested generic inference tests passed!

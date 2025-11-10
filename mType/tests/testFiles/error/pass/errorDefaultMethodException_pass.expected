@@ -1,0 +1,31 @@
+=== Test 1: Default Method Exception ===
+Testing default method with exception:
+Default logError called
+Console: [ERROR] minor
+Minor error logged successfully
+Default logError called
+Caught critical exception: Critical error: critical
+
+=== Test 2: Default Method Calling ===
+Testing default method calling another method:
+Default logWithPrefix called
+Console: INFO: System started
+Prefix logged successfully
+Default logWithPrefix called
+Caught fatal exception: Fatal error with message: System crash
+
+=== Test 3: Overridden Default ===
+Testing overridden default method:
+Custom logError called
+File: [FILE_ERROR] warning
+Warning logged to file
+Custom logError called
+Caught disk full exception: Disk full error: disk_full
+
+=== Test 4: Safe Override ===
+Testing safe override (no exceptions):
+Safe logError called (no exceptions)
+Safe: [SAFE_ERROR] any_error
+Safe error handling completed
+
+Default method exception test passed!

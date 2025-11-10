@@ -1,0 +1,11 @@
+Testing null element assignment in object arrays
+Created Person array with length: 4
+people[0] = Person(Alice)
+people[1] = null
+people[2] = Person(Bob)
+people[3] = null
+After setting people[0] to null:
+people[0] is now null
+After setting people[1] to Charlie:
+people[1] = Person(Charlie)
+Null element assignment test completed

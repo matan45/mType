@@ -1,0 +1,27 @@
+Test 1: Direct calls on Derived
+Derived.instanceMethod()
+Derived.staticMethod()
+
+Test 2: Direct calls on Base
+Base.instanceMethod()
+Base.staticMethod()
+
+Test 3: Polymorphic instance method (overriding)
+Derived.instanceMethod()
+
+Test 4: Static method via reference (hiding)
+Base.staticMethod()
+Derived.staticMethod()
+
+Test 5: callBoth method
+Base.callBoth():
+Base.instanceMethod()
+Base.staticMethod()
+
+Derived.callBoth():
+Derived.instanceMethod()
+Derived.staticMethod()
+
+Derived.callBoth():
+Derived.instanceMethod()
+Derived.staticMethod()

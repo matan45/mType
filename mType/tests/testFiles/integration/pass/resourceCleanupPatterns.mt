@@ -91,7 +91,7 @@ function testResourceTransferPattern(): void {
     print("Operations: " + FileHandle::getOperationLog());
     }
 	
-	function riskyOperation(FileHandle file): void {
+	public function riskyOperation(FileHandle file): void {
         print("Starting risky operation on: " + file.getFilename());
         
         // Simulate potential error condition
@@ -200,7 +200,7 @@ function testResourcePoolPattern(): void {
     print("Operations: " + FileHandle::getOperationLog());
     }
 	
-	function processWithNestedResources(): void {
+	public function processWithNestedResources(): void {
         FileHandle outer = new FileHandle("outer.txt");
         
         {

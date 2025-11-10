@@ -1,0 +1,10 @@
+Getting first database instance:
+Database instance created
+Connected to localhost:5432 (count: 1)
+
+Getting second database instance:
+Connected to localhost:5432 (count: 2)
+
+Connection count from db1: 2
+Connection count from db2: 2
+Same instance: true

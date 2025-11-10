@@ -1,0 +1,7 @@
+=== Private Member Access Test ===
+Access private + 50: 150
+Access private + 100: 200
+Modify by 10: 110
+Modify by 20: 130
+Final value: 130
+Private member access complete

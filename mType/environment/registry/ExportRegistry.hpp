@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <vector>
 #include <memory>
+#include <optional>
 
 namespace environment::registry
 {

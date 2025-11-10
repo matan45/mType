@@ -1,0 +1,15 @@
+Testing resource cleanup with finally
+Opening resource: File1
+Processing resource: File1
+Closing resource: File1
+Opening resource: File2
+Processing resource: File2
+Caught: Error during processing
+Closing resource: File2
+Opening resource: File3
+Opening resource: File4
+Processing resource: File3
+Processing resource: File4
+Closing resource: File4
+Closing resource: File3
+Test completed

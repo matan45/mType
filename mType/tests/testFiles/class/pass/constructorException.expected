@@ -1,0 +1,9 @@
+Creating valid account:
+Account created for Alice with balance: 1000
+Success - Owner: Alice, Balance: 1000
+
+Creating invalid account:
+Error: Cannot create account with negative balance
+Caught exception: InvalidBalanceException
+
+Program continues after exception

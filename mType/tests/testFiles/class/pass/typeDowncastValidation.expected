@@ -1,0 +1,10 @@
+Test 1: Valid downcast - Circle
+Drawing circle with radius 5
+Downcast successful, radius: 5
+
+Test 2: Valid downcast - Square
+Drawing square with side 10
+Downcast successful, side: 10
+
+Test 3: Type checking before downcast
+s3 is a Circle

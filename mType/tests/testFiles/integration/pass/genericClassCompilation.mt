@@ -2,15 +2,15 @@
 class Container<T> {
     T data;
 
-    function store(T value): void {
+    public function store(T value): void {
         data = value;
     }
 
-    function retrieve(): T {
+    public function retrieve(): T {
         return data;
     }
 
-    function hasData(): bool {
+    public function hasData(): bool {
         return data != null;
     }
 }

@@ -1,0 +1,20 @@
+Test 1: Get first instance
+[Logger] Singleton instance created
+[INFO] Message #1: First message
+
+Test 2: Get second instance
+[INFO] Message #2: Second message
+
+Test 3: Verify same instance
+Same instance: true
+Message count from logger1: 2
+Message count from logger2: 2
+
+Test 4: Modify through one reference
+[Logger] Log level set to: DEBUG
+[DEBUG] Message #3: Third message
+
+Test 5: Reset and continue
+[Logger] Message count reset
+[DEBUG] Message #1: Fourth message
+Final count: 1

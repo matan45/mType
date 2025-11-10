@@ -21,74 +21,74 @@ interface MegaProcessor<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> {
 
 // Helper classes for testing
 class DataA {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataA(" + value + ")"; }
 }
 
 class DataB {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataB(" + value + ")"; }
 }
 
 class DataC {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataC(" + value + ")"; }
 }
 
 class DataD {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataD(" + value + ")"; }
 }
 
 class DataE {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataE(" + value + ")"; }
 }
 
 class DataF {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataF(" + value + ")"; }
 }
 
 class DataG {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataG(" + value + ")"; }
 }
 
 class DataH {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataH(" + value + ")"; }
 }
 
 class DataI {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataI(" + value + ")"; }
 }
 
 class DataJ {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataJ(" + value + ")"; }
 }
 
 class DataK {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataK(" + value + ")"; }
 }
 
 class DataL {
-    string value;
-    constructor(string v) { value = v; }
+    public string value;
+    public constructor(string v) { value = v; }
     public function toString(): string { return "DataL(" + value + ")"; }
 }
 

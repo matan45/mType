@@ -1,0 +1,17 @@
+=== Mutable Capture Test ===
+Initial count: 0
+After incrementer(5): 5
+After incrementer(3): 8
+Original array:
+1
+2
+3
+4
+5
+After doubling indices 2 and 4:
+1
+2
+6
+4
+10
+Mutable capture complete

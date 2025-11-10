@@ -87,6 +87,8 @@ namespace tests::testSuite
                         passPath + "deepInheritance.mt");
         addOutputVerificationTest("Generic Inheritance",
                         passPath + "genericInheritance.mt");
+        addOutputVerificationTest("Method Override and Polymorphism",
+                        passPath + "methodOverridePolymorphism.mt");
 
         // === FINAL CLASS TESTS ===
         // These tests verify final class functionality
@@ -153,6 +155,106 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Super Method Access",
                         passPath + "superMethodAccess.mt");
+
+        // === CONSTRUCTOR PATTERNS TESTS ===
+        // Tests for various constructor patterns and delegation
+
+        addOutputVerificationTest("Constructor Delegation",
+                        passPath + "constructorDelegation.mt");
+        addOutputVerificationTest("Constructor Private Singleton",
+                        passPath + "constructorPrivateSingleton.mt");
+        addOutputVerificationTest("Constructor Protected",
+                        passPath + "constructorProtected.mt");
+        addOutputVerificationTest("Constructor Exception",
+                        passPath + "constructorException.mt");
+        addOutputVerificationTest("Constructor Calling Order",
+                        passPath + "constructorCallingOrder.mt");
+        addOutputVerificationTest("Constructor Overload Complex",
+                        passPath + "constructorOverloadComplex.mt");
+
+        // === METHOD FEATURES TESTS ===
+        // Tests for method overloading, covariance, and recursion
+
+        addOutputVerificationTest("Method Overloading Basic",
+                        passPath + "methodOverloadingBasic.mt");
+        addOutputVerificationTest("Method Covariant Complex",
+                        passPath + "methodCovariantComplex.mt");
+        addOutputVerificationTest("Method Hiding Vs Overriding",
+                        passPath + "methodHidingVsOverriding.mt");
+        addOutputVerificationTest("Method Early Return",
+                        passPath + "methodEarlyReturn.mt");
+        addOutputVerificationTest("Method Recursive Simple",
+                        passPath + "methodRecursiveSimple.mt");
+        addOutputVerificationTest("Method Mutual Recursion",
+                        passPath + "methodMutualRecursion.mt");
+        addOutputVerificationTest("Method Chain Calls",
+                        passPath + "methodChainCalls.mt");
+        addOutputVerificationTest("Method Static Overload",
+                        passPath + "methodStaticOverload.mt");
+
+        // === FIELD MANAGEMENT TESTS ===
+        // Tests for field initialization, shadowing, and lifecycle
+
+        addOutputVerificationTest("Field Initialization Order",
+                        passPath + "fieldInitializationOrder.mt");
+        addOutputVerificationTest("Field Static Init Order",
+                        passPath + "fieldStaticInitOrder.mt");
+        addOutputVerificationTest("Field Shadowing",
+                        passPath + "fieldShadowing.mt");
+        addOutputVerificationTest("Field Uninitialized Defaults",
+                        passPath + "fieldUninitializedDefaults.mt");
+        addOutputVerificationTest("Field Final Init Timing",
+                        passPath + "fieldFinalInitTiming.mt");
+        addOutputVerificationTest("Field Final Mutable Ref",
+                        passPath + "fieldFinalMutableRef.mt");
+        addOutputVerificationTest("Field Lazy Init",
+                        passPath + "fieldLazyInit.mt");
+
+        // === TYPE OPERATIONS TESTS ===
+        // Tests for type casting, instanceof, and polymorphism
+
+        addOutputVerificationTest("Type Upcast Explicit",
+                        passPath + "typeUpcastExplicit.mt");
+        addOutputVerificationTest("Type Downcast Validation",
+                        passPath + "typeDowncastValidation.mt");
+        addOutputVerificationTest("Type Instance Of",
+                        passPath + "typeInstanceOf.mt");
+        addOutputVerificationTest("Type Runtime Check",
+                        passPath + "typeRuntimeCheck.mt");
+        addOutputVerificationTest("Type Polymorphic Array",
+                        passPath + "typePolymorphicArray.mt");
+        addOutputVerificationTest("Type Null Safety",
+                        passPath + "typeNullSafety.mt");
+        addOutputVerificationTest("Type Array Covariance",
+                        passPath + "typeArrayCovariance.mt");
+
+        // === OBJECT LIFECYCLE TESTS ===
+        // Tests for object methods and lifecycle management
+
+        addOutputVerificationTest("Object Equals",
+                        passPath + "objectEquals.mt");
+        addOutputVerificationTest("Object Hash Code",
+                        passPath + "objectHashCode.mt");
+        addOutputVerificationTest("Object To String",
+                        passPath + "objectToString.mt");
+        addOutputVerificationTest("Object Clone",
+                        passPath + "objectClone.mt");
+        addOutputVerificationTest("Object Identity",
+                        passPath + "objectIdentity.mt");
+        addOutputVerificationTest("Object Resource Cleanup",
+                        passPath + "objectResourceCleanup.mt");
+
+        // === ADVANCED PATTERNS TESTS ===
+        // Tests for advanced design patterns
+
+        addOutputVerificationTest("Pattern Singleton",
+                        passPath + "patternSingleton.mt");
+        addOutputVerificationTest("Pattern Factory",
+                        passPath + "patternFactory.mt");
+        addOutputVerificationTest("Pattern Builder",
+                        passPath + "patternBuilder.mt");
+        addOutputVerificationTest("Pattern Immutable",
+                        passPath + "patternImmutable.mt");
 
         // === LEXICAL SCOPING TESTS ===
         // These tests verify that mType implements proper lexical scoping
@@ -395,6 +497,35 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Nested Interface in Interface Error",
                         "mType/tests/testFiles/error/error/nestedInterfaceInInterface.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === CONSTRUCTOR PATTERNS ERROR TESTS ===
+        addTestFromFile("Constructor Same Name Method",
+                        errorPath + "constructorSameNameMethod.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === METHOD FEATURES ERROR TESTS ===
+        addTestFromFile("Method Ambiguous Overload",
+                        errorPath + "methodAmbiguousOverload.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Method Overload Return Type",
+                        errorPath + "methodOverloadReturnType.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Method Missing Return Statement",
+                        errorPath + "missingReturn.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === FIELD MANAGEMENT ERROR TESTS ===
+        addTestFromFile("Field Circular Dependency (Static)",
+                        errorPath + "fieldCircularDependency.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Field Circular Dependency (Instance)",
+                        errorPath + "fieldCircularDependencyInstance.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === TYPE OPERATIONS ERROR TESTS ===
+        addTestFromFile("Type Invalid Cast",
+                        errorPath + "typeInvalidCast.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

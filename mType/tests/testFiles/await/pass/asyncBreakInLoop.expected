@@ -1,0 +1,18 @@
+=== Async Break in Loop Test ===
+Iteration: 1
+Checking shouldBreak for: 1
+Added 1, total now: 1
+Iteration: 2
+Checking shouldBreak for: 2
+Added 2, total now: 3
+Iteration: 3
+Checking shouldBreak for: 3
+Added 3, total now: 6
+Iteration: 4
+Checking shouldBreak for: 4
+Added 4, total now: 10
+Iteration: 5
+Checking shouldBreak for: 5
+Breaking at: 5
+Final total: 10
+Result: 10

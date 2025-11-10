@@ -1,0 +1,7 @@
+Base processing: base
+Base result: base
+Derived processing: derived
+Derived result: derived
+Derived processing: 42
+Polymorphic result: 42
+Generic method inheritance test passed

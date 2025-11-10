@@ -1,0 +1,6 @@
+=== Await in New Expression Test ===
+Creating object with awaited value
+Getting initial value
+Container constructor with value: 42
+Object created with value: 42
+Final value: 42

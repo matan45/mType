@@ -1,0 +1,43 @@
+Test 1: Event handler hierarchy
+Processing event of type: Generic
+Handling generic event
+Event: Generic
+
+Test 2: Mouse event handler with upcast
+Processing event of type: MouseEvent
+Handling as mouse event
+MouseEvent at (10, 20)
+
+Test 3: Click event handler
+Processing event of type: MouseEvent
+Handling as click event
+ClickEvent at (30, 40) button: 1
+
+Test 4: Polymorphic handler array
+
+Handler 0:
+Processing event of type: MouseEvent
+Handling generic event
+ClickEvent at (50, 60) button: 2
+
+Handler 1:
+Processing event of type: MouseEvent
+Handling as mouse event
+ClickEvent at (50, 60) button: 2
+
+Handler 2:
+Processing event of type: MouseEvent
+Handling as click event
+ClickEvent at (50, 60) button: 2
+
+Test 5: Event dispatch function
+Dispatching event
+Handling as click event
+MouseEvent at (70, 80)
+
+Test 6: Batch processing with type flexibility
+Processing: Custom
+Processing: MouseEvent
+Processing: MouseEvent
+
+Contravariant type tests completed

@@ -1,0 +1,8 @@
+=== Async Memory Stress Test ===
+Creating 100 promises
+Progress: 25 promises created, sum: 325
+Progress: 50 promises created, sum: 1275
+Progress: 75 promises created, sum: 2850
+Progress: 100 promises created, sum: 5050
+All promises completed
+Final sum: 5050

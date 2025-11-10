@@ -1,0 +1,15 @@
+Testing array operations with lambdas
+Original array: [1, 2, 3, 4, 5]
+ForEach operation:
+  Element: 1
+  Element: 2
+  Element: 3
+  Element: 4
+  Element: 5
+Mapped (doubled):
+  2
+  4
+  6
+  8
+  10
+Lambda operations test completed

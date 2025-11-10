@@ -1,0 +1,18 @@
+=== Division By Zero Test ===
+100 / 10 = 10
+100 / 5 = 20
+Warning: Division by zero, returning 0
+100 / 0 = 0
+100 / 2 = 50
+1000 / 20 = 50
+Caught: Division by zero error
+1000 / 0 = -1
+1000 / 25 = 40
+100 % 7 = 2
+100 % 0 = -1
+100 % 3 = 1
+Complex(5): 100
+Complex(2): 100
+Complex(0): 0
+Complex(10): 50
+Division by zero complete

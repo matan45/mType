@@ -98,6 +98,7 @@ namespace optimizer::base {
 		virtual std::unique_ptr<ast::ASTNode> visitSuperMethodCallNode(ast::SuperMethodCallNode* node);
 		virtual std::unique_ptr<ast::ASTNode> visitSuperMemberAccessNode(ast::SuperMemberAccessNode* node);
 		virtual std::unique_ptr<ast::ASTNode> visitSuperMemberAssignmentNode(ast::SuperMemberAssignmentNode* node);
+		virtual std::unique_ptr<ast::ASTNode> visitThisConstructorCallNode(ast::ThisConstructorCallNode* node);
 	};
 
 } // namespace optimizer::base

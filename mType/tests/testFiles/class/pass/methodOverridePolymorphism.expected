@@ -1,0 +1,29 @@
+Testing Shape:
+Shape.draw: red
+Shape.getArea: 5
+I am a Shape
+
+Testing Circle:
+Circle.draw: drawing circle in green
+Circle.getArea: r=10
+I am a Circle
+Circle.setRadius: 7
+
+Testing AdvancedCircle:
+AdvancedCircle.draw: enhanced drawing in blue
+AdvancedCircle.getArea: enhanced calculation for r=15
+I am an AdvancedCircle with special features
+Circle.setRadius: 8
+AdvancedCircle.setBorderWidth: 2
+
+Testing Polymorphism:
+Circle.draw: drawing circle in yellow
+Circle.getArea: r=20
+I am a Circle
+AdvancedCircle.draw: enhanced drawing in purple
+AdvancedCircle.getArea: enhanced calculation for r=25
+I am an AdvancedCircle with special features
+AdvancedCircle.draw: enhanced drawing in orange
+AdvancedCircle.getArea: enhanced calculation for r=30
+I am an AdvancedCircle with special features
+Circle.setRadius: 12

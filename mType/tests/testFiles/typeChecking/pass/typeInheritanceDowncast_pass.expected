@@ -1,0 +1,25 @@
+Test 1: Downcast Rectangle
+Drawing red rectangle: 10x5
+Successfully downcast to Rectangle
+Area: 50
+Width: 10
+Height: 5
+
+Test 2: Downcast Circle
+Drawing blue circle with radius 7
+Successfully downcast to Circle
+Radius: 7
+
+Test 3: Type safety check
+Correctly identified as Rectangle
+Area: 32
+
+Test 4: Array with mixed types
+Found rectangle with area: 18
+Found circle with radius: 5
+Found rectangle with area: 16
+Found circle with radius: 3
+Total rectangle area: 34
+Total circles found: 2
+
+All downcast tests completed

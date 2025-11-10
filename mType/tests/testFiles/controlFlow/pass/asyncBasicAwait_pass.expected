@@ -1,0 +1,8 @@
+=== Basic Async Await Test ===
+Starting async operation
+Processing data...
+Fetching data...
+Data received: Data fetched
+Final value: 84
+Final message: Data processed
+Async operation complete

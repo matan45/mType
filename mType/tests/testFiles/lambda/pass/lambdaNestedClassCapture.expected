@@ -1,0 +1,8 @@
+=== Nested Class Capture Test ===
+Initial outer value: 10
+Adder(5): 15
+Adder(10): 20
+After changing to 20:
+Adder(5): 25
+Multiplier(3): 120
+Nested class capture complete

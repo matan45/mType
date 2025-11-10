@@ -1,0 +1,10 @@
+Testing recursive lambda patterns:
+Factorial(5) = 120
+Factorial(6) = 720
+Sum(10) = 55
+Sum(20) = 210
+CountDown(5) = 15
+CountDown(7) = 28
+Power(2, 8) = 256
+Power(3, 4) = 81
+Recursive lambda pattern tests completed

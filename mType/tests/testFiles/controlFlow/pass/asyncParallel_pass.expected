@@ -1,0 +1,18 @@
+=== Parallel Async Operations Test ===
+Creating all promises in parallel
+Starting operation 1
+Starting operation 2
+Starting operation 3
+All promises created, now awaiting results
+Operation 1 completed with value 100
+Operation 2 completed with value 200
+Operation 3 completed with value 300
+Total from parallel operations: 600
+
+Testing sequential pattern:
+Starting operation 1
+Starting operation 2
+Starting operation 3
+Sequential total: 600
+
+Parallel operations test complete

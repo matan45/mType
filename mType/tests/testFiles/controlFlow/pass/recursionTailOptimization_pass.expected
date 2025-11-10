@@ -1,0 +1,11 @@
+Testing tail recursion patterns:
+factorial(5) = 120
+factorial(6) = 720
+factorial(7) = 5040
+sumToN(10) = 55
+sumToN(100) = 5050
+countdown(5) = 5
+countdown(10) = 10
+power(2, 10) = 1024
+power(3, 5) = 243
+Tail recursion tests completed successfully

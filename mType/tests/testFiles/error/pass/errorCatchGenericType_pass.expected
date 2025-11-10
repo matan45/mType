@@ -1,0 +1,9 @@
+Testing catch with generic Int exception:
+Caught ResultException<Int>: Operation failed with result
+Result value: 500
+Testing catch with generic String exception:
+Caught ResultException<String>: Operation failed with message
+Result message: Timeout
+Testing catch as base exception:
+Caught as base Exception: Generic error
+Catch generic type test passed!

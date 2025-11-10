@@ -67,12 +67,12 @@ function async multipleAwaitWithTryCatch(): Promise<Int> {
         Promise<Int> p1 = getValue(10);
         Int val1 = await p1;
         print("Got value 1: " + val1.toString());
-        total = total + val1.value;
+        total = total + val1.getValue();
 
         Promise<Int> p2 = getValue(20);
         Int val2 = await p2;
         print("Got value 2: " + val2.toString());
-        total = total + val2.value;
+        total = total + val2.getValue();
 
         return new Int(total);
     } catch (Exception e) {

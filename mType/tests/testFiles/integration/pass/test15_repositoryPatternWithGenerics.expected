@@ -1,0 +1,39 @@
+=== Test 15: Repository Pattern with Generics ===
+--- Test 1: User Repository ---
+Saved new entity with ID: 1
+UserService: Created user alice
+Saved new entity with ID: 2
+UserService: Created user bob
+Saved new entity with ID: 3
+UserService: Created user charlie
+Repository count: 3
+--- Test 2: Find by ID ---
+UserService: Found bob
+Found: User{id=2, username=bob, email=bob@example.com}
+Entity not found with ID: 99
+UserService: User not found
+--- Test 3: List all users ---
+Total users: 3
+  User{id=1, username=alice, email=alice@example.com}
+  User{id=2, username=bob, email=bob@example.com}
+  User{id=3, username=charlie, email=charlie@example.com}
+--- Test 4: Delete user ---
+Deleted entity with ID: 2
+Delete result: true
+Count after delete: 2
+Total users: 2
+  User{id=1, username=alice, email=alice@example.com}
+  User{id=3, username=charlie, email=charlie@example.com}
+--- Test 5: Product Repository ---
+Saved new entity with ID: 1
+Saved new entity with ID: 2
+Saved new entity with ID: 3
+Products count: 3
+All products:
+  Product{id=1, name=Laptop, price=999.99}
+  Product{id=2, name=Mouse, price=29.99}
+  Product{id=3, name=Keyboard, price=79.99}
+--- Test 6: Update entity ---
+Before update: Product{id=1, name=Laptop, price=999.99}
+Updated entity with ID: 1
+=== Test 15 Complete ===

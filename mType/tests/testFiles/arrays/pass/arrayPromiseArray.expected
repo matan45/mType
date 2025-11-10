@@ -1,0 +1,13 @@
+Testing arrays of promise-like objects
+Created 4 promises
+Resolved promises 0 and 2
+  Promise 0 resolved with value: 10
+  Promise 1 pending
+  Promise 2 resolved with value: 30
+  Promise 3 pending
+All promises resolved:
+  Value 0: 10
+  Value 1: 20
+  Value 2: 30
+  Value 3: 40
+Promise array test completed

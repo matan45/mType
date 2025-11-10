@@ -2,6 +2,7 @@
 #include "../value/PromiseValue.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include <algorithm>
+#include <iostream>
 
 namespace runtime {
 
@@ -241,9 +242,8 @@ namespace runtime {
                 task->resultPromise->resolve(result);
             }
 
-            // Remove from all tasks
-            std::lock_guard<std::mutex> lock(queueMutex);
-            allTasks.erase(task->taskId);
+            // Keep task in allTasks so caller can check its status
+            // Caller is responsible for cleanup
         }
         catch (const std::exception& e) {
             task->state = TaskState::FAILED;
@@ -254,9 +254,8 @@ namespace runtime {
                 task->resultPromise->reject(e.what());
             }
 
-            // Remove from all tasks
-            std::lock_guard<std::mutex> lock(queueMutex);
-            allTasks.erase(task->taskId);
+            // Keep task in allTasks so caller can check its status and error message
+            // Caller is responsible for cleanup
         }
 
         currentTask = nullptr;

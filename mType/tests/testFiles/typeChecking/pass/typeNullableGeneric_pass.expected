@@ -1,0 +1,7 @@
+Testing nullable generic type parameters
+String box value: Hello
+Box value is null
+Container is empty
+Container has box with value: 42
+Container is empty again
+Nullable generic test completed

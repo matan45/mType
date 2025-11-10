@@ -1,0 +1,13 @@
+=== Async Switch Statement Test ===
+Getting operation for code: 1
+Operation: ADD
+Result: 15
+10 + 5 = 15
+Getting operation for code: 2
+Operation: SUBTRACT
+Result: 5
+10 - 5 = 5
+Getting operation for code: 3
+Operation: MULTIPLY
+Result: 50
+10 * 5 = 50

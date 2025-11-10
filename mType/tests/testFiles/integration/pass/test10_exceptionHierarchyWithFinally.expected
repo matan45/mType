@@ -1,0 +1,58 @@
+=== Test 10: Exception Hierarchy with Finally ===
+--- Finally overrides return ---
+In try block
+In finally block
+Result: 20
+--- Finally suppresses exception ---
+Throwing exception
+Finally suppresses exception
+Result: 30
+--- Multiple catch blocks (ordered) ---
+Test case: 1
+Caught TimeoutException: Timeout occurred
+Finally block executed
+Result: timeout
+---
+Test case: 2
+Caught NetworkException: Network failed
+Finally block executed
+Result: network
+---
+Test case: 3
+Caught IOException: IO failed (code: 404)
+Finally block executed
+Result: io
+---
+Test case: 4
+Caught RuntimeException: Runtime error
+Finally block executed
+Result: runtime
+--- Finally without return ---
+Try block
+Finally block
+Result: 50
+--- Nested try-catch-finally ---
+Outer try
+Inner try
+Inner catch: Inner exception
+Inner finally
+After inner try-catch
+Outer finally
+Result: 100
+--- Exception rethrow with finally ---
+Try: throwing exception
+Catch: Original exception
+Rethrowing
+Finally: cleanup before rethrow
+Outer catch: Original exception
+--- Finally in loop ---
+Loop iteration: 0
+No exception for i=0
+Finally for i=0
+Loop iteration: 1
+Caught: Exception at i=1
+Finally for i=1
+Loop iteration: 2
+No exception for i=2
+Finally for i=2
+=== Test 10 Complete ===

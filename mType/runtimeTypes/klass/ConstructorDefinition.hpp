@@ -57,6 +57,9 @@ namespace runtimeTypes::klass
         const std::vector<std::pair<std::string, ParameterType>>& getParametersWithTypes() const { return parametersWithTypes; }
         bool hasParametersWithTypes() const { return !parametersWithTypes.empty(); }
 
+        // Get type signature for constructor overload resolution
+        std::string getTypeSignature() const;
+
         ASTNode* getBody() const { return body.get(); }
         std::shared_ptr<ASTNode> getBodyPtr() const { return body; }
         ASTNode* getInitializerList() const { return initializerList.get(); }

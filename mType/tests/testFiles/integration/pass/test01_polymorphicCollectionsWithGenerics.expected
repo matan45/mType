@@ -1,0 +1,14 @@
+=== Test 01: Polymorphic Collections with Generics ===
+Processing integers:
+IntProcessor: 50
+IntProcessor: 70
+IntProcessor: 30
+Processing strings:
+PREFIX-Alpha
+PREFIX-Beta
+PREFIX-Gamma
+Type check: IntProcessor detected
+Transformed: 42
+Priority comparison:
+IntProcessor has lower priority
+=== Test 01 Complete ===

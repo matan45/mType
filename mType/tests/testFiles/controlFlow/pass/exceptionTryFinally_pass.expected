@@ -1,0 +1,11 @@
+Testing try-finally without catch
+In try block
+No exception thrown
+In finally block
+In inner try
+In inner finally
+Caught in outer: Test exception
+In try before return
+In finally after return
+Result: 42
+Test completed

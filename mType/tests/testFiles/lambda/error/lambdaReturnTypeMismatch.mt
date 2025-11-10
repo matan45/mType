@@ -1,6 +1,6 @@
 // Lambda return type mismatch test
 interface Function {
-    function apply(x: int) : int;
+    function apply(int x) : int;
 }
 
 // This should fail - lambda returns string but interface expects int

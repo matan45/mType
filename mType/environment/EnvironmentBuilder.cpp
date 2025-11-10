@@ -49,7 +49,7 @@ namespace environment
             scopeManager = std::make_shared<ScopeManager>();
         if (!nativeRegistry)
             nativeRegistry = std::make_shared<NativeRegistry>();
-        
+
         return *this;
     }
 

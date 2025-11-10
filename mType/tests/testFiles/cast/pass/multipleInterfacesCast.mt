@@ -1,10 +1,10 @@
 // Test: Cast with multiple interfaces
 interface A {
-    function methodA(): void;
+    public function methodA(): void;
 }
 
 interface B {
-    function methodB():void;
+    public function methodB():void;
 }
 
 class Multi implements A, B {

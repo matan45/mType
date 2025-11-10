@@ -1,0 +1,11 @@
+Testing exception in for-loop increment
+Loop iteration: 0
+Computing increment for i=0
+Loop iteration: 1
+Computing increment for i=1
+Loop iteration: 2
+Computing increment for i=2
+Caught in increment: Error computing increment at i=2
+Loop iteration: 4
+Computing increment for i=4
+Test completed

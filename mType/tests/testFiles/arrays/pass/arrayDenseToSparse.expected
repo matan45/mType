@@ -1,0 +1,8 @@
+Testing dense to sparse transitions
+Dense array sum:
+Sum: 1225
+Sparse array (5 elements set out of 100):
+Non-zero elements: 5
+Sum: 15
+After densification, sum: 110
+Storage transition test completed

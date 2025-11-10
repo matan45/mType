@@ -1,0 +1,31 @@
+Test 1: Book covariant clone
+Book: 1984 by George Orwell, 328 pages, Price: 15.99
+Book: 1984 by George Orwell, 328 pages, Price: 15.99
+Author of cloned book: George Orwell
+
+Test 2: Electronics covariant clone
+Electronics: Laptop by Dell, 2 year warranty, Price: 999.99
+Electronics: Laptop by Dell, 2 year warranty, Price: 999.99
+Warranty of cloned device: 2
+
+Test 3: Polymorphic covariant return
+Book: Dune by Frank Herbert, 688 pages, Price: 18.99
+Cloned product name: Dune
+
+Test 4: Array cloning
+Original:
+Book: Foundation by Isaac Asimov, 255 pages, Price: 14.99
+Clone:
+Book: Foundation by Isaac Asimov, 255 pages, Price: 14.99
+Original:
+Electronics: Tablet by Samsung, 1 year warranty, Price: 499.99
+Clone:
+Electronics: Tablet by Samsung, 1 year warranty, Price: 499.99
+
+Test 5: Type-specific cloning
+Cloned book pages: 271
+Cloned book author: William Gibson
+Cloned device brand: LG
+Cloned device warranty: 3
+
+Covariant return type tests completed

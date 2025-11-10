@@ -1,0 +1,39 @@
+Testing nested finally blocks
+Testing nested finally blocks
+Outer try
+Middle try
+Inner try
+Inner finally
+Middle finally
+Outer catch: Deep exception
+Outer finally
+Level 1 try
+Level 2 try
+Level 3 try
+Level 3 finally
+Level 2 finally
+Level 1 finally
+Result: 1
+Testing nested finally with break
+Outer loop try: 0
+Inner loop try: j=0
+Inner loop finally: j=0
+Inner loop try: j=1
+Inner loop finally: j=1
+Outer loop finally: i=0
+Outer loop try: 1
+Inner loop try: j=0
+Inner loop finally: j=0
+Inner loop try: j=1
+Inner loop finally: j=1
+Outer loop finally: i=1
+Testing complex nesting
+L1 try
+L2 try
+L2 catch: L2 exception
+L3 try in catch
+L3 finally
+L2 finally
+L1 catch: L3 exception
+L1 finally
+Test completed

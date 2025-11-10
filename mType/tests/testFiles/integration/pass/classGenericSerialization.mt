@@ -10,11 +10,11 @@ class Person {
         age = a;
     }
 
-    function getName(): string {
+    public function getName(): string {
         return name;
     }
 
-    function getAge(): int {
+    public function getAge(): int {
         return age;
     }
 

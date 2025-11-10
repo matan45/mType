@@ -23,7 +23,8 @@ namespace vm::compiler::validation
         ~CompileTimeValidator() = default;
 
         // Function validation
-        void validateFunctionExists(const std::string& functionName, const ast::SourceLocation& location);
+        void validateFunctionExists(const std::string& functionName, const ast::SourceLocation& location,
+                                   const std::string& currentClassName = "");
         void validateStaticMethodExists(const std::string& className, const std::string& methodName,
                                        size_t argCount, const ast::SourceLocation& location);
 
@@ -40,6 +41,9 @@ namespace vm::compiler::validation
         void validateClassExists(const std::string& className, const ast::SourceLocation& location);
         void validateParentClassExists(const std::string& parentClassName, const ast::SourceLocation& location);
 
+        // Generic type validation
+        void validateTypeIsNotRawGeneric(const std::string& typeName, const ast::SourceLocation& location);
+
         // Method implementation validation (called after class registration)
         void validateAllMethodsHaveBytecode(const std::string& className, const ast::SourceLocation& location);
 
@@ -50,5 +54,10 @@ namespace vm::compiler::validation
         // Helper to get fully qualified method name
         std::string getQualifiedMethodName(const std::string& className, const std::string& methodName,
                                           size_t argCount, bool isStatic = false);
+
+        // Helper to check if a method exists in an interface or any of its parent interfaces
+        bool hasMethodInInterfaceHierarchy(
+            std::shared_ptr<runtimeTypes::klass::InterfaceDefinition> interfaceDef,
+            const std::string& methodName);
     };
 }

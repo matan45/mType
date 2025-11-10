@@ -1,0 +1,29 @@
+Test 1: Covariant return types
+Food: Generic Food
+
+Test 2: Fruit factory
+Fruit: Generic Fruit (Yellow)
+Color: Yellow
+
+Test 3: Apple factory
+Apple: Granny Smith
+Variety: Granny Smith
+
+Test 4: Polymorphic factory array
+
+Factory 0:
+Food: Generic Food
+
+Factory 1:
+Fruit: Generic Fruit (Yellow)
+Color: Yellow
+
+Factory 2:
+Apple: Granny Smith
+Variety: Granny Smith
+
+Test 5: Covariant method chaining
+Builder result: AB
+Enhanced result: Enhanced: [X][Y]
+
+Covariant type tests completed

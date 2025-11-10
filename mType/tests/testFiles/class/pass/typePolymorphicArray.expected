@@ -1,0 +1,17 @@
+Test 1: Create mixed employee array
+
+Test 2: Polymorphic iteration
+Manager Alice is managing team of 5
+Developer Bob is coding in Java
+Developer Charlie is coding in Python
+Employee Dave is working
+
+Test 3: Type-specific operations
+Processing employee 0:
+Manager Alice is holding a meeting
+Processing employee 1:
+Developer Bob is debugging
+Processing employee 2:
+Developer Charlie is debugging
+Processing employee 3:
+Generic employee: ID: 4, Name: Dave

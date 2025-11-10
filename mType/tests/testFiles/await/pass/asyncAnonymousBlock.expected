@@ -1,0 +1,10 @@
+=== Async Anonymous Block Test ===
+Starting block processing
+Entering nested block 1
+Getting value: 5
+Block 1 total: 10
+Entering nested block 2
+Getting value: 10
+Block 2 total: 30
+All blocks completed
+Final result: 30

@@ -1,0 +1,10 @@
+Testing array type casting
+Int array cast to float:
+  floats[0] = 10
+  floats[1] = 20
+  floats[2] = 30
+Float array cast to int (truncation):
+  intCast[0] = 10.7
+  intCast[1] = 20.3
+  intCast[2] = 30.9
+Array type casting test completed

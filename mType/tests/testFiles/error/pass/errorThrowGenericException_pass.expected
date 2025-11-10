@@ -1,0 +1,12 @@
+Testing throw with ErrorContext metadata:
+Caught: File processing error
+Line: 42
+File: data.txt
+Critical: true
+Testing throw with Int metadata:
+Caught: Division by zero
+Divisor: 0
+Testing throw with String metadata:
+Caught: Empty input
+Error type: EMPTY_STRING
+Throw generic exception test passed!

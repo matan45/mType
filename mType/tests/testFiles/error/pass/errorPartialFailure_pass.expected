@@ -1,0 +1,81 @@
+=== Test 1: Batch processing with failures ===
+Processing item: 1
+Success: Processed-1
+Processing item: 2
+Failed: Item 2 - Item 2 failed validation
+Processing item: 3
+Success: Processed-3
+Processing item: 4
+Failed: Item 4 - Item 4 failed validation
+Processing item: 5
+Success: Processed-5
+Processing item: 6
+Failed: Item 6 - Item 6 failed validation
+Processing item: 7
+Success: Processed-7
+Processing item: 8
+Failed: Item 8 - Item 8 failed validation
+Processing item: 9
+Success: Processed-9
+Processing item: 10
+Failed: Item 10 - Item 10 failed validation
+Batch results: Total: 10, Success: 5, Failed: 5 (Rate: 50%)
+
+=== Test 2: Collect all results ===
+Processing item: 1
+Processing item: 2
+Processing item: 3
+Processing item: 4
+Processing item: 5
+Processing results:
+Item 0: SUCCESS - Processed-1
+Item 1: FAILURE - Item 2 failed validation
+Item 2: SUCCESS - Processed-3
+Item 3: FAILURE - Item 4 failed validation
+Item 4: SUCCESS - Processed-5
+
+=== Test 3: Continue processing on error ===
+Executing task: Initialize
+Result: Task 1 completed
+Executing task: LoadData
+Error: Task 2 encountered an error
+Continuing to next task...
+Executing task: Process
+Result: Task 3 completed
+Executing task: Validate
+Error: Task 4 encountered an error
+Continuing to next task...
+Executing task: Finalize
+Result: Task 5 completed
+Task execution summary: Total: 5, Success: 3, Failed: 2 (Rate: 60%)
+
+=== Test 4: Success threshold check ===
+Processing item: 1
+Processing item: 2
+Processing item: 3
+Processing item: 4
+Processing item: 5
+Processing item: 6
+Processing item: 7
+Processing item: 8
+Processing item: 9
+Processing item: 10
+Success rate: 50%, Threshold: 40%
+Threshold met - operation acceptable
+
+=== Test 5: Partial rollback pattern ===
+Committing transaction 1
+Committing transaction 2
+Committing transaction 3
+Failed: Transaction 3 commit failed
+Rolling back all committed transactions
+Rolling back transaction 1
+Rolling back transaction 2
+Transaction batch failed - all rolled back
+Final transaction states:
+Transaction 1: ROLLED_BACK
+Transaction 2: ROLLED_BACK
+Transaction 3: ROLLED_BACK
+Transaction 4: ROLLED_BACK
+
+Partial failure test completed!

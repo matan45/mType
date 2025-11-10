@@ -2,6 +2,8 @@
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../runtime/EventLoop.hpp"
 #include <stdexcept>
+#include "../value/PromiseValue.hpp"
+#include <iostream>
 
 namespace services
 {
@@ -38,6 +40,15 @@ namespace services
             if (mainTask && mainTask->state == ::runtime::TaskState::FAILED)
             {
                 throw std::runtime_error(mainTask->errorMessage);
+            }
+
+            // Return the result from the main task's promise
+            if (mainTask && mainTask->state == ::runtime::TaskState::COMPLETED && mainTask->resultPromise)
+            {
+                if (mainTask->resultPromise->isFulfilled())
+                {
+                    return mainTask->resultPromise->getValue();
+                }
             }
 
             return std::monostate{};

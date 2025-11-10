@@ -1,0 +1,10 @@
+=== Async Execution Order Test ===
+Starting ordered execution
+Executing step 1
+Completed step: 1
+Executing step 2
+Completed step: 2
+Executing step 3
+Completed step: 3
+Total steps: 6
+All steps completed: 6

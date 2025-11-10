@@ -44,7 +44,7 @@ class Configuration {
 
     final int NUM_TESTS = 5;
     
-    function runBatchTests(): int {
+    public function runBatchTests(): int {
         int totalResults = 0;
         
         for (int test = 0; test < NUM_TESTS; test++) {

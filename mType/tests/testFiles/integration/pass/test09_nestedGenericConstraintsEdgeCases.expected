@@ -1,0 +1,23 @@
+=== Test 09: Nested Generic Constraints Edge Cases ===
+--- Basic constraint satisfaction ---
+Container item: First
+item1 > item2: true
+--- Nested generics ---
+Serialized: DataItem{value=100,name=First}
+Is greater than item2: true
+--- Generic pair ---
+First: Alpha
+Second: Beta
+First < comparison item
+--- Container wrapper ---
+Wrapped container comparison: true
+--- Container collection ---
+Collection size: 3
+Max item: High = 90
+--- Chained generic operations ---
+c2 > c1: true
+c2 > c3: true
+c3 > c1: true
+--- Null handling ---
+Retrieved item: Chain1
+=== Test 09 Complete ===

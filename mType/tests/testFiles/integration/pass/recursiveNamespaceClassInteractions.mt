@@ -25,12 +25,12 @@
     }
     
 
-        function buildTree(int levels): int {
+        public function buildTree(int levels): int {
             Node root = new Node(1, "root");
             return root.processNode(levels);
         }
         
-        function processMultipleNodes(): int {
+        public function processMultipleNodes(): int {
             int total = 0;
             
             for (int i = 0; i < 3; i++) {

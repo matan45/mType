@@ -1,0 +1,7 @@
+Testing array equality
+arr1 equals arr2: true
+arr1 equals arr3: false
+arr1 equals arr4: false
+arr1 == arr1 (same reference): true
+strArr1 equals strArr2: true
+Array equality test completed

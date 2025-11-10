@@ -1,0 +1,9 @@
+Testing generic class instantiation
+Pair first: 42
+Pair second: Answer
+Pair2 first: Count
+Pair2 second: 100
+Updated pair first: 99
+Updated pair second: Updated
+Triple: 1, middle, 3
+Generic class instantiation test completed

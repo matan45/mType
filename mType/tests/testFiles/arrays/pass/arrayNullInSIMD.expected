@@ -1,0 +1,6 @@
+Testing null checks in SIMD operations
+Created Item array with length: 16
+Null count: 8
+Non-null count: 8
+Sum of non-null values: 280
+Null checks in SIMD operations test completed

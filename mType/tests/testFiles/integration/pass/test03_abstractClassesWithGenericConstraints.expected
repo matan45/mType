@@ -1,0 +1,12 @@
+=== Test 03: Abstract Classes with Generic Constraints ===
+First: Alpha = 100
+DataContainer with label: First
+Score: 95
+Container holding item
+item1 is greater than item2
+Total containers created: 2
+Sortable: Gamma
+Gamma sorts before Alpha
+Delta is greater than Alpha
+Final container count: 4
+=== Test 03 Complete ===

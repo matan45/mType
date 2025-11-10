@@ -1,0 +1,9 @@
+=== Nested Try-Catch Test ===
+x=0: Outer-try Inner-try No-exception After-inner
+x=1: Outer-try Inner-try Inner-catch After-inner
+x=2: Outer-try Inner-try Outer-catch
+Triple(0): No error
+Triple(1): Caught at level 1
+Triple(2): Caught at level 2
+Triple(3): Caught at level 3
+Nested try-catch complete

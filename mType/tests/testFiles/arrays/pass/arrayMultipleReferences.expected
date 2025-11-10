@@ -1,0 +1,16 @@
+Testing multiple references
+Initial state:
+  shared[0] = 1
+After ref1[0] = 10:
+  shared[0] = 10
+  ref2[0] = 10
+  ref3[0] = 10
+After ref2[1] = 20:
+  shared[1] = 20
+  ref1[1] = 20
+  ref3[1] = 20
+After ref3[2] = 30:
+  shared[2] = 30
+  ref1[2] = 30
+  ref2[2] = 30
+Multiple references test completed

@@ -1,0 +1,6 @@
+=== Async Promise Cast Test ===
+Creating derived object
+Derived ID: 1
+Derived name: TestObject
+Base ID: 1
+Result: Derived process: TestObject

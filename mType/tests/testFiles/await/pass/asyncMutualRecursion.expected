@@ -1,0 +1,23 @@
+=== Async Mutual Recursion Test ===
+isEven(4) calling isOdd(3)
+isOdd(3) calling isEven(2)
+isEven(2) calling isOdd(1)
+isOdd(1) calling isEven(0)
+isEven base case: true
+isEven(4) = true
+isOdd(5) calling isEven(4)
+isEven(4) calling isOdd(3)
+isOdd(3) calling isEven(2)
+isEven(2) calling isOdd(1)
+isOdd(1) calling isEven(0)
+isEven base case: true
+isOdd(5) = true
+isEven(7) calling isOdd(6)
+isOdd(6) calling isEven(5)
+isEven(5) calling isOdd(4)
+isOdd(4) calling isEven(3)
+isEven(3) calling isOdd(2)
+isOdd(2) calling isEven(1)
+isEven(1) calling isOdd(0)
+isOdd base case: false
+isEven(7) = false

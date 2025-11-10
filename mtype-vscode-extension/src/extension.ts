@@ -11,8 +11,142 @@ import { MTypeSignatureHelpProvider } from './signature/MTypeSignatureHelpProvid
 import { MTypeCodeActionsProvider } from './codeActions/MTypeCodeActionsProvider';
 import { MTypeCodeLensProvider } from './codeLens/MTypeCodeLensProvider';
 import { MTypeSemanticTokensProvider, legend } from './semanticTokens/MTypeSemanticTokensProvider';
+import { activateLanguageServer, deactivateLanguageServer } from './languageClient';
+
+function registerCommonCommands(context: vscode.ExtensionContext): void {
+    // Command to run mType file
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtype.run', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor');
+                return;
+            }
+
+            if (editor.document.languageId !== 'mtype') {
+                vscode.window.showErrorMessage('Current file is not an mType file');
+                return;
+            }
+
+            const config = vscode.workspace.getConfiguration('mTypeLanguageServer');
+            const interpreterPath = config.get<string>('interpreterPath');
+
+            if (!interpreterPath) {
+                const result = await vscode.window.showErrorMessage(
+                    'mType interpreter path not configured. Would you like to set it now?',
+                    'Set Path'
+                );
+                if (result === 'Set Path') {
+                    vscode.commands.executeCommand('workbench.action.openSettings', 'mTypeLanguageServer.interpreterPath');
+                }
+                return;
+            }
+
+            const filePath = editor.document.uri.fsPath;
+            const terminal = vscode.window.createTerminal('mType');
+            terminal.sendText(`"${interpreterPath}" "${filePath}"`);
+            terminal.show();
+        })
+    );
+
+    // Command to find all references
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtype.findReferences', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor');
+                return;
+            }
+
+            if (editor.document.languageId !== 'mtype') {
+                vscode.window.showErrorMessage('Current file is not an mType file');
+                return;
+            }
+
+            try {
+                // Trigger find references
+                await vscode.commands.executeCommand('editor.action.referenceSearch.trigger');
+            } catch (error) {
+                vscode.window.showErrorMessage('Failed to find references: ' + error);
+            }
+        })
+    );
+
+    // Command to format document
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtype.formatDocument', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor');
+                return;
+            }
+
+            if (editor.document.languageId !== 'mtype') {
+                vscode.window.showErrorMessage('Current file is not an mType file');
+                return;
+            }
+
+            try {
+                // Trigger format document
+                await vscode.commands.executeCommand('editor.action.formatDocument');
+            } catch (error) {
+                vscode.window.showErrorMessage('Failed to format document: ' + error);
+            }
+        })
+    );
+
+    // Command to show references (converts JSON from LSP to VS Code types)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtype.showReferences', async (uriString: string, position: any, locations: any[]) => {
+            try {
+                console.log('[mtype.showReferences] Called with:', { uriString, position, locations });
+
+                // Convert URI string to vscode.Uri
+                const uri = vscode.Uri.parse(uriString);
+                console.log('[mtype.showReferences] Parsed URI:', uri.toString());
+
+                // Convert position object to vscode.Position
+                const pos = new vscode.Position(position.line, position.character);
+                console.log('[mtype.showReferences] Created Position:', pos);
+
+                // Convert location objects to vscode.Location[]
+                const locs: vscode.Location[] = locations.map((loc: any) => {
+                    const locUri = vscode.Uri.parse(loc.uri);
+                    const range = new vscode.Range(
+                        new vscode.Position(loc.range.start.line, loc.range.start.character),
+                        new vscode.Position(loc.range.end.line, loc.range.end.character)
+                    );
+                    return new vscode.Location(locUri, range);
+                });
+                console.log('[mtype.showReferences] Created', locs.length, 'locations');
+
+                // Call VS Code's built-in showReferences command with proper types
+                await vscode.commands.executeCommand('editor.action.showReferences', uri, pos, locs);
+                console.log('[mtype.showReferences] Successfully showed references');
+            } catch (error) {
+                console.error('[mtype.showReferences] Error:', error);
+                vscode.window.showErrorMessage('Failed to show references: ' + error);
+            }
+        })
+    );
+}
 
 export function activate(context: vscode.ExtensionContext) {
+    // Register commands that should always be available regardless of LSP mode
+    registerCommonCommands(context);
+
+    // Check if LSP is enabled
+    const config = vscode.workspace.getConfiguration('mType');
+    const useLSP = config.get<boolean>('languageServer.enable', false);
+
+    if (useLSP) {
+        // Use Language Server Protocol
+        vscode.window.showInformationMessage('mType extension activated with LSP mode!');
+        activateLanguageServer(context);
+        return; // Skip built-in providers when using LSP
+    }
+
+    // Use built-in providers (original mode)
     vscode.window.showInformationMessage('mType extension activated!');
 
     // Get workspace root for import resolution
@@ -130,13 +264,14 @@ export function activate(context: vscode.ExtensionContext) {
     const formatter = new MTypeFormatter();
     const formatterDisposable = vscode.languages.registerDocumentFormattingEditProvider('mtype', formatter);
 
+    // TODO: Debug adapter temporarily disabled to focus on LSP testing
     // Register debug configuration provider
-    const debugConfigProvider = new MTypeDebugConfigurationProvider();
-    const debugConfigDisposable = vscode.debug.registerDebugConfigurationProvider('mtype', debugConfigProvider);
+    // const debugConfigProvider = new MTypeDebugConfigurationProvider();
+    // const debugConfigDisposable = vscode.debug.registerDebugConfigurationProvider('mtype', debugConfigProvider);
 
     // Register debug adapter descriptor factory
-    const debugAdapterFactory = new MTypeDebugAdapterDescriptorFactory();
-    const debugAdapterDisposable = vscode.debug.registerDebugAdapterDescriptorFactory('mtype', debugAdapterFactory);
+    // const debugAdapterFactory = new MTypeDebugAdapterDescriptorFactory();
+    // const debugAdapterDisposable = vscode.debug.registerDebugAdapterDescriptorFactory('mtype', debugAdapterFactory);
 
     // Register additional commands
     const disposables = [
@@ -218,8 +353,8 @@ export function activate(context: vscode.ExtensionContext) {
         codeActionsDisposable,
         codeLensDisposable,
         semanticTokensDisposable,
-        debugConfigDisposable,
-        debugAdapterDisposable,
+        // debugConfigDisposable,  // Temporarily disabled
+        // debugAdapterDisposable,  // Temporarily disabled
         documentChangeDisposable,
         documentOpenDisposable,
         documentCloseDisposable,
@@ -227,5 +362,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 }
 
-export function deactivate(): void {
+export function deactivate(): Thenable<void> | undefined {
+    // Deactivate language server if it's running
+    return deactivateLanguageServer();
 }

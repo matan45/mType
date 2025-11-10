@@ -1,0 +1,60 @@
+=== Test 1: Async exception ===
+Async function throwing
+Caught async exception: Async error
+Stack trace from async: true
+Async exception handled
+
+=== Test 2: Multiple awaits with exception ===
+First operation executing
+First result: 100
+Second operation throwing
+Caught during awaits: Second operation failed
+Stack trace across awaits: true
+Multiple await exception handled
+
+=== Test 3: Nested async exception ===
+Middle async function
+Deep async function
+Caught nested async: Deep async error
+Stack trace includes nested async: true
+Nested async exception handled
+
+=== Test 4: Await in loop ===
+Loop iteration: 0
+Processing item: 0
+Processed: 0
+Loop iteration: 1
+Processing item: 1
+Processed: 10
+Loop iteration: 2
+Processing item: 2
+Caught in loop: Item 2 failed
+Stack trace from loop await: true
+Loop exception handled
+
+=== Test 5: Async method exception ===
+Processing data
+Fetching data for ID: -1
+Caught async method error: Invalid ID
+Stack trace from async method: true
+Async method exception handled
+
+=== Test 6: Conditional await exception ===
+Testing success case
+Conditional async: shouldFail=false
+Success result: 42
+Testing failure case
+Conditional async: shouldFail=true
+Caught conditional error: Conditional failure
+Stack trace from conditional: true
+Conditional exception handled
+
+=== Test 7: Await with finally ===
+Function about to throw
+Caught in finally test: Finally test error
+Stack trace available: true
+Finally block executed
+Finally was called: true
+Finally test completed
+
+Async stack trace test completed

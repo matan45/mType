@@ -1,0 +1,10 @@
+Testing nested try-catch blocks
+Outer try block
+Inner try block
+Inner catch: Inner exception
+Outer catch: Re-thrown from inner
+Outer try 2
+Inner try 2
+Inner catch 2: Inner only
+After inner try-catch
+Test completed

@@ -1,0 +1,17 @@
+=== Resource Cleanup Test ===
+Resource 'Lambda-Resource' opened
+Resource 'Lambda-Resource' closed
+Process(10): 20
+Resource 'Lambda-Resource' opened
+Error: Invalid input
+Resource 'Lambda-Resource' closed
+Process(-5): -1
+Resource 'Lambda-Resource' opened
+Resource 'Lambda-Resource' closed
+Process(20): 40
+Resource 'R1' opened
+Resource 'R2' opened
+Resource 'R2' closed
+Resource 'R1' closed
+Multi(5): 20
+Resource cleanup complete
