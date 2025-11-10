@@ -1,0 +1,17 @@
+Testing higher-order functions with exceptions
+Created multiplier with factor 5
+Result: 50
+Application error: Multiplier: negative input
+Factory error: Factory: factor must be positive
+Created length validator
+Validation result for 'hello world': true
+Validation exception: Validator: input too short
+Validation result for 'hi': false
+Validation exception: Validator: null input
+Validation result for null: false
+Composed result: 60
+Composed function error: Composed: zero input
+Composed execution failed for zero
+Composed function error: Composed: result overflow
+Composed execution failed for overflow
+Higher-order exception test completed

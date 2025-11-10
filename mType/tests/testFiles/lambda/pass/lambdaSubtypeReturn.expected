@@ -1,0 +1,6 @@
+=== Subtype Return Test ===
+Animal 1: Dog says Woof
+Animal 2: Cat says Meow
+Animal 3: Animal says Some sound
+Dog factory: Dog says Woof
+Subtype return complete

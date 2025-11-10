@@ -1,0 +1,7 @@
+Testing complex inheritance hierarchy
+Caught TimeoutException: Connection timed out
+Caught ConnectionException: Cannot connect
+Caught QueryException: Invalid query
+Caught ValidationException: Validation failed
+Caught DatabaseException: Database error
+Test completed

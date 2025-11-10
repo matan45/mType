@@ -1,0 +1,25 @@
+=== Test 1: Successful operation ===
+Performing operation: read for user: admin
+Result: Operation completed successfully
+
+=== Test 2: Authentication error ===
+Performing operation: read for user: unauthenticated
+Caught specific AuthenticationException: User not authenticated
+
+=== Test 3: Authorization error (base catch) ===
+Performing operation: write for user: unauthorized
+Caught base ServiceException: User not authorized for this operation
+
+=== Test 4: Connection error (multiple handlers) ===
+Performing operation: network-operation for user: admin
+Caught ConnectionException: Connection to service failed
+
+=== Test 5: Polymorphic handler ===
+Performing operation: read for user: admin
+Success: Operation completed successfully
+Performing operation: write for user: unauthenticated
+Polymorphic catch for operation write: User not authenticated
+Performing operation: network-operation for user: unauthorized
+Polymorphic catch for operation network-operation: User not authorized for this operation
+
+Polymorphic exception test passed!

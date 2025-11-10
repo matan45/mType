@@ -1,0 +1,8 @@
+=== Anonymous Block Lambda Test ===
+Lambda result(10): 160
+Lambda result(25): 175
+Nested(5): 65
+lambdas[0](10) = 11
+lambdas[1](10) = 12
+lambdas[2](10) = 13
+Anonymous block lambda complete

@@ -1,0 +1,7 @@
+Testing array reduce operation
+Array: [1, 2, 3, 4, 5]
+Sum (reduce with +): 15
+Product (reduce with *): 120
+Max (reduce with max): 5
+Min (reduce with min): 1
+Reduce operation test completed

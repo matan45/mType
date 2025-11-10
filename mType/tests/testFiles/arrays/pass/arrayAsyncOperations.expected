@@ -1,0 +1,7 @@
+Testing deferred array operations
+Deferred operation completed:
+  result[0] = 2
+  result[1] = 4
+  result[2] = 6
+  result[3] = 8
+Deferred operations test completed

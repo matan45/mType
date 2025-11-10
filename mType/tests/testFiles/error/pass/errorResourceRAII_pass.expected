@@ -1,0 +1,24 @@
+Testing RAII pattern with exceptions
+Test 1: Normal execution with cleanup
+Opened file: data.txt
+Read: Data from data.txt
+Closing file: data.txt
+Resource cleaned up successfully
+---
+Test 2: Exception during operation with cleanup
+Opened file: config.json
+Read: Data from config.json
+Caught exception: Processing error
+Closing file: config.json
+Resource cleaned up after exception
+---
+Test 3: Nested scopes with multiple resources
+Opened file: outer.txt
+Opened file: inner.txt
+Reading from both resources
+Inner exception: Inner operation failed
+Closing file: inner.txt
+Outer scope continues
+Closing file: outer.txt
+All nested resources cleaned up
+RAII test completed

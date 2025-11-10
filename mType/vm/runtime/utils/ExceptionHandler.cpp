@@ -1,4 +1,5 @@
 #include "ExceptionHandler.hpp"
+#include "../../bytecode/OpCode.hpp"
 
 namespace vm::runtime::utils
 {
@@ -20,51 +21,42 @@ namespace vm::runtime::utils
             // We're in a function - find its end boundary
             const std::string& functionName = callStack.back().functionName;
             auto* funcMetadata = program->getFunction(functionName);
+
+            // If function metadata not found and this is a lambda, try using the lambda's actual function name
+            if (!funcMetadata && callStack.back().originatingLambda)
+            {
+                const std::string& lambdaFuncName = callStack.back().originatingLambda->functionName;
+                funcMetadata = program->getFunction(lambdaFuncName);
+            }
+
             if (funcMetadata)
             {
                 searchLimit = funcMetadata->startOffset + funcMetadata->instructionCount;
             }
             else if (functionName.find("<lambda>") != std::string::npos)
             {
-                // Lambda function - search forward to find the actual end
+                // Lambda function without metadata - search forward to find the actual end
                 // Need to handle multiple RETURNs (e.g., one in try, one in catch, one in finally)
-                // Strategy: Find all RETURNs and take the last one at the lambda's scope level
+                // Strategy: Find all RETURNs until we hit another LAMBDA (lambdas don't nest inline)
+                // Note: CALL/LAMBDA_INVOKE don't introduce nested RETURNs in the same bytecode stream
                 size_t lastReturn = SIZE_MAX;
-                int callDepth = 0; // Track nested function calls
 
                 for (size_t searchIP = currentIP + 1; searchIP < program->getInstructionCount(); ++searchIP)
                 {
                     const auto& instr = program->getInstruction(searchIP);
 
-                    // Track function call/return nesting
-                    if (instr.opcode == bytecode::OpCode::CALL ||
-                        instr.opcode == bytecode::OpCode::CALL_METHOD ||
-                        instr.opcode == bytecode::OpCode::CALL_STATIC ||
-                        instr.opcode == bytecode::OpCode::LAMBDA_INVOKE)
-                    {
-                        callDepth++;
-                    }
-
-                    if (instr.opcode == bytecode::OpCode::RETURN ||
-                        instr.opcode == bytecode::OpCode::RETURN_VALUE)
-                    {
-                        if (callDepth == 0)
-                        {
-                            // This is a return at our lambda's scope level
-                            lastReturn = searchIP;
-                            // Don't break - keep searching for more RETURNs
-                        }
-                        else
-                        {
-                            // This return belongs to a nested function call
-                            callDepth--;
-                        }
-                    }
-
-                    // Stop if we hit another lambda or function definition
+                    // Stop if we hit another lambda definition
                     if (instr.opcode == bytecode::OpCode::LAMBDA && searchIP != currentIP)
                     {
                         break;
+                    }
+
+                    // Record all RETURNs - they all belong to this lambda
+                    if (instr.opcode == bytecode::OpCode::RETURN ||
+                        instr.opcode == bytecode::OpCode::RETURN_VALUE)
+                    {
+                        lastReturn = searchIP;
+                        // Don't break - keep searching for more RETURNs (e.g., in catch/finally blocks)
                     }
                 }
 
@@ -171,6 +163,40 @@ namespace vm::runtime::utils
         }
     }
 
+    const bytecode::ExceptionTable* ExceptionHandler::getExceptionTable() const
+    {
+        // Determine which exception table to use based on current execution context
+        if (callStack.empty())
+        {
+            // Global scope
+            return &program->getGlobalExceptionTable();
+        }
+
+        // Get function name from current call frame
+        const std::string& functionName = callStack.back().functionName;
+
+        // Try to get function metadata
+        const auto* funcMetadata = program->getFunction(functionName);
+        if (funcMetadata)
+        {
+            return &funcMetadata->exceptionTable;
+        }
+
+        // Lambda without metadata - check if originatingLambda has a function name
+        if (callStack.back().originatingLambda)
+        {
+            const std::string& lambdaFuncName = callStack.back().originatingLambda->functionName;
+            const auto* lambdaMetadata = program->getFunction(lambdaFuncName);
+            if (lambdaMetadata)
+            {
+                return &lambdaMetadata->exceptionTable;
+            }
+        }
+
+        // Fallback to global table
+        return &program->getGlobalExceptionTable();
+    }
+
     ExceptionHandler::HandlingResult ExceptionHandler::handleUserException(
         const errors::UserException& e,
         size_t currentIP,
@@ -179,157 +205,152 @@ namespace vm::runtime::utils
         HandlingResult result;
         result.handled = false;
         result.newInstructionPointer = currentIP;
+        result.jumpedToFinally = false;
 
-        // User exception thrown - need to find matching catch handler
-        size_t searchIP = currentIP + 1;
-        size_t searchLimit = determineSearchLimit(currentIP);
+        // Try to find handler in current scope using exception table
+        const bytecode::ExceptionTable* exceptionTable = getExceptionTable();
+        const bytecode::ExceptionTableEntry* handler = exceptionTable->findHandler(currentIP, e.getExceptionTypeName(), e.getExceptionValue());
 
-        // First search: Look for CATCH or FINALLY in current scope
-        // But only accept CATCH/FINALLY that belongs to the same try block
-        int tryDepth = 0; // Track nesting depth
-        while (searchIP < searchLimit && searchIP < program->getInstructionCount())
+        if (handler)
         {
-            const auto& searchInstr = program->getInstruction(searchIP);
-
-            // Track try-catch nesting
-            if (searchInstr.opcode == bytecode::OpCode::TRY_BEGIN)
+            // Found a handler in current scope
+            // Check if this is the currently executing finally block (avoid infinite loop)
+            if (handler->hasFinallyHandler() && isInFinallyBlock(handler->finallyIP, currentFinallyOffset))
             {
-                tryDepth++;
+                // We're already in this finally block - don't jump to it again
+                // Instead, fall through to unwind to caller
             }
-
-            if (searchInstr.opcode == bytecode::OpCode::CATCH)
+            else if (handler->hasCatchHandler() && exceptionTable->isTypeCompatible(e.getExceptionTypeName(), handler->exceptionType, e.getExceptionValue()))
             {
-                // Only accept CATCH if it's at the same nesting level (tryDepth == 0)
-                // This ensures we don't catch with a CATCH from a different try-catch block
-                if (tryDepth > 0)
-                {
-                    searchIP++;
-                    continue;
-                }
+                // Jump to CATCH handler (catch type matches the exception)
+                // Unwind call frames if necessary (in case handler is in outer function)
+                unwindCallFrames(handler->catchIP);
 
-                // Found a catch block - check if it matches the exception type
-                if (!searchInstr.operands.empty())
-                {
-                    std::string catchType = program->getConstantPool().getString(searchInstr.operands[0]);
+                // Push exception object onto stack for STORE_LOCAL
+                stackManager->push(e.getExceptionValue());
 
-                    if (e.matchesCatchType(catchType))
-                    {
-                        // Check if the CATCH is beyond the current function's boundary
-                        // If so, unwind call frames until we reach the function containing the CATCH
-                        unwindCallFrames(searchIP);
-
-                        // Push exception object onto stack for STORE_LOCAL
-                        stackManager->push(e.getExceptionValue());
-
-                        // Jump to the CATCH instruction
-                        result.handled = true;
-                        result.newInstructionPointer = searchIP;
-                        return result;
-                    }
-                }
-            }
-            else if (searchInstr.opcode == bytecode::OpCode::FINALLY)
-            {
-                // Only accept FINALLY if it's at the same nesting level
-                if (tryDepth > 0)
-                {
-                    searchIP++;
-                    continue;
-                }
-
-                // Check if this is the currently executing finally block
-                if (isInFinallyBlock(searchIP, currentFinallyOffset))
-                {
-                    // This is the finally we're already in - skip it
-                    searchIP++;
-                    continue;
-                }
-
-                // Hit a different finally block - execute it then re-throw
                 result.handled = true;
-                result.newInstructionPointer = searchIP;
+                result.newInstructionPointer = handler->catchIP;
+                result.jumpedToFinally = false;  // Jumped to CATCH, exception is caught
                 return result;
             }
-            else if (searchInstr.opcode == bytecode::OpCode::TRY_END)
+            else if (handler->hasFinallyHandler())
             {
-                // TRY_END marks the end of a try block's body
-                // If we're at depth > 0, this ends the nested try we entered
-                if (tryDepth > 0)
-                {
-                    tryDepth--;
-                }
+                // Jump to FINALLY handler (no catch, or catch didn't match)
+                result.handled = true;
+                result.newInstructionPointer = handler->finallyIP;
+                result.jumpedToFinally = true;  // Jumped to FINALLY, need to re-throw after
+                return result;
             }
-
-            searchIP++;
         }
 
-        // No handler found in current scope - check if we're in a function call
+        // No handler found in current scope - unwind call stack to search callers
+        // IMPORTANT: Save the returnAddress BEFORE popping the frame, as it tells us where
+        // the current function was called from (the call site we need to check)
+        size_t callSiteIP = SIZE_MAX;
         if (!callStack.empty())
         {
-            // Pop the call frame
-            CallFrame frame = callStack.back();
+            CallFrame currentFrame = callStack.back();
+            callSiteIP = currentFrame.returnAddress;  // Where this function was called from
             callStack.pop_back();
+            cleanupStack(currentFrame.frameBase);
+        }
 
-            // Clean up the stack - pop all locals from the function
-            cleanupStack(frame.frameBase);
+        // Check if the call site where the exception occurred is covered by the caller's exception table
+        // IMPORTANT: Even if call stack is empty (unwound to global scope), we still need to check
+        // the global exception table if we have a valid call site IP
+        if (callSiteIP != SIZE_MAX)
+        {
+            // Get caller's exception table (will be global table if call stack is empty)
+            const bytecode::ExceptionTable* callerTable = getExceptionTable();
 
-            // Restore instruction pointer to the caller (right after the CALL)
-            searchIP = frame.returnAddress;
+            // Look for handler at call site in caller's exception table
+            const bytecode::ExceptionTableEntry* callerHandler = callerTable->findHandler(callSiteIP, e.getExceptionTypeName(), e.getExceptionValue());
 
-            // Safety check: ensure searchIP is within bounds
-            if (searchIP >= program->getInstructionCount())
+            if (callerHandler)
             {
-                result.handled = false;
-                return result;
-            }
-
-            // Search again from caller's context
-            while (searchIP < program->getInstructionCount())
-            {
-                const auto& searchInstr = program->getInstruction(searchIP);
-
-                if (searchInstr.opcode == bytecode::OpCode::CATCH)
+                // Found handler in caller - check if it's the current finally
+                if (callerHandler->hasFinallyHandler() && isInFinallyBlock(callerHandler->finallyIP, currentFinallyOffset))
                 {
-                    if (!searchInstr.operands.empty())
-                    {
-                        std::string catchType = program->getConstantPool().getString(searchInstr.operands[0]);
-
-                        if (e.matchesCatchType(catchType))
-                        {
-                            // Check if the CATCH is beyond the current function's boundary
-                            // If so, unwind more call frames
-                            unwindCallFrames(searchIP);
-
-                            stackManager->push(e.getExceptionValue());
-                            result.handled = true;
-                            result.newInstructionPointer = searchIP;
-                            return result;
-                        }
-                    }
+                    // Already in this finally - continue unwinding
                 }
-                else if (searchInstr.opcode == bytecode::OpCode::FINALLY)
+                else if (callerHandler->hasCatchHandler() && callerTable->isTypeCompatible(e.getExceptionTypeName(), callerHandler->exceptionType, e.getExceptionValue()))
                 {
-                    if (isInFinallyBlock(searchIP, currentFinallyOffset))
-                    {
-                        searchIP++;
-                        continue;
-                    }
+                    // Jump to caller's CATCH handler (catch type matches the exception)
+                    unwindCallFrames(callerHandler->catchIP);
 
+                    stackManager->push(e.getExceptionValue());
                     result.handled = true;
-                    result.newInstructionPointer = searchIP;
+                    result.newInstructionPointer = callerHandler->catchIP;
+                    result.jumpedToFinally = false;
                     return result;
                 }
-                else if (searchInstr.opcode == bytecode::OpCode::RETURN ||
-                    searchInstr.opcode == bytecode::OpCode::RETURN_VALUE)
+                else if (callerHandler->hasFinallyHandler())
                 {
-                    break;
+                    // Jump to caller's FINALLY handler (no catch, or catch didn't match)
+                    result.handled = true;
+                    result.newInstructionPointer = callerHandler->finallyIP;
+                    result.jumpedToFinally = true;
+                    return result;
                 }
-
-                searchIP++;
             }
         }
 
-        // No matching catch found anywhere
+        // Continue searching in remaining caller frames
+        while (!callStack.empty())
+        {
+            const CallFrame& frame = callStack.back();
+            size_t frameCallSite = frame.returnAddress;
+
+            // Pop this frame FIRST, then check if the call site is covered by the caller's exception table
+            callStack.pop_back();
+            cleanupStack(frame.frameBase);
+
+            // Now check the caller's (new top of stack) exception table
+            if (callStack.empty()) {
+                // No more callers to check
+                break;
+            }
+
+            const bytecode::ExceptionTable* frameTable = getExceptionTable();
+
+            // Look for handler at the call site in the caller's exception table
+            const bytecode::ExceptionTableEntry* frameHandler = frameTable->findHandler(frameCallSite, e.getExceptionTypeName(), e.getExceptionValue());
+
+            if (frameHandler)
+            {
+                // Found handler - check if it's the current finally
+                if (frameHandler->hasFinallyHandler() && isInFinallyBlock(frameHandler->finallyIP, currentFinallyOffset))
+                {
+                    // Already in this finally - continue to next frame
+                    continue;
+                }
+
+                if (frameHandler->hasCatchHandler() && frameTable->isTypeCompatible(e.getExceptionTypeName(), frameHandler->exceptionType, e.getExceptionValue()))
+                {
+                    // Jump to CATCH handler (catch type matches the exception)
+                    unwindCallFrames(frameHandler->catchIP);
+
+                    stackManager->push(e.getExceptionValue());
+                    result.handled = true;
+                    result.newInstructionPointer = frameHandler->catchIP;
+                    result.jumpedToFinally = false;
+                    return result;
+                }
+                else if (frameHandler->hasFinallyHandler())
+                {
+                    // Jump to FINALLY handler (no catch, or catch didn't match)
+                    result.handled = true;
+                    result.newInstructionPointer = frameHandler->finallyIP;
+                    result.jumpedToFinally = true;
+                    return result;
+                }
+            }
+
+            // No handler in this caller - already popped, continue to next frame
+        }
+
+        // Call stack is now empty - no handler found anywhere
         result.handled = false;
         return result;
     }

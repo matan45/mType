@@ -1,0 +1,18 @@
+Test 1: Uninitialized fields
+intField: 0
+boolField: false
+stringField:
+objectField: <object>
+
+Test 2: After initialization
+Fields initialized
+intField: 42
+boolField: true
+stringField: initialized
+objectField: <object>
+
+Test 3: New object
+intField: 0
+boolField: false
+stringField:
+objectField: <object>

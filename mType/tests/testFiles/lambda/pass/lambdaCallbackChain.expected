@@ -1,0 +1,12 @@
+=== Callback Chain Test ===
+Callback 1: Hello
+Callback 2: Hello!
+Callback 3: Hello?
+Transform 5: 25
+Transform 10: 35
+Testing 15:
+Positive: 15
+Large: 15
+Testing -4:
+Even: -4
+Callback chain complete

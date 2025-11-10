@@ -1,0 +1,5 @@
+Testing bounded generic exception:
+Caught bounded exception: Validation failed
+Error code: REQUIRED_FIELD
+Field: username
+Bounded generic exception test passed!

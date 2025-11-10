@@ -1,0 +1,26 @@
+Testing array sorting
+Unsorted array:
+  64
+  34
+  25
+  12
+  22
+  11
+  90
+  88
+Sorted ascending:
+  11
+  12
+  22
+  25
+  34
+  64
+  88
+  90
+Sorted descending:
+  9
+  8
+  5
+  2
+  1
+Sorting test completed

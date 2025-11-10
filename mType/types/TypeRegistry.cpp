@@ -324,6 +324,7 @@ namespace types {
     }
 
     void TypeRegistry::initializePrimitiveTypes() {
+        // Register primitive types (for VM-level backward compatibility)
         registerPrimitiveType("int", value::ValueType::INT);
         registerPrimitiveType("float", value::ValueType::FLOAT);
         registerPrimitiveType("bool", value::ValueType::BOOL);
@@ -331,10 +332,41 @@ namespace types {
         registerPrimitiveType("void", value::ValueType::VOID);
         registerPrimitiveType("null", value::ValueType::NULL_TYPE);
         registerPrimitiveType("lambda", value::ValueType::LAMBDA);
+
+        // Register Box classes as proper object types
+        registerCustomType("Int", "Int");
+        registerCustomType("Float", "Float");
+        registerCustomType("Bool", "Bool");
+        registerCustomType("String", "String");
+
+        // Create mapping from lowercase primitive names to Box class names
+        // This allows 'int' to be treated as 'Int' for pure OOP
+        primitiveToBoxMapping["int"] = "Int";
+        primitiveToBoxMapping["float"] = "Float";
+        primitiveToBoxMapping["bool"] = "Bool";
+        primitiveToBoxMapping["string"] = "String";
+
+        // Register inheritance: all Box classes implement Object interface
+        registerInheritance("Int", "Object");
+        registerInheritance("Float", "Object");
+        registerInheritance("Bool", "Object");
+        registerInheritance("String", "Object");
     }
 
     bool TypeRegistry::isPrimitiveType(const std::string& typeName) const {
         return primitiveTypes.find(typeName) != primitiveTypes.end();
+    }
+
+    std::string TypeRegistry::getBoxClassName(const std::string& primitiveName) const {
+        auto it = primitiveToBoxMapping.find(primitiveName);
+        if (it != primitiveToBoxMapping.end()) {
+            return it->second;
+        }
+        return "";  // Not a mapped primitive
+    }
+
+    bool TypeRegistry::shouldMapToBoxClass(const std::string& typeName) const {
+        return primitiveToBoxMapping.find(typeName) != primitiveToBoxMapping.end();
     }
 
     bool TypeRegistry::validateTypeArguments(const std::string& genericType, const std::vector<std::string>& typeArgs) const {
@@ -354,13 +386,12 @@ namespace types {
                 return false;
             }
 
-            // Reject primitive types as generic type arguments
-            if (isPrimitiveType(typeArg)) {
-                return false;
-            }
+            // PURE OOP: Primitive types are now allowed as generic type arguments
+            // They will be automatically mapped to their Box classes (Int, Float, Bool, String)
+            // No longer reject primitives - they're now objects!
 
-            // Type arguments must be object types (classes, interfaces, or other generic types)
-            // For now, accept any non-empty, non-primitive string
+            // Type arguments must be non-empty
+            // Accept any non-empty string (primitives, objects, generic parameters, etc.)
         }
 
         return true;

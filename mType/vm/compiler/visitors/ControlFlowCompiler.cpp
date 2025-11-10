@@ -15,11 +15,31 @@ namespace vm::compiler::visitors
         // Compile condition
         node->getCondition()->accept(ctx.visitor);  // Will need delegation
 
+        // PHASE 4: Auto-unbox Bool objects to primitive bool
+        value::ValueType conditionType = ctx.typeInference.inferExpressionType(node->getCondition());
+        if (conditionType == value::ValueType::OBJECT)
+        {
+            std::string conditionClassName = ctx.typeInference.inferExpressionClassName(node->getCondition());
+            if (conditionClassName == "Bool")
+            {
+                // Auto-unbox: call getValue() to get primitive bool
+                size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(methodNameIndex),
+                                             0u,  // 0 arguments
+                                             node->getCondition());
+            }
+        }
+
         // Jump to else/end if condition is false
         size_t elseJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
-        // Compile then branch
+        // Compile then branch with its own scope
+        // This ensures variables declared in the if block don't leak out
+        ctx.variableTracker.beginScope();
         node->getThenStatement()->accept(ctx.visitor);  // Will need delegation
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         if (node->getElseStatement()) {
             // Jump over else branch
@@ -28,8 +48,11 @@ namespace vm::compiler::visitors
             // Patch else jump
             ctx.emitter.patchJump(elseJump);
 
-            // Compile else branch
+            // Compile else branch with its own scope
+            ctx.variableTracker.beginScope();
             node->getElseStatement()->accept(ctx.visitor);  // Will need delegation
+            ctx.variableTracker.endScope();
+            ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
             // Patch end jump
             ctx.emitter.patchJump(endJump);
@@ -51,14 +74,33 @@ namespace vm::compiler::visitors
         // Compile condition
         node->getCondition()->accept(ctx.visitor);  // Will need delegation
 
+        // PHASE 4: Auto-unbox Bool objects to primitive bool
+        value::ValueType conditionType = ctx.typeInference.inferExpressionType(node->getCondition());
+        if (conditionType == value::ValueType::OBJECT)
+        {
+            std::string conditionClassName = ctx.typeInference.inferExpressionClassName(node->getCondition());
+            if (conditionClassName == "Bool")
+            {
+                // Auto-unbox: call getValue() to get primitive bool
+                size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(methodNameIndex),
+                                             0u,  // 0 arguments
+                                             node->getCondition());
+            }
+        }
+
         // Jump to end if condition is false
         size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
         // Enter loop context
         ctx.loopManager.enterLoop(loopStart);
 
-        // Compile body
+        // Compile body with its own scope
+        ctx.variableTracker.beginScope();
         node->getBody()->accept(ctx.visitor);  // Will need delegation
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         // Jump back to start
         ctx.emitter.emitLoop(loopStart);
@@ -89,11 +131,30 @@ namespace vm::compiler::visitors
         // Enter loop context
         ctx.loopManager.enterLoop(loopStart);
 
-        // Compile body
+        // Compile body with its own scope
+        ctx.variableTracker.beginScope();
         node->getBody()->accept(ctx.visitor);  // Will need delegation
+        ctx.variableTracker.endScope();
+        ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
         // Compile condition
         node->getCondition()->accept(ctx.visitor);  // Will need delegation
+
+        // PHASE 4: Auto-unbox Bool objects to primitive bool
+        value::ValueType conditionType = ctx.typeInference.inferExpressionType(node->getCondition());
+        if (conditionType == value::ValueType::OBJECT)
+        {
+            std::string conditionClassName = ctx.typeInference.inferExpressionClassName(node->getCondition());
+            if (conditionClassName == "Bool")
+            {
+                // Auto-unbox: call getValue() to get primitive bool
+                size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(methodNameIndex),
+                                             0u,  // 0 arguments
+                                             node->getCondition());
+            }
+        }
 
         // Jump back to start if condition is true
         size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
@@ -368,8 +429,18 @@ namespace vm::compiler::visitors
             size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
             ctx.switchManager.registerBreak(breakJump);
         } else if (ctx.loopManager.isInLoop()) {
-            size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
-            ctx.loopManager.registerBreak(breakJump);
+            // Check if we're in a try block with a finally, but NOT already inside the finally block
+            // If we're IN the finally block, we should break directly (not jump to finally again)
+            if (ctx.exceptionManager.hasPendingFinally() && !ctx.exceptionManager.isInFinally()) {
+                // We're in a try-finally - register break jump with exception manager
+                // The finally block will create a trampoline that executes finally then breaks the loop
+                size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+                ctx.exceptionManager.registerBreakJump(breakJump);
+            } else {
+                // Normal break - register with loop manager
+                size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+                ctx.loopManager.registerBreak(breakJump);
+            }
         } else {
             throw errors::ParseException("Break outside of loop or switch");
         }
@@ -382,8 +453,18 @@ namespace vm::compiler::visitors
             throw errors::ParseException("Continue outside of loop");
         }
 
-        size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
-        ctx.loopManager.registerContinue(continueJump);
+        // Check if we're in a try block with a finally, but NOT already inside the finally block
+        // If we're IN the finally block, we should continue directly (not jump to finally again)
+        if (ctx.exceptionManager.hasPendingFinally() && !ctx.exceptionManager.isInFinally()) {
+            // We're in a try-finally - register continue jump with exception manager
+            // The finally block will create a trampoline that executes finally then continues the loop
+            size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+            ctx.exceptionManager.registerContinueJump(continueJump);
+        } else {
+            // Normal continue - register with loop manager
+            size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
+            ctx.loopManager.registerContinue(continueJump);
+        }
         return std::monostate{};
     }
 

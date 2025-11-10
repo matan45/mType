@@ -1,0 +1,43 @@
+=== Test 14: Interface Multiple Implementation Edge Cases ===
+--- Test 1: Multiple interfaces ---
+Drawing sprite at (10,20) color=red
+Color: red
+Position: (10,20)
+Moved to (100,200)
+Resized to 75
+New size: 75
+--- Test 2: Combined interface ---
+Drawing player Hero
+Player at (0,0)
+Hero moved
+Updating player Hero
+Drawing player Hero
+Color: blue
+--- Test 3: Covariant returns ---
+Created type: Base
+Created type: Derived
+Created value: 100
+Polymorphic created type: Derived
+--- Test 4: Generic interfaces ---
+Int processed: 10
+String processed: Test [processed]
+--- Test 5: Interface type checking ---
+sprite isClassOf Drawable: true
+sprite isClassOf Moveable: true
+sprite isClassOf Resizable: true
+player isClassOf GameObject: true
+player isClassOf Drawable: true
+player isClassOf Resizable: false
+--- Test 6: Interface casting ---
+Successfully cast Drawable to Moveable
+Moved to (150,150)
+Successfully cast Drawable to Resizable
+Resized to 150
+--- Test 7: Interface arrays ---
+Drawing object 0:
+Drawing sprite at (1,1) color=blue
+Drawing object 1:
+Drawing sprite at (2,2) color=green
+Drawing object 2:
+Drawing player NPC
+=== Test 14 Complete ===

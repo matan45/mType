@@ -1,0 +1,23 @@
+=== Test 1: Three-layer propagation ===
+Top function executing
+Middle function executing
+Deep function executing
+Caught at top: Deep error
+Error code: 500
+Result: error handled
+
+=== Test 2: Chained async execution ===
+Starting chain
+Step 1
+Step 2: 10
+Chain interrupted: Error in step 2
+Result: chain failed
+
+=== Test 3: Nested await propagation ===
+Wrapper start
+Outer async start
+Inner async
+Wrapper caught: Inner error
+Result: wrapper handled
+
+Nested exception test completed

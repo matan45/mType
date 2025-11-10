@@ -1,0 +1,5 @@
+Testing exception in default parameter
+Function called with value: 13
+---
+Function called with value: 75
+Test completed

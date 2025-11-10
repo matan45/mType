@@ -1,0 +1,7 @@
+Testing large array literal
+Created large array literal with 110 elements
+First element: 1
+Middle element: 56
+Last element: 110
+Sum of all elements: 6105
+Large literal test completed

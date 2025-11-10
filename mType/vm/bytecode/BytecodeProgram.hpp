@@ -2,8 +2,10 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <iosfwd>
 #include "OpCode.hpp"
+#include "ExceptionTable.hpp"
 #include "../../errors/SourceLocation.hpp"
 #include "../../value/ValueType.hpp"
 
@@ -78,6 +80,30 @@ namespace vm::bytecode
             bool isAsync = false; // NEW: Flag for async functions
             std::vector<std::string> genericTypeParameters; // Generic type parameter names (e.g., ["T", "K", "V"])
             std::vector<std::string> localVariableNames; // NEW: Names of all local variables (for debugging)
+            ExceptionTable exceptionTable; // Exception table for this function (try-catch-finally handlers)
+
+            // PHASE 2: Parameter patterns for nested generic type inference
+            // Stores which type parameters are used in each parameter type
+            // Example: for function<T, U> foo(Box<T> a, List<U> b)
+            //   parameterTypeParameterUsage[0] = {"T"}  (Box<T> uses T)
+            //   parameterTypeParameterUsage[1] = {"U"}  (List<U> uses U)
+            std::vector<std::unordered_set<std::string>> parameterTypeParameterUsage;
+
+            /**
+             * Check if this function has nested type parameters in its parameter types
+             * (i.e., type parameters that appear inside generic type arguments)
+             */
+            bool hasNestedTypeParameters() const
+            {
+                for (const auto& usedParams : parameterTypeParameterUsage)
+                {
+                    if (!usedParams.empty())
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
         };
 
         /**
@@ -157,6 +183,7 @@ namespace vm::bytecode
         std::unordered_map<size_t, SourceLocation> sourceLocations;
         std::vector<ClassMetadata> classes; // Class metadata for cached bytecode
         std::vector<GlobalVariableMetadata> globalVariables; // Global variables for debugging
+        ExceptionTable globalExceptionTable; // Exception table for global scope (try-catch-finally outside functions)
         size_t entryPoint;
         std::string sourceFilePath; // For class registration when loading cached bytecode
 
@@ -196,6 +223,10 @@ namespace vm::bytecode
         void registerGlobalVariable(const GlobalVariableMetadata& metadata);
         const std::vector<GlobalVariableMetadata>& getGlobalVariables() const;
 
+        // Exception Table Management
+        ExceptionTable& getGlobalExceptionTable();
+        const ExceptionTable& getGlobalExceptionTable() const;
+
         // Source Location Management
         void addSourceLocation(size_t instructionOffset, uint32_t line, uint32_t column, const std::string& filename);
         const SourceLocation* getSourceLocation(size_t instructionOffset) const;
@@ -233,6 +264,8 @@ namespace vm::bytecode
         void readSourceLocations(std::istream& in);
         void writeClasses(std::ostream& out) const;
         void readClasses(std::istream& in);
+        void writeGlobalExceptionTable(std::ostream& out) const;
+        void readGlobalExceptionTable(std::istream& in);
 
         // Source location update helper
         void updateSourceLocationsAfterOffset(size_t afterOffset, int delta);

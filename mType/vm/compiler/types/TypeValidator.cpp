@@ -56,26 +56,74 @@ namespace vm::compiler::types
             return true;
         }
 
-        // Check if derivedClass inherits from baseClass
-        auto classDef = environment->findClass(derivedClass);
-        if (!classDef) {
+        // Extract base class names (strip generic type parameters if present)
+        // E.g., "InMemoryRepository<User>" -> "InMemoryRepository"
+        std::string derivedBaseName = derivedClass;
+        size_t derivedGenericStart = derivedClass.find('<');
+        if (derivedGenericStart != std::string::npos) {
+            derivedBaseName = derivedClass.substr(0, derivedGenericStart);
+        }
+
+        std::string baseBaseName = baseClass;
+        size_t baseGenericStart = baseClass.find('<');
+        if (baseGenericStart != std::string::npos) {
+            baseBaseName = baseClass.substr(0, baseGenericStart);
+        }
+
+        // Check exact match with base names
+        if (derivedBaseName == baseBaseName) {
+            return true;
+        }
+
+        // Check if derivedClass is a class
+        auto classDef = environment->findClass(derivedBaseName);
+        if (classDef) {
+            // Check parent chain and interfaces at each level
+            auto currentClass = classDef;
+            while (currentClass) {
+                // Check if current class implements the target interface
+                const auto& interfaces = currentClass->getImplementedInterfaces();
+                for (const auto& interfaceName : interfaces) {
+                    // Extract interface base name
+                    std::string interfaceBaseName = interfaceName;
+                    size_t interfaceGenericStart = interfaceName.find('<');
+                    if (interfaceGenericStart != std::string::npos) {
+                        interfaceBaseName = interfaceName.substr(0, interfaceGenericStart);
+                    }
+
+                    std::unordered_set<std::string> visited;
+                    if (checkInterfaceHierarchy(interfaceBaseName, baseBaseName, visited)) {
+                        return true;
+                    }
+                }
+
+                // Move to parent class
+                auto parentClass = currentClass->getParentClass();
+                if (parentClass) {
+                    std::string parentName = parentClass->getName();
+                    // Extract parent base name
+                    std::string parentBaseName = parentName;
+                    size_t parentGenericStart = parentName.find('<');
+                    if (parentGenericStart != std::string::npos) {
+                        parentBaseName = parentName.substr(0, parentGenericStart);
+                    }
+
+                    // Check if parent matches the target
+                    if (parentBaseName == baseBaseName) {
+                        return true;
+                    }
+                }
+                currentClass = parentClass;
+            }
+
             return false;
         }
 
-        // Check parent chain
-        auto parentClass = classDef->getParentClass();
-        while (parentClass) {
-            if (parentClass->getName() == baseClass) {
-                return true;
-            }
-            parentClass = parentClass->getParentClass();
-        }
-
-        // Check implemented interfaces (with full recursive hierarchy checking)
-        const auto& interfaces = classDef->getImplementedInterfaces();
-        for (const auto& interfaceName : interfaces) {
+        // Check if derivedClass is an interface that extends baseClass
+        auto interfaceDef = environment->findInterface(derivedBaseName);
+        if (interfaceDef) {
             std::unordered_set<std::string> visited;
-            if (checkInterfaceHierarchy(interfaceName, baseClass, visited)) {
+            if (checkInterfaceHierarchy(derivedBaseName, baseBaseName, visited)) {
                 return true;
             }
         }
@@ -198,9 +246,12 @@ namespace vm::compiler::types
             return;
         }
 
-        // Exception: Allow primitive string to be assigned to String class (auto-boxing)
-        if (valueType == value::ValueType::STRING && varClassName.empty()) {
-            return;
+        // PHASE 4: Allow primitive-to-Box-type assignments (auto-boxing)
+        if ((varClassName == "Int" && valueType == value::ValueType::INT) ||
+            (varClassName == "Float" && valueType == value::ValueType::FLOAT) ||
+            (varClassName == "Bool" && valueType == value::ValueType::BOOL) ||
+            (varClassName == "String" && valueType == value::ValueType::STRING)) {
+            return; // Auto-boxing will handle this
         }
 
         // Reject primitive values when OBJECT with specific class is expected
@@ -252,6 +303,23 @@ namespace vm::compiler::types
             return;
         }
 
+        // Special handling for array assignments
+        // Arrays can be ARRAY type or OBJECT type depending on context
+        bool varIsArray = (varType == value::ValueType::ARRAY) ||
+                         (varType == value::ValueType::OBJECT && !varClassName.empty() &&
+                          (varClassName.find("[]") != std::string::npos || varClassName.find("Array<") == 0));
+        bool valueIsArray = (valueType == value::ValueType::ARRAY) ||
+                           (valueType == value::ValueType::OBJECT && !valueClassName.empty() &&
+                            (valueClassName.find("[]") != std::string::npos || valueClassName.find("Array<") == 0));
+
+        if (varIsArray && valueIsArray) {
+            // Both are arrays - validate array type compatibility
+            if (!varClassName.empty() && !valueClassName.empty()) {
+                validateObjectTypeAssignment(varClassName, valueClassName, location);
+            }
+            return;
+        }
+
         // For OBJECT types, check class compatibility
         if (varType == value::ValueType::OBJECT && valueType == value::ValueType::OBJECT) {
             if (!varClassName.empty() && !valueClassName.empty()) {
@@ -262,6 +330,19 @@ namespace vm::compiler::types
 
         // Check if trying to assign a primitive to an OBJECT type
         validatePrimitiveToObjectAssignment(varType, varClassName, valueType, location);
+
+        // PHASE 4: Allow Box object to primitive assignment (auto-unboxing)
+        if (varType != value::ValueType::OBJECT && valueType == value::ValueType::OBJECT)
+        {
+            // Check if value is a Box type that can be auto-unboxed
+            if ((varType == value::ValueType::INT && valueClassName == "Int") ||
+                (varType == value::ValueType::FLOAT && valueClassName == "Float") ||
+                (varType == value::ValueType::BOOL && valueClassName == "Bool") ||
+                (varType == value::ValueType::STRING && valueClassName == "String"))
+            {
+                return;  // Auto-unboxing will handle this
+            }
+        }
 
         // For non-OBJECT types, check primitive type compatibility
         validatePrimitiveTypeAssignment(varType, valueType, location);
@@ -278,6 +359,22 @@ namespace vm::compiler::types
         // Numeric operations: both must be int or float
         if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
             (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+            return true;
+        }
+
+        // Allow operations on wrapper object types (Int, Float, String, Bool)
+        // These will be translated to method calls (add, subtract, multiply, divide, etc.)
+        if (leftType == value::ValueType::OBJECT && rightType == value::ValueType::OBJECT) {
+            return true;
+        }
+
+        // Allow mixed primitive and object types (auto-boxing/unboxing)
+        if ((leftType == value::ValueType::OBJECT &&
+             (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT ||
+              rightType == value::ValueType::STRING || rightType == value::ValueType::BOOL)) ||
+            (rightType == value::ValueType::OBJECT &&
+             (leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT ||
+              leftType == value::ValueType::STRING || leftType == value::ValueType::BOOL))) {
             return true;
         }
 
@@ -314,9 +411,86 @@ namespace vm::compiler::types
         return false;
     }
 
+    bool TypeValidator::isComparisonOperationValid(
+        value::ValueType leftType,
+        const std::string& leftClassName,
+        value::ValueType rightType,
+        const std::string& rightClassName,
+        token::TokenType op,
+        bool leftIsNull,
+        bool rightIsNull
+    ) const
+    {
+        // For == and !=, allow comparing any type with null
+        if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS) {
+            if (leftIsNull || rightIsNull) {
+                return true;
+            }
+
+            // Allow comparing numeric primitives
+            if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                return true;
+            }
+
+            // For objects, check class names
+            if (leftType == value::ValueType::OBJECT && rightType == value::ValueType::OBJECT) {
+                // Disallow comparing unrelated object types
+                // EXCEPTION: Allow boxed primitives (Int, Float, Bool, String) for auto-boxing
+                static const std::unordered_set<std::string> boxedPrimitives = {"Int", "Float", "Bool", "String"};
+
+                bool leftIsBoxed = boxedPrimitives.find(leftClassName) != boxedPrimitives.end();
+                bool rightIsBoxed = boxedPrimitives.find(rightClassName) != boxedPrimitives.end();
+
+                // Allow comparison if:
+                // 1. Both are the same class
+                // 2. Both are boxed primitives (for auto-boxing)
+                if (leftClassName == rightClassName) {
+                    return true;
+                }
+                if (leftIsBoxed && rightIsBoxed) {
+                    return true;  // Allow comparing different boxed primitives for auto-boxing
+                }
+
+                // Otherwise, disallow comparing unrelated object types
+                return false;
+            }
+
+            // For same primitive types
+            if (leftType == rightType && leftType != value::ValueType::OBJECT) {
+                return true;
+            }
+
+        } else {
+            // For <, >, <=, >=: only same types or numeric types
+            if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
+                (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+                return true;
+            }
+
+            // For objects, only allow if same class
+            if (leftType == value::ValueType::OBJECT && rightType == value::ValueType::OBJECT) {
+                return leftClassName == rightClassName;
+            }
+
+            // For same primitive types
+            if (leftType == rightType && leftType != value::ValueType::OBJECT) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     bool TypeValidator::isLogicalOperationValid(value::ValueType leftType, value::ValueType rightType) const
     {
-        return (leftType == value::ValueType::BOOL && rightType == value::ValueType::BOOL);
+        // PHASE 4: Allow Bool objects (which will be auto-unboxed) or primitive bools
+        // Logical operations work with: bool && bool, Bool && Bool, bool && Bool, Bool && bool
+        if ((leftType == value::ValueType::BOOL || leftType == value::ValueType::OBJECT) &&
+            (rightType == value::ValueType::BOOL || rightType == value::ValueType::OBJECT)) {
+            return true;
+        }
+        return false;
     }
 
     void TypeValidator::throwBinaryOperationError(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
@@ -370,6 +544,50 @@ namespace vm::compiler::types
                  op == token::TokenType::LESS || op == token::TokenType::GREATER ||
                  op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
             isValid = isComparisonOperationValid(leftType, rightType, op, leftIsNull, rightIsNull);
+        }
+        // Logical operations: &&, ||
+        else if (op == token::TokenType::AND || op == token::TokenType::OR) {
+            isValid = isLogicalOperationValid(leftType, rightType);
+        }
+        else {
+            // Unknown operator, allow it
+            isValid = true;
+        }
+
+        if (!isValid) {
+            throwBinaryOperationError(leftType, rightType, op, location);
+        }
+    }
+
+    void TypeValidator::validateBinaryOperation(
+        value::ValueType leftType,
+        const std::string& leftClassName,
+        value::ValueType rightType,
+        const std::string& rightClassName,
+        token::TokenType op,
+        bool leftIsNull,
+        bool rightIsNull,
+        const ast::SourceLocation& location
+    ) const
+    {
+        // Skip validation if we don't know both types
+        if (leftType == value::ValueType::VOID || rightType == value::ValueType::VOID) {
+            return;
+        }
+
+        bool isValid = false;
+
+        // Arithmetic operations: +, -, *, /, %
+        if (op == token::TokenType::PLUS || op == token::TokenType::MINUS ||
+            op == token::TokenType::MULTIPLY || op == token::TokenType::DIVIDE ||
+            op == token::TokenType::MODULO) {
+            isValid = isArithmeticOperationValid(leftType, rightType, op);
+        }
+        // Comparison operations: ==, !=, <, >, <=, >=
+        else if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
+                 op == token::TokenType::LESS || op == token::TokenType::GREATER ||
+                 op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS) {
+            isValid = isComparisonOperationValid(leftType, leftClassName, rightType, rightClassName, op, leftIsNull, rightIsNull);
         }
         // Logical operations: &&, ||
         else if (op == token::TokenType::AND || op == token::TokenType::OR) {

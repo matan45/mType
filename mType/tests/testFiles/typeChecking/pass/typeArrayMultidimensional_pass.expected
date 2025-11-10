@@ -1,0 +1,7 @@
+Testing multidimensional array type checking
+2D array element [0][0]: 10
+2D array element [1][2]: 60
+3D array element [0][0][0]: A
+3D array element [1][1][1]: H
+Assignment works: 20
+Multidimensional array type checking passed

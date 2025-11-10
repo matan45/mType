@@ -67,12 +67,12 @@ function async chainLink1(): Promise<Int> {
 
 function async chainLink2(): Promise<Int> {
     Int val = await chainLink1();
-    return new Int(val.value + 5);
+    return new Int(val.getValue() + 5);
 }
 
 function async chainLink3(): Promise<Int> {
     Int val = await chainLink2();
-    return new Int(val.value + 3);
+    return new Int(val.getValue() + 3);
 }
 
 function async testResolvedChain(): Promise<Int> {
@@ -100,7 +100,7 @@ function async testConditionalResolve(): Promise<Int> {
     Int val2 = await conditionalReturn(false);
     print("Conditional false: " + val2);
 
-    int total = val1.value + val2.value;
+    int total = val1.getValue() + val2.getValue();
     return new Int(total);
 }
 
@@ -113,7 +113,7 @@ function async main(): Promise<Int> {
     Int r5 = await testConditionalResolve();
 
     print("All resolved promise tests completed");
-    int total = r1.value + r2.value + r3.value + r4.value + r5.value;
+    int total = r1.getValue() + r2.getValue() + r3.getValue() + r4.getValue() + r5.getValue();
     print("Total: " + total);
     return new Int(total);
 }

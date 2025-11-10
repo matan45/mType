@@ -1,0 +1,13 @@
+=== Promise Chain Test ===
+Starting pipeline with input: 10
+Stage 1: Validating input 10
+Completed Validation with value 10
+Stage 2: Transforming data from Validation
+Completed Transformation with value 30
+Stage 3: Processing data from Transformation
+Completed Processing with value 130
+Stage 4: Finalizing data from Processing
+Completed Finalization with value 80
+Final pipeline result: 80
+Expected: ((10 * 3) + 100) - 50 = 80
+Promise chain complete

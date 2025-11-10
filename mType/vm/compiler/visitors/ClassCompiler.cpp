@@ -1,6 +1,7 @@
 #include "ClassCompiler.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../bytecode/OpCode.hpp"
+#include "../optimization/PrimitiveMethodOptimizer.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../errors/AbstractClassException.hpp"
@@ -10,9 +11,12 @@
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/classes/SuperMemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
+#include "../../../ast/nodes/classes/ThisConstructorCallNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../../circularDependency/TrueCyclicException.hpp"
+#include "../../../circularDependency/DepthLimitException.hpp"
 #include <unordered_set>
-
+#include <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -95,9 +99,25 @@ namespace vm::compiler::visitors
     {
         std::vector<std::string> typeArguments;
 
-        // Check if there are generic type arguments
+        // Extract base class name
+        std::string baseClassName = fullClassName;
         size_t genericStart = fullClassName.find('<');
+        if (genericStart != std::string::npos) {
+            baseClassName = fullClassName.substr(0, genericStart);
+        }
+
+        // Check if there are generic type arguments
         if (genericStart == std::string::npos) {
+            // No type arguments provided - validate that class is not generic
+            auto classDef = ctx.environment->findClass(baseClassName);
+            if (classDef && !classDef->getGenericParameters().empty()) {
+                throw errors::TypeException(
+                    "Generic class '" + baseClassName + "' requires " +
+                    std::to_string(classDef->getGenericParameters().size()) +
+                    " type argument(s)",
+                    location
+                );
+            }
             return typeArguments; // No generics
         }
 
@@ -112,20 +132,34 @@ namespace vm::compiler::visitors
         // Extract the type arguments string (between < and >)
         std::string argsStr = fullClassName.substr(genericStart + 1, genericEnd - genericStart - 1);
 
-        // Simple parsing - split by comma (doesn't handle nested generics)
-        size_t start = 0;
-        size_t comma = argsStr.find(',');
+        // PHASE 4: Handle diamond operator <> for type inference
+        // If argsStr is empty, this is the diamond operator (e.g., "Container<>")
+        // Return empty vector - types will be inferred from context
+        if (argsStr.empty() || (argsStr.find_first_not_of(" \t") == std::string::npos)) {
+            return typeArguments; // Diamond operator - types will be inferred
+        }
 
-        while (comma != std::string::npos) {
-            std::string typeArg = argsStr.substr(start, comma - start);
-            // Trim whitespace
-            typeArg.erase(0, typeArg.find_first_not_of(" \t"));
-            typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
-            if (!typeArg.empty()) {
-                typeArguments.push_back(typeArg);
+        // Parse individual type arguments, respecting nested generics (depth-aware)
+        // This correctly handles: Container<List<String>, HashMap<Int, String>, HashSet<Int>>
+        size_t start = 0;
+        size_t depth = 0;
+
+        for (size_t i = 0; i < argsStr.length(); ++i) {
+            if (argsStr[i] == '<') {
+                depth++;  // Entering nested generic
+            } else if (argsStr[i] == '>') {
+                depth--;  // Exiting nested generic
+            } else if (argsStr[i] == ',' && depth == 0) {
+                // Only split on commas at depth 0 (outermost level)
+                std::string typeArg = argsStr.substr(start, i - start);
+                // Trim whitespace
+                typeArg.erase(0, typeArg.find_first_not_of(" \t"));
+                typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
+                if (!typeArg.empty()) {
+                    typeArguments.push_back(typeArg);
+                }
+                start = i + 1;
             }
-            start = comma + 1;
-            comma = argsStr.find(',', start);
         }
 
         // Add the last type argument
@@ -136,17 +170,108 @@ namespace vm::compiler::visitors
             typeArguments.push_back(lastTypeArg);
         }
 
+        // PHASE 4: Validate that generic type arguments are not primitives
+        // Like Java, generics only support object types - use Int, Float, Bool, String instead of primitives
+        for (const auto& typeArg : typeArguments) {
+            if (typeArg == "int" || typeArg == "float" || typeArg == "bool" || typeArg == "string" || typeArg == "void") {
+                throw errors::TypeException(
+                    "Generic type argument '" + typeArg + "' is a primitive type. " +
+                    "Generics only support object types. Use wrapper classes instead:\n" +
+                    "  - Use 'Int' instead of 'int'\n" +
+                    "  - Use 'Float' instead of 'float'\n" +
+                    "  - Use 'Bool' instead of 'bool'\n" +
+                    "  - Use 'String' instead of 'string'",
+                    location
+                );
+            }
+        }
+
+        // PHASE 4: Validate type arguments against class definition
+        auto classDef = ctx.environment->findClass(baseClassName);
+        if (classDef) {
+            const auto& genericParams = classDef->getGenericParameters();
+
+            // Validate: Non-generic class cannot be used with type arguments
+            if (genericParams.empty()) {
+                throw errors::TypeException(
+                    "Class '" + baseClassName + "' is not generic but used with type arguments",
+                    location
+                );
+            }
+
+            // Validate: Number of type arguments must match number of generic parameters
+            if (typeArguments.size() != genericParams.size()) {
+                throw errors::TypeException(
+                    "Class '" + baseClassName + "' expects " +
+                    std::to_string(genericParams.size()) +
+                    " type argument(s) but " + std::to_string(typeArguments.size()) + " provided",
+                    location
+                );
+            }
+        }
+
         return typeArguments;
     }
 
-    void ClassCompiler::emitNewObjectBytecode(ast::NewNode* node, const std::string& fullClassName)
+    void ClassCompiler::emitNewObjectBytecode(ast::NewNode* node, const std::string& fullClassName,
+                                              const runtimeTypes::klass::ConstructorDefinition* constructor,
+                                              const std::unordered_map<std::string, std::string>& genericTypeBindings)
     {
         const auto& arguments = node->getArguments();
 
-        // Push constructor arguments onto stack (left to right)
-        for (const auto& arg : arguments)
+        // Create resolver for generic type substitution
+        types::GenericTypeResolver resolver;
+
+        // Push constructor arguments onto stack (left to right) with auto-boxing
+        for (size_t i = 0; i < arguments.size(); ++i)
         {
-            arg->accept(ctx.visitor);
+            // Check if we need to apply auto-boxing
+            bool needsAutoBoxing = false;
+            std::string boxClassName;
+
+            if (constructor && i < constructor->getParameterCount())
+            {
+                const auto& params = constructor->getParametersWithTypes();
+                const auto& paramType = params[i].second;
+
+                // Check if parameter expects an object type
+                if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
+                {
+                    std::string expectedClass = paramType.className.value();
+
+                    // Resolve generic type parameters (T -> Int)
+                    if (!genericTypeBindings.empty())
+                    {
+                        expectedClass = resolver.resolveGenericType(expectedClass, genericTypeBindings);
+                    }
+
+                    // Infer argument type
+                    value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
+
+                    // Check if auto-boxing is needed
+                    if ((expectedClass == "Int" && argType == value::ValueType::INT) ||
+                        (expectedClass == "Float" && argType == value::ValueType::FLOAT) ||
+                        (expectedClass == "Bool" && argType == value::ValueType::BOOL) ||
+                        (expectedClass == "String" && argType == value::ValueType::STRING))
+                    {
+                        needsAutoBoxing = true;
+                        boxClassName = expectedClass;
+                    }
+                }
+            }
+
+            // Compile the argument
+            arguments[i]->accept(ctx.visitor);
+
+            // Apply auto-boxing if needed
+            if (needsAutoBoxing)
+            {
+                size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                           static_cast<uint32_t>(classNameIndex),
+                                           1u,  // 1 constructor argument (the primitive value)
+                                           arguments[i].get());
+            }
         }
 
         // Store the FULL class name including generics (e.g., "Box<Int>")
@@ -163,7 +288,7 @@ namespace vm::compiler::visitors
         std::string fullClassName = node->getClassName();
 
         // Parse and validate generic type arguments (e.g., "Box<Int>" -> ["Int"])
-        parseAndValidateGenericTypeArguments(fullClassName, node->getLocation());
+        std::vector<std::string> typeArguments = parseAndValidateGenericTypeArguments(fullClassName, node->getLocation());
 
         // Extract base class name for constructor lookup
         std::string baseClassName = fullClassName;
@@ -182,6 +307,9 @@ namespace vm::compiler::visitors
 
         // Validate constructor parameters if class definition exists
         auto classDef = ctx.environment->findClass(baseClassName);
+        runtimeTypes::klass::ConstructorDefinition* matchingConstructor = nullptr;
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+
         if (classDef)
         {
             // Validate: Cannot instantiate abstract classes
@@ -192,20 +320,44 @@ namespace vm::compiler::visitors
                 );
             }
 
-            // Find matching constructor and validate parameter types
+            // Build generic type bindings map for parameter validation
+            // Maps generic parameter names (e.g., "T") to concrete types (e.g., "Int")
+            const auto& genericParams = classDef->getGenericParameters();
+            for (size_t i = 0; i < genericParams.size() && i < typeArguments.size(); ++i)
+            {
+                genericTypeBindings[genericParams[i].name] = typeArguments[i];
+            }
+
+            // Find matching constructor by trying all constructors with matching parameter count
+            // Constructor overload resolution: try each constructor and pick the first one that validates
             const auto& constructors = classDef->getConstructors();
+            std::string lastError;
+
             for (const auto& constructor : constructors)
             {
                 if (constructor->getParameterCount() == arguments.size())
                 {
-                    paramValidator->validateConstructorParameters(arguments, constructor.get(), node->getLocation());
-                    break;
+                    try {
+                        paramValidator->validateConstructorParameters(arguments, constructor.get(), node->getLocation(), genericTypeBindings);
+                        matchingConstructor = constructor.get();
+                        break;  // Found a matching constructor
+                    }
+                    catch (const std::exception& e) {
+                        // This constructor didn't match - try the next one
+                        lastError = e.what();
+                        continue;
+                    }
                 }
+            }
+
+            // If no constructor matched, throw the last error
+            if (!matchingConstructor && !lastError.empty()) {
+                throw std::runtime_error(lastError);
             }
         }
 
-        // Emit bytecode for object creation
-        emitNewObjectBytecode(node, fullClassName);
+        // Emit bytecode for object creation with auto-boxing support
+        emitNewObjectBytecode(node, fullClassName, matchingConstructor, genericTypeBindings);
 
         return std::monostate{};
     }
@@ -328,6 +480,82 @@ namespace vm::compiler::visitors
             }
             std::string qualifiedName = className + "::" + methodName;
 
+            // PHASE 4: Validate generic type arguments
+            if (node->hasGenericTypeArguments())
+            {
+                const auto& typeArgs = node->getGenericTypeArguments();
+
+                // Validate: Generic type arguments must be object types, not primitives
+                for (const auto& typeArg : typeArgs)
+                {
+                    if (typeArg == "int" || typeArg == "float" || typeArg == "string" ||
+                        typeArg == "bool" || typeArg == "void")
+                    {
+                        throw errors::TypeException(
+                            "Generic type argument '" + typeArg + "' is a primitive type. " +
+                            "Generics only support object types. Use wrapper classes instead:\n" +
+                            "  - Use 'Int' instead of 'int'\n" +
+                            "  - Use 'Float' instead of 'float'\n" +
+                            "  - Use 'Bool' instead of 'bool'\n" +
+                            "  - Use 'String' instead of 'string'",
+                            node->getLocation()
+                        );
+                    }
+                }
+
+                // Validate: Method must be generic
+                const auto* funcMetadata = ctx.program.getFunction(qualifiedName);
+                if (funcMetadata) {
+                    const auto& genericParams = funcMetadata->genericTypeParameters;
+
+                    // Validate: Non-generic method cannot be used with type arguments
+                    if (genericParams.empty()) {
+                        throw errors::TypeException(
+                            "Method '" + qualifiedName + "' is not generic but used with type arguments",
+                            node->getLocation()
+                        );
+                    }
+
+                    // Validate: Number of type arguments must match number of generic parameters
+                    if (typeArgs.size() != genericParams.size()) {
+                        throw errors::TypeException(
+                            "Method '" + qualifiedName + "' expects " +
+                            std::to_string(genericParams.size()) +
+                            " type argument(s) but " + std::to_string(typeArgs.size()) + " provided",
+                            node->getLocation()
+                        );
+                    }
+                }
+                else {
+                    // Fallback: Check environment if metadata not yet registered
+                    auto classDef = ctx.environment->findClass(className);
+                    if (classDef) {
+                        auto methodDef = classDef->getMethod(methodName);
+                        if (methodDef) {
+                            const auto& genericParams = methodDef->getGenericTypeParameters();
+
+                            // Validate: Non-generic method cannot be used with type arguments
+                            if (genericParams.empty()) {
+                                throw errors::TypeException(
+                                    "Method '" + qualifiedName + "' is not generic but used with type arguments",
+                                    node->getLocation()
+                                );
+                            }
+
+                            // Validate: Number of type arguments must match number of generic parameters
+                            if (typeArgs.size() != genericParams.size()) {
+                                throw errors::TypeException(
+                                    "Method '" + qualifiedName + "' expects " +
+                                    std::to_string(genericParams.size()) +
+                                    " type argument(s) but " + std::to_string(typeArgs.size()) + " provided",
+                                    node->getLocation()
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+
             // Validate static method exists at compile time
             if (ctx.compileTimeValidator)
             {
@@ -337,10 +565,33 @@ namespace vm::compiler::visitors
             // Validate parameter count and types
             paramValidator->validateMethodParameters(qualifiedName, qualifiedName, arguments, node->getLocation());
 
-            // Push all arguments onto stack
-            for (const auto& arg : arguments)
+            // Get method metadata for auto-boxing
+            const auto* methodMetadata = ctx.program.getFunction(qualifiedName);
+
+            // Push all arguments onto stack (with auto-boxing if needed)
+            for (size_t i = 0; i < arguments.size(); ++i)
             {
-                arg->accept(ctx.visitor); // Will need delegation
+                bool autoBoxed = false;
+
+                // Try auto-boxing if we have method metadata
+                if (methodMetadata && !methodMetadata->isNative)
+                {
+                    // For instance methods, parameterTypes[0] is 'this', so offset by 1
+                    size_t paramOffset = (!methodMetadata->isStatic && !methodMetadata->parameterTypes.empty()) ? 1 : 0;
+
+                    if (i + paramOffset < methodMetadata->parameterTypes.size())
+                    {
+                        std::string expectedType = methodMetadata->parameterTypes[i + paramOffset];
+                        expectedType = ctx.resolveGenericType(expectedType);
+                        autoBoxed = tryAutoBoxArgument(arguments[i].get(), expectedType);
+                    }
+                }
+
+                // If not auto-boxed, compile argument normally
+                if (!autoBoxed)
+                {
+                    arguments[i]->accept(ctx.visitor);
+                }
             }
 
             // Emit CALL_STATIC instruction with fully qualified name
@@ -369,12 +620,26 @@ namespace vm::compiler::visitors
                     std::string baseClassName = objectClassName.substr(0, angleStart);
                     std::string typeArgsStr = objectClassName.substr(angleStart + 1, angleEnd - angleStart - 1);
 
-                    // Look up the base class to get its generic parameter names
+                    // Look up the base class OR interface to get its generic parameter names
                     auto classDef = ctx.environment->findClass(baseClassName);
+                    auto interfaceDef = ctx.environment->findInterface(baseClassName);
+
+                    std::vector<ast::GenericTypeParameter> genericParams;
+                    bool isGenericType = false;
 
                     if (classDef && classDef->isGeneric())
                     {
-                        const auto& genericParams = classDef->getGenericParameters();
+                        genericParams = classDef->getGenericParameters();
+                        isGenericType = true;
+                    }
+                    else if (interfaceDef && interfaceDef->isGeneric())
+                    {
+                        genericParams = interfaceDef->getGenericParameters();
+                        isGenericType = true;
+                    }
+
+                    if (isGenericType)
+                    {
 
                         // Parse type arguments (e.g., "String" or "String, Int")
                         std::vector<std::string> typeArgs;
@@ -417,6 +682,120 @@ namespace vm::compiler::visitors
                 ctx.pushGenericTypeBindings(genericBindings);
             }
 
+            // Setup method-level generic type bindings if method has type arguments
+            bool hasMethodGenericBindings = false;
+            std::unordered_map<std::string, std::string> methodGenericBindings;
+
+            // Extract base class name (without generic parameters) for method lookup
+            std::string baseClassName = objectClassName;
+            size_t anglePos = objectClassName.find('<');
+            if (anglePos != std::string::npos)
+            {
+                baseClassName = objectClassName.substr(0, anglePos);
+            }
+
+            // Build qualified method name for metadata lookup
+            std::string qualifiedMethodName = baseClassName.empty() ? methodName : (baseClassName + "::" + methodName);
+            const auto* methodMetadata = ctx.program.getFunction(qualifiedMethodName);
+
+            if (node->hasGenericTypeArguments())
+            {
+                const auto& methodTypeArgs = node->getGenericTypeArguments();
+
+                // PHASE 4: Validate that method is generic (only if we have metadata)
+                if (methodMetadata && methodMetadata->genericTypeParameters.empty())
+                {
+                    throw errors::TypeException(
+                        "Method '" + qualifiedMethodName + "' is not generic but used with type arguments",
+                        node->getLocation()
+                    );
+                }
+                // If we don't have metadata, we can't validate - allow it through
+                // This handles cases where type inference couldn't determine the class name
+
+                if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
+                {
+                    const auto& methodGenericParams = methodMetadata->genericTypeParameters;
+
+                    // Validate type argument count matches parameter count
+                    if (methodTypeArgs.size() != methodGenericParams.size())
+                    {
+                        throw errors::TypeException(
+                            "Method '" + methodName + "' expects " +
+                            std::to_string(methodGenericParams.size()) +
+                            " type arguments, but got " +
+                            std::to_string(methodTypeArgs.size()),
+                            node->getLocation()
+                        );
+                    }
+
+                    // Validate: Generic type arguments must be object types, not primitives
+                    for (const auto& typeArg : methodTypeArgs)
+                    {
+                        if (typeArg == "int" || typeArg == "float" || typeArg == "string" ||
+                            typeArg == "bool" || typeArg == "void")
+                        {
+                            throw errors::TypeException(
+                                "Generic type argument '" + typeArg + "' is a primitive type. " +
+                                "Generics only support object types. Use wrapper classes instead:\n" +
+                                "  - Use 'Int' instead of 'int'\n" +
+                                "  - Use 'Float' instead of 'float'\n" +
+                                "  - Use 'Bool' instead of 'bool'\n" +
+                                "  - Use 'String' instead of 'string'",
+                                node->getLocation()
+                            );
+                        }
+                    }
+
+                    // Create bindings: T -> String, U -> Int, etc.
+                    for (size_t i = 0; i < methodGenericParams.size(); ++i)
+                    {
+                        methodGenericBindings[methodGenericParams[i]] = methodTypeArgs[i];
+                    }
+
+                    // Push method-level bindings onto stack (will shadow class-level if names conflict)
+                    ctx.pushGenericTypeBindings(methodGenericBindings);
+                    hasMethodGenericBindings = true;
+                }
+            }
+            else
+            {
+                // Type inference for generic methods using Expected Type Context
+                if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
+                {
+                    // Try to infer type arguments from the expected return type context
+                    if (ctx.hasExpectedTypeContext())
+                    {
+                        auto expectedCtx = ctx.getCurrentExpectedTypeContext();
+
+                        // If the expected type is an object with generic arguments, try to infer method type params
+                        if (expectedCtx.expectedType == value::ValueType::OBJECT &&
+                            expectedCtx.hasGenericArguments())
+                        {
+                            // Extract generic arguments from expected type
+                            // e.g., "Pipeline<Int>" -> ["Int"]
+                            auto expectedGenericArgs = expectedCtx.extractGenericArguments();
+
+                            // For now, assume the method's type parameter maps to the expected type's parameter
+                            // This is a simplification - full inference would need to match return type structure
+                            if (!expectedGenericArgs.empty() &&
+                                methodMetadata->genericTypeParameters.size() == 1)
+                            {
+                                // Infer: R = Int (from Pipeline<Int>)
+                                methodGenericBindings[methodMetadata->genericTypeParameters[0]] = expectedGenericArgs[0];
+
+                                // Push the inferred bindings
+                                ctx.pushGenericTypeBindings(methodGenericBindings);
+                                hasMethodGenericBindings = true;
+                            }
+                        }
+                    }
+
+                    // If we couldn't infer type arguments, allow it anyway for now
+                    // Runtime will handle the actual types
+                }
+            }
+
             // Validate instance method exists at compile time
             if (!objectClassName.empty() && ctx.compileTimeValidator)
             {
@@ -437,26 +816,157 @@ namespace vm::compiler::visitors
                 paramValidator->validateMethodParameters(methodName, qualifiedName, arguments, node->getLocation());
             }
 
-            // Pop generic type bindings after validation
+            // First, compile the object expression
+            node->getObject()->accept(ctx.visitor); // Will need delegation
+
+            // Push all arguments onto stack with auto-boxing if needed
+            // If no methodMetadata, try looking up interface definition
+            std::vector<std::string> interfaceParameterTypes;
+            if (!methodMetadata && !baseClassName.empty())
+            {
+                auto interfaceDef = ctx.environment->findInterface(baseClassName);
+                if (interfaceDef)
+                {
+                    const auto& methodSigs = interfaceDef->getMethodSignatures();
+                    for (const auto& methodSig : methodSigs)
+                    {
+                        if (methodSig.name == methodName)
+                        {
+                            // Extract parameter type names from GenericType objects
+                            for (const auto& param : methodSig.parameters)
+                            {
+                                std::string paramTypeName = param.second->toString();
+                                interfaceParameterTypes.push_back(paramTypeName);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            for (size_t i = 0; i < arguments.size(); ++i)
+            {
+                bool autoBoxed = false;
+
+                // Check if we need to auto-box this argument
+                std::string expectedType;
+                bool hasExpectedType = false;
+
+                if (methodMetadata && !methodMetadata->parameterTypes.empty())
+                {
+                    // For instance methods, parameterTypes[0] is 'this', so offset by 1
+                    size_t paramIndex = i + 1; // +1 to skip 'this' parameter
+
+                    if (paramIndex < methodMetadata->parameterTypes.size())
+                    {
+                        expectedType = methodMetadata->parameterTypes[paramIndex];
+                        hasExpectedType = true;
+                    }
+                }
+                else if (!interfaceParameterTypes.empty() && i < interfaceParameterTypes.size())
+                {
+                    // Use interface parameter types
+                    expectedType = interfaceParameterTypes[i];
+                    hasExpectedType = true;
+                }
+
+                if (hasExpectedType)
+                {
+                    // Resolve generic type parameters using the bindings
+                    // Check method-level bindings first, then class-level bindings
+                    // E.g., if expectedType is "A" and methodGenericBindings has {A: String}, resolve to "String"
+                    if (!methodGenericBindings.empty())
+                    {
+                        auto it = methodGenericBindings.find(expectedType);
+                        if (it != methodGenericBindings.end())
+                        {
+                            expectedType = it->second;
+                        }
+                    }
+                    // If not found in method bindings, check class-level bindings
+                    // E.g., if expectedType is "T" and genericBindings has {T: Int}, resolve to "Int"
+                    if (!genericBindings.empty())
+                    {
+                        auto it = genericBindings.find(expectedType);
+                        if (it != genericBindings.end())
+                        {
+                            expectedType = it->second;
+                        }
+                    }
+
+                    value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
+
+                        // Check if we need to auto-box primitive to wrapper class
+                        bool needsBoxing = false;
+                        std::string boxClassName;
+
+                        if (expectedType == "Int" && argType == value::ValueType::INT)
+                        {
+                            needsBoxing = true;
+                            boxClassName = "Int";
+                        }
+                        else if (expectedType == "Float" && argType == value::ValueType::FLOAT)
+                        {
+                            needsBoxing = true;
+                            boxClassName = "Float";
+                        }
+                        else if (expectedType == "Bool" && argType == value::ValueType::BOOL)
+                        {
+                            needsBoxing = true;
+                            boxClassName = "Bool";
+                        }
+                        else if (expectedType == "String" && argType == value::ValueType::STRING)
+                        {
+                            needsBoxing = true;
+                            boxClassName = "String";
+                        }
+
+                        if (needsBoxing)
+                        {
+                            // Auto-box: compile value, then emit NEW_OBJECT
+                            arguments[i]->accept(ctx.visitor);
+                            size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                                        static_cast<uint32_t>(classNameIndex),
+                                                        1u, // 1 constructor argument
+                                                        arguments[i].get());
+                            autoBoxed = true;
+                        }
+                }
+
+                // If not auto-boxed, compile argument normally
+                if (!autoBoxed)
+                {
+                    arguments[i]->accept(ctx.visitor);
+                }
+            }
+
+            // Pop generic type bindings after argument compilation (method-level first, then class-level)
+            if (hasMethodGenericBindings)
+            {
+                ctx.popGenericTypeBindings();
+            }
             if (!genericBindings.empty())
             {
                 ctx.popGenericTypeBindings();
             }
 
-            // First, compile the object expression
-            node->getObject()->accept(ctx.visitor); // Will need delegation
+            // PHASE 3 OPTIMIZATION: Check if this is an optimizable primitive method call
+            bytecode::OpCode opcodeToEmit = bytecode::OpCode::CALL_METHOD;
 
-            // Push all arguments onto stack
-            for (const auto& arg : arguments)
-            {
-                arg->accept(ctx.visitor); // Will need delegation
+            if (vm::compiler::PrimitiveMethodOptimizer::canOptimizeMethod(baseClassName, methodName, arguments.size())) {
+                // Get the optimized opcode for this primitive method
+                opcodeToEmit = vm::compiler::PrimitiveMethodOptimizer::getOptimizedOpCode(baseClassName, methodName);
+
+                // Emit optimized opcode (no method name needed - opcode encodes the operation)
+                ctx.emitter.emitWithLocation(opcodeToEmit, node);
+            } else {
+                // Emit standard CALL_METHOD instruction with method name
+                size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                 static_cast<uint32_t>(methodNameIndex),
+                                 static_cast<uint32_t>(arguments.size()), node);
             }
-
-            // Emit CALL_METHOD instruction with source location
-            size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                             static_cast<uint32_t>(methodNameIndex),
-                             static_cast<uint32_t>(arguments.size()), node);
         }
 
         return std::monostate{};
@@ -475,6 +985,25 @@ namespace vm::compiler::visitors
         std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
         size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
         ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
+                         static_cast<uint32_t>(classNameIndex),
+                         static_cast<uint32_t>(arguments.size()), node);
+
+        return std::monostate{};
+    }
+
+    value::Value ClassCompiler::compileThisConstructorCall(ast::ThisConstructorCallNode* node)
+    {
+        // Push arguments onto stack
+        const auto& arguments = node->getArguments();
+        for (const auto& arg : arguments)
+        {
+            arg->accept(ctx.visitor);
+        }
+
+        // Emit THIS_CONSTRUCTOR instruction with current class name and argument count
+        std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
+        size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::THIS_CONSTRUCTOR,
                          static_cast<uint32_t>(classNameIndex),
                          static_cast<uint32_t>(arguments.size()), node);
 
@@ -632,5 +1161,61 @@ namespace vm::compiler::visitors
                          }, node);
 
         return std::monostate{};
+    }
+
+    bool ClassCompiler::tryAutoBoxArgument(ast::ASTNode* argument, const std::string& expectedType)
+    {
+        // Only auto-box for primitive Box types
+        bool isBoxType = (expectedType == "Int" ||
+                          expectedType == "Float" ||
+                          expectedType == "Bool" ||
+                          expectedType == "String");
+
+        if (!isBoxType || !argument)
+        {
+            return false;  // Not a Box type or no argument node
+        }
+
+        // Check if argument expression returns a primitive type matching the target Box type
+        value::ValueType argType = ctx.typeInference.inferExpressionType(argument);
+        bool needsBoxing = false;
+
+        // Check if we're trying to box a primitive to its corresponding Box type
+        if (expectedType == "Int" && argType == value::ValueType::INT)
+        {
+            needsBoxing = true;
+        }
+        else if (expectedType == "Float" && argType == value::ValueType::FLOAT)
+        {
+            needsBoxing = true;
+        }
+        else if (expectedType == "Bool" && argType == value::ValueType::BOOL)
+        {
+            needsBoxing = true;
+        }
+        else if (expectedType == "String" && argType == value::ValueType::STRING)
+        {
+            needsBoxing = true;
+        }
+
+        if (!needsBoxing)
+        {
+            return false;  // Argument type doesn't match target Box type
+        }
+
+        // AUTO-BOXING: Emit bytecode for boxing
+        // Equivalent to: new TargetClass(argument)
+
+        // 1. Compile the argument expression (pushes it onto stack)
+        argument->accept(ctx.visitor);
+
+        // 2. Emit NEW_OBJECT for the Box class
+        size_t classNameIndex = ctx.program.getConstantPool().addString(expectedType);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                     static_cast<uint32_t>(classNameIndex),
+                                     1u,  // 1 constructor argument
+                                     argument);
+
+        return true;  // Auto-boxing was applied
     }
 }

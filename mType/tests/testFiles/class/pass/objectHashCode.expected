@@ -1,0 +1,21 @@
+Test 1: Same values, same hash
+hashCode() called for Alice: 185
+hashCode() called for Alice: 185
+Hash codes equal: true
+Objects equal: true
+
+Test 2: Different values, likely different hash
+hashCode() called for Bob: 118
+h1 == h3: false
+
+Test 3: Hash consistency
+hashCode() called for Alice: 185
+hashCode() called for Alice: 185
+Same object, same hash: true
+
+Test 4: Different ages, different hashes
+hashCode() called for Alice: 186
+Same name, different age:
+  h1: 185
+  h4: 186
+  Different: true

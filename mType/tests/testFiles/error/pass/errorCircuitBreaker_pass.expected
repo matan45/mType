@@ -1,0 +1,50 @@
+=== Test 1: Circuit opens after failures ===
+Operation failed (failure 1/3)
+Call 1: Service failed - Service unavailable
+Operation failed (failure 2/3)
+Call 2: Service failed - Service unavailable
+Operation failed (failure 3/3)
+Circuit state: -> OPEN (threshold reached)
+Call 3: Service failed - Service unavailable
+Circuit is OPEN - failing fast
+Call 4: Circuit open - Circuit breaker is open
+Circuit is OPEN - failing fast
+Call 5: Circuit open - Circuit breaker is open
+Circuit state: OPEN
+
+=== Test 2: Circuit reset and recovery ===
+Operation failed (failure 1/2)
+Failure 1: Service unavailable
+Operation failed (failure 2/2)
+Circuit state: -> OPEN (threshold reached)
+Failure 2: Service unavailable
+Circuit is OPEN - failing fast
+Failure 3: Circuit breaker is open
+State after failures: OPEN
+Circuit state: OPEN -> HALF_OPEN (manual reset)
+Operation succeeded (success count: 1)
+Success 1: Service response OK
+Operation succeeded (success count: 2)
+Success 2: Service response OK
+Operation succeeded (success count: 3)
+Circuit state: HALF_OPEN -> CLOSED
+Success 3: Service response OK
+Operation succeeded (success count: 1)
+Success 4: Service response OK
+Final state: CLOSED
+
+=== Test 3: Half-open state failure ===
+Operation failed (failure 1/2)
+Operation failed (failure 2/2)
+Circuit state: -> OPEN (threshold reached)
+State: OPEN
+Circuit state: OPEN -> HALF_OPEN (manual reset)
+State after reset: HALF_OPEN
+Operation failed (failure 3/2)
+Circuit state: -> OPEN (threshold reached)
+Half-open test failed: Service unavailable
+State after failure in half-open: OPEN
+Circuit is OPEN - failing fast
+Failed fast: Circuit breaker is open
+
+Circuit breaker test completed!

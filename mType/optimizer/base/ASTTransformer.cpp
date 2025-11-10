@@ -315,6 +315,10 @@ namespace optimizer::base {
 		return nullptr;
 	}
 
+	std::unique_ptr<ast::ASTNode> ASTTransformer::visitThisConstructorCallNode(ast::ThisConstructorCallNode* node) {
+		return nullptr;
+	}
+
 	std::unique_ptr<ast::ASTNode> ASTTransformer::visitSuperMethodCallNode(ast::SuperMethodCallNode* node) {
 		return nullptr;
 	}

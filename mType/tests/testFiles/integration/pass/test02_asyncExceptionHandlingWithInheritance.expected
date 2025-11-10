@@ -1,0 +1,28 @@
+=== Test 02: Async Exception Handling with Inheritance ===
+--- Testing ValidatingProcessor ---
+Processing value: 10
+Finally block executed for value: 10
+Result 1: 20
+Processing value: -5
+Caught ValidationException: Negative value not allowed
+Finally block executed for value: -5
+Result 2: -1
+Processing value: 100
+Caught ProcessingException: Value exceeds threshold
+Finally block executed for value: 100
+Result 3: -2
+Success: 1, Errors: 2
+--- Testing LoggingProcessor ---
+Logging: Processing 25
+Logging complete
+Result 4: 125
+Logging: Processing 0
+Caught BaseException: Zero value encountered
+Logging complete
+Result 5: 0
+Success: 1, Errors: 1
+--- Testing Polymorphism ---
+Processing value: 20
+Finally block executed for value: 20
+Polymorphic result: 40
+=== Test 02 Complete ===

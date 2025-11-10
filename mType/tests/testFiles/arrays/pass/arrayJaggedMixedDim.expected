@@ -1,0 +1,12 @@
+Testing jagged arrays with mixed dimensions
+Jagged array with different row lengths:
+  Row 0 has 1 elements
+  Row 1 has 5 elements
+  Row 2 has 2 elements
+  Row 3 has 3 elements
+3D jagged dimensions:
+  jagged3D[0][0] has 2 elements
+  jagged3D[0][1] has 1 elements
+  jagged3D[0][2] has 4 elements
+  jagged3D[1][0] has 5 elements
+Jagged mixed dimensions test completed

@@ -1,0 +1,13 @@
+Testing nested lambda with arrays
+Initial array: [1, 2, 3, 4]
+After doubling:
+  2
+  4
+  6
+  8
+After adding 10:
+  12
+  14
+  16
+  18
+Nested lambda test completed

@@ -1,0 +1,55 @@
+Test 1: Simple guard clause
+Error: Number must be positive
+Error: Number must be positive
+Processed: 20
+Test 2: Multiple guard clauses
+Error: Cannot divide by zero
+Error: Negative values not allowed
+Error: Negative values not allowed
+Result: 5
+Test 3: Guard clauses with object validation
+User cannot be null
+User is valid
+User must be 18 or older
+Invalid age
+User is valid
+Test 4: Guard clauses in discount calculation
+Error: Invalid age
+Error: Purchase amount must be positive
+No discount: Minimum purchase is 50
+Final amount: 95
+Final amount: 85
+Final amount: 90
+Test 5: Guard clauses with string validation
+ Doe
+John
+Jane Smith
+Test 6: Guard clauses in loops
+Sum of positive numbers: 30
+Test 7: Guard clauses with range validation
+Error: Temperature below valid range
+Error: Temperature above valid range
+Freezing: -10
+Cold: 15
+Moderate: 25
+Hot: 40
+Test 8: Guard clauses avoiding deep nesting
+Error: Quantity must be positive
+Error: Price must be positive
+Error: Item out of stock
+Error: Quantity exceeds limit
+Order processed: 50
+Test 9: Nested guard clauses with complex conditions
+Error: Score must be between 0 and 100
+Error: Score must be between 0 and 100
+Failed: 45
+Passed: 75
+Passed: 80
+Passed: 97
+Test 10: Guard clauses in account operations
+Error: Account is null
+Error: Amount must be positive
+Error: Insufficient funds
+Withdrawal successful: 50
+Withdrawal successful: 20
+Test passed

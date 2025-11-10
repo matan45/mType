@@ -11,7 +11,7 @@ Nested capture result: 97
 Chained capture: 61
 === Mutable vs Immutable Capture ===
 Initial capture: 30
-After mutable change: 30
+After mutable change: 120
 Loop iteration 0: 5
 Loop iteration 1: 7
 Loop iteration 2: 10

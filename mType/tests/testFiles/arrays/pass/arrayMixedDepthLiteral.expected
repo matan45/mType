@@ -1,0 +1,29 @@
+Testing mixed depth literals
+Jagged array:
+  Row 0 (length 3):
+    jagged[0][0] = 1
+    jagged[0][1] = 2
+    jagged[0][2] = 3
+  Row 1 (length 2):
+    jagged[1][0] = 4
+    jagged[1][1] = 5
+  Row 2 (length 4):
+    jagged[2][0] = 6
+    jagged[2][1] = 7
+    jagged[2][2] = 8
+    jagged[2][3] = 9
+  Row 3 (length 1):
+    jagged[3][0] = 10
+Complex 3D array:
+  complex[0][0][0] = 1
+  complex[0][0][1] = 2
+  complex[0][1][0] = 3
+  complex[0][1][1] = 4
+  complex[0][1][2] = 5
+  complex[1][0][0] = 6
+  complex[1][1][0] = 7
+  complex[1][1][1] = 8
+  complex[1][2][0] = 9
+  complex[1][2][1] = 10
+  complex[1][2][2] = 11
+Mixed depth literals test completed

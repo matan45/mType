@@ -180,20 +180,66 @@ namespace vm::compiler::registration
                     methodDef->addAnnotation(annotation);
                 }
 
+                // Check for method overloading (not allowed)
                 if (methodNode->getIsStatic()) {
+                    if (classDef->getStaticMethod(methodNode->getName()) != nullptr) {
+                        throw errors::TypeException(
+                            "Method overloading is not supported. Static method '" + methodNode->getName() +
+                            "' is already defined in class '" + classNode->getClassName() + "'",
+                            methodNode->getLocation()
+                        );
+                    }
                     classDef->addStaticMethod(methodNode->getName(), methodDef);
                 } else {
+                    if (classDef->getInstanceMethod(methodNode->getName()) != nullptr) {
+                        throw errors::TypeException(
+                            "Method overloading is not supported. Instance method '" + methodNode->getName() +
+                            "' is already defined in class '" + classNode->getClassName() + "'",
+                            methodNode->getLocation()
+                        );
+                    }
                     classDef->addMethod(methodDef);
                 }
             }
         }
-        // Register fields (but don't initialize them - bytecode will do that)
+        // Register fields
         for (const auto& field : classNode->getFields()) {
             if (auto* fieldNode = dynamic_cast<ast::nodes::classes::FieldNode*>(field.get())) {
+                // Initialize static fields with default values based on type
+                value::Value defaultValue;
+                if (fieldNode->getIsStatic())
+                {
+                    value::ValueType fieldType = fieldNode->getType();
+                    switch (fieldType)
+                    {
+                    case value::ValueType::INT:
+                        defaultValue = 0;
+                        break;
+                    case value::ValueType::FLOAT:
+                        defaultValue = 0.0f;
+                        break;
+                    case value::ValueType::STRING:
+                        defaultValue = std::string("");
+                        break;
+                    case value::ValueType::BOOL:
+                        defaultValue = false;
+                        break;
+                    default:
+                        defaultValue = std::monostate{}; // null for objects
+                        break;
+                    }
+                }
+                else
+                {
+                    // Instance fields don't need default values here (initialized in constructor)
+                    defaultValue = std::monostate{};
+                }
+
                 auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
                     fieldNode->getName(),
                     fieldNode->getType(),
-                    std::monostate{},  // Empty value - bytecode will initialize
+                    fieldNode->getGenericType(),  // Pass generic type information (e.g., int[], Array<T>)
+                    defaultValue,
                     fieldNode->getIsStatic(),
                     fieldNode->getIsFinal(),
                     fieldNode->getAccessModifier()

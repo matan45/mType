@@ -1,0 +1,74 @@
+Testing finally block for guaranteed cleanup
+Test 1: Finally executes without exception
+Created: NormalResource
+Performing normal operation
+Cleaning up: NormalResource
+Finally block executed
+---
+Test 2: Finally executes with exception
+Created: ExceptionResource
+Before exception
+Caught: Operation error
+Cleaning up: ExceptionResource
+Finally block executed despite exception
+---
+Test 3: Finally executes before return
+Created: ReturnResource
+Before return
+Cleaning up: ReturnResource
+Finally executed before return
+---
+Test 4: Multiple nested finally blocks
+Created: Outer
+Created: Middle
+Created: Inner
+All resources created
+Inner catch: Inner exception
+Cleaning up: Inner
+Inner finally
+Middle scope continues
+Cleaning up: Middle
+Middle finally
+Outer scope continues
+Cleaning up: Outer
+Outer finally
+---
+Test 5: Finally with catch that rethrows
+Created: RethrowResource
+Caught original: Original error
+Cleaning up: RethrowResource
+Finally before rethrow
+Caught rethrown: Rethrown error
+---
+Test 6: Finally cleaning up multiple resources
+Created: Res1
+Created: Res2
+Created: Res3
+Created: Res4
+Using all resources
+Error: Multi-resource error
+Cleaning all resources in finally:
+Cleaning up: Res1
+Cleaning up: Res2
+Cleaning up: Res3
+Cleaning up: Res4
+All resources cleaned
+---
+Test 7: Finally without catch block
+Created: NoCatchResource
+Operation executing
+Cleaning up: NoCatchResource
+Finally executes even without catch
+Outer catch: Uncaught here
+---
+Test 8: Finally execution order verification
+Created: First
+Created: Second
+Both resources active
+Inner finally (should execute first)
+Cleaning up: Second
+Between finally blocks
+Outer finally (should execute second)
+Cleaning up: First
+All finally blocks completed
+Finally cleanup test completed

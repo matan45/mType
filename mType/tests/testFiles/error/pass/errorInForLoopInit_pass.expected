@@ -1,0 +1,7 @@
+Testing exception in for-loop initializer
+Computing for-loop init value
+Caught in init: Error in for-loop initializer
+Loop iteration: 0
+Loop iteration: 1
+Loop iteration: 2
+Test completed

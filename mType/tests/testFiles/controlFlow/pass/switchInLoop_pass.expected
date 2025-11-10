@@ -1,0 +1,51 @@
+Test 1: Switch in for loop
+Zero
+One
+Two
+Three
+Four
+Test 2: Switch in while loop
+Counter is 0
+Counter is 1
+Counter is 2
+Test 3: Nested loops with switch
+Sum is 0
+Sum is 1
+Sum is 1
+Sum is 2
+Test 4: Switch with break in loop
+Case 0
+After switch in loop
+Case 1
+After switch in loop
+Case 2
+After switch in loop
+Test 5: Loop with continue inside switch
+Processing 0
+Processing 1
+Processing 3
+Processing 4
+Test 6: Switch controlling loop variable
+Start
+One
+Three
+Four
+Test 7: Multiple switches in same loop
+First switch: 0
+Second switch: 0
+First switch: 1
+Second switch: 2
+Test 8: Switch with fall-through in loop
+Falling from 0
+At 1 or fell from 0
+At 1 or fell from 0
+At 2
+Test 9: String switch in loop
+Color: Red
+Color: Green
+Color: Blue
+Test 10: Complex nested structure
+Outer 0, Inner 0
+Outer 0, Inner 1
+Outer 1
+All switch-in-loop tests completed

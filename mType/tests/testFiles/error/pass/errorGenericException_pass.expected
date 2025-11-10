@@ -1,0 +1,7 @@
+Testing generic exception with Int data:
+Caught int exception: Integer error occurred
+Error code: 404
+Testing generic exception with String data:
+Caught string exception: String error occurred
+Error type: INVALID_INPUT
+Generic exception test passed!

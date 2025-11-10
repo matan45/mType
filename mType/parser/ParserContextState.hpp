@@ -8,7 +8,6 @@ namespace parser
     {
     private:
         // Context flags
-        bool insideLambdaBody = false;
         bool insideAsyncFunction = false;
         bool insideFunctionBody = false;
         bool insideClassBody = false;
@@ -153,5 +152,6 @@ namespace parser
             ConstructorContextGuard(ConstructorContextGuard&&) = delete;
             ConstructorContextGuard& operator=(ConstructorContextGuard&&) = delete;
         };
+
     };
 }

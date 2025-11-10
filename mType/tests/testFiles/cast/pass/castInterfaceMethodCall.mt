@@ -1,6 +1,6 @@
 // Test: Method call after interface cast
 interface Printable {
-    function print(): void;
+    public function print(): void;
 }
 
 class Document implements Printable {

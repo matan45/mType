@@ -1,0 +1,16 @@
+Testing exception in catch block
+Throwing first exception
+Caught first exception: First error
+Throwing second exception in catch
+Caught second exception: Second error from catch block
+---
+Throwing exception for finally test
+In catch, about to throw new exception
+Finally block executed
+Outer catch: Replacement error
+---
+Level 3 throw
+Level 2 catch, rethrowing as SecondException
+Level 1 catch, rethrowing as Exception
+Final catch: Level 1: Level 2: Level 3
+Test completed

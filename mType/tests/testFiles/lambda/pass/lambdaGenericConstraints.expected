@@ -1,0 +1,6 @@
+=== Generic Constraints Test ===
+Printing: Document: Manual
+Printing: Report with 50 pages
+Doc string length: 16
+Report string length: 20
+Generic constraints complete

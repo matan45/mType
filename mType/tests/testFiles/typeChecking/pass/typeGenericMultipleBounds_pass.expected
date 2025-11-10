@@ -1,0 +1,8 @@
+Testing multiple bounds on type parameters
+Container item: DataItem{id=1, name=First}
+Comparing item1 to item2: -1
+Comparing item2 to item3: -1
+Processing: DataItem{id=1, name=First}
+Processing: DataItem{id=2, name=Second}
+Processing: DataItem{id=3, name=Third}
+Multiple bounds test completed

@@ -1,0 +1,23 @@
+Starting large exception data performance test
+---
+Creating exception with large string (100 elements):
+Caught exception with data size: 100
+Exception message: Large string payload
+---
+Creating exception with large list (200 elements):
+Caught exception with list size: 200
+Exception message: Large list payload
+---
+Creating exception with both large string and list:
+Caught exception with combined data
+Data size: 150
+List size: 100
+---
+Testing multiple large exceptions:
+Caught large exceptions: 10
+---
+Testing nested exception with large data:
+Caught nested exception
+Inner exception data size: 50
+---
+Large exception data test completed successfully!

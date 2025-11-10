@@ -1,0 +1,10 @@
+=== Async Promise Garbage Collection Test ===
+Creating multiple resources...
+Resource created: 1
+Using resource: 1
+Resource created: 2
+Using resource: 2
+Resource created: 3
+Using resource: 3
+Total: 6
+Final result: 6

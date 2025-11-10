@@ -1,0 +1,8 @@
+Testing null assertion type narrowing
+Error: No account found
+Account exists
+Username: Alice
+Balance: 500
+Transaction successful. New balance: 700
+Final balance: 700
+Null assertion type narrowing test completed

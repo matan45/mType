@@ -1,0 +1,40 @@
+Test 1: Single interface
+Drawing circle with radius: 5
+Description: Circle
+
+Test 2: Two interface intersection
+Drawing rectangle: 10x20
+Resized to: 15x25
+New dimensions: 15x25
+
+Test 3: Three interface intersection
+Drawing sprite 'Hero' at (0,0) size 32x32
+Moved to: (100,200)
+Drawing sprite 'Hero' at (100,200) size 64x64
+
+Test 4: Array of drawable & resizable
+
+Rectangle 0:
+Drawing rectangle: 5x10
+Resized to: 10x20
+Drawing rectangle: 10x20
+
+Rectangle 1:
+Drawing rectangle: 15x20
+Resized to: 30x40
+Drawing rectangle: 30x40
+
+Test 5: Function with intersection parameters
+Drawing:
+Drawing rectangle: 30x40
+Resizing:
+Resized to: 100x100
+Drawing rectangle: 100x100
+
+Test 6: Full intersection function
+Updating sprite:
+Drawing sprite 'Enemy' at (10,10) size 16x16
+Moved to: (50,75)
+Drawing sprite 'Enemy' at (50,75) size 48x48
+
+Intersection type tests completed

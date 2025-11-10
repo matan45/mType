@@ -106,6 +106,10 @@ namespace types {
         std::unordered_map<std::string, std::string> classInheritance; // child -> parent
         mutable std::unordered_map<std::string, bool> subtypeCache; // For caching subtype relationships
 
+        // Primitive to Box class mapping (lowercase to uppercase)
+        // Maps: int -> Int, float -> Float, bool -> Bool, string -> String
+        std::unordered_map<std::string, std::string> primitiveToBoxMapping;
+
     public:
         /**
          * Initialize registry with built-in types
@@ -206,6 +210,20 @@ namespace types {
          * Check if a type is a primitive type
          */
         bool isPrimitiveType(const std::string& typeName) const;
+
+        /**
+         * Get the Box class name for a primitive type name
+         * @param primitiveName The primitive type name (e.g., "int", "float")
+         * @return The Box class name (e.g., "Int", "Float"), or empty string if not a primitive
+         */
+        std::string getBoxClassName(const std::string& primitiveName) const;
+
+        /**
+         * Check if a type name needs to be mapped to a Box class
+         * @param typeName The type name to check
+         * @return true if this is a lowercase primitive name that should map to a Box class
+         */
+        bool shouldMapToBoxClass(const std::string& typeName) const;
 
         /**
          * NEW: Register inheritance relationship between classes

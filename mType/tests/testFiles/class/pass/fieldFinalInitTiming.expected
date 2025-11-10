@@ -1,0 +1,11 @@
+Test 1: Create first object
+Created: First with id=0
+Object: First, id=0, constant=100
+
+Test 2: Create second object
+Created: Second with id=1
+Object: Second, id=1, constant=100
+
+Test 3: Create third object
+Created: Third with id=2
+Object: Third, id=2, constant=100

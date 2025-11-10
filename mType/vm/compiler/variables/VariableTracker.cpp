@@ -1,5 +1,5 @@
 #include "VariableTracker.hpp"
-
+#include  <iostream>
 namespace vm::compiler::variables
 {
     VariableTracker::VariableTracker()
@@ -41,9 +41,14 @@ namespace vm::compiler::variables
         currentScopeDepth--;
 
         // Pop locals that went out of scope
+        // Only decrement nextLocalSlot if the removed variable wasn't captured
         while (!locals.empty() && locals.back().scopeDepth > currentScopeDepth) {
+            bool wasCaptured = locals.back().isCaptured;
+
             locals.pop_back();
-            nextLocalSlot--;
+            if (!wasCaptured) {
+                nextLocalSlot--;
+            }
         }
     }
 
@@ -133,5 +138,16 @@ namespace vm::compiler::variables
             }
         }
         return "";  // Not found
+    }
+
+    void VariableTracker::markVariableAsCaptured(size_t slot)
+    {
+        // Find the variable with this slot and mark it as captured
+        for (auto& local : locals) {
+            if (local.slot == slot) {
+                local.isCaptured = true;
+                return;
+            }
+        }
     }
 }

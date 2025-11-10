@@ -1,4 +1,5 @@
 #include "ConstructorDefinition.hpp"
+#include "../../types/TypeConversionUtils.hpp"
 
 namespace runtimeTypes::klass
 {
@@ -14,6 +15,28 @@ namespace runtimeTypes::klass
             parametersCacheValid = true;
         }
         return cachedParameters;
+    }
+
+    std::string ConstructorDefinition::getTypeSignature() const
+    {
+        if (parametersWithTypes.empty()) {
+            return "";
+        }
+
+        std::string signature;
+        for (size_t i = 0; i < parametersWithTypes.size(); ++i) {
+            if (i > 0) signature += ",";
+
+            const auto& paramType = parametersWithTypes[i].second;
+
+            // Use type name if it's an object, otherwise use basic type
+            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
+                signature += paramType.className.value();
+            } else {
+                signature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
+            }
+        }
+        return signature;
     }
 
     bool ConstructorDefinition::matchesArgCount(size_t argCount) const

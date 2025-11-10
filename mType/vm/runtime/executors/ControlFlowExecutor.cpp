@@ -1,6 +1,9 @@
 #include "ControlFlowExecutor.hpp"
 #include "../../../value/PromiseValue.hpp"
+#include "../../../value/AsyncPromiseValue.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include <iostream>
 namespace vm::runtime
 {
     ControlFlowExecutor::ControlFlowExecutor(ExecutionContext& ctx)
@@ -31,6 +34,36 @@ namespace vm::runtime
         value::Value condition = context.stackManager->pop();
         if (isTruthy(condition)) {
             context.instructionPointer = instr.operands[0] - 1;
+        }
+    }
+
+    void ControlFlowExecutor::handleJumpIfFalseOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("JUMP_IF_FALSE_OR_POP requires operand");
+        }
+        // Peek at the value without popping
+        value::Value condition = context.stackManager->peek();
+        if (!isTruthy(condition)) {
+            // If false, jump (keeping the false value on stack as result)
+            context.instructionPointer = instr.operands[0] - 1;
+        } else {
+            // If true, pop it and continue to evaluate the right side
+            context.stackManager->pop();
+        }
+    }
+
+    void ControlFlowExecutor::handleJumpIfTrueOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("JUMP_IF_TRUE_OR_POP requires operand");
+        }
+        // Peek at the value without popping
+        value::Value condition = context.stackManager->peek();
+        if (isTruthy(condition)) {
+            // If true, jump (keeping the true value on stack as result)
+            context.instructionPointer = instr.operands[0] - 1;
+        } else {
+            // If false, pop it and continue to evaluate the right side
+            context.stackManager->pop();
         }
     }
 
@@ -78,8 +111,9 @@ namespace vm::runtime
                 // Check if already wrapped in Promise (by CREATE_PROMISE opcode)
                 // This prevents double-wrapping when bytecode compiler emits CREATE_PROMISE
                 if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(returnVal)) {
-                    // Wrap return value in PromiseValue for async functions
-                    auto promise = std::make_shared<value::PromiseValue>(returnVal);
+                    // Wrap return value in AsyncPromiseValue for async functions
+                    // Use AsyncPromiseValue to support event loop and callbacks
+                    auto promise = std::make_shared<value::AsyncPromiseValue>(returnVal);
                     returnVal = promise;
                 }
             }
@@ -101,6 +135,17 @@ namespace vm::runtime
         }
         if (std::holds_alternative<std::monostate>(val)) {
             return false;
+        }
+        // Check if it's a Bool object (auto-boxed boolean)
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+            if (obj && obj->getClassDefinition()->getName() == "Bool") {
+                // Extract the primitive boolean value from the Bool object
+                value::Value valueField = obj->getFieldValue("value");
+                if (std::holds_alternative<bool>(valueField)) {
+                    return std::get<bool>(valueField);
+                }
+            }
         }
         return true;  // Objects, strings, etc. are truthy
     }

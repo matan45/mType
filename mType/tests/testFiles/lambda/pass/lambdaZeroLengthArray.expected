@@ -1,0 +1,11 @@
+=== Zero Length Array Test ===
+Mapped empty array length: 0
+Filtered empty array length: 0
+Reduced empty array: 100
+Mapped normal array:
+2
+4
+6
+All filtered out length: 0
+Single element result: 52
+Zero length array complete

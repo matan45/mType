@@ -1,0 +1,9 @@
+=== Async Direct Recursion Test ===
+Countdown: 5
+Countdown: 4
+Countdown: 3
+Countdown: 2
+Countdown: 1
+Countdown: 0
+Base case reached
+Sum: 15

@@ -30,12 +30,15 @@ namespace vm::compiler::visitors
         void validateConstructorParameters(
             const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
             const runtimeTypes::klass::ConstructorDefinition* constructor,
-            const ast::SourceLocation& location);
+            const ast::SourceLocation& location,
+            const std::unordered_map<std::string, std::string>& genericTypeBindings = {});
 
     private:
         CompilerContext& ctx;
 
         // Helper methods
+        std::string normalizeTypeString(const std::string& typeStr);
+
         const bytecode::BytecodeProgram::FunctionMetadata* resolveMethodMetadata(
             const std::string& qualifiedName);
 

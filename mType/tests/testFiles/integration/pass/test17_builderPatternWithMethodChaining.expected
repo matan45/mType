@@ -1,0 +1,49 @@
+=== Test 17: Builder Pattern with Method Chaining ===
+--- Test 1: Full computer build ---
+Building computer...
+Computer Configuration:
+  CPU: Intel i9
+  GPU: NVIDIA RTX 4090
+  RAM: 64GB
+  Storage: 2000GB
+  OS: Windows 11
+  WiFi: true
+--- Test 2: Minimal computer build ---
+Building computer...
+Computer Configuration:
+  CPU: Intel i5
+  GPU: Integrated GPU
+  RAM: 16GB
+  Storage: 256GB
+  OS: Linux
+  WiFi: true
+--- Test 3: StringBuilder ---
+Built string: Hello World123
+--- Test 4: Query builder ---
+Query 1: SELECT * FROM users WHERE age > 18 ORDER BY name LIMIT 10
+Query 2: SELECT * FROM products WHERE price < 100 LIMIT 5
+--- Test 5: Server config ---
+Building server config...
+Server: api.example.com:443 (timeout: 60s)
+Building server config...
+Server: localhost:3000 (timeout: 30s)
+--- Test 6: Multiple builds ---
+Building computer...
+Computer 1:
+Computer Configuration:
+  CPU: AMD Ryzen 9
+  GPU: Integrated GPU
+  RAM: 32GB
+  Storage: 256GB
+  OS: Linux
+  WiFi: true
+Building computer...
+Computer 2:
+Computer Configuration:
+  CPU: Apple M2
+  GPU: Integrated
+  RAM: 16GB
+  Storage: 256GB
+  OS: macOS
+  WiFi: true
+=== Test 17 Complete ===

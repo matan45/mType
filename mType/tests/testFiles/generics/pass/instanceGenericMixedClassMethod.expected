@@ -1,0 +1,7 @@
+Box contains: 42
+Transform input: test
+Transform result: test
+GetData result: 42
+Processing: input
+Process result: 42
+Mixed class and method generics test passed

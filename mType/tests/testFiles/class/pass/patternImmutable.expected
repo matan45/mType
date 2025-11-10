@@ -1,0 +1,29 @@
+Test 1: Immutable point operations
+Created ImmutablePoint(10, 20)
+p1: (10, 20)
+Creating new point: (10+5, 20+3)
+Created ImmutablePoint(15, 23)
+p2 (p1 + (5,3)): (15, 23)
+p1 unchanged: (10, 20)
+Creating scaled point: (10*2, 20*2)
+Created ImmutablePoint(20, 40)
+p3 (p1 * 2): (20, 40)
+p1 still unchanged: (10, 20)
+
+Test 2: Immutable person
+Created ImmutablePoint(100, 200)
+Created ImmutablePerson: Alice, age 30
+person1: Alice (age 30) at (100, 200)
+
+Test 3: Create modified person
+Creating person with new age: 31
+Created ImmutablePerson: Alice, age 31
+person2: Alice (age 31) at (100, 200)
+person1 unchanged: Alice (age 30) at (100, 200)
+
+Test 4: Change location
+Created ImmutablePoint(300, 400)
+Creating person with new location
+Created ImmutablePerson: Alice, age 30
+person3: Alice (age 30) at (300, 400)
+person1 still unchanged: Alice (age 30) at (100, 200)

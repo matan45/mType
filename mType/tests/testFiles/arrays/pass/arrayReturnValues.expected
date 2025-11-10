@@ -1,0 +1,12 @@
+Testing array return values
+Created array from function:
+  result[0] = 10
+  result[1] = 20
+  result[2] = 30
+  result[3] = 40
+  result[4] = 50
+String array from function:
+  strings[0] = First
+  strings[1] = Second
+  strings[2] = Third
+Array return values test completed

@@ -1,6 +1,6 @@
 // Complex control flow performance test
 
-    function complexAlgorithm(int n): int {
+    public function complexAlgorithm(int n): int {
         int result = 0;
         
         for (int i = 0; i < n; i++) {

@@ -1,0 +1,10 @@
+=== Async Promise in Class Field Test ===
+Fetching value: 5
+Loading data: 5
+Stored and retrieved: 10
+Result 1: 10
+Fetching value: 10
+Loading data: 10
+Stored and retrieved: 20
+Result 2: 20
+Total loads: 2

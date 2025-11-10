@@ -11,6 +11,7 @@
 #include "executors/ObjectExecutor.hpp"
 #include "executors/LambdaExecutor.hpp"
 #include "executors/ExceptionExecutor.hpp"
+#include "executors/PrimitiveMethodExecutor.hpp"  // Phase 3
 #include "utils/ExceptionHandler.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/UserException.hpp"
@@ -51,6 +52,7 @@ namespace vm::runtime
           , currentSourceFile("")
           , currentSourceLine(0)
           , currentFinallyOffset(SIZE_MAX) // Not in finally initially
+          , pendingFinallyOffset(SIZE_MAX) // No pending exception initially
     {
         callStack.reserve(constants::vm::DEFAULT_CALL_STACK_CAPACITY);
 
@@ -85,6 +87,18 @@ namespace vm::runtime
             instructionPointer = program->getEntryPoint();
             executionStart = std::chrono::steady_clock::now();
             stats = ExecutionStats{};
+
+            // Create an initial call frame for the implicit "main" function
+            // This allows global scope variables to be captured by lambdas
+            // Use "__script_main__" to match the expected name for global scope access checks
+            CallFrame mainFrame;
+            mainFrame.returnAddress = program->getInstructionCount(); // Return past end (halt)
+            mainFrame.frameBase = 0;
+            mainFrame.localBase = 0;
+            mainFrame.functionName = "__script_main__";
+            mainFrame.thisInstance = nullptr;
+            mainFrame.definingClassName = "";
+            callStack.push_back(mainFrame);
         }
 
         // Note: Executors are now initialized in interpretLoop() to ensure
@@ -96,6 +110,12 @@ namespace vm::runtime
         try
         {
             value::Value result = interpretLoop();
+
+            // Pop the main frame if it's still on the stack
+            if (!callStack.empty() && callStack.back().functionName == "__script_main__") {
+                callStack.pop_back();
+            }
+
             return result;
         }
         catch (...)
@@ -171,9 +191,13 @@ namespace vm::runtime
         // Save current state
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
+        size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            // Reset finally offset for new function call
+            currentFinallyOffset = SIZE_MAX;
+
             // Push instance and arguments onto stack
             size_t frameBase = stackManager->size();
             push(instance);
@@ -202,6 +226,7 @@ namespace vm::runtime
             // Restore state
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
 
             return instance;
         }
@@ -210,6 +235,7 @@ namespace vm::runtime
             // Restore state on error
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
             throw;
         }
     }
@@ -266,9 +292,13 @@ namespace vm::runtime
         // Save current state
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
+        size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            // Reset finally offset for new function call
+            currentFinallyOffset = SIZE_MAX;
+
             // Push instance and arguments onto stack
             size_t frameBase = stackManager->size();
             push(instance);
@@ -297,6 +327,7 @@ namespace vm::runtime
             // Restore state
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
 
             return result;
         }
@@ -305,6 +336,7 @@ namespace vm::runtime
             // Restore state on error
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
             throw;
         }
     }
@@ -345,9 +377,13 @@ namespace vm::runtime
         // Save current state
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
+        size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            // Reset finally offset for new function call
+            currentFinallyOffset = SIZE_MAX;
+
             // Push arguments onto stack
             size_t frameBase = stackManager->size();
             for (const auto& arg : args)
@@ -375,6 +411,7 @@ namespace vm::runtime
             // Restore state
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
 
             return result;
         }
@@ -383,6 +420,7 @@ namespace vm::runtime
             // Restore state on error
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
             throw;
         }
     }
@@ -472,6 +510,22 @@ namespace vm::runtime
     {
         suspendedByAwait = false; // Reset flag at start
 
+        // Initialize source location tracking by scanning forward for first instruction with location
+        // This ensures error messages have correct location even before executing instructions
+        if (callStack.empty() && instructionPointer == program->getEntryPoint())
+        {
+            for (size_t ip = instructionPointer; ip < program->getInstructionCount(); ++ip)
+            {
+                auto loc = program->getSourceLocation(ip);
+                if (loc && !loc->filename.empty() && loc->line > 0)
+                {
+                    currentSourceFile = loc->filename;
+                    currentSourceLine = static_cast<int>(loc->line);
+                    break;
+                }
+            }
+        }
+
         // Initialize executors with fresh execution context
         // This ensures executors always have valid references, even when called from C++ API
         ExecutionContext context(program, instructionPointer, callStack, maxCallStackSize,
@@ -489,6 +543,7 @@ namespace vm::runtime
         objectExecutor = std::make_unique<ObjectExecutor>(context);
         lambdaExecutor = std::make_unique<LambdaExecutor>(context);
         exceptionExecutor = std::make_unique<ExceptionExecutor>(context);
+        primitiveMethodExecutor = std::make_unique<PrimitiveMethodExecutor>(context);  // Phase 3
 
         // Set function executor reference in object executor for lambda-to-interface conversion
         objectExecutor->setFunctionExecutor(functionExecutor.get());
@@ -500,17 +555,38 @@ namespace vm::runtime
         {
             const auto& instr = program->getInstruction(instructionPointer);
 
+            // Check if we have a pending exception and we're hitting RETURN
+            // According to Java/C# semantics: a return in finally SUPPRESSES the pending exception
+            // The function returns normally and the exception is discarded
+            // IMPORTANT: Only suppress if:
+            // 1. We're inside a finally block (currentFinallyOffset is set)
+            // 2. The IP is between FINALLY and TRY_END (we're executing finally body)
+            // We can check #2 by seeing if IP > currentFinallyOffset (after FINALLY instruction)
+            if (pendingException != nullptr &&
+                (instr.opcode == bytecode::OpCode::RETURN || instr.opcode == bytecode::OpCode::RETURN_VALUE) &&
+                currentFinallyOffset != SIZE_MAX &&
+                currentFinallyOffset == pendingFinallyOffset &&
+                instructionPointer > currentFinallyOffset)
+            {
+                // Clear the pending exception - the return inside finally overrides it
+                pendingException.reset();
+                pendingFinallyOffset = SIZE_MAX;
+                // Continue with normal return (do NOT re-throw)
+            }
+
+            // Always track source location for error reporting (not just when debugging)
+            auto sourceLoc = program->getSourceLocation(instructionPointer);
+            if (sourceLoc && sourceLoc->line > 0)
+            {
+                currentSourceFile = sourceLoc->filename;
+                currentSourceLine = static_cast<int>(sourceLoc->line);
+            }
+
             // Debug hook: Check for breakpoints and stepping before executing instruction
             if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
             {
-                // Get source location for current instruction from program
-                auto sourceLoc = program->getSourceLocation(instructionPointer);
-
                 if (sourceLoc && sourceLoc->line > 0)
                 {
-                    currentSourceFile = sourceLoc->filename;
-                    currentSourceLine = static_cast<int>(sourceLoc->line);
-
                     // Convert BytecodeProgram::SourceLocation to errors::SourceLocation
                     errors::SourceLocation location(sourceLoc->filename,
                                                     static_cast<int>(sourceLoc->line),
@@ -536,12 +612,88 @@ namespace vm::runtime
 
                 if (!result.handled)
                 {
-                    // No matching catch found anywhere - re-throw
+                    // No matching catch found - check if we're in an async function
+                    if (!callStack.empty())
+                    {
+                        const CallFrame& currentFrame = callStack.back();
+                        auto funcMetadata = program->getFunction(currentFrame.functionName);
+
+                        if (funcMetadata && funcMetadata->isAsync)
+                        {
+                            // We're in an async function - don't propagate exception
+                            // Instead, create a rejected promise and return it
+
+                            // Build error message from exception
+                            std::string errorMsg = e.getExceptionTypeName();
+                            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(e.getExceptionValue()))
+                            {
+                                auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(e.getExceptionValue());
+                                if (objInstance)
+                                {
+                                    // Try to get error message from common exception fields
+                                    try
+                                    {
+                                        value::Value msgValue = objInstance->getFieldValue("msg");
+                                        if (std::holds_alternative<std::string>(msgValue))
+                                        {
+                                            errorMsg += ": " + std::get<std::string>(msgValue);
+                                        }
+                                    }
+                                    catch (...)
+                                    {
+                                        // Field doesn't exist, try "message" field
+                                        try
+                                        {
+                                            value::Value messageValue = objInstance->getFieldValue("message");
+                                            if (std::holds_alternative<std::string>(messageValue))
+                                            {
+                                                errorMsg += ": " + std::get<std::string>(messageValue);
+                                            }
+                                        }
+                                        catch (...)
+                                        {
+                                            // Neither field exists, use just the type name
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Create a rejected promise with the full exception object
+                            auto rejectedPromise = std::make_shared<value::PromiseValue>();
+                            rejectedPromise->rejectWithException(e.getExceptionValue(), e.getExceptionTypeName(), errorMsg);
+
+                            // Clean up call frame and return the rejected promise
+                            controlFlowExecutor->handleReturn();
+                            stackManager->push(std::static_pointer_cast<value::PromiseValue>(rejectedPromise));
+
+                            // Move past the CALL instruction (handleReturn set IP to CALL position)
+                            // We must increment here because continue skips the normal IP increment
+                            instructionPointer++;
+                            stats.instructionsExecuted++;
+                            continue; // Continue execution with the rejected promise on stack
+                        }
+                    }
+
+                    // Not in an async function, or no call stack - re-throw
                     throw;
                 }
 
                 // Jump to the catch/finally block
                 instructionPointer = result.newInstructionPointer;
+
+                // If we jumped to a finally block (not a catch), store the exception as pending
+                // It needs to be re-thrown after the finally block completes
+                if (result.jumpedToFinally)
+                {
+                    pendingException = std::make_unique<errors::UserException>(e);
+                    pendingFinallyOffset = result.newInstructionPointer;  // Store which finally has the pending exception
+                }
+                else
+                {
+                    // Jumped to a catch block - exception is caught, clear any pending exception
+                    pendingException.reset();
+                    pendingFinallyOffset = SIZE_MAX;
+                }
 
                 // Continue execution from the catch/finally block
                 // Don't increment IP here - the normal loop will handle it
@@ -671,6 +823,10 @@ namespace vm::runtime
             break;
         case OpCode::JUMP_IF_TRUE: controlFlowExecutor->handleJumpIfTrue(instr);
             break;
+        case OpCode::JUMP_IF_FALSE_OR_POP: controlFlowExecutor->handleJumpIfFalseOrPop(instr);
+            break;
+        case OpCode::JUMP_IF_TRUE_OR_POP: controlFlowExecutor->handleJumpIfTrueOrPop(instr);
+            break;
         case OpCode::JUMP_BACK: controlFlowExecutor->handleJumpBack(instr);
             break;
         case OpCode::RETURN: controlFlowExecutor->handleReturn();
@@ -701,11 +857,52 @@ namespace vm::runtime
             break;
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;
+        case OpCode::THIS_CONSTRUCTOR: objectExecutor->handleThisConstructor(instr);
+            break;
         case OpCode::SUPER_INVOKE: objectExecutor->handleSuperInvoke(instr);
             break;
         case OpCode::SUPER_GET_FIELD: objectExecutor->handleSuperGetField(instr);
             break;
         case OpCode::SUPER_SET_FIELD: objectExecutor->handleSuperSetField(instr);
+            break;
+
+        // Primitive Method Optimizations - delegated to PrimitiveMethodExecutor (Phase 3)
+        // Int object methods
+        case OpCode::INVOKE_INT_ADD: primitiveMethodExecutor->handleInvokeIntAdd();
+            break;
+        case OpCode::INVOKE_INT_SUB: primitiveMethodExecutor->handleInvokeIntSub();
+            break;
+        case OpCode::INVOKE_INT_MUL: primitiveMethodExecutor->handleInvokeIntMul();
+            break;
+        case OpCode::INVOKE_INT_DIV: primitiveMethodExecutor->handleInvokeIntDiv();
+            break;
+        case OpCode::INVOKE_INT_MOD: primitiveMethodExecutor->handleInvokeIntMod();
+            break;
+        case OpCode::INVOKE_INT_NEG: primitiveMethodExecutor->handleInvokeIntNeg();
+            break;
+        case OpCode::INVOKE_INT_ABS: primitiveMethodExecutor->handleInvokeIntAbs();
+            break;
+        case OpCode::INVOKE_INT_EQUALS: primitiveMethodExecutor->handleInvokeIntEquals();
+            break;
+        case OpCode::INVOKE_INT_COMPARE: primitiveMethodExecutor->handleInvokeIntCompare();
+            break;
+
+        // Float object methods
+        case OpCode::INVOKE_FLOAT_ADD: primitiveMethodExecutor->handleInvokeFloatAdd();
+            break;
+        case OpCode::INVOKE_FLOAT_SUB: primitiveMethodExecutor->handleInvokeFloatSub();
+            break;
+        case OpCode::INVOKE_FLOAT_MUL: primitiveMethodExecutor->handleInvokeFloatMul();
+            break;
+        case OpCode::INVOKE_FLOAT_DIV: primitiveMethodExecutor->handleInvokeFloatDiv();
+            break;
+        case OpCode::INVOKE_FLOAT_NEG: primitiveMethodExecutor->handleInvokeFloatNeg();
+            break;
+        case OpCode::INVOKE_FLOAT_ABS: primitiveMethodExecutor->handleInvokeFloatAbs();
+            break;
+        case OpCode::INVOKE_FLOAT_EQUALS: primitiveMethodExecutor->handleInvokeFloatEquals();
+            break;
+        case OpCode::INVOKE_FLOAT_COMPARE: primitiveMethodExecutor->handleInvokeFloatCompare();
             break;
 
         // Arrays - delegated to ArrayExecutor
@@ -740,11 +937,33 @@ namespace vm::runtime
 
         // Exception handling - delegated to ExceptionExecutor
         case OpCode::TRY_BEGIN:
+            // Entering a new try block - check if we have a pending exception to re-throw
+            if (pendingException != nullptr)
+            {
+                errors::UserException exToRethrow = *pendingException;
+                pendingException.reset();
+                pendingFinallyOffset = SIZE_MAX;
+                currentFinallyOffset = SIZE_MAX;
+                throw exToRethrow;
+            }
             // Entering a new try block - we're no longer in a finally (if we were)
             currentFinallyOffset = SIZE_MAX;
             exceptionExecutor->handleTryBegin(instr);
             break;
-        case OpCode::TRY_END: exceptionExecutor->handleTryEnd(instr);
+        case OpCode::TRY_END:
+            // TRY_END marks end of try body OR end of entire try-catch-finally construct
+            // If we have a pending exception, this means we've exited the finally block, so re-throw
+            if (pendingException != nullptr)
+            {
+                errors::UserException exToRethrow = *pendingException;
+                pendingException.reset();
+                pendingFinallyOffset = SIZE_MAX;
+                currentFinallyOffset = SIZE_MAX;
+                throw exToRethrow;
+            }
+            // Reset currentFinallyOffset - we've exited the finally block
+            currentFinallyOffset = SIZE_MAX;
+            exceptionExecutor->handleTryEnd(instr);
             break;
         case OpCode::CATCH: exceptionExecutor->handleCatch(instr);
             break;
@@ -805,6 +1024,17 @@ namespace vm::runtime
                     // Push the unwrapped value back onto the stack
                     stackManager->push(promise->getValue());
                     break;
+                }
+
+                // Check if promise was rejected (contains an exception)
+                if (promise->isRejected())
+                {
+                    // Re-throw the stored exception so it can be caught by try-catch blocks
+                    // Use UserException with the original exception value and type name
+                    throw errors::UserException(
+                        promise->getExceptionValue(),
+                        promise->getExceptionTypeName()
+                    );
                 }
 
                 // SLOW PATH: Promise not yet fulfilled - cooperative multitasking

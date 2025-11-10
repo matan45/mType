@@ -1,0 +1,8 @@
+=== Higher-Order Function Type Validation Test ===
+10 * 2 = 20
+10 * 5 = 50
+(5 + 10) * 2 = 30
+(5 * 2) + 10 = 20
+10 + 5 = 15
+10 + 100 = 110
+Higher-order function types validated

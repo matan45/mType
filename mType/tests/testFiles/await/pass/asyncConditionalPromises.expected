@@ -1,0 +1,11 @@
+=== Conditional Promises Test ===
+Test 1: condition true
+Checking condition: true
+Taking path A
+Selected: PathA with value 100
+Test 2: condition false
+Checking condition: false
+Taking path B
+Selected: PathB with value 200
+Total: 300
+Final: 300

@@ -1,0 +1,53 @@
+=== Test 1: Detailed exception message ===
+Creating detailed exception
+Caught: Operation failed
+Full message: Operation failed [Context: Database connection, Code: 500]
+Stack trace with custom message: true
+Detailed exception handled
+
+=== Test 2: Formatted exception message ===
+Performing operation with: 0
+Caught: Failed to process with value 0: zero value not allowed
+Formatted message in stack trace: true
+Formatted exception handled
+
+=== Test 3: Multi-part exception message ===
+Validating field: username
+Caught: Validation failed for field 'username'
+Details: Field: username, Expected: non-empty, Actual: empty
+Multi-part message in stack trace: true
+Validation exception handled
+
+=== Test 4: Special characters in message ===
+Throwing exception with special chars
+Caught: Error: Value "test" failed at line #42
+Special chars preserved: true
+Special char exception handled
+
+=== Test 5: Numeric context in message ===
+Checking: 150 against limit: 100
+Caught: Value exceeds threshold
+Comparison: Threshold: 100, Actual: 150
+Numeric context in stack trace: true
+Numeric exception handled
+
+=== Test 6: Concatenated message ===
+Building exception message
+Caught: Phase 1 failed | Rollback initiated | System stable
+Concatenated message in stack trace: true
+Concatenated message handled
+
+=== Test 7: State information in message ===
+Transitioning state: CLOSED to PROCESSING
+Caught: Invalid state transition
+State info: State 123: CLOSED -> PROCESSING
+State info in stack trace: true
+State exception handled
+
+=== Test 8: Long exception message ===
+Throwing exception with long message
+Caught: This is a very long exception message that contains detailed information about what went wrong in the system and provides context for debugging purposes
+Long message in stack trace: true
+Long message handled
+
+Custom message stack trace test completed

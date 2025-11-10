@@ -4,6 +4,10 @@
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
+#include "../../../ast/nodes/expressions/IntegerNode.hpp"
+#include "../../../ast/nodes/expressions/FloatNode.hpp"
+#include "../../../ast/nodes/expressions/BoolNode.hpp"
+#include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
@@ -37,6 +41,16 @@ namespace vm::compiler::visitors
         // Function starts here
         size_t functionStart = ctx.program.getCurrentOffset();
 
+        // Build list of valid generic type parameter names for validation
+        std::vector<std::string> validGenericParams;
+        if (node->isGeneric())
+        {
+            for (const auto& param : node->getGenericTypeParameters())
+            {
+                validGenericParams.push_back(param.name);
+            }
+        }
+
         // Get parameters with type information preserved
         auto paramTypesVec = node->getParameterTypes();
         std::vector<std::string> paramNames;
@@ -46,13 +60,25 @@ namespace vm::compiler::visitors
             paramNames.push_back(param.first);
             // ParameterType preserves class names for object types
             const auto& paramType = param.second;
+            std::string paramTypeStr;
             if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
             {
-                paramTypes.push_back(paramType.className.value());
+                paramTypeStr = paramType.className.value();
             }
             else
             {
-                paramTypes.push_back(::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType));
+                paramTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
+            }
+            paramTypes.push_back(paramTypeStr);
+
+            // Validate parameter type exists
+            if (!isValidTypeName(paramTypeStr, validGenericParams))
+            {
+                throw errors::TypeException(
+                    "Undefined type '" + paramTypeStr + "' in parameter '" + param.first + "'. " +
+                    "Type must be a primitive, declared generic parameter, or existing class/interface.",
+                    node->getLocation()
+                );
             }
         }
 
@@ -68,8 +94,19 @@ namespace vm::compiler::visitors
             returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(node->getReturnType());
         }
 
+        // Validate return type exists
+        if (!isValidTypeName(returnTypeStr, validGenericParams))
+        {
+            throw errors::TypeException(
+                "Undefined type '" + returnTypeStr + "' in return type. " +
+                "Type must be a primitive, declared generic parameter, or existing class/interface.",
+                node->getLocation()
+            );
+        }
+
         // Enter function frame for local variable tracking
-        ctx.functionFrameManager.enterFunctionFrame(returnTypeStr,
+        ctx.functionFrameManager.enterFunctionFrame(funcName,
+                                                    returnTypeStr,
                                                     ctx.variableTracker.getNextLocalSlot(),
                                                     ctx.variableTracker.getCurrentScopeDepth(),
                                                     false, // Not a lambda
@@ -162,6 +199,10 @@ namespace vm::compiler::visitors
         // Patch skip jump to here (after function)
         ctx.emitter.patchJump(skipJump);
 
+        // PHASE 2 FIX: Get existing metadata to preserve parameterTypeParameterUsage
+        // The function was already registered during FunctionRegistrar phase with this data
+        const auto* existingMetadata = ctx.program.getFunction(funcName);
+
         // Register function metadata
         bytecode::BytecodeProgram::FunctionMetadata metadata;
         metadata.name = funcName;
@@ -184,6 +225,18 @@ namespace vm::compiler::visitors
             {
                 metadata.genericTypeParameters.push_back(param.name);
             }
+
+            // PHASE 2 FIX: Preserve parameterTypeParameterUsage from initial registration
+            if (existingMetadata)
+            {
+                metadata.parameterTypeParameterUsage = existingMetadata->parameterTypeParameterUsage;
+            }
+        }
+
+        // Preserve exception table from existing metadata (built during body compilation)
+        if (existingMetadata)
+        {
+            metadata.exceptionTable = existingMetadata->exceptionTable;
         }
 
         ctx.program.registerFunction(funcName, metadata);
@@ -223,6 +276,32 @@ namespace vm::compiler::visitors
             else if (expectedReturnType == "string") expectedType = value::ValueType::STRING;
             else if (expectedReturnType == "bool") expectedType = value::ValueType::BOOL;
             else if (expectedReturnType == "void") expectedType = value::ValueType::VOID;
+            else if (expectedReturnType.find("Array<") == 0 || expectedReturnType.find("[]") != std::string::npos) {
+                expectedType = value::ValueType::ARRAY; // Array types (Array<T> or T[])
+            }
+            // PHASE 4: Handle Promise<Array<T>> or Promise<T[]> for async functions
+            else if (expectedReturnType.find("Promise<") == 0) {
+                // Extract inner type from Promise<T>
+                size_t start = expectedReturnType.find('<') + 1;
+                size_t end = expectedReturnType.rfind('>');
+                if (start != std::string::npos && end != std::string::npos && end > start) {
+                    std::string innerType = expectedReturnType.substr(start, end - start);
+                    // Trim whitespace
+                    innerType.erase(0, innerType.find_first_not_of(" \t"));
+                    innerType.erase(innerType.find_last_not_of(" \t") + 1);
+
+                    // Check if inner type is an array
+                    if (innerType.find("Array<") == 0 || innerType.find("[]") != std::string::npos) {
+                        expectedType = value::ValueType::ARRAY;
+                    }
+                    else {
+                        expectedType = value::ValueType::OBJECT; // Promise<Object>
+                    }
+                }
+                else {
+                    expectedType = value::ValueType::OBJECT;
+                }
+            }
             else expectedType = value::ValueType::OBJECT; // Class/interface types
 
             // Check if types match (allow VOID for unknown types)
@@ -236,12 +315,29 @@ namespace vm::compiler::visitors
                         // Special case: int can be returned for float
                         if (!(expectedType == value::ValueType::FLOAT && actualType == value::ValueType::INT))
                         {
-                            std::string actualTypeStr =
-                                ::types::TypeConversionUtils::getTypeDisplayName(actualType);
-                            throw errors::TypeException(
-                                "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
-                                node->getLocation()
-                            );
+                            // PHASE 4: Allow primitive literals when returning Box types (auto-boxing)
+                            bool canAutoBox = false;
+                            if (expectedType == value::ValueType::OBJECT)
+                            {
+                                // Check if expected is a Box type and actual is corresponding primitive
+                                if ((expectedReturnType == "Int" && actualType == value::ValueType::INT) ||
+                                    (expectedReturnType == "Float" && actualType == value::ValueType::FLOAT) ||
+                                    (expectedReturnType == "Bool" && actualType == value::ValueType::BOOL) ||
+                                    (expectedReturnType == "String" && actualType == value::ValueType::STRING))
+                                {
+                                    canAutoBox = true;
+                                }
+                            }
+
+                            if (!canAutoBox)
+                            {
+                                std::string actualTypeStr =
+                                    ::types::TypeConversionUtils::getTypeDisplayName(actualType);
+                                throw errors::TypeException(
+                                    "Return type mismatch: expected " + expectedReturnType + " but got " + actualTypeStr,
+                                    node->getLocation()
+                                );
+                            }
                         }
                     }
                 }
@@ -304,6 +400,13 @@ namespace vm::compiler::visitors
             ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
         }
 
+        // Convert absolute slot to relative slot for STORE_LOCAL emission
+        size_t relativeReturnSlot = returnValueSlot;
+        if (ctx.functionFrameManager.isInFunction()) {
+            size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+            relativeReturnSlot = returnValueSlot - startSlot;
+        }
+
         if (returnValue)
         {
             // For async functions, wrap in Promise before storing
@@ -314,7 +417,7 @@ namespace vm::compiler::visitors
             }
 
             // Store return value in the special slot
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeReturnSlot), node);
         }
         else
         {
@@ -328,7 +431,7 @@ namespace vm::compiler::visitors
             }
 
             // Store return value
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeReturnSlot), node);
         }
 
         // Jump to finally
@@ -348,6 +451,13 @@ namespace vm::compiler::visitors
             ctx.exceptionManager.setReturnValueSlotForOuter(outerReturnValueSlot);
         }
 
+        // Convert absolute slot to relative slot for STORE_LOCAL emission
+        size_t relativeOuterReturnSlot = outerReturnValueSlot;
+        if (ctx.functionFrameManager.isInFunction()) {
+            size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+            relativeOuterReturnSlot = outerReturnValueSlot - startSlot;
+        }
+
         if (returnValue)
         {
             // Wrap in Promise if needed
@@ -356,7 +466,7 @@ namespace vm::compiler::visitors
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
             // Store return value in outer slot
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot),
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeOuterReturnSlot),
                                          node);
         }
         else
@@ -371,7 +481,7 @@ namespace vm::compiler::visitors
             }
 
             // Store return value
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot),
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeOuterReturnSlot),
                                          node);
         }
 
@@ -421,7 +531,14 @@ namespace vm::compiler::visitors
         // Compile return value expression if present
         if (returnValue)
         {
-            returnValue->accept(ctx.visitor);
+            // PHASE 4: Try auto-boxing for return statements
+            bool autoBoxed = tryEmitReturnAutoBoxing(returnValue);
+
+            // If not auto-boxed, compile value normally
+            if (!autoBoxed)
+            {
+                returnValue->accept(ctx.visitor);
+            }
         }
 
         // Check if in function context
@@ -437,6 +554,12 @@ namespace vm::compiler::visitors
             {
                 // We're in a finally block, but there's an outer finally that must execute
                 // Store return value and jump to outer finally instead of returning immediately
+                emitReturnWithOuterFinally(node, returnValue);
+            }
+            else if (!ctx.exceptionManager.isInFinally() && ctx.exceptionManager.hasOuterFinally())
+            {
+                // We're in a try-catch (without finally), but there's an outer finally that must execute
+                // Store return value and jump to outer finally
                 emitReturnWithOuterFinally(node, returnValue);
             }
             else
@@ -479,29 +602,174 @@ namespace vm::compiler::visitors
             if (local.slot >= currentFrameStart)
             {
                 capturedVars.push_back(local);
+                // Mark this variable as captured to prevent slot reuse
+                ctx.variableTracker.markVariableAsCaptured(local.slot);
             }
         }
 
         return capturedVars;
     }
 
-    void FunctionCompiler::setupLambdaFrame(ast::LambdaNode* node,
-                                            const std::vector<variables::VariableTracker::LocalVariable>& capturedVars)
+    std::vector<std::string> FunctionCompiler::setupLambdaFrame(ast::LambdaNode* node,
+                                            const std::vector<variables::VariableTracker::LocalVariable>& capturedVars,
+                                            const std::string& lambdaFuncName)
     {
         const auto& params = node->getParameters();
+        std::vector<std::string> parameterTypeNames; // Will store parameter type names for metadata
+
+        // Validate that lambda parameters don't shadow outer scope variables (C# behavior)
+        for (const auto& param : params)
+        {
+            for (const auto& captured : capturedVars)
+            {
+                if (param.name == captured.name)
+                {
+                    throw errors::TypeException(
+                        "Lambda parameter '" + param.name + "' shadows outer scope variable. "
+                        "Variable shadowing is not allowed in lambdas (C# semantics).",
+                        node->getLocation());
+                }
+            }
+        }
 
         // Enter function frame for lambda
-        ctx.functionFrameManager.enterFunctionFrame("auto",
+        ctx.functionFrameManager.enterFunctionFrame(lambdaFuncName,
+                                                    "auto",
                                                     0, // Lambda parameters start from slot 0
                                                     ctx.variableTracker.getCurrentScopeDepth(),
                                                     true, // Mark this frame as a lambda
                                                     node->getIsAsync()); // Mark if async lambda
+
+        // Store captured variable names in the frame for shadowing validation
+        auto& currentFrame = ctx.functionFrameManager.currentFrame();
+        for (const auto& captured : capturedVars)
+        {
+            currentFrame.capturedVariableNames.push_back(captured.name);
+        }
+
         ctx.variableTracker.beginScope();
 
-        // Track lambda parameters as locals (they occupy slots 0, 1, 2, ...)
-        for (const auto& param : params)
+        // Resolve lambda parameter types from expected type context
+        std::vector<std::pair<value::ValueType, std::string>> resolvedParamTypes;
+
+        if (ctx.hasExpectedTypeContext())
         {
-            ctx.variableTracker.declareLocal(param.name, value::ValueType::VOID, "");
+            auto expectedCtx = ctx.getCurrentExpectedTypeContext();
+
+            if (expectedCtx.expectedType == value::ValueType::OBJECT)
+            {
+                std::string baseClassName = expectedCtx.getBaseClassName();
+
+                // Check if this is an interface type
+                auto interfaceDef = ctx.environment->findInterface(baseClassName);
+
+                if (interfaceDef && interfaceDef->isFunctionalInterface())
+                {
+                    auto* samMethod = interfaceDef->getFunctionalMethod();
+
+                    if (samMethod) {
+                    }
+
+                    if (samMethod && samMethod->parameters.size() == params.size())
+                    {
+                        // Build generic bindings if interface is generic
+                        std::unordered_map<std::string, std::string> bindings;
+
+                        if (expectedCtx.hasGenericArguments())
+                        {
+                            auto genericArgs = expectedCtx.extractGenericArguments();
+                            const auto& interfaceGenericParams = interfaceDef->getGenericParameters();
+
+                            for (size_t i = 0; i < interfaceGenericParams.size() && i < genericArgs.size(); ++i)
+                            {
+                                bindings[interfaceGenericParams[i].name] = genericArgs[i];
+                            }
+                        }
+
+                        // Resolve parameter types using bindings (or use concrete types directly)
+                        for (size_t i = 0; i < samMethod->parameters.size(); ++i)
+                        {
+                            std::string paramTypeName = samMethod->parameters[i].second->toString();
+
+                            // Resolve generic type parameters (T -> Int, etc.)
+                            if (!bindings.empty())
+                            {
+                                auto it = bindings.find(paramTypeName);
+                                if (it != bindings.end())
+                                {
+                                    paramTypeName = it->second;
+                                }
+                            }
+
+                            // Determine ValueType and className from the resolved type name
+                            value::ValueType paramType;
+                            std::string paramClassName = "";
+
+                            // Map type names to ValueType
+                            if (paramTypeName == "int")
+                            {
+                                paramType = value::ValueType::INT;
+                            }
+                            else if (paramTypeName == "float")
+                            {
+                                paramType = value::ValueType::FLOAT;
+                            }
+                            else if (paramTypeName == "bool")
+                            {
+                                paramType = value::ValueType::BOOL;
+                            }
+                            else if (paramTypeName == "string")
+                            {
+                                paramType = value::ValueType::STRING;
+                            }
+                            else if (paramTypeName == "void")
+                            {
+                                paramType = value::ValueType::VOID;
+                            }
+                            else
+                            {
+                                // Object type (Int, Float, Bool, String, or custom classes)
+                                paramType = value::ValueType::OBJECT;
+                                paramClassName = paramTypeName;
+                            }
+
+                            resolvedParamTypes.push_back({paramType, paramClassName});
+                        }
+                    }
+                }
+            }
+        }
+
+        // Track lambda parameters as locals (they occupy slots 0, 1, 2, ...)
+        for (size_t i = 0; i < params.size(); ++i)
+        {
+            if (i < resolvedParamTypes.size())
+            {
+                ctx.variableTracker.declareLocal(params[i].name, resolvedParamTypes[i].first, resolvedParamTypes[i].second);
+
+                // Store parameter type name for metadata
+                if (!resolvedParamTypes[i].second.empty()) {
+                    // Object type with className
+                    parameterTypeNames.push_back(resolvedParamTypes[i].second);
+                } else {
+                    // Primitive type - convert ValueType to string
+                    std::string typeName;
+                    switch (resolvedParamTypes[i].first) {
+                        case value::ValueType::INT: typeName = "int"; break;
+                        case value::ValueType::FLOAT: typeName = "float"; break;
+                        case value::ValueType::BOOL: typeName = "bool"; break;
+                        case value::ValueType::STRING: typeName = "string"; break;
+                        case value::ValueType::VOID: typeName = "void"; break;
+                        default: typeName = "object"; break;
+                    }
+                    parameterTypeNames.push_back(typeName);
+                }
+            }
+            else
+            {
+                ctx.variableTracker.declareLocal(params[i].name, value::ValueType::VOID, "");
+                parameterTypeNames.push_back("auto"); // Unknown type
+            }
         }
 
         // Add captured variables as locals (they occupy slots after parameters)
@@ -512,6 +780,8 @@ namespace vm::compiler::visitors
 
         // Update max local slot
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+
+        return parameterTypeNames;
     }
 
     void FunctionCompiler::emitLambdaInstruction(size_t lambdaStart, ast::LambdaNode* node,
@@ -598,8 +868,24 @@ namespace vm::compiler::visitors
         // Reset local slot counter for lambda's own scope
         ctx.variableTracker.resetLocalSlot();
 
+        // Pre-register lambda metadata so exception tables can be added during body compilation
+        bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
+        tempMetadata.name = lambdaFuncName;
+        tempMetadata.startOffset = lambdaStart;
+        tempMetadata.instructionCount = 0;  // Will be updated after compilation
+        tempMetadata.localCount = 0;        // Will be updated after compilation
+        tempMetadata.parameterCount = node->getParameters().size();
+        tempMetadata.returnType = "auto";
+        tempMetadata.isAsync = node->getIsAsync();
+        tempMetadata.isStatic = false;
+        tempMetadata.isNative = false;
+        ctx.program.registerFunction(lambdaFuncName, tempMetadata);
+
         // Setup lambda frame with parameters and captured variables
-        setupLambdaFrame(node, capturedVars);
+        std::vector<std::string> parameterTypes = setupLambdaFrame(node, capturedVars, lambdaFuncName);
+
+        // IMPORTANT: Lambda body should compile in the same class context as the enclosing method
+        // ctx.currentClassNode should already be set from the enclosing class/method compilation
 
         // Compile lambda body
         auto* body = node->getBody();
@@ -619,7 +905,13 @@ namespace vm::compiler::visitors
         else
         {
             // Block lambda: () -> { ... }
+            // Create a new scope for the lambda body to allow shadowing of captured variables
+            ctx.variableTracker.beginScope();
+
             body->accept(ctx.visitor);
+
+            // End the lambda body scope
+            ctx.variableTracker.endScope();
 
             // Implicit return null if no explicit return
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
@@ -660,18 +952,28 @@ namespace vm::compiler::visitors
         // Patch the skip jump to here
         ctx.program.patchJump(skipJump, static_cast<uint32_t>(lambdaEnd));
 
-        // Register lambda metadata for peephole optimizer
-        // This ensures lambda offsets are updated when instructions are removed
+        // Update lambda metadata (preserving exception table from body compilation)
+        auto* existingMetadata = const_cast<bytecode::BytecodeProgram::FunctionMetadata*>(
+            ctx.program.getFunction(lambdaFuncName)
+        );
+
         bytecode::BytecodeProgram::FunctionMetadata metadata;
         metadata.name = lambdaFuncName;
         metadata.startOffset = lambdaStart;
         metadata.instructionCount = lambdaEnd - lambdaStart;
         metadata.localCount = localCount;
         metadata.parameterCount = node->getParameters().size();
+        metadata.parameterTypes = parameterTypes; // Store parameter types for runtime auto-boxing
         metadata.returnType = "auto"; // Lambda return type is inferred
         metadata.isNative = false;
         metadata.isAsync = node->getIsAsync();
         metadata.localVariableNames = localVarNames;
+
+        // Preserve exception table built during body compilation
+        if (existingMetadata) {
+            metadata.exceptionTable = existingMetadata->exceptionTable;
+        }
+
         ctx.program.registerFunction(lambdaFuncName, metadata);
 
         // Emit lambda instruction with captured environment
@@ -681,5 +983,111 @@ namespace vm::compiler::visitors
         ctx.variableTracker.setLocalSlot(savedNextLocalSlot);
 
         return std::monostate{};
+    }
+
+    bool FunctionCompiler::isValidTypeName(const std::string& typeName,
+                                           const std::vector<std::string>& validGenericParams)
+    {
+        // Extract base type name first (handle generics like "List<T>", "Array<K>")
+        std::string baseTypeName = typeName;
+        size_t anglePos = typeName.find('<');
+        if (anglePos != std::string::npos)
+        {
+            baseTypeName = typeName.substr(0, anglePos);
+        }
+
+        // Check if base type is a primitive type (including Array for array types, object for generic constraints, and Promise for async/await)
+        if (baseTypeName == "int" || baseTypeName == "float" || baseTypeName == "string" ||
+            baseTypeName == "bool" || baseTypeName == "void" || baseTypeName == "Array" ||
+            baseTypeName == "object" || baseTypeName == "Promise")
+        {
+            return true;
+        }
+
+        // Check if it's a declared generic type parameter (check full type name, not base)
+        for (const auto& genericParam : validGenericParams)
+        {
+            if (typeName == genericParam)
+            {
+                return true;
+            }
+        }
+
+        // Check if base type is an existing class or interface
+        if (ctx.environment->findClass(baseTypeName) != nullptr)
+        {
+            return true;
+        }
+        if (ctx.environment->findInterface(baseTypeName) != nullptr)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool FunctionCompiler::tryEmitReturnAutoBoxing(ast::ASTNode* returnValue)
+    {
+        // Only try auto-boxing if we're in a function context
+        if (!ctx.functionFrameManager.isInFunction() || !returnValue)
+        {
+            return false;
+        }
+
+        // Get expected return type from function frame
+        std::string expectedReturnType = ctx.functionFrameManager.currentFrame().returnType;
+
+        // Only auto-box for primitive Box types (Int, Float, Bool, String)
+        bool isBoxType = (expectedReturnType == "Int" || expectedReturnType == "Float" ||
+                          expectedReturnType == "Bool" || expectedReturnType == "String");
+        if (!isBoxType)
+        {
+            return false;
+        }
+
+        // Check if returnValue is a primitive literal that needs boxing
+        bool needsBoxing = false;
+        ast::ASTNode* literalToBox = nullptr;
+
+        if (expectedReturnType == "Int" && dynamic_cast<ast::IntegerNode*>(returnValue))
+        {
+            needsBoxing = true;
+            literalToBox = returnValue;
+        }
+        else if (expectedReturnType == "Float" && dynamic_cast<ast::FloatNode*>(returnValue))
+        {
+            needsBoxing = true;
+            literalToBox = returnValue;
+        }
+        else if (expectedReturnType == "Bool" && dynamic_cast<ast::BoolNode*>(returnValue))
+        {
+            needsBoxing = true;
+            literalToBox = returnValue;
+        }
+        else if (expectedReturnType == "String" && dynamic_cast<ast::StringNode*>(returnValue))
+        {
+            needsBoxing = true;
+            literalToBox = returnValue;
+        }
+
+        if (!needsBoxing)
+        {
+            return false;
+        }
+
+        // PHASE 4 AUTO-BOXING: Emit bytecode for boxing
+        // Equivalent to: return new ExpectedType(literalValue);
+
+        // 1. Compile the literal value (pushes it onto stack)
+        literalToBox->accept(ctx.visitor);
+
+        // 2. Emit NEW_OBJECT for the Box class
+        size_t classNameIndex = ctx.program.getConstantPool().addString(expectedReturnType);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                     static_cast<uint32_t>(classNameIndex),
+                                     1u, // 1 constructor argument
+                                     literalToBox);
+
+        return true; // Auto-boxing was applied
     }
 }

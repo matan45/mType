@@ -20,7 +20,7 @@
         }
     }
     
-    function createManyWorkers(): int {
+    public function createManyWorkers(): int {
         int totalWork = 0;
         final int NUM_WORKERS = 20;
         

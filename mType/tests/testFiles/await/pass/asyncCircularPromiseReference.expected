@@ -1,0 +1,11 @@
+=== Async Circular Promise Reference Test ===
+Creating circular structure
+Circular structure created
+Traversing limited steps...
+Node value: 1
+Node value: 1
+Node value: 1
+Node value: 1
+Node value: 1
+Traversed 5 nodes
+Result: 5

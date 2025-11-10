@@ -1,0 +1,11 @@
+intValue after +=: 15
+floatValue after +=: 6
+mixedValue after += int: 15
+subValue after -=: 13
+floatSub after -=: 7
+mulValue after *=: 15
+floatMul after *=: 10
+divValue after /=: 5
+floatDiv after /=: 4
+text after +=: Hello World
+counter after multiple ops: 2

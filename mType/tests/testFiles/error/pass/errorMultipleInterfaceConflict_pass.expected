@@ -1,0 +1,30 @@
+=== Test 1: Dual Interface ===
+Testing dual interface implementation:
+Validating: valid
+Validation passed: true
+Validating: runtime
+Caught runtime exception: Runtime exception thrown
+Validating: exception
+Caught general exception: General exception thrown
+
+=== Test 2: Combined Handler ===
+Testing combined handler:
+Combined validation: ok
+Combined validation passed: true
+Combined validation: illegal
+Caught illegal argument: Illegal argument
+Combined validation: general
+Caught general error: General error
+
+=== Test 3: Multi-Service ===
+Testing three-interface service:
+Multi-service executing: normal
+Execution result: Success: normal
+Multi-service executing: illegal
+Caught illegal: Illegal command
+Multi-service executing: runtime
+Caught runtime: Runtime error
+Multi-service executing: general
+Caught general: General error
+
+Multiple interface conflict test passed!

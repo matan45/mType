@@ -1,0 +1,78 @@
+Testing resource leak detection
+Test 1: No resource leaks
+Allocated: Resource1
+Allocated: Resource2
+Using: Resource1
+Using: Resource2
+Released: Resource1
+Released: Resource2
+Resource Report:
+  Allocated: 2
+  Released: 2
+  Leaked: 0
+---
+Test 2: Resource leak detection
+Allocated: LeakyResource1
+Allocated: LeakyResource2
+Allocated: ProperResource
+Using: LeakyResource1
+Using: LeakyResource2
+Using: ProperResource
+Released: ProperResource
+Resource Report:
+  Allocated: 3
+  Released: 1
+  Leaked: 2
+---
+Test 3: Leak on exception without finally
+Allocated: ExceptionResource1
+Allocated: ExceptionResource2
+Using: ExceptionResource1
+Caught: Operation failed
+Resource Report:
+  Allocated: 2
+  Released: 0
+  Leaked: 2
+---
+Test 4: No leak with finally block
+Allocated: SafeResource1
+Allocated: SafeResource2
+Using: SafeResource1
+Caught: Operation failed
+Released: SafeResource1
+Released: SafeResource2
+Resource Report:
+  Allocated: 2
+  Released: 2
+  Leaked: 0
+---
+Test 5: Partial leak detection
+Allocated: Partial1
+Allocated: Partial2
+Allocated: Partial3
+Allocated: Partial4
+Using: Partial1
+Using: Partial2
+Using: Partial3
+Using: Partial4
+Released: Partial1
+Released: Partial3
+Resource Report:
+  Allocated: 4
+  Released: 2
+  Leaked: 2
+---
+Test 6: Nested scope leak tracking
+Allocated: OuterResource
+Allocated: InnerResource1
+Allocated: InnerResource2
+Using: InnerResource1
+Using: InnerResource2
+Released: InnerResource1
+Using: OuterResource
+Released: OuterResource
+Resource Report:
+  Allocated: 3
+  Released: 2
+  Leaked: 1
+Leak detection test completed

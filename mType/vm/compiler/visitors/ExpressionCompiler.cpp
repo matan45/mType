@@ -3,10 +3,16 @@
 #include "ArrayCompiler.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
+#include "../../../ast/nodes/expressions/IntegerNode.hpp"
+#include "../../../ast/nodes/expressions/FloatNode.hpp"
+#include "../../../ast/nodes/expressions/BoolNode.hpp"
+#include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../../../ast/nodes/classes/NewNode.hpp"
+#include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../errors/UndefinedException.hpp"
-
+#include  <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -23,16 +29,114 @@ namespace vm::compiler::visitors
     {
         auto leftType = ctx.typeInference.inferExpressionType(node->getLeft());
         auto rightType = ctx.typeInference.inferExpressionType(node->getRight());
+        auto leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
+        auto rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
         auto op = node->getOperator();
 
-        // Validate binary operation
+        // PHASE 4: Try operator overloading FIRST for Box types (Int, Float, Bool, String)
+        // This transforms operators into method calls (e.g., a + b → a.add(b))
+        // Must check BEFORE validation since Box types don't support primitive operators
+        if (tryEmitOperatorOverloading(node, node->getLeft(), node->getRight(), op))
+        {
+            return std::monostate{};  // Operator overloading handled the compilation
+        }
+
+        // Validate binary operation (only for non-overloaded operators)
         bool leftIsNull = dynamic_cast<ast::NullNode*>(node->getLeft()) != nullptr;
         bool rightIsNull = dynamic_cast<ast::NullNode*>(node->getRight()) != nullptr;
-        ctx.typeValidator.validateBinaryOperation(leftType, rightType, op, leftIsNull, rightIsNull, node->getLocation());
+        ctx.typeValidator.validateBinaryOperation(leftType, leftClassName, rightType, rightClassName, op, leftIsNull, rightIsNull, node->getLocation());
 
-        // Compile operands
+        // Handle short-circuit logical operators specially
+        if (op == token::TokenType::AND) {
+            // For &&: if left is false, skip right and return false
+
+            // PHASE 4: Auto-unbox left operand if it's a Bool object
+            std::string leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
+            node->getLeft()->accept(ctx.visitor);
+            if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getLeft());
+            }
+
+            size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE_OR_POP, node);
+
+            // PHASE 4: Auto-unbox right operand if it's a Bool object
+            std::string rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
+            node->getRight()->accept(ctx.visitor);
+            if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getRight());
+            }
+
+            ctx.emitter.patchJump(jumpOffset);
+            return std::monostate{};
+        }
+
+        if (op == token::TokenType::OR) {
+            // For ||: if left is true, skip right and return true
+
+            // PHASE 4: Auto-unbox left operand if it's a Bool object
+            std::string leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
+            node->getLeft()->accept(ctx.visitor);
+            if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getLeft());
+            }
+
+            size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE_OR_POP, node);
+
+            // PHASE 4: Auto-unbox right operand if it's a Bool object
+            std::string rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
+            node->getRight()->accept(ctx.visitor);
+            if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getRight());
+            }
+
+            ctx.emitter.patchJump(jumpOffset);
+            return std::monostate{};
+        }
+
+        // Compile operands for other operators
         node->getLeft()->accept(ctx.visitor);  // Will need delegation
+
+        // Auto-unbox left operand for comparison operators if it's Int or Float
+        bool isComparisonOp = (op == token::TokenType::LESS || op == token::TokenType::GREATER ||
+                              op == token::TokenType::LESS_EQUALS || op == token::TokenType::GREATER_EQUALS);
+        if (isComparisonOp && leftType == value::ValueType::OBJECT)
+        {
+            std::string leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
+            if (leftClassName == "Int" || leftClassName == "Float")
+            {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getLeft());
+            }
+        }
+
         node->getRight()->accept(ctx.visitor);  // Will need delegation
+
+        // Auto-unbox right operand for comparison operators if it's Int or Float
+        if (isComparisonOp && rightType == value::ValueType::OBJECT)
+        {
+            std::string rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
+            if (rightClassName == "Int" || rightClassName == "Float")
+            {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint32_t>(getValueIndex),
+                                             0u, node->getRight());
+            }
+        }
 
         // Emit appropriate opcode
         bool typeSpecialized = (leftType == value::ValueType::INT && rightType == value::ValueType::INT);
@@ -135,6 +239,26 @@ namespace vm::compiler::visitors
 
         // For other unary operators
         node->getOperand()->accept(ctx.visitor);  // Will need delegation
+
+        // PHASE 4: Auto-unbox Bool objects for NOT operator
+        if (op == token::TokenType::NOT)
+        {
+            value::ValueType operandType = ctx.typeInference.inferExpressionType(node->getOperand());
+            if (operandType == value::ValueType::OBJECT)
+            {
+                std::string operandClassName = ctx.typeInference.inferExpressionClassName(node->getOperand());
+                if (operandClassName == "Bool")
+                {
+                    // Auto-unbox: call getValue() to get primitive bool
+                    size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                                 static_cast<uint32_t>(methodNameIndex),
+                                                 0u,  // 0 arguments
+                                                 node->getOperand());
+                }
+            }
+        }
+
         bytecode::OpCode opcode = ctx.emitter.getUnaryOpCode(op);
         ctx.emitter.emitWithLocation(opcode, node);
 
@@ -250,11 +374,13 @@ namespace vm::compiler::visitors
 
         // Global variable lookup - validate
         bool inLambda = ctx.functionFrameManager.isInLambda();
+
         if (!inLambda) {
             if (!ctx.globalRegistry.exists(name)) {
                 throw errors::UndefinedException("Variable '" + name + "' is not defined", node->getLocation());
             }
-            if (!ctx.globalRegistry.isInScope(name, ctx.variableTracker.getCurrentScopeDepth())) {
+            bool inScope = ctx.globalRegistry.isInScope(name, ctx.variableTracker.getCurrentScopeDepth());
+            if (!inScope) {
                 throw errors::UndefinedException("Variable '" + name + "' is not defined or is out of scope", node->getLocation());
             }
         }
@@ -299,5 +425,257 @@ namespace vm::compiler::visitors
         ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF, static_cast<uint32_t>(typeNameIndex), node);
 
         return std::monostate{};
+    }
+
+    bool ExpressionCompiler::tryEmitOperatorOverloading(ast::BinaryOpNode* node,
+                                                        ast::ASTNode* left,
+                                                        ast::ASTNode* right,
+                                                        token::TokenType op)
+    {
+        // Infer the type of the left operand
+        value::ValueType leftType = ctx.typeInference.inferExpressionType(left);
+        value::ValueType rightType = ctx.typeInference.inferExpressionType(right);
+
+        // PHASE 4: Only use operator overloading if at least one operand is already a Box object
+        // Don't auto-box primitive literals for operator overloading (e.g., 2 * 3 stays primitive)
+        // This ensures that expressions like array indices (calcTest[2 * 3][4 * 5]) work without needing Box classes
+        //
+        // IMPORTANT: For string concatenation, prefer primitive operations over operator overloading
+        // because primitive string concat handles objects via toString() without needing String class
+
+        std::string leftClassName;
+        bool leftNeedsBoxing = false;
+
+        if (leftType == value::ValueType::OBJECT)
+        {
+            // Left is already an object, get its class name
+            leftClassName = ctx.typeInference.inferExpressionClassName(left);
+        }
+        else
+        {
+            // Left is a primitive - only allow operator overloading if right is already a Box object
+            // This prevents auto-boxing primitive-only operations like 2 + 3
+            if (rightType != value::ValueType::OBJECT)
+            {
+                return false;  // Both operands are primitives, use normal primitive operations
+            }
+
+            // SPECIAL CASE: Don't use operator overloading for primitive string concatenation
+            // Primitive string + object already works via toString(), no String class needed
+            if (leftType == value::ValueType::STRING && op == token::TokenType::PLUS)
+            {
+                return false;  // Use primitive string concatenation (no String class required)
+            }
+
+            // Right is a Box object, so we can auto-box the left literal (non-string only)
+            if (dynamic_cast<ast::IntegerNode*>(left))
+            {
+                leftClassName = "Int";
+                leftNeedsBoxing = true;
+            }
+            else if (dynamic_cast<ast::FloatNode*>(left))
+            {
+                leftClassName = "Float";
+                leftNeedsBoxing = true;
+            }
+            else if (dynamic_cast<ast::BoolNode*>(left))
+            {
+                leftClassName = "Bool";
+                leftNeedsBoxing = true;
+            }
+            else
+            {
+                // Left is a primitive expression (not a literal), can't use operator overloading
+                return false;
+            }
+        }
+
+        // Check if it's a Box type (Int, Float, Bool, String)
+        bool isBoxType = (leftClassName == "Int" || leftClassName == "Float" ||
+                         leftClassName == "Bool" || leftClassName == "String");
+        if (!isBoxType)
+        {
+            return false;
+        }
+
+        // PHASE 4: For operator overloading, both operands must be simple (literals or variables)
+        // Don't use operator overloading for complex expressions like function calls
+        using namespace ast::nodes::expressions;
+
+        // Check if right is a simple operand (literal, variable, member access, index access, or binary operation)
+        bool rightIsSimple = false;
+        if (rightType == value::ValueType::OBJECT)
+        {
+            // Right is an object - check if it's a variable, NewNode, member access, index access, or binary operation
+            if (dynamic_cast<ast::VariableNode*>(right) ||
+                dynamic_cast<ast::nodes::classes::NewNode*>(right) ||
+                dynamic_cast<ast::MemberAccessNode*>(right) ||
+                dynamic_cast<IndexAccessNode*>(right) ||
+                dynamic_cast<ast::BinaryOpNode*>(right))  // Binary operations on Box types return Box type objects
+            {
+                rightIsSimple = true;
+            }
+        }
+        else
+        {
+            // Right is primitive - only use operator overloading if it's a literal
+            if (dynamic_cast<IntegerNode*>(right) || dynamic_cast<FloatNode*>(right) ||
+                dynamic_cast<BoolNode*>(right) || dynamic_cast<StringNode*>(right))
+            {
+                rightIsSimple = true;
+            }
+        }
+
+        if (!rightIsSimple)
+        {
+            // Right operand is a complex expression (function call, binary op, etc.)
+            // Don't use operator overloading - fall back to primitive operations
+            return false;
+        }
+
+        // Check if right operand has compatible type
+        std::string rightClassName;
+        if (rightType == value::ValueType::OBJECT)
+        {
+            rightClassName = ctx.typeInference.inferExpressionClassName(right);
+        }
+        else
+        {
+            // Right is primitive - determine its Box type
+            if (rightType == value::ValueType::INT) rightClassName = "Int";
+            else if (rightType == value::ValueType::FLOAT) rightClassName = "Float";
+            else if (rightType == value::ValueType::BOOL) rightClassName = "Bool";
+            else if (rightType == value::ValueType::STRING) rightClassName = "String";
+        }
+
+        // Operands must be the same Box type (or compatible primitives that will be boxed)
+        if (leftClassName != rightClassName)
+        {
+            // Mixed types - don't use operator overloading
+            // Fall back to primitive operations (e.g., primitive string concat)
+            return false;
+        }
+
+        // Map operator to method name
+        std::string methodName;
+        switch (op)
+        {
+            // Arithmetic operators
+            case token::TokenType::PLUS:
+                if (leftClassName == "String")
+                    methodName = "concat";  // String concatenation
+                else
+                    methodName = "add";     // Int/Float addition
+                break;
+            case token::TokenType::MINUS:
+                methodName = "subtract";
+                break;
+            case token::TokenType::MULTIPLY:
+                methodName = "multiply";
+                break;
+            case token::TokenType::DIVIDE:
+                methodName = "divide";
+                break;
+            case token::TokenType::MODULO:
+                methodName = "modulo";
+                break;
+
+            // Equality operators
+            case token::TokenType::EQUALS:
+                methodName = "equals";
+                break;
+            case token::TokenType::NOT_EQUALS:
+                // Transform: a != b  →  !(a.equals(b))
+                // We'll handle this specially below
+                methodName = "equals";
+                break;
+
+            // Comparison operators
+            case token::TokenType::LESS:
+                methodName = "lessThan";
+                break;
+            case token::TokenType::LESS_EQUALS:
+                methodName = "lessThanOrEqual";
+                break;
+            case token::TokenType::GREATER:
+                methodName = "greaterThan";
+                break;
+            case token::TokenType::GREATER_EQUALS:
+                methodName = "greaterThanOrEqual";
+                break;
+
+            default:
+                // Operator not supported for overloading
+                return false;
+        }
+
+        // PHASE 4 OPERATOR OVERLOADING: Transform operator to method call
+        // Example: a + b  →  a.add(b)
+
+        // 1. Compile left operand (receiver object), auto-boxing if needed
+        if (leftNeedsBoxing)
+        {
+            // Auto-box the left operand: compile literal then wrap in NEW_OBJECT
+            left->accept(ctx.visitor);
+            size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                         static_cast<uint32_t>(classNameIndex),
+                                         1u,  // 1 constructor argument
+                                         left);
+        }
+        else
+        {
+            left->accept(ctx.visitor);
+        }
+
+        // 2. Compile right operand (method argument) with auto-boxing if needed
+        // For operator overloading, the right operand must match the Box type of the left
+        // Check if right needs auto-boxing: it's a primitive that should be a Box type
+        bool rightIsObject = (rightType == value::ValueType::OBJECT);
+        bool rightNeedsBoxing = false;
+
+        if (!rightIsObject)
+        {
+            // Right is a primitive - check if it matches the Box type we need
+            if ((leftClassName == "Int" && rightType == value::ValueType::INT) ||
+                (leftClassName == "Float" && rightType == value::ValueType::FLOAT) ||
+                (leftClassName == "Bool" && rightType == value::ValueType::BOOL) ||
+                (leftClassName == "String" && rightType == value::ValueType::STRING))
+            {
+                rightNeedsBoxing = true;
+            }
+        }
+
+        if (rightNeedsBoxing)
+        {
+            // Auto-box the right operand: compile it then wrap in NEW_OBJECT
+            right->accept(ctx.visitor);
+            size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                         static_cast<uint32_t>(classNameIndex),
+                                         1u,  // 1 constructor argument
+                                         right);
+        }
+        else
+        {
+            // Compile normally (already an object or incompatible type)
+            right->accept(ctx.visitor);
+        }
+
+        // 3. Emit CALL_METHOD instruction
+        size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                     static_cast<uint32_t>(methodNameIndex),
+                                     1u,  // 1 argument
+                                     node);
+
+        // 4. Special handling for NOT_EQUALS: negate the result
+        if (op == token::TokenType::NOT_EQUALS)
+        {
+            // Emit NOT instruction to negate the equals() result
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NOT, node);
+        }
+
+        return true;  // Operator overloading was applied
     }
 }

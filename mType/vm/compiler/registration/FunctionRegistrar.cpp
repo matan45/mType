@@ -5,10 +5,48 @@
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../../errors/TypeException.hpp"
+#include "../types/GenericPatternAnalyzer.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
 {
+    // PHASE 2: Helper function to recursively extract type parameters from GenericType
+    static void extractTypeParametersFromGenericType(
+        const std::shared_ptr<ast::GenericType>& type,
+        const std::unordered_set<std::string>& declaredTypeParams,
+        std::unordered_set<std::string>& usedParams)
+    {
+        if (!type) return;
+
+        // IMPORTANT: Check if parameterized FIRST, before checking if generic parameter
+        // "Pair<K, V>" is both a generic parameter (baseType is string) AND parameterized (has type args)
+        // We need to process the type arguments to extract K and V
+        if (type->isParameterized())
+        {
+            const auto& typeArgs = type->getTypeArguments();
+            for (const auto& arg : typeArgs)
+            {
+                if (arg->isGenericParameter())
+                {
+                    // This is a nested type parameter!
+                    std::string paramName = arg->getGenericName();
+                    if (declaredTypeParams.find(paramName) != declaredTypeParams.end())
+                    {
+                        usedParams.insert(paramName);
+                    }
+                }
+                else
+                {
+                    // Recurse deeper (e.g., List<Box<T>>)
+                    extractTypeParametersFromGenericType(arg, declaredTypeParams, usedParams);
+                }
+            }
+        }
+        // If it's a simple type parameter like "T" (not parameterized), don't count it
+        // Only nested parameters (inside type arguments) count
+    }
+
     FunctionRegistrar::FunctionRegistrar(
         std::shared_ptr<environment::Environment> env,
         bytecode::BytecodeProgram& prog)
@@ -63,14 +101,22 @@ namespace vm::compiler::registration
     {
         std::string funcName = functionNode->getName();
 
-        // Check if already registered (native or previously registered)
+        // Check if already registered
         const auto* existingFunc = program.getFunction(funcName);
         if (existingFunc)
         {
-            return; // Already registered, skip
+            // Allow native functions to be skipped, but reject user-defined duplicates
+            if (!existingFunc->isNative)
+            {
+                throw errors::TypeException(
+                    "Function overloading is not supported. Global function '" + funcName + "' is already defined",
+                    functionNode->getLocation()
+                );
+            }
+            return; // Native function already registered, skip
         }
 
-        // Extract parameter information
+        // Extract parameter information (preserves class names like "Pair<K, V>")
         auto paramTypesVec = functionNode->getParameterTypes();
         std::vector<std::string> paramNames;
         std::vector<std::string> paramTypes;
@@ -79,19 +125,50 @@ namespace vm::compiler::registration
         {
             paramNames.push_back(param.first);
             const auto& paramType = param.second;
-            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
+
+            // PHASE 2 FIX: Use ParameterType::toString() to preserve generic type info
+            // This returns the full type string: "T", "Pair<K, V>", "Box<T>", etc.
+            paramTypes.push_back(paramType.toString());
+        }
+
+        // Get return type with class name preservation
+        std::string returnTypeStr;
+        value::ValueType returnType = functionNode->getReturnType();
+
+        // PHASE 3 FIX: Use GenericReturnType to preserve full type information
+        if (auto genericReturnType = functionNode->getGenericReturnType())
+        {
+            if (genericReturnType->isGenericParameter())
             {
-                paramTypes.push_back(paramType.className.value());
+                // Type parameter like "T" or class name like "Pair" or "Pair<K, V>"
+                std::string typeName = genericReturnType->getGenericName();
+                if (genericReturnType->isParameterized())
+                {
+                    // Has type arguments like "Pair<K, V>" - use toString()
+                    returnTypeStr = genericReturnType->toString();
+                }
+                else
+                {
+                    // No type arguments - just use the name ("T" or "Pair")
+                    returnTypeStr = typeName;
+                }
+            }
+            else if (returnType == value::ValueType::OBJECT && genericReturnType->isParameterized())
+            {
+                // Concrete type with type arguments - use toString()
+                returnTypeStr = genericReturnType->toString();
             }
             else
             {
-                paramTypes.push_back(::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType));
+                // Primitive or simple type - use basic type name
+                returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(returnType);
             }
         }
-
-        // Get return type
-        value::ValueType returnType = functionNode->getReturnType();
-        std::string returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(returnType);
+        else
+        {
+            // Fallback for legacy code
+            returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(returnType);
+        }
 
         // Create placeholder metadata (will be filled in during actual compilation)
         bytecode::BytecodeProgram::FunctionMetadata metadata;
@@ -114,6 +191,28 @@ namespace vm::compiler::registration
             for (const auto& param : genericParams)
             {
                 metadata.genericTypeParameters.push_back(param.name);
+            }
+
+            // PHASE 2: Analyze parameter types for nested generic inference
+            // Build set of declared type parameters for quick lookup
+            std::unordered_set<std::string> declaredTypeParams;
+            for (const auto& param : genericParams)
+            {
+                declaredTypeParams.insert(param.name);
+            }
+
+            // PHASE 2 FIX: Directly analyze GenericType objects instead of strings
+            // This is more robust than parsing string representations
+            const auto& genericParamTypes = functionNode->getGenericParameters();
+            for (size_t i = 0; i < genericParamTypes.size(); ++i)
+            {
+                const auto& paramPair = genericParamTypes[i];
+                std::unordered_set<std::string> usedParams;
+                if (paramPair.second)
+                {
+                    extractTypeParametersFromGenericType(paramPair.second, declaredTypeParams, usedParams);
+                }
+                metadata.parameterTypeParameterUsage.push_back(usedParams);
             }
         }
 

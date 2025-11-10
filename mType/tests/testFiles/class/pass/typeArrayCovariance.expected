@@ -1,0 +1,19 @@
+Test 1: Fruit array with mixed types
+
+Test 2: Iterate and describe
+Item 0:
+Apple variety: Granny Smith
+Item 1:
+Orange: seedless
+Item 2:
+Apple variety: Red Delicious
+Item 3:
+Fruit: Generic
+
+Test 3: Type-specific access
+Found apple: Granny Smith
+Found apple: Red Delicious
+
+Test 4: Apple array to Fruit array
+Apple variety: Fuji
+Apple variety: Gala

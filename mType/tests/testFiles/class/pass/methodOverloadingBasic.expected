@@ -1,0 +1,19 @@
+Test 1: Single int
+add(int): 5
+Result: 5
+
+Test 2: Two ints
+add(int, int): 10 + 20
+Result: 30
+
+Test 3: Three ints
+add(int, int, int): 5 + 10 + 15
+Result: 30
+
+Test 4: Two strings
+add(string, string): Hello + World
+Result: HelloWorld
+
+Test 5: Int and string
+add(int, string): 42 + Answer
+Result: 42Answer

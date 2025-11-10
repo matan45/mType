@@ -1,0 +1,26 @@
+Testing initialization ordering
+Creating array with function calls:
+  getNext() called, returning 1
+  getNext() called, returning 2
+  getNext() called, returning 3
+  getNext() called, returning 4
+Array values:
+  ordered[0] = 1
+  ordered[1] = 2
+  ordered[2] = 3
+  ordered[3] = 4
+Creating nested array:
+  getNext() called, returning 1
+  getNext() called, returning 2
+  getNext() called, returning 3
+  getNext() called, returning 4
+  getNext() called, returning 5
+  getNext() called, returning 6
+Nested array values:
+  nested[0][0] = 1
+  nested[0][1] = 2
+  nested[1][0] = 3
+  nested[1][1] = 4
+  nested[2][0] = 5
+  nested[2][1] = 6
+Initialization order test completed

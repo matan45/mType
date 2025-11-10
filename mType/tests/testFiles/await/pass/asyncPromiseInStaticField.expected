@@ -1,0 +1,8 @@
+=== Async Promise in Static Field Test ===
+First fetch
+Fetching value: 42
+Cached after first fetch: 42
+Second fetch
+Fetching value: 100
+Cached after second fetch: 100
+Final result: 100

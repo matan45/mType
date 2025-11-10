@@ -1,0 +1,20 @@
+Case 1
+Case 2 (fell through from 1)
+Starting at 5
+Fell to 6
+Fell to 7
+Fell to 8
+Case 10
+Fell through to default
+Case 2
+Case 3 (fell from 2)
+Step 1
+Step 2
+Step 3
+Final step
+First statement in case 7
+Second statement in case 7
+First statement in case 8
+Weekday
+110
+All fall-through tests completed

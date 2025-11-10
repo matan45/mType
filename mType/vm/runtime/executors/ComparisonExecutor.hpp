@@ -24,5 +24,8 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+
+        // Helper to auto-unbox wrapped types (Int, Float, Bool, String)
+        value::Value unboxIfNeeded(const value::Value& val) const;
     };
 }

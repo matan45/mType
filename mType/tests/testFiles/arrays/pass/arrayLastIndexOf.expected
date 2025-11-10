@@ -1,0 +1,9 @@
+Testing array lastIndexOf operation
+Array: [5, 10, 5, 20, 5, 30, 40, 5, 50, 5]
+lastIndexOf(5): 9
+lastIndexOf(10): 1
+lastIndexOf(50): 8
+lastIndexOf(99): -1
+Unique array [1, 2, 3]:
+lastIndexOf(2): 1
+LastIndexOf operation test completed

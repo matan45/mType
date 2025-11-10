@@ -1,0 +1,56 @@
+Testing continue in catch blocks
+Testing continue in catch block
+Caught: Skip even: 0
+Finally for iteration: 0
+Processing odd: 1
+Finally for iteration: 1
+After try-catch-finally: 1
+Caught: Skip even: 2
+Finally for iteration: 2
+Processing odd: 3
+Finally for iteration: 3
+After try-catch-finally: 3
+Caught: Skip even: 4
+Finally for iteration: 4
+Loop completed
+Testing continue with multiple catch blocks
+Normal execution: 0
+Cleanup: 0
+End of iteration: 0
+Caught exception: Exception at 1
+Cleanup: 1
+Normal execution: 2
+Cleanup: 2
+End of iteration: 2
+Normal execution: 3
+Cleanup: 3
+End of iteration: 3
+Testing nested continue with finally
+i=0 j=0
+Inner finally: j=0
+After inner try: j=0
+Inner catch: Skip j=1
+Inner finally: j=1
+i=0 j=2
+Inner finally: j=2
+After inner try: j=2
+Outer finally: i=0
+i=1 j=0
+Inner finally: j=0
+After inner try: j=0
+Inner catch: Skip j=1
+Inner finally: j=1
+i=1 j=2
+Inner finally: j=2
+After inner try: j=2
+Outer finally: i=1
+i=2 j=0
+Inner finally: j=0
+After inner try: j=0
+Inner catch: Skip j=1
+Inner finally: j=1
+i=2 j=2
+Inner finally: j=2
+After inner try: j=2
+Outer finally: i=2
+Test completed

@@ -28,6 +28,21 @@ namespace vm::compiler::visitors
         // Helper methods
         bool setupGenericTypeBindings(ast::FunctionCallNode* node, const std::string& functionName);
 
+        std::string inferTypeFromArgument(ast::ASTNode* argument);
+
+        // PHASE 3: Advanced type inference helpers
+        void inferFromArguments(
+            const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+            const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
+            std::unordered_map<std::string, std::string>& typeBindings
+        );
+
+        void inferFromReturnType(
+            const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+            std::unordered_map<std::string, std::string>& typeBindings,
+            const ast::SourceLocation& location
+        );
+
         void validateFunctionParameters(ast::FunctionCallNode* node, const std::string& functionName,
                                        const std::vector<std::unique_ptr<ast::ASTNode>>& arguments);
 
@@ -39,5 +54,10 @@ namespace vm::compiler::visitors
 
         void emitRegularFunctionCall(ast::FunctionCallNode* node, const std::string& functionName,
                                     const std::vector<std::unique_ptr<ast::ASTNode>>& arguments);
+
+        // Phase 4: Auto-boxing helper
+        void compileArgumentWithAutoBoxing(ast::ASTNode* argument,
+                                          const std::string& expectedTypeName,
+                                          value::ValueType expectedType);
     };
 }

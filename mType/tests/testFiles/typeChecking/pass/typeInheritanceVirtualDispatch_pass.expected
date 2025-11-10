@@ -1,0 +1,55 @@
+Test 1: Direct polymorphic dispatch
+Buddy barks: Woof! Woof!
+Buddy runs on four legs
+Whiskers meows: Meow!
+Whiskers walks gracefully
+Tweety chirps: Tweet! Tweet!
+Tweety flies with wingspan 25
+
+Test 2: Array polymorphic dispatch
+
+Animal 0: Max, Age: 4
+Max barks: Woof! Woof!
+Max runs on four legs
+
+Animal 1: Luna, Age: 2
+Luna meows: Meow!
+Luna walks gracefully
+
+Animal 2: Robin, Age: 1
+Robin chirps: Tweet! Tweet!
+Robin flies with wingspan 30
+
+Animal 3: Charlie, Age: 5
+Charlie barks: Woof! Woof!
+Charlie runs on four legs
+
+Test 3: Function parameter polymorphic dispatch
+
+Performing actions for: Daisy
+Daisy barks: Woof! Woof!
+Daisy runs on four legs
+
+Performing actions for: Shadow
+Shadow meows: Meow!
+Shadow walks gracefully
+
+Performing actions for: Eagle
+Eagle chirps: Tweet! Tweet!
+Eagle flies with wingspan 180
+
+Test 4: Mixed type handling
+
+Processing: Generic
+Generic makes a sound
+Generic moves
+
+Processing: Rex
+Rex barks: Woof! Woof!
+Rex runs on four legs
+
+Processing: Mittens
+Mittens meows: Meow!
+Mittens walks gracefully
+
+Virtual dispatch tests completed

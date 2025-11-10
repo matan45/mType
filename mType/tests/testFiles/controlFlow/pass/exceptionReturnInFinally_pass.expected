@@ -1,0 +1,19 @@
+Testing return in finally blocks
+Try block
+Finally block
+Result 1: 20
+Throwing exception
+Catch block
+Finally with return
+Result 2: 40
+Throwing uncaught exception
+Finally suppresses exception
+Result 3: 50
+Inner try
+Inner finally
+Outer finally
+Result 4: 80
+Try with return
+Finally without return
+Result 5: 90
+Test completed

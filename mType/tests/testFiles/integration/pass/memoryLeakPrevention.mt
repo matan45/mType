@@ -58,7 +58,7 @@ class LeakDetector {
         }
     }
     
-    function testLoopObjectCreation(): void {
+    public function testLoopObjectCreation(): void {
         LeakDetector::resetStats();
         print("=== Loop Object Creation Test ===");
         
@@ -79,7 +79,7 @@ class LeakDetector {
         print("After loop: " + LeakDetector::getAllocationStats());
     }
     
-    function testConditionalObjectCreation(): void {
+    public function testConditionalObjectCreation(): void {
         LeakDetector::resetStats();
         print("=== Conditional Object Creation Test ===");
         
@@ -97,12 +97,12 @@ class LeakDetector {
         
         print("After conditional creation: " + LeakDetector::getAllocationStats());
     }
-    function createAndProcess(string baseName): string {
+    public function createAndProcess(string baseName): string {
             LeakDetector inner = new LeakDetector(baseName + "_Inner");
             return inner.getName() + "_Processed";
         }
         
-        function processMultiple(int count): string {
+        public function processMultiple(int count): string {
             string result = "";
             for (int i = 0; i < count; i++) {
                 string processed = createAndProcess("Batch" + i);
@@ -110,7 +110,7 @@ class LeakDetector {
             }
             return result;
         }
-    function testNestedFunctionCalls(): void {
+    public function testNestedFunctionCalls(): void {
         LeakDetector::resetStats();
         print("=== Nested Function Calls Test ===");
         
@@ -121,12 +121,12 @@ class LeakDetector {
         print("After batch processing: " + LeakDetector::getAllocationStats());
     }
 	
-	function createObject(string name): LeakDetector {
+	public function createObject(string name): LeakDetector {
             LeakDetector newObj = new LeakDetector(name);
             return newObj;
         }
     
-    function testObjectReturnFromFunction(): void {
+    public function testObjectReturnFromFunction(): void {
         LeakDetector::resetStats();
         print("=== Object Return From Function Test ===");
         
@@ -148,7 +148,7 @@ class LeakDetector {
 	
 	
     
-    function testComplexObjectGraph(): void {
+    public function testComplexObjectGraph(): void {
         LeakDetector::resetStats();
         print("=== Complex Object Graph Test ===");
         
@@ -171,7 +171,7 @@ class LeakDetector {
         print("After replacement: " + LeakDetector::getAllocationStats());
     }
     
-    function testMemoryPressureScenario(): void {
+    public function testMemoryPressureScenario(): void {
         LeakDetector::resetStats();
         print("=== Memory Pressure Scenario Test ===");
         

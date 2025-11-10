@@ -1,0 +1,9 @@
+=== Await in Ternary Test ===
+Testing ternary with condition: true
+Getting true value
+Result: 100
+Test 1: 100
+Testing ternary with condition: false
+Getting false value
+Result: 200
+Test 2: 200

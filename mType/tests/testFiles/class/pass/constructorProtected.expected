@@ -1,0 +1,9 @@
+Creating a dog:
+Animal constructor: Dog, age 5
+Dog constructor: Buddy
+Buddy the Dog (age: 5)
+
+Creating a cat:
+Animal constructor: Cat, age 3
+Cat constructor: Whiskers, indoor: true
+Whiskers the indoor Cat (age: 3)

@@ -16,16 +16,18 @@ namespace vm::compiler::variables
             size_t localStartSlot;
             int scopeDepthStart;
             std::string returnType;
+            std::string functionName;  // Name of the function (for exception table access)
             bool isLambda = false;  // Track if this frame is for a lambda
             bool isAsync = false;   // Track if this frame is for an async function/lambda
             size_t maxLocalSlot = 0;  // Track the maximum local slot used in this function
+            std::vector<std::string> capturedVariableNames;  // For lambdas: names of captured outer variables (for shadowing check)
         };
 
         FunctionFrameManager() = default;
         ~FunctionFrameManager() = default;
 
         // Frame management
-        void enterFunctionFrame(const std::string& returnType, size_t localStartSlot,
+        void enterFunctionFrame(const std::string& functionName, const std::string& returnType, size_t localStartSlot,
                                int scopeDepthStart, bool isLambda = false, bool isAsync = false);
         void exitFunctionFrame();
 
@@ -36,6 +38,9 @@ namespace vm::compiler::variables
 
         // Return type checking
         std::string getReturnType() const;
+
+        // Function name
+        std::string getCurrentFunctionName() const;
 
         // Local count calculation
         size_t getLocalCount() const;

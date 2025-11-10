@@ -1,0 +1,21 @@
+Test 1: Create original
+Original: John (age 30) at 123 Main St, Springfield
+
+Test 2: Shallow copy
+Shallow copying person: John
+Shallow: John (age 30) at 123 Main St, Springfield
+Same address reference: true
+
+Test 3: Modify shallow copy's address
+Original: John (age 30) at 456 Oak Ave, Springfield
+Shallow: John (age 30) at 456 Oak Ave, Springfield
+
+Test 4: Deep copy
+Deep copying person: John
+Cloning address: 456 Oak Ave, Springfield
+Deep: John (age 30) at 456 Oak Ave, Springfield
+Different address reference: true
+
+Test 5: Modify deep copy's address
+Original: John (age 30) at 456 Oak Ave, Springfield
+Deep: John (age 30) at 789 Pine Rd, Springfield

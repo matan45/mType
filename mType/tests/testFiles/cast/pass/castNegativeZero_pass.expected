@@ -1,0 +1,9 @@
+Negative zero: -0
+Positive zero: 0
+Negative zero as int: 0
+Positive zero as int: 0
+NegZero == PosZero: true
+NegZero + 5: 5
+PosZero + 5: 5
+Computed negative zero: -0
+Computed negative zero as int: 0

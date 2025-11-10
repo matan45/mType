@@ -1,0 +1,7 @@
+Testing exception rethrow
+Inner function throwing
+Middle caught: Original exception
+Outer caught: Wrapped: Original exception
+Caught and rethrowing: Direct rethrow test
+Final catch: Direct rethrow test
+Test completed

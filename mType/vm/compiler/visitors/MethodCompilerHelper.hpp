@@ -53,5 +53,8 @@ namespace vm::compiler::visitors
         MethodBodyInfo compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic);
         void finalizeMethodCompilation(ast::MethodNode* node, const MethodParameters& params,
                                        size_t methodStart, size_t skipJump, const MethodBodyInfo& bodyInfo, bool isStatic);
+
+        // Type validation helper
+        bool isValidTypeName(const std::string& typeName, const std::vector<std::string>& validGenericParams);
     };
 }

@@ -63,13 +63,13 @@ function testGenericLambdaInterface(): void {
     print("Testing generic lambda-to-interface conversion...");
 
     // Create Processor<String> from lambda
-    Processor<String> stringProcessor = x -> new String(x.value + "_processed");
+    Processor<String> stringProcessor = x -> new String(x.getValue() + "_processed");
 
     // Test method invocation
     String result = stringProcessor.process(new String("test"));
-    print(stringProcessor.process(new String("test")) + " = " + result.value);
+    print(stringProcessor.process(new String("test")) + " = " + result.getValue());
 
-    if (result.value == "test_processed") {
+    if (result.getValue() == "test_processed") {
         print("Generic lambda-to-interface conversion works!");
     } else {
         print("Generic test failed - expected 'test_processed', got " + result.toString());
@@ -84,20 +84,20 @@ function testArrayReturnTypeInterface(): void {
     Transformer<String> suffixer = arr -> {
         String[] result = new String[arr.length];
         for (int i = 0; i < arr.length; i++) {
-            result[i] = arr[i] + "_transformed";
+            result[i] = new String(arr[i].value + "_transformed");
         }
         return result;
     };
 
     // Test with a string array
-    String[] input = ["hello", "world", "test"];
+    String[] input = [new String("hello"), new String("world"), new String("test")];
     String[] output = suffixer.transform(input);
 
     print("Input: ['hello', 'world', 'test']");
     print("Output: ['" + output[0] + "', '" + output[1] + "', '" + output[2] + "']");
 
     // Check if transformation worked correctly
-    if (output[0] == "hello_transformed" && output[1] == "world_transformed" && output[2] == "test_transformed") {
+    if (output[0].value == "hello_transformed" && output[1].value == "world_transformed" && output[2].value == "test_transformed") {
         print("Array return type interface works correctly!");
     } else {
         print("Array return type interface failed");
@@ -144,12 +144,12 @@ function testClosureCapture(): void {
     int multiplier = 5;
 
     // Lambda should capture the multiplier variable
-    Processor<String> multiplierProcessor = x -> new String(x.value +"_" + multiplier);
+    Processor<String> multiplierProcessor = x -> new String(x.getValue() +"_" + multiplier);
 
     String result = multiplierProcessor.process(new String("test"));
     print("Closure capture result: " + result);
 
-    if (result.value == "test_5") {
+    if (result.getValue() == "test_5") {
         print("Closure capture works correctly!");
     } else {
         print("Closure capture failed - expected 'test_5', got " + result);

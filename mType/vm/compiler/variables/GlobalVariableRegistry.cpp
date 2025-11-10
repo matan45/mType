@@ -65,7 +65,10 @@ namespace vm::compiler::variables
     {
         std::vector<std::string> toRemove;
         for (const auto& pair : globalVariableScopes) {
-            if (pair.second > currentScopeDepth) {
+            // IMPORTANT: Never remove module-level globals (scope depth <= 3)
+            // Main file globals are at scope 3, imported file globals are at scope 3
+            // Only remove variables from deeper scopes (loops at 4+, anonymous blocks, etc.)
+            if (pair.second > currentScopeDepth && pair.second > 3) {
                 toRemove.push_back(pair.first);
             }
         }

@@ -1,0 +1,10 @@
+=== Small Int[] (size 5) ===
+small[0]: 1
+small[4]: 5
+=== Large Int[] (size 20) ===
+large[0]: 0
+large[19]: 38
+=== Sum with operator overloading ===
+Sum: 15
+=== Sum using primitive values ===
+Primitive sum: 15

@@ -1,0 +1,5 @@
+=== Lambda Parameter Type Inference Test ===
+Doubled 10: 20
+Processed: Hello!
+5 + 7 = 12
+Parameter inference successful

@@ -1,0 +1,80 @@
+=== Test 13: Async/Await with Nested Try-Catch ===
+--- Test 1: Valid input ---
+Outer try: 50
+Inner try
+Validating: 50
+Processing: 50
+Inner finally
+Outer finally
+Result: 100
+--- Test 2: Negative input ---
+Outer try: -10
+Inner try
+Validating: -10
+Inner catch (Validation): Negative value
+Inner finally
+Outer finally
+Result: -1
+--- Test 3: Too large value ---
+Outer try: 150
+Inner try
+Validating: 150
+Processing: 150
+Inner finally
+Outer catch (Processing): Value too large
+Outer finally
+Result: -2
+--- Test 4: Sequential valid ---
+Validating: 10
+First validation passed
+Validating: 20
+Second validation passed
+Processing: 10
+First processing passed
+Processing: 20
+Second processing passed
+Sequential operations finally
+Result: 60
+--- Test 5: Sequential with failure ---
+Validating: 10
+First validation passed
+Validating: -5
+Caught ValidationException: Negative value
+Sequential operations finally
+Result: 0
+--- Test 6: Async loop ---
+Processing: -60
+Loop 0 success: -120
+Processing: -30
+Loop 1 success: -60
+Processing: 0
+Loop 2 success: 0
+Processing: 30
+Loop 3 success: 60
+Processing: 60
+Loop 4 success: 120
+Success count: 5
+--- Test 7: Rethrow ---
+Validating: -20
+Caught and rethrowing: Negative value
+Caught rethrown: Negative value
+--- Test 8: Nested awaits (valid) ---
+Validating: 25
+Inner: Validated
+Processing: 25
+Inner: Processed
+Outer finally executed
+Result: Success: 50
+--- Test 8: Nested awaits (too large) ---
+Validating: 120
+Inner: Validated
+Processing: 120
+Inner catch: Value too large
+Outer finally executed
+Result: Inner handled
+--- Test 8: Nested awaits (negative) ---
+Validating: -5
+Outer catch: Negative value
+Outer finally executed
+Result: Outer handled
+=== Test 13 Complete ===

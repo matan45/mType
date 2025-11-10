@@ -45,6 +45,13 @@ namespace parser::expression
             SourceLocation awaitLocation = tokenStream.current().location;
             tokenStream.advance(); // consume 'await'
 
+            // Disallow await in constructors (constructors cannot be async)
+            if (context.isInsideConstructorBody())
+            {
+                throw ParseException("'await' cannot be used inside constructors (constructors cannot be async)",
+                                     awaitLocation);
+            }
+
             // Allow await in:
             // 1. Async functions (context.isInsideAsyncFunction())
             // 2. Top-level/global scope (not inside any function)

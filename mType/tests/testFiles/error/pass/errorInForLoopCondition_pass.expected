@@ -1,0 +1,8 @@
+Testing exception in for-loop condition
+Checking condition for i=0 (check #1)
+Loop iteration: 0
+Checking condition for i=1 (check #2)
+Loop iteration: 1
+Checking condition for i=2 (check #3)
+Caught in condition: Error in loop condition check
+Test completed

@@ -1,0 +1,11 @@
+=== Closure Modification Test ===
+Initial box value: 10
+reader(5) = 15
+After setting box to 20:
+reader(5) = 25
+After setting box to 100:
+reader(5) = 105
+Initial array sum: 6
+After modifying array:
+Array sum: 60
+Closure modification complete

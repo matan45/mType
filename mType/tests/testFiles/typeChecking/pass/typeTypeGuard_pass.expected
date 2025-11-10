@@ -1,0 +1,25 @@
+Test 1: Type narrowing with polymorphism
+Woof!
+Meow!
+
+Test 2: Mixed type array
+Animal 0: Max
+Woof!
+Animal 1: Luna
+Meow!
+Animal 2: Unknown
+Animal sound
+
+Test 3: Function with type guard
+Processing: Rex
+Woof!
+Processing: Shadow
+Meow!
+
+Test 4: Conditional type handling
+Animal name: Charlie
+Woof!
+Animal name: Mittens
+Meow!
+
+Type guard tests completed

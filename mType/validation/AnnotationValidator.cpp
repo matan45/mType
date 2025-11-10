@@ -46,7 +46,7 @@ namespace validation
                     methodDef.get(),
                     classDefinition,
                     environment,
-                    methodDef->getSourceLocation()  // Use stored source location for accurate error reporting
+                    methodDef->getSourceLocation() // Use stored source location for accurate error reporting
                 );
             }
 
@@ -92,10 +92,21 @@ namespace validation
         // Check parent class hierarchy
         if (containingClass->hasParentClass())
         {
+            std::string fullParentName = containingClass->getParentClassName();
+
+            // Extract base class name (strip generic type parameters if present)
+            // E.g., "Container<DataItem>" -> "Container"
+            std::string baseParentName = fullParentName;
+            size_t genericStart = fullParentName.find('<');
+            if (genericStart != std::string::npos)
+            {
+                baseParentName = fullParentName.substr(0, genericStart);
+            }
+
             auto classRegistry = environment->getClassRegistry();
             if (classRegistry)
             {
-                auto parentClass = classRegistry->findClass(containingClass->getParentClassName());
+                auto parentClass = classRegistry->findClass(baseParentName);
                 if (parentClass)
                 {
                     auto parentMethod = findMatchingMethodInParent(method, parentClass);
@@ -142,6 +153,7 @@ namespace validation
         {
             // Check instance methods
             const auto& instanceMethods = parentClass->getInstanceMethods();
+
             auto it = instanceMethods.find(method->getName());
             if (it != instanceMethods.end())
             {
@@ -326,7 +338,8 @@ namespace validation
         if (!hasUpdateMethod)
         {
             std::ostringstream oss;
-            oss << "Class '" << className << "' is marked with @Script but does not have the required update method.\n\n"
+            oss << "Class '" << className <<
+                "' is marked with @Script but does not have the required update method.\n\n"
                 << "@Script classes must have an update method with signature:\n"
                 << " function update(float dt ): void\n\n"
                 << "Please add this method to your class.";

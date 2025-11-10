@@ -1,0 +1,29 @@
+=== Test 1: Basic try-catch (no throw) ===
+Executing operation
+Result: 100
+
+=== Test 2: Basic try-catch (with throw) ===
+Executing operation
+Caught exception: Basic error
+Result: -1
+
+=== Test 3: Specific exception type ===
+Validating data
+Validation failed: Invalid input
+Result: invalid
+
+=== Test 4: Multiple operations ===
+Step 1: Initialize
+Step 2: Process
+Step 3: Throw error
+Network error: Connection failed
+Result: 0
+
+=== Test 5: Nested try-catch ===
+Outer try
+Inner try
+Inner catch: Inner exception
+Outer catch: Outer exception
+Result: handled
+
+Async try-catch test completed

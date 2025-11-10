@@ -1,0 +1,17 @@
+Test 1: Parent object
+Parent.display(): value=10, name=Parent
+Parent.showValue(): 10
+
+Test 2: Child object
+Child.display(): value=20, name=Child
+Child field: 20
+Parent.showValue(): 20
+
+Test 3: GrandChild object
+GrandChild value: 30
+Inherited name: Child
+Child.display(): value=30, name=Child
+
+Test 4: Polymorphic reference
+Child.display(): value=20, name=Child
+Direct access: 20

@@ -7,6 +7,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../runtime/optimization/LoopOptimizer.hpp"
 #include "../optimization/PeepholeOptimizer.hpp"
+#include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include <stdexcept>
 #include <iostream>
 namespace vm::compiler
@@ -22,6 +23,8 @@ namespace vm::compiler
         , classRegistrar(env, program, &interfaceRegistrar)
         , functionRegistrar(env, program)
         , compileTimeValidator(std::make_unique<validation::CompileTimeValidator>(env, program))
+        , fieldInitValidator(std::make_unique<validation::FieldInitializationValidator>(env))
+        , staticFieldInitDetector(std::make_shared<circularDependency::CircularDependencyDetector>())
         , context(*this, program, env, emitter, variableTracker, globalRegistry,
                   functionFrameManager, loopManager, switchManager, exceptionManager,
                   typeInference, typeValidator, genericResolver)
@@ -38,9 +41,15 @@ namespace vm::compiler
         // Set up type inference engine to use context's generic type bindings stack
         typeInference.setGenericTypeBindingsStack(&context.genericTypeBindingStack);
 
+        // PHASE 3: Set up type inference engine to use context's resolved function call types cache
+        typeInference.setResolvedFunctionCallTypes(&context.resolvedFunctionCallTypes);
+
         // Set up compile-time validator in context and registrar
         context.compileTimeValidator = compileTimeValidator.get();
         classRegistrar.setCompileTimeValidator(compileTimeValidator.get());
+
+        // Set up static field initialization detector in context
+        context.staticFieldInitDetector = staticFieldInitDetector;
     }
 
     bytecode::BytecodeProgram BytecodeCompiler::compile(ast::ASTNode* root)
@@ -70,11 +79,30 @@ namespace vm::compiler
         // Fourth, establish parent-child relationships
         linkParentClasses(root);
 
-        // Fifth, validate @Throw annotations now that all classes are registered
+        // Fifth, validate field initialization dependencies (detect circular references)
+        fieldInitValidator->validateFieldInitializations(root);
+
+        // Sixth, validate @Throw annotations now that all classes are registered
         functionRegistrar.validateThrowAnnotations(root);
+
+        // Create implicit "main" function frame for global scope
+        // This allows variables at global scope to be tracked and captured by lambdas
+        context.functionFrameManager.enterFunctionFrame("", // Empty name = global scope
+                                                        "void",
+                                                        context.variableTracker.getNextLocalSlot(),
+                                                        context.variableTracker.getCurrentScopeDepth(),
+                                                        false, // Not a lambda
+                                                        false); // Not async
+        context.variableTracker.beginScope(); 
+        context.variableTracker.beginScope(); 
 
         // Visit the root node to generate bytecode
         root->accept(*this);
+
+        // Exit the implicit main function frame
+        context.variableTracker.endScope();   
+        context.variableTracker.endScope();   
+        context.functionFrameManager.exitFunctionFrame();
 
         // Validate all class methods have bytecode implementations
         // Skip validation in Release mode as AST optimizer may have removed unused methods
@@ -298,6 +326,11 @@ namespace vm::compiler
         return classCompiler.compileSuperConstructorCall(node);
     }
 
+    value::Value BytecodeCompiler::visitThisConstructorCallNode(ast::ThisConstructorCallNode* node)
+    {
+        return classCompiler.compileThisConstructorCall(node);
+    }
+
     value::Value BytecodeCompiler::visitSuperMethodCallNode(ast::SuperMethodCallNode* node)
     {
         return classCompiler.compileSuperMethodCall(node);
@@ -446,6 +479,9 @@ namespace vm::compiler
             // Compile the imported file to generate bytecode for functions and methods
             // This will register all functions/methods in the BytecodeProgram
             importedAST->accept(*this);
+
+            // Note: Global variables from imported files are registered in globalRegistry during compilation
+            // and persist across file boundaries (see GlobalVariableRegistry::removeVariablesOutOfScope)
 
             // Restore previous current file
             importManager->setCurrentFilePath(savedCurrentFile);

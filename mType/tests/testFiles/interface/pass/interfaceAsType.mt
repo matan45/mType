@@ -9,9 +9,9 @@ interface Shape {
 }
 
 class Circle implements Drawable {
-    float radius;
+    private float radius;
 
-    constructor(float r) {
+    public constructor(float r) {
         this.radius = r;
     }
 
@@ -26,9 +26,9 @@ class Circle implements Drawable {
 
 class ShapeProcessor {
     // Interface as data member
-    Drawable currentShape;
+    private Drawable currentShape;
 
-    constructor() {
+    public constructor() {
         this.currentShape = null;
     }
 

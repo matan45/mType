@@ -1,0 +1,5 @@
+Testing constructor overload resolution
+Integer calculator: 42
+Custom calculator: 100
+Default calculator: 0
+Constructor overload test completed

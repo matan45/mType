@@ -1,0 +1,79 @@
+=== Test 1: Deep function stack (10 levels) ===
+Level 1
+Level 2
+Level 3
+Level 4
+Level 5
+Level 6
+Level 7
+Level 8
+Level 9
+Level 10: Throwing exception
+Caught: Error at level 10
+Deep stack trace captured: true
+Deep stack exception handled
+
+=== Test 2: Nested class method calls ===
+Layer 1 calling Layer 2
+Layer 2 calling Layer 3
+Layer 3 calling Layer 4
+Layer 4 calling Layer 5
+Layer 5: Final layer throwing
+Caught: Error in Layer 5
+Nested class stack trace: true
+Nested class exception handled
+
+=== Test 3: Recursive function stack ===
+Recursion depth: 0
+Recursion depth: 1
+Recursion depth: 2
+Recursion depth: 3
+Recursion depth: 4
+Recursion depth: 5
+Recursion depth: 6
+Recursion depth: 7
+Recursion depth: 8
+Max depth reached, throwing
+Caught: Recursion limit at depth 8
+Recursive stack trace: true
+Recursive exception handled
+
+=== Test 4: Mixed function and method calls ===
+Processor.process: 75
+helperFunction: 75
+Validator.validate: 75
+checkValue: 75
+Caught: Value exceeds maximum
+Mixed call stack trace: true
+Mixed call exception handled
+
+=== Test 5: Deep try-catch nesting ===
+Try level 1
+Try level 2
+Try level 3
+Try level 4
+Try level 5
+Caught at level 5: Error at try level 5
+Re-throwing from level 5
+Caught at level 4
+Re-throwing from level 4
+Caught at level 3
+Re-throwing from level 3
+Caught at level 2
+Re-throwing from level 2
+Caught at level 1
+Re-throwing from level 1
+Final catch: Error at try level 5
+Deep try-catch stack trace: true
+Deep try-catch exception handled
+
+=== Test 6: Constructor call chain ===
+ConstructorChain1
+ConstructorChain2
+ConstructorChain3
+ConstructorChain4: Throwing from constructor
+Caught: Constructor chain error
+Constructor chain stack trace: true
+Constructor chain exception handled
+
+Nested stack trace test completed

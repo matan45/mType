@@ -1,0 +1,11 @@
+=== Partial Execution Exception Test ===
+Starting multiple steps
+Executing step 1
+Step 1 complete: 10
+Executing step 2
+Step 2 complete: 20
+Executing step 3
+Failed at step: 3
+Completed steps: 2
+Total so far: 30
+Final total: 30

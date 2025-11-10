@@ -1,0 +1,72 @@
+Testing break in try-finally blocks
+Testing break in try with finally
+Loop iteration: 0
+End of try block: 0
+Finally executed for i=0
+Loop iteration: 1
+End of try block: 1
+Finally executed for i=1
+Loop iteration: 2
+Breaking at i=2
+Finally executed for i=2
+After loop
+---
+Testing break in nested try-finally
+Outer try: 0
+Inner try: i=0, j=0
+Inner finally: j=0
+Inner try: i=0, j=1
+Inner finally: j=1
+Inner try: i=0, j=2
+Breaking inner loop
+Inner finally: j=2
+After inner loop
+Outer finally: i=0
+Outer try: 1
+Inner try: i=1, j=0
+Inner finally: j=0
+Inner try: i=1, j=1
+Inner finally: j=1
+Inner try: i=1, j=2
+Breaking inner loop
+Inner finally: j=2
+After inner loop
+Outer finally: i=1
+Outer try: 2
+Inner try: i=2, j=0
+Inner finally: j=0
+Inner try: i=2, j=1
+Inner finally: j=1
+Inner try: i=2, j=2
+Breaking inner loop
+Inner finally: j=2
+After inner loop
+Outer finally: i=2
+---
+Testing break with exception handling
+Iteration: 0
+Finally: i=0
+Iteration: 1
+Caught: Exception at i=1
+Finally: i=1
+Iteration: 2
+Finally: i=2
+Iteration: 3
+Breaking at i=3
+Finally: i=3
+Loop finished
+---
+Testing break in while with try-finally
+While iteration: 0
+While finally: count=1
+While iteration: 1
+While finally: count=2
+While iteration: 2
+While finally: count=3
+While iteration: 3
+While finally: count=4
+While iteration: 4
+Breaking while loop
+While finally: count=5
+While loop ended, count=5
+Test completed

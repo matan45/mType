@@ -1,0 +1,8 @@
+=== Async Rethrow Exception Test ===
+Outer: calling middle
+Middle: calling inner
+Inner: throwing error
+Middle: caught error - Inner error
+Middle: rethrowing
+Outer: caught rethrown error - Inner error
+Final: 500

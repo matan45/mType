@@ -4,7 +4,7 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
-
+#include  <iostream>
 namespace vm::runtime
 {
     LambdaExecutor::LambdaExecutor(ExecutionContext& ctx)
@@ -48,45 +48,8 @@ namespace vm::runtime
             lambda->capturedNames.push_back(capturedName);
         }
 
-        // Share the parent frame for late-bound variable access
-        // This allows lambdas to access variables declared after lambda creation (forward references)
-        if (!context.callStack.empty()) {
-            // Get or create shared frame for current call frame
-            if (!context.callStack.back().sharedFrame) {
-                context.callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
-                // Initialize with current local variables
-                size_t localBase = context.callStack.back().localBase;
-                for (size_t i = localBase; i < context.stackManager->size(); ++i) {
-                    context.callStack.back().sharedFrame->setLocal(i - localBase, (*context.stackManager)[i]);
-                }
-            }
-            lambda->parentFrame = context.callStack.back().sharedFrame;
-
-            // Populate the name->slot mapping from the LAMBDA instruction operands
-            // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, functionNameIdx,
-            //                   captureSlot1, ..., captureSlotN,
-            //                   paramNameIdx1, ..., paramNameIdxN,
-            //                   capturedNameIdx1, ..., capturedNameIdxN,
-            //                   parentNameIdx1, parentSlot1, ...]
-            // Note: We ADD to the existing mapping, not replace it, so later lambdas
-            // in the same scope can see earlier ones (for forward references)
-            size_t mappingStart = 5 + captureCount + paramCount + captureCount;  // Skip header, funcNameIdx, capture slots, param names, and captured names
-            for (size_t i = 0; i < parentLocalCount; ++i) {
-                size_t nameIdx = instr.operands[mappingStart + i * 2];
-                size_t slot = instr.operands[mappingStart + i * 2 + 1];
-                std::string varName = context.program->getConstantPool().getString(nameIdx);
-                // Only add if not already present (don't overwrite)
-                if (lambda->parentFrame->nameToSlot.find(varName) == lambda->parentFrame->nameToSlot.end()) {
-                    lambda->parentFrame->nameToSlot[varName] = slot;
-                }
-            }
-        } else {
-            // Global scope - create a new shared frame
-            lambda->parentFrame = std::make_shared<SharedStackFrame>();
-            for (size_t i = 0; i < context.stackManager->size(); ++i) {
-                lambda->parentFrame->setLocal(i, (*context.stackManager)[i]);
-            }
-        }
+        // NOTE: We use reference capture - captured variables are accessed from shared frame at invocation time
+        // This allows lambdas to see changes to captured variables
 
         // Capture class context for access modifier checks
         if (!context.callStack.empty()) {
@@ -104,24 +67,42 @@ namespace vm::runtime
             }
         }
 
-        // Capture VALUES of variables from current stack frame (snapshot at creation time)
-        // This ensures immutable capture semantics
+        // Get or create shared frame for the current function
+        std::shared_ptr<SharedStackFrame> sharedFrame;
+        if (!context.callStack.empty() && context.callStack.back().sharedFrame) {
+            // Reuse existing shared frame
+            sharedFrame = context.callStack.back().sharedFrame;
+        } else {
+            // Create new shared frame
+            sharedFrame = std::make_shared<SharedStackFrame>();
+            if (!context.callStack.empty()) {
+                context.callStack.back().sharedFrame = sharedFrame;
+            }
+        }
+
+        // Store captured variable slot indices and register them in current SharedStackFrame
+        // Variables from the CURRENT scope need to be registered so the lambda can access them
+        // Variables from PARENT scopes should already be in their respective frames
         // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, functionNameIdx, captureSlot1, captureSlot2, ...]
         for (size_t i = 0; i < captureCount; ++i) {
             size_t varSlot = instr.operands[5 + i];  // Capture slots start at index 5 (after functionNameIdx)
 
-            // Read the current value from the parent frame's stack
-            value::Value capturedValue = std::monostate{};
-            if (!context.callStack.empty()) {
-                size_t parentLocalBase = context.callStack.back().localBase;
-                size_t stackPos = parentLocalBase + varSlot;
-                if (stackPos < context.stackManager->size()) {
-                    capturedValue = (*context.stackManager)[stackPos];
-                }
-            }
+            // Store the slot index for later access
+            lambda->capturedSlots.push_back(varSlot);
 
-            lambda->capturedValues.push_back(capturedValue);
+            // Register captured variable in current SharedStackFrame
+            // ALWAYS update with current stack value for proper reference semantics
+            size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+            size_t stackPos = frameBase + varSlot;
+
+            if (stackPos < context.stackManager->size()) {
+                value::Value val = (*context.stackManager)[stackPos];
+                sharedFrame->setLocal(varSlot, val);  // Always update for reference semantics
+            }
         }
+
+        // Store the shared frame reference in the lambda
+        lambda->capturedFrame = sharedFrame;
 
         // Push lambda value onto stack
         context.stackManager->push(lambda);
@@ -157,10 +138,10 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;  // Return to next instruction
         frame.frameBase = context.stackManager->size();
         frame.localBase = context.stackManager->size();
-        // Preserve class context for access validation: ClassName::<lambda> or just <lambda>
-        frame.functionName = lambda->creatingClassName.empty() ?
-            "<lambda>" :
-            lambda->creatingClassName + "::<lambda>";
+        // Use the lambda's unique function name (e.g., __lambda_0) for metadata/exception table lookup
+        frame.functionName = lambda->functionName.empty() ?
+            (lambda->creatingClassName.empty() ? "<lambda>" : lambda->creatingClassName + "::<lambda>") :
+            lambda->functionName;
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
         frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
         frame.originatingLambda = lambda;  // Store lambda reference for variable access
@@ -185,15 +166,42 @@ namespace vm::runtime
             }
         }
 
+        // Create a SharedStackFrame for this lambda invocation to support nested closures
+        // Link it to the parent frame so nested lambdas can access parent variables
+        auto newSharedFrame = std::make_shared<SharedStackFrame>();
+        newSharedFrame->parentFrame = lambda->capturedFrame;  // Link to parent
+        if (!context.callStack.empty()) {
+            context.callStack.back().sharedFrame = newSharedFrame;
+        }
+
         // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
+        // Also register them by name in SharedStackFrame so nested lambdas can capture them
         for (size_t i = 0; i < args.size(); ++i) {
             context.stackManager->push(args[i]);
+
+            // Register parameter by name in SharedStackFrame
+            if (i < lambda->parameterNames.size()) {
+                std::string paramName = lambda->parameterNames[i];
+                if (!paramName.empty()) {
+                    newSharedFrame->setLocal(paramName, i, args[i]);
+                }
+            }
         }
 
         // Push captured variables onto stack (they become local variables after the parameters)
-        // Use snapshot values (immutable capture semantics)
-        for (const auto& capturedValue : lambda->capturedValues) {
-            context.stackManager->push(capturedValue);
+        // Read current values from shared frame (reference capture semantics)
+        // IMPORTANT: Do NOT register them in the new SharedStackFrame - they should be accessed
+        // through the parent chain to ensure we always read the latest values
+        if (lambda->capturedFrame) {
+            for (size_t i = 0; i < lambda->capturedSlots.size(); ++i) {
+                size_t slot = lambda->capturedSlots[i];
+
+                // Always use slot-based lookup to avoid name collisions
+                // This allows multiple variables with the same name to coexist
+                value::Value capturedValue = lambda->capturedFrame->getLocal(slot);
+
+                context.stackManager->push(capturedValue);
+            }
         }
 
         // Jump to lambda start (subtract 1 because the VM loop will increment after this)

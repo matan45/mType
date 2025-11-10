@@ -1,0 +1,5 @@
+Testing lambda capturing arrays
+Array: [10, 20, 30, 40, 50]
+Sum calculated by lambda: 150
+Sum after modification: 690
+Lambda capture test completed

@@ -1,0 +1,62 @@
+Test 1: Ternary chains for number categorization
+negative
+zero
+small
+large
+Test 2: Ternary chains for grades
+A
+B
+C
+D
+F
+Test 3: Ternary chains for numeric calculations
+10
+0
+45
+Test 4: Nested ternary with boolean logic
+first-true
+second-true
+both-false
+both-true
+Test 5: Ternary chains for tier systems
+gold
+silver
+bronze
+basic
+Test 6: Ternary chains with math expressions
+15
+20
+Test 7: Ternary chains for priority
+critical
+high
+medium
+low
+Test 8: Deep ternary nesting
+three
+five
+other
+Test 9: Ternary chains with comparisons
+20
+25
+30
+Test 10: Ternary chains with objects
+OK
+Not Found
+Server Error
+Forbidden
+Unknown
+Test 11: Ternary chains with array operations
+100
+200
+300
+Test 12: Ternary chains with function calls
+20
+10
+30
+Test 13: Ternary chains for temperature
+freezing
+cold
+mild
+warm
+hot
+Test passed

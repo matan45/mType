@@ -1,0 +1,23 @@
+Testing indirect recursion through other functions:
+processValue(5) = 15
+processValue(10) = 55
+chainA(1) = 200
+chainA(2) = 301
+chainA(3) = 304
+chainA(4) = 307
+routeEven(5) = 15
+routeEven(10) = 55
+routeOdd(6) = 21
+routeOdd(9) = 45
+calculate(5, 3) = 15
+calculate(7, 2) = 14
+calculate(4, 10) = 40
+splitLeft(5, 3) = 6
+splitRight(5, 3) = 7
+splitLeft(7, 2) = 8
+splitRight(6, 2) = 7
+ping(5, 0) = 15
+pong(5, 0) = 15
+ping(10, 0) = 55
+pong(10, 0) = 55
+Indirect recursion tests completed successfully

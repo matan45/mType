@@ -1,0 +1,4 @@
+Deep nested Int: 100
+Deep nested String: hello
+Flattened nested Int: 10
+Deep nested generic inference tests passed!

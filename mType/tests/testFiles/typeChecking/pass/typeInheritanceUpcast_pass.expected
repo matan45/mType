@@ -1,0 +1,21 @@
+Test 1: Direct upcast
+Driving car: Toyota with 4 doors
+Make: Toyota
+
+Test 2: Motorcycle upcast
+Riding motorcycle: Harley
+Make: Harley
+
+Test 3: Upcast in array
+Vehicle 0:
+Driving car: Honda with 2 doors
+Vehicle 1:
+Riding motorcycle: Yamaha
+Vehicle 2:
+Driving vehicle: Generic
+
+Test 4: Function parameter upcast
+Processing: Ford
+Processing: Ducati
+
+All upcast tests completed

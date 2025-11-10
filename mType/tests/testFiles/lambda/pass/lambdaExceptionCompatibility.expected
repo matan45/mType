@@ -1,0 +1,11 @@
+=== Exception Compatibility Test ===
+100 / 10 = 10
+Caught exception: Division by zero
+100 / 0 = -1
+100 / 5 = 20
+complex(10) = 100
+Inner catch: Zero input
+complex(0) = -2
+Outer catch: Negative input
+complex(-5) = -1
+Exception compatibility complete

@@ -117,6 +117,19 @@ namespace value
         void reject(const std::string& error);
 
         /**
+         * @brief Reject promise with exception object and notify error handlers
+         *
+         * Executes all registered .catch() callbacks in order.
+         * After calling, the promise is in REJECTED state.
+         *
+         * @param exceptionVal The exception value object
+         * @param typeName The type name of the exception
+         * @param error Error message describing the rejection
+         * @throws std::runtime_error if promise is already settled
+         */
+        void rejectWithException(const Value& exceptionVal, const std::string& typeName, const std::string& error);
+
+        /**
          * @brief Chain another promise to this one
          *
          * When this promise resolves, the chained promise is resolved with

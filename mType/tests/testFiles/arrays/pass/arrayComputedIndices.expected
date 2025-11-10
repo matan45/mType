@@ -1,0 +1,7 @@
+Testing computed indices
+arr[5] = 25
+arr[4] = 20
+arr[5] = 25
+arr[1] = 5
+Safe computed index [5] = 25
+Computed indices test completed

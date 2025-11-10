@@ -1,0 +1,13 @@
+=== Multiple Return Paths Test ===
+abs(-5) = 5
+abs(10) = 10
+abs(0) = 0
+classify(-10) = -1
+classify(0) = 0
+classify(42) = 1
+complex(0) = 0
+complex(-5) = -1
+complex(5) = 1
+complex(50) = 2
+complex(200) = 3
+Multiple return paths complete

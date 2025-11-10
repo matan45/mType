@@ -327,6 +327,14 @@ namespace vm::bytecode
         return globalVariables;
     }
 
+    ExceptionTable& BytecodeProgram::getGlobalExceptionTable() {
+        return globalExceptionTable;
+    }
+
+    const ExceptionTable& BytecodeProgram::getGlobalExceptionTable() const {
+        return globalExceptionTable;
+    }
+
     void BytecodeProgram::addSourceLocation(size_t instructionOffset, uint32_t line, uint32_t column, const std::string& filename) {
         sourceLocations[instructionOffset] = {line, column, filename};
     }
@@ -446,6 +454,9 @@ namespace vm::bytecode
         // Write class metadata
         writeClasses(out);
 
+        // Write global exception table
+        writeGlobalExceptionTable(out);
+
         // Write source file path
         size_t len = sourceFilePath.size();
         out.write(reinterpret_cast<const char*>(&len), sizeof(len));
@@ -486,6 +497,9 @@ namespace vm::bytecode
 
         // Read class metadata
         program.readClasses(in);
+
+        // Read global exception table
+        program.readGlobalExceptionTable(in);
 
         // Read source file path
         size_t len;
@@ -610,6 +624,29 @@ namespace vm::bytecode
                 out.write(reinterpret_cast<const char*>(&len), sizeof(len));
                 out.write(paramName.data(), len);
             }
+
+            // Write exception table
+            const auto& exceptionTable = func.exceptionTable;
+            size_t entryCount = exceptionTable.size();
+            out.write(reinterpret_cast<const char*>(&entryCount), sizeof(entryCount));
+            for (const auto& entry : exceptionTable.getEntries()) {
+                out.write(reinterpret_cast<const char*>(&entry.startIP), sizeof(entry.startIP));
+                out.write(reinterpret_cast<const char*>(&entry.endIP), sizeof(entry.endIP));
+                out.write(reinterpret_cast<const char*>(&entry.catchIP), sizeof(entry.catchIP));
+                out.write(reinterpret_cast<const char*>(&entry.finallyIP), sizeof(entry.finallyIP));
+                out.write(reinterpret_cast<const char*>(&entry.nestingLevel), sizeof(entry.nestingLevel));
+                out.write(reinterpret_cast<const char*>(&entry.catchVarSlot), sizeof(entry.catchVarSlot));
+
+                // Write exception type string
+                len = entry.exceptionType.size();
+                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+                out.write(entry.exceptionType.data(), len);
+
+                // Write catch variable name string
+                len = entry.catchVarName.size();
+                out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+                out.write(entry.catchVarName.data(), len);
+            }
         }
     }
 
@@ -648,6 +685,35 @@ namespace vm::bytecode
                 std::string paramName(len, '\0');
                 in.read(&paramName[0], len);
                 func.parameterNames[j] = paramName;
+            }
+
+            // Read exception table
+            size_t entryCount;
+            in.read(reinterpret_cast<char*>(&entryCount), sizeof(entryCount));
+            for (size_t j = 0; j < entryCount; ++j) {
+                size_t startIP, endIP, catchIP, finallyIP, catchVarSlot;
+                uint32_t nestingLevel;
+
+                in.read(reinterpret_cast<char*>(&startIP), sizeof(startIP));
+                in.read(reinterpret_cast<char*>(&endIP), sizeof(endIP));
+                in.read(reinterpret_cast<char*>(&catchIP), sizeof(catchIP));
+                in.read(reinterpret_cast<char*>(&finallyIP), sizeof(finallyIP));
+                in.read(reinterpret_cast<char*>(&nestingLevel), sizeof(nestingLevel));
+                in.read(reinterpret_cast<char*>(&catchVarSlot), sizeof(catchVarSlot));
+
+                // Read exception type string
+                in.read(reinterpret_cast<char*>(&len), sizeof(len));
+                std::string exceptionType(len, '\0');
+                in.read(&exceptionType[0], len);
+
+                // Read catch variable name string
+                in.read(reinterpret_cast<char*>(&len), sizeof(len));
+                std::string catchVarName(len, '\0');
+                in.read(&catchVarName[0], len);
+
+                // Add entry to function's exception table
+                ExceptionTableEntry entry(startIP, endIP, catchIP, finallyIP, exceptionType, nestingLevel, catchVarName, catchVarSlot);
+                func.exceptionTable.addEntry(entry);
             }
 
             functions[name] = func;
@@ -976,6 +1042,66 @@ namespace vm::bytecode
         classes.resize(count);
         for (size_t i = 0; i < count; ++i) {
             readClassMetadata(in, classes[i]);
+        }
+    }
+
+    void BytecodeProgram::writeGlobalExceptionTable(std::ostream& out) const {
+        // Write exception table entry count
+        size_t entryCount = globalExceptionTable.size();
+        out.write(reinterpret_cast<const char*>(&entryCount), sizeof(entryCount));
+
+        // Write each entry
+        for (const auto& entry : globalExceptionTable.getEntries()) {
+            out.write(reinterpret_cast<const char*>(&entry.startIP), sizeof(entry.startIP));
+            out.write(reinterpret_cast<const char*>(&entry.endIP), sizeof(entry.endIP));
+            out.write(reinterpret_cast<const char*>(&entry.catchIP), sizeof(entry.catchIP));
+            out.write(reinterpret_cast<const char*>(&entry.finallyIP), sizeof(entry.finallyIP));
+            out.write(reinterpret_cast<const char*>(&entry.nestingLevel), sizeof(entry.nestingLevel));
+            out.write(reinterpret_cast<const char*>(&entry.catchVarSlot), sizeof(entry.catchVarSlot));
+
+            // Write exception type string
+            size_t len = entry.exceptionType.size();
+            out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+            out.write(entry.exceptionType.data(), len);
+
+            // Write catch variable name string
+            len = entry.catchVarName.size();
+            out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+            out.write(entry.catchVarName.data(), len);
+        }
+    }
+
+    void BytecodeProgram::readGlobalExceptionTable(std::istream& in) {
+        // Read exception table entry count
+        size_t entryCount;
+        in.read(reinterpret_cast<char*>(&entryCount), sizeof(entryCount));
+
+        // Read each entry
+        for (size_t i = 0; i < entryCount; ++i) {
+            size_t startIP, endIP, catchIP, finallyIP, catchVarSlot;
+            uint32_t nestingLevel;
+
+            in.read(reinterpret_cast<char*>(&startIP), sizeof(startIP));
+            in.read(reinterpret_cast<char*>(&endIP), sizeof(endIP));
+            in.read(reinterpret_cast<char*>(&catchIP), sizeof(catchIP));
+            in.read(reinterpret_cast<char*>(&finallyIP), sizeof(finallyIP));
+            in.read(reinterpret_cast<char*>(&nestingLevel), sizeof(nestingLevel));
+            in.read(reinterpret_cast<char*>(&catchVarSlot), sizeof(catchVarSlot));
+
+            // Read exception type string
+            size_t len;
+            in.read(reinterpret_cast<char*>(&len), sizeof(len));
+            std::string exceptionType(len, '\0');
+            in.read(&exceptionType[0], len);
+
+            // Read catch variable name string
+            in.read(reinterpret_cast<char*>(&len), sizeof(len));
+            std::string catchVarName(len, '\0');
+            in.read(&catchVarName[0], len);
+
+            // Add entry to global exception table
+            ExceptionTableEntry entry(startIP, endIP, catchIP, finallyIP, exceptionType, nestingLevel, catchVarName, catchVarSlot);
+            globalExceptionTable.addEntry(entry);
         }
     }
 }

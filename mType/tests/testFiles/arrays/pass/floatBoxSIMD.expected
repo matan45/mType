@@ -1,0 +1,7 @@
+=== Float[] SIMD Test ===
+First element: 0.5
+Last element: 19.5
+Sum: 200.0
+doubled[0]: 1.0
+doubled[5]: 11.0
+Float[] SIMD test completed!

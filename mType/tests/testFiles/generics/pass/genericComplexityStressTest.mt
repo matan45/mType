@@ -84,7 +84,7 @@ function main(): void {
     intSet.add(new Int(20));
 
     Container<List<String>, HashMap<Int, String>, HashSet<Int>> complexContainer =
-        new Container<List<String>, HashMap<Int, String>, HashSet<Int>>(stringList, intStringMap, intSet);
+        new Container<List<String>, HashMap<Int,String>, HashSet<Int>>(stringList, intStringMap, intSet);
 
     print("Container first size: " + complexContainer.getFirst().size());
     print("Container second size: " + complexContainer.getSecond().size());

@@ -1,0 +1,4 @@
+Pair: age = 25
+Pair: 1 = one
+Triple: name, 42, value
+Multiple type parameters test passed

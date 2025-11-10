@@ -1,0 +1,13 @@
+Test 1: Two ints
+max(int, int): 10, 5
+Result: 10
+
+Test 2: Three ints
+max(int, int, int): 10, 25, 15
+max(int, int): 10, 25
+max(int, int): 25, 15
+Result: 25
+
+Test 3: Two strings
+max(string, string): Hello, World
+Result: HelloWorld

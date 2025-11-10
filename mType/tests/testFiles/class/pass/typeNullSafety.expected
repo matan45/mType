@@ -1,0 +1,22 @@
+Test 1: Null initialization
+Has value: false
+No value to process
+
+Test 2: Set non-null value
+Value set to: <object>
+Has value: true
+Processing value: <object>
+
+Test 3: Set back to null
+Value set to null
+Has value: false
+No value to process
+
+Test 4: Type checking with null
+obj is null: true
+obj is not null: true
+
+Test 5: Null comparison
+Value set to null
+Value set to null
+Both null, same value: true

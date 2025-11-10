@@ -1,0 +1,5 @@
+Testing abstract exception catching
+Caught exception: Null error
+Caught exception: Invalid arg
+Caught exception: Runtime error
+Test completed

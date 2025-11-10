@@ -1,0 +1,34 @@
+=== Test 08: Multi-Dimensional Arrays with Generics ===
+--- Basic 2D array ---
+Row 0: 1 2 3
+Row 1: 4 5 6
+Row 2: 7 8 9
+--- Generic Matrix with Int ---
+Row 0: 10 20 30
+Row 1: 40 50 60
+--- Generic Matrix with String ---
+Row 0: A B
+Row 1: C D
+--- 3D Tensor ---
+Layer 0 sum: 10
+Layer 1 sum: 26
+--- Jagged arrays ---
+Jagged row 0 (length 2): 1 2
+Jagged row 1 (length 4): 3 4 5 6
+Jagged row 2 (length 1): 7
+--- 3D arrays ---
+Depth 0:
+  Row 0: 1 2
+  Row 1: 3 4
+Depth 1:
+  Row 0: 5 6
+  Row 1: 7 8
+--- Array processor with collections ---
+Processed list size: 4
+Element 0: 2
+Element 1: 4
+Element 2: 6
+Element 3: 8
+--- Flatten to 1D ---
+Flattened: 1 2 3 4
+=== Test 08 Complete ===

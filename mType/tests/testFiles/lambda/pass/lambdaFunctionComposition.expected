@@ -1,0 +1,9 @@
+=== Function Composition Test ===
+composed1(5): 30
+composed1(10): 40
+composed2(5): 20
+composed2(10): 30
+composed3(3): 338
+Length of 'Value:42': 8
+Length of 'Value:100': 9
+Function composition complete

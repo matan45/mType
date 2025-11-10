@@ -1,0 +1,88 @@
+=== Async in Loop Test ===
+
+Test 1: Await in for loop
+Processing item 1
+Got item 1 with value 1
+Processing item 2
+Got item 2 with value 4
+Processing item 3
+Got item 3 with value 9
+Processing item 4
+Got item 4 with value 16
+Processing item 5
+Got item 5 with value 25
+Total sum: 55
+Expected: 1 + 4 + 9 + 16 + 25 = 55
+
+Test 2: Await in while loop
+Processing item 1
+While loop item 1: 1
+Processing item 2
+While loop item 2: 4
+Processing item 3
+While loop item 3: 9
+While loop sum: 14
+
+Test 3: Conditional await in loop
+Processing item 1
+Odd item 1: 1
+Processing item 2
+Even item 2: 4
+Processing item 3
+Odd item 3: 9
+Processing item 4
+Even item 4: 16
+Processing item 5
+Odd item 5: 25
+Processing item 6
+Even item 6: 36
+Even sum: 56
+Odd sum: 35
+
+Test 4: Break with await in loop
+Processing item 1
+Checking item 1
+Processing item 2
+Checking item 2
+Processing item 3
+Checking item 3
+Processing item 4
+Checking item 4
+Processing item 5
+Checking item 5
+Found value >= 25, breaking at index 5
+
+Test 5: Continue with await in loop
+Processing item 1
+Skipping odd index 1
+Processing item 2
+Processing even index 2 with value 4
+Processing item 3
+Skipping odd index 3
+Processing item 4
+Processing even index 4 with value 16
+Processing item 5
+Skipping odd index 5
+Processing item 6
+Processing even index 6 with value 36
+Processing item 7
+Skipping odd index 7
+Processed 3 even-indexed items
+
+Test 6: Nested loops with await
+Outer loop iteration 1
+Processing item 11
+  Inner [1,1]: 121
+Processing item 12
+  Inner [1,2]: 144
+Processing item 13
+  Inner [1,3]: 169
+Outer loop iteration 2
+Processing item 21
+  Inner [2,1]: 441
+Processing item 22
+  Inner [2,2]: 484
+Processing item 23
+  Inner [2,3]: 529
+
+All async in loop tests complete

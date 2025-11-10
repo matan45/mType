@@ -1,0 +1,11 @@
+Testing array casting with null elements
+Array length: 5
+Entity at index 0 id: 1
+Entity at index 1: null
+Entity at index 2 id: 3
+Entity at index 3: null
+Entity at index 4 id: 5
+Player 0 name: Alice
+Player 2 name: Bob
+Player 4 name: Charlie
+Array with null elements casting completed

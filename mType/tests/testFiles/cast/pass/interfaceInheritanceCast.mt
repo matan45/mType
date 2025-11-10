@@ -1,10 +1,10 @@
 // Test: Interface inheritance casting
 interface Base {
-    function baseMethod(): void;
+    public function baseMethod(): void;
 }
 
 interface Extended extends Base {
-    function extendedMethod(): void;
+    public function extendedMethod(): void;
 }
 
 class Impl implements Extended {

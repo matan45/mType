@@ -1,0 +1,8 @@
+=== Async Protected Method Test ===
+Processing in base class
+Fetching base data: 10
+Base result: 10
+Processing in derived class
+Fetching base data: 10
+Combined: 30
+Derived result: 30

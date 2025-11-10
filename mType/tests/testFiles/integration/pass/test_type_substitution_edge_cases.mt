@@ -19,11 +19,11 @@ class Container<T> {
         data = value;
     }
 
-    function get(): T {
+    public function get(): T {
         return data;
     }
 
-    function hashSet(T value): void {
+    public function hashSet(T value): void {
         data = value;
     }
 
@@ -42,11 +42,11 @@ class Pair<K, V> {
         second = v;
     }
 
-    function getFirst(): K {
+    public function getFirst(): K {
         return first;
     }
 
-    function getSecond(): V {
+    public function getSecond(): V {
         return second;
     }
 
@@ -67,11 +67,11 @@ class NestedContainer<T> {
         items.add(item);
     }
 
-    function get(Int index): T {
+    public function get(Int index): T {
         return items.get(index);
     }
 
-    function size(): Int {
+    public function size(): Int {
         return items.size();
     }
 

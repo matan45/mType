@@ -1,0 +1,12 @@
+=== Generic Method Inference Test ===
+Value:1
+Value:2
+Value:3
+Value:4
+Value:5
+Doubled: 2
+Doubled: 4
+Doubled: 6
+Doubled: 8
+Doubled: 10
+Generic method inference complete

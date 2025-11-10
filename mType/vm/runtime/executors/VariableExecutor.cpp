@@ -10,26 +10,6 @@ namespace vm::runtime
     {
     }
 
-    bool VariableExecutor::tryLoadFromLambdaParentFrame(const std::string& varName) {
-        // Check if we're in a lambda with a parent frame (for late-bound variable access)
-        if (context.callStack.empty() || !context.callStack.back().originatingLambda) {
-            return false;
-        }
-
-        auto lambda = context.callStack.back().originatingLambda;
-        if (!lambda->parentFrame) {
-            return false;
-        }
-
-        value::Value val = lambda->parentFrame->getLocalByName(varName);
-        if (std::holds_alternative<std::monostate>(val)) {
-            return false;
-        }
-
-        context.stackManager->push(val);
-        return true;
-    }
-
     bool VariableExecutor::tryLoadFromInstanceField(const std::string& varName) {
         // Check if we're in a method/constructor and should access a field from 'this'
         if (context.callStack.empty() || !context.callStack.back().thisInstance) {
@@ -98,12 +78,12 @@ namespace vm::runtime
         }
 
         // Try alternative variable access methods
-        if (tryLoadFromLambdaParentFrame(varName)) return;
         if (tryLoadFromInstanceField(varName)) return;
         if (tryLoadFromStaticField(varName)) return;
 
         // Variable not found anywhere
-        throw errors::RuntimeException("Variable not found: " + varName);
+        utils::ErrorLocationHelper::throwRuntimeError(context,
+            "Variable not found: " + varName);
     }
 
     bool VariableExecutor::tryStoreToInstanceField(const std::string& varName, const value::Value& val) {
@@ -183,6 +163,10 @@ namespace vm::runtime
         }
 
         varDef->setValue(val);
+
+        // Globals don't need SharedStackFrame updates
+        // They are accessible through the Environment
+
         // Push value back for assignment expressions (e.g., x = y = 5)
         context.stackManager->push(val);
     }
@@ -207,7 +191,8 @@ namespace vm::runtime
         if (tryStoreToStaticField(varName, val)) return;
 
         // Variable not found anywhere
-        throw errors::RuntimeException("Variable not found: " + varName);
+        utils::ErrorLocationHelper::throwRuntimeError(context,
+            "Variable not found: " + varName);
     }
 
     void VariableExecutor::handleDeclareVar(const bytecode::BytecodeProgram::Instruction& instr)
@@ -234,6 +219,9 @@ namespace vm::runtime
             varName, type, val, isFinal);
 
         context.environment->declareVariable(varName, varDef);
+
+        // Globals don't need to be registered in SharedStackFrame
+        // They are accessible through the Environment, not through closure capture
     }
 
     void VariableExecutor::handleLoadLocal(const bytecode::BytecodeProgram::Instruction& instr)
@@ -245,15 +233,48 @@ namespace vm::runtime
 
         size_t slot = instr.operands[0];
 
-        // Get the current frame base (or 0 if no call frame)
-        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        // Check if we're in a lambda context and this is a captured variable
+        // If so, look it up by name through the SharedStackFrame parent chain for reference capture
+        if (!context.callStack.empty() && context.callStack.back().originatingLambda)
+        {
+            auto lambda = context.callStack.back().originatingLambda;
+            size_t paramCount = lambda->parameterCount;
+            size_t capturedCount = lambda->capturedSlots.size();
 
-        // Calculate absolute stack position
+            // Check if this slot is in the captured variable range
+            if (slot >= paramCount && slot < paramCount + capturedCount)
+            {
+                // This is a captured variable - look it up by name through parent chain
+                size_t capturedIndex = slot - paramCount;
+                if (capturedIndex < lambda->capturedNames.size())
+                {
+                    // Use the slot number directly instead of looking up by name
+                    // This allows multiple variables with the same name to coexist
+                    size_t capturedSlot = lambda->capturedSlots[capturedIndex];
+
+                    if (lambda->capturedFrame)
+                    {
+                        // Access by slot number (reference capture)
+                        value::Value val = lambda->capturedFrame->getLocal(capturedSlot);
+
+                        if (!std::holds_alternative<std::monostate>(val))
+                        {
+                            context.stackManager->push(val);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Normal local variable access - read from stack
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
         size_t stackPos = frameBase + slot;
 
         if (stackPos >= context.stackManager->size())
         {
-            throw errors::RuntimeException("Local variable slot out of bounds: " + std::to_string(slot));
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Local variable slot out of bounds: " + std::to_string(slot));
         }
 
         // Load value from stack
@@ -276,14 +297,41 @@ namespace vm::runtime
             varName = context.program->getConstantPool().getString(instr.operands[1]);
         }
 
-        // Get the current frame base (or 0 if no call frame)
-        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
-
-        // Calculate absolute stack position
-        size_t stackPos = frameBase + slot;
-
         // Pop value from top of stack
         value::Value val = context.stackManager->pop();
+
+        // Check if we're in a lambda context and this is a captured variable
+        // If so, update it through the SharedStackFrame parent chain for reference capture
+        if (!context.callStack.empty() && context.callStack.back().originatingLambda)
+        {
+            auto lambda = context.callStack.back().originatingLambda;
+            size_t paramCount = lambda->parameterCount;
+            size_t capturedCount = lambda->capturedSlots.size();
+
+            // Check if this slot is in the captured variable range
+            if (slot >= paramCount && slot < paramCount + capturedCount)
+            {
+                // This is a captured variable - update it by name through parent chain
+                size_t capturedIndex = slot - paramCount;
+                if (capturedIndex < lambda->capturedNames.size())
+                {
+                    std::string capturedVarName = lambda->capturedNames[capturedIndex];
+
+                    if (!capturedVarName.empty() && lambda->capturedFrame)
+                    {
+                        // Update through parent chain (reference capture)
+                        lambda->capturedFrame->setLocalByName(capturedVarName, val);
+                        // Push value back for assignment expressions
+                        context.stackManager->push(val);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Normal local variable access - write to stack
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
 
         // Extend stack if needed to reach the slot position
         while (context.stackManager->size() < stackPos)
@@ -302,22 +350,21 @@ namespace vm::runtime
             (*context.stackManager)[stackPos] = val;
         }
 
+        // Also update the SharedStackFrame (for closure capture of non-captured variables)
+        // Create SharedStackFrame if it doesn't exist yet
+        if (!context.callStack.empty() && !varName.empty())
+        {
+            if (!context.callStack.back().sharedFrame) {
+                context.callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
+            }
+            auto sharedFrame = context.callStack.back().sharedFrame;
+
+            // Use slot-based storage to avoid name collisions
+            // Multiple variables with the same name at different slots should not interfere
+            sharedFrame->setLocal(varName, slot, val);
+        }
+
         // Push value back for assignment expressions (e.g., int i = 0 in for loop)
         context.stackManager->push(val);
-
-        // Also update the shared frame if one exists (for lambda late-binding)
-        // This ensures lambdas see updated values of variables (including forward references)
-        if (!context.callStack.empty() && context.callStack.back().sharedFrame)
-        {
-            if (!varName.empty())
-            {
-                // Register the variable name -> slot mapping
-                context.callStack.back().sharedFrame->setLocal(varName, slot, val);
-            }
-            else
-            {
-                context.callStack.back().sharedFrame->setLocal(slot, val);
-            }
-        }
     }
 }

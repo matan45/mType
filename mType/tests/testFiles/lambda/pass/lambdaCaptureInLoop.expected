@@ -1,0 +1,16 @@
+=== Capture In Loop Test ===
+funcs[0](10) = 14
+funcs[1](10) = 14
+funcs[2](10) = 14
+funcs[3](10) = 14
+funcs[4](10) = 14
+Multipliers:
+mult[0](5) = 152
+mult[1](5) = 152
+mult[2](5) = 152
+Nested loops:
+i=0 j=0: 1
+i=0 j=1: 101
+i=1 j=0: 11
+i=1 j=1: 111
+Capture in loop complete

@@ -1,0 +1,11 @@
+Testing array return type inference
+Doubled values:
+  2
+  4
+  6
+  8
+Reversed array:
+  Three
+  Two
+  One
+Array return type inference test completed

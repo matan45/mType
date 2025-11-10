@@ -1,0 +1,16 @@
+Testing array concatenation
+Array 1:
+  arr1[0] = 1
+  arr1[1] = 2
+  arr1[2] = 3
+Array 2:
+  arr2[0] = 4
+  arr2[1] = 5
+Concatenated array:
+  concatenated[0] = 1
+  concatenated[1] = 2
+  concatenated[2] = 3
+  concatenated[3] = 4
+  concatenated[4] = 5
+Concatenated with empty array, length: 3
+Array concatenation test completed

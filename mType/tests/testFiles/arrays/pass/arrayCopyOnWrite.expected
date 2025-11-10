@@ -1,0 +1,15 @@
+Testing copy-on-write semantics
+Original array:
+  10
+  20
+  30
+  40
+After modifying copy:
+Original[0] = 10
+Copy[0] = 999
+Original[2] = 30
+Copy[2] = 888
+After modifying original:
+Original[1] = 777
+Copy[1] = 20
+Copy-on-write test completed

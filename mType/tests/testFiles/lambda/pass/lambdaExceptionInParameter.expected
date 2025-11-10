@@ -1,0 +1,9 @@
+=== Exception In Parameter Test ===
+Process(5): 35
+Caught in lambda: Negative input not allowed
+Process(-3): -1
+Process(10): 110
+Outer(4): 32
+Error during invocation: Negative input not allowed
+Outer(-2): 0
+Exception in parameter complete

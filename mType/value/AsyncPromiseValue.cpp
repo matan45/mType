@@ -156,6 +156,59 @@ namespace value
         }
     }
 
+    void AsyncPromiseValue::rejectWithException(const Value& exceptionVal, const std::string& typeName, const std::string& error)
+    {
+        // Local storage for errors to log outside the lock
+        std::vector<std::string> errorsToLog;
+
+        {
+            std::lock_guard<std::mutex> lock(callbackMutex);
+
+            // Call parent rejectWithException() which validates state and stores exception
+            PromiseValue::rejectWithException(exceptionVal, typeName, error);
+
+            // Execute all .catch() callbacks
+            for (auto& callback : catchCallbacks)
+            {
+                try
+                {
+                    callback(error);
+                }
+                catch (const std::exception& e)
+                {
+                    std::string errorMsg = "Error in .catch() callback: " + std::string(e.what());
+                    callbackErrors.push_back(errorMsg);
+                    errorsToLog.push_back(errorMsg);
+                }
+            }
+
+            // Execute .finally() callbacks
+            for (auto& callback : finallyCallbacks)
+            {
+                try
+                {
+                    callback();
+                }
+                catch (const std::exception& e)
+                {
+                    std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
+                    callbackErrors.push_back(errorMsg);
+                    errorsToLog.push_back(errorMsg);
+                }
+            }
+
+            // Clear callbacks after execution
+            catchCallbacks.clear();
+            finallyCallbacks.clear();
+        }
+
+        // Log errors outside the lock to avoid I/O under lock
+        for (const auto& error : errorsToLog)
+        {
+            std::cerr << "AsyncPromiseValue: " << error << std::endl;
+        }
+    }
+
     std::shared_ptr<AsyncPromiseValue> AsyncPromiseValue::chain(
         std::function<Value(Value)> transform)
     {

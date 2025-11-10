@@ -1,0 +1,9 @@
+Starting high-volume casting test...
+Completed 100 iterations
+Total shapes created: 100
+Rectangles: 34
+Circles: 33
+Triangles: 33
+Total area calculated: positive
+Shape count verification: passed
+Test completed successfully

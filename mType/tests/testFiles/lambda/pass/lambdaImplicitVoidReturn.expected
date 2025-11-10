@@ -1,0 +1,8 @@
+=== Implicit Void Return Test ===
+Count after 5: 5
+Count after 3 more: 8
+Invalid index: 5
+data[0] = 1
+data[1] = 1
+data[2] = 0
+Implicit void return complete

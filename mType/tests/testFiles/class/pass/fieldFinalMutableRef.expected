@@ -1,0 +1,15 @@
+Test 1: Create container
+Container created with value: 10
+Current value: 10
+
+Test 2: Mutate object
+Mutating from 10 to 20
+Current value: 20
+
+Test 3: Multiple mutations
+Mutating from 20 to 30
+Mutating from 30 to 40
+Current value: 40
+
+Test 4: Direct mutation
+After direct mutation: 50

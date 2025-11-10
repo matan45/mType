@@ -1,0 +1,24 @@
+=== Test 1: Polymorphic Exception Handling ===
+Testing polymorphic exception handling:
+BaseService executing: test0
+Result 0: Base result: test0
+DerivedService executing: test1
+Result 1: Derived result: test1
+SpecializedService executing: test2
+Result 2: Specialized result: test2
+SafeService executing: test3
+Result 3: Safe result: test3
+
+=== Test 2: Exception Narrowing ===
+Testing exception narrowing:
+DerivedService executing: runtime_fail
+Caught narrowed RuntimeException: Derived runtime failure
+SpecializedService executing: illegal
+Caught narrowest IllegalArgumentException: Specialized illegal argument
+
+=== Test 3: Safe Override ===
+Testing safe override (no exceptions):
+SafeService executing: always_succeeds
+Safe execution: Safe result: always_succeeds
+
+Covariant exception types test passed!

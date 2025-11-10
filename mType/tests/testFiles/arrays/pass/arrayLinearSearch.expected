@@ -1,0 +1,11 @@
+Testing array linear search
+Array: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45]
+indexOf(20) = 4
+indexOf(45) = 9
+indexOf(0) = 0
+indexOf(99) = -1
+String array search:
+indexOf(Charlie) = 2
+indexOf(Alice) = 0
+indexOf(Frank) = -1
+Linear search test completed

@@ -4,6 +4,10 @@
 #include "builtin/StrLengthFunction.hpp"
 #include "builtin/HashCodeFunction.hpp"
 #include "builtin/SqrtFunction.hpp"
+#include "builtin/SubstringFunction.hpp"
+#include "builtin/ToUpperCaseFunction.hpp"
+#include "builtin/ToLowerCaseFunction.hpp"
+#include "builtin/IndexOfFunction.hpp"
 #include <algorithm>
 
 namespace environment::registry
@@ -72,6 +76,12 @@ namespace environment::registry
         registerBuiltinFunction(std::make_unique<builtin::StrLengthFunction>());
         registerBuiltinFunction(std::make_unique<builtin::HashCodeFunction>());
         registerBuiltinFunction(std::make_unique<builtin::SqrtFunction>());
+
+        // String manipulation functions
+        registerBuiltinFunction(std::make_unique<builtin::SubstringFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::ToUpperCaseFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::ToLowerCaseFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::IndexOfFunction>());
     }
 
     void NativeRegistry::registerBuiltinFunction(std::unique_ptr<builtin::BuiltinFunction> function)

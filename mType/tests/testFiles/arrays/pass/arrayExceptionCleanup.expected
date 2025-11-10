@@ -1,0 +1,15 @@
+Testing exception cleanup
+Resources allocated:
+  Resource 0
+  Resource 1
+  Resource 2
+  Resource 3
+  Resource 4
+After exception simulation:
+Original array still valid:
+  Resource 0
+  Resource 1
+  Resource 2
+  Resource 3
+  Resource 4
+Exception cleanup test completed

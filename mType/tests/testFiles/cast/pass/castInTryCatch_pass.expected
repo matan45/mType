@@ -1,0 +1,22 @@
+=== Safe Casting with Try-Catch ===
+Successfully cast to Car: Car with 4 doors
+  Car honks: Beep beep!
+Cast to Car failed for vehicle 1
+
+Cast to Motorcycle failed for vehicle 0
+Successfully cast to Motorcycle: Motorcycle
+  Bike revs: Vroom vroom!
+
+Summary:
+  Cars found: 1
+  Bikes found: 1
+  Failed casts: 2
+
+=== Null Casting Test ===
+Null cast to Car succeeded: true
+
+=== Valid Downcast Test ===
+Valid downcast succeeded: Car with 2 doors
+  Honking: Beep beep!
+
+Casting with try-catch complete

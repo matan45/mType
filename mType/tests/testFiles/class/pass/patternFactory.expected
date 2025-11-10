@@ -1,0 +1,30 @@
+Test 1: Create individual animals
+Factory creating: dog
+Created dog: Buddy
+Buddy says: Woof
+Factory creating: cat
+Created cat: Whiskers
+Whiskers says: Meow
+Factory creating: bird
+Created bird: Tweety
+Tweety says: Tweet
+
+Test 2: Type-specific behavior
+Buddy is fetching
+
+Test 3: Create multiple animals
+Factory creating 3 dogs
+Factory creating: dog
+Created dog: dog0
+Factory creating: dog
+Created dog: dog1
+Factory creating: dog
+Created dog: dog2
+dog0 says: Woof
+dog1 says: Woof
+dog2 says: Woof
+
+Test 4: Unknown type
+Factory creating: elephant
+Unknown type, creating generic animal
+Dumbo says: ...

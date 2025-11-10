@@ -1,0 +1,10 @@
+Testing arrays in cleanup blocks
+Acquired resources:
+  Resource 1
+  Resource 2
+  Resource 3
+  Resource 4
+  Resource 5
+Releasing 5 resources
+After cleanup, resources count: 0
+Cleanup blocks test completed

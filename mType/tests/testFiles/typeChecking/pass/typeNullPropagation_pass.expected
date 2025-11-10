@@ -1,0 +1,10 @@
+Testing null propagation through expressions
+Employee 1 company location: No company
+Employee 1 company city: No company
+Employee 2 company location: Location unknown
+Employee 2 company city: No location
+Employee 3 company location: New York, USA
+Employee 3 company city: New York
+Employee 4 is null
+Full details: GlobalSoft - New York, USA
+Null propagation test completed

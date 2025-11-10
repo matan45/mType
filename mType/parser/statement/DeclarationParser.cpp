@@ -4,6 +4,12 @@
 #include "../utilities/ParserUtils.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../../ast/nodes/classes/NewNode.hpp"
+#include "../../ast/nodes/expressions/IntegerNode.hpp"
+#include "../../ast/nodes/expressions/FloatNode.hpp"
+#include "../../ast/nodes/expressions/BoolNode.hpp"
+#include "../../ast/nodes/expressions/StringNode.hpp"
+#include "../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../errors/ParseException.hpp"
 
 namespace parser::statement
@@ -107,6 +113,10 @@ namespace parser::statement
         if (tryConsumeToken(TokenType::ASSIGN))
         {
             value = context.parseExpression();
+
+            // PHASE 4: Apply auto-boxing if needed
+            // Transforms: Int x = 42; → Int x = new Int(42);
+            value = applyAutoBoxingIfNeeded(std::move(value), className, type);
         }
         else
         {
@@ -171,5 +181,145 @@ namespace parser::statement
         }
 
         return modifiers;
+    }
+
+    // Phase 4: Auto-boxing implementation
+    std::unique_ptr<ASTNode> DeclarationParser::applyAutoBoxingIfNeeded(
+        std::unique_ptr<ASTNode> value,
+        const std::string& targetClassName,
+        value::ValueType targetType)
+    {
+        using namespace ast::nodes::expressions;
+        using namespace ast::nodes::classes;
+
+        // Only auto-box if we have a value
+        if (!value)
+        {
+            return value;
+        }
+
+        // PHASE 4.5: Array initializer auto-boxing
+        // Check if target is an array type (e.g., "Int[]", "Float[]")
+        if (targetClassName.length() > 2 && targetClassName.substr(targetClassName.length() - 2) == "[]")
+        {
+            // Extract element type (e.g., "Int" from "Int[]")
+            std::string elementType = targetClassName.substr(0, targetClassName.length() - 2);
+
+            // Check if it's a Box type array
+            bool isBoxArrayType = (elementType == "Int" ||
+                                   elementType == "Float" ||
+                                   elementType == "Bool" ||
+                                   elementType == "String");
+
+            if (isBoxArrayType)
+            {
+                // Check if value is an array literal
+                if (auto* arrayLiteral = dynamic_cast<ArrayLiteralNode*>(value.get()))
+                {
+                    // Transform each primitive literal element to a NewNode
+                    auto& elements = const_cast<std::vector<std::unique_ptr<ASTNode>>&>(arrayLiteral->getElements());
+
+                    for (size_t i = 0; i < elements.size(); ++i)
+                    {
+                        ASTNode* elem = elements[i].get();
+                        bool shouldBox = false;
+
+                        // Check if element is a primitive literal matching the element type
+                        if (elementType == "Int" && dynamic_cast<IntegerNode*>(elem))
+                        {
+                            shouldBox = true;
+                        }
+                        else if (elementType == "Float" && dynamic_cast<FloatNode*>(elem))
+                        {
+                            shouldBox = true;
+                        }
+                        else if (elementType == "Bool" && dynamic_cast<BoolNode*>(elem))
+                        {
+                            shouldBox = true;
+                        }
+                        else if (elementType == "String" && dynamic_cast<StringNode*>(elem))
+                        {
+                            shouldBox = true;
+                        }
+
+                        if (shouldBox)
+                        {
+                            // Transform: Int[] arr = [42] → Int[] arr = [new Int(42)]
+                            SourceLocation loc = elem->getLocation();
+
+                            std::vector<std::unique_ptr<ASTNode>> constructorArgs;
+                            constructorArgs.push_back(std::move(elements[i]));
+
+                            elements[i] = std::make_unique<NewNode>(
+                                elementType,
+                                std::move(constructorArgs),
+                                loc
+                            );
+                        }
+                    }
+
+                    return value;  // Return modified array literal
+                }
+            }
+        }
+
+        // Regular auto-boxing for single values (not arrays)
+        if (targetType != value::ValueType::OBJECT)
+        {
+            return value;
+        }
+
+        // Check if target is a primitive Box type
+        bool isBoxType = (targetClassName == "Int" ||
+                          targetClassName == "Float" ||
+                          targetClassName == "Bool" ||
+                          targetClassName == "String");
+
+        if (!isBoxType)
+        {
+            return value;  // Not a Box type, no auto-boxing
+        }
+
+        // Check if value is a primitive literal that needs boxing
+        bool needsBoxing = false;
+
+        if (targetClassName == "Int" && dynamic_cast<IntegerNode*>(value.get()))
+        {
+            needsBoxing = true;
+        }
+        else if (targetClassName == "Float" && dynamic_cast<FloatNode*>(value.get()))
+        {
+            needsBoxing = true;
+        }
+        else if (targetClassName == "Bool" && dynamic_cast<BoolNode*>(value.get()))
+        {
+            needsBoxing = true;
+        }
+        else if (targetClassName == "String" && dynamic_cast<StringNode*>(value.get()))
+        {
+            needsBoxing = true;
+        }
+
+        if (!needsBoxing)
+        {
+            return value;  // Value is not a primitive literal, no auto-boxing needed
+        }
+
+        // PHASE 4 AUTO-BOXING: Transform literal to constructor call
+        // Example: Int x = 42; → Int x = new Int(42);
+
+        // Save location before moving value
+        SourceLocation loc = value->getLocation();
+
+        std::vector<std::unique_ptr<ASTNode>> constructorArgs;
+        constructorArgs.push_back(std::move(value));
+
+        auto boxedValue = std::make_unique<NewNode>(
+            targetClassName,
+            std::move(constructorArgs),
+            loc
+        );
+
+        return boxedValue;
     }
 }

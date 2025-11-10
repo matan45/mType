@@ -1,0 +1,13 @@
+Testing array aliasing
+Original array:
+  original[0] = 10
+  original[1] = 20
+  original[2] = 30
+  original[3] = 40
+After modifying through alias:
+Original[0] = 100
+Alias[0] = 100
+Original[2] = 300
+Alias[2] = 300
+Same reference: true
+Array aliasing test completed

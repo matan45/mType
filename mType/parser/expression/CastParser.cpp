@@ -57,12 +57,12 @@ namespace parser::expression
         // Check if it's a type name
         TokenType type = nextToken.type;
 
-        // Check for primitive types
+        // Check for primitive types (including primitive arrays)
         if (type == TokenType::INT || type == TokenType::FLOAT ||
             type == TokenType::BOOL || type == TokenType::STRING_TYPE ||
             type == TokenType::VOID)
         {
-            return true;
+            return true; // Handles: (int), (float[]), (string[][]), etc.
         }
 
         // Check for identifier (class/interface name)
@@ -75,6 +75,17 @@ namespace parser::expression
             if (afterId.type == TokenType::RPAREN)
             {
                 return true; // Pattern: (Type)
+            }
+
+            // Check for array types: (Type[]), (Type[][]), etc.
+            if (afterId.type == TokenType::LBRACKET)
+            {
+                std::string idValue = nextToken.stringValue.getString();
+                // Check if first character is uppercase (type convention)
+                if (!idValue.empty() && std::isupper(idValue[0]))
+                {
+                    return true; // Likely an array type cast
+                }
             }
 
             // For generic types like (Circle<T>), we need more sophisticated checking

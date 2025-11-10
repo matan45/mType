@@ -92,7 +92,7 @@ namespace environment::registry::builtin
         auto classDef = value->getClassDefinition();
         auto toStringMethod = classDef ? classDef->findMethod("toString", 0) : nullptr;
 
-        if (!toStringMethod || toStringMethod->isStatic())
+        if (!toStringMethod)
         {
             return std::nullopt;
         }
@@ -129,6 +129,10 @@ namespace environment::registry::builtin
                     }
                 }
             }
+        }
+        catch (const std::exception&)
+        {
+            // If toString() fails, return nullopt to fall back to default representation
         }
         catch (...)
         {

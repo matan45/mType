@@ -1,0 +1,58 @@
+=== Test 1: Form validation with multiple errors ===
+Validation error: Name is required
+Validation error: Email must contain @
+Validation error: Age must be 18 or older
+
+Caught aggregate exception:
+AggregateException: Form validation failed with 3 errors (3 errors)
+  - Name is required
+  - Email must contain @
+  - Age must be 18 or older
+
+--- Valid form test ---
+Form validation passed
+
+=== Test 2: Parallel operation errors ===
+Success: Task 1 completed
+Failed: Task 2 (Load) failed
+Failed: Task 3 (Process) failed
+Success: Task 4 completed
+Failed: Task 5 (Cleanup) failed
+
+Task execution summary:
+Successful: 2
+Failed: 3
+
+AggregateException: Batch execution completed with errors (3 errors)
+  - Task 2 (Load) failed
+  - Task 3 (Process) failed
+  - Task 5 (Cleanup) failed
+
+=== Test 3: Nested aggregation ===
+Caught from group 1: Group 1 failed
+Caught from group 2: Group 2 failed
+
+Nested aggregate exception:
+AggregateException: Multiple operation groups failed (2 errors)
+  - Group 1 failed
+  - Group 2 failed
+
+=== Test 4: Collect all errors before reporting ===
+Running validations...
+Added error for field1
+Added error for field2
+Added error for field3
+Total errors collected: 3
+
+All validation errors:
+AggregateException: Validation failed (3 errors)
+  - Field1 is invalid
+  - Field2 is too short
+  - Field3 format is incorrect
+
+=== Test 5: Exception flattening ===
+Flattened exception list:
+  1. Simple error 1
+  2. Simple error 2
+
+Exception aggregation test completed!

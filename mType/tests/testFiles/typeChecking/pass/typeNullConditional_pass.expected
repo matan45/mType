@@ -1,0 +1,7 @@
+Testing null-conditional type inference
+Product name: No product
+Total price: 0
+Product name: Laptop
+Total price: 1000
+Product details: Laptop - 1000
+Null-conditional type inference test completed

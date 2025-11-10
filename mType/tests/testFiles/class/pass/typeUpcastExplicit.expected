@@ -1,0 +1,15 @@
+Test 1: Dog to Animal upcast
+Woof!
+Species: Canine
+
+Test 2: Cat to Animal upcast
+Meow!
+Species: Feline
+
+Test 3: Upcast in array
+Animal 0:
+Woof!
+Animal 1:
+Meow!
+Animal 2:
+Animal sound

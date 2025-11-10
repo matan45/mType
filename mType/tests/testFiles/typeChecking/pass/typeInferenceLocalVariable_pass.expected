@@ -1,0 +1,9 @@
+Testing local variable type inference
+Int value: 42
+String value: mType
+Float value: 3.14
+Bool value: true
+Box<Int> value: 100
+Box<String> value: Inference
+Reassigned Int: 99
+Local variable inference test completed

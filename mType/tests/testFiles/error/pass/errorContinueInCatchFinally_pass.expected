@@ -1,0 +1,121 @@
+Testing continue in catch-finally blocks
+Testing continue in catch block
+Loop: i=0
+Even number processed: 0
+Finally: i=0
+After try-catch-finally: i=0
+Loop: i=1
+Caught: Odd number: 1
+Continuing to next iteration
+Finally: i=1
+Loop: i=2
+Even number processed: 2
+Finally: i=2
+After try-catch-finally: i=2
+Loop: i=3
+Caught: Odd number: 3
+Continuing to next iteration
+Finally: i=3
+Loop: i=4
+Even number processed: 4
+Finally: i=4
+After try-catch-finally: i=4
+Loop complete
+---
+Testing continue in nested loops with catch
+Outer loop: i=0
+Inner: i=0, j=0
+Processing j=0
+Inner finally: j=0
+After inner try-catch: j=0
+Inner: i=0, j=1
+Processing j=1
+Inner finally: j=1
+After inner try-catch: j=1
+Inner: i=0, j=2
+Inner catch: Exception at j=2
+Inner finally: j=2
+Inner: i=0, j=3
+Processing j=3
+Inner finally: j=3
+After inner try-catch: j=3
+Inner loop complete for i=0
+Outer loop: i=1
+Inner: i=1, j=0
+Processing j=0
+Inner finally: j=0
+After inner try-catch: j=0
+Inner: i=1, j=1
+Processing j=1
+Inner finally: j=1
+After inner try-catch: j=1
+Inner: i=1, j=2
+Inner catch: Exception at j=2
+Inner finally: j=2
+Inner: i=1, j=3
+Processing j=3
+Inner finally: j=3
+After inner try-catch: j=3
+Inner loop complete for i=1
+Outer loop: i=2
+Inner: i=2, j=0
+Processing j=0
+Inner finally: j=0
+After inner try-catch: j=0
+Inner: i=2, j=1
+Processing j=1
+Inner finally: j=1
+After inner try-catch: j=1
+Inner: i=2, j=2
+Inner catch: Exception at j=2
+Inner finally: j=2
+Inner: i=2, j=3
+Processing j=3
+Inner finally: j=3
+After inner try-catch: j=3
+Inner loop complete for i=2
+---
+Testing continue with multiple catch blocks
+Iteration: 0
+No exception for i=0
+Finally: i=0
+End of iteration: i=0
+Iteration: 1
+Standard catch: Standard exception
+Finally: i=1
+Iteration: 2
+No exception for i=2
+Finally: i=2
+End of iteration: i=2
+Iteration: 3
+Custom catch: Custom exception
+Finally: i=3
+Iteration: 4
+No exception for i=4
+Finally: i=4
+End of iteration: i=4
+Iteration: 5
+No exception for i=5
+Finally: i=5
+End of iteration: i=5
+---
+Testing continue in while with catch-finally
+While: count=0
+Processing count=1
+Finally: count=1
+End of while body: count=1
+While: count=1
+Catch: Skip count=2
+Finally: count=2
+While: count=2
+Processing count=3
+Finally: count=3
+End of while body: count=3
+While: count=3
+Catch: Skip count=4
+Finally: count=4
+While: count=4
+Processing count=5
+Finally: count=5
+End of while body: count=5
+Test completed
