@@ -1,8 +1,8 @@
 // Integration Test 11: Scoping Edge Cases with Lambdas
 // Tests: Variable shadowing prevention + Lambda capture + Block scoping
 
-import * from "../../../lib/collections/List.mt";
-import * from "../../../lib/primitives/Int.mt";
+import * from "../../lib/collections/List.mt";
+import * from "../../lib/primitives/Int.mt";
 
 // Functional interfaces
 interface Function {
@@ -13,18 +13,7 @@ interface Transformer {
     function transform(int x, int y): int;
 }
 
-// Test class-level scoping
-class ScopingTest {
-    private int instanceVar;
-    private static int staticVar = 100;
-
-    constructor(int val) {
-        this.instanceVar = val;
-    }
-
-    // Method accessing instance variable
-    public function createAdder(): Function {
-        // Lambda captures instance variable
+// Lambda captures instance variable
         class AdderFunction implements Function {
             private int captured;
 
@@ -36,13 +25,8 @@ class ScopingTest {
                 return x + this.captured;
             }
         }
-
-        return new AdderFunction(this.instanceVar);
-    }
-
-    // Method with local variable
-    public function createMultiplier(int factor): Function {
-        // Lambda captures both instance and local variable
+		
+		// Lambda captures both instance and local variable
         class MultiplierFunction implements Function {
             private int capturedInstance;
             private int capturedLocal;
@@ -56,13 +40,8 @@ class ScopingTest {
                 return (x + this.capturedInstance) * this.capturedLocal;
             }
         }
-
-        return new MultiplierFunction(this.instanceVar, factor);
-    }
-
-    // Static method accessing static variable
-    public static function createStaticFunction(): Function {
-        class StaticFunction implements Function {
+		
+		class StaticFunction implements Function {
             private int capturedStatic;
 
             constructor(int capStat) {
@@ -73,6 +52,33 @@ class ScopingTest {
                 return x + this.capturedStatic;
             }
         }
+
+// Test class-level scoping
+class ScopingTest {
+    private int instanceVar;
+    private static int staticVar = 100;
+
+    constructor(int val) {
+        this.instanceVar = val;
+    }
+
+    // Method accessing instance variable
+    public function createAdder(): Function {
+        
+
+        return new AdderFunction(this.instanceVar);
+    }
+
+    // Method with local variable
+    public function createMultiplier(int factor): Function {
+        
+
+        return new MultiplierFunction(this.instanceVar, factor);
+    }
+
+    // Static method accessing static variable
+    public static function createStaticFunction(): Function {
+        
 
         return new StaticFunction(ScopingTest::staticVar);
     }
@@ -124,6 +130,19 @@ function testLoopScoping(): void {
     }
 }
 
+// Helper class for capturing values (defined at module level to avoid local class issues)
+class CaptureFunction implements Function {
+    private int captured;
+
+    constructor(int cap) {
+        this.captured = cap;
+    }
+
+    public function apply(int x): int {
+        return x + this.captured;
+    }
+}
+
 // Test lambda capture of loop variables
 function testLambdaCaptureInLoop(): void {
     print("--- Lambda capture in loop ---");
@@ -132,19 +151,6 @@ function testLambdaCaptureInLoop(): void {
 
     for (int i = 0; i < 3; i = i + 1) {
         int captureValue = i;  // Capture in local variable
-
-        class CaptureFunction implements Function {
-            private int captured;
-
-            constructor(int cap) {
-                this.captured = cap;
-            }
-
-            public function apply(int x): int {
-                return x + this.captured;
-            }
-        }
-
         functions.add(new CaptureFunction(captureValue));
     }
 
@@ -156,11 +162,7 @@ function testLambdaCaptureInLoop(): void {
     }
 }
 
-// Test closure with mutable state
-function testMutableCapture(): void {
-    print("--- Mutable capture ---");
-
-    class Counter {
+class Counter {
         private int count;
 
         constructor() {
@@ -175,10 +177,8 @@ function testMutableCapture(): void {
             return this.count;
         }
     }
-
-    Counter counter = new Counter();
-
-    class IncrementFunction implements Function {
+	
+	class IncrementFunction implements Function {
         private Counter capturedCounter;
 
         constructor(Counter c) {
@@ -190,6 +190,16 @@ function testMutableCapture(): void {
             return this.capturedCounter.getCount();
         }
     }
+
+// Test closure with mutable state
+function testMutableCapture(): void {
+    print("--- Mutable capture ---");
+
+    
+
+    Counter counter = new Counter();
+
+    
 
     Function incrementer = new IncrementFunction(counter);
 

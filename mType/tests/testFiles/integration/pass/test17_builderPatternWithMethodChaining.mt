@@ -1,8 +1,8 @@
 // Integration Test 17: Builder Pattern with Method Chaining
 // Tests: Classes + Method chaining (return this) + Final fields
 
-import * from "../../../lib/primitives/String.mt";
-import * from "../../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
+import * from "../../lib/primitives/Int.mt";
 
 // Product class with many fields
 class Computer {
@@ -135,7 +135,7 @@ class Query {
         this.limit = -1;
     }
 
-    public function from(string t): Query {
+    public function fromQuery(string t): Query {
         this.table = t;
         return this;
     }
@@ -264,7 +264,7 @@ print("Built string: " + result);
 print("--- Test 4: Query builder ---");
 Query query1 = new Query();
 string sql1 = query1
-    .from("users")
+    .fromQuery("users")
     .where("age > 18")
     .orderBy("name")
     .limit(10)
@@ -274,7 +274,7 @@ print("Query 1: " + sql1);
 
 Query query2 = new Query();
 string sql2 = query2
-    .from("products")
+    .fromQuery("products")
     .where("price < 100")
     .limit(5)
     .build();

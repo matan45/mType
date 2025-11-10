@@ -15,7 +15,7 @@ Value: 99
 Transformed string length: 7
 --- Chained async operations ---
 Step 1: Value: 10
-Step 2: 10
+Step 2: 9
 --- Multiple async calls ---
 First operation: 20
 Second operation: 25

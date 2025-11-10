@@ -54,7 +54,7 @@ class DataItem implements ComparableSerializable<DataItem> {
 
 // Generic container with constraint
 class Container<T extends Comparable<T>> {
-    private T item;
+    protected T item;
 
     constructor(T i) {
         this.item = i;

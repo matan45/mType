@@ -256,9 +256,6 @@
     <Filter Include="tests\testFiles\integration\pass">
       <UniqueIdentifier>{F32F8641-DF80-7183-08E5-5F45F49404ED}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests\testFiles\integration\pass\modules">
-      <UniqueIdentifier>{DB974603-C714-3A46-F091-3A5ADC6DD6D9}</UniqueIdentifier>
-    </Filter>
     <Filter Include="tests\testFiles\interface">
       <UniqueIdentifier>{DAD58043-4698-B4CD-8F48-435AFB498DAB}</UniqueIdentifier>
     </Filter>
@@ -7402,244 +7399,16 @@
     <None Include="tests\testFiles\integration\error\modules\StrictInterface.mt">
       <Filter>tests\testFiles\integration\error\modules</Filter>
     </None>
-    <None Include="tests\testFiles\integration\pass\allCompleteIntegration.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allCompleteIntegration.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesAsyncGenericLambdaImport.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesAsyncGenericLambdaImport.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesComplexPipeline.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesComplexPipeline.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesErrorHandling.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesErrorHandling.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesPolymorphicAsync.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesPolymorphicAsync.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesRealWorldScenario.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allFeaturesRealWorldScenario.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allGenericArrayFields.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allGenericArrayFields.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allGenericArrayMethods.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allGenericArrayMethods.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allGenericInheritanceArrays.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\allGenericInheritanceArrays.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayClassInheritance.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayClassInheritance.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayClassInterfaces.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayClassInterfaces.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayClassPolymorphic.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayClassPolymorphic.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayClassReturnValues.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayClassReturnValues.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericCollection.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericCollection.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericComplex.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericComplex.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericConstraints.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericConstraints.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericMethods.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericMethods.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericMultiDim.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericMultiDim.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericSIMD.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\arrayGenericSIMD.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitAsyncInterfaceMethod.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitAsyncInterfaceMethod.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitAsyncLambdaWithClosure.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitAsyncLambdaWithClosure.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitGenericAsyncLambda.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitGenericAsyncLambda.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitGenericInterfacePromise.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitGenericInterfacePromise.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitInterfaceInheritanceAsync.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitInterfaceInheritanceAsync.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitLambdaExceptionHandling.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitLambdaExceptionHandling.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitLambdaPipeline.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitLambdaPipeline.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitLambdaReturningPromise.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitLambdaReturningPromise.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitLambdaWithThis.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitLambdaWithThis.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitMultipleAsyncInterfaces.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitMultipleAsyncInterfaces.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitNestedAsyncLambdas.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitNestedAsyncLambdas.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitPolymorphicAsync.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitPolymorphicAsync.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitPromiseCollectionWithLambda.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\awaitPromiseCollectionWithLambda.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
     <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
-    <None Include="tests\testFiles\integration\pass\classGenericBuilder.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericBuilder.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericFactory.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericFactory.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericInheritanceChain.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericInheritanceChain.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericMultiInterface.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericMultiInterface.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericOverloading.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericOverloading.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
     <None Include="tests\testFiles\integration\pass\classGenericSerialization.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\classGenericSerialization.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericSingleton.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\classGenericSingleton.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\classesWithFinalVariablesAndLoops.expected">
@@ -7741,202 +7510,16 @@
     <None Include="tests\testFiles\integration\pass\genericLibrary.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
-    <None Include="tests\testFiles\integration\pass\importGenericConstrainedInterface.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\importGenericConstrainedInterface.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\importGenericInterfaceImplement.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\importGenericInterfaceImplement.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\importInterfaceDiamond.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\importInterfaceDiamond.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\importInterfaceInheritance.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\importInterfaceInheritance.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\importMultipleInterfacesGeneric.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\importMultipleInterfacesGeneric.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
     <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllAsyncCastException_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllAsyncCastException_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllComplexHierarchy_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllComplexHierarchy_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllGenericControlError_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllGenericControlError_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllPolymorphicException_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllPolymorphicException_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllRealWorldScenario_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationAllRealWorldScenario_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastAsyncCast_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastAsyncCast_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastErrorRecovery_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastErrorRecovery_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastExceptionHandling_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastExceptionHandling_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastExceptionPropagation_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastExceptionPropagation_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastFailedCleanup_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastFailedCleanup_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastInConditionals_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastInConditionals_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastInLoops_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastInLoops_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastInSwitch_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastInSwitch_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastRecursive_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastRecursive_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastTryCatchFinally_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationCastTryCatchFinally_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlAsyncTypes_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlAsyncTypes_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlLoopTypeInference_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlLoopTypeInference_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlRecursionTypes_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlRecursionTypes_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlSwitchPolymorphism_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlSwitchPolymorphism_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlTypeNarrowing_pass.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\integrationControlTypeNarrowing_pass.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
     <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaGenericArrayInterface.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaGenericArrayInterface.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaGenericConstrainedInterface.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaGenericConstrainedInterface.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaGenericFunctionalInterface.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaGenericFunctionalInterface.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaGenericMethodLevelInterface.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaGenericMethodLevelInterface.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaMultipleTypeParamsInterface.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaMultipleTypeParamsInterface.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaNestedGenericInterface.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\lambdaNestedGenericInterface.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\largeDataStructures.expected">
@@ -7969,48 +7552,6 @@
     <None Include="tests\testFiles\integration\pass\memoryUsageWithDeepNesting.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
-    <None Include="tests\testFiles\integration\pass\modules\AsyncGenericInterface.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\BaseInterface.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\ComparableInterface.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\DataPipelineInterfaces.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\DerivedInterface.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\ErrorHandlingInterfaces.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\GenericRepository.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\InterfaceA.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\InterfaceB.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\InterfaceC.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\PolymorphicAsyncInterfaces.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\ReadableInterface.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\ServiceInterfaces.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\modules\WritableInterface.mt">
-      <Filter>tests\testFiles\integration\pass\modules</Filter>
-    </None>
     <None Include="tests\testFiles\integration\pass\multiTypeGenericSerialization.expected">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
@@ -8021,12 +7562,6 @@
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.mt">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\namespacesWithClassesAndImports.expected">
-      <Filter>tests\testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\namespacesWithClassesAndImports.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\nestedNamespacesWithStaticMethods.expected">
@@ -8093,6 +7628,126 @@
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\switchNestedInLoops.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test01_polymorphicCollectionsWithGenerics.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test01_polymorphicCollectionsWithGenerics.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test02_asyncExceptionHandlingWithInheritance.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test02_asyncExceptionHandlingWithInheritance.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test03_abstractClassesWithGenericConstraints.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test03_abstractClassesWithGenericConstraints.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test04_lambdaClosuresWithAutoBoxing.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test04_lambdaClosuresWithAutoBoxing.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test05_importedInterfacesWithAsyncLambdas.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test05_importedInterfacesWithAsyncLambdas.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test06_complexControlFlowWithExceptions.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test06_complexControlFlowWithExceptions.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test07_polymorphicCallsWithFinalClasses.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test07_polymorphicCallsWithFinalClasses.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test08_multiDimensionalArraysWithGenerics.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test08_multiDimensionalArraysWithGenerics.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test09_nestedGenericConstraintsEdgeCases.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test09_nestedGenericConstraintsEdgeCases.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test10_exceptionHierarchyWithFinally.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test10_exceptionHierarchyWithFinally.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test11_scopingEdgeCasesWithLambdas.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test11_scopingEdgeCasesWithLambdas.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test12_autoBoxingWithOperatorOverloading.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test12_autoBoxingWithOperatorOverloading.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test13_asyncAwaitWithNestedTryCatch.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test13_asyncAwaitWithNestedTryCatch.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test14_interfaceMultipleImplementationEdgeCases.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test14_interfaceMultipleImplementationEdgeCases.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test15_repositoryPatternWithGenerics.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test15_repositoryPatternWithGenerics.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test16_observerPatternWithLambdas.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test16_observerPatternWithLambdas.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test17_builderPatternWithMethodChaining.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test17_builderPatternWithMethodChaining.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test18_strategyPatternWithAsyncOperations.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test18_strategyPatternWithAsyncOperations.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test19_factoryPatternWithImports.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test19_factoryPatternWithImports.mt">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test20_decoratorPatternWithInheritance.expected">
+      <Filter>tests\testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test20_decoratorPatternWithInheritance.mt">
       <Filter>tests\testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\test_array_types.expected">
@@ -9640,9 +9295,6 @@
     <None Include="tests\testFiles\typeChecking\error\typeInterfaceMultipleConflict_error.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
-    <None Include="tests\testFiles\typeChecking\error\typeLambdaException_error.mt">
-      <Filter>tests\testFiles\typeChecking\error</Filter>
-    </None>
     <None Include="tests\testFiles\typeChecking\error\typeLambdaReturnTypeMismatch_error.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
@@ -9865,12 +9517,6 @@
     <None Include="tests\testFiles\typeChecking\pass\typeGenericMethodInference_pass.mt">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeGenericMethodOverload_pass.expected">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeGenericMethodOverload_pass.mt">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
     <None Include="tests\testFiles\typeChecking\pass\typeGenericMultipleBounds_pass.expected">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
@@ -9917,12 +9563,6 @@
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\typeInferenceGenericMethod_pass.mt">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeInferenceLambdaReturn_pass.expected">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeInferenceLambdaReturn_pass.mt">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\typeInferenceLocalVariable_pass.expected">
@@ -10099,28 +9739,10 @@
     <None Include="tests\testFiles\typeChecking\pass\typeOverloadConstructor_pass.mt">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeOverloadExtension_pass.expected">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeOverloadExtension_pass.mt">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
     <None Include="tests\testFiles\typeChecking\pass\typeOverloadGeneric_pass.expected">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\typeOverloadGeneric_pass.mt">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeOverloadStaticHiding_pass.expected">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeOverloadStaticHiding_pass.mt">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeOverloadVarargs_pass.expected">
-      <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\typeChecking\pass\typeOverloadVarargs_pass.mt">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\typeStructuralTyping_pass.expected">

@@ -527,10 +527,23 @@ namespace vm::runtime
         if (derivedClass.empty()) return false;
         auto currentClass = context.environment->getClassRegistry()->findClass(derivedClass);
         while (currentClass && currentClass->hasParentClass()) {
-            if (currentClass->getParentClassName() == baseClass) {
+            std::string parentClassName = currentClass->getParentClassName();
+
+            // Extract base class name (strip generic type parameters if present)
+            // E.g., "Container<T>" -> "Container"
+            std::string baseParentName = parentClassName;
+            size_t genericStart = parentClassName.find('<');
+            if (genericStart != std::string::npos) {
+                baseParentName = parentClassName.substr(0, genericStart);
+            }
+
+            // Compare both full name and base name
+            if (parentClassName == baseClass || baseParentName == baseClass) {
                 return true;
             }
-            auto parentClass = context.environment->getClassRegistry()->findClass(currentClass->getParentClassName());
+
+            // Use base name for registry lookup
+            auto parentClass = context.environment->getClassRegistry()->findClass(baseParentName);
             currentClass = parentClass;
         }
         return false;

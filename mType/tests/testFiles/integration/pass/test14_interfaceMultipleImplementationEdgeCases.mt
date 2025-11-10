@@ -163,7 +163,7 @@ class StringProcessor implements Processor<String> {
     }
 
     public function validate(String input): bool {
-        return input.getValue().length() > 0;
+        return input.length() > 0;
     }
 }
 

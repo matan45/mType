@@ -3,18 +3,15 @@
 
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 // Exception classes
-class AsyncException {
-    private string message;
-
-    constructor(string msg) {
-        this.message = msg;
+class AsyncException extends Exception {
+   
+    constructor(string msg): super(msg) {
     }
 
-    public function getMessage(): string {
-        return this.message;
-    }
+    
 }
 
 class ValidationException extends AsyncException {

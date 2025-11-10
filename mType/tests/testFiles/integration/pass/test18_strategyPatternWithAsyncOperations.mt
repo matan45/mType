@@ -2,13 +2,14 @@
 // Tests: Interfaces + Async methods + Polymorphism
 
 import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/Bool.mt";
 import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Float.mt";
 
 // Strategy interface for payment processing
 interface PaymentStrategy {
     function async processPayment(float amount): Promise<String>;
-    function async validatePayment(float amount): Promise<bool>;
+    function async validatePayment(float amount): Promise<Bool>;
     function getName(): string;
 }
 
@@ -33,7 +34,7 @@ class CreditCardStrategy implements PaymentStrategy {
         }
     }
 
-    public function async validatePayment(float amount): Promise<bool> {
+    public function async validatePayment(float amount): Promise<Bool> {
         print("Validating credit card...");
         if (amount > 0.0 && amount < 10000.0) {
             return new Bool(true);
@@ -65,7 +66,7 @@ class PayPalStrategy implements PaymentStrategy {
         }
     }
 
-    public function async validatePayment(float amount): Promise<bool> {
+    public function async validatePayment(float amount): Promise<Bool> {
         print("Validating PayPal account...");
         if (amount > 0.0) {
             return new Bool(true);
@@ -97,7 +98,7 @@ class CryptoStrategy implements PaymentStrategy {
         }
     }
 
-    public function async validatePayment(float amount): Promise<bool> {
+    public function async validatePayment(float amount): Promise<Bool> {
         print("Validating crypto wallet...");
         if (amount > 0.0 && amount < 50000.0) {
             return new Bool(true);

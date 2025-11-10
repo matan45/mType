@@ -502,15 +502,16 @@ namespace vm::compiler::visitors
         // Don't use operator overloading for complex expressions like function calls
         using namespace ast::nodes::expressions;
 
-        // Check if right is a simple operand (literal, variable, member access, or index access)
+        // Check if right is a simple operand (literal, variable, member access, index access, or binary operation)
         bool rightIsSimple = false;
         if (rightType == value::ValueType::OBJECT)
         {
-            // Right is an object - check if it's a variable, NewNode, member access, or index access
+            // Right is an object - check if it's a variable, NewNode, member access, index access, or binary operation
             if (dynamic_cast<ast::VariableNode*>(right) ||
                 dynamic_cast<ast::nodes::classes::NewNode*>(right) ||
                 dynamic_cast<ast::MemberAccessNode*>(right) ||
-                dynamic_cast<IndexAccessNode*>(right))
+                dynamic_cast<IndexAccessNode*>(right) ||
+                dynamic_cast<ast::BinaryOpNode*>(right))  // Binary operations on Box types return Box type objects
             {
                 rightIsSimple = true;
             }

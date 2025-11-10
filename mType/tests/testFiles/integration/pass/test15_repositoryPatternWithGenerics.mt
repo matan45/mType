@@ -5,6 +5,7 @@ import * from "../../lib/collections/List.mt";
 import * from "../../lib/collections/HashMap.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
+import * from "../../lib/exceptions/Exception.mt";
 
 // Entity base interface
 interface Entity {
@@ -78,16 +79,13 @@ class Product implements Entity {
 }
 
 // Repository exception
-class RepositoryException {
-    private string message;
+class RepositoryException extends Exception {
 
-    constructor(string msg) {
-        this.message = msg;
+    constructor(string msg): super(msg) {
+        
     }
 
-    public function getMessage(): string {
-        return this.message;
-    }
+    
 }
 
 // Generic repository interface
@@ -140,7 +138,7 @@ class InMemoryRepository<T extends Entity> implements Repository<T> {
     public function findAll(): List<T> {
         // Get all values from HashMap
         List<T> result = new List<T>();
-        Int[] keys = this.storage.keys();
+        Int[] keys = this.storage.getKeys();
 
         for (int i = 0; i < keys.length; i = i + 1) {
             T entity = this.storage.get(keys[i]);

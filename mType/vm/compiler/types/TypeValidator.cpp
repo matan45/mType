@@ -56,35 +56,74 @@ namespace vm::compiler::types
             return true;
         }
 
-        // Check if derivedClass is a class
-        auto classDef = environment->findClass(derivedClass);
-        if (classDef) {
-            // Check parent chain
-            auto parentClass = classDef->getParentClass();
-            while (parentClass) {
-                if (parentClass->getName() == baseClass) {
-                    return true;
-                }
-                parentClass = parentClass->getParentClass();
-            }
+        // Extract base class names (strip generic type parameters if present)
+        // E.g., "InMemoryRepository<User>" -> "InMemoryRepository"
+        std::string derivedBaseName = derivedClass;
+        size_t derivedGenericStart = derivedClass.find('<');
+        if (derivedGenericStart != std::string::npos) {
+            derivedBaseName = derivedClass.substr(0, derivedGenericStart);
+        }
 
-            // Check implemented interfaces (with full recursive hierarchy checking)
-            const auto& interfaces = classDef->getImplementedInterfaces();
-            for (const auto& interfaceName : interfaces) {
-                std::unordered_set<std::string> visited;
-                if (checkInterfaceHierarchy(interfaceName, baseClass, visited)) {
-                    return true;
+        std::string baseBaseName = baseClass;
+        size_t baseGenericStart = baseClass.find('<');
+        if (baseGenericStart != std::string::npos) {
+            baseBaseName = baseClass.substr(0, baseGenericStart);
+        }
+
+        // Check exact match with base names
+        if (derivedBaseName == baseBaseName) {
+            return true;
+        }
+
+        // Check if derivedClass is a class
+        auto classDef = environment->findClass(derivedBaseName);
+        if (classDef) {
+            // Check parent chain and interfaces at each level
+            auto currentClass = classDef;
+            while (currentClass) {
+                // Check if current class implements the target interface
+                const auto& interfaces = currentClass->getImplementedInterfaces();
+                for (const auto& interfaceName : interfaces) {
+                    // Extract interface base name
+                    std::string interfaceBaseName = interfaceName;
+                    size_t interfaceGenericStart = interfaceName.find('<');
+                    if (interfaceGenericStart != std::string::npos) {
+                        interfaceBaseName = interfaceName.substr(0, interfaceGenericStart);
+                    }
+
+                    std::unordered_set<std::string> visited;
+                    if (checkInterfaceHierarchy(interfaceBaseName, baseBaseName, visited)) {
+                        return true;
+                    }
                 }
+
+                // Move to parent class
+                auto parentClass = currentClass->getParentClass();
+                if (parentClass) {
+                    std::string parentName = parentClass->getName();
+                    // Extract parent base name
+                    std::string parentBaseName = parentName;
+                    size_t parentGenericStart = parentName.find('<');
+                    if (parentGenericStart != std::string::npos) {
+                        parentBaseName = parentName.substr(0, parentGenericStart);
+                    }
+
+                    // Check if parent matches the target
+                    if (parentBaseName == baseBaseName) {
+                        return true;
+                    }
+                }
+                currentClass = parentClass;
             }
 
             return false;
         }
 
         // Check if derivedClass is an interface that extends baseClass
-        auto interfaceDef = environment->findInterface(derivedClass);
+        auto interfaceDef = environment->findInterface(derivedBaseName);
         if (interfaceDef) {
             std::unordered_set<std::string> visited;
-            if (checkInterfaceHierarchy(derivedClass, baseClass, visited)) {
+            if (checkInterfaceHierarchy(derivedBaseName, baseBaseName, visited)) {
                 return true;
             }
         }
@@ -320,6 +359,22 @@ namespace vm::compiler::types
         // Numeric operations: both must be int or float
         if ((leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT) &&
             (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT)) {
+            return true;
+        }
+
+        // Allow operations on wrapper object types (Int, Float, String, Bool)
+        // These will be translated to method calls (add, subtract, multiply, divide, etc.)
+        if (leftType == value::ValueType::OBJECT && rightType == value::ValueType::OBJECT) {
+            return true;
+        }
+
+        // Allow mixed primitive and object types (auto-boxing/unboxing)
+        if ((leftType == value::ValueType::OBJECT &&
+             (rightType == value::ValueType::INT || rightType == value::ValueType::FLOAT ||
+              rightType == value::ValueType::STRING || rightType == value::ValueType::BOOL)) ||
+            (rightType == value::ValueType::OBJECT &&
+             (leftType == value::ValueType::INT || leftType == value::ValueType::FLOAT ||
+              leftType == value::ValueType::STRING || leftType == value::ValueType::BOOL))) {
             return true;
         }
 

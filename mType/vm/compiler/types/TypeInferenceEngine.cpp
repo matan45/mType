@@ -298,7 +298,8 @@ namespace vm::compiler::types
             if (dynamic_cast<ast::VariableNode*>(binOp->getRight()) ||
                 dynamic_cast<ast::NewNode*>(binOp->getRight()) ||
                 dynamic_cast<ast::MemberAccessNode*>(binOp->getRight()) ||
-                dynamic_cast<IndexAccessNode*>(binOp->getRight()))
+                dynamic_cast<IndexAccessNode*>(binOp->getRight()) ||
+                dynamic_cast<ast::BinaryOpNode*>(binOp->getRight()))  // Binary operations on Box types return Box type objects
             {
                 rightIsSimple = true;
             }
@@ -807,6 +808,7 @@ namespace vm::compiler::types
             }
 
             // Check if right operand is also a Box type object (unless using primitive string concat)
+            // Also check if it's a binary operation that returns a Box type
             if (!willUseOperatorOverloading && rightType == value::ValueType::OBJECT && !usePrimitiveStringConcat)
             {
                 std::string rightClassName = inferExpressionClassName(binOp->getRight());
