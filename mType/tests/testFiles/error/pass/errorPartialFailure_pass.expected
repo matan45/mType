@@ -50,6 +50,16 @@ Result: Task 5 completed
 Task execution summary: Total: 5, Success: 3, Failed: 2 (Rate: 60%)
 
 === Test 4: Success threshold check ===
+Processing item: 1
+Processing item: 2
+Processing item: 3
+Processing item: 4
+Processing item: 5
+Processing item: 6
+Processing item: 7
+Processing item: 8
+Processing item: 9
+Processing item: 10
 Success rate: 50%, Threshold: 40%
 Threshold met - operation acceptable
 

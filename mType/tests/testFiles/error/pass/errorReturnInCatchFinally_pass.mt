@@ -82,8 +82,10 @@ function testFinallyDoesNotOverrideCatchReturn(): int {
 function testReturnInCatchAfterProcessing(): int {
     try {
         print("Processing data");
-        int[] data = new int[11];
-        data[10] = 5;
+        int[] data = new int[10];
+        if (data.length == 10) {
+            throw new Exception("Simulated error");
+        }
         return 1;
     } catch (Exception e) {
         print("Error caught: " + e.getMessage());

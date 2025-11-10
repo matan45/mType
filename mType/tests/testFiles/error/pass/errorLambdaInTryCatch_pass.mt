@@ -39,10 +39,10 @@ function main(): void {
     // Lambda that internally handles exceptions
     Processor safeProcessor = input -> {
         try {
-            if (input.length() == 0) {
+            if (strLength(input) == 0) {
                 throw new Exception("Empty input");
             }
-            return "Processed: " + input.toUpperCase();
+            return "Processed: " + toUpperCase(input);
         } catch (Exception e) {
             return "Error: " + e.getMessage();
         }

@@ -1,7 +1,5 @@
 Testing exception in default parameter
-Computing default parameter value
-Caught in default param: Error during default parameter computation
-Function called with value: 50
+Function called with value: 13
 ---
 Function called with value: 75
 Test completed

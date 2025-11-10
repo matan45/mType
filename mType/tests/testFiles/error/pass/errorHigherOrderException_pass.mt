@@ -77,7 +77,7 @@ function main(): void {
                 if (input == null) {
                     throw new Exception("Validator: null input");
                 }
-                if (input.length() < minLen) {
+                if (strLength(input) < minLen) {
                     throw new Exception("Validator: input too short");
                 }
                 return true;

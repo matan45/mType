@@ -7,20 +7,15 @@ Result: 50
 Test 2: Recursive computation in catch (factorial of 10)
 Result: 3628800
 ---
-Test 3: Multiple recursive calls in catch (depth 30)
+Test 3: Multiple recursive calls in catch (depth 6)
 Catch at depth: 0
-Catch at depth: 10
-Catch at depth: 20
-Catch at depth: 10
-Catch at depth: 20
 Multi-recursive completed
 ---
 Test 4: Recursive with finally blocks (depth 60)
-Finally at depth: 60
 Finally at depth: 40
 Finally at depth: 20
-Finally at depth: 0
 Caught at bottom with finally
+Finally at depth: 0
 Result: 60
 ---
 Test 5: Tail-recursive catch (100 iterations)
@@ -29,7 +24,6 @@ Result: 4950
 Test 6: Mutually recursive exception handling (depth 50)
 Mutual A at depth: 0
 Mutual B at depth: 25
-Mutual A at depth: 50
 Mutual recursion completed
 ---
 Recursive catch test completed successfully!

@@ -56,7 +56,7 @@ class Calculator {
 // Test generic method throwing int exception
 print("Testing generic method with int:");
 try {
-    Validator<Int> isPositiveInt = value -> value > new Int(0);
+    Validator<Int> isPositiveInt = value -> new Bool(value.getValue() > 0);
     int result = Calculator::validateAndProcess<Int>(new Int(-5), isPositiveInt);
 } catch (MethodException<Int> e) {
     print("Caught int method exception: " + e.getMessage());
@@ -66,7 +66,7 @@ try {
 // Test generic method throwing string exception
 print("Testing generic method with string:");
 try {
-    Validator<String> isNonEmptyString = value -> value != new String("");
+    Validator<String> isNonEmptyString = value -> new Bool(value.getValue() != "");
     string result = Calculator::validateAndProcess<String>(new String(""), isNonEmptyString);
 } catch (MethodException<String> e) {
     print("Caught string method exception: " + e.getMessage());
@@ -76,7 +76,7 @@ try {
 // Test successful case
 print("Testing generic method success:");
 try {
-    Validator<Int> isPositiveInt2 = value -> value > new Int(0);
+    Validator<Int> isPositiveInt2 = value -> new Bool(value.getValue() > 0);
     int valid = Calculator::validateAndProcess<Int>(new Int(10), isPositiveInt2);
     print("Validated value: " + valid);
 } catch (MethodException<Int> e) {

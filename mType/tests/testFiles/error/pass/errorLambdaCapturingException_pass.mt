@@ -22,7 +22,7 @@ function main(): void {
     Action action = () -> {
         if (capturedException != null) {
             print("Lambda accessing captured exception: " + capturedException.getMessage());
-            print("Exception message length: " + capturedException.getMessage().length());
+            print("Exception message length: " + strLength(capturedException.getMessage()));
         } else {
             print("No exception was captured");
         }

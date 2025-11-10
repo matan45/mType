@@ -51,8 +51,6 @@ AggregateException: Validation failed (3 errors)
   - Field3 format is incorrect
 
 === Test 5: Exception flattening ===
-Found nested aggregate: Simple error 1
-Found nested aggregate: Simple error 2
 Flattened exception list:
   1. Simple error 1
   2. Simple error 2

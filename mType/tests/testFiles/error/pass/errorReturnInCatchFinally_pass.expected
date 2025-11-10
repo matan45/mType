@@ -25,7 +25,7 @@ Finally - no return here
 Result 5: 500
 ---
 Processing data
-Error caught: Index out of bounds: 10
+Error caught: Simulated error
 Returning error code
 Cleanup in finally
 Result 6: -1

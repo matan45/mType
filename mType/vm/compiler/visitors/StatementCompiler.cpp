@@ -533,6 +533,16 @@ namespace vm::compiler::visitors
                 {
                     if (fieldNode->getName() == name)
                     {
+                        // Check if field is final - cannot be modified after initialization
+                        if (fieldNode->getIsFinal())
+                        {
+                            throw errors::TypeException(
+                                "Cannot modify final field '" + name + "' of class '" +
+                                ctx.currentClassNode->getClassName() + "'",
+                                node->getLocation()
+                            );
+                        }
+
                         if (fieldNode->getIsStatic())
                         {
                             // Static field - use fully qualified name: ClassName::fieldName
@@ -572,6 +582,16 @@ namespace vm::compiler::visitors
                         auto field = parentClass->getField(name);
                         if (field)
                         {
+                            // Check if inherited field is final - cannot be modified
+                            if (field->isFinal())
+                            {
+                                throw errors::TypeException(
+                                    "Cannot modify final field '" + name + "' inherited from class '" +
+                                    parentClass->getName() + "'",
+                                    node->getLocation()
+                                );
+                            }
+
                             if (field->isStatic())
                             {
                                 // Static field - use fully qualified name with the class where it's defined
@@ -600,9 +620,12 @@ namespace vm::compiler::visitors
             }
         }
 
-        // If we're in a function and variable doesn't exist yet and this is not a reassignment,
+        // If we're in a real function (not global scope) and variable doesn't exist yet and this is not a reassignment,
         // it's a new local variable declaration with type inference - register it
-        if (ctx.functionFrameManager.isInFunction() && !isReassignment)
+        // Note: Global scope has an empty function name, so we check for that
+        std::string currentFunctionName = ctx.functionFrameManager.getCurrentFunctionName();
+        bool isRealFunction = ctx.functionFrameManager.isInFunction() && !currentFunctionName.empty();
+        if (isRealFunction && !isReassignment)
         {
             // Check if variable exists in the current scope only
             // This prevents redefinition in the same scope but allows shadowing in nested scopes

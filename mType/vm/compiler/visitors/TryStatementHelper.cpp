@@ -146,7 +146,15 @@ namespace vm::compiler::visitors
 
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t catchVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(catchVarSlot), catchBlock.get());
+
+            // Convert absolute slot to relative slot for STORE_LOCAL emission
+            size_t relativeSlot = catchVarSlot;
+            if (ctx.functionFrameManager.isInFunction()) {
+                size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+                relativeSlot = catchVarSlot - startSlot;
+            }
+
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeSlot), catchBlock.get());
 
             // Build exception table entry for this catch block
             bytecode::ExceptionTableEntry entry(
@@ -157,7 +165,7 @@ namespace vm::compiler::visitors
                 exceptionType,                   // exceptionType
                 nestingLevel,                    // nestingLevel
                 catchBlock->getVariableName(),   // catchVarName
-                catchVarSlot                     // catchVarSlot
+                relativeSlot                     // catchVarSlot (use relative slot)
             );
 
             // Add entry to appropriate exception table (function or global)
@@ -226,19 +234,31 @@ namespace vm::compiler::visitors
         // Allocate a flag slot to track whether we're on return path (1) or exit path (0)
         // IMPORTANT: Make sure it doesn't conflict with returnValueSlot
         size_t returnValueSlot = ctx.exceptionManager.getReturnValueSlot();
-        size_t hasReturnFlagSlot = ctx.variableTracker.getNextLocalSlot();
 
-        // If flag slot conflicts with return value slot, use the next slot
-        if (returnValueSlot != SIZE_MAX && hasReturnFlagSlot == returnValueSlot) {
-            hasReturnFlagSlot++;
+        // Ensure the return value slot is properly reserved if it exists
+        // This prevents finally block variables from overwriting the return value
+        if (returnValueSlot != SIZE_MAX) {
+            // Make sure our next slot is at least past the return value slot
+            while (ctx.variableTracker.getNextLocalSlot() <= returnValueSlot) {
+                ctx.variableTracker.incrementLocalSlot();
+            }
         }
 
-        // Reserve the flag slot by declaring a dummy variable
-        // This prevents the finally block's local variables from reusing this slot
-        ctx.variableTracker.declareLocal("__finally_flag__", value::ValueType::INT, "int");
+        size_t hasReturnFlagSlot = ctx.variableTracker.getNextLocalSlot();
 
-        ctx.functionFrameManager.updateMaxLocalSlot(hasReturnFlagSlot + 1);
+        // Reserve the flag slot by incrementing the local slot counter
+        // This prevents the finally block's local variables from reusing this slot
+        ctx.variableTracker.incrementLocalSlot();
+
+        ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
         ctx.exceptionManager.setHasReturnFlagSlot(hasReturnFlagSlot);
+
+        // Convert to relative slot for bytecode emission
+        size_t relativeFlagSlot = hasReturnFlagSlot;
+        if (ctx.functionFrameManager.isInFunction()) {
+            size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+            relativeFlagSlot = hasReturnFlagSlot - startSlot;
+        }
 
         // Add flag values to constant pool
         size_t normalExitIndex = ctx.program.getConstantPool().addInteger(0);   // Normal exit
@@ -251,7 +271,7 @@ namespace vm::compiler::visitors
         for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(normalExitIndex), finallyBlock);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
@@ -264,7 +284,7 @@ namespace vm::compiler::visitors
         for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(returnIndex), finallyBlock);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
@@ -277,7 +297,7 @@ namespace vm::compiler::visitors
         for (size_t breakJump : ctx.exceptionManager.getBreakJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(breakIndex), finallyBlock);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
@@ -290,7 +310,7 @@ namespace vm::compiler::visitors
         for (size_t continueJump : ctx.exceptionManager.getContinueJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(continueIndex), finallyBlock);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
@@ -418,19 +438,19 @@ namespace vm::compiler::visitors
         // Flag values: 0=normal exit, 1=return, 2=break, 3=continue
 
         // Check if flag == 1 (return)
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
         ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(returnIndex), finallyBlock);
         ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, finallyBlock);
         size_t jumpToReturnHandler = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
 
         // Check if flag == 2 (break)
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
         ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(breakIndex), finallyBlock);
         ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, finallyBlock);
         size_t jumpToBreakHandler = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
 
         // Check if flag == 3 (continue)
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(hasReturnFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
         ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(continueIndex), finallyBlock);
         ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, finallyBlock);
         size_t jumpToContinueHandler = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
@@ -442,9 +462,16 @@ namespace vm::compiler::visitors
         ctx.emitter.patchJump(jumpToReturnHandler);
         // Note: returnValueSlot was already loaded at the beginning of this function
         if (returnValueSlot != SIZE_MAX) {
+            // Convert absolute slot to relative slot for LOAD_LOCAL emission
+            size_t relativeReturnSlot = returnValueSlot;
+            if (ctx.functionFrameManager.isInFunction()) {
+                size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+                relativeReturnSlot = returnValueSlot - startSlot;
+            }
+
             // Load the return value back from the special slot
             // Note: For async functions, the value is already wrapped in a Promise
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(returnValueSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(relativeReturnSlot), finallyBlock);
 
             // Check if we're inside another try block with a finally (nested try-finally)
             bool hasOuterFinally = ctx.exceptionManager.hasOuterFinally();
@@ -458,7 +485,14 @@ namespace vm::compiler::visitors
                     ctx.exceptionManager.setReturnValueSlotForOuter(outerReturnValueSlot);
                 }
 
-                ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot), finallyBlock);
+                // Convert absolute slot to relative slot for STORE_LOCAL emission
+                size_t relativeOuterReturnSlot = outerReturnValueSlot;
+                if (ctx.functionFrameManager.isInFunction()) {
+                    size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+                    relativeOuterReturnSlot = outerReturnValueSlot - startSlot;
+                }
+
+                ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeOuterReturnSlot), finallyBlock);
 
                 size_t jumpToOuterFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
                 ctx.exceptionManager.registerReturnJumpWithOuter(jumpToOuterFinally);

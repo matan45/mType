@@ -40,11 +40,10 @@ Circuit state: -> OPEN (threshold reached)
 State: OPEN
 Circuit state: OPEN -> HALF_OPEN (manual reset)
 State after reset: HALF_OPEN
-Operation failed (failure 1/2)
-Half-open test failed: Service unavailable
-State after failure in half-open: HALF_OPEN
-Operation failed (failure 2/2)
+Operation failed (failure 3/2)
 Circuit state: -> OPEN (threshold reached)
+Half-open test failed: Service unavailable
+State after failure in half-open: OPEN
 Circuit is OPEN - failing fast
 Failed fast: Circuit breaker is open
 

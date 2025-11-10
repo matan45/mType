@@ -50,10 +50,10 @@ function main(): void {
 
     // String transformer lambda with exception
     Transformer transformer = s -> {
-        if (s == null || s.length() == 0) {
+        if (strLength(s) == 0) {
             throw new Exception("Empty string not allowed");
         }
-        return s.toUpperCase();
+        return toUpperCase(s);
     };
 
     try {

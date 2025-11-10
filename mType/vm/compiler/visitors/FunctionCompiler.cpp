@@ -400,6 +400,13 @@ namespace vm::compiler::visitors
             ctx.exceptionManager.setReturnValueSlot(returnValueSlot);
         }
 
+        // Convert absolute slot to relative slot for STORE_LOCAL emission
+        size_t relativeReturnSlot = returnValueSlot;
+        if (ctx.functionFrameManager.isInFunction()) {
+            size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+            relativeReturnSlot = returnValueSlot - startSlot;
+        }
+
         if (returnValue)
         {
             // For async functions, wrap in Promise before storing
@@ -410,7 +417,7 @@ namespace vm::compiler::visitors
             }
 
             // Store return value in the special slot
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeReturnSlot), node);
         }
         else
         {
@@ -424,7 +431,7 @@ namespace vm::compiler::visitors
             }
 
             // Store return value
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(returnValueSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeReturnSlot), node);
         }
 
         // Jump to finally
@@ -444,6 +451,13 @@ namespace vm::compiler::visitors
             ctx.exceptionManager.setReturnValueSlotForOuter(outerReturnValueSlot);
         }
 
+        // Convert absolute slot to relative slot for STORE_LOCAL emission
+        size_t relativeOuterReturnSlot = outerReturnValueSlot;
+        if (ctx.functionFrameManager.isInFunction()) {
+            size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+            relativeOuterReturnSlot = outerReturnValueSlot - startSlot;
+        }
+
         if (returnValue)
         {
             // Wrap in Promise if needed
@@ -452,7 +466,7 @@ namespace vm::compiler::visitors
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
             // Store return value in outer slot
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot),
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeOuterReturnSlot),
                                          node);
         }
         else
@@ -467,7 +481,7 @@ namespace vm::compiler::visitors
             }
 
             // Store return value
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(outerReturnValueSlot),
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeOuterReturnSlot),
                                          node);
         }
 

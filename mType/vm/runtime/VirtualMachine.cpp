@@ -191,9 +191,13 @@ namespace vm::runtime
         // Save current state
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
+        size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            // Reset finally offset for new function call
+            currentFinallyOffset = SIZE_MAX;
+
             // Push instance and arguments onto stack
             size_t frameBase = stackManager->size();
             push(instance);
@@ -222,6 +226,7 @@ namespace vm::runtime
             // Restore state
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
 
             return instance;
         }
@@ -230,6 +235,7 @@ namespace vm::runtime
             // Restore state on error
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
             throw;
         }
     }
@@ -286,9 +292,13 @@ namespace vm::runtime
         // Save current state
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
+        size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            // Reset finally offset for new function call
+            currentFinallyOffset = SIZE_MAX;
+
             // Push instance and arguments onto stack
             size_t frameBase = stackManager->size();
             push(instance);
@@ -317,6 +327,7 @@ namespace vm::runtime
             // Restore state
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
 
             return result;
         }
@@ -325,6 +336,7 @@ namespace vm::runtime
             // Restore state on error
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
             throw;
         }
     }
@@ -365,9 +377,13 @@ namespace vm::runtime
         // Save current state
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
+        size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            // Reset finally offset for new function call
+            currentFinallyOffset = SIZE_MAX;
+
             // Push arguments onto stack
             size_t frameBase = stackManager->size();
             for (const auto& arg : args)
@@ -395,6 +411,7 @@ namespace vm::runtime
             // Restore state
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
 
             return result;
         }
@@ -403,6 +420,7 @@ namespace vm::runtime
             // Restore state on error
             instructionPointer = savedIP;
             callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
             throw;
         }
     }
@@ -540,10 +558,17 @@ namespace vm::runtime
             // Check if we have a pending exception and we're hitting RETURN
             // According to Java/C# semantics: a return in finally SUPPRESSES the pending exception
             // The function returns normally and the exception is discarded
+            // IMPORTANT: Only suppress if:
+            // 1. We're inside a finally block (currentFinallyOffset is set)
+            // 2. The IP is between FINALLY and TRY_END (we're executing finally body)
+            // We can check #2 by seeing if IP > currentFinallyOffset (after FINALLY instruction)
             if (pendingException != nullptr &&
-                (instr.opcode == bytecode::OpCode::RETURN || instr.opcode == bytecode::OpCode::RETURN_VALUE))
+                (instr.opcode == bytecode::OpCode::RETURN || instr.opcode == bytecode::OpCode::RETURN_VALUE) &&
+                currentFinallyOffset != SIZE_MAX &&
+                currentFinallyOffset == pendingFinallyOffset &&
+                instructionPointer > currentFinallyOffset)
             {
-                // Clear the pending exception - the return overrides it
+                // Clear the pending exception - the return inside finally overrides it
                 pendingException.reset();
                 pendingFinallyOffset = SIZE_MAX;
                 // Continue with normal return (do NOT re-throw)
@@ -936,6 +961,8 @@ namespace vm::runtime
                 currentFinallyOffset = SIZE_MAX;
                 throw exToRethrow;
             }
+            // Reset currentFinallyOffset - we've exited the finally block
+            currentFinallyOffset = SIZE_MAX;
             exceptionExecutor->handleTryEnd(instr);
             break;
         case OpCode::CATCH: exceptionExecutor->handleCatch(instr);
