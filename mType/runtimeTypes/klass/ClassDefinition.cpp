@@ -282,10 +282,18 @@ namespace runtimeTypes::klass
 
     std::shared_ptr<MethodDefinition> ClassDefinition::findMethod(const std::string& methodName, size_t argCount) const
     {
-        auto method = getMethod(methodName);
-        if (method && method->getParameters().size() == argCount) {
-            return method;
+        // Try instance method first (most common case)
+        auto instanceMethod = findInstanceMethod(methodName, argCount);
+        if (instanceMethod) {
+            return instanceMethod;
         }
+
+        // Then try static method
+        auto staticMethod = findStaticMethod(methodName, argCount);
+        if (staticMethod) {
+            return staticMethod;
+        }
+
         return nullptr;
     }
 
@@ -617,8 +625,12 @@ namespace runtimeTypes::klass
 
                     size_t requiredArgCount = abstractMethodDef->getParameters().size();
 
+                    // findInstanceMethod expects parameter count WITHOUT 'this', so subtract 1
+                    // For instance methods, getParameters() includes 'this' as the first parameter
+                    size_t argCountWithoutThis = (requiredArgCount > 0) ? requiredArgCount - 1 : 0;
+
                     // First check in current class with signature matching (name + parameter count)
-                    auto implementingMethod = findInstanceMethod(abstractMethod, requiredArgCount);
+                    auto implementingMethod = findInstanceMethod(abstractMethod, argCountWithoutThis);
                     if (implementingMethod && !implementingMethod->isAbstract()) {
                         isImplemented = true;
                     }
@@ -631,8 +643,8 @@ namespace runtimeTypes::klass
                                 break;
                             }
 
-                            // Use signature-aware lookup (name + parameter count)
-                            auto intermediateMethod = intermediateClass->findInstanceMethod(abstractMethod, requiredArgCount);
+                            // Use signature-aware lookup (name + parameter count WITHOUT 'this')
+                            auto intermediateMethod = intermediateClass->findInstanceMethod(abstractMethod, argCountWithoutThis);
                             if (intermediateMethod && !intermediateMethod->isAbstract()) {
                                 isImplemented = true;
                                 break;

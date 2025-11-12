@@ -51,7 +51,18 @@ namespace ast
     std::string GenericType::toString() const
     {
         std::ostringstream oss;
-        oss << getBaseTypeName();
+        std::string baseName = getBaseTypeName();
+
+        // Special handling for Array types: Array<T> should be rendered as T[]
+        if (baseName == "Array" && typeArguments.size() == 1)
+        {
+            // Check if the element type is also an array (for multi-dimensional arrays)
+            std::string elementTypeStr = typeArguments[0]->toString();
+            oss << elementTypeStr << "[]";
+            return oss.str();
+        }
+
+        oss << baseName;
 
         if (isParameterized())
         {

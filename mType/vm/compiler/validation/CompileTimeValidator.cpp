@@ -160,7 +160,17 @@ namespace vm::compiler::validation
             auto currentClass = classDef;
             while (currentClass && currentClass->hasParentClass())
             {
-                auto parentClass = classRegistry->findClass(currentClass->getParentClassName());
+                std::string parentName = currentClass->getParentClassName();
+
+                // Extract base class name (strip generic parameters like <T>)
+                // E.g., "Container<T>" -> "Container"
+                std::string baseParentName = parentName;
+                size_t genericStart = parentName.find('<');
+                if (genericStart != std::string::npos) {
+                    baseParentName = parentName.substr(0, genericStart);
+                }
+
+                auto parentClass = classRegistry->findClass(baseParentName);
                 if (parentClass)
                 {
                     auto parentOverloads = parentClass->getAllInstanceMethodOverloads(methodName);
@@ -394,29 +404,17 @@ namespace vm::compiler::validation
             for (const auto& methodDef : overloads)
             {
                 // Build mangled name with parameter signature
-                // For instance methods, skip the first parameter ('this') as it's not included in the mangled name
+                // Use genericParameters for accurate type names (including array types like Item[])
+                // Note: genericParameters does NOT include 'this' for instance methods
                 std::string typeSignature = "";
-                const auto& params = methodDef->getParameters();
-                size_t startIdx = (!params.empty() && !methodDef->isStatic()) ? 1 : 0; // Skip 'this' for instance methods
+                const auto& genericParams = methodDef->getGenericParameters();
 
-                for (size_t i = startIdx; i < params.size(); ++i)
+                // genericParameters doesn't include 'this', so no need to skip
+                for (size_t i = 0; i < genericParams.size(); ++i)
                 {
-                    if (i > startIdx) typeSignature += ",";
-                    // Get type name from ParameterType
-                    const auto& paramType = params[i].second;
-
-                    if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
-                    {
-                        typeSignature += paramType.className.value();
-                    }
-                    else if (paramType.basicType == value::ValueType::OBJECT && paramType.interfaceName.has_value())
-                    {
-                        typeSignature += paramType.interfaceName.value();
-                    }
-                    else
-                    {
-                        typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
-                    }
+                    if (i > 0) typeSignature += ",";
+                    // Use GenericType::toString() to get the full type name (handles arrays like Item[])
+                    typeSignature += genericParams[i].second->toString();
                 }
 
                 // Build qualified name - only add slash if signature is not empty
@@ -446,27 +444,17 @@ namespace vm::compiler::validation
             for (const auto& methodDef : overloads)
             {
                 // Build mangled name with parameter signature
+                // Use genericParameters for accurate type names (including array types like Item[])
                 std::string typeSignature = "";
-                const auto& params = methodDef->getParameters();
-                if (!params.empty())
+                const auto& genericParams = methodDef->getGenericParameters();
+
+                if (!genericParams.empty())
                 {
-                    for (size_t i = 0; i < params.size(); ++i)
+                    for (size_t i = 0; i < genericParams.size(); ++i)
                     {
                         if (i > 0) typeSignature += ",";
-                        // Get type name from ParameterType
-                        const auto& paramType = params[i].second;
-                        if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
-                        {
-                            typeSignature += paramType.className.value();
-                        }
-                        else if (paramType.basicType == value::ValueType::OBJECT && paramType.interfaceName.has_value())
-                        {
-                            typeSignature += paramType.interfaceName.value();
-                        }
-                        else
-                        {
-                            typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
-                        }
+                        // Use GenericType::toString() to get the full type name (handles arrays like Item[])
+                        typeSignature += genericParams[i].second->toString();
                     }
                 }
 

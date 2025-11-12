@@ -160,12 +160,21 @@ namespace vm::compiler::visitors
     bool MethodCompilerHelper::isValidTypeName(const std::string& typeName,
                                                 const std::vector<std::string>& validGenericParams)
     {
-        // Extract base type name first (handle generics like "List<T>", "Array<K>")
         std::string baseTypeName = typeName;
-        size_t anglePos = typeName.find('<');
+
+        // Handle array types: int[], Item[][], etc.
+        // Strip all array brackets to get the element type
+        size_t bracketPos = baseTypeName.find('[');
+        if (bracketPos != std::string::npos)
+        {
+            baseTypeName = baseTypeName.substr(0, bracketPos);
+        }
+
+        // Extract base type name (handle generics like "List<T>", "Array<K>")
+        size_t anglePos = baseTypeName.find('<');
         if (anglePos != std::string::npos)
         {
-            baseTypeName = typeName.substr(0, anglePos);
+            baseTypeName = baseTypeName.substr(0, anglePos);
         }
 
         // Check if base type is a primitive type (including Array for array types, object for generic constraints, and Promise for async/await)
@@ -176,10 +185,10 @@ namespace vm::compiler::visitors
             return true;
         }
 
-        // Check if it's a declared generic type parameter (check full type name, not base)
+        // Check if it's a declared generic type parameter (check element type for arrays)
         for (const auto& genericParam : validGenericParams)
         {
-            if (typeName == genericParam)
+            if (baseTypeName == genericParam)
             {
                 return true;
             }
@@ -273,18 +282,11 @@ namespace vm::compiler::visitors
         return result;
     }
 
-    MethodCompilerHelper::MethodBodyInfo MethodCompilerHelper::compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic)
+    MethodCompilerHelper::MethodBodyInfo MethodCompilerHelper::compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params,
+                                                                                          bool isStatic, const std::string& qualifiedMethodName)
     {
-        // Build qualified method name for exception table tracking
-        std::string qualifiedMethodName = node->getName();
-        if (ctx.currentClassNode)
-        {
-            qualifiedMethodName = ctx.currentClassNode->getClassName() + "::" + node->getName();
-            if (isStatic)
-            {
-                qualifiedMethodName += "$static";
-            }
-        }
+        // Use the passed-in qualified method name (with signature for overloaded methods)
+        // This ensures exception tables are registered with the same name used at runtime
 
         // Enter function frame for local variable tracking
         ctx.functionFrameManager.enterFunctionFrame(qualifiedMethodName,
@@ -554,8 +556,8 @@ namespace vm::compiler::visitors
 
         ctx.program.registerFunction(qualifiedMethodName, tempMetadata);
 
-        // Compile method body with frame management
-        MethodBodyInfo bodyInfo = compileMethodBodyWithFrame(node, params, isStatic);
+        // Compile method body with frame management (pass mangled name for exception tables)
+        MethodBodyInfo bodyInfo = compileMethodBodyWithFrame(node, params, isStatic, qualifiedMethodName);
 
         // Restore instance/static method context
         ctx.inInstanceMethod = wasInInstanceMethod;

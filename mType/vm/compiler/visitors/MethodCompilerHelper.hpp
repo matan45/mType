@@ -50,7 +50,8 @@ namespace vm::compiler::visitors
 
         // Method compilation helpers
         MethodParameters collectMethodParameters(ast::MethodNode* node, bool isStatic);
-        MethodBodyInfo compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params, bool isStatic);
+        MethodBodyInfo compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params,
+                                                  bool isStatic, const std::string& qualifiedMethodName);
         void finalizeMethodCompilation(ast::MethodNode* node, const MethodParameters& params,
                                        size_t methodStart, size_t skipJump, const MethodBodyInfo& bodyInfo, bool isStatic);
 

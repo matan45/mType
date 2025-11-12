@@ -401,11 +401,25 @@ namespace vm::runtime
         auto accessContext = createAccessContext(definingClassName, false);
         validation::AccessValidator::validateMethodAccess(simpleMethodName, method->getAccessModifier(), accessContext);
 
-        // Use the mangled name directly if it already contains class prefix, otherwise build it
-        std::string qualifiedName = methodName;
-        if (colonPos == std::string::npos) {
-            // methodName doesn't have class prefix, add it
-            qualifiedName = definingClassName + "::" + methodName;
+        // Build the mangled name with signature for overloaded methods
+        // Format: ClassName::methodName or ClassName::methodName/type1,type2 for overloads
+        // Use genericParameters for accurate type names (including arrays like Item[])
+        // Note: genericParameters does NOT include 'this' for instance methods
+        // IMPORTANT: Always use the runtime definingClassName for polymorphism!
+        std::string qualifiedName;
+        const auto& genericParams = method->getGenericParameters();
+
+        // genericParameters doesn't include 'this', so start from index 0
+        if (!genericParams.empty()) {
+            // Build type signature from parameter types
+            std::string typeSignature = "";
+            for (size_t i = 0; i < genericParams.size(); ++i) {
+                if (i > 0) typeSignature += ",";
+                typeSignature += genericParams[i].second->toString();  // Use GenericType::toString()
+            }
+            qualifiedName = definingClassName + "::" + simpleMethodName + "/" + typeSignature;
+        } else {
+            qualifiedName = definingClassName + "::" + simpleMethodName;  // No parameters
         }
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
