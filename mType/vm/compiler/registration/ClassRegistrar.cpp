@@ -159,35 +159,49 @@ namespace vm::compiler::registration
                         // This is stored as a string - could be:
                         // 1. An actual generic type parameter (T, K, V, etc.)
                         // 2. A class/interface name (String, Calculator, etc.)
-                        std::string typeName = genericType->getGenericName();
+                        // 3. A parameterized type (Container<Int>, Map<K,V>, etc.)
+                        //
+                        // IMPORTANT: Use toString() instead of getGenericName() to preserve
+                        // generic type arguments (e.g., "Container<Int>" not just "Container")
+                        std::string typeName = genericType->toString();
 
-                        // IMPORTANT: Check if typeName matches the class we're currently registering
+                        // Extract base type name (before '<' if it exists) for registry lookups
+                        std::string baseTypeName = typeName;
+                        size_t anglePos = typeName.find('<');
+                        if (anglePos != std::string::npos) {
+                            baseTypeName = typeName.substr(0, anglePos);
+                        }
+
+                        // IMPORTANT: Check if baseTypeName matches the class we're currently registering
                         // This handles self-referential types (e.g., String::equals(String other))
-                        bool isSelfReference = (typeName == className);
+                        bool isSelfReference = (baseTypeName == className);
 
                         if (isSelfReference) {
                             // Self-reference to the class being registered
+                            // Use full typeName to preserve generic arguments
                             params.emplace_back(name, value::ParameterType::forClass(typeName));
                         }
                         else {
-                            // Check if this is a registered class or interface
+                            // Check if the base type is a registered class or interface
                             auto classRegistry = environment->getClassRegistry();
                             auto interfaceRegistry = environment->getInterfaceRegistry();
 
-                            bool isClass = classRegistry && classRegistry->findClass(typeName);
-                            bool isInterface = interfaceRegistry && interfaceRegistry->findInterface(typeName);
+                            bool isClass = classRegistry && classRegistry->findClass(baseTypeName);
+                            bool isInterface = interfaceRegistry && interfaceRegistry->findInterface(baseTypeName);
 
                             if (isClass) {
-                                // It's a class name
+                                // It's a class name (possibly parameterized)
+                                // Use full typeName to preserve generic arguments (e.g., Container<Int>)
                                 params.emplace_back(name, value::ParameterType::forClass(typeName));
                             }
                             else if (isInterface) {
-                                // It's an interface name
+                                // It's an interface name (possibly parameterized)
+                                // Use full typeName to preserve generic arguments
                                 params.emplace_back(name, value::ParameterType::forInterface(typeName));
                             }
                             else {
-                                // It's an actual generic type parameter (T, K, etc.)
-                                // Store the generic parameter name in className for signature generation
+                                // It's an actual generic type parameter (T, K, etc.) or unknown type
+                                // Store the full type name (which could include parameters)
                                 // This allows the validator to match against bytecode function names
                                 params.emplace_back(name, value::ParameterType::forClass(typeName));
                             }
@@ -259,10 +273,16 @@ namespace vm::compiler::registration
                         methodDef->getParameters()
                     );
                     if (existingMethod) {
+                        // For instance methods, skip the 'this' parameter (first parameter) when generating signature for error message
+                        auto paramsWithoutThis = methodDef->getParameters();
+                        if (!paramsWithoutThis.empty() && paramsWithoutThis[0].first == "this") {
+                            paramsWithoutThis.erase(paramsWithoutThis.begin());
+                        }
+
                         throw errors::DuplicateSignatureException(
                             "method",
                             methodNode->getName(),
-                            runtimeTypes::klass::SignatureUtils::generateTypeSignature(methodDef->getParameters()),
+                            runtimeTypes::klass::SignatureUtils::generateTypeSignature(paramsWithoutThis),
                             existingMethod->getSourceLocation(),
                             methodNode->getLocation()
                         );
@@ -714,11 +734,13 @@ namespace vm::compiler::registration
         for (const auto& [methodName, childMethodOverloads] : childMethods) {
             // Check each overload
             for (const auto& childMethod : childMethodOverloads) {
-                // Search for method in parent hierarchy (not just immediate parent)
-                // This handles cases where method is defined in grandparent
-                // Use MethodSignature to eliminate 'this' parameter counting bugs
-                auto signature = vm::MethodSignature::fromMethodDefinition(childMethod.get());
-                auto parentMethod = parentClass->findInstanceMethodInHierarchy(signature);
+                // Search for method in parent hierarchy WITH EXACT SIGNATURE MATCH (including parameter types)
+                // This allows derived classes to add new overloads with different signatures
+                // while still validating true overrides (same signature)
+                auto parentMethod = parentClass->findInstanceMethodBySignatureInHierarchy(
+                    methodName,
+                    childMethod->getParameters()
+                );
 
                 if (parentMethod) {
                 // Method exists in parent hierarchy - validate override
@@ -743,7 +765,7 @@ namespace vm::compiler::registration
                     std::string definingClassName = parentClass->getName();
                     auto currentClass = parentClass;
                     while (currentClass) {
-                        auto localMethod = currentClass->findInstanceMethod(signature);  // Use signature (no 'this' confusion)
+                        auto localMethod = currentClass->findInstanceMethodBySignature(methodName, childMethod->getParameters());
                         if (localMethod) {
                             definingClassName = currentClass->getName();
                             break;

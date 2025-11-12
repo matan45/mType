@@ -14,6 +14,7 @@
 #include "../errors/ParseException.hpp"
 #include "../errors/DuplicateDeclarationException.hpp"
 #include <unordered_set>
+
 namespace parser
 {
     using namespace ast::nodes::classes;

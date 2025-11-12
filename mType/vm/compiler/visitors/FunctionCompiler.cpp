@@ -224,17 +224,17 @@ namespace vm::compiler::visitors
             {
                 metadata.genericTypeParameters.push_back(param.name);
             }
-
-            // PHASE 2 FIX: Preserve parameterTypeParameterUsage from initial registration
-            if (existingMetadata)
-            {
-                metadata.parameterTypeParameterUsage = existingMetadata->parameterTypeParameterUsage;
-            }
         }
 
-        // Preserve exception table from existing metadata (built during body compilation)
+        // PHASE 2 FIX: Preserve parameterTypeParameterUsage from initial registration
+        // This must be done for ALL functions, not just generic ones, because multiple overloads
+        // (both generic and non-generic) share the same base name and we must not lose the data
+        // when a non-generic overload is compiled
         if (existingMetadata)
         {
+            metadata.parameterTypeParameterUsage = existingMetadata->parameterTypeParameterUsage;
+
+            // Preserve exception table from existing metadata (built during body compilation)
             metadata.exceptionTable = existingMetadata->exceptionTable;
         }
 

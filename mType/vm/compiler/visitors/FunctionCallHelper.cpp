@@ -12,7 +12,7 @@
 #include "../../bytecode/OpCode.hpp"
 #include "../types/GenericPatternAnalyzer.hpp"
 #include <optional>
-
+#include <iostream>
 namespace vm::compiler::visitors
 {
     FunctionCallHelper::FunctionCallHelper(CompilerContext& context)
@@ -801,9 +801,9 @@ namespace vm::compiler::visitors
         {
             // This is a regular function call - resolve overload to get mangled name
             bool hasGenericTypeArgs = node->hasGenericTypeArguments();
-            size_t genericTypeArgCount = hasGenericTypeArgs ? node->getGenericTypeArguments().size() : 0;
+            std::vector<std::string> genericTypeArgs = hasGenericTypeArgs ? node->getGenericTypeArguments() : std::vector<std::string>{};
             resolvedFunctionName = overloadResolver->resolveFunctionOverload(
-                functionName, arguments, node->getLocation(), hasGenericTypeArgs, genericTypeArgCount);
+                functionName, arguments, node->getLocation(), hasGenericTypeArgs, genericTypeArgs);
         }
 
         // Setup generic type bindings if needed (use resolved name for correct metadata lookup)

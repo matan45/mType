@@ -59,7 +59,7 @@ namespace vm::compiler::overload
          * @param arguments The call arguments for type inference
          * @param location Source location for error reporting
          * @param hasGenericTypeArgs Whether the call has explicit generic type arguments
-         * @param genericTypeArgCount Number of generic type arguments provided (if any)
+         * @param genericTypeArgs The actual generic type arguments provided (e.g., ["Int", "String"])
          * @return Mangled function name (e.g., "process/String,int") or plain name if single overload
          */
         std::string resolveFunctionOverload(
@@ -67,7 +67,7 @@ namespace vm::compiler::overload
             const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
             const ast::SourceLocation& location,
             bool hasGenericTypeArgs = false,
-            size_t genericTypeArgCount = 0);
+            const std::vector<std::string>& genericTypeArgs = {});
 
     private:
         visitors::CompilerContext& ctx;

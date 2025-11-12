@@ -6,9 +6,66 @@
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../types/TypeRegistry.hpp"
 #include <iostream>
+#include <unordered_map>
 
 namespace vm::compiler::overload
 {
+    /**
+     * Helper function to substitute generic type parameters in a type string
+     * For example: substituteTypeParameters("Wrapper<T>", {{"T", "Int"}}) => "Wrapper<Int>"
+     */
+    static std::string substituteTypeParameters(
+        const std::string& typeStr,
+        const std::unordered_map<std::string, std::string>& substitutions)
+    {
+        std::string result = typeStr;
+
+        // Simple substitution: replace each type parameter with its corresponding type
+        // We need to be careful to only substitute complete tokens, not substrings
+        for (const auto& [param, replacement] : substitutions)
+        {
+            // Look for the parameter as a complete token
+            size_t pos = 0;
+            while ((pos = result.find(param, pos)) != std::string::npos)
+            {
+                // Check if this is a complete token (not part of a larger identifier)
+                bool isCompleteToken = true;
+
+                // Check character before (if exists)
+                if (pos > 0)
+                {
+                    char prevChar = result[pos - 1];
+                    if (std::isalnum(prevChar) || prevChar == '_')
+                    {
+                        isCompleteToken = false;
+                    }
+                }
+
+                // Check character after (if exists)
+                if (isCompleteToken && pos + param.length() < result.length())
+                {
+                    char nextChar = result[pos + param.length()];
+                    if (std::isalnum(nextChar) || nextChar == '_')
+                    {
+                        isCompleteToken = false;
+                    }
+                }
+
+                if (isCompleteToken)
+                {
+                    result.replace(pos, param.length(), replacement);
+                    pos += replacement.length();
+                }
+                else
+                {
+                    pos += param.length();
+                }
+            }
+        }
+
+        return result;
+    }
+
     OverloadResolutionHelper::OverloadResolutionHelper(visitors::CompilerContext& context)
         : ctx(context)
     {
@@ -105,8 +162,8 @@ namespace vm::compiler::overload
             return methodName;
         }
 
-        // Get all instance method overloads
-        auto overloads = classDef->getAllInstanceMethodOverloads(methodName);
+        // Get all instance method overloads including inherited methods
+        auto overloads = classDef->getAllInstanceMethodOverloadsInHierarchy(methodName);
 
         if (overloads.empty())
         {
@@ -239,11 +296,17 @@ namespace vm::compiler::overload
             }
 
             // Build candidate signature strings
+            // For instance methods, skip the 'this' parameter (first parameter) in error messages
             std::vector<std::string> candidateSignatures;
             for (const auto& candidate : result.ambiguousCandidates)
             {
+                auto params = candidate->getParametersWithTypes();
+                if (!candidate->isStatic() && !params.empty() && params[0].first == "this")
+                {
+                    params.erase(params.begin());
+                }
                 candidateSignatures.push_back(
-                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(candidate->getParametersWithTypes())
+                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(params)
                 );
             }
 
@@ -265,11 +328,17 @@ namespace vm::compiler::overload
             }
 
             // Build available signature strings (from filtered overloads)
+            // For instance methods, skip the 'this' parameter (first parameter) in error messages
             std::vector<std::string> availableSignatures;
             for (const auto& overload : filteredOverloads)
             {
+                auto params = overload->getParametersWithTypes();
+                if (!overload->isStatic() && !params.empty() && params[0].first == "this")
+                {
+                    params.erase(params.begin());
+                }
                 availableSignatures.push_back(
-                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(overload->getParametersWithTypes())
+                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(params)
                 );
             }
 
@@ -321,8 +390,8 @@ namespace vm::compiler::overload
             return baseClassName + "::" + methodName;
         }
 
-        // Get all static method overloads
-        auto overloads = classDef->getAllStaticMethodOverloads(methodName);
+        // Get all static method overloads including inherited methods
+        auto overloads = classDef->getAllStaticMethodOverloadsInHierarchy(methodName);
         if (overloads.empty())
         {
             // No methods found - return qualified plain name
@@ -367,11 +436,17 @@ namespace vm::compiler::overload
             }
 
             // Build candidate signature strings
+            // For instance methods, skip the 'this' parameter (first parameter) in error messages
             std::vector<std::string> candidateSignatures;
             for (const auto& candidate : result.ambiguousCandidates)
             {
+                auto params = candidate->getParametersWithTypes();
+                if (!candidate->isStatic() && !params.empty() && params[0].first == "this")
+                {
+                    params.erase(params.begin());
+                }
                 candidateSignatures.push_back(
-                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(candidate->getParametersWithTypes())
+                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(params)
                 );
             }
 
@@ -393,11 +468,17 @@ namespace vm::compiler::overload
             }
 
             // Build available signature strings (from filtered overloads)
+            // For instance methods, skip the 'this' parameter (first parameter) in error messages
             std::vector<std::string> availableSignatures;
             for (const auto& overload : filteredOverloads)
             {
+                auto params = overload->getParametersWithTypes();
+                if (!overload->isStatic() && !params.empty() && params[0].first == "this")
+                {
+                    params.erase(params.begin());
+                }
                 availableSignatures.push_back(
-                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(overload->getParametersWithTypes())
+                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(params)
                 );
             }
 
@@ -430,8 +511,9 @@ namespace vm::compiler::overload
         const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
         const ast::SourceLocation& location,
         bool hasGenericTypeArgs,
-        size_t genericTypeArgCount)
+        const std::vector<std::string>& genericTypeArgs)
     {
+        size_t genericTypeArgCount = genericTypeArgs.size();
         // Get function registry
         auto funcRegistry = ctx.environment->getFunctionRegistry();
         if (!funcRegistry)
@@ -451,13 +533,82 @@ namespace vm::compiler::overload
 
         // Filter overloads based on generic type arguments (Java/C# style)
         std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>> filteredOverloads;
+        std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>> nonGenericOverloads;
+        std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>> genericOverloads;
+
         if (hasGenericTypeArgs)
         {
-            // Only consider generic overloads with matching number of type parameters
+            // When explicit type arguments are provided, we need to:
+            // 1. Filter by generic parameter count
+            // 2. Substitute type arguments into parameter types
+            // 3. Check if substituted types are compatible with actual argument types
+
+            // Infer actual argument types for compatibility checking
+            std::vector<value::ParameterType> argTypes = inferArgumentTypes(arguments);
+
             for (const auto& overload : overloads)
             {
                 size_t genericParamCount = overload->getGenericTypeParameters().size();
-                if (genericParamCount == genericTypeArgCount)
+                if (genericParamCount != genericTypeArgCount)
+                {
+                    continue; // Wrong number of type parameters
+                }
+
+                // Build substitution map: T -> Int, K -> String, etc.
+                std::unordered_map<std::string, std::string> substitutions;
+                const auto& typeParams = overload->getGenericTypeParameters();
+                for (size_t i = 0; i < typeParams.size(); ++i)
+                {
+                    substitutions[typeParams[i].name] = genericTypeArgs[i];
+                }
+
+                // Check if substituted parameter types match argument types
+                const auto& params = overload->getParameters();
+                if (params.size() != argTypes.size())
+                {
+                    continue; // Wrong number of parameters
+                }
+
+                bool isCompatible = true;
+                for (size_t i = 0; i < params.size(); ++i)
+                {
+                    const auto& [paramName, paramType] = params[i];
+                    const auto& argType = argTypes[i];
+
+                    // Get parameter type string
+                    std::string paramTypeStr;
+                    if (paramType.className.has_value())
+                    {
+                        paramTypeStr = paramType.className.value();
+                    }
+                    else
+                    {
+                        paramTypeStr = runtimeTypes::klass::SignatureUtils::getTypeName(paramType);
+                    }
+
+                    // Substitute type parameters
+                    std::string substitutedTypeStr = substituteTypeParameters(paramTypeStr, substitutions);
+
+                    // Get argument type string
+                    std::string argTypeStr;
+                    if (argType.className.has_value())
+                    {
+                        argTypeStr = argType.className.value();
+                    }
+                    else
+                    {
+                        argTypeStr = runtimeTypes::klass::SignatureUtils::getTypeName(argType);
+                    }
+
+                    // Check if types match
+                    if (substitutedTypeStr != argTypeStr)
+                    {
+                        isCompatible = false;
+                        break;
+                    }
+                }
+
+                if (isCompatible)
                 {
                     filteredOverloads.push_back(overload);
                 }
@@ -467,8 +618,6 @@ namespace vm::compiler::overload
         {
             // NO explicit type arguments provided
             // Java/C# rule: Prefer non-generic overloads over generic ones
-            std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>> nonGenericOverloads;
-            std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>> genericOverloads;
 
             for (const auto& overload : overloads)
             {
@@ -524,16 +673,9 @@ namespace vm::compiler::overload
                 }
             }
 
-            // If we have non-generic overloads, use only those
-            // Otherwise, fall back to generic overloads
-            if (!nonGenericOverloads.empty())
-            {
-                filteredOverloads = nonGenericOverloads;
-            }
-            else
-            {
-                filteredOverloads = genericOverloads;
-            }
+            // Java/C# rule: Prefer non-generic overloads over generic ones
+            // Try non-generic first, but fall back to generic if no viable matches
+            filteredOverloads = nonGenericOverloads;
         }
 
         if (filteredOverloads.empty())
@@ -542,19 +684,26 @@ namespace vm::compiler::overload
             return functionName;
         }
 
-        if (filteredOverloads.size() == 1)
+        // Infer argument types for overload resolution
+        std::vector<value::ParameterType> argTypes = inferArgumentTypes(arguments);
+
+        if (filteredOverloads.size() == 1 && argTypes.size() == filteredOverloads[0]->getParameters().size())
         {
-            // Only one overload after filtering - return mangled name
+            // Only one overload after filtering and parameter count matches - return mangled name
             const auto& func = filteredOverloads[0];
             std::string mangledName = buildMangledFunctionName(functionName, func->getParameters());
             return mangledName;
         }
 
-        // Multiple overloads - need resolution
-        std::vector<value::ParameterType> argTypes = inferArgumentTypes(arguments);
-
-        // Use OverloadResolver to find best match (using filtered overloads)
+        // Try to resolve with non-generic overloads first
         auto result = OverloadResolver::resolveFunctionOverload(filteredOverloads, argTypes, location);
+
+        // If no viable candidates from non-generic overloads, try generic overloads
+        if ((!result.hasViableCandidates || !result.selectedOverload) && !hasGenericTypeArgs && !genericOverloads.empty())
+        {
+            filteredOverloads = genericOverloads;
+            result = OverloadResolver::resolveFunctionOverload(filteredOverloads, argTypes, location);
+        }
 
         if (result.isAmbiguous)
         {

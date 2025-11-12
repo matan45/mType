@@ -1,0 +1,39 @@
+=== Scenario 1: Varying Parameter Counts ===
+add(5) = 5
+add(3, 7) = 10
+add(1, 2, 3) = 6
+add(1, 2, 3, 4) = 10
+
+=== Scenario 2: Mixed Primitive and Generic ===
+handle(int): 42
+handle(string): test
+handle(bool): true
+handle(T): generic
+
+=== Scenario 3: Type Widening ===
+int: 10
+float: 3.14
+string: hello
+
+=== Scenario 4: Generic Constraints Simulation ===
+Comparing Container<Int>
+Comparing Container<String>
+Comparing Container<U>
+
+=== Scenario 5: Multiple Dispatch Simulation ===
+Shape-Shape
+Circle-Shape
+Circle-Circle
+Rectangle-Shape
+Rectangle-Rectangle
+Rectangle-Circle
+
+=== Scenario 6: Multi-Parameter Generic Overloading ===
+BiContainer<Int,Int>
+BiContainer<String,String>
+BiContainer<Int,String>
+BiContainer<String,Int>
+BiContainer<T,T>: same type
+BiContainer<T1,T2>: different types
+
+All complex scenarios passed!

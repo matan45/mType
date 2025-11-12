@@ -128,11 +128,23 @@ namespace runtimeTypes::klass
         std::vector<std::shared_ptr<MethodDefinition>> getAllInstanceMethodOverloads(const std::string& methodName) const;
         std::vector<std::shared_ptr<MethodDefinition>> getAllStaticMethodOverloads(const std::string& methodName) const;
 
+        // Get all overloads including inherited methods from parent classes
+        std::vector<std::shared_ptr<MethodDefinition>> getAllInstanceMethodOverloadsInHierarchy(const std::string& methodName) const;
+        std::vector<std::shared_ptr<MethodDefinition>> getAllStaticMethodOverloadsInHierarchy(const std::string& methodName) const;
+
         // Find method by signature (with type parameters)
         std::shared_ptr<MethodDefinition> findInstanceMethodBySignature(
             const std::string& methodName,
             const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const;
         std::shared_ptr<MethodDefinition> findStaticMethodBySignature(
+            const std::string& methodName,
+            const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const;
+
+        // Find method by signature in hierarchy (searches parent classes)
+        std::shared_ptr<MethodDefinition> findInstanceMethodBySignatureInHierarchy(
+            const std::string& methodName,
+            const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const;
+        std::shared_ptr<MethodDefinition> findStaticMethodBySignatureInHierarchy(
             const std::string& methodName,
             const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const;
 

@@ -3,7 +3,6 @@
 #include "../../../types/TypeConversionUtils.hpp"
 #include <algorithm>
 #include <climits>
-
 namespace vm::compiler::overload
 {
     // ParameterConversion implementation
@@ -82,6 +81,68 @@ namespace vm::compiler::overload
         return true;
     }
 
+    // Helper function to parse type arguments from a parameterized type like "Mapper<Bool, String>"
+    std::vector<std::string> parseTypeArguments(const std::string& parameterizedType) {
+        std::vector<std::string> args;
+        size_t openAngle = parameterizedType.find('<');
+        size_t closeAngle = parameterizedType.rfind('>');
+
+        if (openAngle == std::string::npos || closeAngle == std::string::npos || closeAngle <= openAngle) {
+            return args;  // Not a parameterized type
+        }
+
+        std::string typeArgsStr = parameterizedType.substr(openAngle + 1, closeAngle - openAngle - 1);
+
+        // Parse comma-separated type arguments
+        std::string currentArg;
+        int depth = 0;  // Track nested angle brackets like "Box<Pair<Int, String>>"
+
+        for (char c : typeArgsStr) {
+            if (c == '<') {
+                depth++;
+                currentArg += c;
+            } else if (c == '>') {
+                depth--;
+                currentArg += c;
+            } else if (c == ',' && depth == 0) {
+                // Found a top-level comma separator
+                // Trim spaces from currentArg
+                size_t start = currentArg.find_first_not_of(' ');
+                size_t end = currentArg.find_last_not_of(' ');
+                if (start != std::string::npos && end != std::string::npos) {
+                    args.push_back(currentArg.substr(start, end - start + 1));
+                }
+                currentArg.clear();
+            } else {
+                currentArg += c;
+            }
+        }
+
+        // Add last argument
+        if (!currentArg.empty()) {
+            size_t start = currentArg.find_first_not_of(' ');
+            size_t end = currentArg.find_last_not_of(' ');
+            if (start != std::string::npos && end != std::string::npos) {
+                args.push_back(currentArg.substr(start, end - start + 1));
+            }
+        }
+
+        return args;
+    }
+
+    // Helper function to check if a type name is a generic parameter (like T, K, V)
+    bool isGenericParameter(const std::string& typeName, const types::TypeRegistry& registry) {
+        // Single uppercase letter = generic parameter
+        if (typeName.length() == 1 && std::isupper(typeName[0])) {
+            return true;
+        }
+        // Two-letter type that isn't registered
+        if (typeName.length() == 2 && std::isupper(typeName[0]) && !registry.hasType(typeName)) {
+            return true;
+        }
+        return false;
+    }
+
     // OverloadResolver implementation
     ConversionType OverloadResolver::getConversionType(
         const value::ParameterType& from,
@@ -103,43 +164,59 @@ namespace vm::compiler::overload
 
             // Generic type parameter detection:
             // Case 1: Simple generic like "T", "K", "V" (single capital letters)
-            if (baseClassName.length() <= 2 && std::isupper(baseClassName[0]) && !registry.hasType(baseClassName)) {
+            if (isGenericParameter(baseClassName, registry)) {
                 // This is a generic parameter - can match ANY type but with lowest priority
                 return ConversionType::GENERIC_PARAMETER;
             }
 
-            // Case 2: Parameterized type containing generic parameters like "Box<T>", "List<K>"
-            // Check if className contains angle brackets with unresolved type parameters
-            size_t openAngle = className.find('<');
-            if (openAngle != std::string::npos) {
-                size_t closeAngle = className.find('>');
-                if (closeAngle != std::string::npos && closeAngle > openAngle) {
-                    // Extract the type argument(s) between < and >
-                    std::string typeArgs = className.substr(openAngle + 1, closeAngle - openAngle - 1);
+            // Case 2: Parameterized type containing generic parameters like "Mapper<K, String>"
+            if (anglePos != std::string::npos) {
 
-                    // Simple heuristic: if type args contain single letters (T, K, V, etc.)
-                    // or comma-separated single letters, it's likely generic
-                    bool hasGenericParams = false;
-                    std::string trimmedArg;
-                    for (char c : typeArgs) {
-                        if (c != ' ' && c != ',') {
-                            trimmedArg += c;
-                        } else if (!trimmedArg.empty()) {
-                            // Check if this is a simple generic parameter
-                            if (trimmedArg.length() <= 2 && !registry.hasType(trimmedArg)) {
-                                hasGenericParams = true;
-                                break;
-                            }
-                            trimmedArg.clear();
+                // Check if `from` is also a parameterized type with the same base class
+                if (from.basicType == value::ValueType::OBJECT && from.className.has_value()) {
+                    const std::string& fromClassName = from.className.value();
+                    std::string fromBaseClass = fromClassName;
+                    size_t fromAngle = fromClassName.find('<');
+                    if (fromAngle != std::string::npos) {
+                        fromBaseClass = fromClassName.substr(0, fromAngle);
+                    }
+
+                    if (fromBaseClass == baseClassName) {
+                        // Same base class - perform structural comparison of type arguments
+                        auto fromArgs = parseTypeArguments(fromClassName);
+                        auto toArgs = parseTypeArguments(className);
+
+                        if (fromArgs.size() != toArgs.size()) {
+                            // Mismatched type argument count - incompatible
+                            return ConversionType::INCOMPATIBLE;
                         }
-                    }
-                    // Check last arg
-                    if (!trimmedArg.empty() && trimmedArg.length() <= 2 && !registry.hasType(trimmedArg)) {
-                        hasGenericParams = true;
-                    }
 
-                    if (hasGenericParams) {
-                        return ConversionType::GENERIC_PARAMETER;
+                        // Compare type arguments element by element
+                        bool allExact = true;
+
+                        for (size_t i = 0; i < fromArgs.size(); ++i) {
+                            const std::string& fromArg = fromArgs[i];
+                            const std::string& toArg = toArgs[i];
+
+                            if (isGenericParameter(toArg, registry)) {
+                                // Target is generic parameter - matches any concrete type
+                                allExact = false;
+                            } else if (fromArg == toArg) {
+                                // Exact match on this type argument
+                            } else {
+                                // Concrete type mismatch - incompatible
+                                return ConversionType::INCOMPATIBLE;
+                            }
+                        }
+
+                        if (allExact) {
+                            return ConversionType::EXACT_MATCH;
+                        } else {
+                            // Return GENERIC_PARAMETER but use distance to track number of generics
+                            // Note: We can't directly set distance here, but this will be handled
+                            // in analyzeParameterConversion by checking the type structure
+                            return ConversionType::GENERIC_PARAMETER;
+                        }
                     }
                 }
             }
@@ -208,9 +285,12 @@ namespace vm::compiler::overload
             }
         }
 
-        // For non-parameterized types, use areTypesCompatible
-        if (types::TypeConversionUtils::areTypesCompatible(from.basicType, to.basicType)) {
-            return ConversionType::EXACT_MATCH;
+        // For primitive types, use areTypesCompatible
+        // Note: Don't use this for OBJECT types - we've already checked exact match and inheritance above
+        if (from.basicType != value::ValueType::OBJECT && to.basicType != value::ValueType::OBJECT) {
+            if (types::TypeConversionUtils::areTypesCompatible(from.basicType, to.basicType)) {
+                return ConversionType::EXACT_MATCH;
+            }
         }
 
         return ConversionType::INCOMPATIBLE;
@@ -256,6 +336,31 @@ namespace vm::compiler::overload
                 distance = calculateInheritanceDistance(
                     argumentType.getClassName(),
                     parameterType.getClassName());
+            }
+        } else if (convType == ConversionType::GENERIC_PARAMETER) {
+            // For generic parameter conversions, calculate distance based on number of generic type parameters
+            // Fewer generic parameters = better match (lower distance)
+            if (parameterType.basicType == value::ValueType::OBJECT && parameterType.className.has_value()) {
+                const std::string& paramClassName = parameterType.className.value();
+
+                // If this is a parameterized type, count the number of generic type parameters
+                if (paramClassName.find('<') != std::string::npos) {
+                    auto& registry = types::getGlobalTypeRegistry();
+                    auto typeArgs = parseTypeArguments(paramClassName);
+
+                    // Count how many are generic parameters
+                    for (const auto& arg : typeArgs) {
+                        if (isGenericParameter(arg, registry)) {
+                            distance++;
+                        }
+                    }
+                } else {
+                    // Simple generic parameter like "T" - distance = 1
+                    distance = 1;
+                }
+            } else {
+                // Simple generic parameter - distance = 1
+                distance = 1;
             }
         }
 

@@ -10,7 +10,6 @@
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../types/GenericPatternAnalyzer.hpp"
 #include <stdexcept>
-
 namespace vm::compiler::registration
 {
     // PHASE 2: Helper function to recursively extract type parameters from GenericType
@@ -29,18 +28,19 @@ namespace vm::compiler::registration
             const auto& typeArgs = type->getTypeArguments();
             for (const auto& arg : typeArgs)
             {
-                if (arg->isGenericParameter())
+                // Check if this arg is a declared type parameter (T, K, V, etc.)
+                // Don't use isGenericParameter() as it returns true for all string baseTypes (including class names)
+                // Instead, check if the base name is in declaredTypeParams
+                std::string argName = arg->getGenericName();
+                if (declaredTypeParams.find(argName) != declaredTypeParams.end() && !arg->isParameterized())
                 {
-                    // This is a nested type parameter!
-                    std::string paramName = arg->getGenericName();
-                    if (declaredTypeParams.find(paramName) != declaredTypeParams.end())
-                    {
-                        usedParams.insert(paramName);
-                    }
+                    // This is a simple type parameter like "T"
+                    usedParams.insert(argName);
                 }
                 else
                 {
-                    // Recurse deeper (e.g., List<Box<T>>)
+                    // Either a concrete type (String, Int) or a parameterized type (Wrapper<T>)
+                    // Recurse to extract nested type parameters
                     extractTypeParametersFromGenericType(arg, declaredTypeParams, usedParams);
                 }
             }

@@ -9139,10 +9139,22 @@
     <None Include="tests\testFiles\overloading\pass\basicMethodOverload.mt">
       <Filter>tests\testFiles\overloading\pass</Filter>
     </None>
+    <None Include="tests\testFiles\overloading\pass\complexOverloadScenarios.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\complexOverloadScenarios.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
     <None Include="tests\testFiles\overloading\pass\constructorOverload.expected">
       <Filter>tests\testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\constructorOverload.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\edgeCasesOverload.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\edgeCasesOverload.mt">
       <Filter>tests\testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\genericFunctionOverload.expected">
@@ -9161,6 +9173,12 @@
       <Filter>tests\testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\integrationTest.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\nestedGenericsOverload.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\nestedGenericsOverload.mt">
       <Filter>tests\testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\staticMethodOverload.expected">

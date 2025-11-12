@@ -1,0 +1,32 @@
+=== Edge Case 1: Generic Class with Mixed Overloads ===
+Container<T>.process(string): specific string overload
+Container<T>.process(int): specific int overload
+Container<T>.process<U>(U): method-level generic
+
+=== Edge Case 2: Inheritance with Overloads ===
+Base.compute(int): 5
+Derived.compute(int): 10
+Derived.compute(string): text
+Base.compute(int,int): 2+3
+Base.compute(int,int): 4+5
+
+=== Edge Case 3: Partial Generic Specialization ===
+Mapper<Int,Int>: both int
+Mapper<Int,String>: int->string
+Mapper<String,Int>: string->int
+Mapper<K,String>: generic key, string value
+Mapper<Int,V>: int key, generic value
+Mapper<K,V>: fully generic
+
+=== Edge Case 4: Nullability ===
+Nullable<Int>
+Nullable<String>
+Nullable<T>
+
+=== Edge Case 5: Nested Generic Disambiguation ===
+Wrapper<T>
+Wrapper<Wrapper<Int>>
+Wrapper<Wrapper<String>>
+Wrapper<Wrapper<T>>
+
+All edge case tests passed!

@@ -32,6 +32,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Integration Test",
                         passPath + "integrationTest.mt");
 
+        // === ADVANCED TESTS ===
+        // Complex nested generics and edge case scenarios
+
+        addOutputVerificationTest("Nested Generics Overload",
+                        passPath + "nestedGenericsOverload.mt");
+        addOutputVerificationTest("Edge Cases Overload",
+                        passPath + "edgeCasesOverload.mt");
+        addOutputVerificationTest("Complex Overload Scenarios",
+                        passPath + "complexOverloadScenarios.mt");
+
         // === ERROR TESTS ===
         // Tests for overload resolution error scenarios
 

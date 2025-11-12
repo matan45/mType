@@ -3,7 +3,7 @@
 #include <sstream>
 #include <iomanip>
 #include <stdexcept>
-
+#include <iostream>
 namespace vm::bytecode
 {
     // === Instruction Implementation ===
