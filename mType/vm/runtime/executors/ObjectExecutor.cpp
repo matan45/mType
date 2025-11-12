@@ -415,7 +415,18 @@ namespace vm::runtime
             qualifiedName = signature.toMangledName(definingClassName, false);
         } else {
             // New path: methodName already contains full signature like "Container::describe/int"
-            // BUT: For virtual dispatch, we need to use the ACTUAL object class, not the declared class
+            // For virtual dispatch, replace the declared class with the ACTUAL object class
+            // BUT preserve the signature part to maintain overload resolution
+
+            // Extract the signature part (everything after the class name)
+            std::string signaturePart = "";
+            size_t classEndPos = methodName.find("::");
+            if (classEndPos != std::string::npos) {
+                signaturePart = methodName.substr(classEndPos + 2);  // Get "methodName/type1,type2"
+            } else {
+                signaturePart = methodName;  // No class prefix
+            }
+
             auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
             if (method) {
                 // Find defining class for the actual method (virtual dispatch)
@@ -433,9 +444,8 @@ namespace vm::runtime
                 auto accessContext = createAccessContext(definingClassName, false);
                 validation::AccessValidator::validateMethodAccess(simpleMethodName, method->getAccessModifier(), accessContext);
 
-                // Rebuild qualified name with ACTUAL class for virtual dispatch
-                auto signature = vm::MethodSignature::fromMethodDefinition(method.get());
-                qualifiedName = signature.toMangledName(definingClassName, false);
+                // Rebuild with ACTUAL class but preserve signature for overload resolution
+                qualifiedName = definingClassName + "::" + signaturePart;
             }
         }
 
