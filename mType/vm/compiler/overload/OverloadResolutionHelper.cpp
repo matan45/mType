@@ -7,6 +7,7 @@
 #include "../../../types/TypeRegistry.hpp"
 #include <iostream>
 #include <unordered_map>
+#include <algorithm>
 
 namespace vm::compiler::overload
 {
@@ -601,7 +602,21 @@ namespace vm::compiler::overload
                     }
 
                     // Check if types match
-                    if (substitutedTypeStr != argTypeStr)
+                    // Note: Need to handle case differences between primitive types (string) and classes (String)
+                    bool typesMatch = (substitutedTypeStr == argTypeStr);
+
+                    // If exact match fails, try case-insensitive comparison for primitive types
+                    if (!typesMatch)
+                    {
+                        // Convert both to lowercase for comparison
+                        std::string lowerSubstituted = substitutedTypeStr;
+                        std::string lowerArg = argTypeStr;
+                        std::transform(lowerSubstituted.begin(), lowerSubstituted.end(), lowerSubstituted.begin(), ::tolower);
+                        std::transform(lowerArg.begin(), lowerArg.end(), lowerArg.begin(), ::tolower);
+                        typesMatch = (lowerSubstituted == lowerArg);
+                    }
+
+                    if (!typesMatch)
                     {
                         isCompatible = false;
                         break;
