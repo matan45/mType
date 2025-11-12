@@ -1,4 +1,5 @@
 #include "CompileTimeValidator.hpp"
+#include "../../MethodSignature.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
@@ -403,27 +404,9 @@ namespace vm::compiler::validation
             // Iterate through all overloads for this method name
             for (const auto& methodDef : overloads)
             {
-                // Build mangled name with parameter signature
-                // Use genericParameters for accurate type names (including array types like Item[])
-                // Note: genericParameters does NOT include 'this' for instance methods
-                std::string typeSignature = "";
-                const auto& genericParams = methodDef->getGenericParameters();
-
-                // genericParameters doesn't include 'this', so no need to skip
-                for (size_t i = 0; i < genericParams.size(); ++i)
-                {
-                    if (i > 0) typeSignature += ",";
-                    // Use GenericType::toString() to get the full type name (handles arrays like Item[])
-                    typeSignature += genericParams[i].second->toString();
-                }
-
-                // Build qualified name - only add slash if signature is not empty
-                std::string qualifiedName;
-                if (typeSignature.empty()) {
-                    qualifiedName = className + "::" + methodName;
-                } else {
-                    qualifiedName = className + "::" + methodName + "/" + typeSignature;
-                }
+                // Use MethodSignature to build mangled name (handles arrays, generics, no 'this' confusion)
+                auto signature = vm::MethodSignature::fromMethodDefinition(methodDef.get());
+                std::string qualifiedName = signature.toMangledName(className, false);  // false = not static
 
                 if (!program.getFunction(qualifiedName))
                 {
@@ -443,28 +426,9 @@ namespace vm::compiler::validation
             // Iterate through all overloads for this method name
             for (const auto& methodDef : overloads)
             {
-                // Build mangled name with parameter signature
-                // Use genericParameters for accurate type names (including array types like Item[])
-                std::string typeSignature = "";
-                const auto& genericParams = methodDef->getGenericParameters();
-
-                if (!genericParams.empty())
-                {
-                    for (size_t i = 0; i < genericParams.size(); ++i)
-                    {
-                        if (i > 0) typeSignature += ",";
-                        // Use GenericType::toString() to get the full type name (handles arrays like Item[])
-                        typeSignature += genericParams[i].second->toString();
-                    }
-                }
-
-                // Build qualified name - only add slash if signature is not empty
-                std::string qualifiedName;
-                if (typeSignature.empty()) {
-                    qualifiedName = className + "::" + methodName + "$static";
-                } else {
-                    qualifiedName = className + "::" + methodName + "/" + typeSignature + "$static";
-                }
+                // Use MethodSignature to build mangled name (handles arrays, generics)
+                auto signature = vm::MethodSignature::fromMethodDefinition(methodDef.get());
+                std::string qualifiedName = signature.toMangledName(className, true);  // true = static
 
                 if (!program.getFunction(qualifiedName))
                 {

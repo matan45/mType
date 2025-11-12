@@ -1,6 +1,7 @@
 #include "ClassDefinition.hpp"
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
+#include "../../vm/MethodSignature.hpp"
 #include <algorithm>
 
 namespace runtimeTypes::klass
@@ -846,5 +847,30 @@ namespace runtimeTypes::klass
         }
 
         return nullptr;
+    }
+
+    // NEW: MethodSignature-based lookups
+    std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethod(const vm::MethodSignature& signature) const
+    {
+        // Use the argCount-based method with signature's parameter count
+        return findInstanceMethod(signature.getMethodName(), signature.getParameterCount());
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethod(const vm::MethodSignature& signature) const
+    {
+        // Use the argCount-based method with signature's parameter count
+        return findStaticMethod(signature.getMethodName(), signature.getParameterCount());
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethodInHierarchy(const vm::MethodSignature& signature) const
+    {
+        // Use the argCount-based method with signature's parameter count
+        return findInstanceMethodInHierarchy(signature.getMethodName(), signature.getParameterCount());
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodInHierarchy(const vm::MethodSignature& signature) const
+    {
+        // Use the argCount-based method with signature's parameter count
+        return findStaticMethodInHierarchy(signature.getMethodName(), signature.getParameterCount());
     }
 }

@@ -199,7 +199,12 @@ namespace validation
         }
 
         // Get the parameter count from the method
+        // For instance methods, exclude the implicit 'this' parameter when comparing with interface methods
         size_t methodParamCount = method->getParameters().size();
+        if (!method->isStatic() && methodParamCount > 0)
+        {
+            methodParamCount--;  // Exclude 'this' parameter
+        }
 
         // Check all implemented interfaces
         for (const std::string& interfaceName : containingClass->getImplementedInterfaces())
@@ -248,7 +253,9 @@ namespace validation
         }
 
         // Check parameter types
-        for (size_t i = 0; i < params1.size(); ++i)
+        // For instance methods, skip index 0 ('this' parameter) as it will differ between parent and child
+        size_t startIndex = (!method1->isStatic() && !params1.empty()) ? 1 : 0;
+        for (size_t i = startIndex; i < params1.size(); ++i)
         {
             // Compare parameter types (using operator== from ParameterType)
             if (!(params1[i].second == params2[i].second))
@@ -340,9 +347,10 @@ namespace validation
             {
                 const auto& params = method->getParameters();
 
-                // Check: exactly 1 parameter of type float, return type void
-                if (params.size() == 1 &&
-                    params[0].second.basicType == value::ValueType::FLOAT &&
+                // Check: exactly 1 real parameter of type float (plus implicit 'this'), return type void
+                // Instance methods have 'this' as first parameter, so size should be 2 total
+                if (params.size() == 2 &&
+                    params[1].second.basicType == value::ValueType::FLOAT &&
                     method->getReturnType() == value::ValueType::VOID)
                 {
                     hasUpdateMethod = true;

@@ -12,6 +12,10 @@
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
 
+namespace vm {
+    class MethodSignature; // Forward declaration
+}
+
 namespace runtimeTypes::klass
 {
     class InterfaceRegistry; // Forward declaration
@@ -45,6 +49,11 @@ namespace runtimeTypes::klass
         // NEW: Inheritance support
         std::string parentClassName;
         std::weak_ptr<ClassDefinition> parentClass;
+
+        // NEW: Generic type substitution for parent class
+        // Maps parent's generic type parameters to concrete types
+        // E.g., when StringProcessor extends Processor<String>, maps: T → String
+        std::unordered_map<std::string, std::string> parentTypeSubstitutionMap;
 
         // NEW: Final modifier to prevent inheritance
         bool finalClass;
@@ -180,10 +189,28 @@ namespace runtimeTypes::klass
             }
         }
 
+        // Generic type substitution management
+        const std::unordered_map<std::string, std::string>& getParentTypeSubstitutionMap() const {
+            return parentTypeSubstitutionMap;
+        }
+        void setParentTypeSubstitutionMap(const std::unordered_map<std::string, std::string>& map) {
+            parentTypeSubstitutionMap = map;
+        }
+        void addParentTypeSubstitution(const std::string& genericParam, const std::string& concreteType) {
+            parentTypeSubstitutionMap[genericParam] = concreteType;
+        }
+
         // Polymorphic method lookup
         std::shared_ptr<MethodDefinition> findMethodInHierarchy(const std::string& methodName, size_t argCount) const;
         std::shared_ptr<MethodDefinition> findInstanceMethodInHierarchy(const std::string& methodName, size_t argCount) const;
         std::shared_ptr<MethodDefinition> findStaticMethodInHierarchy(const std::string& methodName, size_t argCount) const;
+
+        // NEW: MethodSignature-based lookups (recommended over argCount-based methods)
+        // These eliminate confusion about implicit 'this' parameter counting
+        std::shared_ptr<MethodDefinition> findInstanceMethod(const vm::MethodSignature& signature) const;
+        std::shared_ptr<MethodDefinition> findStaticMethod(const vm::MethodSignature& signature) const;
+        std::shared_ptr<MethodDefinition> findInstanceMethodInHierarchy(const vm::MethodSignature& signature) const;
+        std::shared_ptr<MethodDefinition> findStaticMethodInHierarchy(const vm::MethodSignature& signature) const;
 
         // Polymorphic field lookup (search in parent classes)
         std::shared_ptr<FieldDefinition> getFieldInHierarchy(const std::string& fieldName) const;

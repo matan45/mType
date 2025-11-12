@@ -1,5 +1,6 @@
 #include "ClassRegistrar.hpp"
 #include "../validation/CompileTimeValidator.hpp"
+#include "../../MethodSignature.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ImportNode.hpp"
@@ -475,6 +476,12 @@ namespace vm::compiler::registration
             // Establish the parent-child link
             classDef->setParentClass(parentDef);
 
+            // Parse generic type arguments and create substitution map
+            // E.g., "Processor<String>" with parent having generic param "T" creates mapping: T → String
+            if (genericStart != std::string::npos) {
+                parseAndStoreTypeSubstitutions(classDef, parentClassName, parentDef);
+            }
+
             // Validate inheritance depth after establishing the link
             validateInheritanceDepth(className, classNode->getLocation());
 
@@ -709,7 +716,9 @@ namespace vm::compiler::registration
             for (const auto& childMethod : childMethodOverloads) {
                 // Search for method in parent hierarchy (not just immediate parent)
                 // This handles cases where method is defined in grandparent
-                auto parentMethod = parentClass->findInstanceMethodInHierarchy(methodName, childMethod->getParameters().size());
+                // Use MethodSignature to eliminate 'this' parameter counting bugs
+                auto signature = vm::MethodSignature::fromMethodDefinition(childMethod.get());
+                auto parentMethod = parentClass->findInstanceMethodInHierarchy(signature);
 
                 if (parentMethod) {
                 // Method exists in parent hierarchy - validate override
@@ -734,7 +743,7 @@ namespace vm::compiler::registration
                     std::string definingClassName = parentClass->getName();
                     auto currentClass = parentClass;
                     while (currentClass) {
-                        auto localMethod = currentClass->findInstanceMethod(methodName, childMethod->getParameters().size());
+                        auto localMethod = currentClass->findInstanceMethod(signature);  // Use signature (no 'this' confusion)
                         if (localMethod) {
                             definingClassName = currentClass->getName();
                             break;
@@ -794,17 +803,30 @@ namespace vm::compiler::registration
                 }
 
                 // Validate parameter types match
-                for (size_t i = 0; i < childParams.size(); ++i) {
+                // Skip 'this' parameter (index 0) - it's always different between parent and child
+                const auto& typeSubstitutionMap = childClass->getParentTypeSubstitutionMap();
+
+                for (size_t i = 1; i < childParams.size(); ++i) {
                     const auto& childParam = childParams[i].second;
                     const auto& parentParam = parentParams[i].second;
 
-                    // Compare using ParameterType equality operator
-                    if (!(childParam == parentParam)) {
+                    // Apply type substitution to parent parameter type
+                    // E.g., if parent has param "T" and substitution map is {T → String}, use "String" for comparison
+                    std::string parentParamTypeName = parentParam.toString();
+                    auto it = typeSubstitutionMap.find(parentParamTypeName);
+                    if (it != typeSubstitutionMap.end()) {
+                        parentParamTypeName = it->second;
+                    }
+
+                    // Compare child parameter type with substituted parent parameter type
+                    std::string childParamTypeName = childParam.toString();
+
+                    if (childParamTypeName != parentParamTypeName) {
                         throw errors::InheritanceException(
                             "Method override parameter type mismatch in class '" + childClass->getName() +
-                            "': method '" + methodName + "' parameter " + std::to_string(i + 1) +
-                            " has type '" + childParam.toString() +
-                            "' but parent method expects '" + parentParam.toString() + "'",
+                            "': method '" + methodName + "' parameter " + std::to_string(i) +  // i, not i+1 (since we skip this)
+                            " has type '" + childParamTypeName +
+                            "' but parent method expects '" + parentParamTypeName + "'",
                             childClass->getName(),
                             parentClass->getName(),
                             methodName,
@@ -830,5 +852,92 @@ namespace vm::compiler::registration
             }
             }  // End of inner loop over childMethod overloads
         }  // End of outer loop over method names
+    }
+
+    std::vector<std::string> ClassRegistrar::parseGenericTypeArguments(const std::string& classNameWithGenerics) const
+    {
+        std::vector<std::string> typeArgs;
+
+        // Find the opening angle bracket
+        size_t start = classNameWithGenerics.find('<');
+        if (start == std::string::npos) {
+            return typeArgs;  // No generic arguments
+        }
+
+        // Find the matching closing bracket
+        size_t end = classNameWithGenerics.rfind('>');
+        if (end == std::string::npos || end <= start) {
+            return typeArgs;  // Malformed
+        }
+
+        // Extract the content between < and >
+        std::string argsStr = classNameWithGenerics.substr(start + 1, end - start - 1);
+
+        // Parse comma-separated type arguments, respecting nested generics
+        std::string current;
+        int depth = 0;
+
+        for (char c : argsStr) {
+            if (c == '<') {
+                depth++;
+                current += c;
+            } else if (c == '>') {
+                depth--;
+                current += c;
+            } else if (c == ',' && depth == 0) {
+                // Found a separator at the top level
+                // Trim whitespace from current
+                size_t firstNonSpace = current.find_first_not_of(" \t");
+                size_t lastNonSpace = current.find_last_not_of(" \t");
+                if (firstNonSpace != std::string::npos) {
+                    typeArgs.push_back(current.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1));
+                }
+                current.clear();
+            } else if (c != ' ' && c != '\t') {
+                // Skip leading whitespace
+                if (!current.empty() || (c != ' ' && c != '\t')) {
+                    current += c;
+                }
+            } else if (!current.empty()) {
+                // Preserve internal whitespace
+                current += c;
+            }
+        }
+
+        // Add the last argument
+        size_t firstNonSpace = current.find_first_not_of(" \t");
+        size_t lastNonSpace = current.find_last_not_of(" \t");
+        if (firstNonSpace != std::string::npos) {
+            typeArgs.push_back(current.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1));
+        }
+
+        return typeArgs;
+    }
+
+    void ClassRegistrar::parseAndStoreTypeSubstitutions(
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+        const std::string& parentClassNameWithGenerics,
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass
+    ) const
+    {
+        // Parse concrete type arguments from parent class declaration
+        // E.g., "Processor<String>" → ["String"]
+        auto typeArgs = parseGenericTypeArguments(parentClassNameWithGenerics);
+
+        // Get generic type parameters from parent class definition
+        // E.g., Processor<T> → ["T"]
+        const auto& parentGenericParams = parentClass->getGenericParameters();
+
+        // Create substitution map: generic param → concrete type
+        // E.g., T → String
+        std::unordered_map<std::string, std::string> substitutionMap;
+
+        size_t numParams = std::min(typeArgs.size(), parentGenericParams.size());
+        for (size_t i = 0; i < numParams; ++i) {
+            substitutionMap[parentGenericParams[i].name] = typeArgs[i];
+        }
+
+        // Store in child class
+        childClass->setParentTypeSubstitutionMap(substitutionMap);
     }
 }

@@ -17,6 +17,20 @@ namespace vm::compiler::types
         const std::unordered_map<std::string, std::string>& substitutions
     ) const
     {
+        // Check if this is an array type (e.g., "T[]", "T[][]")
+        size_t arrayPos = typeName.find('[');
+        if (arrayPos != std::string::npos) {
+            // Extract element type and array dimensions
+            std::string elementType = typeName.substr(0, arrayPos);
+            std::string arrayDimensions = typeName.substr(arrayPos);  // "[]" or "[][]"
+
+            // Recursively resolve the element type
+            std::string resolvedElementType = resolveGenericType(elementType, substitutions);
+
+            // Reconstruct array type with resolved element type
+            return resolvedElementType + arrayDimensions;
+        }
+
         // Check if this is a generic parameter that needs substitution
         auto it = substitutions.find(typeName);
         if (it != substitutions.end()) {

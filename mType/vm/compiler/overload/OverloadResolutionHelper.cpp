@@ -158,13 +158,20 @@ namespace vm::compiler::overload
         if (filteredOverloads.size() == 1)
         {
             // Only one overload after filtering - return mangled name
+            // Use genericParameters to preserve full type signatures (e.g., UnaryFunction<T>)
+            // Skip 'this' parameter for instance methods (genericParameters doesn't include it)
             const auto& method = filteredOverloads[0];
-            // Skip 'this' parameter when building mangled name for instance methods
-            auto params = method->getParametersWithTypes();
-            if (!method->isStatic() && !params.empty()) {
-                params = std::vector<std::pair<std::string, value::ParameterType>>(params.begin() + 1, params.end());
+            const auto& genericParams = method->getGenericParameters();
+
+            // Build type signature using GenericType::toString() to preserve generics
+            std::vector<std::string> typeNames;
+            typeNames.reserve(genericParams.size());
+            for (const auto& [paramName, genericType] : genericParams) {
+                typeNames.push_back(genericType->toString());
             }
-            std::string mangledName = buildMangledMethodName(baseClassName, methodName, params);
+
+            std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignatureFromNames(typeNames);
+            std::string mangledName = runtimeTypes::klass::SignatureUtils::buildQualifiedName(baseClassName, methodName, typeSignature);
             return mangledName;
         }
 
@@ -227,12 +234,19 @@ namespace vm::compiler::overload
         }
 
         // Successfully resolved
-        // Skip 'this' parameter when building mangled name for instance methods
-        auto params = result.selectedOverload->getParametersWithTypes();
-        if (!result.selectedOverload->isStatic() && !params.empty()) {
-            params = std::vector<std::pair<std::string, value::ParameterType>>(params.begin() + 1, params.end());
+        // Use genericParameters to preserve full type signatures (e.g., UnaryFunction<T>)
+        // Skip 'this' parameter for instance methods (genericParameters doesn't include it)
+        const auto& genericParams = result.selectedOverload->getGenericParameters();
+
+        // Build type signature using GenericType::toString() to preserve generics
+        std::vector<std::string> typeNames;
+        typeNames.reserve(genericParams.size());
+        for (const auto& [paramName, genericType] : genericParams) {
+            typeNames.push_back(genericType->toString());
         }
-        std::string resolvedName = buildMangledMethodName(baseClassName, methodName, params);
+
+        std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignatureFromNames(typeNames);
+        std::string resolvedName = runtimeTypes::klass::SignatureUtils::buildQualifiedName(baseClassName, methodName, typeSignature);
         return resolvedName;
     }
 
@@ -269,8 +283,19 @@ namespace vm::compiler::overload
         if (overloads.size() == 1)
         {
             // Only one overload - return mangled name with $static suffix
+            // Use genericParameters to preserve full type signatures (e.g., UnaryFunction<T>)
             const auto& method = overloads[0];
-            std::string mangledName = buildMangledMethodName(baseClassName, methodName, method->getParametersWithTypes());
+            const auto& genericParams = method->getGenericParameters();
+
+            // Build type signature using GenericType::toString() to preserve generics
+            std::vector<std::string> typeNames;
+            typeNames.reserve(genericParams.size());
+            for (const auto& [paramName, genericType] : genericParams) {
+                typeNames.push_back(genericType->toString());
+            }
+
+            std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignatureFromNames(typeNames);
+            std::string mangledName = runtimeTypes::klass::SignatureUtils::buildQualifiedName(baseClassName, methodName, typeSignature);
             return mangledName + "$static";
         }
 
@@ -336,8 +361,19 @@ namespace vm::compiler::overload
         }
 
         // Successfully resolved - add $static suffix for static methods
-        std::string mangledName = buildMangledMethodName(baseClassName, methodName, result.selectedOverload->getParametersWithTypes());
-        return mangledName + "$static";
+        // Use genericParameters to preserve full type signatures (e.g., UnaryFunction<T>)
+        const auto& genericParams = result.selectedOverload->getGenericParameters();
+
+        // Build type signature using GenericType::toString() to preserve generics
+        std::vector<std::string> typeNames;
+        typeNames.reserve(genericParams.size());
+        for (const auto& [paramName, genericType] : genericParams) {
+            typeNames.push_back(genericType->toString());
+        }
+
+        std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignatureFromNames(typeNames);
+        std::string resolvedName = runtimeTypes::klass::SignatureUtils::buildQualifiedName(baseClassName, methodName, typeSignature);
+        return resolvedName + "$static";
     }
 
     std::string OverloadResolutionHelper::resolveFunctionOverload(

@@ -997,12 +997,21 @@ namespace vm::compiler::visitors
     bool FunctionCompiler::isValidTypeName(const std::string& typeName,
                                            const std::vector<std::string>& validGenericParams)
     {
-        // Extract base type name first (handle generics like "List<T>", "Array<K>")
         std::string baseTypeName = typeName;
-        size_t anglePos = typeName.find('<');
+
+        // Handle array types: int[], T[], Item[][], etc.
+        // Strip all array brackets to get the element type
+        size_t bracketPos = baseTypeName.find('[');
+        if (bracketPos != std::string::npos)
+        {
+            baseTypeName = baseTypeName.substr(0, bracketPos);
+        }
+
+        // Extract base type name (handle generics like "List<T>", "Array<K>")
+        size_t anglePos = baseTypeName.find('<');
         if (anglePos != std::string::npos)
         {
-            baseTypeName = typeName.substr(0, anglePos);
+            baseTypeName = baseTypeName.substr(0, anglePos);
         }
 
         // Check if base type is a primitive type (including Array for array types, object for generic constraints, and Promise for async/await)
@@ -1013,10 +1022,10 @@ namespace vm::compiler::visitors
             return true;
         }
 
-        // Check if it's a declared generic type parameter (check full type name, not base)
+        // Check if it's a declared generic type parameter (check element type for arrays)
         for (const auto& genericParam : validGenericParams)
         {
-            if (typeName == genericParam)
+            if (baseTypeName == genericParam)
             {
                 return true;
             }

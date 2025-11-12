@@ -1233,6 +1233,9 @@
     <ClInclude Include="value\simd\detection\CPUFeatures.hpp">
       <Filter>value\simd\detection</Filter>
     </ClInclude>
+    <ClInclude Include="vm\MethodSignature.hpp">
+      <Filter>vm</Filter>
+    </ClInclude>
     <ClInclude Include="vm\bytecode\BytecodeIOHelper.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
@@ -2083,6 +2086,9 @@
     </ClCompile>
     <ClCompile Include="value\simd\detection\CPUFeatures.cpp">
       <Filter>value\simd\detection</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\MethodSignature.cpp">
+      <Filter>vm</Filter>
     </ClCompile>
     <ClCompile Include="vm\bytecode\BytecodeIOHelper.cpp">
       <Filter>vm\bytecode</Filter>

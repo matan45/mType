@@ -75,5 +75,13 @@ namespace vm::compiler::registration
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
             ast::ClassNode* classNode
         ) const;
+
+        // Generic type substitution
+        void parseAndStoreTypeSubstitutions(
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+            const std::string& parentClassNameWithGenerics,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass
+        ) const;
+        std::vector<std::string> parseGenericTypeArguments(const std::string& classNameWithGenerics) const;
     };
 }

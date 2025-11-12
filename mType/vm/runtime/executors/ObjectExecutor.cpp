@@ -1,6 +1,7 @@
 #include "ObjectExecutor.hpp"
 #include "ObjectInstanceHelper.hpp"
 #include "FunctionExecutor.hpp"
+#include "../../MethodSignature.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include "../../../errors/TypeException.hpp"
@@ -402,25 +403,10 @@ namespace vm::runtime
         validation::AccessValidator::validateMethodAccess(simpleMethodName, method->getAccessModifier(), accessContext);
 
         // Build the mangled name with signature for overloaded methods
-        // Format: ClassName::methodName or ClassName::methodName/type1,type2 for overloads
-        // Use genericParameters for accurate type names (including arrays like Item[])
-        // Note: genericParameters does NOT include 'this' for instance methods
+        // Use MethodSignature to eliminate manual signature building and 'this' confusion
         // IMPORTANT: Always use the runtime definingClassName for polymorphism!
-        std::string qualifiedName;
-        const auto& genericParams = method->getGenericParameters();
-
-        // genericParameters doesn't include 'this', so start from index 0
-        if (!genericParams.empty()) {
-            // Build type signature from parameter types
-            std::string typeSignature = "";
-            for (size_t i = 0; i < genericParams.size(); ++i) {
-                if (i > 0) typeSignature += ",";
-                typeSignature += genericParams[i].second->toString();  // Use GenericType::toString()
-            }
-            qualifiedName = definingClassName + "::" + simpleMethodName + "/" + typeSignature;
-        } else {
-            qualifiedName = definingClassName + "::" + simpleMethodName;  // No parameters
-        }
+        auto signature = vm::MethodSignature::fromMethodDefinition(method.get());
+        std::string qualifiedName = signature.toMangledName(definingClassName, false);  // false = not static
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (!funcMetadata) {

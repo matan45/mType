@@ -709,104 +709,154 @@ namespace vm::compiler::visitors
             }
 
             // Build qualified method name for metadata lookup
+            // Use resolvedMethodName (with signature) for correct overload identification
             std::string qualifiedMethodName = baseClassName.empty() ? methodName : (baseClassName + "::" + methodName);
-            const auto* methodMetadata = ctx.program.getFunction(qualifiedMethodName);
+            const auto* methodMetadata = ctx.program.getFunction(resolvedMethodName);
+
+            // Fallback to class definition if bytecode metadata not available
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> methodDef;
+            if (!methodMetadata && !baseClassName.empty())
+            {
+                auto classDef = ctx.environment->findClass(baseClassName);
+                if (classDef)
+                {
+                    // Try to find the method by name (may have overloads)
+                    auto overloads = classDef->getAllInstanceMethodOverloads(methodName);
+                    if (overloads.size() == 1)
+                    {
+                        methodDef = overloads[0];
+                    }
+                    else if (overloads.size() > 1)
+                    {
+                        // Multiple overloads - find one that matches the argument count
+                        // (this is for validation purposes; overload resolution happens elsewhere)
+                        size_t argCount = arguments.size();
+                        for (const auto& overload : overloads)
+                        {
+                            // Instance methods have 'this' as first param, so compare argCount+1
+                            if (overload->getParameters().size() == argCount + 1)
+                            {
+                                methodDef = overload;
+                                break;
+                            }
+                        }
+                        // If no exact match, just use the first one for generic validation
+                        if (!methodDef && !overloads.empty())
+                        {
+                            methodDef = overloads[0];
+                        }
+                    }
+                }
+            }
 
             if (node->hasGenericTypeArguments())
             {
                 const auto& methodTypeArgs = node->getGenericTypeArguments();
 
-                // PHASE 4: Validate that method is generic (only if we have metadata)
-                if (methodMetadata && methodMetadata->genericTypeParameters.empty())
+                // PHASE 4: Validate that method is generic
+                bool isGenericMethod = false;
+                size_t expectedTypeParamCount = 0;
+
+                if (methodMetadata)
+                {
+                    isGenericMethod = !methodMetadata->genericTypeParameters.empty();
+                    expectedTypeParamCount = methodMetadata->genericTypeParameters.size();
+                }
+                else if (methodDef)
+                {
+                    isGenericMethod = !methodDef->getGenericTypeParameters().empty();
+                    expectedTypeParamCount = methodDef->getGenericTypeParameters().size();
+                }
+
+                // Validate: Non-generic method cannot have type arguments
+                // Skip validation if we couldn't determine method info (e.g., chained calls in Phase 1)
+                if (!isGenericMethod && (methodMetadata || methodDef))
                 {
                     throw errors::TypeException(
                         "Method '" + qualifiedMethodName + "' is not generic but used with type arguments",
                         node->getLocation()
                     );
                 }
-                // If we don't have metadata, we can't validate - allow it through
-                // This handles cases where type inference couldn't determine the class name
 
-                if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
+                // Validate: Type argument count must match
+                // Only validate if we have method information
+                if ((methodMetadata || methodDef) && methodTypeArgs.size() != expectedTypeParamCount)
                 {
-                    const auto& methodGenericParams = methodMetadata->genericTypeParameters;
+                    throw errors::TypeException(
+                        "Method '" + methodName + "' expects " +
+                        std::to_string(expectedTypeParamCount) +
+                        " type argument(s), but got " +
+                        std::to_string(methodTypeArgs.size()),
+                        node->getLocation()
+                    );
+                }
 
-                    // Validate type argument count matches parameter count
-                    if (methodTypeArgs.size() != methodGenericParams.size())
+                // Validate: Generic type arguments must be object types, not primitives
+                for (const auto& typeArg : methodTypeArgs)
+                {
+                    if (typeArg == "int" || typeArg == "float" || typeArg == "string" ||
+                        typeArg == "bool" || typeArg == "void")
                     {
                         throw errors::TypeException(
-                            "Method '" + methodName + "' expects " +
-                            std::to_string(methodGenericParams.size()) +
-                            " type arguments, but got " +
-                            std::to_string(methodTypeArgs.size()),
+                            "Generic type argument '" + typeArg + "' is a primitive type. " +
+                            "Generics only support object types. Use wrapper classes instead:\n" +
+                            "  - Use 'Int' instead of 'int'\n" +
+                            "  - Use 'Float' instead of 'float'\n" +
+                            "  - Use 'Bool' instead of 'bool'\n" +
+                            "  - Use 'String' instead of 'string'",
                             node->getLocation()
                         );
                     }
+                }
 
-                    // Validate: Generic type arguments must be object types, not primitives
-                    for (const auto& typeArg : methodTypeArgs)
+                // Create bindings from type arguments
+                std::vector<std::string> methodGenericParams;
+                if (methodMetadata)
+                {
+                    methodGenericParams = methodMetadata->genericTypeParameters;
+                }
+                else if (methodDef)
+                {
+                    for (const auto& param : methodDef->getGenericTypeParameters())
                     {
-                        if (typeArg == "int" || typeArg == "float" || typeArg == "string" ||
-                            typeArg == "bool" || typeArg == "void")
-                        {
-                            throw errors::TypeException(
-                                "Generic type argument '" + typeArg + "' is a primitive type. " +
-                                "Generics only support object types. Use wrapper classes instead:\n" +
-                                "  - Use 'Int' instead of 'int'\n" +
-                                "  - Use 'Float' instead of 'float'\n" +
-                                "  - Use 'Bool' instead of 'bool'\n" +
-                                "  - Use 'String' instead of 'string'",
-                                node->getLocation()
-                            );
-                        }
+                        methodGenericParams.push_back(param.name);
                     }
+                }
 
-                    // Create bindings: T -> String, U -> Int, etc.
-                    for (size_t i = 0; i < methodGenericParams.size(); ++i)
-                    {
-                        methodGenericBindings[methodGenericParams[i]] = methodTypeArgs[i];
-                    }
+                // Create bindings: T -> String, U -> Int, etc.
+                for (size_t i = 0; i < methodGenericParams.size() && i < methodTypeArgs.size(); ++i)
+                {
+                    methodGenericBindings[methodGenericParams[i]] = methodTypeArgs[i];
+                }
 
-                    // Push method-level bindings onto stack (will shadow class-level if names conflict)
+                // Push method-level bindings onto stack (will shadow class-level if names conflict)
+                if (!methodGenericBindings.empty())
+                {
                     ctx.pushGenericTypeBindings(methodGenericBindings);
                     hasMethodGenericBindings = true;
                 }
             }
             else
             {
-                // Type inference for generic methods using Expected Type Context
+                // PHASE 1: Require explicit type arguments for generic methods
+                // Check if method is generic - if so, error that type args are required
+                bool requiresTypeArgs = false;
                 if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
                 {
-                    // Try to infer type arguments from the expected return type context
-                    if (ctx.hasExpectedTypeContext())
-                    {
-                        auto expectedCtx = ctx.getCurrentExpectedTypeContext();
+                    requiresTypeArgs = true;
+                }
+                else if (methodDef && !methodDef->getGenericTypeParameters().empty())
+                {
+                    requiresTypeArgs = true;
+                }
 
-                        // If the expected type is an object with generic arguments, try to infer method type params
-                        if (expectedCtx.expectedType == value::ValueType::OBJECT &&
-                            expectedCtx.hasGenericArguments())
-                        {
-                            // Extract generic arguments from expected type
-                            // e.g., "Pipeline<Int>" -> ["Int"]
-                            auto expectedGenericArgs = expectedCtx.extractGenericArguments();
-
-                            // For now, assume the method's type parameter maps to the expected type's parameter
-                            // This is a simplification - full inference would need to match return type structure
-                            if (!expectedGenericArgs.empty() &&
-                                methodMetadata->genericTypeParameters.size() == 1)
-                            {
-                                // Infer: R = Int (from Pipeline<Int>)
-                                methodGenericBindings[methodMetadata->genericTypeParameters[0]] = expectedGenericArgs[0];
-
-                                // Push the inferred bindings
-                                ctx.pushGenericTypeBindings(methodGenericBindings);
-                                hasMethodGenericBindings = true;
-                            }
-                        }
-                    }
-
-                    // If we couldn't infer type arguments, allow it anyway for now
-                    // Runtime will handle the actual types
+                if (requiresTypeArgs)
+                {
+                    throw errors::TypeException(
+                        "Generic method '" + methodName + "' requires explicit type arguments. " +
+                        "Phase 1 does not support type inference for method calls.",
+                        node->getLocation()
+                    );
                 }
             }
 
@@ -874,6 +924,17 @@ namespace vm::compiler::visitors
                     if (paramIndex < methodMetadata->parameterTypes.size())
                     {
                         expectedType = methodMetadata->parameterTypes[paramIndex];
+                        hasExpectedType = true;
+                    }
+                }
+                else if (methodDef && !methodDef->getGenericParameters().empty())
+                {
+                    // Fallback to method definition from ClassDefinition
+                    const auto& genericParams = methodDef->getGenericParameters();
+                    // genericParameters already exclude 'this' for instance methods
+                    if (i < genericParams.size())
+                    {
+                        expectedType = genericParams[i].second->toString();
                         hasExpectedType = true;
                     }
                 }

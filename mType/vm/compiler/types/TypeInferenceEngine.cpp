@@ -17,7 +17,7 @@
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../token/TokenType.hpp"
-#include  <iostream>
+
 namespace vm::compiler::types
 {
     TypeInferenceEngine::TypeInferenceEngine(
@@ -184,6 +184,30 @@ namespace vm::compiler::types
 
             // Look up the method in the bytecode program's function registry
             const auto* funcMetadata = program.getFunction(methodName);
+
+            // PHASE 1: If exact match fails, try prefix matching for overloaded methods
+            // Methods are registered with signatures like "Calculator::double/int" or "Calculator::triple/int"
+            // When we look up "Calculator::double", we should find any overload that starts with that prefix
+            if (!funcMetadata) {
+                const auto& allFunctions = program.getFunctions();
+                std::string prefix = methodName + "/"; // Look for "Calculator::double/" to match "Calculator::double/int"
+
+                // Collect all matching overloads
+                std::vector<const bytecode::BytecodeProgram::FunctionMetadata*> matchingOverloads;
+                for (const auto& [name, metadata] : allFunctions) {
+                    if (name.find(prefix) == 0 || name == methodName) {
+                        matchingOverloads.push_back(&metadata);
+                    }
+                }
+
+                // If exactly one overload matches, use it
+                // If multiple overloads, we can't determine which one without analyzing argument types
+                // For now, just use the first one (PHASE 1 limitation)
+                if (!matchingOverloads.empty()) {
+                    funcMetadata = matchingOverloads[0];
+                }
+            }
+
             if (funcMetadata && !funcMetadata->returnType.empty()) {
                 std::string returnType = funcMetadata->returnType;
 
@@ -193,14 +217,38 @@ namespace vm::compiler::types
                     const auto& genericTypeArgs = methodCall->getGenericTypeArguments();
                     const auto& genericTypeParams = funcMetadata->genericTypeParameters;
 
-                    // Build temporary bindings for this method call
+                    // Build substitution map for generic type resolution
+                    std::unordered_map<std::string, std::string> substitutions;
                     for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
                     {
-                        if (returnType == genericTypeParams[i])
+                        substitutions[genericTypeParams[i]] = genericTypeArgs[i];
+                    }
+
+                    // Use GenericTypeResolver to handle complex types like R[], List<R>, etc.
+                    if (!substitutions.empty())
+                    {
+                        // Include GenericTypeResolver at the top of this file
+                        // For now, manually resolve array types
+                        size_t arrayPos = returnType.find('[');
+                        if (arrayPos != std::string::npos)
                         {
-                            // The return type is a generic parameter, substitute it
-                            returnType = genericTypeArgs[i];
-                            break;
+                            // Handle array types like "R[]"
+                            std::string elementType = returnType.substr(0, arrayPos);
+                            std::string arrayDimensions = returnType.substr(arrayPos);
+                            auto it = substitutions.find(elementType);
+                            if (it != substitutions.end())
+                            {
+                                returnType = it->second + arrayDimensions;
+                            }
+                        }
+                        else
+                        {
+                            // Handle non-array types like "R"
+                            auto it = substitutions.find(returnType);
+                            if (it != substitutions.end())
+                            {
+                                returnType = it->second;
+                            }
                         }
                     }
                 }
@@ -665,6 +713,29 @@ namespace vm::compiler::types
             // Look up the method in the bytecode program's function registry
             const auto* funcMetadata = program.getFunction(methodName);
 
+            // PHASE 1: If exact match fails, try prefix matching for overloaded methods
+            // Methods are registered with signatures like "Calculator::double/int" or "Calculator::triple/int"
+            // When we look up "Calculator::double", we should find any overload that starts with that prefix
+            if (!funcMetadata) {
+                const auto& allFunctions = program.getFunctions();
+                std::string prefix = methodName + "/"; // Look for "Calculator::double/" to match "Calculator::double/int"
+
+                // Collect all matching overloads
+                std::vector<const bytecode::BytecodeProgram::FunctionMetadata*> matchingOverloads;
+                for (const auto& [name, metadata] : allFunctions) {
+                    if (name.find(prefix) == 0 || name == methodName) {
+                        matchingOverloads.push_back(&metadata);
+                    }
+                }
+
+                // If exactly one overload matches, use it
+                // If multiple overloads, we can't determine which one without analyzing argument types
+                // For now, just use the first one (PHASE 1 limitation)
+                if (!matchingOverloads.empty()) {
+                    funcMetadata = matchingOverloads[0];
+                }
+            }
+
             // PHASE 4: If this is a generic method call, resolve the return type using the provided type arguments
             if (methodCall->hasGenericTypeArguments() && funcMetadata && !funcMetadata->genericTypeParameters.empty())
             {
@@ -672,13 +743,36 @@ namespace vm::compiler::types
                 const auto& genericTypeParams = funcMetadata->genericTypeParameters;
                 std::string returnType = funcMetadata->returnType;
 
-                // Build temporary bindings for this method call
+                // Build substitution map for generic type resolution
+                std::unordered_map<std::string, std::string> substitutions;
                 for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
                 {
-                    if (returnType == genericTypeParams[i])
+                    substitutions[genericTypeParams[i]] = genericTypeArgs[i];
+                }
+
+                // Handle array types like "R[]"
+                if (!substitutions.empty())
+                {
+                    size_t arrayPos = returnType.find('[');
+                    if (arrayPos != std::string::npos)
                     {
-                        // The return type is a generic parameter, substitute it
-                        return genericTypeArgs[i];
+                        // Handle array types like "R[]"
+                        std::string elementType = returnType.substr(0, arrayPos);
+                        std::string arrayDimensions = returnType.substr(arrayPos);
+                        auto it = substitutions.find(elementType);
+                        if (it != substitutions.end())
+                        {
+                            return it->second + arrayDimensions;
+                        }
+                    }
+                    else
+                    {
+                        // Handle non-array types like "R"
+                        auto it = substitutions.find(returnType);
+                        if (it != substitutions.end())
+                        {
+                            return it->second;
+                        }
                     }
                 }
             }
