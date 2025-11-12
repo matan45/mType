@@ -4,6 +4,8 @@
 #include "../../../errors/NoMatchingOverloadException.hpp"
 #include "../../../errors/AmbiguousCallException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../../types/TypeRegistry.hpp"
+#include <iostream>
 
 namespace vm::compiler::overload
 {
@@ -112,32 +114,17 @@ namespace vm::compiler::overload
             return methodName;
         }
 
-        // Filter overloads based on generic type arguments (if provided)
+        // Filter overloads based on generic type arguments (Java/C# style)
         std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>> filteredOverloads;
+
         if (hasGenericTypeArgs)
         {
-            // Only consider generic overloads with matching number of generic type parameters
-            // Note: Methods store generic parameters in the ParameterType with className as generic names
+            // User explicitly provided type arguments: method<Type>()
+            // Only consider generic methods with matching number of generic type parameters
             for (const auto& overload : overloads)
             {
-                // Count how many parameters are generic (have className but not a real class)
-                const auto& params = overload->getParametersWithTypes();
-                size_t genericParamCount = 0;
-                for (const auto& [paramName, paramType] : params)
-                {
-                    if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
-                    {
-                        // Check if className is a generic parameter (single letter like T, K, V)
-                        // Simple heuristic: if it's not in the class registry, it's likely generic
-                        auto classRegistry = ctx.environment->getClassRegistry();
-                        if (!classRegistry || !classRegistry->findClass(paramType.className.value()))
-                        {
-                            genericParamCount++;
-                        }
-                    }
-                }
-
-                if (genericParamCount == genericTypeArgCount)
+                size_t methodGenericParamCount = overload->getGenericTypeParameters().size();
+                if (methodGenericParamCount == genericTypeArgCount)
                 {
                     filteredOverloads.push_back(overload);
                 }
@@ -145,8 +132,69 @@ namespace vm::compiler::overload
         }
         else
         {
-            // No generic type arguments - use all overloads
-            filteredOverloads = overloads;
+            // NO explicit type arguments provided
+            // Java/C# rule: Prefer non-generic overloads over generic ones
+            std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>> nonGenericOverloads;
+            std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>> genericOverloads;
+
+            for (const auto& overload : overloads)
+            {
+                size_t genericParamCount = overload->getGenericTypeParameters().size();
+                const auto& genericParams = overload->getGenericParameters();
+
+                // Check parameter types using GenericType to see if they contain unresolved generics
+                bool hasUnresolvedGenerics = false;
+                for (const auto& [paramName, genericType] : genericParams) {
+                    std::string typeStr = genericType->toString();
+
+                    // Check if this type contains unresolved generic parameters (like T, K, V)
+                    // Look for patterns like "T", "Box<T>", "List<K>", etc.
+                    auto& registry = ::types::getGlobalTypeRegistry();
+
+                    // Simple check: if type string is a single capital letter and not in registry
+                    if (typeStr.length() == 1 && std::isupper(typeStr[0]) && !registry.hasType(typeStr)) {
+                        hasUnresolvedGenerics = true;
+                    }
+                    // Check for parameterized types with generics: Box<T>, List<K>, etc.
+                    else if (typeStr.find('<') != std::string::npos) {
+                        size_t start = typeStr.find('<');
+                        size_t end = typeStr.find('>');
+                        if (end != std::string::npos && end > start) {
+                            std::string typeArg = typeStr.substr(start + 1, end - start - 1);
+                            // Trim spaces
+                            typeArg.erase(0, typeArg.find_first_not_of(" \t"));
+                            typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
+
+                            // Check if type argument is unresolved (single letter not in registry)
+                            if (typeArg.length() == 1 && std::isupper(typeArg[0]) && !registry.hasType(typeArg)) {
+                                hasUnresolvedGenerics = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!hasUnresolvedGenerics)
+                {
+                    // Non-generic method (all types are concrete)
+                    nonGenericOverloads.push_back(overload);
+                }
+                else
+                {
+                    // Generic method (contains unresolved type parameters)
+                    genericOverloads.push_back(overload);
+                }
+            }
+
+            // If we have non-generic overloads, use only those
+            // Otherwise, fall back to generic overloads
+            if (!nonGenericOverloads.empty())
+            {
+                filteredOverloads = nonGenericOverloads;
+            }
+            else
+            {
+                filteredOverloads = genericOverloads;
+            }
         }
 
         if (filteredOverloads.empty())
@@ -242,7 +290,8 @@ namespace vm::compiler::overload
         std::vector<std::string> typeNames;
         typeNames.reserve(genericParams.size());
         for (const auto& [paramName, genericType] : genericParams) {
-            typeNames.push_back(genericType->toString());
+            std::string typeName = genericType->toString();
+            typeNames.push_back(typeName);
         }
 
         std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignatureFromNames(typeNames);
@@ -400,7 +449,7 @@ namespace vm::compiler::overload
             return functionName;
         }
 
-        // Filter overloads based on generic type arguments
+        // Filter overloads based on generic type arguments (Java/C# style)
         std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>> filteredOverloads;
         if (hasGenericTypeArgs)
         {
@@ -416,11 +465,74 @@ namespace vm::compiler::overload
         }
         else
         {
-            // No generic type arguments - prefer non-generic overloads
-            // But if only generic overloads exist, include them for type inference
+            // NO explicit type arguments provided
+            // Java/C# rule: Prefer non-generic overloads over generic ones
+            std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>> nonGenericOverloads;
+            std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>> genericOverloads;
+
             for (const auto& overload : overloads)
             {
-                filteredOverloads.push_back(overload);
+                size_t genericParamCount = overload->getGenericTypeParameters().size();
+                const auto& params = overload->getParameters();
+
+                // Check parameter types to see if they contain unresolved generics
+                bool hasUnresolvedGenerics = (genericParamCount > 0);
+
+                for (const auto& [paramName, paramType] : params) {
+                    std::string typeStr;
+                    if (paramType.className.has_value()) {
+                        typeStr = paramType.className.value();
+                    } else {
+                        // Primitive type - use basicType
+                        typeStr = runtimeTypes::klass::SignatureUtils::getTypeName(paramType);
+                    }
+
+                    // Check if type contains unresolved generic parameters (like T, K, V)
+                    auto& registry = ::types::getGlobalTypeRegistry();
+
+                    // Simple check: if type string is a single capital letter and not in registry
+                    if (typeStr.length() == 1 && std::isupper(typeStr[0]) && !registry.hasType(typeStr)) {
+                        hasUnresolvedGenerics = true;
+                    }
+                    // Check for parameterized types with generics: Box<T>, List<K>, etc.
+                    else if (typeStr.find('<') != std::string::npos) {
+                        size_t start = typeStr.find('<');
+                        size_t end = typeStr.find('>');
+                        if (end != std::string::npos && end > start) {
+                            std::string typeArg = typeStr.substr(start + 1, end - start - 1);
+                            // Trim spaces
+                            typeArg.erase(0, typeArg.find_first_not_of(" \t"));
+                            typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
+
+                            // Check if type argument is unresolved (single letter not in registry)
+                            if (typeArg.length() == 1 && std::isupper(typeArg[0]) && !registry.hasType(typeArg)) {
+                                hasUnresolvedGenerics = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!hasUnresolvedGenerics)
+                {
+                    // Non-generic function (all types are concrete)
+                    nonGenericOverloads.push_back(overload);
+                }
+                else
+                {
+                    // Generic function (contains unresolved type parameters)
+                    genericOverloads.push_back(overload);
+                }
+            }
+
+            // If we have non-generic overloads, use only those
+            // Otherwise, fall back to generic overloads
+            if (!nonGenericOverloads.empty())
+            {
+                filteredOverloads = nonGenericOverloads;
+            }
+            else
+            {
+                filteredOverloads = genericOverloads;
             }
         }
 

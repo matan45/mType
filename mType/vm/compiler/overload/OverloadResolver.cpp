@@ -87,31 +87,72 @@ namespace vm::compiler::overload
         const value::ParameterType& from,
         const value::ParameterType& to)
     {
-        // Exact match
-        if (from == to) {
-            return ConversionType::EXACT_MATCH;
-        }
+        // Check for generic type parameter FIRST (before exact match)
+        // Generic parameters like T, K, V should be detected before any other checks
+        // This ensures they get the lowest priority (GENERIC_PARAMETER = 10)
+        if (to.basicType == value::ValueType::OBJECT && to.className.has_value()) {
+            auto& registry = types::getGlobalTypeRegistry();
+            const std::string& className = to.className.value();
 
-        // Generic type parameter: Can accept any type
-        // This represents generic parameters like T, K, V in generic methods/functions
-        // Two cases:
-        // 1. OBJECT without className/interfaceName (legacy/old approach)
-        // 2. OBJECT with className but class doesn't exist (generic parameter stored as className)
-        // Uses lower priority than specific types to prefer concrete overloads
-        if (to.basicType == value::ValueType::OBJECT) {
-            // Case 1: No className or interfaceName - definitely generic
-            if (!to.className.has_value() && !to.interfaceName.has_value()) {
+            // Extract base class name (before '<' if it exists)
+            std::string baseClassName = className;
+            size_t anglePos = className.find('<');
+            if (anglePos != std::string::npos) {
+                baseClassName = className.substr(0, anglePos);
+            }
+
+            // Generic type parameter detection:
+            // Case 1: Simple generic like "T", "K", "V" (single capital letters)
+            if (baseClassName.length() <= 2 && std::isupper(baseClassName[0]) && !registry.hasType(baseClassName)) {
+                // This is a generic parameter - can match ANY type but with lowest priority
                 return ConversionType::GENERIC_PARAMETER;
             }
 
-            // Case 2: Has className but it's not a registered type - likely a generic parameter
-            if (to.className.has_value()) {
-                auto& registry = types::getGlobalTypeRegistry();
-                // If the "class" doesn't exist in the registry, it's a generic parameter name
-                if (!registry.hasType(to.className.value())) {
-                    return ConversionType::GENERIC_PARAMETER;
+            // Case 2: Parameterized type containing generic parameters like "Box<T>", "List<K>"
+            // Check if className contains angle brackets with unresolved type parameters
+            size_t openAngle = className.find('<');
+            if (openAngle != std::string::npos) {
+                size_t closeAngle = className.find('>');
+                if (closeAngle != std::string::npos && closeAngle > openAngle) {
+                    // Extract the type argument(s) between < and >
+                    std::string typeArgs = className.substr(openAngle + 1, closeAngle - openAngle - 1);
+
+                    // Simple heuristic: if type args contain single letters (T, K, V, etc.)
+                    // or comma-separated single letters, it's likely generic
+                    bool hasGenericParams = false;
+                    std::string trimmedArg;
+                    for (char c : typeArgs) {
+                        if (c != ' ' && c != ',') {
+                            trimmedArg += c;
+                        } else if (!trimmedArg.empty()) {
+                            // Check if this is a simple generic parameter
+                            if (trimmedArg.length() <= 2 && !registry.hasType(trimmedArg)) {
+                                hasGenericParams = true;
+                                break;
+                            }
+                            trimmedArg.clear();
+                        }
+                    }
+                    // Check last arg
+                    if (!trimmedArg.empty() && trimmedArg.length() <= 2 && !registry.hasType(trimmedArg)) {
+                        hasGenericParams = true;
+                    }
+
+                    if (hasGenericParams) {
+                        return ConversionType::GENERIC_PARAMETER;
+                    }
                 }
             }
+        }
+
+        // Also check for legacy generic representation (OBJECT without className)
+        if (to.basicType == value::ValueType::OBJECT && !to.className.has_value() && !to.interfaceName.has_value()) {
+            return ConversionType::GENERIC_PARAMETER;
+        }
+
+        // Exact match - highest priority
+        if (from == to) {
+            return ConversionType::EXACT_MATCH;
         }
 
         // Numeric widening: int -> float
@@ -149,6 +190,25 @@ namespace vm::compiler::overload
         }
 
         // Array and Object compatibility
+        // For parameterized generic types (like Box<Int> vs Box<String>), require exact match
+        if (from.basicType == value::ValueType::OBJECT && to.basicType == value::ValueType::OBJECT) {
+            if (from.className.has_value() && to.className.has_value()) {
+                // Check if both have generic type parameters (contain '<')
+                bool fromHasGenericParams = from.className.value().find('<') != std::string::npos;
+                bool toHasGenericParams = to.className.value().find('<') != std::string::npos;
+
+                if (fromHasGenericParams && toHasGenericParams) {
+                    // Both are parameterized types - require exact match
+                    if (from.className == to.className && from.interfaceName == to.interfaceName) {
+                        return ConversionType::EXACT_MATCH;
+                    }
+                    // Different parameterized types (e.g., Box<Int> vs Box<String>) = incompatible
+                    return ConversionType::INCOMPATIBLE;
+                }
+            }
+        }
+
+        // For non-parameterized types, use areTypesCompatible
         if (types::TypeConversionUtils::areTypesCompatible(from.basicType, to.basicType)) {
             return ConversionType::EXACT_MATCH;
         }

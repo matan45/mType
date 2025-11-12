@@ -703,7 +703,6 @@ int main(int argc, char* argv[])
         }
 
         std::cout << "Execution Mode: " << modeStr << " (Optimization: " << optStr << ")\n\n";
-        std::cerr << "[DEBUG C++ MAIN] Execution Mode: " << modeStr << " (Optimization: " << optStr << ")\n";
 
         interpreter.runScript(filename);
     }

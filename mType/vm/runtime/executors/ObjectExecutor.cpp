@@ -377,36 +377,67 @@ namespace vm::runtime
             simpleMethodName = simpleMethodName.substr(0, slashPos);
         }
 
-        // Use findInstanceMethodInHierarchy to search only instance methods in parent classes
-        auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
-        if (!method) {
-            utils::ErrorLocationHelper::throwRuntimeError(context,
-                "Instance method not found: " + methodName +
-                " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
-        }
+        // FIXED: If methodName already contains a signature (indicated by '/'),
+        // use it directly instead of looking up by count only!
+        // The compiler already resolved the correct overload.
+        std::string qualifiedName = methodName;
+        std::string definingClassName = classDef->getName();  // Default to instance class
 
-        // Find which class actually defines this method by walking up the hierarchy
-        // IMPORTANT: Do this BEFORE access validation so we use the correct defining class
-        std::string definingClassName = classDef->getName();
-        auto currentClass = classDef;
-        while (currentClass) {
-            auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
-            if (localMethod) {
-                definingClassName = currentClass->getName();
-                break;
+        // If method name doesn't contain a signature, build it from resolved method
+        if (methodName.find('/') == std::string::npos && methodName.find("::") == std::string::npos) {
+            // Legacy path: methodName is just "add" without class or signature
+            // Use findInstanceMethodInHierarchy to search only instance methods in parent classes
+            auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
+            if (!method) {
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "Instance method not found: " + methodName +
+                    " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
             }
-            currentClass = currentClass->getParentClass();
+
+            // Find which class actually defines this method by walking up the hierarchy
+            definingClassName = classDef->getName();  // Already declared above
+            auto currentClass = classDef;
+            while (currentClass) {
+                auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
+                if (localMethod) {
+                    definingClassName = currentClass->getName();
+                    break;
+                }
+                currentClass = currentClass->getParentClass();
+            }
+
+            // Validate method access
+            auto accessContext = createAccessContext(definingClassName, false);
+            validation::AccessValidator::validateMethodAccess(simpleMethodName, method->getAccessModifier(), accessContext);
+
+            // Build the mangled name
+            auto signature = vm::MethodSignature::fromMethodDefinition(method.get());
+            qualifiedName = signature.toMangledName(definingClassName, false);
+        } else {
+            // New path: methodName already contains full signature like "Container::describe/int"
+            // BUT: For virtual dispatch, we need to use the ACTUAL object class, not the declared class
+            auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
+            if (method) {
+                // Find defining class for the actual method (virtual dispatch)
+                definingClassName = classDef->getName();  // Already declared above
+                auto currentClass = classDef;
+                while (currentClass) {
+                    auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
+                    if (localMethod) {
+                        definingClassName = currentClass->getName();
+                        break;
+                    }
+                    currentClass = currentClass->getParentClass();
+                }
+
+                auto accessContext = createAccessContext(definingClassName, false);
+                validation::AccessValidator::validateMethodAccess(simpleMethodName, method->getAccessModifier(), accessContext);
+
+                // Rebuild qualified name with ACTUAL class for virtual dispatch
+                auto signature = vm::MethodSignature::fromMethodDefinition(method.get());
+                qualifiedName = signature.toMangledName(definingClassName, false);
+            }
         }
-
-        // Validate method access using the defining class, not the runtime instance class
-        auto accessContext = createAccessContext(definingClassName, false);
-        validation::AccessValidator::validateMethodAccess(simpleMethodName, method->getAccessModifier(), accessContext);
-
-        // Build the mangled name with signature for overloaded methods
-        // Use MethodSignature to eliminate manual signature building and 'this' confusion
-        // IMPORTANT: Always use the runtime definingClassName for polymorphism!
-        auto signature = vm::MethodSignature::fromMethodDefinition(method.get());
-        std::string qualifiedName = signature.toMangledName(definingClassName, false);  // false = not static
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (!funcMetadata) {

@@ -17,6 +17,8 @@
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../token/TokenType.hpp"
+#include "../overload/OverloadResolver.hpp"
+#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 
 namespace vm::compiler::types
 {
@@ -185,12 +187,12 @@ namespace vm::compiler::types
             // Look up the method in the bytecode program's function registry
             const auto* funcMetadata = program.getFunction(methodName);
 
-            // PHASE 1: If exact match fails, try prefix matching for overloaded methods
-            // Methods are registered with signatures like "Calculator::double/int" or "Calculator::triple/int"
-            // When we look up "Calculator::double", we should find any overload that starts with that prefix
+            // If exact match fails, try prefix matching for overloaded methods
+            // Methods are registered with signatures like "Calculator::add/int,int" or "Calculator::add/string,string"
+            // When we look up "Calculator::add", we should find any overload that starts with that prefix
             if (!funcMetadata) {
                 const auto& allFunctions = program.getFunctions();
-                std::string prefix = methodName + "/"; // Look for "Calculator::double/" to match "Calculator::double/int"
+                std::string prefix = methodName + "/"; // Look for "Calculator::add/" to match "Calculator::add/int,int"
 
                 // Collect all matching overloads
                 std::vector<const bytecode::BytecodeProgram::FunctionMetadata*> matchingOverloads;
@@ -201,10 +203,93 @@ namespace vm::compiler::types
                 }
 
                 // If exactly one overload matches, use it
-                // If multiple overloads, we can't determine which one without analyzing argument types
-                // For now, just use the first one (PHASE 1 limitation)
-                if (!matchingOverloads.empty()) {
+                if (matchingOverloads.size() == 1) {
                     funcMetadata = matchingOverloads[0];
+                }
+                // If multiple overloads, try to match by parameter types
+                else if (matchingOverloads.size() > 1) {
+                    size_t argCount = methodCall->getArgumentCount();
+                    const auto& arguments = methodCall->getArguments();
+
+                    // Try to find best match by comparing parameter types
+                    const bytecode::BytecodeProgram::FunctionMetadata* bestMatch = nullptr;
+                    int bestScore = -1;
+
+                    for (const auto* overload : matchingOverloads) {
+                        // Instance methods have 'this' as first parameter, skip it
+                        // parameterCount includes 'this', but arguments don't
+                        size_t expectedParamCount = overload->parameterCount;
+                        bool isInstanceMethod = !overload->isStatic;
+
+                        // Adjust expected count: if instance method, parameterCount includes 'this'
+                        if (isInstanceMethod && expectedParamCount > 0) {
+                            expectedParamCount--;  // Don't count 'this'
+                        }
+
+                        // Skip if parameter count doesn't match
+                        if (expectedParamCount != argCount) {
+                            continue;
+                        }
+
+                        // Calculate match score
+                        int score = 0;
+                        bool compatible = true;
+
+                        // Start index: skip 'this' parameter for instance methods
+                        size_t paramStartIdx = isInstanceMethod ? 1 : 0;
+
+                        for (size_t i = 0; i < argCount; ++i) {
+                            size_t paramIdx = paramStartIdx + i;
+                            if (paramIdx >= overload->parameterTypes.size()) {
+                                compatible = false;
+                                break;
+                            }
+
+                            value::ValueType argType = inferExpressionType(arguments[i].get());
+                            const std::string& paramType = overload->parameterTypes[paramIdx];
+
+                            // Exact match gets highest score
+                            if ((argType == value::ValueType::INT && paramType == "int") ||
+                                (argType == value::ValueType::FLOAT && paramType == "float") ||
+                                (argType == value::ValueType::STRING && paramType == "string") ||
+                                (argType == value::ValueType::BOOL && paramType == "bool")) {
+                                score += 100;  // Exact match
+                            }
+                            // Compatible match gets lower score
+                            else if (argType == value::ValueType::INT && paramType == "float") {
+                                score += 50;  // Widening conversion
+                            }
+                            // Object types - try to match class names
+                            else if (argType == value::ValueType::OBJECT) {
+                                std::string argClassName = inferExpressionClassName(arguments[i].get());
+                                if (!argClassName.empty() && argClassName == paramType) {
+                                    score += 100;  // Exact class match
+                                } else {
+                                    score += 10;  // Generic object match
+                                }
+                            }
+                            // Incompatible
+                            else {
+                                compatible = false;
+                                break;
+                            }
+                        }
+
+                        // Update best match
+                        if (compatible && score > bestScore) {
+                            bestScore = score;
+                            bestMatch = overload;
+                        }
+                    }
+
+                    // Use best match if found
+                    if (bestMatch) {
+                        funcMetadata = bestMatch;
+                    }
+                    // Fallback to first match
+                    else if (!matchingOverloads.empty()) {
+                        funcMetadata = matchingOverloads[0];
+                    }
                 }
             }
 
@@ -713,12 +798,12 @@ namespace vm::compiler::types
             // Look up the method in the bytecode program's function registry
             const auto* funcMetadata = program.getFunction(methodName);
 
-            // PHASE 1: If exact match fails, try prefix matching for overloaded methods
-            // Methods are registered with signatures like "Calculator::double/int" or "Calculator::triple/int"
-            // When we look up "Calculator::double", we should find any overload that starts with that prefix
+            // If exact match fails, try prefix matching for overloaded methods
+            // Methods are registered with signatures like "Calculator::add/int,int" or "Calculator::add/string,string"
+            // When we look up "Calculator::add", we should find any overload that starts with that prefix
             if (!funcMetadata) {
                 const auto& allFunctions = program.getFunctions();
-                std::string prefix = methodName + "/"; // Look for "Calculator::double/" to match "Calculator::double/int"
+                std::string prefix = methodName + "/"; // Look for "Calculator::add/" to match "Calculator::add/int,int"
 
                 // Collect all matching overloads
                 std::vector<const bytecode::BytecodeProgram::FunctionMetadata*> matchingOverloads;
@@ -729,10 +814,93 @@ namespace vm::compiler::types
                 }
 
                 // If exactly one overload matches, use it
-                // If multiple overloads, we can't determine which one without analyzing argument types
-                // For now, just use the first one (PHASE 1 limitation)
-                if (!matchingOverloads.empty()) {
+                if (matchingOverloads.size() == 1) {
                     funcMetadata = matchingOverloads[0];
+                }
+                // If multiple overloads, try to match by parameter types
+                else if (matchingOverloads.size() > 1) {
+                    size_t argCount = methodCall->getArgumentCount();
+                    const auto& arguments = methodCall->getArguments();
+
+                    // Try to find best match by comparing parameter types
+                    const bytecode::BytecodeProgram::FunctionMetadata* bestMatch = nullptr;
+                    int bestScore = -1;
+
+                    for (const auto* overload : matchingOverloads) {
+                        // Instance methods have 'this' as first parameter, skip it
+                        // parameterCount includes 'this', but arguments don't
+                        size_t expectedParamCount = overload->parameterCount;
+                        bool isInstanceMethod = !overload->isStatic;
+
+                        // Adjust expected count: if instance method, parameterCount includes 'this'
+                        if (isInstanceMethod && expectedParamCount > 0) {
+                            expectedParamCount--;  // Don't count 'this'
+                        }
+
+                        // Skip if parameter count doesn't match
+                        if (expectedParamCount != argCount) {
+                            continue;
+                        }
+
+                        // Calculate match score
+                        int score = 0;
+                        bool compatible = true;
+
+                        // Start index: skip 'this' parameter for instance methods
+                        size_t paramStartIdx = isInstanceMethod ? 1 : 0;
+
+                        for (size_t i = 0; i < argCount; ++i) {
+                            size_t paramIdx = paramStartIdx + i;
+                            if (paramIdx >= overload->parameterTypes.size()) {
+                                compatible = false;
+                                break;
+                            }
+
+                            value::ValueType argType = inferExpressionType(arguments[i].get());
+                            const std::string& paramType = overload->parameterTypes[paramIdx];
+
+                            // Exact match gets highest score
+                            if ((argType == value::ValueType::INT && paramType == "int") ||
+                                (argType == value::ValueType::FLOAT && paramType == "float") ||
+                                (argType == value::ValueType::STRING && paramType == "string") ||
+                                (argType == value::ValueType::BOOL && paramType == "bool")) {
+                                score += 100;  // Exact match
+                            }
+                            // Compatible match gets lower score
+                            else if (argType == value::ValueType::INT && paramType == "float") {
+                                score += 50;  // Widening conversion
+                            }
+                            // Object types - try to match class names
+                            else if (argType == value::ValueType::OBJECT) {
+                                std::string argClassName = inferExpressionClassName(arguments[i].get());
+                                if (!argClassName.empty() && argClassName == paramType) {
+                                    score += 100;  // Exact class match
+                                } else {
+                                    score += 10;  // Generic object match
+                                }
+                            }
+                            // Incompatible
+                            else {
+                                compatible = false;
+                                break;
+                            }
+                        }
+
+                        // Update best match
+                        if (compatible && score > bestScore) {
+                            bestScore = score;
+                            bestMatch = overload;
+                        }
+                    }
+
+                    // Use best match if found
+                    if (bestMatch) {
+                        funcMetadata = bestMatch;
+                    }
+                    // Fallback to first match
+                    else if (!matchingOverloads.empty()) {
+                        funcMetadata = matchingOverloads[0];
+                    }
                 }
             }
 
