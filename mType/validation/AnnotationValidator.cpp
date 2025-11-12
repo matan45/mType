@@ -38,40 +38,48 @@ namespace validation
         }
 
         // Validate annotations on all instance methods
-        for (const auto& [methodName, methodDef] : classDefinition->getInstanceMethods())
+        for (const auto& [methodName, methodOverloads] : classDefinition->getInstanceMethods())
         {
-            if (methodDef->hasAnnotation("Override"))
+            // Iterate through all overloads
+            for (const auto& methodDef : methodOverloads)
             {
-                validateOverrideAnnotation(
-                    methodDef.get(),
-                    classDefinition,
-                    environment,
-                    methodDef->getSourceLocation() // Use stored source location for accurate error reporting
-                );
-            }
+                if (methodDef->hasAnnotation("Override"))
+                {
+                    validateOverrideAnnotation(
+                        methodDef.get(),
+                        classDefinition,
+                        environment,
+                        methodDef->getSourceLocation() // Use stored source location for accurate error reporting
+                    );
+                }
 
-            // Validate @Throw annotation if present
-            if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
-            {
-                validateThrowAnnotation(
-                    throwAnnotation,
-                    environment,
-                    methodDef->getSourceLocation()
-                );
+                // Validate @Throw annotation if present
+                if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
+                {
+                    validateThrowAnnotation(
+                        throwAnnotation,
+                        environment,
+                        methodDef->getSourceLocation()
+                    );
+                }
             }
         }
 
         // Validate annotations on all static methods
-        for (const auto& [methodName, methodDef] : classDefinition->getStaticMethods())
+        for (const auto& [methodName, methodOverloads] : classDefinition->getStaticMethods())
         {
-            // Validate @Throw annotation if present
-            if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
+            // Iterate through all overloads
+            for (const auto& methodDef : methodOverloads)
             {
-                validateThrowAnnotation(
-                    throwAnnotation,
-                    environment,
-                    methodDef->getSourceLocation()
-                );
+                // Validate @Throw annotation if present
+                if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
+                {
+                    validateThrowAnnotation(
+                        throwAnnotation,
+                        environment,
+                        methodDef->getSourceLocation()
+                    );
+                }
             }
         }
     }
@@ -157,9 +165,13 @@ namespace validation
             auto it = instanceMethods.find(method->getName());
             if (it != instanceMethods.end())
             {
-                if (methodSignaturesMatch(method, it->second.get()))
+                // Check all overloads for matching signature
+                for (const auto& parentMethod : it->second)
                 {
-                    return it->second;
+                    if (methodSignaturesMatch(method, parentMethod.get()))
+                    {
+                        return parentMethod;
+                    }
                 }
             }
 
@@ -323,15 +335,19 @@ namespace validation
         auto it = instanceMethods.find("update");
         if (it != instanceMethods.end())
         {
-            const auto& method = it->second;
-            const auto& params = method->getParameters();
-
-            // Check: exactly 1 parameter of type float, return type void
-            if (params.size() == 1 &&
-                params[0].second.basicType == value::ValueType::FLOAT &&
-                method->getReturnType() == value::ValueType::VOID)
+            // Check all overloads for the required signature
+            for (const auto& method : it->second)
             {
-                hasUpdateMethod = true;
+                const auto& params = method->getParameters();
+
+                // Check: exactly 1 parameter of type float, return type void
+                if (params.size() == 1 &&
+                    params[0].second.basicType == value::ValueType::FLOAT &&
+                    method->getReturnType() == value::ValueType::VOID)
+                {
+                    hasUpdateMethod = true;
+                    break;
+                }
             }
         }
 

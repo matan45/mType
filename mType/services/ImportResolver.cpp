@@ -185,9 +185,11 @@ namespace services
                         // Check if this static method exists in the class
                         const auto& staticMethods = classDef->getStaticMethods();
                         auto it = staticMethods.find(methodNode->getName());
-                        if (it != staticMethods.end())
+                        if (it != staticMethods.end() && !it->second.empty())
                         {
                             // Register as a global function with qualified name
+                            // Note: For overloaded methods, we register the first one found (TODO: improve this)
+                            const auto& method = it->second[0];
                             std::string qualifiedName = className + "::" + methodNode->getName();
 
                             auto funcRegistry = environment->getFunctionRegistry();
@@ -261,7 +263,7 @@ namespace services
                                 );
 
                                 // Copy the body from the static method definition
-                                funcDef->setBody(it->second->getBodyPtr());
+                                funcDef->setBody(method->getBodyPtr());
 
                                 funcRegistry->registerFunction(qualifiedName, funcDef);
                             }

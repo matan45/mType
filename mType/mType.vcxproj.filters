@@ -301,6 +301,15 @@
     <Filter Include="tests\testFiles\optimizer\pass">
       <UniqueIdentifier>{F2360C7A-DE5C-D6E0-C7A2-5BACB367FBAC}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\overloading">
+      <UniqueIdentifier>{635ABDDA-CF67-EBC0-584E-E7ABC45AB777}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\overloading\error">
+      <UniqueIdentifier>{FCEFA467-685E-FAE6-B147-B5E61DF5EF82}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\overloading\pass">
+      <UniqueIdentifier>{49E6A5F3-3537-9135-5E9B-7FF74A4B249F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\stringpool">
       <UniqueIdentifier>{1A101BE9-0620-C7B9-6FD9-2BD85B08B652}</UniqueIdentifier>
     </Filter>
@@ -369,6 +378,9 @@
     </Filter>
     <Filter Include="vm\compiler\optimization">
       <UniqueIdentifier>{28265499-144B-A319-3D96-88A9291AA237}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\compiler\overload">
+      <UniqueIdentifier>{5DF74A2B-4986-D4F4-F2A4-E8EFDE12E59A}</UniqueIdentifier>
     </Filter>
     <Filter Include="vm\compiler\registration">
       <UniqueIdentifier>{5C6A4B02-488F-9A82-71DA-7F125D5E99A0}</UniqueIdentifier>
@@ -732,6 +744,9 @@
     <ClInclude Include="errors\AccessViolationException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="errors\AmbiguousCallException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
     <ClInclude Include="errors\ArgumentException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
@@ -742,6 +757,9 @@
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\DuplicateDeclarationException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\DuplicateSignatureException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\EnvironmentException.hpp">
@@ -760,6 +778,9 @@
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\MethodNotFoundException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\NoMatchingOverloadException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
     <ClInclude Include="errors\NullPointerException.hpp">
@@ -1014,6 +1035,9 @@
     <ClInclude Include="runtimeTypes\klass\ObjectInstance.hpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\SignatureUtils.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
     <ClInclude Include="services\BytecodeExecutionStrategy.hpp">
       <Filter>services</Filter>
     </ClInclude>
@@ -1084,6 +1108,9 @@
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\ModifiersTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\OverloadingTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\StringPoolTestSuite.hpp">
@@ -1238,6 +1265,12 @@
     </ClInclude>
     <ClInclude Include="vm\compiler\optimization\PrimitiveMethodOptimizer.hpp">
       <Filter>vm\compiler\optimization</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\overload\OverloadResolutionHelper.hpp">
+      <Filter>vm\compiler\overload</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\overload\OverloadResolver.hpp">
+      <Filter>vm\compiler\overload</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\registration\ClassInheritanceValidator.hpp">
       <Filter>vm\compiler\registration</Filter>
@@ -1916,6 +1949,9 @@
     <ClCompile Include="runtimeTypes\klass\ObjectInstance.cpp">
       <Filter>runtimeTypes\klass</Filter>
     </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\SignatureUtils.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
     <ClCompile Include="services\BytecodeExecutionStrategy.cpp">
       <Filter>services</Filter>
     </ClCompile>
@@ -1983,6 +2019,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ModifiersTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\OverloadingTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\StringPoolTestSuite.cpp">
@@ -2074,6 +2113,12 @@
     </ClCompile>
     <ClCompile Include="vm\compiler\optimization\PrimitiveMethodOptimizer.cpp">
       <Filter>vm\compiler\optimization</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\overload\OverloadResolutionHelper.cpp">
+      <Filter>vm\compiler\overload</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\overload\OverloadResolver.cpp">
+      <Filter>vm\compiler\overload</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\registration\ClassInheritanceValidator.cpp">
       <Filter>vm\compiler\registration</Filter>
@@ -9069,6 +9114,54 @@
     </None>
     <None Include="tests\testFiles\optimizer\pass\unusedMethods.mt">
       <Filter>tests\testFiles\optimizer\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\error\ambiguousCall.mt">
+      <Filter>tests\testFiles\overloading\error</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\error\noMatchingOverload.mt">
+      <Filter>tests\testFiles\overloading\error</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\basicFunctionOverload.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\basicFunctionOverload.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\basicMethodOverload.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\basicMethodOverload.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\constructorOverload.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\constructorOverload.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\genericFunctionOverload.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\genericFunctionOverload.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\genericMethodOverload.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\genericMethodOverload.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\integrationTest.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\integrationTest.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\staticMethodOverload.expected">
+      <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\staticMethodOverload.mt">
+      <Filter>tests\testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\stringpool\StringPoolTestSuite.expected">
       <Filter>tests\testFiles\stringpool</Filter>

@@ -9,7 +9,6 @@
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include <algorithm>
-#include <iostream>
 namespace vm::runtime
 {
     ObjectExecutor::ObjectExecutor(ExecutionContext& ctx)
@@ -361,8 +360,24 @@ namespace vm::runtime
                                              size_t argCount) {
         auto classDef = instance->getClassDefinition();
 
+        // Extract simple method name from mangled name
+        // methodName may be: "Calculator::add/int,int" or just "add"
+        std::string simpleMethodName = methodName;
+
+        // Remove class prefix if present
+        size_t colonPos = methodName.find("::");
+        if (colonPos != std::string::npos) {
+            simpleMethodName = methodName.substr(colonPos + 2);
+        }
+
+        // Remove signature suffix if present
+        size_t slashPos = simpleMethodName.find('/');
+        if (slashPos != std::string::npos) {
+            simpleMethodName = simpleMethodName.substr(0, slashPos);
+        }
+
         // Use findInstanceMethodInHierarchy to search only instance methods in parent classes
-        auto method = classDef->findInstanceMethodInHierarchy(methodName, argCount);
+        auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
         if (!method) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "Instance method not found: " + methodName +
@@ -374,7 +389,7 @@ namespace vm::runtime
         std::string definingClassName = classDef->getName();
         auto currentClass = classDef;
         while (currentClass) {
-            auto localMethod = currentClass->findInstanceMethod(methodName, argCount);
+            auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
             if (localMethod) {
                 definingClassName = currentClass->getName();
                 break;
@@ -384,9 +399,15 @@ namespace vm::runtime
 
         // Validate method access using the defining class, not the runtime instance class
         auto accessContext = createAccessContext(definingClassName, false);
-        validation::AccessValidator::validateMethodAccess(methodName, method->getAccessModifier(), accessContext);
+        validation::AccessValidator::validateMethodAccess(simpleMethodName, method->getAccessModifier(), accessContext);
 
-        std::string qualifiedName = definingClassName + "::" + methodName;
+        // Use the mangled name directly if it already contains class prefix, otherwise build it
+        std::string qualifiedName = methodName;
+        if (colonPos == std::string::npos) {
+            // methodName doesn't have class prefix, add it
+            qualifiedName = definingClassName + "::" + methodName;
+        }
+
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (!funcMetadata) {
             utils::ErrorLocationHelper::throwRuntimeError(context,

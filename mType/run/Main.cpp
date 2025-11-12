@@ -14,6 +14,7 @@
 #include "../tests/suites/ModifiersTestSuite.hpp"
 #include "../tests/suites/AwaitTestSuite.hpp"
 #include "../tests/suites/AnnotationTestSuite.hpp"
+#include "../tests/suites/OverloadingTestSuite.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
@@ -103,6 +104,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<AnnotationTestSuite>();
     }
+    else if (suiteName == "overload" || suiteName == "overloading")
+    {
+        return std::make_unique<OverloadingTestSuite>();
+    }
     return nullptr;
 }
 
@@ -124,6 +129,7 @@ void printAvailableTestSuites()
     std::cout << "  modifiers    - Access Modifiers Test Suite\n";
     std::cout << "  await        - Async/Await Test Suite\n";
     std::cout << "  annotation   - Annotation Test Suite\n";
+    std::cout << "  overloading  - Method/Function Overloading Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -347,6 +353,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
     suites.push_back(std::make_unique<ModifiersTestSuite>());
     suites.push_back(std::make_unique<AwaitTestSuite>());
     suites.push_back(std::make_unique<AnnotationTestSuite>());
+    suites.push_back(std::make_unique<OverloadingTestSuite>());
 
     for (auto& suite : suites)
     {

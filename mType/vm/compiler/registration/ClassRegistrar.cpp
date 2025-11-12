@@ -9,9 +9,11 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
 #include "../../../errors/AbstractClassException.hpp"
+#include "../../../errors/DuplicateSignatureException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
@@ -137,20 +139,71 @@ namespace vm::compiler::registration
         // Register methods
         for (const auto& method : classNode->getMethods()) {
             if (auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get())) {
-                // Convert generic parameters to ValueType for constructor
-                std::vector<std::pair<std::string, value::ValueType>> legacyParams;
-                for (const auto& [name, genericType] : methodNode->getGenericParameters()) {
-                    value::ValueType vType = value::ValueType::VOID;
-                    if (genericType) {
-                        vType = genericType->isGenericParameter() ? value::ValueType::OBJECT : genericType->getConcreteType();
-                    }
-                    legacyParams.emplace_back(name, vType);
+                // Convert generic parameters to ParameterType (with className information)
+                std::vector<std::pair<std::string, value::ParameterType>> params;
+
+                // For instance methods, add 'this' as the first parameter
+                if (!methodNode->getIsStatic()) {
+                    params.emplace_back("this", value::ParameterType::forClass(className));
                 }
 
+                for (const auto& [name, genericType] : methodNode->getGenericParameters()) {
+                    if (!genericType) {
+                        params.emplace_back(name, value::ParameterType(value::ValueType::VOID));
+                        continue;
+                    }
+
+                    // Check if it's a "generic parameter" - but it could be a class name stored as string
+                    if (genericType->isGenericParameter()) {
+                        // This is stored as a string - could be:
+                        // 1. An actual generic type parameter (T, K, V, etc.)
+                        // 2. A class/interface name (String, Calculator, etc.)
+                        std::string typeName = genericType->getGenericName();
+
+                        // IMPORTANT: Check if typeName matches the class we're currently registering
+                        // This handles self-referential types (e.g., String::equals(String other))
+                        bool isSelfReference = (typeName == className);
+
+                        if (isSelfReference) {
+                            // Self-reference to the class being registered
+                            params.emplace_back(name, value::ParameterType::forClass(typeName));
+                        }
+                        else {
+                            // Check if this is a registered class or interface
+                            auto classRegistry = environment->getClassRegistry();
+                            auto interfaceRegistry = environment->getInterfaceRegistry();
+
+                            bool isClass = classRegistry && classRegistry->findClass(typeName);
+                            bool isInterface = interfaceRegistry && interfaceRegistry->findInterface(typeName);
+
+                            if (isClass) {
+                                // It's a class name
+                                params.emplace_back(name, value::ParameterType::forClass(typeName));
+                            }
+                            else if (isInterface) {
+                                // It's an interface name
+                                params.emplace_back(name, value::ParameterType::forInterface(typeName));
+                            }
+                            else {
+                                // It's an actual generic type parameter (T, K, etc.)
+                                // Store the generic parameter name in className for signature generation
+                                // This allows the validator to match against bytecode function names
+                                params.emplace_back(name, value::ParameterType::forClass(typeName));
+                            }
+                        }
+                    }
+                    else {
+                        // Concrete primitive type
+                        value::ValueType concreteType = genericType->getConcreteType();
+                        params.emplace_back(name, value::ParameterType(concreteType));
+                    }
+                }
+
+                // Use the constructor that takes ParameterType directly (preserves className)
                 auto methodDef = std::make_shared<runtimeTypes::klass::MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(),
-                    legacyParams,
+                    params,  // Use ParameterType vector instead of ValueType
                     methodNode->getBody(),
                     methodNode->getIsStatic(),
                     methodNode->getAccessModifier()
@@ -180,24 +233,40 @@ namespace vm::compiler::registration
                     methodDef->addAnnotation(annotation);
                 }
 
-                // Check for method overloading (not allowed)
+                // Check for duplicate signatures (overloading by name is now allowed, but signatures must be unique)
                 if (methodNode->getIsStatic()) {
-                    if (classDef->getStaticMethod(methodNode->getName()) != nullptr) {
-                        throw errors::TypeException(
-                            "Method overloading is not supported. Static method '" + methodNode->getName() +
-                            "' is already defined in class '" + classNode->getClassName() + "'",
+                    // Check if this exact signature already exists
+                    auto existingMethod = classDef->findStaticMethodBySignature(
+                        methodNode->getName(),
+                        methodDef->getParameters()
+                    );
+                    if (existingMethod) {
+                        throw errors::DuplicateSignatureException(
+                            "static method",
+                            methodNode->getName(),
+                            runtimeTypes::klass::SignatureUtils::generateTypeSignature(methodDef->getParameters()),
+                            existingMethod->getSourceLocation(),
                             methodNode->getLocation()
                         );
                     }
+                    // Register with original name for overload tracking
                     classDef->addStaticMethod(methodNode->getName(), methodDef);
                 } else {
-                    if (classDef->getInstanceMethod(methodNode->getName()) != nullptr) {
-                        throw errors::TypeException(
-                            "Method overloading is not supported. Instance method '" + methodNode->getName() +
-                            "' is already defined in class '" + classNode->getClassName() + "'",
+                    // Check if this exact signature already exists
+                    auto existingMethod = classDef->findInstanceMethodBySignature(
+                        methodNode->getName(),
+                        methodDef->getParameters()
+                    );
+                    if (existingMethod) {
+                        throw errors::DuplicateSignatureException(
+                            "method",
+                            methodNode->getName(),
+                            runtimeTypes::klass::SignatureUtils::generateTypeSignature(methodDef->getParameters()),
+                            existingMethod->getSourceLocation(),
                             methodNode->getLocation()
                         );
                     }
+                    // Register with original name for overload tracking
                     classDef->addMethod(methodDef);
                 }
             }
@@ -635,12 +704,14 @@ namespace vm::compiler::registration
         // Check each method in child class
         const auto& childMethods = childClass->getInstanceMethods();
 
-        for (const auto& [methodName, childMethod] : childMethods) {
-            // Search for method in parent hierarchy (not just immediate parent)
-            // This handles cases where method is defined in grandparent
-            auto parentMethod = parentClass->findInstanceMethodInHierarchy(methodName, childMethod->getParameters().size());
+        for (const auto& [methodName, childMethodOverloads] : childMethods) {
+            // Check each overload
+            for (const auto& childMethod : childMethodOverloads) {
+                // Search for method in parent hierarchy (not just immediate parent)
+                // This handles cases where method is defined in grandparent
+                auto parentMethod = parentClass->findInstanceMethodInHierarchy(methodName, childMethod->getParameters().size());
 
-            if (parentMethod) {
+                if (parentMethod) {
                 // Method exists in parent hierarchy - validate override
 
                 // Find the specific method node to get its location
@@ -757,6 +828,7 @@ namespace vm::compiler::registration
                     );
                 }
             }
-        }
+            }  // End of inner loop over childMethod overloads
+        }  // End of outer loop over method names
     }
 }

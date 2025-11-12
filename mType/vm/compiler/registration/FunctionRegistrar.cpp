@@ -6,6 +6,8 @@
 #include "../../../validation/AnnotationValidator.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/TypeException.hpp"
+#include "../../../errors/DuplicateSignatureException.hpp"
+#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../types/GenericPatternAnalyzer.hpp"
 #include <stdexcept>
 
@@ -101,23 +103,31 @@ namespace vm::compiler::registration
     {
         std::string funcName = functionNode->getName();
 
-        // Check if already registered
-        const auto* existingFunc = program.getFunction(funcName);
-        if (existingFunc)
-        {
-            // Allow native functions to be skipped, but reject user-defined duplicates
-            if (!existingFunc->isNative)
-            {
-                throw errors::TypeException(
-                    "Function overloading is not supported. Global function '" + funcName + "' is already defined",
+        // Check for duplicate signature (overloading by name is now allowed, but signatures must be unique)
+        // Get the function's parameter types for signature comparison
+        auto paramTypesVec = functionNode->getParameterTypes();
+        std::vector<std::pair<std::string, value::ParameterType>> params;
+        for (const auto& param : paramTypesVec) {
+            params.emplace_back(param.first, param.second);
+        }
+
+        // Check in environment's function registry for existing functions with same name
+        auto funcRegistry = environment->getFunctionRegistry();
+        if (funcRegistry) {
+            auto existingFunc = funcRegistry->findFunctionBySignature(funcName, params);
+            if (existingFunc) {
+                throw errors::DuplicateSignatureException(
+                    "function",
+                    funcName,
+                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(params),
+                    ast::SourceLocation(),  // TODO: Get source location from existing function
                     functionNode->getLocation()
                 );
             }
-            return; // Native function already registered, skip
         }
 
         // Extract parameter information (preserves class names like "Pair<K, V>")
-        auto paramTypesVec = functionNode->getParameterTypes();
+        // paramTypesVec already retrieved above
         std::vector<std::string> paramNames;
         std::vector<std::string> paramTypes;
 
@@ -219,8 +229,41 @@ namespace vm::compiler::registration
         // NOTE: @Throw annotation validation is deferred until after classes are registered
         // See validateThrowAnnotations() method
 
-        // Register the function signature
-        program.registerFunction(funcName, metadata);
+        // Generate mangled name for overload resolution
+        std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignature(params);
+        std::string mangledName;
+        if (typeSignature.empty()) {
+            mangledName = funcName;  // No parameters - use plain name
+        } else {
+            mangledName = funcName + "/" + typeSignature;  // With parameters - add signature
+        }
+
+        // Create FunctionDefinition for FunctionRegistry
+        // For return class name, use returnTypeStr only if return type is OBJECT
+        std::string returnClassName = (returnType == value::ValueType::OBJECT) ? returnTypeStr : "";
+        auto funcDef = std::make_shared<runtimeTypes::global::FunctionDefinition>(
+            funcName,
+            returnType,
+            returnClassName,
+            params
+        );
+        funcDef->setIsAsync(functionNode->getIsAsync());
+
+        // Store generic type parameters if the function is generic
+        if (functionNode->isGeneric())
+        {
+            funcDef->setGenericTypeParameters(functionNode->getGenericTypeParameters());
+        }
+
+        // Register in FunctionRegistry for overload tracking
+        if (funcRegistry)
+        {
+            funcRegistry->registerFunction(funcName, funcDef);
+        }
+
+        // Register the function signature with BOTH original name and mangled name
+        program.registerFunction(funcName, metadata);          // Original name for tracking
+        program.registerFunction(mangledName, metadata);       // Mangled name for VM lookup
     }
 
     void FunctionRegistrar::validateThrowAnnotations(ast::ASTNode* node)

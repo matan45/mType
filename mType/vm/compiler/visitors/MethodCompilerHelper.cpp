@@ -20,9 +20,9 @@ namespace vm::compiler::visitors
         // Default constructor has only 'this' as parameter
         std::vector<std::string> paramNames = {"this"};
 
-        // Generate constructor name for exception table tracking (empty signature for 0 params)
+        // Generate constructor name for exception table tracking (no slash for default constructor)
         std::string className = node->getClassName();
-        std::string constructorName = className + "::<init>/"; // Empty signature for default constructor
+        std::string constructorName = className + "::<init>"; // No slash for default constructor with no params
 
         // Pre-register constructor metadata so exception tables can be added during initialization
         bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
@@ -126,7 +126,7 @@ namespace vm::compiler::visitors
         if (node->isGeneric())
         {
             std::string fullClassName = node->getFullClassName();
-            std::string genericConstructorName = fullClassName + "::<init>/"; // Empty signature
+            std::string genericConstructorName = fullClassName + "::<init>"; // No slash for empty signature
             metadata.name = genericConstructorName;
             ctx.program.registerFunction(genericConstructorName, metadata);
         }
@@ -387,13 +387,33 @@ namespace vm::compiler::visitors
         // Patch skip jump to current position (after method)
         ctx.emitter.patchJump(skipJump);
 
-        // Build qualified method name for registry
-        // Instance methods: ClassName::methodName
-        // Static methods: ClassName::methodName$static
+        // Build qualified method name for registry with overload signature
+        // Instance methods: ClassName::methodName/paramType1,paramType2
+        // Static methods: ClassName::methodName/paramType1,paramType2$static
         std::string qualifiedMethodName = node->getName();
         if (ctx.currentClassNode)
         {
-            qualifiedMethodName = ctx.currentClassNode->getClassName() + "::" + node->getName();
+            // Build mangled name with parameter signature
+            std::string className = ctx.currentClassNode->getClassName();
+            std::string methodName = node->getName();
+
+            // Generate type signature from parameter types
+            // IMPORTANT: Skip "this" parameter for instance methods (it's added implicitly)
+            std::string typeSignature = "";
+            size_t startIndex = (isStatic ? 0 : 1); // Skip "this" for instance methods
+            for (size_t i = startIndex; i < params.paramTypes.size(); ++i)
+            {
+                if (i > startIndex) typeSignature += ",";
+                typeSignature += params.paramTypes[i];
+            }
+
+            // Only add slash if we have a signature
+            if (typeSignature.empty()) {
+                qualifiedMethodName = className + "::" + methodName;
+            } else {
+                qualifiedMethodName = className + "::" + methodName + "/" + typeSignature;
+            }
+
             // Add suffix to distinguish static from instance methods
             if (isStatic)
             {
@@ -434,7 +454,7 @@ namespace vm::compiler::visitors
         if (existingMetadata) {
             metadata.exceptionTable = existingMetadata->exceptionTable;
         }
-
+        
         ctx.program.registerFunction(qualifiedMethodName, metadata);
     }
 
@@ -489,10 +509,30 @@ namespace vm::compiler::visitors
         MethodParameters params = collectMethodParameters(node, isStatic);
 
         // Pre-register method metadata so exception tables can be added during body compilation
+        // Build mangled name with parameter signature for overload resolution
         std::string qualifiedMethodName = node->getName();
         if (ctx.currentClassNode)
         {
-            qualifiedMethodName = ctx.currentClassNode->getClassName() + "::" + node->getName();
+            std::string className = ctx.currentClassNode->getClassName();
+            std::string methodName = node->getName();
+
+            // Generate type signature from parameter types
+            // IMPORTANT: Skip "this" parameter for instance methods (it's added implicitly)
+            std::string typeSignature = "";
+            size_t startIndex = (isStatic ? 0 : 1); // Skip "this" for instance methods
+            for (size_t i = startIndex; i < params.paramTypes.size(); ++i)
+            {
+                if (i > startIndex) typeSignature += ",";
+                typeSignature += params.paramTypes[i];
+            }
+
+            // Only add slash if we have a signature
+            if (typeSignature.empty()) {
+                qualifiedMethodName = className + "::" + methodName;
+            } else {
+                qualifiedMethodName = className + "::" + methodName + "/" + typeSignature;
+            }
+
             if (isStatic)
             {
                 qualifiedMethodName += "$static";
@@ -511,6 +551,7 @@ namespace vm::compiler::visitors
         tempMetadata.isAsync = node->getIsAsync();
         tempMetadata.isStatic = isStatic;
         tempMetadata.isNative = false;
+
         ctx.program.registerFunction(qualifiedMethodName, tempMetadata);
 
         // Compile method body with frame management
@@ -566,7 +607,13 @@ namespace vm::compiler::visitors
             }
         }
 
-        std::string constructorName = className + "::<init>/" + typeSignature;
+        // Only add slash if we have a signature
+        std::string constructorName;
+        if (typeSignature.empty()) {
+            constructorName = className + "::<init>";
+        } else {
+            constructorName = className + "::<init>/" + typeSignature;
+        }
 
         // Pre-register constructor metadata so exception tables can be added during body compilation
         bytecode::BytecodeProgram::FunctionMetadata tempMetadata;

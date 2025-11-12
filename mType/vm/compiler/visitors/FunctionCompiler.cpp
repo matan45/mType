@@ -13,7 +13,6 @@
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
-#include  <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -239,7 +238,17 @@ namespace vm::compiler::visitors
             metadata.exceptionTable = existingMetadata->exceptionTable;
         }
 
-        ctx.program.registerFunction(funcName, metadata);
+        // Build mangled name for overload support
+        std::string typeSignature = "";
+        for (size_t i = 0; i < paramTypes.size(); ++i) {
+            if (i > 0) typeSignature += ",";
+            typeSignature += paramTypes[i];
+        }
+        std::string mangledName = typeSignature.empty() ? funcName : (funcName + "/" + typeSignature);
+
+        // Register with BOTH original name and mangled name
+        ctx.program.registerFunction(funcName, metadata);      // Original name
+        ctx.program.registerFunction(mangledName, metadata);   // Mangled name
 
         return std::monostate{};
     }

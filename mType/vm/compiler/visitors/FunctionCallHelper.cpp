@@ -12,12 +12,12 @@
 #include "../../bytecode/OpCode.hpp"
 #include "../types/GenericPatternAnalyzer.hpp"
 #include <optional>
-#include <iostream>
 
 namespace vm::compiler::visitors
 {
     FunctionCallHelper::FunctionCallHelper(CompilerContext& context)
         : ctx(context)
+        , overloadResolver(std::make_unique<overload::OverloadResolutionHelper>(context))
     {
     }
 
@@ -315,6 +315,21 @@ namespace vm::compiler::visitors
             return;
         }
 
+        // Check if function has multiple overloads - if so, skip validation here
+        // Overload resolution will handle selecting the correct overload
+        auto funcRegistry = ctx.environment->getFunctionRegistry();
+        if (funcRegistry)
+        {
+            auto overloads = funcRegistry->getAllFunctionOverloads(functionName);
+
+          
+
+            if (overloads.size() > 1)
+            {
+                return;
+            }
+        }
+
         // Check if function is registered
         const auto* funcMetadata = ctx.program.getFunction(functionName);
         if (!funcMetadata)
@@ -500,18 +515,29 @@ namespace vm::compiler::visitors
             actualFunctionName = ctx.currentClassNode->getClassName() + "::" + methodName;
         }
 
-        // Validate static method exists at compile time
-        if (ctx.compileTimeValidator)
+        // Extract className and methodName from qualified name for overload resolution
+        std::string className;
+        std::string methodName;
+        size_t colonPos = actualFunctionName.find("::");
+        if (colonPos != std::string::npos)
         {
-            // Extract className and methodName from qualified name
-            size_t colonPos = actualFunctionName.find("::");
-            if (colonPos != std::string::npos)
-            {
-                std::string className = actualFunctionName.substr(0, colonPos);
-                std::string methodName = actualFunctionName.substr(colonPos + 2);
-                ctx.compileTimeValidator->validateStaticMethodExists(className, methodName,
-                                                                     arguments.size(), node->getLocation());
-            }
+            className = actualFunctionName.substr(0, colonPos);
+            methodName = actualFunctionName.substr(colonPos + 2);
+        }
+
+        // Validate static method exists at compile time
+        if (ctx.compileTimeValidator && !className.empty())
+        {
+            ctx.compileTimeValidator->validateStaticMethodExists(className, methodName,
+                                                                 arguments.size(), node->getLocation());
+        }
+
+        // Resolve method overload to get mangled name (with signature and $static suffix)
+        std::string resolvedMethodName = actualFunctionName;
+        if (!className.empty())
+        {
+            resolvedMethodName = overloadResolver->resolveStaticMethodOverload(
+                className, methodName, arguments, node->getLocation());
         }
 
         // Compile all arguments (left to right) with auto-boxing support
@@ -523,9 +549,8 @@ namespace vm::compiler::visitors
             arg->accept(ctx.visitor);
         }
 
-        // Note: We don't append "$static" here because the CALL_STATIC opcode handler
-        // will append it when looking up the bytecode
-        size_t nameIndex = ctx.program.getConstantPool().addString(actualFunctionName);
+        // Note: resolvedMethodName already includes the $static suffix from overload resolution
+        size_t nameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
         // Static method call - use CALL_STATIC with source location
         ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                                      static_cast<uint32_t>(nameIndex),
@@ -654,18 +679,28 @@ namespace vm::compiler::visitors
         }
     }
 
-    void FunctionCallHelper::emitRegularFunctionCall(ast::FunctionCallNode* node, const std::string& functionName,
+    void FunctionCallHelper::emitRegularFunctionCall(ast::FunctionCallNode* node, const std::string& resolvedFunctionName,
                                                      const std::vector<std::unique_ptr<ast::ASTNode>>& arguments)
     {
+        // Extract plain function name from resolved name for validation
+        // resolvedFunctionName could be "process/T" or just "process"
+        std::string plainFunctionName = resolvedFunctionName;
+        size_t slashPos = resolvedFunctionName.find('/');
+        if (slashPos != std::string::npos)
+        {
+            plainFunctionName = resolvedFunctionName.substr(0, slashPos);
+        }
+
         // Validate function exists at compile time (all functions are pre-registered)
         if (ctx.compileTimeValidator)
         {
             std::string currentClassName = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
-            ctx.compileTimeValidator->validateFunctionExists(functionName, node->getLocation(), currentClassName);
+            ctx.compileTimeValidator->validateFunctionExists(plainFunctionName, node->getLocation(), currentClassName);
         }
 
         // Get function metadata for parameter type information (for auto-boxing)
-        const auto* funcMetadata = ctx.program.getFunction(functionName);
+        // Use resolved name for metadata lookup (includes signature for overloads)
+        const auto* funcMetadata = ctx.program.getFunction(resolvedFunctionName);
 
         // Compile all arguments (left to right) with auto-boxing/unboxing support
         for (size_t i = 0; i < arguments.size(); ++i)
@@ -726,7 +761,7 @@ namespace vm::compiler::visitors
             if (classDef)
             {
                 const auto& staticMethods = classDef->getStaticMethods();
-                if (staticMethods.find(functionName) != staticMethods.end())
+                if (staticMethods.find(plainFunctionName) != staticMethods.end())
                 {
                     isStaticMethodOfCurrentClass = true;
                 }
@@ -735,8 +770,8 @@ namespace vm::compiler::visitors
 
         if (isStaticMethodOfCurrentClass)
         {
-            // Emit CALL_STATIC for static method of current class
-            std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + functionName;
+            // Emit CALL_STATIC for static method of current class (use plain name, not resolved)
+            std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + plainFunctionName;
             size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                                          static_cast<uint32_t>(nameIndex),
@@ -744,8 +779,8 @@ namespace vm::compiler::visitors
         }
         else
         {
-            // Regular function call - use CALL with source location
-            size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
+            // Regular function call - use CALL with resolved (mangled) function name
+            size_t nameIndex = ctx.program.getConstantPool().addString(resolvedFunctionName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::CALL,
                                          static_cast<uint32_t>(nameIndex),
                                          static_cast<uint32_t>(arguments.size()), node);
@@ -758,13 +793,26 @@ namespace vm::compiler::visitors
         std::string functionName = node->getFunctionName();
         const auto& arguments = node->getArguments();
 
-        // Setup generic type bindings if needed
-        bool hasGenericBindings = setupGenericTypeBindings(node, functionName);
+        // For regular function calls with overloads, resolve the overload FIRST
+        // This is necessary for generic type binding setup to work correctly
+        std::string resolvedFunctionName = functionName;
+        if (functionName.find("::") == std::string::npos &&
+            !(ctx.inInstanceMethod || ctx.inStaticMethod))
+        {
+            // This is a regular function call - resolve overload to get mangled name
+            bool hasGenericTypeArgs = node->hasGenericTypeArguments();
+            size_t genericTypeArgCount = hasGenericTypeArgs ? node->getGenericTypeArguments().size() : 0;
+            resolvedFunctionName = overloadResolver->resolveFunctionOverload(
+                functionName, arguments, node->getLocation(), hasGenericTypeArgs, genericTypeArgCount);
+        }
+
+        // Setup generic type bindings if needed (use resolved name for correct metadata lookup)
+        bool hasGenericBindings = setupGenericTypeBindings(node, resolvedFunctionName);
 
         // PHASE 3: Cache resolved return type for generic functions while bindings are active
         if (hasGenericBindings)
         {
-            const auto* funcMetadata = ctx.program.getFunction(functionName);
+            const auto* funcMetadata = ctx.program.getFunction(resolvedFunctionName);
             if (funcMetadata && !funcMetadata->genericTypeParameters.empty())
             {
                 std::string returnType = funcMetadata->returnType;
@@ -796,8 +844,8 @@ namespace vm::compiler::visitors
         }
         else
         {
-            // Regular function call
-            emitRegularFunctionCall(node, functionName, arguments);
+            // Regular function call (use pre-resolved name to avoid double resolution)
+            emitRegularFunctionCall(node, resolvedFunctionName, arguments);
         }
 
         // Pop generic type bindings if we pushed them

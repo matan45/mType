@@ -2,6 +2,7 @@
 #include "CompilerContext.hpp"
 #include "MethodCompilerHelper.hpp"
 #include "ParameterValidator.hpp"
+#include "../overload/OverloadResolutionHelper.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../ast/nodes/classes/ConstructorNode.hpp"
@@ -49,6 +50,7 @@ namespace vm::compiler::visitors
         CompilerContext& ctx;
         std::unique_ptr<MethodCompilerHelper> methodHelper;
         std::unique_ptr<ParameterValidator> paramValidator;
+        std::unique_ptr<overload::OverloadResolutionHelper> overloadResolver;
 
         // Helper methods for compileNew
         std::vector<std::string> parseAndValidateGenericTypeArguments(const std::string& fullClassName,

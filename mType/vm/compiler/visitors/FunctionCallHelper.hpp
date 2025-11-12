@@ -1,5 +1,6 @@
 #pragma once
 #include "CompilerContext.hpp"
+#include "../overload/OverloadResolutionHelper.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../value/ValueType.hpp"
 #include <vector>
@@ -24,6 +25,7 @@ namespace vm::compiler::visitors
 
     private:
         CompilerContext& ctx;
+        std::unique_ptr<overload::OverloadResolutionHelper> overloadResolver;
 
         // Helper methods
         bool setupGenericTypeBindings(ast::FunctionCallNode* node, const std::string& functionName);

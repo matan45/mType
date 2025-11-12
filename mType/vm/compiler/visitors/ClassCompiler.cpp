@@ -24,6 +24,7 @@ namespace vm::compiler::visitors
         : ctx(context)
         , methodHelper(std::make_unique<MethodCompilerHelper>(context))
         , paramValidator(std::make_unique<ParameterValidator>(context))
+        , overloadResolver(std::make_unique<overload::OverloadResolutionHelper>(context))
     {
     }
 
@@ -480,6 +481,10 @@ namespace vm::compiler::visitors
             }
             std::string qualifiedName = className + "::" + methodName;
 
+            // Resolve method overload to get mangled name
+            std::string resolvedMethodName = overloadResolver->resolveStaticMethodOverload(
+                className, methodName, arguments, node->getLocation());
+
             // PHASE 4: Validate generic type arguments
             if (node->hasGenericTypeArguments())
             {
@@ -594,8 +599,8 @@ namespace vm::compiler::visitors
                 }
             }
 
-            // Emit CALL_STATIC instruction with fully qualified name
-            size_t methodNameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+            // Emit CALL_STATIC instruction with resolved (mangled) method name
+            size_t methodNameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                              static_cast<uint32_t>(methodNameIndex),
                              static_cast<uint32_t>(arguments.size()), node);
@@ -606,6 +611,15 @@ namespace vm::compiler::visitors
 
             // Infer the class of the object for type checking
             std::string objectClassName = ctx.typeInference.inferExpressionClassName(node->getObject());
+
+            // Resolve method overload to get mangled name (if class known)
+            std::string resolvedMethodName = methodName;
+            if (!objectClassName.empty())
+            {
+                resolvedMethodName = overloadResolver->resolveInstanceMethodOverload(
+                    objectClassName, methodName, arguments, node->getLocation(),
+                    node->hasGenericTypeArguments(), node->getGenericTypeArguments().size());
+            }
 
             // Extract generic type bindings from objectClassName if it's a generic instantiation
             // E.g., "Box<String>" -> push {T: String} onto the binding stack
@@ -812,8 +826,8 @@ namespace vm::compiler::visitors
             // Validate parameter count and types for instance methods
             if (!objectClassName.empty())
             {
-                std::string qualifiedName = objectClassName + "::" + methodName;
-                paramValidator->validateMethodParameters(methodName, qualifiedName, arguments, node->getLocation());
+                // Use the resolved method name (with signature) for validation after overload resolution
+                paramValidator->validateMethodParameters(methodName, resolvedMethodName, arguments, node->getLocation());
             }
 
             // First, compile the object expression
@@ -961,8 +975,8 @@ namespace vm::compiler::visitors
                 // Emit optimized opcode (no method name needed - opcode encodes the operation)
                 ctx.emitter.emitWithLocation(opcodeToEmit, node);
             } else {
-                // Emit standard CALL_METHOD instruction with method name
-                size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
+                // Emit standard CALL_METHOD instruction with resolved (mangled) method name
+                size_t methodNameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
                                  static_cast<uint32_t>(methodNameIndex),
                                  static_cast<uint32_t>(arguments.size()), node);

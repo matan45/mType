@@ -258,11 +258,21 @@ namespace vm::compiler::registration
                     );
                 }
 
-                // Validate parameter count matches
-                if (method->getParameters().size() != signature.parameters.size()) {
+                // Validate parameter count matches (skip 'this' for instance methods)
+                const auto& methodParams = method->getParameters();
+                size_t userParamCount = methodParams.size();
+                size_t paramOffset = 0;
+
+                // For instance methods, skip the first parameter ('this')
+                if (!method->isStatic() && !methodParams.empty()) {
+                    userParamCount--;
+                    paramOffset = 1;
+                }
+
+                if (userParamCount != signature.parameters.size()) {
                     throw errors::TypeException(
                         "Method '" + signature.name + "' in class '" + classDef->getName() +
-                        "' has " + std::to_string(method->getParameters().size()) + " parameters" +
+                        "' has " + std::to_string(userParamCount) + " parameters" +
                         " but interface '" + interfaceName + "' requires " +
                         std::to_string(signature.parameters.size()) + " parameters",
                         methodLocation
@@ -270,7 +280,6 @@ namespace vm::compiler::registration
                 }
 
                 // Validate parameter types with generic resolution
-                const auto& methodParams = method->getParameters();
                 const auto& methodGenericParams = method->getGenericParameters();
                 for (size_t i = 0; i < signature.parameters.size(); ++i) {
                     std::string methodParamType;
@@ -280,7 +289,8 @@ namespace vm::compiler::registration
                         // Use toString() to include generic type arguments (e.g., "BinaryNode<T>" not just "BinaryNode")
                         methodParamType = methodGenericParams[i].second->toString();
                     } else {
-                        methodParamType = ::types::TypeConversionUtils::getTypeDisplayName(methodParams[i].second);
+                        // Access method parameter at offset position (skip 'this' for instance methods)
+                        methodParamType = ::types::TypeConversionUtils::getTypeDisplayName(methodParams[i + paramOffset].second);
                     }
 
                     // Use toString() to get full type name including generic arguments

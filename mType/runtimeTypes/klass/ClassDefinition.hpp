@@ -24,11 +24,13 @@ namespace runtimeTypes::klass
     private:
         // Instance members
         std::unordered_map<std::string, std::shared_ptr<FieldDefinition>> instanceFields;
-        std::unordered_map<std::string, std::shared_ptr<MethodDefinition>> instanceMethods;
+        // NEW: Support multiple overloads per method name
+        std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>> instanceMethods;
 
         // Static members
         std::unordered_map<std::string, std::shared_ptr<FieldDefinition>> staticFields;
-        std::unordered_map<std::string, std::shared_ptr<MethodDefinition>> staticMethods;
+        // NEW: Support multiple overloads per method name
+        std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>> staticMethods;
 
         // Constructors and destructor
         std::vector<std::shared_ptr<ConstructorDefinition>> constructors;
@@ -77,9 +79,11 @@ namespace runtimeTypes::klass
         // Getter methods for AST node integration
         const std::string& getClassName() const;
         const std::unordered_map<std::string, std::shared_ptr<FieldDefinition>>& getInstanceFields() const;
-        const std::unordered_map<std::string, std::shared_ptr<MethodDefinition>>& getInstanceMethods() const;
+        // NEW: Returns map of method name -> vector of overloads
+        const std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>>& getInstanceMethods() const;
         const std::unordered_map<std::string, std::shared_ptr<FieldDefinition>>& getStaticFields() const;
-        const std::unordered_map<std::string, std::shared_ptr<MethodDefinition>>& getStaticMethods() const;
+        // NEW: Returns map of method name -> vector of overloads
+        const std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>>& getStaticMethods() const;
         const std::vector<std::shared_ptr<ConstructorDefinition>>& getConstructors() const;
 
         // Setter/adder methods for AST node integration
@@ -109,6 +113,27 @@ namespace runtimeTypes::klass
         std::shared_ptr<MethodDefinition> getInstanceMethod(const std::string& methodName) const;
         std::shared_ptr<MethodDefinition> findStaticMethod(const std::string& methodName, size_t argCount) const;
         std::shared_ptr<MethodDefinition> findInstanceMethod(const std::string& methodName, size_t argCount) const;
+
+        // NEW: Overload-specific methods
+        // Get all overloads for a method name
+        std::vector<std::shared_ptr<MethodDefinition>> getAllInstanceMethodOverloads(const std::string& methodName) const;
+        std::vector<std::shared_ptr<MethodDefinition>> getAllStaticMethodOverloads(const std::string& methodName) const;
+
+        // Find method by signature (with type parameters)
+        std::shared_ptr<MethodDefinition> findInstanceMethodBySignature(
+            const std::string& methodName,
+            const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const;
+        std::shared_ptr<MethodDefinition> findStaticMethodBySignature(
+            const std::string& methodName,
+            const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const;
+
+        // Find method by type signature string
+        std::shared_ptr<MethodDefinition> findInstanceMethodByTypeSignature(
+            const std::string& methodName,
+            const std::string& typeSignature) const;
+        std::shared_ptr<MethodDefinition> findStaticMethodByTypeSignature(
+            const std::string& methodName,
+            const std::string& typeSignature) const;
 
         // NEW: Generic-related methods
         bool isGeneric() const { return isGenericClass; }

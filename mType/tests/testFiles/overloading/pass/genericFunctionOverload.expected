@@ -1,0 +1,4 @@
+Specific int: 42
+Generic T: Hello
+Generic T, K: 10, World
+Generic T, K: true, 3.14

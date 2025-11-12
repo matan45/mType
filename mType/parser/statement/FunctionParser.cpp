@@ -110,24 +110,8 @@ namespace parser::statement
         validateFunctionName(funcName);
         tokenStream.advance();
 
-        // NEW: Check for duplicate global function name (only for global functions, not class methods)
-        if (!context.isInsideClassBody())
-        {
-            if (context.isFunctionDeclared(funcName))
-            {
-                // Get the location of the first declaration for better error message
-                SourceLocation firstLocation = context.getFunctionDeclarationLocation(funcName);
-                throw DuplicateDeclarationException(
-                    "function",
-                    funcName,
-                    firstLocation,
-                    funcLocation
-                );
-            }
-
-            // Register the function name with location
-            context.registerFunctionName(funcName, funcLocation);
-        }
+        // NOTE: Duplicate signature checking is done by FunctionRegistrar during registration phase
+        // This allows function overloading (same name, different parameter types)
 
         // Use generic-aware parameter parsing to preserve class/interface names
         auto genericParameters = ParserUtils::parseGenericParameterList(tokenStream, true);
@@ -188,21 +172,8 @@ namespace parser::statement
         validateFunctionName(funcName);
         tokenStream.advance();
 
-        // NEW: Check for duplicate global function name
-        if (context.isFunctionDeclared(funcName))
-        {
-            // Get the location of the first declaration for better error message
-            SourceLocation firstLocation = context.getFunctionDeclarationLocation(funcName);
-            throw DuplicateDeclarationException(
-                "function",
-                funcName,
-                firstLocation,
-                funcLocation
-            );
-        }
-
-        // Register the function name with location
-        context.registerFunctionName(funcName, funcLocation);
+        // NOTE: Duplicate signature checking is done by FunctionRegistrar during registration phase
+        // This allows function overloading (same name, different parameter types)
 
         auto parameters = parseParameterList();
 

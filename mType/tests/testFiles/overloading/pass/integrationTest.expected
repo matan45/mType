@@ -1,0 +1,7 @@
+Box with value
+Value: 42
+Start 42 End
+Processing Int box: 100
+Processing String box: World
+Processing generic box: true
+All overload tests passed!

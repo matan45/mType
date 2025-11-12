@@ -2,7 +2,8 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-
+#include "../../../types/TypeConversionUtils.hpp"
+#include <iostream>
 namespace vm::compiler::validation
 {
     CompileTimeValidator::CompileTimeValidator(
@@ -18,37 +19,53 @@ namespace vm::compiler::validation
                                                      const ast::SourceLocation& location,
                                                      const std::string& currentClassName)
     {
-        // Check if function is registered in the program (includes pre-registered functions)
-        if (!program.getFunction(functionName))
-        {
-            // Check if it's a native function
-            auto nativeRegistry = environment->getNativeRegistry();
-            if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName))
-            {
-                return; // Found as native function
-            }
+        // For overload-aware validation, check if ANY function with this name exists
+        // The exact overload will be resolved during compilation
 
-            // If we're in a class context, check if it's a static method of the current class
-            if (!currentClassName.empty())
+        // Check if any function with this name is registered (check FunctionRegistry for overloads)
+        auto funcRegistry = environment->getFunctionRegistry();
+        if (funcRegistry)
+        {
+            auto overloads = funcRegistry->getAllFunctionOverloads(functionName);
+            if (!overloads.empty())
             {
-                auto classRegistry = environment->getClassRegistry();
-                auto classDef = classRegistry->findClass(currentClassName);
-                if (classDef)
+                return; // Found at least one overload
+            }
+        }
+
+        // Check if function is registered in the program (includes pre-registered functions)
+        if (program.getFunction(functionName))
+        {
+            return; // Found
+        }
+
+        // Check if it's a native function
+        auto nativeRegistry = environment->getNativeRegistry();
+        if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName))
+        {
+            return; // Found as native function
+        }
+
+        // If we're in a class context, check if it's a static method of the current class
+        if (!currentClassName.empty())
+        {
+            auto classRegistry = environment->getClassRegistry();
+            auto classDef = classRegistry->findClass(currentClassName);
+            if (classDef)
+            {
+                // Check if ANY static method with this name exists (overload-aware)
+                const auto& staticMethods = classDef->getStaticMethods();
+                if (staticMethods.find(functionName) != staticMethods.end())
                 {
-                    // Check if the function name matches a static method
-                    const auto& staticMethods = classDef->getStaticMethods();
-                    if (staticMethods.find(functionName) != staticMethods.end())
-                    {
-                        return; // Found as static method of current class
-                    }
+                    return; // Found as static method of current class
                 }
             }
-
-            throw errors::TypeException(
-                "Function '" + functionName + "' not found. Did you forget to declare it?",
-                location
-            );
         }
+
+        throw errors::TypeException(
+            "Function '" + functionName + "' not found. Did you forget to declare it?",
+            location
+        );
     }
 
     void CompileTimeValidator::validateStaticMethodExists(const std::string& className,
@@ -77,16 +94,38 @@ namespace vm::compiler::validation
             );
         }
 
-        // Check if static method exists with the correct argument count (including inherited)
-        auto staticMethod = classDef->findStaticMethodInHierarchy(methodName, argCount);
-        if (!staticMethod)
+        // For overload-aware validation, check if ANY static method with this name exists
+        // The exact overload will be resolved during compilation based on argument types
+        auto overloads = classDef->getAllStaticMethodOverloads(methodName);
+        if (!overloads.empty())
         {
-            throw errors::TypeException(
-                "Static method '" + methodName + "' with " + std::to_string(argCount) +
-                " argument(s) not found in class '" + className + "' or its parent classes",
-                location
-            );
+            return; // Found at least one overload
         }
+
+        // Check parent classes for inherited static methods
+        auto currentClass = classDef;
+        while (currentClass && currentClass->hasParentClass())
+        {
+            auto parentClass = classRegistry->findClass(currentClass->getParentClassName());
+            if (parentClass)
+            {
+                auto parentOverloads = parentClass->getAllStaticMethodOverloads(methodName);
+                if (!parentOverloads.empty())
+                {
+                    return; // Found in parent class
+                }
+                currentClass = parentClass;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        throw errors::TypeException(
+            "Static method '" + methodName + "' not found in class '" + className + "' or its parent classes",
+            location
+        );
     }
 
     void CompileTimeValidator::validateInstanceMethodExists(const std::string& className,
@@ -109,17 +148,38 @@ namespace vm::compiler::validation
         auto classDef = classRegistry->findClass(className);
         if (classDef)
         {
-            // Check if instance method exists (including inherited methods)
-            auto method = classDef->findMethodInHierarchy(methodName, argCount);
-            if (!method)
+            // For overload-aware validation, check if ANY instance method with this name exists
+            // The exact overload will be resolved during compilation based on argument types
+            auto overloads = classDef->getAllInstanceMethodOverloads(methodName);
+            if (!overloads.empty())
             {
-                throw errors::TypeException(
-                    "Instance method '" + methodName + "' with " + std::to_string(argCount) +
-                    " parameters not found in class '" + className + "' or its parent classes",
-                    location
-                );
+                return; // Found at least one overload
             }
-            return;
+
+            // Check parent classes for inherited methods
+            auto currentClass = classDef;
+            while (currentClass && currentClass->hasParentClass())
+            {
+                auto parentClass = classRegistry->findClass(currentClass->getParentClassName());
+                if (parentClass)
+                {
+                    auto parentOverloads = parentClass->getAllInstanceMethodOverloads(methodName);
+                    if (!parentOverloads.empty())
+                    {
+                        return; // Found in parent class
+                    }
+                    currentClass = parentClass;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            throw errors::TypeException(
+                "Instance method '" + methodName + "' not found in class '" + className + "' or its parent classes",
+                location
+            );
         }
 
         // Check if it's an interface
@@ -326,33 +386,106 @@ namespace vm::compiler::validation
             return; // Class doesn't exist - will be caught elsewhere
         }
 
-        // Validate all instance methods have bytecode
+        // Validate all instance methods have bytecode (check all overloads)
         const auto& methods = classDef->getInstanceMethods();
-        for (const auto& pair : methods)
+        for (const auto& [methodName, overloads] : methods)
         {
-            std::string qualifiedName = className + "::" + pair.first;
-            if (!program.getFunction(qualifiedName))
+            // Iterate through all overloads for this method name
+            for (const auto& methodDef : overloads)
             {
-                throw errors::TypeException(
-                    "Instance method '" + className + "::" + pair.first +
-                    "' declared but not implemented. All instance methods must have bytecode implementation.",
-                    location
-                );
+                // Build mangled name with parameter signature
+                // For instance methods, skip the first parameter ('this') as it's not included in the mangled name
+                std::string typeSignature = "";
+                const auto& params = methodDef->getParameters();
+                size_t startIdx = (!params.empty() && !methodDef->isStatic()) ? 1 : 0; // Skip 'this' for instance methods
+
+                for (size_t i = startIdx; i < params.size(); ++i)
+                {
+                    if (i > startIdx) typeSignature += ",";
+                    // Get type name from ParameterType
+                    const auto& paramType = params[i].second;
+
+                    if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
+                    {
+                        typeSignature += paramType.className.value();
+                    }
+                    else if (paramType.basicType == value::ValueType::OBJECT && paramType.interfaceName.has_value())
+                    {
+                        typeSignature += paramType.interfaceName.value();
+                    }
+                    else
+                    {
+                        typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
+                    }
+                }
+
+                // Build qualified name - only add slash if signature is not empty
+                std::string qualifiedName;
+                if (typeSignature.empty()) {
+                    qualifiedName = className + "::" + methodName;
+                } else {
+                    qualifiedName = className + "::" + methodName + "/" + typeSignature;
+                }
+
+                if (!program.getFunction(qualifiedName))
+                {
+                    throw errors::TypeException(
+                        "Instance method '" + qualifiedName +
+                        "' declared but not implemented. All instance methods must have bytecode implementation.",
+                        location
+                    );
+                }
             }
         }
 
-        // Validate all static methods have bytecode
+        // Validate all static methods have bytecode (check all overloads)
         const auto& staticMethods = classDef->getStaticMethods();
-        for (const auto& pair : staticMethods)
+        for (const auto& [methodName, overloads] : staticMethods)
         {
-            std::string qualifiedName = className + "::" + pair.first + "$static";
-            if (!program.getFunction(qualifiedName))
+            // Iterate through all overloads for this method name
+            for (const auto& methodDef : overloads)
             {
-                throw errors::TypeException(
-                    "Static method '" + className + "::" + pair.first + "$static" +
-                    "' declared but not implemented. All static methods must have bytecode implementation.",
-                    location
-                );
+                // Build mangled name with parameter signature
+                std::string typeSignature = "";
+                const auto& params = methodDef->getParameters();
+                if (!params.empty())
+                {
+                    for (size_t i = 0; i < params.size(); ++i)
+                    {
+                        if (i > 0) typeSignature += ",";
+                        // Get type name from ParameterType
+                        const auto& paramType = params[i].second;
+                        if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value())
+                        {
+                            typeSignature += paramType.className.value();
+                        }
+                        else if (paramType.basicType == value::ValueType::OBJECT && paramType.interfaceName.has_value())
+                        {
+                            typeSignature += paramType.interfaceName.value();
+                        }
+                        else
+                        {
+                            typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
+                        }
+                    }
+                }
+
+                // Build qualified name - only add slash if signature is not empty
+                std::string qualifiedName;
+                if (typeSignature.empty()) {
+                    qualifiedName = className + "::" + methodName + "$static";
+                } else {
+                    qualifiedName = className + "::" + methodName + "/" + typeSignature + "$static";
+                }
+
+                if (!program.getFunction(qualifiedName))
+                {
+                    throw errors::TypeException(
+                        "Static method '" + qualifiedName +
+                        "' declared but not implemented. All static methods must have bytecode implementation.",
+                        location
+                    );
+                }
             }
         }
 
@@ -361,7 +494,15 @@ namespace vm::compiler::validation
         for (const auto& constructor : constructors)
         {
             std::string typeSignature = constructor->getTypeSignature();
-            std::string constructorName = className + "::<init>/" + typeSignature;
+
+            // Build constructor name - only add slash if signature is not empty
+            std::string constructorName;
+            if (typeSignature.empty()) {
+                constructorName = className + "::<init>";
+            } else {
+                constructorName = className + "::<init>/" + typeSignature;
+            }
+
             if (!program.getFunction(constructorName))
             {
                 throw errors::TypeException(

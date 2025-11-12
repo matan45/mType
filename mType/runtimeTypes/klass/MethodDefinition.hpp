@@ -140,6 +140,9 @@ namespace runtimeTypes::klass
         const std::vector<std::pair<std::string, ParameterType>>& getParameters() const { return parameters; }
         void setParameters(const std::vector<std::pair<std::string, ParameterType>>& params) { parameters = params; }
 
+        // NEW: Alias for clarity in overload resolution code
+        const std::vector<std::pair<std::string, ParameterType>>& getParametersWithTypes() const { return parameters; }
+
         // Backward compatibility methods for ValueType
         std::vector<std::pair<std::string, ValueType>> getParametersAsValueType() const
         {
