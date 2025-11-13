@@ -734,13 +734,169 @@ namespace vm::compiler::registration
         for (const auto& [methodName, childMethodOverloads] : childMethods) {
             // Check each overload
             for (const auto& childMethod : childMethodOverloads) {
-                // Search for method in parent hierarchy WITH EXACT SIGNATURE MATCH (including parameter types)
-                // This allows derived classes to add new overloads with different signatures
-                // while still validating true overrides (same signature)
+                const auto& childParams = childMethod->getParameters();
+
+                // IMPORTANT: Exclude 'this' parameter when comparing signatures for override validation
+                // Instance methods have an implicit 'this' parameter with type equal to the class name
+                // Parent and child have different 'this' types (Base vs Derived), so we must exclude it
+                std::vector<std::pair<std::string, value::ParameterType>> paramsWithoutThis;
+                for (const auto& param : childParams) {
+                    if (param.first != "this") {
+                        paramsWithoutThis.push_back(param);
+                    }
+                }
+
+                // Search for method in parent hierarchy WITH EXACT SIGNATURE MATCH (excluding 'this' parameter)
                 auto parentMethod = parentClass->findInstanceMethodBySignatureInHierarchy(
                     methodName,
-                    childMethod->getParameters()
+                    paramsWithoutThis
                 );
+
+                // Check if parent has ANY method with this name (for invariance validation)
+                bool parentHasMethodName = false;
+                auto parentMethodsIt = parentClass->getInstanceMethods().find(methodName);
+                if (parentMethodsIt != parentClass->getInstanceMethods().end() && !parentMethodsIt->second.empty()) {
+                    parentHasMethodName = true;
+                }
+
+                // PARAMETER TYPE INVARIANCE RULE:
+                // If a parent method exists with the same name and same arity as this child method,
+                // but with different parameter types, we need to check if the parent method is being
+                // overridden by ANY child method.
+                //
+                // Cases:
+                //   1. Parent: process(string), Child: process(int) with NO process(string) override
+                //      → ERROR: invariance violation (looks like failed override)
+                //   2. Parent: compute(int), Child: compute(int) AND compute(string)
+                //      → OK: compute(int) overrides parent, compute(string) is new overload
+                //
+                if (parentHasMethodName && !parentMethod) {
+                    // Get parent methods with this name
+                    auto& parentMethodOverloads = parentMethodsIt->second;
+
+                    // Count child parameters (excluding 'this')
+                    size_t childArity = paramsWithoutThis.size();
+
+                    // For each parent method with same arity, check if it's being overridden by ANY child method
+                    for (const auto& pMethod : parentMethodOverloads) {
+                        const auto& pParams = pMethod->getParametersWithTypes();
+
+                        // Build parent signature (excluding 'this')
+                        std::vector<std::pair<std::string, value::ParameterType>> parentParamsWithoutThis;
+                        for (const auto& [pName, pType] : pParams) {
+                            if (pName != "this") {
+                                parentParamsWithoutThis.push_back({pName, pType});
+                            }
+                        }
+
+                        size_t parentArity = parentParamsWithoutThis.size();
+
+                        // Only check invariance if arity matches this child method
+                        if (parentArity == childArity) {
+                            // Check if types match (accounting for generic type substitution)
+                            bool typesMatch = true;
+                            bool isGenericSubstitution = false;
+
+                            // Get the type substitution map (e.g., T → String)
+                            const auto& typeSubstitutionMap = childClass->getParentTypeSubstitutionMap();
+
+                            for (size_t i = 0; i < parentArity; ++i) {
+                                std::string pTypeStr = parentParamsWithoutThis[i].second.className.has_value()
+                                    ? parentParamsWithoutThis[i].second.className.value()
+                                    : runtimeTypes::klass::SignatureUtils::getTypeName(parentParamsWithoutThis[i].second);
+
+                                std::string cTypeStr = paramsWithoutThis[i].second.className.has_value()
+                                    ? paramsWithoutThis[i].second.className.value()
+                                    : runtimeTypes::klass::SignatureUtils::getTypeName(paramsWithoutThis[i].second);
+
+                                if (pTypeStr != cTypeStr) {
+                                    typesMatch = false;
+
+                                    // Check if this is a generic type substitution
+                                    // e.g., parent has "T", substitution map has T→String, child has "String"
+                                    auto substitutionIt = typeSubstitutionMap.find(pTypeStr);
+                                    if (substitutionIt != typeSubstitutionMap.end()) {
+                                        if (substitutionIt->second == cTypeStr) {
+                                            // This is a valid generic substitution
+                                            isGenericSubstitution = true;
+                                        }
+                                    }
+
+                                    // Also check if parent type contains generic parameters (e.g., "Container<T>")
+                                    if (pTypeStr.find('<') != std::string::npos) {
+                                        isGenericSubstitution = true;
+                                    }
+                                }
+                            }
+
+                            // If types don't match and it's not a generic substitution, check if ANY child method overrides this parent method
+                            if (!typesMatch && !isGenericSubstitution) {
+                                // Check if this parent method is overridden by ANY child method
+                                bool isOverriddenByAnyChild = false;
+
+                                // Get all child methods with this name
+                                auto childMethodsIt = childClass->getInstanceMethods().find(methodName);
+                                if (childMethodsIt != childClass->getInstanceMethods().end()) {
+                                    for (const auto& childMethodOverload : childMethodsIt->second) {
+                                        const auto& childOverloadParams = childMethodOverload->getParametersWithTypes();
+
+                                        // Build signature without 'this'
+                                        std::vector<std::pair<std::string, value::ParameterType>> childOverloadParamsWithoutThis;
+                                        for (const auto& [cName, cType] : childOverloadParams) {
+                                            if (cName != "this") {
+                                                childOverloadParamsWithoutThis.push_back({cName, cType});
+                                            }
+                                        }
+
+                                        // Check if this child overload matches the parent method
+                                        if (childOverloadParamsWithoutThis.size() == parentParamsWithoutThis.size()) {
+                                            bool allMatch = true;
+                                            for (size_t i = 0; i < parentParamsWithoutThis.size(); ++i) {
+                                                if (!(childOverloadParamsWithoutThis[i].second == parentParamsWithoutThis[i].second)) {
+                                                    allMatch = false;
+                                                    break;
+                                                }
+                                            }
+
+                                            if (allMatch) {
+                                                isOverriddenByAnyChild = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // If parent method is not overridden by any child method, it's an invariance violation
+                                if (!isOverriddenByAnyChild) {
+                                    // Find the specific method node to get its location
+                                    ast::SourceLocation methodLocation = classLocation;
+                                    if (classNode) {
+                                        const auto& methods = classNode->getMethods();
+                                        for (const auto& methodNodePtr : methods) {
+                                            if (auto methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(methodNodePtr.get())) {
+                                                if (methodNode->getName() == methodName) {
+                                                    methodLocation = methodNode->getLocation();
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    throw errors::InheritanceException(
+                                        "Method parameter type invariance violation in class '" + childClass->getName() +
+                                        "': method '" + methodName + "' has the same number of parameters as a parent method in '" +
+                                        parentClass->getName() + "' but with different parameter types, and the parent method is not being overridden. " +
+                                        "This appears to be a failed override attempt. Method parameters are invariant and must match exactly when overriding.",
+                                        childClass->getName(),
+                                        parentClass->getName(),
+                                        methodName,
+                                        methodLocation
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
 
                 if (parentMethod) {
                 // Method exists in parent hierarchy - validate override
@@ -765,7 +921,7 @@ namespace vm::compiler::registration
                     std::string definingClassName = parentClass->getName();
                     auto currentClass = parentClass;
                     while (currentClass) {
-                        auto localMethod = currentClass->findInstanceMethodBySignature(methodName, childMethod->getParameters());
+                        auto localMethod = currentClass->findInstanceMethodBySignature(methodName, paramsWithoutThis);
                         if (localMethod) {
                             definingClassName = currentClass->getName();
                             break;

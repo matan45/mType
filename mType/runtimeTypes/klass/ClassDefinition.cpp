@@ -829,14 +829,24 @@ namespace runtimeTypes::klass
             if (!method) continue;
 
             const auto& methodParams = method->getParametersWithTypes();
-            if (methodParams.size() != parameters.size()) {
+
+            // IMPORTANT: Exclude 'this' parameter when comparing signatures
+            // Instance methods have an implicit 'this' parameter that should not affect signature matching
+            std::vector<std::pair<std::string, value::ParameterType>> methodParamsWithoutThis;
+            for (const auto& param : methodParams) {
+                if (param.first != "this") {
+                    methodParamsWithoutThis.push_back(param);
+                }
+            }
+
+            if (methodParamsWithoutThis.size() != parameters.size()) {
                 continue;
             }
 
             // Check if all parameter types match
             bool allMatch = true;
             for (size_t i = 0; i < parameters.size(); ++i) {
-                if (!(methodParams[i].second == parameters[i].second)) {
+                if (!(methodParamsWithoutThis[i].second == parameters[i].second)) {
                     allMatch = false;
                     break;
                 }
