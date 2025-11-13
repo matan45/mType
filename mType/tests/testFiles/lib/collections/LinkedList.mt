@@ -5,25 +5,7 @@ import * from "../../lib/Iterator.mt";
 import * from "../../lib/iterators/LinkedListIterator.mt";
 import * from "../../lib/stream/Stream.mt";
 import * from "../../lib/stream/StreamImpl.mt";
-
- // Private inner class for nodes
-    class Node<T> {
-        public T data;
-        public Node<T> next;
-        public Node<T> prev;
-
-        constructor(T data) {
-            this.data = data;
-            this.next = null;
-            this.prev = null;
-        }
-
-        constructor(T data, Node<T> prev, Node<T> next) {
-            this.data = data;
-            this.prev = prev;
-            this.next = next;
-        }
-    }
+import * from "../../lib/internal/Node.mt";
 class LinkedList<T> implements List<T>, Deque<T> {
 
     Node<T> head;

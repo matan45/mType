@@ -2,26 +2,7 @@
 // Efficiently iterates through linked nodes without array conversion
 
 import * from "../Iterator.mt";
-
-// Forward declaration of Node class matching LinkedList.mt
-// Actual Node class is defined in LinkedList.mt
-class Node<T> {
-    public T data;
-    public Node<T> next;
-    public Node<T> prev;
-
-    constructor(T data) {
-        this.data = data;
-        this.next = null;
-        this.prev = null;
-    }
-
-    constructor(T data, Node<T> prev, Node<T> next) {
-        this.data = data;
-        this.prev = prev;
-        this.next = next;
-    }
-}
+import * from "../internal/Node.mt";
 
 class LinkedListIterator<T> implements Iterator<T> {
     private Node<T> currentNode;

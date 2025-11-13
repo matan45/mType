@@ -7,7 +7,6 @@
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 
-
 namespace services
 {
     namespace fs = std::filesystem;
@@ -244,7 +243,8 @@ namespace services
             currentFilePath = resolvedPath;
 
             // Parse and cache the imported file
-            ASTNode* importedAST = parseAndCacheAST(filePath);
+            // IMPORTANT: Pass resolvedPath, not filePath, to avoid double resolution
+            ASTNode* importedAST = parseAndCacheAST(resolvedPath);
             importNode->setImportedAST(importedAST);
 
             // Recursively resolve imports in the imported file
@@ -303,21 +303,25 @@ namespace services
     std::filesystem::path ImportManager::normalizeFilePath(const std::filesystem::path& filePath,
                                                           bool allowFallback)
     {
+        // First, lexically normalize the path to resolve . and .. components
+        // This doesn't require the file to exist
+        fs::path normalized = filePath.lexically_normal();
+
         if (allowFallback)
         {
             try
             {
-                return fs::canonical(filePath);
+                return fs::canonical(normalized);
             }
             catch (const std::filesystem::filesystem_error&)
             {
                 // If canonical fails, at least get the absolute path
-                return fs::absolute(filePath);
+                return fs::absolute(normalized);
             }
         }
         else
         {
-            return fs::canonical(filePath);
+            return fs::canonical(normalized);
         }
     }
 }
