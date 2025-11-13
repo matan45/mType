@@ -1,15 +1,16 @@
 // Test enhanced for-loop with empty collection
 import * from "../../lib/collections/ArrayList.mt";
+import * from "../../lib/primitives/Int.mt";
 
 @Script
 function main(): void {
     // Create an empty list
-    ArrayList<int> list = new ArrayList<int>();
+    ArrayList<Int> list = new ArrayList<Int>();
 
     // Test enhanced for-loop (should not execute body)
     print("Testing enhanced for-loop with empty collection:");
     int count = 0;
-    for (int num : list) {
+    for (Int numObj : list) {
         count = count + 1;
     }
 

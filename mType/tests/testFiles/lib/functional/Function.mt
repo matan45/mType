@@ -26,11 +26,7 @@ interface Function<T, R> {
      * @return a composed function that first applies this function and then
      *         applies the after function
      */
-    function andThen<V>(Function<R, V> after): Function<T, V> {
-        // Default implementation would create a lambda that chains the calls
-        // For now, this is a placeholder that would need lambda support
-        return null;
-    }
+    function <V> andThen(Function<R, V> after): Function<T, V>;
 
     /**
      * Returns a composed function that first applies the before function to
@@ -40,9 +36,5 @@ interface Function<T, R> {
      * @return a composed function that first applies the before function and
      *         then applies this function
      */
-    function compose<V>(Function<V, T> before): Function<V, R> {
-        // Default implementation would create a lambda that chains the calls
-        // For now, this is a placeholder that would need lambda support
-        return null;
-    }
+    function <V> compose(Function<V, T> before): Function<V, R>;
 }

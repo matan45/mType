@@ -24,10 +24,5 @@ interface Consumer<T> {
      * @return a composed Consumer that performs in sequence this
      *         operation followed by the after operation
      */
-    function andThen(Consumer<T> after): Consumer<T> {
-        // Default implementation would create a lambda that calls both:
-        // (T t) => { this.accept(t); after.accept(t); }
-        // For now, this is a placeholder
-        return null;
-    }
+    function andThen(Consumer<T> after): Consumer<T>;
 }

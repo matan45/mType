@@ -1,10 +1,11 @@
-import "../Iterator.mt";
-import "../functional/Function.mt";
-import "../functional/Predicate.mt";
-import "../functional/Consumer.mt";
-import "../functional/BinaryOperator.mt";
-import "../functional/Comparator.mt";
-import "Stream.mt";
+import * from "../Iterator.mt";
+import * from "../functional/Function.mt";
+import * from "../functional/Predicate.mt";
+import * from "../functional/Consumer.mt";
+import * from "../functional/BinaryOperator.mt";
+import * from "../functional/Comparator.mt";
+import * from "Stream.mt";
+import * from "../exceptions/RuntimeException.mt";
 
 /**
  * Internal implementation of the Stream interface.
@@ -22,7 +23,7 @@ class StreamImpl<T> implements Stream<T> {
      *
      * @param iterator the source iterator
      */
-    public function StreamImpl(Iterator<T> iterator) {
+    constructor(Iterator<T> iterator) {
         this.source = iterator;
         this.consumed = false;
     }
@@ -33,7 +34,7 @@ class StreamImpl<T> implements Stream<T> {
      */
     private function checkNotConsumed(): void {
         if (this.consumed) {
-            throw "Stream has already been operated upon or closed";
+            throw new RuntimeException("Stream has already been operated upon or closed");
         }
     }
 
@@ -45,13 +46,13 @@ class StreamImpl<T> implements Stream<T> {
         return new StreamImpl<T>(filteredIterator);
     }
 
-    public function map<R>(Function<T, R> mapper): Stream<R> {
+    public function <R> map(Function<T, R> mapper): Stream<R> {
         this.checkNotConsumed();
         Iterator<R> mappedIterator = new MappingIterator<T, R>(this.source, mapper);
         return new StreamImpl<R>(mappedIterator);
     }
 
-    public function flatMap<R>(Function<T, Stream<R>> mapper): Stream<R> {
+    public function <R> flatMap(Function<T, Stream<R>> mapper): Stream<R> {
         this.checkNotConsumed();
         // FlatMap is complex - materialize current stream, then flatten
         T[] elements = this.toArray();
@@ -356,7 +357,7 @@ class FilteringIterator<T> implements Iterator<T> {
     private bool hasNextElement;
     private bool initialized;
 
-    public function FilteringIterator(Iterator<T> source, Predicate<T> predicate) {
+    constructor(Iterator<T> source, Predicate<T> predicate) {
         this.source = source;
         this.predicate = predicate;
         this.initialized = false;
@@ -409,7 +410,7 @@ class MappingIterator<T, R> implements Iterator<R> {
     private Iterator<T> source;
     private Function<T, R> mapper;
 
-    public function MappingIterator(Iterator<T> source, Function<T, R> mapper) {
+    constructor(Iterator<T> source, Function<T, R> mapper) {
         this.source = source;
         this.mapper = mapper;
     }
@@ -439,7 +440,7 @@ class DistinctIterator<T> implements Iterator<T> {
     private bool hasNextElement;
     private bool initialized;
 
-    public function DistinctIterator(Iterator<T> source) {
+    constructor(Iterator<T> source) {
         this.source = source;
         this.seen = new T[16];
         this.seenCount = 0;
@@ -521,7 +522,7 @@ class LimitingIterator<T> implements Iterator<T> {
     private int maxSize;
     private int count;
 
-    public function LimitingIterator(Iterator<T> source, int maxSize) {
+    constructor(Iterator<T> source, int maxSize) {
         this.source = source;
         this.maxSize = maxSize;
         this.count = 0;
@@ -552,7 +553,7 @@ class SkippingIterator<T> implements Iterator<T> {
     private int skipCount;
     private bool skipped;
 
-    public function SkippingIterator(Iterator<T> source, int skipCount) {
+    constructor(Iterator<T> source, int skipCount) {
         this.source = source;
         this.skipCount = skipCount;
         this.skipped = false;
@@ -593,7 +594,7 @@ class PeekingIterator<T> implements Iterator<T> {
     private Iterator<T> source;
     private Consumer<T> action;
 
-    public function PeekingIterator(Iterator<T> source, Consumer<T> action) {
+    constructor(Iterator<T> source, Consumer<T> action) {
         this.source = source;
         this.action = action;
     }
@@ -620,7 +621,7 @@ class ArrayIteratorHelper<T> implements Iterator<T> {
     private T[] array;
     private int index;
 
-    public function ArrayIteratorHelper(T[] array) {
+    constructor(T[] array) {
         this.array = array;
         this.index = 0;
     }

@@ -1,21 +1,24 @@
 // Test nested enhanced for-loops
 import * from "../../lib/collections/ArrayList.mt";
+import * from "../../lib/primitives/Int.mt";
 
 @Script
 function main(): void {
     // Create lists
-    ArrayList<int> list1 = new ArrayList<int>();
+    ArrayList<Int> list1 = new ArrayList<Int>();
     list1.add(1);
     list1.add(2);
 
-    ArrayList<int> list2 = new ArrayList<int>();
+    ArrayList<Int> list2 = new ArrayList<Int>();
     list2.add(10);
     list2.add(20);
 
     // Test nested for-loops
     print("Testing nested enhanced for-loops:");
-    for (int x : list1) {
-        for (int y : list2) {
+    for (Int xObj : list1) {
+        int x = xObj.getValue();
+        for (Int yObj : list2) {
+            int y = yObj.getValue();
             int result = x * y;
             print("" + x + " * " + y + " = " + result);
         }

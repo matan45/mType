@@ -26,11 +26,7 @@ interface Comparator<T> {
      *
      * @return a comparator that imposes the reverse ordering of this comparator
      */
-    function reversed(): Comparator<T> {
-        // Default implementation would create a lambda: (T a, T b) => this.compare(b, a)
-        // For now, this is a placeholder
-        return null;
-    }
+    function reversed(): Comparator<T>;
 
     /**
      * Returns a lexicographic-order comparator with another comparator.
@@ -42,9 +38,5 @@ interface Comparator<T> {
      * @return a lexicographic-order comparator composed of this and then the
      *         other comparator
      */
-    function thenComparing(Comparator<T> other): Comparator<T> {
-        // Default implementation would create a lambda that chains comparisons
-        // For now, this is a placeholder
-        return null;
-    }
+    function thenComparing(Comparator<T> other): Comparator<T>;
 }

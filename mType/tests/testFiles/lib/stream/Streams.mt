@@ -1,7 +1,8 @@
-import "../Iterator.mt";
-import "Stream.mt";
-import "StreamImpl.mt";
-
+import * from "../Iterator.mt";
+import * from "Stream.mt";
+import * from "StreamImpl.mt";
+import * from "../primitives/Int.mt";
+import * from "../exceptions/RuntimeException.mt";
 /**
  * Utility class for creating Stream instances from various sources.
  * Provides factory methods similar to Java's Stream class.
@@ -18,7 +19,7 @@ class Streams {
      * @param elements the elements of the new stream
      * @return the new stream
      */
-    public static function of<T>(T[] elements): Stream<T> {
+    public static function <T> of(T[] elements): Stream<T> {
         Iterator<T> iterator = new ArrayStreamIterator<T>(elements);
         return new StreamImpl<T>(iterator);
     }
@@ -28,7 +29,7 @@ class Streams {
      *
      * @return an empty sequential stream
      */
-    public static function empty<T>(): Stream<T> {
+    public static function <T> empty(): Stream<T> {
         Iterator<T> iterator = new EmptyIterator<T>();
         return new StreamImpl<T>(iterator);
     }
@@ -41,9 +42,9 @@ class Streams {
      * @param endExclusive the exclusive upper bound
      * @return a sequential stream for the range of int elements
      */
-    public static function range(int startInclusive, int endExclusive): Stream<int> {
-        Iterator<int> iterator = new RangeIterator(startInclusive, endExclusive);
-        return new StreamImpl<int>(iterator);
+    public static function range(int startInclusive, int endExclusive): Stream<Int> {
+        Iterator<Int> iterator = new RangeIterator(startInclusive, endExclusive);
+        return new StreamImpl<Int>(iterator);
     }
 
     /**
@@ -54,9 +55,9 @@ class Streams {
      * @param endInclusive the inclusive upper bound
      * @return a sequential stream for the range of int elements
      */
-    public static function rangeClosed(int startInclusive, int endInclusive): Stream<int> {
-        Iterator<int> iterator = new RangeIterator(startInclusive, endInclusive + 1);
-        return new StreamImpl<int>(iterator);
+    public static function rangeClosed(int startInclusive, int endInclusive): Stream<Int> {
+        Iterator<Int> iterator = new RangeIterator(startInclusive, endInclusive + 1);
+        return new StreamImpl<Int>(iterator);
     }
 
     /**
@@ -65,7 +66,7 @@ class Streams {
      * @param iterable the iterable source
      * @return a stream of elements from the iterable
      */
-    public static function fromIterable<T>(Iterable<T> iterable): Stream<T> {
+    public static function <T> fromIterable(Iterable<T> iterable): Stream<T> {
         Iterator<T> iterator = iterable.iterator();
         return new StreamImpl<T>(iterator);
     }
@@ -80,7 +81,7 @@ class ArrayStreamIterator<T> implements Iterator<T> {
     private T[] array;
     private int index;
 
-    public function ArrayStreamIterator(T[] array) {
+    constructor(T[] array) {
         this.array = array;
         this.index = 0;
     }
@@ -91,7 +92,7 @@ class ArrayStreamIterator<T> implements Iterator<T> {
 
     public function next(): T {
         if (this.index >= this.array.length) {
-            throw "No more elements in array stream";
+            throw new RuntimeException("No more elements in array stream");
         }
         T element = this.array[this.index];
         this.index = this.index + 1;
@@ -107,7 +108,7 @@ class ArrayStreamIterator<T> implements Iterator<T> {
  * Iterator that represents an empty stream.
  */
 class EmptyIterator<T> implements Iterator<T> {
-    public function EmptyIterator() {
+    constructor() {
         // Empty constructor
     }
 
@@ -116,7 +117,7 @@ class EmptyIterator<T> implements Iterator<T> {
     }
 
     public function next(): T {
-        throw "Empty iterator has no elements";
+        throw new RuntimeException("Empty iterator has no elements");
     }
 
     public function close(): void {
@@ -131,7 +132,7 @@ class RangeIterator implements Iterator<int> {
     private int current;
     private int end;
 
-    public function RangeIterator(int start, int end) {
+    constructor(int start, int end) {
         this.current = start;
         this.end = end;
     }

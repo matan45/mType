@@ -1,14 +1,14 @@
 // Test iterator on empty collection
 import * from "../../lib/collections/ArrayList.mt";
+import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/Iterator.mt";
 
-@Script
 function main(): void {
     // Create an empty list
-    ArrayList<int> list = new ArrayList<int>();
+    ArrayList<Int> list = new ArrayList<Int>();
 
     // Get iterator
-    Iterator<int> iter = list.iterator();
+    Iterator<Int> iter = list.iterator();
 
     // Test that hasNext returns false
     print("Testing empty iterator:");
@@ -21,3 +21,5 @@ function main(): void {
 
     print("Empty iterator test passed!");
 }
+
+main();

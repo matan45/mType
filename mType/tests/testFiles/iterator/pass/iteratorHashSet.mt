@@ -1,8 +1,9 @@
 // Test iterator functionality on HashSet
 import * from "../../lib/collections/HashSet.mt";
+import * from "../../lib/primitives/String.mt";
 import * from "../../lib/Iterator.mt";
 
-@Script
+
 function main(): void {
     // Create a set with some elements
     HashSet<String> set = new HashSet<String>();
@@ -30,3 +31,5 @@ function main(): void {
 
     print("HashSet iterator test passed!");
 }
+
+main();

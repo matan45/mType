@@ -25,11 +25,7 @@ interface Predicate<T> {
      * @return a composed predicate that represents the short-circuiting logical
      *         AND of this predicate and the other predicate
      */
-    function and(Predicate<T> other): Predicate<T> {
-        // Default implementation would create a lambda: (T t) => this.test(t) && other.test(t)
-        // For now, this is a placeholder
-        return null;
-    }
+    function and(Predicate<T> other): Predicate<T>;
 
     /**
      * Returns a composed predicate that represents a short-circuiting logical
@@ -39,20 +35,12 @@ interface Predicate<T> {
      * @return a composed predicate that represents the short-circuiting logical
      *         OR of this predicate and the other predicate
      */
-    function or(Predicate<T> other): Predicate<T> {
-        // Default implementation would create a lambda: (T t) => this.test(t) || other.test(t)
-        // For now, this is a placeholder
-        return null;
-    }
+    function or(Predicate<T> other): Predicate<T>;
 
     /**
      * Returns a predicate that represents the logical negation of this predicate.
      *
      * @return a predicate that represents the logical negation of this predicate
      */
-    function negate(): Predicate<T> {
-        // Default implementation would create a lambda: (T t) => !this.test(t)
-        // For now, this is a placeholder
-        return null;
-    }
+    function negate(): Predicate<T>;
 }

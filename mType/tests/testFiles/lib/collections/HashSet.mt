@@ -129,7 +129,7 @@ class HashSet<T> implements Set<T> {
     }
 
     // Union with another HashSet
-    public function union(HashSet<T> other): HashSet<T> {
+    public function union(Set<T> other): Set<T> {
         HashSet<T> result = new HashSet<T>();
 
         // Add all elements from this set
@@ -148,7 +148,7 @@ class HashSet<T> implements Set<T> {
     }
 
     // Intersection with another HashSet
-    public function intersection(HashSet<T> other): HashSet<T> {
+    public function intersection(Set<T> other): Set<T> {
         HashSet<T> result = new HashSet<T>();
 
         T[] thisArray = this.toArray();
@@ -162,7 +162,7 @@ class HashSet<T> implements Set<T> {
     }
 
     // Difference with another HashSet (elements in this but not in other)
-    public function difference(HashSet<T> other): HashSet<T> {
+    public function difference(Set<T> other): Set<T> {
         HashSet<T> result = new HashSet<T>();
 
         T[] thisArray = this.toArray();
@@ -176,7 +176,7 @@ class HashSet<T> implements Set<T> {
     }
 
     // Check if this set is a subset of another
-    public function isSubsetOf(HashSet<T> other): bool {
+    public function isSubsetOf(Set<T> other): bool {
         T[] thisArray = this.toArray();
         for (T element : thisArray) {
             if (!other.contains(element)) {
@@ -187,7 +187,7 @@ class HashSet<T> implements Set<T> {
     }
 
     // Check if this set is a superset of another - NEW
-    public function isSupersetOf(HashSet<T> other): bool {
+    public function isSupersetOf(Set<T> other): bool {
         return other.isSubsetOf(this);
     }
 

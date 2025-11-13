@@ -3,22 +3,30 @@
 
 import * from "../Iterator.mt";
 
-// Forward declaration of Node class
-// Actual Node class should be defined in LinkedList.mt
-class LinkedListNode<T> {
+// Forward declaration of Node class matching LinkedList.mt
+// Actual Node class is defined in LinkedList.mt
+class Node<T> {
     public T data;
-    public LinkedListNode<T> next;
+    public Node<T> next;
+    public Node<T> prev;
 
-    public constructor(T value) {
-        this.data = value;
+    constructor(T data) {
+        this.data = data;
         this.next = null;
+        this.prev = null;
+    }
+
+    constructor(T data, Node<T> prev, Node<T> next) {
+        this.data = data;
+        this.prev = prev;
+        this.next = next;
     }
 }
 
 class LinkedListIterator<T> implements Iterator<T> {
-    private LinkedListNode<T> currentNode;
+    private Node<T> currentNode;
 
-    public constructor(LinkedListNode<T> headNode) {
+    public constructor(Node<T> headNode) {
         this.currentNode = headNode;
     }
 

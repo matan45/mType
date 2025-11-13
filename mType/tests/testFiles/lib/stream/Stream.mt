@@ -1,8 +1,8 @@
-import "../functional/Function.mt";
-import "../functional/Predicate.mt";
-import "../functional/Consumer.mt";
-import "../functional/BinaryOperator.mt";
-import "../functional/Comparator.mt";
+import * from "../functional/Function.mt";
+import * from "../functional/Predicate.mt";
+import * from "../functional/Consumer.mt";
+import * from "../functional/BinaryOperator.mt";
+import * from "../functional/Comparator.mt";
 
 /**
  * A sequence of elements supporting sequential aggregate operations.
@@ -42,7 +42,7 @@ interface Stream<T> {
      * @param mapper a function to apply to each element
      * @return the new stream
      */
-    function map<R>(Function<T, R> mapper): Stream<R>;
+    function <R> map(Function<T, R> mapper): Stream<R>;
 
     /**
      * Returns a stream consisting of the results of replacing each element of
@@ -53,7 +53,7 @@ interface Stream<T> {
      *               of new values
      * @return the new stream
      */
-    function flatMap<R>(Function<T, Stream<R>> mapper): Stream<R>;
+    function <R> flatMap(Function<T, Stream<R>> mapper): Stream<R>;
 
     /**
      * Returns a stream consisting of the distinct elements (according to

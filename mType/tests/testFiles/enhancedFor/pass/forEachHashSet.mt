@@ -1,10 +1,11 @@
 // Test enhanced for-loop with HashSet
 import * from "../../lib/collections/HashSet.mt";
+import * from "../../lib/primitives/Int.mt";
 
 @Script
 function main(): void {
     // Create a set
-    HashSet<int> set = new HashSet<int>();
+    HashSet<Int> set = new HashSet<Int>();
     set.add(5);
     set.add(10);
     set.add(15);
@@ -13,7 +14,8 @@ function main(): void {
     // Test enhanced for-loop
     print("Testing enhanced for-loop with HashSet:");
     int sum = 0;
-    for (int num : set) {
+    for (Int numObj : set) {
+        int num = numObj.getValue();
         print(num);
         sum = sum + num;
     }

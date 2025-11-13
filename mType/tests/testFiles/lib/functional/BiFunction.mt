@@ -28,9 +28,5 @@ interface BiFunction<T, U, R> {
      * @return a composed function that first applies this function and then
      *         applies the after function
      */
-    function andThen<V>(Function<R, V> after): BiFunction<T, U, V> {
-        // Default implementation would create a lambda that chains the calls
-        // For now, this is a placeholder
-        return null;
-    }
+    function <V> andThen(Function<R, V> after): BiFunction<T, U, V>;
 }

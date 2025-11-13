@@ -1,10 +1,11 @@
 // Test enhanced for-loop with LinkedList
 import * from "../../lib/collections/LinkedList.mt";
+import * from "../../lib/primitives/Int.mt";
 
 @Script
 function main(): void {
     // Create a linked list
-    LinkedList<int> list = new LinkedList<int>();
+    LinkedList<Int> list = new LinkedList<Int>();
     list.add(1);
     list.add(2);
     list.add(3);
@@ -14,7 +15,8 @@ function main(): void {
     // Test enhanced for-loop
     print("Testing enhanced for-loop with LinkedList:");
     int product = 1;
-    for (int num : list) {
+    for (Int numObj : list) {
+        int num = numObj.getValue();
         print(num);
         product = product * num;
     }
