@@ -9,6 +9,7 @@
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include "../../../value/NativeArray.hpp"
 #include <algorithm>
 namespace vm::runtime
 {
@@ -655,6 +656,37 @@ namespace vm::runtime
         if (std::holds_alternative<std::nullptr_t>(collectionValue)) {
             utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
                 "Cannot get iterator from null object");
+        }
+
+        // Check if it's an array - create an ArrayIteratorHelper for it
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(collectionValue)) {
+            // Get the ArrayIteratorHelper class from the class registry
+            auto classRegistry = context.environment->getClassRegistry();
+            auto iteratorHelperClass = classRegistry->findClass("ArrayIteratorHelper");
+
+            if (!iteratorHelperClass) {
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "ArrayIteratorHelper class not found - required for array iteration");
+            }
+
+            // Create an instance of ArrayIteratorHelper with the array as constructor argument
+            auto iteratorInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(iteratorHelperClass);
+
+            // Find and invoke the constructor with 1 argument (the array)
+            auto constructor = iteratorHelperClass->findConstructorByTypes({collectionValue});
+            if (!constructor) {
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "ArrayIteratorHelper constructor not found");
+            }
+
+            // Set the array field directly (constructor would do this, but let's do it directly)
+            // ArrayIteratorHelper has fields: array, index
+            iteratorInstance->setField("array", collectionValue);
+            iteratorInstance->setField("index", 0);
+
+            // Push the iterator onto the stack
+            context.stackManager->push(iteratorInstance);
+            return;
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(collectionValue)) {

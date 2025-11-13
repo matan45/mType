@@ -2,14 +2,9 @@
 import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/stream/Stream.mt";
 import * from "../../lib/functional/Consumer.mt";
+import * from "../../lib/primitives/String.mt";
 
-class PrintConsumer implements Consumer<String> {
-    public function accept(String value): void {
-        print("Item: " + value);
-    }
-}
 
-@Script
 function main(): void {
     // Create a list
     ArrayList<String> list = new ArrayList<String>();
@@ -19,7 +14,9 @@ function main(): void {
 
     // Test forEach
     print("Testing stream forEach:");
-    list.stream().forEach(new PrintConsumer());
+    list.stream().forEach(val -> print("Item: " + val));
 
     print("Stream forEach test passed!");
 }
+
+main();

@@ -157,6 +157,12 @@
     <Filter Include="tests\testFiles\class\pass">
       <UniqueIdentifier>{85E6A95D-71F6-552E-DAAF-BA4CC6DE44C7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\collections">
+      <UniqueIdentifier>{68157CEE-D422-AAD4-5D09-A6BFC915768B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\collections\pass">
+      <UniqueIdentifier>{6E4C7B4E-5A9D-6690-8301-55526FB1F9F9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\controlFlow">
       <UniqueIdentifier>{E299923D-4EA7-C023-D78D-BC0E439A8CDA}</UniqueIdentifier>
     </Filter>
@@ -301,6 +307,9 @@
     <Filter Include="tests\testFiles\lib\interfaces">
       <UniqueIdentifier>{F3A928A5-DFCF-F20B-C815-78D7B4DA17D8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\lib\internal">
+      <UniqueIdentifier>{CC63D16B-B81E-C117-61D6-39624D700BA8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lib\iterators">
       <UniqueIdentifier>{EC41020A-585A-E933-2107-79CD8DDE7DCD}</UniqueIdentifier>
     </Filter>
@@ -309,6 +318,9 @@
     </Filter>
     <Filter Include="tests\testFiles\lib\stream">
       <UniqueIdentifier>{7B213FA3-6731-EB73-D0EA-4F92BC19DA0C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib\utils">
+      <UniqueIdentifier>{00435C1C-6C05-90A6-B5B5-1E3321B76884}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\modifiers">
       <UniqueIdentifier>{4BD78D3A-B799-C1C4-004A-50516C4B9AA2}</UniqueIdentifier>
@@ -4942,6 +4954,9 @@
     <None Include="tests\testFiles\class\pass\typeUpcastExplicit.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSort.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\error\errorBreakOutsideLoop_error.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
     </None>
@@ -8965,6 +8980,9 @@
     <None Include="tests\testFiles\lib\functional\Predicate.mt">
       <Filter>tests\testFiles\lib\functional</Filter>
     </None>
+    <None Include="tests\testFiles\lib\interfaces\Comparable.mt">
+      <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
     <None Include="tests\testFiles\lib\interfaces\Deque.mt">
       <Filter>tests\testFiles\lib\interfaces</Filter>
     </None>
@@ -8979,6 +8997,12 @@
     </None>
     <None Include="tests\testFiles\lib\interfaces\Set.mt">
       <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\internal\Node.mt">
+      <Filter>tests\testFiles\lib\internal</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\FlatMappingIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
     </None>
     <None Include="tests\testFiles\lib\iterators\HashMapKeyIterator.mt">
       <Filter>tests\testFiles\lib\iterators</Filter>
@@ -8996,6 +9020,9 @@
       <Filter>tests\testFiles\lib\iterators</Filter>
     </None>
     <None Include="tests\testFiles\lib\iterators\StackIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\StreamFlatMappingIterator.mt">
       <Filter>tests\testFiles\lib\iterators</Filter>
     </None>
     <None Include="tests\testFiles\lib\primitives\Bool.mt">
@@ -9016,8 +9043,14 @@
     <None Include="tests\testFiles\lib\stream\StreamImpl.mt">
       <Filter>tests\testFiles\lib\stream</Filter>
     </None>
+    <None Include="tests\testFiles\lib\stream\StreamToIteratorAdapter.mt">
+      <Filter>tests\testFiles\lib\stream</Filter>
+    </None>
     <None Include="tests\testFiles\lib\stream\Streams.mt">
       <Filter>tests\testFiles\lib\stream</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\utils\SortUtils.mt">
+      <Filter>tests\testFiles\lib\utils</Filter>
     </None>
     <None Include="tests\testFiles\modifiers\error\interfacePrivateField.mt">
       <Filter>tests\testFiles\modifiers\error</Filter>

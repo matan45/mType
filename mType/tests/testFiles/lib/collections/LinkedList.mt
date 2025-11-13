@@ -6,6 +6,9 @@ import * from "../../lib/iterators/LinkedListIterator.mt";
 import * from "../../lib/stream/Stream.mt";
 import * from "../../lib/stream/StreamImpl.mt";
 import * from "../../lib/internal/Node.mt";
+import * from "../../lib/functional/Comparator.mt";
+import * from "../../lib/utils/SortUtils.mt";
+
 class LinkedList<T> implements List<T>, Deque<T> {
 
     Node<T> head;
@@ -421,8 +424,34 @@ class LinkedList<T> implements List<T>, Deque<T> {
     }
 
     public function sort(): void {
-        // TODO: Implement sorting algorithm
-        print("Warning: LinkedList.sort() not yet implemented");
+        // Natural ordering sort requires Comparable<T> interface
+        // Since we can't enforce this at compile time, we throw an exception
+        // Use sortWith(Comparator) for custom sorting
+        throw "LinkedList.sort() requires elements to implement Comparable interface. Use sortWith(Comparator) instead.";
+    }
+
+    /**
+     * Sorts this list using the provided comparator.
+     * Converts to array, sorts, then rebuilds the list.
+     *
+     * @param comparator the comparator to determine element order
+     */
+    public function sortWith(Comparator<T> comparator): void {
+        if (this.count == 0) {
+            return;
+        }
+
+        // Convert to array
+        T[] sortArray = this.toArray();
+
+        // Sort the array
+        SortUtils::quicksort(sortArray, comparator);
+
+        // Rebuild the list from sorted array
+        this.clear();
+        for (int i = 0; i < sortArray.length; i++) {
+            this.add(sortArray[i]);
+        }
     }
 
     // Deque interface methods - NEW

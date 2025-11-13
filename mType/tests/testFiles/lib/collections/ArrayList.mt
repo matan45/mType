@@ -4,6 +4,9 @@ import * from "../../lib/Iterator.mt";
 import * from "../../lib/iterators/ListIterator.mt";
 import * from "../../lib/stream/Stream.mt";
 import * from "../../lib/stream/StreamImpl.mt";
+import * from "../../lib/exceptions/IndexOutOfBoundsException.mt";
+import * from "../../lib/functional/Comparator.mt";
+import * from "../../lib/utils/SortUtils.mt";
 
 class ArrayList<T> implements List<T> {
     T[] data;
@@ -35,16 +38,14 @@ class ArrayList<T> implements List<T> {
 
         public function get(int index): T {
             if (index < 0 || index >= this.count) {
-                // TODO: Error handling - for now return default
-                return null;
+                throw new IndexOutOfBoundsException("Index " + index + " out of bounds for size " + this.count);
             }
             return this.data[index];
         }
 
         public function set(int index, T item): void {
             if (index < 0 || index >= this.count) {
-                // TODO: Error handling
-                return;
+                throw new IndexOutOfBoundsException("Index " + index + " out of bounds for size " + this.count);
             }
             // Null item validation
             if (item == null) {
@@ -235,11 +236,37 @@ class ArrayList<T> implements List<T> {
             }
         }
 
-        // Sort - Placeholder (requires Comparable interface)
+        // Sort - Requires elements to implement Comparable interface
         public function sort(): void {
-            // TODO: Implement sorting algorithm
-            // For now, this is a placeholder
-            print("Warning: List.sort() not yet implemented");
+            // Natural ordering sort requires Comparable<T> interface
+            // Since we can't enforce this at compile time, we throw an exception
+            // Use sortWith(Comparator) for custom sorting
+            throw "ArrayList.sort() requires elements to implement Comparable interface. Use sortWith(Comparator) instead.";
+        }
+
+        /**
+         * Sorts this list using the provided comparator.
+         *
+         * @param comparator the comparator to determine element order
+         */
+        public function sortWith(Comparator<T> comparator): void {
+            if (this.count == 0) {
+                return;
+            }
+
+            // Create a temporary array with only the valid elements
+            T[] sortArray = new T[this.count];
+            for (int i = 0; i < this.count; i++) {
+                sortArray[i] = this.data[i];
+            }
+
+            // Sort the array
+            SortUtils::quicksort(sortArray, comparator);
+
+            // Copy back to data array
+            for (int i = 0; i < this.count; i++) {
+                this.data[i] = sortArray[i];
+            }
         }
 
         // Helper method

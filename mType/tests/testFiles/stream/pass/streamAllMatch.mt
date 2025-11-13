@@ -1,21 +1,15 @@
 // Test stream allMatch operation
 import * from "../../lib/stream/Streams.mt";
 import * from "../../lib/stream/Stream.mt";
-import * from "../../lib/functional/Predicate.mt";
+import * from "../../lib/primitives/Int.mt";
 
-class PositivePredicate implements Predicate<int> {
-    public function test(int value): bool {
-        return value > 0;
-    }
-}
 
-@Script
 function main(): void {
     // Create a stream
-    int[] numbers = [1, 2, 3, 4, 5];
+    Int[] numbers = [1, 2, 3, 4, 5];
     print("Testing stream allMatch:");
 
-    bool allPositive = Streams.of<int>(numbers).allMatch(new PositivePredicate());
+    bool allPositive = Streams::of(numbers).allMatch(value-> value > 0);
 
     if (allPositive) {
         print("All numbers are positive");
@@ -23,3 +17,5 @@ function main(): void {
 
     print("Stream allMatch test passed!");
 }
+
+main();

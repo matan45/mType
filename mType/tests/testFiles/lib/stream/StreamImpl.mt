@@ -6,6 +6,8 @@ import * from "../functional/BinaryOperator.mt";
 import * from "../functional/Comparator.mt";
 import * from "Stream.mt";
 import * from "../exceptions/RuntimeException.mt";
+import * from "../utils/SortUtils.mt";
+import * from "../iterators/StreamFlatMappingIterator.mt";
 
 /**
  * Internal implementation of the Stream interface.
@@ -54,15 +56,11 @@ class StreamImpl<T> implements Stream<T> {
 
     public function <R> flatMap(Function<T, Stream<R>> mapper): Stream<R> {
         this.checkNotConsumed();
-        // FlatMap is complex - materialize current stream, then flatten
-        T[] elements = this.toArray();
-        this.consumed = true;
 
-        // Collect all flattened results
-        // Note: This requires a temporary collection
-        // For simplicity, we'll materialize everything
-        // A true lazy implementation would need a FlatMappingIterator
-        throw "flatMap not yet fully implemented - requires advanced iterator composition";
+        // Use StreamFlatMappingIterator for lazy evaluation
+        // It works directly with Stream objects, converting them to arrays internally
+        Iterator<R> flatIterator = new StreamFlatMappingIterator<T, R>(this.source, mapper);
+        return new StreamImpl<R>(flatIterator);
     }
 
     public function distinct(): Stream<T> {
@@ -73,13 +71,10 @@ class StreamImpl<T> implements Stream<T> {
 
     public function sorted(): Stream<T> {
         this.checkNotConsumed();
-        // Sorting requires materializing all elements
-        T[] elements = this.toArray();
-        this.consumed = true;
-
-        // TODO: Implement sorting algorithm
-        // For now, return unsorted (would need Comparator and sort algorithm)
-        throw "sorted() requires implementing a sort algorithm";
+        // Natural ordering sort requires Comparable<T> interface
+        // Since we can't enforce this at compile time, we throw an exception
+        // Use sortedWith(Comparator) for custom sorting
+        throw "Stream.sorted() requires elements to implement Comparable interface. Use sortedWith(Comparator) instead.";
     }
 
     public function sortedWith(Comparator<T> comparator): Stream<T> {

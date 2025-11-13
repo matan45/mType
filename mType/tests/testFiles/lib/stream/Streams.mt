@@ -1,4 +1,5 @@
 import * from "../Iterator.mt";
+import * from "../Iterable.mt";
 import * from "Stream.mt";
 import * from "StreamImpl.mt";
 import * from "../primitives/Int.mt";
@@ -8,7 +9,7 @@ import * from "../exceptions/RuntimeException.mt";
  * Provides factory methods similar to Java's Stream class.
  *
  * Example:
- *   Stream<int> stream = Streams.of<int>([1, 2, 3, 4, 5]);
+ *   Stream<int> stream = Streams::of<int>([1, 2, 3, 4, 5]);
  *   Stream<String> empty = Streams.empty<String>();
  *   Stream<int> range = Streams.range(0, 10);
  */

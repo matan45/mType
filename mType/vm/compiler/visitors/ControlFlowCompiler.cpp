@@ -2,6 +2,8 @@
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/ParseException.hpp"
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "../../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../../ast/nodes/expressions/VariableNode.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -257,10 +259,47 @@ namespace vm::compiler::visitors
         node->getCollection()->accept(ctx.visitor);  // Will need delegation
 
         // Determine if we're iterating over an array or a collection
-        // For now, we check if the collection type is ARRAY
-        // TODO: More sophisticated type inference could be added
-        bool isArrayType = (varType == value::ValueType::ARRAY ||
+        // Check multiple indicators that suggest array type:
+        // 1. Variable type is explicitly ARRAY (legacy)
+        // 2. Collection is an array index access expression (arr[i])
+        // 3. Collection is a method call to toArray() which returns an array
+        // 4. Variable type info indicates array (has [] in declaration)
+
+        // Check TypeInfo for array markers (element type is set means it's an array)
+        const auto& varTypeInfo = node->getVariableTypeInfo();
+        bool isArrayFromTypeInfo = (varType == value::ValueType::ARRAY);
+
+        bool isArrayType = (isArrayFromTypeInfo ||
                            dynamic_cast<ast::IndexAccessNode*>(node->getCollection()) != nullptr);
+
+        // Check if this is a toArray() method call
+        if (auto methodCall = dynamic_cast<ast::MethodCallNode*>(node->getCollection()))
+        {
+            if (methodCall->getMethodName() == "toArray")
+            {
+                isArrayType = true;
+            }
+        }
+
+        // Check if the collection is a variable and look up its type
+        if (auto varNode = dynamic_cast<ast::nodes::expressions::VariableNode*>(node->getCollection()))
+        {
+            std::string varName = varNode->getName();
+
+            // Try to find the variable in the local scope
+            const auto& locals = ctx.variableTracker.getLocals();
+            for (const auto& local : locals)
+            {
+                if (local.name == varName)
+                {
+                    if (local.type == value::ValueType::ARRAY)
+                    {
+                        isArrayType = true;
+                    }
+                    break;
+                }
+            }
+        }
 
         if (isArrayType) {
             // === ARRAY FAST PATH ===
