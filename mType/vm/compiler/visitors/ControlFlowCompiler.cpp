@@ -1,6 +1,7 @@
 #include "ControlFlowCompiler.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/ParseException.hpp"
+#include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -259,7 +260,7 @@ namespace vm::compiler::visitors
         // For now, we check if the collection type is ARRAY
         // TODO: More sophisticated type inference could be added
         bool isArrayType = (varType == value::ValueType::ARRAY ||
-                           dynamic_cast<ast::ArrayAccessNode*>(node->getCollection()) != nullptr);
+                           dynamic_cast<ast::IndexAccessNode*>(node->getCollection()) != nullptr);
 
         if (isArrayType) {
             // === ARRAY FAST PATH ===
