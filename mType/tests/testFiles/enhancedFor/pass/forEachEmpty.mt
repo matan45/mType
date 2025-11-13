@@ -2,7 +2,6 @@
 import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 
-@Script
 function main(): void {
     // Create an empty list
     ArrayList<Int> list = new ArrayList<Int>();
@@ -20,3 +19,4 @@ function main(): void {
 
     print("Empty collection for-loop test passed!");
 }
+main();

@@ -2,7 +2,7 @@
 import * from "../../lib/collections/LinkedList.mt";
 import * from "../../lib/primitives/Int.mt";
 
-@Script
+
 function main(): void {
     // Create a linked list
     LinkedList<Int> list = new LinkedList<Int>();
@@ -25,3 +25,4 @@ function main(): void {
 
     print("Enhanced for-loop with LinkedList test passed!");
 }
+main();

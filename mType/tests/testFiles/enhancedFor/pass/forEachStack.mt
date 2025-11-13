@@ -2,7 +2,7 @@
 import * from "../../lib/collections/Stack.mt";
 import * from "../../lib/primitives/Int.mt";
 
-@Script
+
 function main(): void {
     // Create a stack
     Stack<Int> stack = new Stack<Int>();
@@ -19,3 +19,4 @@ function main(): void {
 
     print("Enhanced for-loop with Stack test passed!");
 }
+main();

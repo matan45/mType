@@ -1,7 +1,8 @@
 // Test enhanced for-loop with Queue
 import * from "../../lib/collections/ArrayQueue.mt";
+import * from "../../lib/primitives/String.mt";
 
-@Script
+
 function main(): void {
     // Create a queue
     ArrayQueue<String> queue = new ArrayQueue<String>();
@@ -17,3 +18,4 @@ function main(): void {
 
     print("Enhanced for-loop with Queue test passed!");
 }
+main();

@@ -2,7 +2,7 @@
 import * from "../../lib/collections/HashSet.mt";
 import * from "../../lib/primitives/Int.mt";
 
-@Script
+
 function main(): void {
     // Create a set
     HashSet<Int> set = new HashSet<Int>();
@@ -24,3 +24,4 @@ function main(): void {
 
     print("Enhanced for-loop with HashSet test passed!");
 }
+main();

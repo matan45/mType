@@ -1,7 +1,8 @@
 // Test enhanced for-loop with ArrayList
 import * from "../../lib/collections/ArrayList.mt";
+import * from "../../lib/primitives/String.mt";
 
-@Script
+
 function main(): void {
     // Create a list
     ArrayList<String> list = new ArrayList<String>();
@@ -18,3 +19,4 @@ function main(): void {
 
     print("Enhanced for-loop test passed!");
 }
+main();

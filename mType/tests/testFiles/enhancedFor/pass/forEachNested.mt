@@ -2,7 +2,7 @@
 import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 
-@Script
+
 function main(): void {
     // Create lists
     ArrayList<Int> list1 = new ArrayList<Int>();
@@ -26,3 +26,5 @@ function main(): void {
 
     print("Nested for-loop test passed!");
 }
+
+main();
