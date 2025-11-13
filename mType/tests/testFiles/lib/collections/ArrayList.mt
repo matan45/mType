@@ -1,5 +1,11 @@
 // List<T> - Dynamic resizable list implementation
-class List<T> {
+import * from "../../lib/interfaces/List.mt";
+import * from "../../lib/Iterator.mt";
+import * from "../../lib/iterators/ListIterator.mt";
+import * from "../../lib/stream/Stream.mt";
+import * from "../../lib/stream/StreamImpl.mt";
+
+class ArrayList<T> implements List<T> {
     T[] data;
     int capacity;
     int count;
@@ -12,11 +18,11 @@ class List<T> {
         }
 
         // Core operations
-        public function add(T item): void {
+        public function add(T item): bool {
             // Null item validation
             if (item == null) {
                 print("Error: List.add() - item cannot be null");
-                return;
+                return false;
             }
 
             if (this.count >= this.capacity) {
@@ -24,6 +30,7 @@ class List<T> {
             }
             this.data[this.count] = item;
             this.count++;
+            return true;
         }
 
         public function get(int index): T {
@@ -171,6 +178,68 @@ class List<T> {
                 hash = 31 * hash + hashCode(this.data[i]);
             }
             return hash;
+        }
+
+        // Iterator support - NEW for enhanced for-loop
+        public function iterator(): Iterator<T> {
+            return new ListIterator<T>(this.data, this.count);
+        }
+
+        // Stream support - NEW for functional programming
+        public function stream(): Stream<T> {
+            return new StreamImpl<T>(this.iterator());
+        }
+
+        // Search operations - NEW
+        public function indexOf(T item): int {
+            if (item == null) {
+                return -1;
+            }
+            for (int i = 0; i < this.count; i++) {
+                if (this.data[i] != null && this.data[i].equals(item)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        public function lastIndexOf(T item): int {
+            if (item == null) {
+                return -1;
+            }
+            for (int i = this.count - 1; i >= 0; i = i - 1) {
+                if (this.data[i] != null && this.data[i].equals(item)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        // Bulk operations - NEW
+        public function addAll(T[] items): void {
+            for (T item : items) {
+                this.add(item);
+            }
+        }
+
+        // List manipulation - NEW
+        public function reverse(): void {
+            int left = 0;
+            int right = this.count - 1;
+            while (left < right) {
+                T temp = this.data[left];
+                this.data[left] = this.data[right];
+                this.data[right] = temp;
+                left = left + 1;
+                right = right - 1;
+            }
+        }
+
+        // Sort - Placeholder (requires Comparable interface)
+        public function sort(): void {
+            // TODO: Implement sorting algorithm
+            // For now, this is a placeholder
+            print("Warning: List.sort() not yet implemented");
         }
 
         // Helper method

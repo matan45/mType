@@ -1,5 +1,11 @@
 // HashSet<T> - Hash table implementation for O(1) operations
-class HashSet<T> {
+import * from "../../lib/interfaces/Set.mt";
+import * from "../../lib/Iterator.mt";
+import * from "../../lib/iterators/HashSetIterator.mt";
+import * from "../../lib/stream/Stream.mt";
+import * from "../../lib/stream/StreamImpl.mt";
+
+class HashSet<T> implements Set<T> {
     T[][] buckets;
     int[] bucketSizes;
     int capacity;
@@ -142,7 +148,7 @@ class HashSet<T> {
     }
 
     // Intersection with another HashSet
-    function intersection(HashSet<T> other): HashSet<T> {
+    public function intersection(HashSet<T> other): HashSet<T> {
         HashSet<T> result = new HashSet<T>();
 
         T[] thisArray = this.toArray();
@@ -156,7 +162,7 @@ class HashSet<T> {
     }
 
     // Difference with another HashSet (elements in this but not in other)
-    function difference(HashSet<T> other): HashSet<T> {
+    public function difference(HashSet<T> other): HashSet<T> {
         HashSet<T> result = new HashSet<T>();
 
         T[] thisArray = this.toArray();
@@ -170,7 +176,7 @@ class HashSet<T> {
     }
 
     // Check if this set is a subset of another
-    function isSubsetOf(HashSet<T> other): bool {
+    public function isSubsetOf(HashSet<T> other): bool {
         T[] thisArray = this.toArray();
         for (T element : thisArray) {
             if (!other.contains(element)) {
@@ -178,6 +184,28 @@ class HashSet<T> {
             }
         }
         return true;
+    }
+
+    // Check if this set is a superset of another - NEW
+    public function isSupersetOf(HashSet<T> other): bool {
+        return other.isSubsetOf(this);
+    }
+
+    // Iterator support - NEW for enhanced for-loop
+    public function iterator(): Iterator<T> {
+        return new HashSetIterator<T>(this.toArray());
+    }
+
+    // Stream support - NEW for functional programming
+    public function stream(): Stream<T> {
+        return new StreamImpl<T>(this.iterator());
+    }
+
+    // Bulk operations - NEW
+    public function addAll(T[] items): void {
+        for (T item : items) {
+            this.add(item);
+        }
     }
 
     // Private helper methods

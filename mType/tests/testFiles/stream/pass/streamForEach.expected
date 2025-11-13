@@ -1,0 +1,5 @@
+Testing stream forEach:
+Item: Alpha
+Item: Beta
+Item: Gamma
+Stream forEach test passed!

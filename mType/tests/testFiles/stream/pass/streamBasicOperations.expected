@@ -1,0 +1,5 @@
+Testing stream filter and map:
+Filtered even numbers and doubled:
+4
+8
+Stream basic operations test passed!

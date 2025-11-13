@@ -1,0 +1,6 @@
+Testing nested enhanced for-loops:
+1 * 10 = 10
+1 * 20 = 20
+2 * 10 = 20
+2 * 20 = 40
+Nested for-loop test passed!

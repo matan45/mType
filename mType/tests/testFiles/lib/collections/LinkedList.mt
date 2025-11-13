@@ -1,4 +1,11 @@
 // LinkedList<T> - Doubly linked list implementation for O(1) insertions and deletions
+import * from "../../lib/interfaces/List.mt";
+import * from "../../lib/interfaces/Deque.mt";
+import * from "../../lib/Iterator.mt";
+import * from "../../lib/iterators/LinkedListIterator.mt";
+import * from "../../lib/stream/Stream.mt";
+import * from "../../lib/stream/StreamImpl.mt";
+
  // Private inner class for nodes
     class Node<T> {
         public T data;
@@ -17,7 +24,7 @@
             this.next = next;
         }
     }
-class LinkedList<T> {
+class LinkedList<T> implements List<T>, Deque<T> {
 
     Node<T> head;
     Node<T> tail;
@@ -31,11 +38,11 @@ class LinkedList<T> {
     }
 
     // Core operations
-    public function add(T item): void {
+    public function add(T item): bool {
         // Null item validation
         if (item == null) {
             print("Error: LinkedList.add() - item cannot be null");
-            return;
+            return false;
         }
 
         Node<T> newNode = new Node<T>(item);
@@ -51,6 +58,7 @@ class LinkedList<T> {
             this.tail = newNode;
         }
         this.count++;
+        return true;
     }
 
     public function addFirst(T item): void {
@@ -400,5 +408,63 @@ class LinkedList<T> {
         }
 
         return result;
+    }
+
+    // Iterator support - NEW for enhanced for-loop
+    public function iterator(): Iterator<T> {
+        return new LinkedListIterator<T>(this.head);
+    }
+
+    // Stream support - NEW for functional programming
+    public function stream(): Stream<T> {
+        return new StreamImpl<T>(this.iterator());
+    }
+
+    // Additional List methods - NEW
+    public function lastIndexOf(T item): int {
+        if (item == null) {
+            return -1;
+        }
+
+        Node<T> current = this.tail;
+        int index = this.count - 1;
+        while (current != null) {
+            if (current.data != null && current.data.equals(item)) {
+                return index;
+            }
+            current = current.prev;
+            index = index - 1;
+        }
+        return -1;
+    }
+
+    public function sort(): void {
+        // TODO: Implement sorting algorithm
+        print("Warning: LinkedList.sort() not yet implemented");
+    }
+
+    // Deque interface methods - NEW
+    public function peekFirst(): T {
+        return this.first();
+    }
+
+    public function peekLast(): T {
+        return this.last();
+    }
+
+    public function push(T item): void {
+        this.addFirst(item);
+    }
+
+    public function pop(): T {
+        return this.removeFirst();
+    }
+
+    public function enqueue(T item): void {
+        this.addLast(item);
+    }
+
+    public function dequeue(): T {
+        return this.removeFirst();
     }
 }

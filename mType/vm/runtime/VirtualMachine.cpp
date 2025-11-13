@@ -866,6 +866,16 @@ namespace vm::runtime
         case OpCode::SUPER_SET_FIELD: objectExecutor->handleSuperSetField(instr);
             break;
 
+        // Iterator Operations
+        case OpCode::GET_ITERATOR: objectExecutor->handleGetIterator(instr);
+            break;
+        case OpCode::ITERATOR_HAS_NEXT: objectExecutor->handleIteratorHasNext(instr);
+            break;
+        case OpCode::ITERATOR_NEXT: objectExecutor->handleIteratorNext(instr);
+            break;
+        case OpCode::ITERATOR_CLOSE: objectExecutor->handleIteratorClose(instr);
+            break;
+
         // Primitive Method Optimizations - delegated to PrimitiveMethodExecutor (Phase 3)
         // Int object methods
         case OpCode::INVOKE_INT_ADD: primitiveMethodExecutor->handleInvokeIntAdd();

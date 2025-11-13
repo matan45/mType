@@ -1,5 +1,11 @@
 // Queue<T> - FIFO operations
-class Queue<T> {
+import * from "../../lib/interfaces/Queue.mt";
+import * from "../../lib/Iterator.mt";
+import * from "../../lib/iterators/QueueIterator.mt";
+import * from "../../lib/stream/Stream.mt";
+import * from "../../lib/stream/StreamImpl.mt";
+
+class ArrayQueue<T> implements Queue<T> {
     T[] data;
     int capacity;
     int front;
@@ -22,7 +28,7 @@ class Queue<T> {
             this.count++;
         }
 
-        function dequeue(): T {
+        public function dequeue(): T {
             if (this.empty()) {
                 return null; // Queue empty
             }
@@ -39,22 +45,22 @@ class Queue<T> {
             return this.data[this.front];
         }
 
-        function empty(): bool {
+        public function empty(): bool {
             return this.count == 0;
         }
 
-        function size(): int {
+        public function size(): int {
             return this.count;
         }
 
-        function clear(): void {
+        public function clear(): void {
             this.front = 0;
             this.rear = 0;
             this.count = 0;
         }
 
         // Check if queue contains item
-        function contains(T item): bool {
+        public function contains(T item): bool {
             T[] currentData = this.toArray();
             for (T element : currentData) {
                 if (element.equals(item)) {
@@ -65,7 +71,7 @@ class Queue<T> {
         }
 
         // Convert to array (front to rear order)
-        function toArray(): T[] {
+        public function toArray(): T[] {
             T[] result = new T[this.count];
             for (int i = 0; i < this.count; i++) {
                 int index = (this.front + i) % this.capacity;
@@ -75,13 +81,41 @@ class Queue<T> {
         }
 
         // Content-based hash code (order matters for Queue)
-        function hashCode(): int {
+        public function hashCode(): int {
             int hash = 1;
             for (int i = 0; i < this.count; i++) {
                 int index = (this.front + i) % this.capacity;
                 hash = 31 * hash + hashCode(this.data[index]);
             }
             return hash;
+        }
+
+        // Iterator support - NEW for enhanced for-loop
+        public function iterator(): Iterator<T> {
+            return new QueueIterator<T>(this.data, this.front, this.rear, this.capacity, this.count);
+        }
+
+        // Stream support - NEW for functional programming
+        public function stream(): Stream<T> {
+            return new StreamImpl<T>(this.iterator());
+        }
+
+        // Collection interface methods - NEW
+        public function add(T item): bool {
+            this.enqueue(item);
+            return true;
+        }
+
+        public function remove(T item): bool {
+            // Queue doesn't support arbitrary removal efficiently
+            print("Warning: Queue.remove() not efficiently supported");
+            return false;
+        }
+
+        public function addAll(T[] items): void {
+            for (T item : items) {
+                this.enqueue(item);
+            }
         }
 
         function resize(): void {

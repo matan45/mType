@@ -645,4 +645,115 @@ namespace vm::runtime
             location
         );
     }
+
+    // Iterator Operations Implementation
+    void ObjectExecutor::handleGetIterator(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Pop the iterable collection from the stack
+        value::Value collectionValue = context.stackManager->pop();
+
+        if (std::holds_alternative<std::nullptr_t>(collectionValue)) {
+            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                "Cannot get iterator from null object");
+        }
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(collectionValue)) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "GET_ITERATOR requires an object instance");
+        }
+
+        auto collection = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(collectionValue);
+
+        // Call the iterator() method on the collection
+        std::string methodName = "iterator";
+        std::vector<value::Value> args; // No arguments for iterator()
+
+        invokeInstanceMethod(collection, methodName, args, 0);
+
+        // The iterator object is now on the stack (pushed by invokeInstanceMethod)
+    }
+
+    void ObjectExecutor::handleIteratorHasNext(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Peek at the iterator on the stack (don't pop it, we need it for next())
+        value::Value iteratorValue = context.stackManager->peek();
+
+        if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
+            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                "Cannot call hasNext() on null iterator");
+        }
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "ITERATOR_HAS_NEXT requires an iterator instance");
+        }
+
+        auto iterator = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue);
+
+        // Call hasNext() method on the iterator
+        std::string methodName = "hasNext";
+        std::vector<value::Value> args;
+
+        invokeInstanceMethod(iterator, methodName, args, 0);
+
+        // The boolean result is now on the stack
+    }
+
+    void ObjectExecutor::handleIteratorNext(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Peek at the iterator on the stack
+        value::Value iteratorValue = context.stackManager->peek();
+
+        if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
+            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                "Cannot call next() on null iterator");
+        }
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "ITERATOR_NEXT requires an iterator instance");
+        }
+
+        auto iterator = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue);
+
+        // Call next() method on the iterator
+        std::string methodName = "next";
+        std::vector<value::Value> args;
+
+        invokeInstanceMethod(iterator, methodName, args, 0);
+
+        // The next element is now on the stack
+    }
+
+    void ObjectExecutor::handleIteratorClose(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Pop the iterator from the stack
+        value::Value iteratorValue = context.stackManager->pop();
+
+        if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
+            // Null iterator is OK, just return
+            return;
+        }
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
+            // Not an object, just ignore
+            return;
+        }
+
+        auto iterator = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue);
+
+        // Call close() method on the iterator (for cleanup)
+        std::string methodName = "close";
+        std::vector<value::Value> args;
+
+        try {
+            invokeInstanceMethod(iterator, methodName, args, 0);
+            // Pop the return value (close() returns void)
+            context.stackManager->pop();
+        }
+        catch (...) {
+            // Ignore exceptions during cleanup
+            // This is similar to Java's try-with-resources behavior
+        }
+    }
 }

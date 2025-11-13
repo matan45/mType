@@ -1,0 +1,3 @@
+Testing enhanced for-loop with empty collection:
+Loop body correctly not executed for empty collection
+Empty collection for-loop test passed!
