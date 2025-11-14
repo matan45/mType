@@ -175,6 +175,9 @@
     <Filter Include="tests\testFiles\enhancedFor">
       <UniqueIdentifier>{264C1EB0-9259-4C96-1B40-4881874C184D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\enhancedFor\error">
+      <UniqueIdentifier>{FFE7D2FA-6B56-287A-B43F-E37920ED1D16}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\enhancedFor\pass">
       <UniqueIdentifier>{EC692317-D8BA-0E59-011F-FD1AEDCEA1C2}</UniqueIdentifier>
     </Filter>
@@ -348,6 +351,9 @@
     </Filter>
     <Filter Include="tests\testFiles\stream">
       <UniqueIdentifier>{154C4AA1-0146-73F3-EAB2-0904D64BD95F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\stream\error">
+      <UniqueIdentifier>{2EDF6000-1A9A-50AC-C351-C9F6AFEB9A3C}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\stream\pass">
       <UniqueIdentifier>{3BB7277C-A7C4-5562-30AB-514D9CB72119}</UniqueIdentifier>
@@ -5572,6 +5578,24 @@
     <None Include="tests\testFiles\controlFlow\pass\voidFunctions.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachNonIterable.expected">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachNonIterable.mt">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachPrimitiveMismatch.expected">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachPrimitiveMismatch.mt">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachTypeMismatch.expected">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachTypeMismatch.mt">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachArrayList.expected">
       <Filter>tests\testFiles\enhancedFor\pass</Filter>
     </None>
@@ -7317,6 +7341,9 @@
     </None>
     <None Include="tests\testFiles\import\error\partialcircular\PartialC.mt">
       <Filter>tests\testFiles\import\error\partialcircular</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\selective_import_utils.mt">
+      <Filter>tests\testFiles\import\error</Filter>
     </None>
     <None Include="tests\testFiles\import\error\test_import_nonexistent_symbol.mt">
       <Filter>tests\testFiles\import\error</Filter>
@@ -9468,6 +9495,27 @@
     </None>
     <None Include="tests\testFiles\overloading\pass\staticMethodOverload.mt">
       <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamLimitNegative.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamNullConsumer.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamNullMapper.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamNullPredicate.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamReuse.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamReuseIntermediate.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamSkipNegative.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
     </None>
     <None Include="tests\testFiles\stream\pass\streamAllMatch.expected">
       <Filter>tests\testFiles\stream\pass</Filter>

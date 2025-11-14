@@ -301,6 +301,14 @@ namespace vm::compiler::visitors
             }
         }
 
+        // Also check if type inference reports this as an array type (e.g., "T[]", "Int[]", "String[]")
+        if (!isArrayType) {
+            std::string collectionClassName = ctx.typeInference.inferExpressionClassName(node->getCollection());
+            if (collectionClassName.find("[]") != std::string::npos) {
+                isArrayType = true;
+            }
+        }
+
         if (isArrayType) {
             // === ARRAY FAST PATH ===
             // Use counter-based iteration with ARRAY_GET (existing implementation)
@@ -382,6 +390,43 @@ namespace vm::compiler::visitors
         else {
             // === ITERATOR PATH ===
             // Use GET_ITERATOR, ITERATOR_HAS_NEXT, ITERATOR_NEXT opcodes
+
+            // Validate that collection implements Iterable<T> and element type matches loop variable
+            // Skip validation for array types (they should have been caught by array path detection)
+            std::string collectionClassName = ctx.typeInference.inferExpressionClassName(node->getCollection());
+            if (collectionClassName.empty()) {
+                collectionClassName = "Object";  // Fallback for unknown types
+            }
+
+            // Double-check: arrays should not reach this path, but if they do, skip validation
+            bool skipValidation = (collectionClassName.find("[]") != std::string::npos);
+
+            if (!skipValidation) {
+                // Get loop variable type as string from TypeInfo
+                const auto& varTypeInfo = node->getVariableTypeInfo();
+                std::string loopVarTypeName;
+
+                // For object types, use className (which may include generics like "ArrayList<Int>")
+                // For primitive types, convert ValueType to string representation
+                if (varTypeInfo.baseType == value::ValueType::OBJECT && !varTypeInfo.className.empty()) {
+                    loopVarTypeName = varTypeInfo.className;
+                } else {
+                    // Use toString() method or convert baseType to string for primitives
+                    loopVarTypeName = varTypeInfo.toString();
+                }
+
+                // Perform validation (will throw exception if invalid)
+                try {
+                    ctx.typeValidator.validateAndExtractIterableElementType(
+                        collectionClassName,
+                        loopVarTypeName,
+                        node->getLocation()
+                    );
+                } catch (const errors::TypeException& e) {
+                    // Re-throw with location information
+                    throw errors::TypeException(e.what(), node->getLocation());
+                }
+            }
 
             // Collection is already on the stack from node->getCollection()->accept()
             // Call GET_ITERATOR to get the iterator object

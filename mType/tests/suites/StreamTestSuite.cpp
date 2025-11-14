@@ -51,5 +51,34 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Stream SortedWith Chaining",
                                   passPath + "streamSortedWithChaining.mt");
+
+        // Add error tests for stream error handling
+        addTestFromFile("Stream Reuse After Terminal Operation",
+                       errorPath + "streamReuse.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream Reuse After Intermediate Operation",
+                       errorPath + "streamReuseIntermediate.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream Null Predicate",
+                       errorPath + "streamNullPredicate.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream Null Mapper Function",
+                       errorPath + "streamNullMapper.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream Null Consumer",
+                       errorPath + "streamNullConsumer.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream Limit with Negative Value",
+                       errorPath + "streamLimitNegative.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream Skip with Negative Value",
+                       errorPath + "streamSkipNegative.mt",
+                       TestType::ERROR_EXPECTED);
     }
 }

@@ -30,5 +30,18 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Enhanced For-Loop with Empty Collection",
                                   passPath + "forEachEmpty.mt");
+
+        // Add error tests for iterator type safety
+        addTestFromFile("For-Each on Non-Iterable Type",
+                       errorPath + "forEachNonIterable.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("For-Each with Type Mismatch",
+                       errorPath + "forEachTypeMismatch.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("For-Each with Primitive Type Mismatch",
+                       errorPath + "forEachPrimitiveMismatch.mt",
+                       TestType::ERROR_EXPECTED);
     }
 }
