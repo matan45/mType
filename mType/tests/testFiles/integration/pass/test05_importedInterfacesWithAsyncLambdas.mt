@@ -3,7 +3,7 @@
 
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 // Async functional interfaces
 interface AsyncFunction {
@@ -65,19 +65,19 @@ class AsyncProcessor<T, R> {
 }
 
 // Test with collections
-class AsyncListProcessor {
-    private List<Int> numbers;
+class AsyncArrayListProcessor {
+    private ArrayList<Int> numbers;
 
     constructor() {
-        this.numbers = new List<Int>();
+        this.numbers = new ArrayList<Int>();
     }
 
     public function addNumber(Int num): void {
         this.numbers.add(num);
     }
 
-    public function async mapAsync(AsyncFunction func): Promise<List<Int>> {
-        List<Int> result = new List<Int>();
+    public function async mapAsync(AsyncFunction func): Promise<ArrayList<Int>> {
+        ArrayList<Int> result = new ArrayList<Int>();
         for (int i = 0; i < this.numbers.size(); i = i + 1) {
             Int current = this.numbers.get(i);
             Int mapped = await func.apply(current.getValue());
@@ -121,19 +121,19 @@ function async main(): Promise<void> {
     Int intResult = await processor2.process(new String("Hello World"));
     print("String length: " + intResult.getValue());
 
-    // Test 3: Async list processing
-    print("--- Async list processing ---");
-    AsyncListProcessor listProcessor = new AsyncListProcessor();
-    listProcessor.addNumber(new Int(5));
-    listProcessor.addNumber(new Int(10));
-    listProcessor.addNumber(new Int(15));
+    // Test 3: Async ArrayList processing
+    print("--- Async ArrayList processing ---");
+    AsyncArrayListProcessor ArrayListProcessor = new AsyncArrayListProcessor();
+    ArrayListProcessor.addNumber(new Int(5));
+    ArrayListProcessor.addNumber(new Int(10));
+    ArrayListProcessor.addNumber(new Int(15));
 
     AsyncFunction multiplier = new AsyncAdder(10);
-    List<Int> mappedList = await listProcessor.mapAsync(multiplier);
+    ArrayList<Int> mappedArrayList = await ArrayListProcessor.mapAsync(multiplier);
 
-    print("Mapped list:");
-    for (int i = 0; i < mappedList.size(); i++) {
-        Int val = mappedList.get(i);
+    print("Mapped ArrayList:");
+    for (int i = 0; i < mappedArrayList.size(); i++) {
+        Int val = mappedArrayList.get(i);
         print(val.getValue());
     }
 

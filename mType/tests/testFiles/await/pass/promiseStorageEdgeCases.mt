@@ -1,7 +1,7 @@
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Bool.mt";
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 // Helper async functions
 function async getValue(int n): Promise<Int> {
@@ -67,14 +67,14 @@ function async testPromiseAsField(): Promise<Int> {
 function async testPromiseInCollections(): Promise<Int> {
     print("--- Test 4: Promise in Collections ---");
 
-    // Create a list to store promises
-    List<Promise<Int>> promises = new List<Promise<Int>>();
+    // Create a ArrayList to store promises
+    ArrayList<Promise<Int>> promises = new ArrayList<Promise<Int>>();
 
     // Add multiple promises
     promises.add(getValue(1));
     promises.add(getValue(2));
     promises.add(getValue(3));
-    print("Added 3 promises to list");
+    print("Added 3 promises to ArrayList");
 
     // Await each promise
     int total = 0;

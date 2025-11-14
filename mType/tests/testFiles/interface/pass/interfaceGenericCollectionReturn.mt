@@ -1,10 +1,10 @@
 // Test interface returning generic collection
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 interface Repository<T> {
-    function findAll(): List<T>;
+    function findAll(): ArrayList<T>;
     function findById(int id): T;
     function save(T item): void;
 }
@@ -20,13 +20,13 @@ class User {
 }
 
 class UserRepository implements Repository<User> {
-    private List<User> users;
+    private ArrayList<User> users;
 
     public constructor() {
-        this.users = new List<User>();
+        this.users = new ArrayList<User>();
     }
 
-    public function findAll(): List<User> {
+    public function findAll(): ArrayList<User> {
         return this.users;
     }
 
@@ -50,7 +50,7 @@ repo.save(new User(1, "Alice"));
 repo.save(new User(2, "Bob"));
 repo.save(new User(3, "Charlie"));
 
-List<User> allUsers = repo.findAll();
+ArrayList<User> allUsers = repo.findAll();
 print("All users:");
 for (int i = 0; i < allUsers.size(); i++) {
     User user = allUsers.get(i);

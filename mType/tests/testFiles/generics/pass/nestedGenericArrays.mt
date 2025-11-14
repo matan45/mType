@@ -1,5 +1,5 @@
 import * from "../../lib/primitives/Int.mt";
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 // Test nested generic arrays like Array<Array<Generic<T>>>
 class Container<T> {
@@ -38,28 +38,28 @@ function main(): void {
     print("grid[1][0]: " + grid[1][0].getData());
     print("grid[1][1]: " + grid[1][1].getData());
 
-    // Test 2: Array of arrays containing Lists
-    List<Int>[][] listGrid = new List<Int>[2][2];
+    // Test 2: Array of arrays containing ArrayLists
+    ArrayList<Int>[][] ArrayListGrid = new ArrayList<Int>[2][2];
 
-    listGrid[0][0] = new List<Int>();
-    listGrid[0][0].add(new Int(1));
-    listGrid[0][0].add(new Int(2));
+    ArrayListGrid[0][0] = new ArrayList<Int>();
+    ArrayListGrid[0][0].add(new Int(1));
+    ArrayListGrid[0][0].add(new Int(2));
 
-    listGrid[0][1] = new List<Int>();
-    listGrid[0][1].add(new Int(3));
+    ArrayListGrid[0][1] = new ArrayList<Int>();
+    ArrayListGrid[0][1].add(new Int(3));
 
-    listGrid[1][0] = new List<Int>();
-    listGrid[1][0].add(new Int(4));
-    listGrid[1][0].add(new Int(5));
-    listGrid[1][0].add(new Int(6));
+    ArrayListGrid[1][0] = new ArrayList<Int>();
+    ArrayListGrid[1][0].add(new Int(4));
+    ArrayListGrid[1][0].add(new Int(5));
+    ArrayListGrid[1][0].add(new Int(6));
 
-    listGrid[1][1] = new List<Int>();
+    ArrayListGrid[1][1] = new ArrayList<Int>();
 
-    print("2D list grid created");
-    print("listGrid[0][0] size: " + listGrid[0][0].size());
-    print("listGrid[0][1] size: " + listGrid[0][1].size());
-    print("listGrid[1][0] size: " + listGrid[1][0].size());
-    print("listGrid[1][1] size: " + listGrid[1][1].size());
+    print("2D ArrayList grid created");
+    print("ArrayListGrid[0][0] size: " + ArrayListGrid[0][0].size());
+    print("ArrayListGrid[0][1] size: " + ArrayListGrid[0][1].size());
+    print("ArrayListGrid[1][0] size: " + ArrayListGrid[1][0].size());
+    print("ArrayListGrid[1][1] size: " + ArrayListGrid[1][1].size());
 
     // Test 3: Deeply nested generic
     Container<Container<Int>> nested = new Container<Container<Int>>();

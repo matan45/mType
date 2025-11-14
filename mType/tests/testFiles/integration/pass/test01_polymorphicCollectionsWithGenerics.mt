@@ -1,7 +1,7 @@
 // Integration Test 01: Polymorphic Collections with Generics
 // Tests: Interfaces + Generics + Collections + Lambdas + isClassOf
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
@@ -48,11 +48,11 @@ class StringProcessor implements Processor<String> {
 // Generic container class
 class ProcessorContainer<T> {
     private Processor<T> processor;
-    private List<T> items;
+    private ArrayList<T> items;
 
     constructor(Processor<T> proc) {
         this.processor = proc;
-        this.items = new List<T>();
+        this.items = new ArrayList<T>();
     }
 
     public function addItem(T item): void {

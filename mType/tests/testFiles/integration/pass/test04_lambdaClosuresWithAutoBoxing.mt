@@ -1,7 +1,7 @@
 // Integration Test 04: Lambda Closures with Auto-Boxing
 // Tests: Lambdas + Auto-boxing + Collections + For loops + Scoping
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Bool.mt";
@@ -58,18 +58,18 @@ class StringTransformer implements Transformer {
 
 // Container using lambdas
 class FunctionalContainer {
-    private List<Int> numbers;
+    private ArrayList<Int> numbers;
 
     constructor() {
-        this.numbers = new List<Int>();
+        this.numbers = new ArrayList<Int>();
     }
 
     public function addNumber(Int num): void {
         this.numbers.add(num);
     }
 
-    public function mapWithFunction(Function func): List<Int> {
-        List<Int> result = new List<Int>();
+    public function mapWithFunction(Function func): ArrayList<Int> {
+        ArrayList<Int> result = new ArrayList<Int>();
         for (int i = 0; i < this.numbers.size(); i = i + 1) {
             Int current = this.numbers.get(i);
             int mapped = func.apply(current.getValue());
@@ -78,8 +78,8 @@ class FunctionalContainer {
         return result;
     }
 
-    public function filter(Predicate pred): List<Int> {
-        List<Int> result = new List<Int>();
+    public function filter(Predicate pred): ArrayList<Int> {
+        ArrayList<Int> result = new ArrayList<Int>();
         for (int i = 0; i < this.numbers.size(); i = i + 1) {
             Int current = this.numbers.get(i);
             bool passes = pred.test(current.getValue());
@@ -90,8 +90,8 @@ class FunctionalContainer {
         return result;
     }
 
-    public function transformToStrings(Transformer trans): List<String> {
-        List<String> result = new List<String>();
+    public function transformToStrings(Transformer trans): ArrayList<String> {
+        ArrayList<String> result = new ArrayList<String>();
         for (int i = 0; i < this.numbers.size(); i = i + 1) {
             Int current = this.numbers.get(i);
             String transformed = trans.transform(current.getValue());
@@ -175,7 +175,7 @@ container.addNumber(25);
 
 // Map with closure (add 100 to each)
 Function adder = new ClosureFunction(100);
-List<Int> mapped = container.mapWithFunction(adder);
+ArrayList<Int> mapped = container.mapWithFunction(adder);
 
 print("Mapped results (add 100):");
 for (int i = 0; i < mapped.size(); i++) {
@@ -185,7 +185,7 @@ for (int i = 0; i < mapped.size(); i++) {
 
 // Filter with predicate (greater than 12)
 Predicate greaterThan12 = new PredicateImpl(12);
-List<Int> filtered = container.filter(greaterThan12);
+ArrayList<Int> filtered = container.filter(greaterThan12);
 
 print("Filtered results (> 12):");
 for (int i = 0; i < filtered.size(); i++) {
@@ -195,7 +195,7 @@ for (int i = 0; i < filtered.size(); i++) {
 
 // Transform to strings
 Transformer transformer = new StringTransformer("Number: ");
-List<String> strings = container.transformToStrings(transformer);
+ArrayList<String> strings = container.transformToStrings(transformer);
 
 print("Transformed to strings:");
 for (int i = 0; i < strings.size(); i++) {

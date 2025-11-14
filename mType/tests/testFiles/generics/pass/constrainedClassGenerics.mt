@@ -1,6 +1,6 @@
 // Test: Generic class with interface constraints
 // Expected: Should compile and run successfully
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 interface Comparable<T> {
     function compareTo(T other): int;
@@ -33,11 +33,11 @@ class Number implements Comparable<Number> {
 }
 
 // Generic container with constraint
-class SortedList<T extends Comparable<T>> {
-    private List<T> items;
+class SortedArrayList<T extends Comparable<T>> {
+    private ArrayList<T> items;
 
     constructor() {
-        this.items = new List<T>();
+        this.items = new ArrayList<T>();
     }
 
     public function add(T item): void {
@@ -70,7 +70,7 @@ class SortedList<T extends Comparable<T>> {
 }
 
 // Test the constrained generic class
-SortedList<Number> numbers = new SortedList<Number>();
+SortedArrayList<Number> numbers = new SortedArrayList<Number>();
 numbers.add(new Number(5));
 numbers.add(new Number(2));
 numbers.add(new Number(8));

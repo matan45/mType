@@ -3,17 +3,17 @@
 import * from "../../lib/exceptions/Exception.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 // Exception with large string payload
 class LargeDataException extends Exception {
     public String largeData;
-    public List<String> dataList;
+    public ArrayList<String> dataArrayList;
     public Int dataSize;
 
-    public constructor(string msg, String data, List<String> list, Int size): super(msg) {
+    public constructor(string msg, String data, ArrayList<String> ArrayList, Int size): super(msg) {
         largeData = data;
-        dataList = list;
+        dataArrayList = ArrayList;
         dataSize = size;
     }
 
@@ -21,8 +21,8 @@ class LargeDataException extends Exception {
         return dataSize;
     }
 
-    public function getListSize(): Int {
-        return dataList.size();
+    public function getArrayListSize(): Int {
+        return dataArrayList.size();
     }
 }
 
@@ -39,17 +39,17 @@ function buildLargeString(int size): String {
     return result;
 }
 
-// Build a large list of strings
-function buildLargeList(Int size): List<String> {
-    List<String> list = new List<String>();
+// Build a large ArrayList of strings
+function buildLargeArrayList(Int size): ArrayList<String> {
+    ArrayList<String> ArrayList = new ArrayList<String>();
     Int i = new Int(0);
 
     while (i < size) {
-        list.add(new String("Item_" + i));
+        ArrayList.add(new String("Item_" + i));
         i = i + 1;
     }
 
-    return list;
+    return ArrayList;
 }
 
 // Test exception with large string data
@@ -58,44 +58,44 @@ function testLargeStringException(): void {
     try {
         int size = 100;
         String largeStr = buildLargeString(size);
-        List<String> emptyList = new List<String>();
+        ArrayList<String> emptyArrayList = new ArrayList<String>();
 
-        throw new LargeDataException("Large string payload", largeStr, emptyList, size);
+        throw new LargeDataException("Large string payload", largeStr, emptyArrayList, size);
     } catch (LargeDataException e) {
         print("Caught exception with data size: " + e.getDataSize());
         print("Exception message: " + e.getMessage());
     }
 }
 
-// Test exception with large list data
-function testLargeListException(): void {
-    print("Creating exception with large list (200 elements):");
+// Test exception with large ArrayList data
+function testLargeArrayListException(): void {
+    print("Creating exception with large ArrayList (200 elements):");
     try {
         Int size = new Int(200);
         String emptyStr = new String("");
-        List<String> largeList = buildLargeList(size);
+        ArrayList<String> largeArrayList = buildLargeArrayList(size);
 
-        throw new LargeDataException("Large list payload", emptyStr, largeList, size);
+        throw new LargeDataException("Large ArrayList payload", emptyStr, largeArrayList, size);
     } catch (LargeDataException e) {
-        print("Caught exception with list size: " + e.getListSize());
+        print("Caught exception with ArrayList size: " + e.getArrayListSize());
         print("Exception message: " + e.getMessage());
     }
 }
 
-// Test exception with both large string and list
+// Test exception with both large string and ArrayList
 function testCombinedLargeDataException(): void {
-    print("Creating exception with both large string and list:");
+    print("Creating exception with both large string and ArrayList:");
     try {
         int strSize = 50;
-        int listSize = 100;
+        int ArrayListSize = 100;
         String largeStr = buildLargeString(strSize);
-        List<String> largeList = buildLargeList(listSize);
+        ArrayList<String> largeArrayList = buildLargeArrayList(ArrayListSize);
 
-        throw new LargeDataException("Combined large payload", largeStr, largeList, strSize + listSize);
+        throw new LargeDataException("Combined large payload", largeStr, largeArrayList, strSize + ArrayListSize);
     } catch (LargeDataException e) {
         print("Caught exception with combined data");
         print("Data size: " + e.getDataSize());
-        print("List size: " + e.getListSize());
+        print("ArrayList size: " + e.getArrayListSize());
     }
 }
 
@@ -110,9 +110,9 @@ function testMultipleLargeExceptions(): void {
         try {
             int size = 50;
             String data = buildLargeString(size);
-            List<String> list = buildLargeList(size);
+            ArrayList<String> ArrayList = buildLargeArrayList(size);
 
-            throw new LargeDataException("Multiple large exception " + i, data, list, size);
+            throw new LargeDataException("Multiple large exception " + i, data, ArrayList, size);
         } catch (LargeDataException e) {
             caught = caught + 1;
         }
@@ -143,9 +143,9 @@ function testNestedLargeException(): void {
         try {
             int size = 50;
             String data = buildLargeString(size);
-            List<String> list = buildLargeList(size);
+            ArrayList<String> ArrayList = buildLargeArrayList(size);
 
-            throw new LargeDataException("Inner large exception", data, list, size);
+            throw new LargeDataException("Inner large exception", data, ArrayList, size);
         } catch (LargeDataException inner) {
             String additionalData = buildLargeString(30);
             throw new NestedLargeException("Nested with large data", inner, additionalData);
@@ -160,7 +160,7 @@ print("Starting large exception data performance test");
 print("---");
 testLargeStringException();
 print("---");
-testLargeListException();
+testLargeArrayListException();
 print("---");
 testCombinedLargeDataException();
 print("---");

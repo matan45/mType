@@ -1,6 +1,6 @@
 // Test: Multiple generic parameters each with their own constraint
 // Expected: Should compile and run successfully
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 interface Comparable<T> {
     function compareTo(T other): int;
@@ -63,12 +63,12 @@ class Record implements Serializable, Cloneable<Record> {
 
 // Class with multiple constrained generic parameters
 class Repository<K extends Comparable<K>, V extends Serializable> {
-    private List<K> keys;
-    private List<V> values;
+    private ArrayList<K> keys;
+    private ArrayList<V> values;
 
     constructor() {
-        this.keys = new List<K>();
-        this.values = new List<V>();
+        this.keys = new ArrayList<K>();
+        this.values = new ArrayList<V>();
     }
 
     public function put(K key, V value): void {

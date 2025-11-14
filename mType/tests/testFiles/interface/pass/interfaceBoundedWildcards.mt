@@ -1,7 +1,7 @@
 // Test bounded generic types beyond simple extends
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 interface Comparable<T> {
     function compareTo(T other): int;
@@ -31,10 +31,10 @@ interface Container<T extends Comparable<T>> {
 }
 
 class NumberContainer implements Container<Number> {
-    private List<Number> items;
+    private ArrayList<Number> items;
 
     public constructor() {
-        this.items = new List<Number>();
+        this.items = new ArrayList<Number>();
     }
 
     public function add(Number item): void {

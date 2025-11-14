@@ -1,7 +1,7 @@
 // Integration Test 11: Scoping Edge Cases with Lambdas
 // Tests: Variable shadowing prevention + Lambda capture + Block scoping
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 
 // Functional interfaces
@@ -147,7 +147,7 @@ class CaptureFunction implements Function {
 function testLambdaCaptureInLoop(): void {
     print("--- Lambda capture in loop ---");
 
-    List<Function> functions = new List<Function>();
+    ArrayList<Function> functions = new ArrayList<Function>();
 
     for (int i = 0; i < 3; i = i + 1) {
         int captureValue = i;  // Capture in local variable

@@ -1,14 +1,14 @@
 // Test mutual dependency between interfaces
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 interface Node {
     function getId(): int;
-    function getEdges(): EdgeList;
+    function getEdges(): EdgeArrayList;
 }
 
-interface EdgeList {
+interface EdgeArrayList {
     function add(Edge edge): void;
     function getNode(int index): Node;
     function size(): int;
@@ -21,18 +21,18 @@ interface Edge {
 
 class GraphNode implements Node {
     private int id;
-    private EdgeList edges;
+    private EdgeArrayList edges;
 
     public constructor(int id) {
         this.id = id;
-        this.edges = new SimpleEdgeList();
+        this.edges = new SimpleEdgeArrayList();
     }
 
     public function getId(): int {
         return this.id;
     }
 
-    public function getEdges(): EdgeList {
+    public function getEdges(): EdgeArrayList {
         return this.edges;
     }
 
@@ -42,11 +42,11 @@ class GraphNode implements Node {
     }
 }
 
-class SimpleEdgeList implements EdgeList {
-    private List<Edge> edges;
+class SimpleEdgeArrayList implements EdgeArrayList {
+    private ArrayList<Edge> edges;
 
     public constructor() {
-        this.edges = new List<Edge>();
+        this.edges = new ArrayList<Edge>();
     }
 
     public function add(Edge edge): void {
@@ -93,7 +93,7 @@ node2.addEdge(node3);
 print("Node 1 has " + node1.getEdges().size() + " edges");
 print("Node 2 has " + node2.getEdges().size() + " edges");
 
-EdgeList edges = node1.getEdges();
+EdgeArrayList edges = node1.getEdges();
 int i = 0;
 while (i < edges.size()) {
     Node targetNode = edges.getNode(i);
