@@ -12,86 +12,86 @@ print("=== String Edge Cases Test ===");
 // Lambda handling null and empty strings
 Function<String, String> safeToUpper = s -> {
     if (s == null) {
-        return "NULL";
+        return new String("NULL");
     }
-    if (strLength(s) == 0) {
-        return "EMPTY";
+    if (s.length() == 0) {
+        return new String("EMPTY");
     }
-    return toUpperCase(s);
+    return new String(toUpperCase(s.getValue()));
 };
 
-print("Normal: " + safeToUpper.apply("hello"));
+print("Normal: " + safeToUpper.apply(new String("hello")));
 print("Null: " + safeToUpper.apply(null));
-print("Empty: " + safeToUpper.apply(""));
+print("Empty: " + safeToUpper.apply(new String("")));
 
 // Lambda with string concatenation edge cases
 Function<String, String> safeConcat = s -> {
     if (s == null) {
-        return "Value is null";
+        return new String("Value is null");
     }
-    return "Value is " + s;
+    return new String("Value is " + s);
 };
 
-print(safeConcat.apply("test"));
+print(safeConcat.apply(new String("test")));
 print(safeConcat.apply(null));
-print(safeConcat.apply(""));
+print(safeConcat.apply(new String("")));
 
 // Lambda with string length checks
 Function<String, Int> categorizeLength = s -> {
     if (s == null) {
         return new Int(-1);
     }
-    if (strLength(s) == 0) {
+    if (s.length() == 0) {
         return new Int(0);
     }
-    if (strLength(s) < 5) {
+    if (s.length() < 5) {
         return new Int(1);
     }
-    if (strLength(s) < 10) {
+    if (s.length() < 10) {
         return new Int(2);
     }
     return new Int(3);
 };
 
-print("Category 'hi': " + categorizeLength.apply("hi").getValue());
-print("Category 'hello': " + categorizeLength.apply("hello").getValue());
-print("Category 'hello world': " + categorizeLength.apply("hello world").getValue());
+print("Category 'hi': " + categorizeLength.apply(new String("hi")).getValue());
+print("Category 'hello': " + categorizeLength.apply(new String("hello")).getValue());
+print("Category 'hello world': " + categorizeLength.apply(new String("hello world")).getValue());
 print("Category null: " + categorizeLength.apply(null).getValue());
-print("Category '': " + categorizeLength.apply("").getValue());
+print("Category '': " + categorizeLength.apply(new String("")).getValue());
 
 // Lambda with string comparison
 Function<String, Bool> isValidName = name -> {
     if (name == null) {
         return new Bool(false);
     }
-    if (strLength(name) == 0) {
+    if (name.length() == 0) {
         return new Bool(false);
     }
-    if (strLength(name) > 50) {
+    if (name.length() > 50) {
         return new Bool(false);
     }
     return new Bool(true);
 };
 
-print("Valid 'John': " + isValidName.apply("John").getValue());
+print("Valid 'John': " + isValidName.apply(new String("John")).getValue());
 print("Valid null: " + isValidName.apply(null).getValue());
-print("Valid '': " + isValidName.apply("").getValue());
-print("Valid 'A': " + isValidName.apply("A").getValue());
+print("Valid '': " + isValidName.apply(new String("")).getValue());
+print("Valid 'A': " + isValidName.apply(new String("A")).getValue());
 
 // Lambda with whitespace-like handling
 Function<String, String> normalize = s -> {
     if (s == null) {
-        return "";
+        return new String("");
     }
-    if (strLength(s) == 0) {
-        return "";
+    if (s.length() == 0) {
+        return new String("");
     }
     return s;
 };
 
-string n1 = normalize.apply("test");
-string n2 = normalize.apply(null);
-string n3 = normalize.apply("");
+string n1 = normalize.apply(new String("test")).getValue();
+string n2 = normalize.apply(null).getValue();
+string n3 = normalize.apply(new String("")).getValue();
 
 print("Normalized 'test': '" + n1 + "'");
 print("Normalized null: '" + n2 + "'");
