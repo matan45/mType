@@ -70,16 +70,16 @@ print("=== Pipeline Test ===");
 
 // Simple value pipeline
 Pipeline<Int> p1 = new Pipeline<Int>(new Int(10));
-Pipeline<Int> p2 = p1.map(x -> new Int(x.getValue() * 2));
-Pipeline<Int> p3 = p2.map(x -> new Int(x.getValue() + 5));
+Pipeline<Int> p2 = p1.map<Int>(x -> new Int(x.getValue() * 2));
+Pipeline<Int> p3 = p2.map<Int>(x -> new Int(x.getValue() + 5));
 
 print("Pipeline result: " + p3.get().getValue());
 
 // Chained pipeline
 Pipeline<Int> result = new Pipeline<Int>(new Int(5))
-    .map(x -> new Int(x.getValue() * 3))
-    .map(x -> new Int(x.getValue() + 10))
-    .map(x -> new Int(x.getValue() * 2));
+    .map<Int>(x -> new Int(x.getValue() * 3))
+    .map<Int>(x -> new Int(x.getValue() + 10))
+    .map<Int>(x -> new Int(x.getValue() * 2));
 
 print("Chained result: " + result.get().getValue());
 

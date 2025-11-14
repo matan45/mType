@@ -12,7 +12,7 @@ UserService: Found bob
 Found: User{id=2, username=bob, email=bob@example.com}
 Entity not found with ID: 99
 UserService: User not found
---- Test 3: List all users ---
+--- Test 3: ArrayList all users ---
 Total users: 3
   User{id=1, username=alice, email=alice@example.com}
   User{id=2, username=bob, email=bob@example.com}

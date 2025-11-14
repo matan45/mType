@@ -4,7 +4,7 @@ import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/Bool.mt";
 import * from "../../lib/primitives/Float.mt";
 import * from "../../lib/primitives/String.mt";
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 class GenericBox<T> {
     T value;
@@ -120,7 +120,7 @@ function testArraysWithGenerics():void {
     print("=== Testing Arrays with Generics ===");
 
     // Test array of generic boxes
-    List<GenericBox<Int>> boxes = new List<GenericBox<Int>>();
+    ArrayList<GenericBox<Int>> boxes = new ArrayList<GenericBox<Int>>();
     boxes.add(new GenericBox<Int>(new Int(10)));
     boxes.add(new GenericBox<Int>(new Int(20)));
     boxes.add(new GenericBox<Int>(new Int(30)));
@@ -131,7 +131,7 @@ function testArraysWithGenerics():void {
     }
 
     // Test array of pairs
-    List<Pair<String, Int>> pairs = new List<Pair<String, Int>>();
+    ArrayList<Pair<String, Int>> pairs = new ArrayList<Pair<String, Int>>();
     pairs.add(new Pair<String, Int>(new String("First"), new Int(1)));
     pairs.add(new Pair<String, Int>(new String("Second"), new Int(2)));
 

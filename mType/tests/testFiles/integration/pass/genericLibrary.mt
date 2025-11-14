@@ -1,14 +1,14 @@
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/Bool.mt";
 import * from "../../lib/primitives/String.mt";
 
 // Generic library for testing imports with generics
 class GenericContainer<T> {
-    List<T> items;
+    ArrayList<T> items;
 
     constructor() {
-        this.items = new List<T>();
+        this.items = new ArrayList<T>();
     }
 
     public function add(T item): void {
@@ -20,7 +20,7 @@ class GenericContainer<T> {
     }
 
     public function contains(T item): Bool {
-        // Check if list contains the item
+        // Check if ArrayList contains the item
         for (int i = 0; i < this.items.size(); i++) {
             T current = this.items.get(i);
             if (current != null && current.equals(item)) {
@@ -31,7 +31,7 @@ class GenericContainer<T> {
     }
 
     public function getFirst(): T {
-        // Get first item from List (maintains insertion order)
+        // Get first item from ArrayList (maintains insertion order)
         if (this.items.size() > 0) {
             return this.items.get(0);
         }

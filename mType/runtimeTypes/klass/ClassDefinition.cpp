@@ -1,7 +1,9 @@
 #include "ClassDefinition.hpp"
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
+#include "../../vm/MethodSignature.hpp"
 #include <algorithm>
+#include <set>
 
 namespace runtimeTypes::klass
 {
@@ -108,7 +110,7 @@ namespace runtimeTypes::klass
         return instanceFields;
     }
 
-    const std::unordered_map<std::string, std::shared_ptr<MethodDefinition>>& ClassDefinition::getInstanceMethods() const
+    const std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>>& ClassDefinition::getInstanceMethods() const
     {
         return instanceMethods;
     }
@@ -118,7 +120,7 @@ namespace runtimeTypes::klass
         return staticFields;
     }
 
-    const std::unordered_map<std::string, std::shared_ptr<MethodDefinition>>& ClassDefinition::getStaticMethods() const
+    const std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>>& ClassDefinition::getStaticMethods() const
     {
         return staticMethods;
     }
@@ -136,7 +138,8 @@ namespace runtimeTypes::klass
 
     void ClassDefinition::addInstanceMethod(const std::string& name, std::shared_ptr<MethodDefinition> method)
     {
-        instanceMethods[name] = method;
+        // NEW: Support overloading - append to vector of overloads
+        instanceMethods[name].push_back(method);
     }
 
     void ClassDefinition::addStaticField(const std::string& name, std::shared_ptr<FieldDefinition> field)
@@ -146,7 +149,8 @@ namespace runtimeTypes::klass
 
     void ClassDefinition::addStaticMethod(const std::string& name, std::shared_ptr<MethodDefinition> method)
     {
-        staticMethods[name] = method;
+        // NEW: Support overloading - append to vector of overloads
+        staticMethods[name].push_back(method);
     }
 
     void ClassDefinition::addConstructor(std::shared_ptr<ConstructorDefinition> constructor)
@@ -280,10 +284,18 @@ namespace runtimeTypes::klass
 
     std::shared_ptr<MethodDefinition> ClassDefinition::findMethod(const std::string& methodName, size_t argCount) const
     {
-        auto method = getMethod(methodName);
-        if (method && method->getParameters().size() == argCount) {
-            return method;
+        // Try instance method first (most common case)
+        auto instanceMethod = findInstanceMethod(methodName, argCount);
+        if (instanceMethod) {
+            return instanceMethod;
         }
+
+        // Then try static method
+        auto staticMethod = findStaticMethod(methodName, argCount);
+        if (staticMethod) {
+            return staticMethod;
+        }
+
         return nullptr;
     }
 
@@ -291,8 +303,8 @@ namespace runtimeTypes::klass
     std::shared_ptr<MethodDefinition> ClassDefinition::getStaticMethod(const std::string& methodName) const
     {
         auto it = staticMethods.find(methodName);
-        if (it != staticMethods.end()) {
-            return it->second;
+        if (it != staticMethods.end() && !it->second.empty()) {
+            return it->second[0];  // Return first overload for backward compatibility
         }
         return nullptr;
     }
@@ -300,26 +312,43 @@ namespace runtimeTypes::klass
     std::shared_ptr<MethodDefinition> ClassDefinition::getInstanceMethod(const std::string& methodName) const
     {
         auto it = instanceMethods.find(methodName);
-        if (it != instanceMethods.end()) {
-            return it->second;
+        if (it != instanceMethods.end() && !it->second.empty()) {
+            return it->second[0];  // Return first overload for backward compatibility
         }
         return nullptr;
     }
 
     std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethod(const std::string& methodName, size_t argCount) const
     {
-        auto method = getStaticMethod(methodName);
-        if (method && method->getParameters().size() == argCount) {
-            return method;
+        auto it = staticMethods.find(methodName);
+        if (it != staticMethods.end()) {
+            // Search all overloads for matching parameter count
+            for (const auto& method : it->second) {
+                if (method && method->getParameters().size() == argCount) {
+                    return method;
+                }
+            }
         }
         return nullptr;
     }
 
     std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethod(const std::string& methodName, size_t argCount) const
     {
-        auto method = getInstanceMethod(methodName);
-        if (method && method->getParameters().size() == argCount) {
-            return method;
+        auto it = instanceMethods.find(methodName);
+        if (it != instanceMethods.end()) {
+            // Search all overloads for matching parameter count
+            for (const auto& method : it->second) {
+                if (method) {
+                    // For instance methods, skip the first parameter ('this') when counting
+                    size_t methodParamCount = method->getParameters().size();
+                    if (!method->isStatic() && methodParamCount > 0) {
+                        methodParamCount--; // Exclude 'this'
+                    }
+                    if (methodParamCount == argCount) {
+                        return method;
+                    }
+                }
+            }
         }
         return nullptr;
     }
@@ -598,8 +627,12 @@ namespace runtimeTypes::klass
 
                     size_t requiredArgCount = abstractMethodDef->getParameters().size();
 
+                    // findInstanceMethod expects parameter count WITHOUT 'this', so subtract 1
+                    // For instance methods, getParameters() includes 'this' as the first parameter
+                    size_t argCountWithoutThis = (requiredArgCount > 0) ? requiredArgCount - 1 : 0;
+
                     // First check in current class with signature matching (name + parameter count)
-                    auto implementingMethod = findInstanceMethod(abstractMethod, requiredArgCount);
+                    auto implementingMethod = findInstanceMethod(abstractMethod, argCountWithoutThis);
                     if (implementingMethod && !implementingMethod->isAbstract()) {
                         isImplemented = true;
                     }
@@ -612,8 +645,8 @@ namespace runtimeTypes::klass
                                 break;
                             }
 
-                            // Use signature-aware lookup (name + parameter count)
-                            auto intermediateMethod = intermediateClass->findInstanceMethod(abstractMethod, requiredArgCount);
+                            // Use signature-aware lookup (name + parameter count WITHOUT 'this')
+                            auto intermediateMethod = intermediateClass->findInstanceMethod(abstractMethod, argCountWithoutThis);
                             if (intermediateMethod && !intermediateMethod->isAbstract()) {
                                 isImplemented = true;
                                 break;
@@ -666,5 +699,316 @@ namespace runtimeTypes::klass
             }
         }
         return nullptr;
+    }
+
+    // NEW: Overload-specific method implementations
+    std::vector<std::shared_ptr<MethodDefinition>> ClassDefinition::getAllInstanceMethodOverloads(const std::string& methodName) const
+    {
+        auto it = instanceMethods.find(methodName);
+        if (it != instanceMethods.end()) {
+            return it->second;
+        }
+        return {};
+    }
+
+    std::vector<std::shared_ptr<MethodDefinition>> ClassDefinition::getAllStaticMethodOverloads(const std::string& methodName) const
+    {
+        auto it = staticMethods.find(methodName);
+        if (it != staticMethods.end()) {
+            return it->second;
+        }
+        return {};
+    }
+
+    std::vector<std::shared_ptr<MethodDefinition>> ClassDefinition::getAllInstanceMethodOverloadsInHierarchy(const std::string& methodName) const
+    {
+        std::vector<std::shared_ptr<MethodDefinition>> allOverloads;
+        std::set<std::string> seenSignatures;  // Track signatures to avoid duplicates from overrides
+
+        // Helper to generate signature for deduplication
+        // For instance methods, skip the 'this' parameter (first parameter) for signature comparison
+        // This allows proper deduplication when a derived class overrides a base class method
+        auto getSignature = [](const std::shared_ptr<MethodDefinition>& method) {
+            std::string sig = method->getName() + "(";
+            const auto& params = method->getParametersWithTypes();
+            // Skip first parameter if it's 'this' (for instance methods)
+            size_t startIdx = (!method->isStatic() && !params.empty() && params[0].first == "this") ? 1 : 0;
+            for (size_t i = startIdx; i < params.size(); ++i) {
+                if (i > startIdx) sig += ",";
+                sig += params[i].second.toString();
+            }
+            sig += ")";
+            return sig;
+        };
+
+        // Collect overloads from this class
+        auto localOverloads = getAllInstanceMethodOverloads(methodName);
+        for (const auto& overload : localOverloads) {
+            std::string sig = getSignature(overload);
+            if (seenSignatures.insert(sig).second) {
+                allOverloads.push_back(overload);
+            }
+        }
+
+        // Collect overloads from parent hierarchy
+        // Skip methods that have already been overridden in child classes
+        auto parent = getParentClass();
+        while (parent) {
+            auto parentOverloads = parent->getAllInstanceMethodOverloads(methodName);
+            for (const auto& overload : parentOverloads) {
+                std::string sig = getSignature(overload);
+                if (seenSignatures.insert(sig).second) {
+                    // Only add if we haven't seen this signature before (not overridden)
+                    allOverloads.push_back(overload);
+                }
+            }
+            parent = parent->getParentClass();
+        }
+
+        return allOverloads;
+    }
+
+    std::vector<std::shared_ptr<MethodDefinition>> ClassDefinition::getAllStaticMethodOverloadsInHierarchy(const std::string& methodName) const
+    {
+        std::vector<std::shared_ptr<MethodDefinition>> allOverloads;
+        std::set<std::string> seenSignatures;  // Track signatures to avoid duplicates
+
+        // Helper to generate signature for deduplication
+        // For instance methods, skip the 'this' parameter (first parameter) for signature comparison
+        // This allows proper deduplication when a derived class overrides a base class method
+        auto getSignature = [](const std::shared_ptr<MethodDefinition>& method) {
+            std::string sig = method->getName() + "(";
+            const auto& params = method->getParametersWithTypes();
+            // Skip first parameter if it's 'this' (for instance methods)
+            size_t startIdx = (!method->isStatic() && !params.empty() && params[0].first == "this") ? 1 : 0;
+            for (size_t i = startIdx; i < params.size(); ++i) {
+                if (i > startIdx) sig += ",";
+                sig += params[i].second.toString();
+            }
+            sig += ")";
+            return sig;
+        };
+
+        // Collect overloads from this class
+        auto localOverloads = getAllStaticMethodOverloads(methodName);
+        for (const auto& overload : localOverloads) {
+            std::string sig = getSignature(overload);
+            if (seenSignatures.insert(sig).second) {
+                allOverloads.push_back(overload);
+            }
+        }
+
+        // Collect overloads from parent hierarchy
+        auto parent = getParentClass();
+        while (parent) {
+            auto parentOverloads = parent->getAllStaticMethodOverloads(methodName);
+            for (const auto& overload : parentOverloads) {
+                std::string sig = getSignature(overload);
+                if (seenSignatures.insert(sig).second) {
+                    // Only add if we haven't seen this signature before
+                    allOverloads.push_back(overload);
+                }
+            }
+            parent = parent->getParentClass();
+        }
+
+        return allOverloads;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethodBySignature(
+        const std::string& methodName,
+        const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const
+    {
+        auto it = instanceMethods.find(methodName);
+        if (it == instanceMethods.end()) {
+            return nullptr;
+        }
+
+        // Search all overloads for exact signature match
+        for (const auto& method : it->second) {
+            if (!method) continue;
+
+            const auto& methodParams = method->getParametersWithTypes();
+
+            // IMPORTANT: Exclude 'this' parameter when comparing signatures
+            // Instance methods have an implicit 'this' parameter that should not affect signature matching
+            std::vector<std::pair<std::string, value::ParameterType>> methodParamsWithoutThis;
+            for (const auto& param : methodParams) {
+                if (param.first != "this") {
+                    methodParamsWithoutThis.push_back(param);
+                }
+            }
+
+            if (methodParamsWithoutThis.size() != parameters.size()) {
+                continue;
+            }
+
+            // Check if all parameter types match
+            bool allMatch = true;
+            for (size_t i = 0; i < parameters.size(); ++i) {
+                if (!(methodParamsWithoutThis[i].second == parameters[i].second)) {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch) {
+                return method;
+            }
+        }
+
+        return nullptr;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodBySignature(
+        const std::string& methodName,
+        const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const
+    {
+        auto it = staticMethods.find(methodName);
+        if (it == staticMethods.end()) {
+            return nullptr;
+        }
+
+        // Search all overloads for exact signature match
+        for (const auto& method : it->second) {
+            if (!method) continue;
+
+            const auto& methodParams = method->getParametersWithTypes();
+            if (methodParams.size() != parameters.size()) {
+                continue;
+            }
+
+            // Check if all parameter types match
+            bool allMatch = true;
+            for (size_t i = 0; i < parameters.size(); ++i) {
+                if (!(methodParams[i].second == parameters[i].second)) {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch) {
+                return method;
+            }
+        }
+
+        return nullptr;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethodBySignatureInHierarchy(
+        const std::string& methodName,
+        const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const
+    {
+        // First, check in this class (instance methods only)
+        auto method = findInstanceMethodBySignature(methodName, parameters);
+        if (method) {
+            return method;
+        }
+
+        // Then check in parent class hierarchy
+        return traverseHierarchyForMethod([&](const ClassDefinition* classDef) {
+            return classDef->findInstanceMethodBySignature(methodName, parameters);
+        });
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodBySignatureInHierarchy(
+        const std::string& methodName,
+        const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const
+    {
+        // First, check in this class (static methods only)
+        auto method = findStaticMethodBySignature(methodName, parameters);
+        if (method) {
+            return method;
+        }
+
+        // Then check in parent class hierarchy
+        return traverseHierarchyForMethod([&](const ClassDefinition* classDef) {
+            return classDef->findStaticMethodBySignature(methodName, parameters);
+        });
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethodByTypeSignature(
+        const std::string& methodName,
+        const std::string& typeSignature) const
+    {
+        auto it = instanceMethods.find(methodName);
+        if (it == instanceMethods.end()) {
+            return nullptr;
+        }
+
+        // Search all overloads for matching type signature
+        for (const auto& method : it->second) {
+            if (!method) continue;
+
+            // Generate signature for this method and compare
+            std::string methodSig;
+            const auto& params = method->getParametersWithTypes();
+            for (size_t i = 0; i < params.size(); ++i) {
+                if (i > 0) methodSig += ",";
+                // Use ParameterType's toString() method
+                methodSig += params[i].second.toString();
+            }
+
+            if (methodSig == typeSignature) {
+                return method;
+            }
+        }
+
+        return nullptr;
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodByTypeSignature(
+        const std::string& methodName,
+        const std::string& typeSignature) const
+    {
+        auto it = staticMethods.find(methodName);
+        if (it == staticMethods.end()) {
+            return nullptr;
+        }
+
+        // Search all overloads for matching type signature
+        for (const auto& method : it->second) {
+            if (!method) continue;
+
+            // Generate signature for this method and compare
+            std::string methodSig;
+            const auto& params = method->getParametersWithTypes();
+            for (size_t i = 0; i < params.size(); ++i) {
+                if (i > 0) methodSig += ",";
+                // Use ParameterType's toString() method
+                methodSig += params[i].second.toString();
+            }
+
+            if (methodSig == typeSignature) {
+                return method;
+            }
+        }
+
+        return nullptr;
+    }
+
+    // NEW: MethodSignature-based lookups
+    std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethod(const vm::MethodSignature& signature) const
+    {
+        // Use the argCount-based method with signature's parameter count
+        return findInstanceMethod(signature.getMethodName(), signature.getParameterCount());
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethod(const vm::MethodSignature& signature) const
+    {
+        // Use the argCount-based method with signature's parameter count
+        return findStaticMethod(signature.getMethodName(), signature.getParameterCount());
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethodInHierarchy(const vm::MethodSignature& signature) const
+    {
+        // Use the argCount-based method with signature's parameter count
+        return findInstanceMethodInHierarchy(signature.getMethodName(), signature.getParameterCount());
+    }
+
+    std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodInHierarchy(const vm::MethodSignature& signature) const
+    {
+        // Use the argCount-based method with signature's parameter count
+        return findStaticMethodInHierarchy(signature.getMethodName(), signature.getParameterCount());
     }
 }

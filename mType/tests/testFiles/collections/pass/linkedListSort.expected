@@ -1,0 +1,14 @@
+Testing LinkedList sortWith:
+Before sort:
+7
+3
+9
+1
+5
+After sort:
+1
+3
+5
+7
+9
+LinkedList sort test passed!

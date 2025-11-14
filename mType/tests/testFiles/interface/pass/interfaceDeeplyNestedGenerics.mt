@@ -1,7 +1,7 @@
 // Test deeply nested generic interfaces
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
@@ -67,8 +67,8 @@ Pair<String, Container<Int>> retrievedPair = complexContainer.get();
 print(retrievedPair.getKey().toString());
 print(retrievedPair.getValue().get().toString());
 
-// Array of nested generics: List<Container<Pair<String, Int>>>
-List<Container<Pair<String, Int>>> array = new List<Container<Pair<String, Int>>>();
+// Array of nested generics: ArrayList<Container<Pair<String, Int>>>
+ArrayList<Container<Pair<String, Int>>> array = new ArrayList<Container<Pair<String, Int>>>();
 Pair<String, Int> p1 = new SimplePair<String, Int>(new String("first"), new Int(1));
 Pair<String, Int> p2 = new SimplePair<String, Int>(new String("second"), new Int(2));
 Pair<String, Int> p3 = new SimplePair<String, Int>(new String("third"), new Int(3));

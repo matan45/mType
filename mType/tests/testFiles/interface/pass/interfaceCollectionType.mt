@@ -1,7 +1,7 @@
 // Test collection of interface type
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 interface Comparable<T> {
     function compareTo(T other): int;
@@ -28,11 +28,11 @@ class Person implements Comparable<Person> {
 }
 
 // Collection of comparable items
-class ComparableList<T extends Comparable<T>> {
-    private List<T> items;
+class ComparableArrayList<T extends Comparable<T>> {
+    private ArrayList<T> items;
 
     public constructor() {
-        this.items = new List<T>();
+        this.items = new ArrayList<T>();
     }
 
     public function add(T item): void {
@@ -63,7 +63,7 @@ class ComparableList<T extends Comparable<T>> {
     }
 }
 
-ComparableList<Person> people = new ComparableList<Person>();
+ComparableArrayList<Person> people = new ComparableArrayList<Person>();
 people.add(new Person("Alice", 30));
 people.add(new Person("Bob", 25));
 people.add(new Person("Charlie", 35));

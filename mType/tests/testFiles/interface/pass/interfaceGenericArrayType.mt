@@ -1,7 +1,7 @@
 // Test array of generic interface type
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/String.mt";
 
 interface Container<T> {
@@ -11,10 +11,10 @@ interface Container<T> {
 }
 
 class SimpleContainer<T> implements Container<T> {
-    private List<T> items;
+    private ArrayList<T> items;
 
     public constructor() {
-        this.items = new List<T>();
+        this.items = new ArrayList<T>();
     }
 
     public function add(T item): void {
@@ -31,7 +31,7 @@ class SimpleContainer<T> implements Container<T> {
 }
 
 // Array of generic interface type
-List<Container<String>> containers = new List<Container<String>>();
+ArrayList<Container<String>> containers = new ArrayList<Container<String>>();
 
 Container<String> c1 = new SimpleContainer<String>();
 c1.add(new String("Hello"));

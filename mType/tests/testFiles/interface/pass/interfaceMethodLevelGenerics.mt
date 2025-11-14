@@ -1,7 +1,7 @@
 // Test interface with methods having their own generic types
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
@@ -11,15 +11,12 @@ interface Container {
     function <T, R> transform(T item, Function<T, R> mapper): R;
 }
 
-interface Function<T,R>{
-	function map(T value): R;
-}
 
 class SimpleContainer implements Container {
-    private List<Int> items;
+    private ArrayList<Int> items;
 
     public constructor() {
-        this.items = new List<Int>();
+        this.items = new ArrayList<Int>();
     }
 
     public function <T> add(T item): void {
@@ -31,7 +28,7 @@ class SimpleContainer implements Container {
     }
 
     public function <T, R> transform(T item, Function<T, R> mapper): R {
-        return mapper.map(item);
+        return mapper.apply(item);
     }
 }
 

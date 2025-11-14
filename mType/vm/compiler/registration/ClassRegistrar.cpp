@@ -1,5 +1,6 @@
 #include "ClassRegistrar.hpp"
 #include "../validation/CompileTimeValidator.hpp"
+#include "../../MethodSignature.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ImportNode.hpp"
@@ -9,9 +10,11 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
 #include "../../../errors/AbstractClassException.hpp"
+#include "../../../errors/DuplicateSignatureException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
@@ -137,20 +140,85 @@ namespace vm::compiler::registration
         // Register methods
         for (const auto& method : classNode->getMethods()) {
             if (auto* methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(method.get())) {
-                // Convert generic parameters to ValueType for constructor
-                std::vector<std::pair<std::string, value::ValueType>> legacyParams;
-                for (const auto& [name, genericType] : methodNode->getGenericParameters()) {
-                    value::ValueType vType = value::ValueType::VOID;
-                    if (genericType) {
-                        vType = genericType->isGenericParameter() ? value::ValueType::OBJECT : genericType->getConcreteType();
-                    }
-                    legacyParams.emplace_back(name, vType);
+                // Convert generic parameters to ParameterType (with className information)
+                std::vector<std::pair<std::string, value::ParameterType>> params;
+
+                // For instance methods, add 'this' as the first parameter
+                if (!methodNode->getIsStatic()) {
+                    params.emplace_back("this", value::ParameterType::forClass(className));
                 }
 
+                for (const auto& [name, genericType] : methodNode->getGenericParameters()) {
+                    if (!genericType) {
+                        params.emplace_back(name, value::ParameterType(value::ValueType::VOID));
+                        continue;
+                    }
+
+                    // Check if it's a "generic parameter" - but it could be a class name stored as string
+                    if (genericType->isGenericParameter()) {
+                        // This is stored as a string - could be:
+                        // 1. An actual generic type parameter (T, K, V, etc.)
+                        // 2. A class/interface name (String, Calculator, etc.)
+                        // 3. A parameterized type (Container<Int>, Map<K,V>, etc.)
+                        //
+                        // IMPORTANT: Use toString() instead of getGenericName() to preserve
+                        // generic type arguments (e.g., "Container<Int>" not just "Container")
+                        std::string typeName = genericType->toString();
+
+                        // Extract base type name (before '<' if it exists) for registry lookups
+                        std::string baseTypeName = typeName;
+                        size_t anglePos = typeName.find('<');
+                        if (anglePos != std::string::npos) {
+                            baseTypeName = typeName.substr(0, anglePos);
+                        }
+
+                        // IMPORTANT: Check if baseTypeName matches the class we're currently registering
+                        // This handles self-referential types (e.g., String::equals(String other))
+                        bool isSelfReference = (baseTypeName == className);
+
+                        if (isSelfReference) {
+                            // Self-reference to the class being registered
+                            // Use full typeName to preserve generic arguments
+                            params.emplace_back(name, value::ParameterType::forClass(typeName));
+                        }
+                        else {
+                            // Check if the base type is a registered class or interface
+                            auto classRegistry = environment->getClassRegistry();
+                            auto interfaceRegistry = environment->getInterfaceRegistry();
+
+                            bool isClass = classRegistry && classRegistry->findClass(baseTypeName);
+                            bool isInterface = interfaceRegistry && interfaceRegistry->findInterface(baseTypeName);
+
+                            if (isClass) {
+                                // It's a class name (possibly parameterized)
+                                // Use full typeName to preserve generic arguments (e.g., Container<Int>)
+                                params.emplace_back(name, value::ParameterType::forClass(typeName));
+                            }
+                            else if (isInterface) {
+                                // It's an interface name (possibly parameterized)
+                                // Use full typeName to preserve generic arguments
+                                params.emplace_back(name, value::ParameterType::forInterface(typeName));
+                            }
+                            else {
+                                // It's an actual generic type parameter (T, K, etc.) or unknown type
+                                // Store the full type name (which could include parameters)
+                                // This allows the validator to match against bytecode function names
+                                params.emplace_back(name, value::ParameterType::forClass(typeName));
+                            }
+                        }
+                    }
+                    else {
+                        // Concrete primitive type
+                        value::ValueType concreteType = genericType->getConcreteType();
+                        params.emplace_back(name, value::ParameterType(concreteType));
+                    }
+                }
+
+                // Use the constructor that takes ParameterType directly (preserves className)
                 auto methodDef = std::make_shared<runtimeTypes::klass::MethodDefinition>(
                     methodNode->getName(),
                     methodNode->getReturnType(),
-                    legacyParams,
+                    params,  // Use ParameterType vector instead of ValueType
                     methodNode->getBody(),
                     methodNode->getIsStatic(),
                     methodNode->getAccessModifier()
@@ -180,24 +248,46 @@ namespace vm::compiler::registration
                     methodDef->addAnnotation(annotation);
                 }
 
-                // Check for method overloading (not allowed)
+                // Check for duplicate signatures (overloading by name is now allowed, but signatures must be unique)
                 if (methodNode->getIsStatic()) {
-                    if (classDef->getStaticMethod(methodNode->getName()) != nullptr) {
-                        throw errors::TypeException(
-                            "Method overloading is not supported. Static method '" + methodNode->getName() +
-                            "' is already defined in class '" + classNode->getClassName() + "'",
+                    // Check if this exact signature already exists
+                    auto existingMethod = classDef->findStaticMethodBySignature(
+                        methodNode->getName(),
+                        methodDef->getParameters()
+                    );
+                    if (existingMethod) {
+                        throw errors::DuplicateSignatureException(
+                            "static method",
+                            methodNode->getName(),
+                            runtimeTypes::klass::SignatureUtils::generateTypeSignature(methodDef->getParameters()),
+                            existingMethod->getSourceLocation(),
                             methodNode->getLocation()
                         );
                     }
+                    // Register with original name for overload tracking
                     classDef->addStaticMethod(methodNode->getName(), methodDef);
                 } else {
-                    if (classDef->getInstanceMethod(methodNode->getName()) != nullptr) {
-                        throw errors::TypeException(
-                            "Method overloading is not supported. Instance method '" + methodNode->getName() +
-                            "' is already defined in class '" + classNode->getClassName() + "'",
+                    // Check if this exact signature already exists
+                    auto existingMethod = classDef->findInstanceMethodBySignature(
+                        methodNode->getName(),
+                        methodDef->getParameters()
+                    );
+                    if (existingMethod) {
+                        // For instance methods, skip the 'this' parameter (first parameter) when generating signature for error message
+                        auto paramsWithoutThis = methodDef->getParameters();
+                        if (!paramsWithoutThis.empty() && paramsWithoutThis[0].first == "this") {
+                            paramsWithoutThis.erase(paramsWithoutThis.begin());
+                        }
+
+                        throw errors::DuplicateSignatureException(
+                            "method",
+                            methodNode->getName(),
+                            runtimeTypes::klass::SignatureUtils::generateTypeSignature(paramsWithoutThis),
+                            existingMethod->getSourceLocation(),
                             methodNode->getLocation()
                         );
                     }
+                    // Register with original name for overload tracking
                     classDef->addMethod(methodDef);
                 }
             }
@@ -405,6 +495,12 @@ namespace vm::compiler::registration
 
             // Establish the parent-child link
             classDef->setParentClass(parentDef);
+
+            // Parse generic type arguments and create substitution map
+            // E.g., "Processor<String>" with parent having generic param "T" creates mapping: T → String
+            if (genericStart != std::string::npos) {
+                parseAndStoreTypeSubstitutions(classDef, parentClassName, parentDef);
+            }
 
             // Validate inheritance depth after establishing the link
             validateInheritanceDepth(className, classNode->getLocation());
@@ -635,12 +731,174 @@ namespace vm::compiler::registration
         // Check each method in child class
         const auto& childMethods = childClass->getInstanceMethods();
 
-        for (const auto& [methodName, childMethod] : childMethods) {
-            // Search for method in parent hierarchy (not just immediate parent)
-            // This handles cases where method is defined in grandparent
-            auto parentMethod = parentClass->findInstanceMethodInHierarchy(methodName, childMethod->getParameters().size());
+        for (const auto& [methodName, childMethodOverloads] : childMethods) {
+            // Check each overload
+            for (const auto& childMethod : childMethodOverloads) {
+                const auto& childParams = childMethod->getParameters();
 
-            if (parentMethod) {
+                // IMPORTANT: Exclude 'this' parameter when comparing signatures for override validation
+                // Instance methods have an implicit 'this' parameter with type equal to the class name
+                // Parent and child have different 'this' types (Base vs Derived), so we must exclude it
+                std::vector<std::pair<std::string, value::ParameterType>> paramsWithoutThis;
+                for (const auto& param : childParams) {
+                    if (param.first != "this") {
+                        paramsWithoutThis.push_back(param);
+                    }
+                }
+
+                // Search for method in parent hierarchy WITH EXACT SIGNATURE MATCH (excluding 'this' parameter)
+                auto parentMethod = parentClass->findInstanceMethodBySignatureInHierarchy(
+                    methodName,
+                    paramsWithoutThis
+                );
+
+                // Check if parent has ANY method with this name (for invariance validation)
+                bool parentHasMethodName = false;
+                auto parentMethodsIt = parentClass->getInstanceMethods().find(methodName);
+                if (parentMethodsIt != parentClass->getInstanceMethods().end() && !parentMethodsIt->second.empty()) {
+                    parentHasMethodName = true;
+                }
+
+                // PARAMETER TYPE INVARIANCE RULE:
+                // If a parent method exists with the same name and same arity as this child method,
+                // but with different parameter types, we need to check if the parent method is being
+                // overridden by ANY child method.
+                //
+                // Cases:
+                //   1. Parent: process(string), Child: process(int) with NO process(string) override
+                //      → ERROR: invariance violation (looks like failed override)
+                //   2. Parent: compute(int), Child: compute(int) AND compute(string)
+                //      → OK: compute(int) overrides parent, compute(string) is new overload
+                //
+                if (parentHasMethodName && !parentMethod) {
+                    // Get parent methods with this name
+                    auto& parentMethodOverloads = parentMethodsIt->second;
+
+                    // Count child parameters (excluding 'this')
+                    size_t childArity = paramsWithoutThis.size();
+
+                    // For each parent method with same arity, check if it's being overridden by ANY child method
+                    for (const auto& pMethod : parentMethodOverloads) {
+                        const auto& pParams = pMethod->getParametersWithTypes();
+
+                        // Build parent signature (excluding 'this')
+                        std::vector<std::pair<std::string, value::ParameterType>> parentParamsWithoutThis;
+                        for (const auto& [pName, pType] : pParams) {
+                            if (pName != "this") {
+                                parentParamsWithoutThis.push_back({pName, pType});
+                            }
+                        }
+
+                        size_t parentArity = parentParamsWithoutThis.size();
+
+                        // Only check invariance if arity matches this child method
+                        if (parentArity == childArity) {
+                            // Check if types match (accounting for generic type substitution)
+                            bool typesMatch = true;
+                            bool isGenericSubstitution = false;
+
+                            // Get the type substitution map (e.g., T → String)
+                            const auto& typeSubstitutionMap = childClass->getParentTypeSubstitutionMap();
+
+                            for (size_t i = 0; i < parentArity; ++i) {
+                                std::string pTypeStr = parentParamsWithoutThis[i].second.className.has_value()
+                                    ? parentParamsWithoutThis[i].second.className.value()
+                                    : runtimeTypes::klass::SignatureUtils::getTypeName(parentParamsWithoutThis[i].second);
+
+                                std::string cTypeStr = paramsWithoutThis[i].second.className.has_value()
+                                    ? paramsWithoutThis[i].second.className.value()
+                                    : runtimeTypes::klass::SignatureUtils::getTypeName(paramsWithoutThis[i].second);
+
+                                if (pTypeStr != cTypeStr) {
+                                    typesMatch = false;
+
+                                    // Check if this is a generic type substitution
+                                    // e.g., parent has "T", substitution map has T→String, child has "String"
+                                    auto substitutionIt = typeSubstitutionMap.find(pTypeStr);
+                                    if (substitutionIt != typeSubstitutionMap.end()) {
+                                        if (substitutionIt->second == cTypeStr) {
+                                            // This is a valid generic substitution
+                                            isGenericSubstitution = true;
+                                        }
+                                    }
+
+                                    // Also check if parent type contains generic parameters (e.g., "Container<T>")
+                                    if (pTypeStr.find('<') != std::string::npos) {
+                                        isGenericSubstitution = true;
+                                    }
+                                }
+                            }
+
+                            // If types don't match and it's not a generic substitution, check if ANY child method overrides this parent method
+                            if (!typesMatch && !isGenericSubstitution) {
+                                // Check if this parent method is overridden by ANY child method
+                                bool isOverriddenByAnyChild = false;
+
+                                // Get all child methods with this name
+                                auto childMethodsIt = childClass->getInstanceMethods().find(methodName);
+                                if (childMethodsIt != childClass->getInstanceMethods().end()) {
+                                    for (const auto& childMethodOverload : childMethodsIt->second) {
+                                        const auto& childOverloadParams = childMethodOverload->getParametersWithTypes();
+
+                                        // Build signature without 'this'
+                                        std::vector<std::pair<std::string, value::ParameterType>> childOverloadParamsWithoutThis;
+                                        for (const auto& [cName, cType] : childOverloadParams) {
+                                            if (cName != "this") {
+                                                childOverloadParamsWithoutThis.push_back({cName, cType});
+                                            }
+                                        }
+
+                                        // Check if this child overload matches the parent method
+                                        if (childOverloadParamsWithoutThis.size() == parentParamsWithoutThis.size()) {
+                                            bool allMatch = true;
+                                            for (size_t i = 0; i < parentParamsWithoutThis.size(); ++i) {
+                                                if (!(childOverloadParamsWithoutThis[i].second == parentParamsWithoutThis[i].second)) {
+                                                    allMatch = false;
+                                                    break;
+                                                }
+                                            }
+
+                                            if (allMatch) {
+                                                isOverriddenByAnyChild = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // If parent method is not overridden by any child method, it's an invariance violation
+                                if (!isOverriddenByAnyChild) {
+                                    // Find the specific method node to get its location
+                                    ast::SourceLocation methodLocation = classLocation;
+                                    if (classNode) {
+                                        const auto& methods = classNode->getMethods();
+                                        for (const auto& methodNodePtr : methods) {
+                                            if (auto methodNode = dynamic_cast<ast::nodes::classes::MethodNode*>(methodNodePtr.get())) {
+                                                if (methodNode->getName() == methodName) {
+                                                    methodLocation = methodNode->getLocation();
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    throw errors::InheritanceException(
+                                        "Method parameter type invariance violation in class '" + childClass->getName() +
+                                        "': method '" + methodName + "' has the same number of parameters as a parent method in '" +
+                                        parentClass->getName() + "' but with different parameter types, and the parent method is not being overridden. " +
+                                        "This appears to be a failed override attempt. Method parameters are invariant and must match exactly when overriding.",
+                                        childClass->getName(),
+                                        parentClass->getName(),
+                                        methodName,
+                                        methodLocation
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (parentMethod) {
                 // Method exists in parent hierarchy - validate override
 
                 // Find the specific method node to get its location
@@ -663,7 +921,7 @@ namespace vm::compiler::registration
                     std::string definingClassName = parentClass->getName();
                     auto currentClass = parentClass;
                     while (currentClass) {
-                        auto localMethod = currentClass->findInstanceMethod(methodName, childMethod->getParameters().size());
+                        auto localMethod = currentClass->findInstanceMethodBySignature(methodName, paramsWithoutThis);
                         if (localMethod) {
                             definingClassName = currentClass->getName();
                             break;
@@ -723,17 +981,30 @@ namespace vm::compiler::registration
                 }
 
                 // Validate parameter types match
-                for (size_t i = 0; i < childParams.size(); ++i) {
+                // Skip 'this' parameter (index 0) - it's always different between parent and child
+                const auto& typeSubstitutionMap = childClass->getParentTypeSubstitutionMap();
+
+                for (size_t i = 1; i < childParams.size(); ++i) {
                     const auto& childParam = childParams[i].second;
                     const auto& parentParam = parentParams[i].second;
 
-                    // Compare using ParameterType equality operator
-                    if (!(childParam == parentParam)) {
+                    // Apply type substitution to parent parameter type
+                    // E.g., if parent has param "T" and substitution map is {T → String}, use "String" for comparison
+                    std::string parentParamTypeName = parentParam.toString();
+                    auto it = typeSubstitutionMap.find(parentParamTypeName);
+                    if (it != typeSubstitutionMap.end()) {
+                        parentParamTypeName = it->second;
+                    }
+
+                    // Compare child parameter type with substituted parent parameter type
+                    std::string childParamTypeName = childParam.toString();
+
+                    if (childParamTypeName != parentParamTypeName) {
                         throw errors::InheritanceException(
                             "Method override parameter type mismatch in class '" + childClass->getName() +
-                            "': method '" + methodName + "' parameter " + std::to_string(i + 1) +
-                            " has type '" + childParam.toString() +
-                            "' but parent method expects '" + parentParam.toString() + "'",
+                            "': method '" + methodName + "' parameter " + std::to_string(i) +  // i, not i+1 (since we skip this)
+                            " has type '" + childParamTypeName +
+                            "' but parent method expects '" + parentParamTypeName + "'",
                             childClass->getName(),
                             parentClass->getName(),
                             methodName,
@@ -757,6 +1028,94 @@ namespace vm::compiler::registration
                     );
                 }
             }
+            }  // End of inner loop over childMethod overloads
+        }  // End of outer loop over method names
+    }
+
+    std::vector<std::string> ClassRegistrar::parseGenericTypeArguments(const std::string& classNameWithGenerics) const
+    {
+        std::vector<std::string> typeArgs;
+
+        // Find the opening angle bracket
+        size_t start = classNameWithGenerics.find('<');
+        if (start == std::string::npos) {
+            return typeArgs;  // No generic arguments
         }
+
+        // Find the matching closing bracket
+        size_t end = classNameWithGenerics.rfind('>');
+        if (end == std::string::npos || end <= start) {
+            return typeArgs;  // Malformed
+        }
+
+        // Extract the content between < and >
+        std::string argsStr = classNameWithGenerics.substr(start + 1, end - start - 1);
+
+        // Parse comma-separated type arguments, respecting nested generics
+        std::string current;
+        int depth = 0;
+
+        for (char c : argsStr) {
+            if (c == '<') {
+                depth++;
+                current += c;
+            } else if (c == '>') {
+                depth--;
+                current += c;
+            } else if (c == ',' && depth == 0) {
+                // Found a separator at the top level
+                // Trim whitespace from current
+                size_t firstNonSpace = current.find_first_not_of(" \t");
+                size_t lastNonSpace = current.find_last_not_of(" \t");
+                if (firstNonSpace != std::string::npos) {
+                    typeArgs.push_back(current.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1));
+                }
+                current.clear();
+            } else if (c != ' ' && c != '\t') {
+                // Skip leading whitespace
+                if (!current.empty() || (c != ' ' && c != '\t')) {
+                    current += c;
+                }
+            } else if (!current.empty()) {
+                // Preserve internal whitespace
+                current += c;
+            }
+        }
+
+        // Add the last argument
+        size_t firstNonSpace = current.find_first_not_of(" \t");
+        size_t lastNonSpace = current.find_last_not_of(" \t");
+        if (firstNonSpace != std::string::npos) {
+            typeArgs.push_back(current.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1));
+        }
+
+        return typeArgs;
+    }
+
+    void ClassRegistrar::parseAndStoreTypeSubstitutions(
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+        const std::string& parentClassNameWithGenerics,
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass
+    ) const
+    {
+        // Parse concrete type arguments from parent class declaration
+        // E.g., "Processor<String>" → ["String"]
+        auto typeArgs = parseGenericTypeArguments(parentClassNameWithGenerics);
+
+        // Get generic type parameters from parent class definition
+        // E.g., Processor<T> → ["T"]
+        const auto& parentGenericParams = parentClass->getGenericParameters();
+
+        // Create substitution map: generic param → concrete type
+        // E.g., T → String
+        std::unordered_map<std::string, std::string> substitutionMap;
+
+        size_t numParams = std::min(typeArgs.size(), parentGenericParams.size());
+        for (size_t i = 0; i < numParams; ++i) {
+            substitutionMap[parentGenericParams[i].name] = typeArgs[i];
+        }
+
+        // Store in child class
+        childClass->setParentTypeSubstitutionMap(substitutionMap);
     }
 }

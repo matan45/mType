@@ -1,6 +1,7 @@
 #include "ObjectExecutor.hpp"
 #include "ObjectInstanceHelper.hpp"
 #include "FunctionExecutor.hpp"
+#include "../../MethodSignature.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include "../../../errors/TypeException.hpp"
@@ -8,8 +9,8 @@
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include "../../../value/NativeArray.hpp"
 #include <algorithm>
-#include <iostream>
 namespace vm::runtime
 {
     ObjectExecutor::ObjectExecutor(ExecutionContext& ctx)
@@ -361,32 +362,94 @@ namespace vm::runtime
                                              size_t argCount) {
         auto classDef = instance->getClassDefinition();
 
-        // Use findInstanceMethodInHierarchy to search only instance methods in parent classes
-        auto method = classDef->findInstanceMethodInHierarchy(methodName, argCount);
-        if (!method) {
-            utils::ErrorLocationHelper::throwRuntimeError(context,
-                "Instance method not found: " + methodName +
-                " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
+        // Extract simple method name from mangled name
+        // methodName may be: "Calculator::add/int,int" or just "add"
+        std::string simpleMethodName = methodName;
+
+        // Remove class prefix if present
+        size_t colonPos = methodName.find("::");
+        if (colonPos != std::string::npos) {
+            simpleMethodName = methodName.substr(colonPos + 2);
         }
 
-        // Find which class actually defines this method by walking up the hierarchy
-        // IMPORTANT: Do this BEFORE access validation so we use the correct defining class
-        std::string definingClassName = classDef->getName();
-        auto currentClass = classDef;
-        while (currentClass) {
-            auto localMethod = currentClass->findInstanceMethod(methodName, argCount);
-            if (localMethod) {
-                definingClassName = currentClass->getName();
-                break;
+        // Remove signature suffix if present
+        size_t slashPos = simpleMethodName.find('/');
+        if (slashPos != std::string::npos) {
+            simpleMethodName = simpleMethodName.substr(0, slashPos);
+        }
+
+        // FIXED: If methodName already contains a signature (indicated by '/'),
+        // use it directly instead of looking up by count only!
+        // The compiler already resolved the correct overload.
+        std::string qualifiedName = methodName;
+        std::string definingClassName = classDef->getName();  // Default to instance class
+
+        // If method name doesn't contain a signature, build it from resolved method
+        if (methodName.find('/') == std::string::npos && methodName.find("::") == std::string::npos) {
+            // Legacy path: methodName is just "add" without class or signature
+            // Use findInstanceMethodInHierarchy to search only instance methods in parent classes
+            auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
+            if (!method) {
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "Instance method not found: " + methodName +
+                    " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
             }
-            currentClass = currentClass->getParentClass();
+
+            // Find which class actually defines this method by walking up the hierarchy
+            definingClassName = classDef->getName();  // Already declared above
+            auto currentClass = classDef;
+            while (currentClass) {
+                auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
+                if (localMethod) {
+                    definingClassName = currentClass->getName();
+                    break;
+                }
+                currentClass = currentClass->getParentClass();
+            }
+
+            // Validate method access
+            auto accessContext = createAccessContext(definingClassName, false);
+            validation::AccessValidator::validateMethodAccess(simpleMethodName, method->getAccessModifier(), accessContext);
+
+            // Build the mangled name
+            auto signature = vm::MethodSignature::fromMethodDefinition(method.get());
+            qualifiedName = signature.toMangledName(definingClassName, false);
+        } else {
+            // New path: methodName already contains full signature like "Container::describe/int"
+            // For virtual dispatch, replace the declared class with the ACTUAL object class
+            // BUT preserve the signature part to maintain overload resolution
+
+            // Extract the signature part (everything after the class name)
+            std::string signaturePart = "";
+            size_t classEndPos = methodName.find("::");
+            if (classEndPos != std::string::npos) {
+                signaturePart = methodName.substr(classEndPos + 2);  // Get "methodName/type1,type2"
+            } else {
+                signaturePart = methodName;  // No class prefix
+            }
+
+            auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
+            if (method) {
+                // Find defining class for the actual method (virtual dispatch)
+                definingClassName = classDef->getName();  // Already declared above
+                auto currentClass = classDef;
+                while (currentClass) {
+                    auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
+                    if (localMethod) {
+                        definingClassName = currentClass->getName();
+                        break;
+                    }
+                    currentClass = currentClass->getParentClass();
+                }
+
+                auto accessContext = createAccessContext(definingClassName, false);
+                validation::AccessValidator::validateMethodAccess(simpleMethodName, method->getAccessModifier(), accessContext);
+
+                // Rebuild with ACTUAL class but preserve signature for overload resolution
+                qualifiedName = definingClassName + "::" + signaturePart;
+            }
         }
 
-        // Validate method access using the defining class, not the runtime instance class
-        auto accessContext = createAccessContext(definingClassName, false);
-        validation::AccessValidator::validateMethodAccess(methodName, method->getAccessModifier(), accessContext);
-
-        std::string qualifiedName = definingClassName + "::" + methodName;
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (!funcMetadata) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
@@ -582,5 +645,147 @@ namespace vm::runtime
             isSetter,
             location
         );
+    }
+
+    // Iterator Operations Implementation
+    void ObjectExecutor::handleGetIterator(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Pop the iterable collection from the stack
+        value::Value collectionValue = context.stackManager->pop();
+
+        if (std::holds_alternative<std::nullptr_t>(collectionValue)) {
+            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                "Cannot get iterator from null object");
+        }
+
+        // Check if it's an array - create an ArrayIteratorHelper for it
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(collectionValue)) {
+            // Get the ArrayIteratorHelper class from the class registry
+            auto classRegistry = context.environment->getClassRegistry();
+            auto iteratorHelperClass = classRegistry->findClass("ArrayIteratorHelper");
+
+            if (!iteratorHelperClass) {
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "ArrayIteratorHelper class not found - required for array iteration");
+            }
+
+            // Create an instance of ArrayIteratorHelper with the array as constructor argument
+            auto iteratorInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(iteratorHelperClass);
+
+            // Find and invoke the constructor with 1 argument (the array)
+            auto constructor = iteratorHelperClass->findConstructorByTypes({collectionValue});
+            if (!constructor) {
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "ArrayIteratorHelper constructor not found");
+            }
+
+            // Set the array field directly (constructor would do this, but let's do it directly)
+            // ArrayIteratorHelper has fields: array, index
+            iteratorInstance->setField("array", collectionValue);
+            iteratorInstance->setField("index", 0);
+
+            // Push the iterator onto the stack
+            context.stackManager->push(iteratorInstance);
+            return;
+        }
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(collectionValue)) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "GET_ITERATOR requires an object instance");
+        }
+
+        auto collection = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(collectionValue);
+
+        // Call the iterator() method on the collection
+        std::string methodName = "iterator";
+        std::vector<value::Value> args; // No arguments for iterator()
+
+        invokeInstanceMethod(collection, methodName, args, 0);
+
+        // The iterator object is now on the stack (pushed by invokeInstanceMethod)
+    }
+
+    void ObjectExecutor::handleIteratorHasNext(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Peek at the iterator on the stack (don't pop it, we need it for next())
+        value::Value iteratorValue = context.stackManager->peek();
+
+        if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
+            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                "Cannot call hasNext() on null iterator");
+        }
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "ITERATOR_HAS_NEXT requires an iterator instance");
+        }
+
+        auto iterator = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue);
+
+        // Call hasNext() method on the iterator
+        std::string methodName = "hasNext";
+        std::vector<value::Value> args;
+
+        invokeInstanceMethod(iterator, methodName, args, 0);
+
+        // The boolean result is now on the stack
+    }
+
+    void ObjectExecutor::handleIteratorNext(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Peek at the iterator on the stack
+        value::Value iteratorValue = context.stackManager->peek();
+
+        if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
+            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                "Cannot call next() on null iterator");
+        }
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "ITERATOR_NEXT requires an iterator instance");
+        }
+
+        auto iterator = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue);
+
+        // Call next() method on the iterator
+        std::string methodName = "next";
+        std::vector<value::Value> args;
+
+        invokeInstanceMethod(iterator, methodName, args, 0);
+
+        // The next element is now on the stack
+    }
+
+    void ObjectExecutor::handleIteratorClose(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Pop the iterator from the stack
+        value::Value iteratorValue = context.stackManager->pop();
+
+        if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
+            // Null iterator is OK, just return
+            return;
+        }
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
+            // Not an object, just ignore
+            return;
+        }
+
+        auto iterator = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue);
+
+        // Call close() method on the iterator (for cleanup)
+        std::string methodName = "close";
+        std::vector<value::Value> args;
+
+        try {
+            invokeInstanceMethod(iterator, methodName, args, 0);
+            // Pop the return value (close() returns void)
+            context.stackManager->pop();
+        }
+        catch (...) {
+            // Ignore exceptions during cleanup
+            // This is similar to Java's try-with-resources behavior
+        }
     }
 }

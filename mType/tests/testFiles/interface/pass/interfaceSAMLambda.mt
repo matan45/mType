@@ -1,7 +1,7 @@
 // Test single abstract method interface with lambda
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/Bool.mt";
 
@@ -25,15 +25,15 @@ class IntDoubleTransformer implements Transformer<Int, Int> {
     }
 }
 
-class ListFilter<T> {
-    private List<T> items;
+class ArrayListFilter<T> {
+    private ArrayList<T> items;
 
-    public constructor(List<T> items) {
+    public constructor(ArrayList<T> items) {
         this.items = items;
     }
 
-    public function filter(Predicate<T> predicate): List<T> {
-        List<T> result = new List<T>();
+    public function filter(Predicate<T> predicate): ArrayList<T> {
+        ArrayList<T> result = new ArrayList<T>();
         int i = 0;
         while (i < this.items.size()) {
             T item = this.items.get(i);
@@ -45,8 +45,8 @@ class ListFilter<T> {
         return result;
     }
 
-    public function map(Transformer<T, T> transformer): List<T> {
-        List<T> result = new List<T>();
+    public function map(Transformer<T, T> transformer): ArrayList<T> {
+        ArrayList<T> result = new ArrayList<T>();
         int i = 0;
         while (i < this.items.size()) {
             T item = this.items.get(i);
@@ -57,19 +57,19 @@ class ListFilter<T> {
     }
 }
 
-List<Int> numbers = new List<Int>();
+ArrayList<Int> numbers = new ArrayList<Int>();
 numbers.add(new Int(1));
 numbers.add(new Int(2));
 numbers.add(new Int(3));
 numbers.add(new Int(4));
 numbers.add(new Int(5));
 
-ListFilter<Int> filter = new ListFilter<Int>(numbers);
+ArrayListFilter<Int> filter = new ArrayListFilter<Int>(numbers);
 
 // Use predicate
 IntPredicate evenPredicate = new IntPredicate();
 
-List<Int> evens = filter.filter(evenPredicate);
+ArrayList<Int> evens = filter.filter(evenPredicate);
 print("Even numbers:");
 int i = 0;
 while (i < evens.size()) {

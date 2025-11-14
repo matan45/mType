@@ -4,10 +4,10 @@ grid[0][0]: 11
 grid[0][1]: 12
 grid[1][0]: 21
 grid[1][1]: 22
-2D list grid created
-listGrid[0][0] size: 2
-listGrid[0][1] size: 1
-listGrid[1][0] size: 3
-listGrid[1][1] size: 0
+2D ArrayList grid created
+arrayListGrid[0][0] size: 2
+arrayListGrid[0][1] size: 1
+arrayListGrid[1][0] size: 3
+arrayListGrid[1][1] size: 0
 Deeply nested container value: 999
 Nested generic arrays test completed

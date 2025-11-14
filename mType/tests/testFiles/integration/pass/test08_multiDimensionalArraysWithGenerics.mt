@@ -1,7 +1,7 @@
 // Integration Test 08: Multi-Dimensional Arrays with Generics
 // Tests: Multi-dimensional arrays + Generic classes + For-each simulation + Collections
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
@@ -88,8 +88,8 @@ class Tensor<T> {
 
 // Array processor with collections
 class ArrayProcessor {
-    public function processMatrix(int[][] matrix): List<Int> {
-        List<Int> result = new List<Int>();
+    public function processMatrix(int[][] matrix): ArrayList<Int> {
+        ArrayList<Int> result = new ArrayList<Int>();
 
         for (int i = 0; i < matrix.length; i = i + 1) {
             for (int j = 0; j < matrix[i].length; j = j + 1) {
@@ -227,8 +227,8 @@ print("--- Array processor with collections ---");
 int[][] testMatrix = [[1, 2], [3, 4]];
 ArrayProcessor processor = new ArrayProcessor();
 
-List<Int> processed = processor.processMatrix(testMatrix);
-print("Processed list size: " + processed.size());
+ArrayList<Int> processed = processor.processMatrix(testMatrix);
+print("Processed ArrayList size: " + processed.size());
 for (int i = 0; i < processed.size(); i = i + 1) {
     print("Element " + i + ": " + processed.get(i).getValue());
 }

@@ -13,7 +13,6 @@
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
-#include  <iostream>
 
 namespace vm::compiler::visitors
 {
@@ -225,21 +224,31 @@ namespace vm::compiler::visitors
             {
                 metadata.genericTypeParameters.push_back(param.name);
             }
-
-            // PHASE 2 FIX: Preserve parameterTypeParameterUsage from initial registration
-            if (existingMetadata)
-            {
-                metadata.parameterTypeParameterUsage = existingMetadata->parameterTypeParameterUsage;
-            }
         }
 
-        // Preserve exception table from existing metadata (built during body compilation)
+        // PHASE 2 FIX: Preserve parameterTypeParameterUsage from initial registration
+        // This must be done for ALL functions, not just generic ones, because multiple overloads
+        // (both generic and non-generic) share the same base name and we must not lose the data
+        // when a non-generic overload is compiled
         if (existingMetadata)
         {
+            metadata.parameterTypeParameterUsage = existingMetadata->parameterTypeParameterUsage;
+
+            // Preserve exception table from existing metadata (built during body compilation)
             metadata.exceptionTable = existingMetadata->exceptionTable;
         }
 
-        ctx.program.registerFunction(funcName, metadata);
+        // Build mangled name for overload support
+        std::string typeSignature = "";
+        for (size_t i = 0; i < paramTypes.size(); ++i) {
+            if (i > 0) typeSignature += ",";
+            typeSignature += paramTypes[i];
+        }
+        std::string mangledName = typeSignature.empty() ? funcName : (funcName + "/" + typeSignature);
+
+        // Register with BOTH original name and mangled name
+        ctx.program.registerFunction(funcName, metadata);      // Original name
+        ctx.program.registerFunction(mangledName, metadata);   // Mangled name
 
         return std::monostate{};
     }
@@ -988,12 +997,21 @@ namespace vm::compiler::visitors
     bool FunctionCompiler::isValidTypeName(const std::string& typeName,
                                            const std::vector<std::string>& validGenericParams)
     {
-        // Extract base type name first (handle generics like "List<T>", "Array<K>")
         std::string baseTypeName = typeName;
-        size_t anglePos = typeName.find('<');
+
+        // Handle array types: int[], T[], Item[][], etc.
+        // Strip all array brackets to get the element type
+        size_t bracketPos = baseTypeName.find('[');
+        if (bracketPos != std::string::npos)
+        {
+            baseTypeName = baseTypeName.substr(0, bracketPos);
+        }
+
+        // Extract base type name (handle generics like "List<T>", "Array<K>")
+        size_t anglePos = baseTypeName.find('<');
         if (anglePos != std::string::npos)
         {
-            baseTypeName = typeName.substr(0, anglePos);
+            baseTypeName = baseTypeName.substr(0, anglePos);
         }
 
         // Check if base type is a primitive type (including Array for array types, object for generic constraints, and Promise for async/await)
@@ -1004,10 +1022,10 @@ namespace vm::compiler::visitors
             return true;
         }
 
-        // Check if it's a declared generic type parameter (check full type name, not base)
+        // Check if it's a declared generic type parameter (check element type for arrays)
         for (const auto& genericParam : validGenericParams)
         {
-            if (typeName == genericParam)
+            if (baseTypeName == genericParam)
             {
                 return true;
             }

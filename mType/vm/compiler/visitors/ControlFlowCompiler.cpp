@@ -1,6 +1,9 @@
 #include "ControlFlowCompiler.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/ParseException.hpp"
+#include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "../../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../../ast/nodes/expressions/VariableNode.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -255,79 +258,231 @@ namespace vm::compiler::visitors
         // Evaluate collection
         node->getCollection()->accept(ctx.visitor);  // Will need delegation
 
-        // Store collection in local
-        ctx.variableTracker.declareLocal("__foreach_array__", value::ValueType::OBJECT, "");
-        ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
-        size_t arraySlot = ctx.variableTracker.getNextLocalSlot() - 1;
-        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(arraySlot), node);
+        // Determine if we're iterating over an array or a collection
+        // Check multiple indicators that suggest array type:
+        // 1. Variable type is explicitly ARRAY (legacy)
+        // 2. Collection is an array index access expression (arr[i])
+        // 3. Collection is a method call to toArray() which returns an array
+        // 4. Variable type info indicates array (has [] in declaration)
 
-        // Get array length
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arraySlot), node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
+        // Check TypeInfo for array markers (element type is set means it's an array)
+        const auto& varTypeInfo = node->getVariableTypeInfo();
+        bool isArrayFromTypeInfo = (varType == value::ValueType::ARRAY);
 
-        // Store length in local
-        ctx.variableTracker.declareLocal("__foreach_length__", value::ValueType::INT, "");
-        ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
-        size_t lengthSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(lengthSlot), node);
+        bool isArrayType = (isArrayFromTypeInfo ||
+                           dynamic_cast<ast::IndexAccessNode*>(node->getCollection()) != nullptr);
 
-        // Initialize counter
-        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
-                       static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(0)), node);
-        ctx.variableTracker.declareLocal("__foreach_counter__", value::ValueType::INT, "");
-        ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
-        size_t counterSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(counterSlot), node);
-
-        // Emit LOOP_START marker for optimization passes
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
-
-        // Loop start
-        size_t loopStart = ctx.program.getCurrentOffset();
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot), node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(lengthSlot), node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LT, node);
-
-        size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
-
-        // Get current element
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arraySlot), node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot), node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET, node);
-
-        // Store in loop variable
-        ctx.variableTracker.declareLocal(varName, varType, "");
-        ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
-        size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(loopVarSlot), node);
-
-        // Enter loop context
-        size_t continueTarget = ctx.program.getCurrentOffset();
-        ctx.loopManager.enterLoop(loopStart, continueTarget);
-
-        // Compile body
-        if (node->getBody()) {
-            node->getBody()->accept(ctx.visitor);  // Will need delegation
+        // Check if this is a toArray() method call
+        if (auto methodCall = dynamic_cast<ast::MethodCallNode*>(node->getCollection()))
+        {
+            if (methodCall->getMethodName() == "toArray")
+            {
+                isArrayType = true;
+            }
         }
 
-        ctx.loopManager.exitLoop();
+        // Check if the collection is a variable and look up its type
+        if (auto varNode = dynamic_cast<ast::nodes::expressions::VariableNode*>(node->getCollection()))
+        {
+            std::string varName = varNode->getName();
 
-        // Increment counter
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot), node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
-                       static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(1)), node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::ADD, node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(counterSlot), node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+            // Try to find the variable in the local scope
+            const auto& locals = ctx.variableTracker.getLocals();
+            for (const auto& local : locals)
+            {
+                if (local.name == varName)
+                {
+                    if (local.type == value::ValueType::ARRAY)
+                    {
+                        isArrayType = true;
+                    }
+                    break;
+                }
+            }
+        }
 
-        // Jump back to loop start
-        ctx.emitter.emitLoop(loopStart);
+        // Also check if type inference reports this as an array type (e.g., "T[]", "Int[]", "String[]")
+        if (!isArrayType) {
+            std::string collectionClassName = ctx.typeInference.inferExpressionClassName(node->getCollection());
+            if (collectionClassName.find("[]") != std::string::npos) {
+                isArrayType = true;
+            }
+        }
 
-        // Emit LOOP_END marker
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
+        if (isArrayType) {
+            // === ARRAY FAST PATH ===
+            // Use counter-based iteration with ARRAY_GET (existing implementation)
 
-        // Patch exit jump
-        ctx.emitter.patchJump(exitJump);
+            // Store collection in local
+            ctx.variableTracker.declareLocal("__foreach_array__", value::ValueType::OBJECT, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t arraySlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(arraySlot), node);
+
+            // Get array length
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arraySlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
+
+            // Store length in local
+            ctx.variableTracker.declareLocal("__foreach_length__", value::ValueType::INT, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t lengthSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(lengthSlot), node);
+
+            // Initialize counter
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
+                           static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(0)), node);
+            ctx.variableTracker.declareLocal("__foreach_counter__", value::ValueType::INT, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t counterSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(counterSlot), node);
+
+            // Emit LOOP_START marker for optimization passes
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
+
+            // Loop start
+            size_t loopStart = ctx.program.getCurrentOffset();
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(lengthSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LT, node);
+
+            size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
+
+            // Get current element
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arraySlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET, node);
+
+            // Store in loop variable
+            ctx.variableTracker.declareLocal(varName, varType, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(loopVarSlot), node);
+
+            // Enter loop context
+            size_t continueTarget = ctx.program.getCurrentOffset();
+            ctx.loopManager.enterLoop(loopStart, continueTarget);
+
+            // Compile body
+            if (node->getBody()) {
+                node->getBody()->accept(ctx.visitor);  // Will need delegation
+            }
+
+            ctx.loopManager.exitLoop();
+
+            // Increment counter
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
+                           static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(1)), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ADD, node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+
+            // Jump back to loop start
+            ctx.emitter.emitLoop(loopStart);
+
+            // Emit LOOP_END marker
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
+
+            // Patch exit jump
+            ctx.emitter.patchJump(exitJump);
+        }
+        else {
+            // === ITERATOR PATH ===
+            // Use GET_ITERATOR, ITERATOR_HAS_NEXT, ITERATOR_NEXT opcodes
+
+            // Validate that collection implements Iterable<T> and element type matches loop variable
+            // Skip validation for array types (they should have been caught by array path detection)
+            std::string collectionClassName = ctx.typeInference.inferExpressionClassName(node->getCollection());
+            if (collectionClassName.empty()) {
+                collectionClassName = "Object";  // Fallback for unknown types
+            }
+
+            // Double-check: arrays should not reach this path, but if they do, skip validation
+            bool skipValidation = (collectionClassName.find("[]") != std::string::npos);
+
+            if (!skipValidation) {
+                // Get loop variable type as string from TypeInfo
+                const auto& varTypeInfo = node->getVariableTypeInfo();
+                std::string loopVarTypeName;
+
+                // For object types, use className (which may include generics like "ArrayList<Int>")
+                // For primitive types, convert ValueType to string representation
+                if (varTypeInfo.baseType == value::ValueType::OBJECT && !varTypeInfo.className.empty()) {
+                    loopVarTypeName = varTypeInfo.className;
+                } else {
+                    // Use toString() method or convert baseType to string for primitives
+                    loopVarTypeName = varTypeInfo.toString();
+                }
+
+                // Perform validation (will throw exception if invalid)
+                try {
+                    ctx.typeValidator.validateAndExtractIterableElementType(
+                        collectionClassName,
+                        loopVarTypeName,
+                        node->getLocation()
+                    );
+                } catch (const errors::TypeException& e) {
+                    // Re-throw with location information
+                    throw errors::TypeException(e.what(), node->getLocation());
+                }
+            }
+
+            // Collection is already on the stack from node->getCollection()->accept()
+            // Call GET_ITERATOR to get the iterator object
+            ctx.emitter.emitWithLocation(bytecode::OpCode::GET_ITERATOR, node);
+
+            // Store iterator in local variable
+            ctx.variableTracker.declareLocal("__foreach_iterator__", value::ValueType::OBJECT, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t iteratorSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(iteratorSlot), node);
+
+            // Emit LOOP_START marker
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
+
+            // Loop start - check hasNext()
+            size_t loopStart = ctx.program.getCurrentOffset();
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(iteratorSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_HAS_NEXT, node);
+
+            // Jump if false (no more elements)
+            size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
+
+            // Get next element
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(iteratorSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_NEXT, node);
+
+            // Store in loop variable
+            ctx.variableTracker.declareLocal(varName, varType, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(loopVarSlot), node);
+
+            // Enter loop context
+            size_t continueTarget = ctx.program.getCurrentOffset();
+            ctx.loopManager.enterLoop(loopStart, continueTarget);
+
+            // Compile body
+            if (node->getBody()) {
+                node->getBody()->accept(ctx.visitor);  // Will need delegation
+            }
+
+            ctx.loopManager.exitLoop();
+
+            // Jump back to loop start (hasNext check)
+            ctx.emitter.emitLoop(loopStart);
+
+            // Emit LOOP_END marker
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
+
+            // Patch exit jump
+            ctx.emitter.patchJump(exitJump);
+
+            // Cleanup: Close the iterator
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(iteratorSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_CLOSE, node);
+        }
 
         ctx.variableTracker.endScope();
 

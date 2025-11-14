@@ -1,7 +1,7 @@
 // Integration Test 16: Observer Pattern with Lambdas
 // Tests: Interfaces + Lambdas + Collections + Callbacks
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Int.mt";
 
@@ -19,11 +19,11 @@ interface Observable {
 
 // Concrete observable
 class NewsPublisher implements Observable {
-    private List<Observer> observers;
+    private ArrayList<Observer> observers;
     private string latestNews;
 
     constructor() {
-        this.observers = new List<Observer>();
+        this.observers = new ArrayList<Observer>();
         this.latestNews = "";
     }
 
@@ -92,10 +92,10 @@ class LambdaObserver implements Observer {
 
 // Event aggregator with multiple publishers
 class EventAggregator {
-    private List<Observable> publishers;
+    private ArrayList<Observable> publishers;
 
     constructor() {
-        this.publishers = new List<Observable>();
+        this.publishers = new ArrayList<Observable>();
     }
 
     public function registerPublisher(Observable pub): void {

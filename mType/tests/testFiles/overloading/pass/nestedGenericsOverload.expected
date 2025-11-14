@@ -1,0 +1,18 @@
+=== Nested Generic Overload Tests ===
+Box<Int>: 42
+Box<String>: Hello
+Box<Box<Int>>: 99
+Box<T>: true
+
+=== Multi-Parameter Generic Overload Tests ===
+Pair<Int,String>: 1 -> one
+Pair<String,Int>: two -> 2
+Pair<Int,Int>: 3 -> 4
+Pair<K,V>: true -> yes
+
+=== Nested Multi-Parameter Generic Tests ===
+Box<Pair<Int,String>>: 5 -> five
+Box<Pair<T,String>>: generic key
+Box<Pair<K,V>>: fully generic
+
+All nested generic overload tests passed!

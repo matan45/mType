@@ -54,6 +54,13 @@ namespace vm::compiler::types
             const ast::SourceLocation& location
         ) const;
 
+        // Iterator type validation
+        std::string validateAndExtractIterableElementType(
+            const std::string& className,
+            const std::string& loopVarType,
+            const ast::SourceLocation& location
+        ) const;
+
     private:
         std::shared_ptr<environment::Environment> environment;
 
@@ -65,6 +72,12 @@ namespace vm::compiler::types
         ) const;
 
         std::string stripGenericParameters(const std::string& typeName) const;
+
+        // Helper for finding Iterable in interface hierarchy
+        std::string findIterableInInterfaceHierarchy(
+            const std::string& interfaceName,
+            std::unordered_set<std::string>& visited
+        ) const;
 
         // Helper methods for validateAssignment
         std::string normalizeArrayType(const std::string& type) const;

@@ -133,6 +133,24 @@ namespace vm::runtime
         std::string className = qualifiedName.substr(0, colonPos);
         std::string methodName = qualifiedName.substr(colonPos + 2);
 
+        // Extract simple method name from potentially mangled name
+        // methodName could be: "max/int,int$static", "max$static", or just "max"
+        std::string simpleMethodName = methodName;
+
+        // Remove $static suffix if present
+        size_t staticPos = simpleMethodName.find("$static");
+        if (staticPos != std::string::npos)
+        {
+            simpleMethodName = simpleMethodName.substr(0, staticPos);
+        }
+
+        // Remove signature suffix if present
+        size_t slashPos = simpleMethodName.find('/');
+        if (slashPos != std::string::npos)
+        {
+            simpleMethodName = simpleMethodName.substr(0, slashPos);
+        }
+
         // Get class definition
         auto classRegistry = context.environment->getClassRegistry();
         auto classDef = classRegistry->findClass(className);
@@ -141,16 +159,16 @@ namespace vm::runtime
             throw errors::RuntimeException("Class not found: " + className);
         }
 
-        // Find static method in class (use findStaticMethod to only search static methods)
-        auto method = classDef->findStaticMethod(methodName, argCount);
+        // Find static method in class (use simple name for ClassDefinition lookup)
+        auto method = classDef->findStaticMethod(simpleMethodName, argCount);
         if (!method)
         {
-            throw errors::RuntimeException("Static method not found: " + qualifiedName +
+            throw errors::RuntimeException("Static method not found: " + className + "::" + simpleMethodName +
                 " with " + std::to_string(argCount) + " arguments");
         }
 
-        // Check access modifiers
-        validateStaticMethodAccess(className, methodName, method->getAccessModifier());
+        // Check access modifiers (use simple name)
+        validateStaticMethodAccess(className, simpleMethodName, method->getAccessModifier());
 
         // Calculate frameBase BEFORE popping arguments
         size_t frameBase = context.stackManager->size() - argCount;
@@ -166,7 +184,12 @@ namespace vm::runtime
 
         // Look up static method bytecode
         // Important: Static methods are registered with "$static" suffix to distinguish from instance methods
-        std::string staticQualifiedName = qualifiedName + "$static";
+        // Check if $static suffix is already present (from overload resolution)
+        std::string staticQualifiedName = qualifiedName;
+        if (staticQualifiedName.find("$static") == std::string::npos)
+        {
+            staticQualifiedName += "$static";
+        }
 
         auto funcMetadata = context.program->getFunction(staticQualifiedName);
         if (funcMetadata)

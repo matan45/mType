@@ -38,40 +38,48 @@ namespace validation
         }
 
         // Validate annotations on all instance methods
-        for (const auto& [methodName, methodDef] : classDefinition->getInstanceMethods())
+        for (const auto& [methodName, methodOverloads] : classDefinition->getInstanceMethods())
         {
-            if (methodDef->hasAnnotation("Override"))
+            // Iterate through all overloads
+            for (const auto& methodDef : methodOverloads)
             {
-                validateOverrideAnnotation(
-                    methodDef.get(),
-                    classDefinition,
-                    environment,
-                    methodDef->getSourceLocation() // Use stored source location for accurate error reporting
-                );
-            }
+                if (methodDef->hasAnnotation("Override"))
+                {
+                    validateOverrideAnnotation(
+                        methodDef.get(),
+                        classDefinition,
+                        environment,
+                        methodDef->getSourceLocation() // Use stored source location for accurate error reporting
+                    );
+                }
 
-            // Validate @Throw annotation if present
-            if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
-            {
-                validateThrowAnnotation(
-                    throwAnnotation,
-                    environment,
-                    methodDef->getSourceLocation()
-                );
+                // Validate @Throw annotation if present
+                if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
+                {
+                    validateThrowAnnotation(
+                        throwAnnotation,
+                        environment,
+                        methodDef->getSourceLocation()
+                    );
+                }
             }
         }
 
         // Validate annotations on all static methods
-        for (const auto& [methodName, methodDef] : classDefinition->getStaticMethods())
+        for (const auto& [methodName, methodOverloads] : classDefinition->getStaticMethods())
         {
-            // Validate @Throw annotation if present
-            if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
+            // Iterate through all overloads
+            for (const auto& methodDef : methodOverloads)
             {
-                validateThrowAnnotation(
-                    throwAnnotation,
-                    environment,
-                    methodDef->getSourceLocation()
-                );
+                // Validate @Throw annotation if present
+                if (auto throwAnnotation = methodDef->getAnnotation("Throw"))
+                {
+                    validateThrowAnnotation(
+                        throwAnnotation,
+                        environment,
+                        methodDef->getSourceLocation()
+                    );
+                }
             }
         }
     }
@@ -157,9 +165,13 @@ namespace validation
             auto it = instanceMethods.find(method->getName());
             if (it != instanceMethods.end())
             {
-                if (methodSignaturesMatch(method, it->second.get()))
+                // Check all overloads for matching signature
+                for (const auto& parentMethod : it->second)
                 {
-                    return it->second;
+                    if (methodSignaturesMatch(method, parentMethod.get()))
+                    {
+                        return parentMethod;
+                    }
                 }
             }
 
@@ -187,7 +199,12 @@ namespace validation
         }
 
         // Get the parameter count from the method
+        // For instance methods, exclude the implicit 'this' parameter when comparing with interface methods
         size_t methodParamCount = method->getParameters().size();
+        if (!method->isStatic() && methodParamCount > 0)
+        {
+            methodParamCount--; // Exclude 'this' parameter
+        }
 
         // Check all implemented interfaces
         for (const std::string& interfaceName : containingClass->getImplementedInterfaces())
@@ -236,7 +253,9 @@ namespace validation
         }
 
         // Check parameter types
-        for (size_t i = 0; i < params1.size(); ++i)
+        // For instance methods, skip index 0 ('this' parameter) as it will differ between parent and child
+        size_t startIndex = (!method1->isStatic() && !params1.empty()) ? 1 : 0;
+        for (size_t i = startIndex; i < params1.size(); ++i)
         {
             // Compare parameter types (using operator== from ParameterType)
             if (!(params1[i].second == params2[i].second))
@@ -323,15 +342,20 @@ namespace validation
         auto it = instanceMethods.find("update");
         if (it != instanceMethods.end())
         {
-            const auto& method = it->second;
-            const auto& params = method->getParameters();
-
-            // Check: exactly 1 parameter of type float, return type void
-            if (params.size() == 1 &&
-                params[0].second.basicType == value::ValueType::FLOAT &&
-                method->getReturnType() == value::ValueType::VOID)
+            // Check all overloads for the required signature
+            for (const auto& method : it->second)
             {
-                hasUpdateMethod = true;
+                const auto& params = method->getParameters();
+
+                // Check: exactly 1 real parameter of type float (plus implicit 'this'), return type void
+                // Instance methods have 'this' as first parameter, so size should be 2 total
+                if (params.size() == 2 &&
+                    params[1].second.basicType == value::ValueType::FLOAT &&
+                    method->getReturnType() == value::ValueType::VOID)
+                {
+                    hasUpdateMethod = true;
+                    break;
+                }
             }
         }
 

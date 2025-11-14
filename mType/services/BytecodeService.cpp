@@ -58,7 +58,13 @@ namespace services
         Lexer lexer(sourceFile);
         auto importManager = std::make_unique<ImportManager>();
         std::filesystem::path scriptPath(sourceFile);
-        importManager->setBaseDirectory(scriptPath.parent_path().string());
+        std::string baseDir = scriptPath.parent_path().string();
+        importManager->setBaseDirectory(baseDir);
+
+        // Set current file path to the main script file
+        // This ensures imports in the main file resolve correctly
+        std::string canonicalPath = std::filesystem::canonical(sourceFile).string();
+        importManager->setCurrentFilePath(canonicalPath);
 
         // Keep a raw pointer before moving
         ImportManager* importMgrPtr = importManager.get();
@@ -354,7 +360,17 @@ namespace services
             for (size_t i = 0; i < methodMeta.parameterNames.size(); ++i)
             {
                 auto paramType = stringToValueType(methodMeta.parameterTypes[i]);
-                params.push_back({methodMeta.parameterNames[i], value::ParameterType(paramType)});
+                const std::string& typeStr = methodMeta.parameterTypes[i];
+
+                // Preserve generic type parameters and class names for proper type signature matching
+                if (paramType == value::ValueType::OBJECT) {
+                    // Keep the original type string (e.g., "T", "Node<T>", "Int") as className
+                    value::ParameterType paramTypeWithClass(paramType);
+                    paramTypeWithClass.className = typeStr;
+                    params.push_back({methodMeta.parameterNames[i], paramTypeWithClass});
+                } else {
+                    params.push_back({methodMeta.parameterNames[i], value::ParameterType(paramType)});
+                }
             }
 
             auto accessMod = methodMeta.isPrivate
@@ -405,7 +421,17 @@ namespace services
             for (size_t i = 0; i < ctorMeta.parameterNames.size(); ++i)
             {
                 auto paramType = stringToValueType(ctorMeta.parameterTypes[i]);
-                params.push_back({ctorMeta.parameterNames[i], value::ParameterType(paramType)});
+                const std::string& typeStr = ctorMeta.parameterTypes[i];
+
+                // Preserve generic type parameters and class names for proper type signature matching
+                if (paramType == value::ValueType::OBJECT) {
+                    // Keep the original type string (e.g., "T", "Node<T>", "Int") as className
+                    value::ParameterType paramTypeWithClass(paramType);
+                    paramTypeWithClass.className = typeStr;
+                    params.push_back({ctorMeta.parameterNames[i], paramTypeWithClass});
+                } else {
+                    params.push_back({ctorMeta.parameterNames[i], value::ParameterType(paramType)});
+                }
             }
 
             auto ctorDef = std::make_shared<ConstructorDefinition>(

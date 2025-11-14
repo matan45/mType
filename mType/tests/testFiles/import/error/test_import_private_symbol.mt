@@ -4,7 +4,7 @@ import { Calculator, internalHelper } from "selective_import_utils.mt";
 
 function main() : void {
     int result = internalHelper(5);
-    print("Result: " + string(result));
+    print("Result: " + result);
 }
 
 main();

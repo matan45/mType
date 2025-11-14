@@ -1,0 +1,15 @@
+Testing Stream sortedWith with chaining:
+Original:
+8
+3
+12
+5
+15
+2
+9
+After filter(even), sortedWith, map(*2):
+4
+16
+24
+Count: 3
+Stream sortedWith chaining test passed!

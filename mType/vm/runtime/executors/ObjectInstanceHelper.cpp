@@ -1,4 +1,5 @@
 #include "ObjectInstanceHelper.hpp"
+#include "../../MethodSignature.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/TypeException.hpp"
@@ -264,7 +265,9 @@ namespace vm::runtime
 
         // Build constructor name with type signature for overload resolution
         std::string typeSignature = parentConstructor->getTypeSignature();
-        std::string constructorName = baseParentClassName + "::<init>/" + typeSignature;
+        std::string constructorName = typeSignature.empty()
+            ? baseParentClassName + "::<init>"
+            : baseParentClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -347,7 +350,9 @@ namespace vm::runtime
 
         // Build constructor name with type signature for overload resolution
         std::string typeSignature = targetConstructor->getTypeSignature();
-        std::string constructorName = currentClassName + "::<init>/" + typeSignature;
+        std::string constructorName = typeSignature.empty()
+            ? currentClassName + "::<init>"
+            : currentClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -448,7 +453,11 @@ namespace vm::runtime
                                          " with " + std::to_string(argCount) + " arguments");
         }
 
-        std::string qualifiedName = baseParentClassName + "::" + methodName;
+        // Build the mangled name with signature for overloaded methods
+        // Use MethodSignature to eliminate manual signature building and 'this' confusion
+        auto signature = vm::MethodSignature::fromMethodDefinition(method.get());
+        std::string qualifiedName = signature.toMangledName(baseParentClassName, false);  // false = not static
+
         auto funcMetadata = context.program->getFunction(qualifiedName);
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
@@ -587,7 +596,9 @@ namespace vm::runtime
         // Build type signature from runtime argument values for overload resolution
         std::string typeSignature = constructor->getTypeSignature();
 
-        std::string constructorName = baseClassName + "::<init>/" + typeSignature;
+        std::string constructorName = typeSignature.empty()
+            ? baseClassName + "::<init>"
+            : baseClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
         if (!funcMetadata) {
             throw errors::RuntimeException("Constructor '" + constructorName + "' for class '" + baseClassName +

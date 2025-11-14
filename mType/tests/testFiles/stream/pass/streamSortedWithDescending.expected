@@ -1,0 +1,16 @@
+Testing Stream sortedWith descending:
+Original order:
+3
+7
+1
+9
+4
+6
+After sortedWith descending:
+9
+7
+6
+4
+3
+1
+Stream sortedWith descending test passed!

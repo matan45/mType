@@ -1,0 +1,6 @@
+Testing stream operation chaining:
+Result of chained operations:
+4
+16
+36
+Stream chaining test passed!

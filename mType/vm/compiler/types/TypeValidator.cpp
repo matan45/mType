@@ -602,4 +602,159 @@ namespace vm::compiler::types
             throwBinaryOperationError(leftType, rightType, op, location);
         }
     }
+
+    std::string TypeValidator::findIterableInInterfaceHierarchy(
+        const std::string& interfaceName,
+        std::unordered_set<std::string>& visited
+    ) const
+    {
+        // Avoid infinite loops
+        std::string baseInterfaceName = stripGenericParameters(interfaceName);
+        if (visited.count(baseInterfaceName)) {
+            return "";
+        }
+        visited.insert(baseInterfaceName);
+
+        // Check if this interface is Iterable
+        if (baseInterfaceName == "Iterable") {
+            // Return "found" marker - the caller will extract the element type from the collection class
+            return "FOUND";
+        }
+
+        // Recursively check extended interfaces
+        auto interfaceDef = environment->findInterface(baseInterfaceName);
+        if (interfaceDef) {
+            const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
+            for (const auto& extendedInterface : extendedInterfaces) {
+                std::string result = findIterableInInterfaceHierarchy(extendedInterface, visited);
+                if (!result.empty()) {
+                    return result;
+                }
+            }
+        }
+
+        return "";
+    }
+
+    std::string TypeValidator::validateAndExtractIterableElementType(
+        const std::string& className,
+        const std::string& loopVarType,
+        const ast::SourceLocation& location
+    ) const
+    {
+        // Strip generic parameters from className to get base class name
+        std::string baseClassName = stripGenericParameters(className);
+
+        // Find the class definition
+        auto classDef = environment->findClass(baseClassName);
+        if (!classDef) {
+            throw errors::TypeException(
+                "Type error: Cannot use for-each loop on type '" + className +
+                "' - class definition not found",
+                location
+            );
+        }
+
+        // Check if the class implements Iterable<T> (directly or through interface hierarchy)
+        const auto& interfaces = classDef->getImplementedInterfaces();
+        bool implementsIterable = false;
+
+        for (const auto& interfaceName : interfaces) {
+            std::unordered_set<std::string> visited;
+            std::string result = findIterableInInterfaceHierarchy(interfaceName, visited);
+            if (!result.empty()) {
+                implementsIterable = true;
+                break;
+            }
+        }
+
+        // If not found in direct interfaces, check parent class
+        if (!implementsIterable) {
+            std::string parentClassName = classDef->getParentClassName();
+            if (!parentClassName.empty()) {
+                auto parentClass = environment->findClass(parentClassName);
+                if (parentClass) {
+                    const auto& parentInterfaces = parentClass->getImplementedInterfaces();
+                    for (const auto& interfaceName : parentInterfaces) {
+                        std::unordered_set<std::string> visited;
+                        std::string result = findIterableInInterfaceHierarchy(interfaceName, visited);
+                        if (!result.empty()) {
+                            implementsIterable = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // If still not found through interfaces, check if class has an iterator() method
+        // This allows duck-typed iteration (e.g., HashMap has iterator() but doesn't implement Iterable)
+        if (!implementsIterable) {
+            auto iteratorMethod = classDef->findMethod("iterator", 0);
+            if (iteratorMethod) {
+                // Found iterator() method with no parameters
+                implementsIterable = true;
+            }
+        }
+
+        // If still not found, throw error
+        if (!implementsIterable) {
+            throw errors::TypeException(
+                "Type error: Cannot use for-each loop on type '" + className +
+                "' - it does not implement Iterable<T> interface and has no iterator() method",
+                location
+            );
+        }
+
+        // Extract element type from the collection's generic parameters
+        // For example: "ArrayList<String>" -> "String"
+        // For HashMap<K,V> that iterates over keys -> "K" (first parameter)
+        std::string elementType;
+        size_t openBracket = className.find('<');
+        size_t closeBracket = className.rfind('>');
+
+        if (openBracket != std::string::npos && closeBracket != std::string::npos &&
+            closeBracket > openBracket) {
+            std::string genericParams = className.substr(openBracket + 1, closeBracket - openBracket - 1);
+
+            // For collections with multiple type parameters (e.g., HashMap<K,V>),
+            // the iterator() method typically returns Iterator<K> (first type parameter)
+            // This is the default behavior for Map types which iterate over keys
+            size_t commaPos = genericParams.find(',');
+            if (commaPos != std::string::npos) {
+                // Take the first type parameter
+                elementType = genericParams.substr(0, commaPos);
+                // Trim whitespace
+                size_t firstNonSpace = elementType.find_first_not_of(" \t");
+                size_t lastNonSpace = elementType.find_last_not_of(" \t");
+                if (firstNonSpace != std::string::npos && lastNonSpace != std::string::npos) {
+                    elementType = elementType.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
+                }
+            } else {
+                elementType = genericParams;
+            }
+        } else {
+            // No generic parameters - use Object as fallback
+            elementType = "Object";
+        }
+
+        // Validate that element type matches loop variable type
+        std::string strippedLoopVarType = stripGenericParameters(loopVarType);
+        std::string strippedElementType = stripGenericParameters(elementType);
+
+        // Check if types are compatible (exact match or inheritance/interface relationship)
+        if (strippedLoopVarType != strippedElementType) {
+            // Check if loop variable type is compatible with element type
+            if (!isClassCompatible(strippedElementType, strippedLoopVarType)) {
+                throw errors::TypeException(
+                    "Type error: For-each loop variable type '" + loopVarType +
+                    "' is incompatible with iterator element type '" + elementType +
+                    "'. Collection '" + className + "' is Iterable<" + elementType + ">",
+                    location
+                );
+            }
+        }
+
+        return elementType;
+    }
 }

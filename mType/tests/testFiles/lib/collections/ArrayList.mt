@@ -1,5 +1,14 @@
 // List<T> - Dynamic resizable list implementation
-class List<T> {
+import * from "../../lib/interfaces/List.mt";
+import * from "../../lib/Iterator.mt";
+import * from "../../lib/iterators/ListIterator.mt";
+import * from "../../lib/stream/Stream.mt";
+import * from "../../lib/stream/StreamImpl.mt";
+import * from "../../lib/exceptions/IndexOutOfBoundsException.mt";
+import * from "../../lib/functional/Comparator.mt";
+import * from "../../lib/utils/SortUtils.mt";
+
+class ArrayList<T> implements List<T> {
     T[] data;
     int capacity;
     int count;
@@ -12,11 +21,11 @@ class List<T> {
         }
 
         // Core operations
-        public function add(T item): void {
+        public function add(T item): bool {
             // Null item validation
             if (item == null) {
                 print("Error: List.add() - item cannot be null");
-                return;
+                return false;
             }
 
             if (this.count >= this.capacity) {
@@ -24,20 +33,19 @@ class List<T> {
             }
             this.data[this.count] = item;
             this.count++;
+            return true;
         }
 
         public function get(int index): T {
             if (index < 0 || index >= this.count) {
-                // TODO: Error handling - for now return default
-                return null;
+                throw new IndexOutOfBoundsException("Index " + index + " out of bounds for size " + this.count);
             }
             return this.data[index];
         }
 
         public function set(int index, T item): void {
             if (index < 0 || index >= this.count) {
-                // TODO: Error handling
-                return;
+                throw new IndexOutOfBoundsException("Index " + index + " out of bounds for size " + this.count);
             }
             // Null item validation
             if (item == null) {
@@ -171,6 +179,94 @@ class List<T> {
                 hash = 31 * hash + hashCode(this.data[i]);
             }
             return hash;
+        }
+
+        // Iterator support - NEW for enhanced for-loop
+        public function iterator(): Iterator<T> {
+            return new ListIterator<T>(this.data, this.count);
+        }
+
+        // Stream support - NEW for functional programming
+        public function stream(): Stream<T> {
+            return new StreamImpl<T>(this.iterator());
+        }
+
+        // Search operations - NEW
+        public function indexOf(T item): int {
+            if (item == null) {
+                return -1;
+            }
+            for (int i = 0; i < this.count; i++) {
+                if (this.data[i] != null && this.data[i].equals(item)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        public function lastIndexOf(T item): int {
+            if (item == null) {
+                return -1;
+            }
+            for (int i = this.count - 1; i >= 0; i = i - 1) {
+                if (this.data[i] != null && this.data[i].equals(item)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        // Bulk operations - NEW
+        public function addAll(T[] items): void {
+            for (T item : items) {
+                this.add(item);
+            }
+        }
+
+        // List manipulation - NEW
+        public function reverse(): void {
+            int left = 0;
+            int right = this.count - 1;
+            while (left < right) {
+                T temp = this.data[left];
+                this.data[left] = this.data[right];
+                this.data[right] = temp;
+                left = left + 1;
+                right = right - 1;
+            }
+        }
+
+        // Sort - Requires elements to implement Comparable interface
+        public function sort(): void {
+            // Natural ordering sort requires Comparable<T> interface
+            // Since we can't enforce this at compile time, we throw an exception
+            // Use sortWith(Comparator) for custom sorting
+            throw "ArrayList.sort() requires elements to implement Comparable interface. Use sortWith(Comparator) instead.";
+        }
+
+        /**
+         * Sorts this list using the provided comparator.
+         *
+         * @param comparator the comparator to determine element order
+         */
+        public function sortWith(Comparator<T> comparator): void {
+            if (this.count == 0) {
+                return;
+            }
+
+            // Create a temporary array with only the valid elements
+            T[] sortArray = new T[this.count];
+            for (int i = 0; i < this.count; i++) {
+                sortArray[i] = this.data[i];
+            }
+
+            // Sort the array
+            SortUtils::quicksort(sortArray, comparator);
+
+            // Copy back to data array
+            for (int i = 0; i < this.count; i++) {
+                this.data[i] = sortArray[i];
+            }
         }
 
         // Helper method

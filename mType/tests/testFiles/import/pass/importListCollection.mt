@@ -1,10 +1,10 @@
-// Test: Import and use List from lib/collections
+// Test: Import and use ArrayList from lib/collections
 import * from "../../lib/primitives/Int.mt";
-import { List } from "../../lib/collections/List.mt";
+import { ArrayList } from "../../lib/collections/ArrayList.mt";
 
-List<Int> list = new List<Int>();
-list.add(new Int(10));
-list.add(new Int(20));
-list.add(new Int(30));
-print(list.size());
-print(list.get(1).toString());
+ArrayList<Int> ArrayList = new ArrayList<Int>();
+ArrayList.add(new Int(10));
+ArrayList.add(new Int(20));
+ArrayList.add(new Int(30));
+print(ArrayList.size());
+print(ArrayList.get(1).toString());

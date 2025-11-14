@@ -90,14 +90,15 @@ namespace vm::runtime
             // Store the slot index for later access
             lambda->capturedSlots.push_back(varSlot);
 
-            // Register captured variable in current SharedStackFrame
+            // Register captured variable in current SharedStackFrame WITH NAME for reference semantics
             // ALWAYS update with current stack value for proper reference semantics
             size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
             size_t stackPos = frameBase + varSlot;
 
             if (stackPos < context.stackManager->size()) {
                 value::Value val = (*context.stackManager)[stackPos];
-                sharedFrame->setLocal(varSlot, val);  // Always update for reference semantics
+                std::string capturedName = lambda->capturedNames[i];  // Get the name
+                sharedFrame->setLocal(capturedName, varSlot, val);  // Register with NAME for setLocalByName to work
             }
         }
 

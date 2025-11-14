@@ -1,5 +1,11 @@
 // Stack<T> - LIFO operations
-class Stack<T> {
+import * from "../../lib/interfaces/Deque.mt";
+import * from "../../lib/Iterator.mt";
+import * from "../../lib/iterators/StackIterator.mt";
+import * from "../../lib/stream/Stream.mt";
+import * from "../../lib/stream/StreamImpl.mt";
+
+class Stack<T> implements Deque<T> {
     T[] data;
     int capacity;
     int top;
@@ -17,7 +23,7 @@ class Stack<T> {
             this.data[this.top] = item;
         }
 
-        function pop(): T {
+        public function pop(): T {
             if (this.empty()) {
                 return null; // Stack empty
             }
@@ -33,20 +39,20 @@ class Stack<T> {
             return this.data[this.top];
         }
 
-        function empty(): bool {
+        public function empty(): bool {
             return this.top < 0;
         }
 
-        function size(): int {
+        public function size(): int {
             return this.top + 1;
         }
 
-        function clear(): void {
+        public function clear(): void {
             this.top = -1;
         }
 
         // Check if stack contains item
-        function contains(T item): bool {
+        public function contains(T item): bool {
             T[] currentData = this.toArray();
             for (T element : currentData) {
                 if (element.equals(item)) {
@@ -57,7 +63,7 @@ class Stack<T> {
         }
 
         // Convert to array (bottom to top)
-        function toArray(): T[] {
+        public function toArray(): T[] {
             T[] result = new T[this.top + 1];
             for (int i = 0; i <= this.top; i++) {
                 result[i] = this.data[i];
@@ -66,12 +72,81 @@ class Stack<T> {
         }
 
         // Content-based hash code (order matters for Stack)
-        function hashCode(): int {
+        public function hashCode(): int {
             int hash = 1;
             for (int i = 0; i <= this.top; i++) {
                 hash = 31 * hash + hashCode(this.data[i]);
             }
             return hash;
+        }
+
+        // Iterator support - NEW for enhanced for-loop
+        public function iterator(): Iterator<T> {
+            return new StackIterator<T>(this.data, this.top);
+        }
+
+        // Stream support - NEW for functional programming
+        public function stream(): Stream<T> {
+            return new StreamImpl<T>(this.iterator());
+        }
+
+        // Collection interface methods - NEW
+        public function add(T item): bool {
+            this.push(item);
+            return true;
+        }
+
+        public function remove(T item): bool {
+            // Stack doesn't support arbitrary removal
+            // Would need to pop items until found
+            print("Warning: Stack.remove() not efficiently supported");
+            return false;
+        }
+
+        public function addAll(T[] items): void {
+            for (T item : items) {
+                this.push(item);
+            }
+        }
+
+        // Deque interface methods - NEW
+        public function addFirst(T item): void {
+            this.push(item);
+        }
+
+        public function removeFirst(): T {
+            return this.pop();
+        }
+
+        public function peekFirst(): T {
+            return this.peek();
+        }
+
+        public function addLast(T item): void {
+            // Not efficient for stack, but required by interface
+            print("Warning: Stack.addLast() not efficiently supported");
+        }
+
+        public function removeLast(): T {
+            // Not efficient for stack
+            print("Warning: Stack.removeLast() not efficiently supported");
+            return null;
+        }
+
+        public function peekLast(): T {
+            // Bottom of stack
+            if (this.empty()) {
+                return null;
+            }
+            return this.data[0];
+        }
+
+        public function enqueue(T item): void {
+            this.push(item);
+        }
+
+        public function dequeue(): T {
+            return this.pop();
         }
 
         function resize(): void {

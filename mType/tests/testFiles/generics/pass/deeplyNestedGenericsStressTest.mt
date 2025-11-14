@@ -1,4 +1,4 @@
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/collections/HashMap.mt";
 import * from "../../lib/collections/HashSet.mt";
 import * from "../../lib/primitives/String.mt";
@@ -8,9 +8,9 @@ import * from "../../lib/primitives/Int.mt";
 function main(): void {
     print("=== Deeply Nested Generics Stress Test ===");
 
-    // Test 1: List<HashMap<String, HashSet<Integer>>>
-    print("\nTest 1: List<HashMap<String, HashSet<Int>>>");
-    List<HashMap<String, HashSet<Int>>> complexList = new List<HashMap<String, HashSet<Int>>>();
+    // Test 1: ArrayList<HashMap<String, HashSet<Integer>>>
+    print("\nTest 1: ArrayList<HashMap<String, HashSet<Int>>>");
+    ArrayList<HashMap<String, HashSet<Int>>> complexArrayList = new ArrayList<HashMap<String, HashSet<Int>>>();
 
     // Create and populate a HashMap with HashSet values
     HashMap<String, HashSet<Int>> outerMap = new HashMap<String, HashSet<Int>>();
@@ -29,27 +29,27 @@ function main(): void {
     outerMap.put(new String("numbers1"), set1);
     outerMap.put(new String("numbers2"), set2);
 
-    // Add HashMap to List
-    complexList.add(outerMap);
+    // Add HashMap to ArrayList
+    complexArrayList.add(outerMap);
 
-    // Create second HashMap for the list
+    // Create second HashMap for the ArrayList
     HashMap<String, HashSet<Int>> secondMap = new HashMap<String, HashSet<Int>>();
     HashSet<Int> set3 = new HashSet<Int>();
     set3.add(new Int(500));
     set3.add(new Int(600));
     secondMap.put(new String("numbers3"), set3);
 
-    complexList.add(secondMap);
+    complexArrayList.add(secondMap);
 
-    print("Complex list size: " + complexList.size());
-    print("First map size: " + complexList.get(0).size());
-    print("Second map size: " + complexList.get(1).size());
+    print("Complex ArrayList size: " + complexArrayList.size());
+    print("First map size: " + complexArrayList.get(0).size());
+    print("Second map size: " + complexArrayList.get(1).size());
 
-    // Test 2: HashMap<String, List<HashSet<String>>>
-    print("\nTest 2: HashMap<String, List<HashSet<String>>>");
-    HashMap<String, List<HashSet<String>>> nestedMap = new HashMap<String, List<HashSet<String>>>();
+    // Test 2: HashMap<String, ArrayList<HashSet<String>>>
+    print("\nTest 2: HashMap<String, ArrayList<HashSet<String>>>");
+    HashMap<String, ArrayList<HashSet<String>>> nestedMap = new HashMap<String, ArrayList<HashSet<String>>>();
 
-    List<HashSet<String>> stringSetList = new List<HashSet<String>>();
+    ArrayList<HashSet<String>> stringSetArrayList = new ArrayList<HashSet<String>>();
 
     HashSet<String> stringSet1 = new HashSet<String>();
     stringSet1.add(new String("apple"));
@@ -59,54 +59,54 @@ function main(): void {
     stringSet2.add(new String("cat"));
     stringSet2.add(new String("dog"));
 
-    stringSetList.add(stringSet1);
-    stringSetList.add(stringSet2);
+    stringSetArrayList.add(stringSet1);
+    stringSetArrayList.add(stringSet2);
 
-    nestedMap.put(new String("fruits_animals"), stringSetList);
+    nestedMap.put(new String("fruits_animals"), stringSetArrayList);
 
     print("Nested map size: " + nestedMap.size());
-    print("String set list size: " + nestedMap.get(new String("fruits_animals")).size());
+    print("String set ArrayList size: " + nestedMap.get(new String("fruits_animals")).size());
 
-    // Test 3: Triple nesting - List<List<List<String>>>
-    print("\nTest 3: List<List<List<String>>>");
-    List<List<List<String>>> tripleList = new List<List<List<String>>>();
+    // Test 3: Triple nesting - ArrayList<ArrayList<ArrayList<String>>>
+    print("\nTest 3: ArrayList<ArrayList<ArrayList<String>>>");
+    ArrayList<ArrayList<ArrayList<String>>> tripleArrayList = new ArrayList<ArrayList<ArrayList<String>>>();
 
-    List<List<String>> middleList = new List<List<String>>();
-    List<String> innerList1 = new List<String>();
-    innerList1.add(new String("deep"));
-    innerList1.add(new String("nesting"));
+    ArrayList<ArrayList<String>> middleArrayList = new ArrayList<ArrayList<String>>();
+    ArrayList<String> innerArrayList1 = new ArrayList<String>();
+    innerArrayList1.add(new String("deep"));
+    innerArrayList1.add(new String("nesting"));
 
-    List<String> innerList2 = new List<String>();
-    innerList2.add(new String("stress"));
-    innerList2.add(new String("test"));
+    ArrayList<String> innerArrayList2 = new ArrayList<String>();
+    innerArrayList2.add(new String("stress"));
+    innerArrayList2.add(new String("test"));
 
-    middleList.add(innerList1);
-    middleList.add(innerList2);
-    tripleList.add(middleList);
+    middleArrayList.add(innerArrayList1);
+    middleArrayList.add(innerArrayList2);
+    tripleArrayList.add(middleArrayList);
 
-    print("Triple list size: " + tripleList.size());
-    print("Middle list size: " + tripleList.get(0).size());
-    print("Inner list 1 size: " + tripleList.get(0).get(0).size());
+    print("Triple ArrayList size: " + tripleArrayList.size());
+    print("Middle ArrayList size: " + tripleArrayList.get(0).size());
+    print("Inner ArrayList 1 size: " + tripleArrayList.get(0).get(0).size());
 
-    // Test 4: HashMap with nested Lists and HashSets
-    print("\nTest 4: HashMap<Int, HashMap<String, List<Int>>>");
-    HashMap<Int, HashMap<String, List<Int>>> megaMap = new HashMap<Int, HashMap<String, List<Int>>>();
+    // Test 4: HashMap with nested ArrayLists and HashSets
+    print("\nTest 4: HashMap<Int, HashMap<String, ArrayList<Int>>>");
+    HashMap<Int, HashMap<String, ArrayList<Int>>> megaMap = new HashMap<Int, HashMap<String, ArrayList<Int>>>();
 
-    HashMap<String, List<Int>> subMap = new HashMap<String, List<Int>>();
-    List<Int> intList = new List<Int>();
-    intList.add(new Int(1000));
-    intList.add(new Int(2000));
+    HashMap<String, ArrayList<Int>> subMap = new HashMap<String, ArrayList<Int>>();
+    ArrayList<Int> intArrayList = new ArrayList<Int>();
+    intArrayList.add(new Int(1000));
+    intArrayList.add(new Int(2000));
 
-    subMap.put(new String("large_numbers"), intList);
+    subMap.put(new String("large_numbers"), intArrayList);
     megaMap.put(new Int(42), subMap);
 
     print("Mega map size: " + megaMap.size());
     print("Sub map size: " + megaMap.get(new Int(42)).size());
-    print("Int list size: " + megaMap.get(new Int(42)).get(new String("large_numbers")).size());
+    print("Int ArrayList size: " + megaMap.get(new Int(42)).get(new String("large_numbers")).size());
 
-    // Test 6: Extreme nesting - List<HashMap<String, HashSet<HashMap<Int, String>>>>
-    print("\nTest 6: Extreme nesting - List<HashMap<String, HashSet<HashMap<Int, String>>>>");
-    List<HashMap<String, HashSet<HashMap<Int, String>>>> extremeNesting = new List<HashMap<String, HashSet<HashMap<Int, String>>>>();
+    // Test 6: Extreme nesting - ArrayList<HashMap<String, HashSet<HashMap<Int, String>>>>
+    print("\nTest 6: Extreme nesting - ArrayList<HashMap<String, HashSet<HashMap<Int, String>>>>");
+    ArrayList<HashMap<String, HashSet<HashMap<Int, String>>>> extremeNesting = new ArrayList<HashMap<String, HashSet<HashMap<Int, String>>>>();
 
     HashMap<String, HashSet<HashMap<Int, String>>> extremeMap = new HashMap<String, HashSet<HashMap<Int, String>>>();
     HashSet<HashMap<Int, String>> extremeSet = new HashSet<HashMap<Int, String>>();

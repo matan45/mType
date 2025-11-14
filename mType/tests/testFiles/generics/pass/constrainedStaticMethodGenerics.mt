@@ -1,6 +1,6 @@
 // Test: Static methods with generic interface constraints
 // Expected: Should compile and run successfully
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 interface Comparable<T> {
     function compareTo(T other): int;
@@ -34,7 +34,7 @@ class Item implements Comparable<Item> {
 
 class Utilities {
     // Static method with constraint
-    public static function <T extends Comparable<T>> findMax(List<T> items): T {
+    public static function <T extends Comparable<T>> findMax(ArrayList<T> items): T {
         if (items.size() == 0) {
             return null;
         }
@@ -50,7 +50,7 @@ class Utilities {
     }
 
     // Static method with constraint
-    public static function <T extends Comparable<T>> findMin(List<T> items): T {
+    public static function <T extends Comparable<T>> findMin(ArrayList<T> items): T {
         if (items.size() == 0) {
             return null;
         }
@@ -72,7 +72,7 @@ class Utilities {
 }
 
 // Test static methods with constraints
-List<Item> items = new List<Item>();
+ArrayList<Item> items = new ArrayList<Item>();
 items.add(new Item(10));
 items.add(new Item(5));
 items.add(new Item(20));

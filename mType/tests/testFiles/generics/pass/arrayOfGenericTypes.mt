@@ -1,4 +1,4 @@
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
@@ -32,21 +32,21 @@ function main(): void {
     print("intBoxes[1] value: " + intBoxes[1].getValue());
     print("intBoxes[2] value: " + intBoxes[2].getValue());
 
-    // Test 2: Array of generic List<String>
-    List<String>[] stringLists = new List<String>[2];
-    stringLists[0] = new List<String>();
-    stringLists[0].add(new String("Hello"));
-    stringLists[0].add(new String("World"));
+    // Test 2: Array of generic ArrayList<String>
+    ArrayList<String>[] stringArrayLists = new ArrayList<String>[2];
+    stringArrayLists[0] = new ArrayList<String>();
+    stringArrayLists[0].add(new String("Hello"));
+    stringArrayLists[0].add(new String("World"));
 
-    stringLists[1] = new List<String>();
-    stringLists[1].add(new String("Foo"));
-    stringLists[1].add(new String("Bar"));
+    stringArrayLists[1] = new ArrayList<String>();
+    stringArrayLists[1].add(new String("Foo"));
+    stringArrayLists[1].add(new String("Bar"));
 
-    print("List array created with 2 elements");
-    print("stringLists[0] size: " + stringLists[0].size());
-    print("stringLists[1] size: " + stringLists[1].size());
-    print("stringLists[0][0]: " + stringLists[0].get(0));
-    print("stringLists[1][0]: " + stringLists[1].get(0));
+    print("ArrayList array created with 2 elements");
+    print("stringArrayLists[0] size: " + stringArrayLists[0].size());
+    print("stringArrayLists[1] size: " + stringArrayLists[1].size());
+    print("stringArrayLists[0][0]: " + stringArrayLists[0].get(0));
+    print("stringArrayLists[1][0]: " + stringArrayLists[1].get(0));
 
     // Test 3: Nested generic arrays (Box<Box<Int>>)
     Box<Box<Int>> nestedBox = new Box<Box<Int>>();
