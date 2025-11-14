@@ -727,9 +727,11 @@ namespace vm::compiler::visitors
                 {
                     std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
 
-                    // Auto-unbox Box types for native functions
-                    if (argClassName == "Int" || argClassName == "Float" ||
-                        argClassName == "Bool" || argClassName == "String")
+                    // Auto-unbox Box types for native functions (EXCEPT String)
+                    // IMPORTANT: Don't auto-unbox String objects because:
+                    // 1. String concatenation with mixed types may return primitive strings
+                    // 2. Native functions like print() handle both primitive and Box strings
+                    if (argClassName == "Int" || argClassName == "Float" || argClassName == "Bool")
                     {
                         // Compile argument (Box object)
                         arguments[i]->accept(ctx.visitor);
@@ -743,7 +745,7 @@ namespace vm::compiler::visitors
                     }
                     else
                     {
-                        // Not a Box type, compile normally
+                        // Not a Box type (or is String), compile normally
                         arguments[i]->accept(ctx.visitor);
                     }
                 }

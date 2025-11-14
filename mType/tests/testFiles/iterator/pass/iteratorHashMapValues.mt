@@ -21,7 +21,7 @@ function main(): void {
     while (iter.hasNext()) {
         Int value = iter.next();
         print(value);
-        sum = sum + value.value;
+        sum = sum + value.getValue();
         count = count + 1;
     }
 
