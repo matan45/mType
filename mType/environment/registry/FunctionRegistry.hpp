@@ -8,10 +8,19 @@ namespace environment::registry
 {
     using namespace runtimeTypes::global;
 
+    /**
+     * Registry for global functions with support for function overloading.
+     *
+     * DESIGN NOTE: This class inherits from Registry<FunctionDefinition> for structural
+     * consistency with other registries, but uses its own storage (functionOverloads)
+     * to support multiple functions with the same name but different signatures.
+     * The base class storage (items) is NOT used to avoid data duplication.
+     */
     class FunctionRegistry : public Registry<FunctionDefinition>
     {
     private:
-        // NEW: Support overloading - store multiple functions per name
+        // Support overloading - store multiple functions per name
+        // This is the ONLY storage; base class Registry::items is NOT used
         std::unordered_map<std::string, std::vector<std::shared_ptr<FunctionDefinition>>> functionOverloads;
 
     public:
@@ -20,7 +29,7 @@ namespace environment::registry
 
         std::string getComponentName() const override;
 
-        // Existing methods (backward compatibility)
+        // Core registration and lookup methods
         void registerFunction(const std::string& name, std::shared_ptr<FunctionDefinition> functionDefinition);
         std::shared_ptr<FunctionDefinition> findFunction(const std::string& name) const;
         bool hasFunction(const std::string& name) const;
@@ -43,5 +52,12 @@ namespace environment::registry
         std::shared_ptr<FunctionDefinition> findFunctionByArgCount(
             const std::string& name,
             size_t argCount) const;
+
+    private:
+        // Hide base class methods to prevent accidental misuse of base storage
+        // (base class storage is not used; all data is in functionOverloads)
+        using Registry<FunctionDefinition>::registerItem;
+        using Registry<FunctionDefinition>::findItem;
+        using Registry<FunctionDefinition>::hasItem;
     };
 }

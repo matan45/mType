@@ -29,6 +29,12 @@ namespace types {
          * @return true if childType has targetParent in its inheritance chain
          */
         bool traverse(const std::string& childType, const std::string& targetParent) const;
+
+        /**
+         * Calculate the inheritance distance from child to target parent
+         * @return Number of inheritance steps, or -1 if no relationship exists
+         */
+        int calculateDistance(const std::string& childType, const std::string& targetParent) const;
     };
 
     /**
@@ -235,6 +241,12 @@ namespace types {
          * @return true if childType is a subtype of parentType
          */
         bool isSubtypeOf(const std::string& childType, const std::string& parentType) const;
+
+        /**
+         * NEW: Calculate inheritance distance between two types
+         * @return Number of inheritance steps from childType to parentType, or -1 if no relationship
+         */
+        int getInheritanceDistance(const std::string& childType, const std::string& parentType) const;
 
     private:
         /**

@@ -123,6 +123,45 @@ namespace types {
         return false; // Depth limit reached
     }
 
+    int InheritanceChainTraverser::calculateDistance(const std::string& childType, const std::string& targetParent) const {
+        // Same type means distance 0
+        if (childType == targetParent) {
+            return 0;
+        }
+
+        std::string current = childType;
+        std::unordered_set<std::string> visited;
+        int distance = 0;
+
+        while (distance < MAX_DEPTH) {
+            auto inheritanceIt = classInheritance.find(current);
+            if (inheritanceIt == classInheritance.end()) {
+                return -1; // No parent found - not related
+            }
+
+            const std::string& parent = inheritanceIt->second;
+
+            // Cycle detection
+            if (visited.find(parent) != visited.end()) {
+                return -1; // Cycle detected
+            }
+            visited.insert(parent);
+
+            // Move to parent and increment distance
+            distance++;
+
+            // Check if we've found the target parent
+            if (parent == targetParent) {
+                return distance;
+            }
+
+            // Continue up the inheritance chain
+            current = parent;
+        }
+
+        return -1; // Depth limit reached - no relationship found
+    }
+
     // ExtendedTypeInfo constructors
     ExtendedTypeInfo::ExtendedTypeInfo()
         : baseType(value::ValueType::VOID), isArray(false), arrayDimensions(0), isGeneric(false) {}
@@ -423,6 +462,11 @@ namespace types {
         // Cache the result
         subtypeCache[cacheKey] = result;
         return result;
+    }
+
+    int TypeRegistry::getInheritanceDistance(const std::string& childType, const std::string& parentType) const {
+        InheritanceChainTraverser traverser(classInheritance);
+        return traverser.calculateDistance(childType, parentType);
     }
 
     // Global registry instance

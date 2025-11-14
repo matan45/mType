@@ -300,24 +300,8 @@ namespace vm::compiler::overload
         const std::string& childType,
         const std::string& parentType)
     {
-        if (childType == parentType) {
-            return 0;
-        }
-
         auto& registry = types::getGlobalTypeRegistry();
-        if (!registry.isSubtypeOf(childType, parentType)) {
-            return -1;
-        }
-
-        // Walk up the inheritance chain counting steps
-        std::string current = childType;
-        int distance = 0;
-        const int MAX_DEPTH = 20;  // Prevent infinite loops
-
-        // Note: TypeRegistry doesn't expose the inheritance map directly
-        // For now, we return a fixed distance if subtype relationship exists
-        // A more precise implementation would walk the chain
-        return 1;  // Simplified: just return 1 for any inheritance relationship
+        return registry.getInheritanceDistance(childType, parentType);
     }
 
     ParameterConversion OverloadResolver::analyzeParameterConversion(

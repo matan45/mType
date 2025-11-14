@@ -9,10 +9,9 @@ namespace environment::registry
 
     void FunctionRegistry::registerFunction(const std::string& name, std::shared_ptr<FunctionDefinition> functionDefinition)
     {
-        // NEW: Support overloading - append to vector of overloads
+        // Support overloading - append to vector of overloads
+        // Single source of truth: functionOverloads is the only storage
         functionOverloads[name].push_back(functionDefinition);
-        // Also register in base class for backward compatibility
-        registerItem(name, functionDefinition);
     }
 
     std::shared_ptr<FunctionDefinition> FunctionRegistry::findFunction(const std::string& name) const
