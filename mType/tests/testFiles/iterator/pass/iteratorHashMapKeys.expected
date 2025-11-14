@@ -1,0 +1,6 @@
+Testing HashMap key iterator:
+one
+two
+three
+Count: 3
+HashMap key iterator test passed!

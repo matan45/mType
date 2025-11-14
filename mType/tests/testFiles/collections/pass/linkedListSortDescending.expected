@@ -1,0 +1,16 @@
+Testing LinkedList sortWith descending:
+Before sort:
+4
+2
+8
+6
+1
+7
+After descending sort:
+8
+7
+6
+4
+2
+1
+LinkedList descending sort test passed!

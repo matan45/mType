@@ -18,5 +18,14 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Empty Collection Iterator",
                                   passPath + "iteratorEmpty.mt");
+
+        addOutputVerificationTest("HashMap Key Iterator",
+                                  passPath + "iteratorHashMapKeys.mt");
+
+        addOutputVerificationTest("HashMap Entry Iterator",
+                                  passPath + "iteratorHashMapEntries.mt");
+
+        addOutputVerificationTest("HashMap Value Iterator",
+                                  passPath + "iteratorHashMapValues.mt");
     }
 }

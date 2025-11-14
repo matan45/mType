@@ -13,6 +13,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Enhanced For-Loop with HashSet",
                                   passPath + "forEachHashSet.mt");
 
+        addOutputVerificationTest("Enhanced For-Loop with HashMap",
+                                  passPath + "forEachHashMap.mt");
+
         addOutputVerificationTest("Enhanced For-Loop with LinkedList",
                                   passPath + "forEachLinkedList.mt");
 

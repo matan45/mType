@@ -1,5 +1,5 @@
-// Test ArrayList.sortWith() functionality
-import * from "../../lib/collections/ArrayList.mt";
+// Test LinkedList.sortWith() functionality
+import * from "../../lib/collections/LinkedList.mt";
 import * from "../../lib/functional/Comparator.mt";
 import * from "../../lib/primitives/Int.mt";
 
@@ -19,14 +19,14 @@ class IntComparator implements Comparator<Int> {
 }
 
 function main(): void {
-    print("Testing ArrayList sortWith:");
+    print("Testing LinkedList sortWith:");
 
-    ArrayList<Int> list = new ArrayList<Int>();
-    list.add(new Int(5));
-    list.add(new Int(2));
-    list.add(new Int(8));
-    list.add(new Int(1));
+    LinkedList<Int> list = new LinkedList<Int>();
+    list.add(new Int(7));
+    list.add(new Int(3));
     list.add(new Int(9));
+    list.add(new Int(1));
+    list.add(new Int(5));
 
     print("Before sort:");
     for (Int num : list) {
@@ -42,6 +42,7 @@ function main(): void {
         print(num);
     }
 
-    print("ArrayList sort test passed!");
+    print("LinkedList sort test passed!");
 }
+
 main();

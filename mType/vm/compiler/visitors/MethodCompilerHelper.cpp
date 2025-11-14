@@ -3,7 +3,7 @@
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../validation/ReturnPathValidator.hpp"
-
+#include <iostream>
 namespace vm::compiler::visitors
 {
     MethodCompilerHelper::MethodCompilerHelper(CompilerContext& context)

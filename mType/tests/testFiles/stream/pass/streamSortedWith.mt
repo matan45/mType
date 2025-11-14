@@ -1,10 +1,11 @@
-// Test ArrayList.sortWith() functionality
+// Test Stream.sortedWith() with custom comparator
 import * from "../../lib/collections/ArrayList.mt";
+import * from "../../lib/stream/Stream.mt";
 import * from "../../lib/functional/Comparator.mt";
 import * from "../../lib/primitives/Int.mt";
 
-// Simple comparator for Int wrapper objects
-class IntComparator implements Comparator<Int> {
+// Ascending order comparator for Int wrapper objects
+class IntAscendingComparator implements Comparator<Int> {
     public function compare(Int a, Int b): int {
         return a.getValue() - b.getValue();
     }
@@ -19,29 +20,31 @@ class IntComparator implements Comparator<Int> {
 }
 
 function main(): void {
-    print("Testing ArrayList sortWith:");
+    print("Testing Stream sortedWith:");
 
     ArrayList<Int> list = new ArrayList<Int>();
     list.add(new Int(5));
     list.add(new Int(2));
-    list.add(new Int(8));
-    list.add(new Int(1));
     list.add(new Int(9));
+    list.add(new Int(1));
+    list.add(new Int(7));
 
-    print("Before sort:");
+    print("Original order:");
     for (Int num : list) {
         print(num);
     }
 
-    // Sort the list
-    IntComparator comparator = new IntComparator();
-    list.sortWith(comparator);
+    // Sort using stream
+    IntAscendingComparator comparator = new IntAscendingComparator();
+    Stream<Int> stream = list.stream().sortedWith(comparator);
+    Int[] sorted = stream.toArray();
 
-    print("After sort:");
-    for (Int num : list) {
+    print("After sortedWith:");
+    for (Int num : sorted) {
         print(num);
     }
 
-    print("ArrayList sort test passed!");
+    print("Stream sortedWith test passed!");
 }
+
 main();

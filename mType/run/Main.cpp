@@ -18,6 +18,7 @@
 #include "../tests/suites/IteratorTestSuite.hpp"
 #include "../tests/suites/EnhancedForLoopTestSuite.hpp"
 #include "../tests/suites/StreamTestSuite.hpp"
+#include "../tests/suites/CollectionsTestSuite.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
@@ -123,6 +124,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<StreamTestSuite>();
     }
+    else if (suiteName == "collections" || suiteName == "collection")
+    {
+        return std::make_unique<CollectionsTestSuite>();
+    }
     return nullptr;
 }
 
@@ -148,6 +153,7 @@ void printAvailableTestSuites()
     std::cout << "  iterator     - Iterator Protocol Test Suite\n";
     std::cout << "  foreach      - Enhanced For-Loop Test Suite\n";
     std::cout << "  stream       - Stream API Test Suite\n";
+    std::cout << "  collections  - Collections (ArrayList, LinkedList, HashMap) Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 

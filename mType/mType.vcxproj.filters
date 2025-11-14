@@ -1128,6 +1128,9 @@
     <ClInclude Include="tests\suites\ClassTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\CollectionsTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ControlFlowTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -2049,6 +2052,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ClassTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\CollectionsTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ControlFlowTestSuite.cpp">
@@ -4954,7 +4960,34 @@
     <None Include="tests\testFiles\class\pass\typeUpcastExplicit.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSort.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
     <None Include="tests\testFiles\collections\pass\arrayListSort.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSortDescending.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSortDescending.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSortStrings.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSortStrings.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListSort.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListSort.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListSortDescending.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListSortDescending.mt">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\errorBreakOutsideLoop_error.mt">
@@ -5549,6 +5582,12 @@
       <Filter>tests\testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachEmpty.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachHashMap.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachHashMap.mt">
       <Filter>tests\testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachHashSet.expected">
@@ -8431,6 +8470,24 @@
     <None Include="tests\testFiles\iterator\pass\iteratorEmpty.mt">
       <Filter>tests\testFiles\iterator\pass</Filter>
     </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapEntries.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapEntries.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapKeys.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapKeys.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapValues.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapValues.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
     <None Include="tests\testFiles\iterator\pass\iteratorHashSet.expected">
       <Filter>tests\testFiles\iterator\pass</Filter>
     </None>
@@ -8992,6 +9049,9 @@
     <None Include="tests\testFiles\lib\interfaces\Map.mt">
       <Filter>tests\testFiles\lib\interfaces</Filter>
     </None>
+    <None Include="tests\testFiles\lib\interfaces\MapEntry.mt">
+      <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
     <None Include="tests\testFiles\lib\interfaces\Queue.mt">
       <Filter>tests\testFiles\lib\interfaces</Filter>
     </None>
@@ -9004,7 +9064,13 @@
     <None Include="tests\testFiles\lib\iterators\FlatMappingIterator.mt">
       <Filter>tests\testFiles\lib\iterators</Filter>
     </None>
+    <None Include="tests\testFiles\lib\iterators\HashMapEntryIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
     <None Include="tests\testFiles\lib\iterators\HashMapKeyIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\HashMapValueIterator.mt">
       <Filter>tests\testFiles\lib\iterators</Filter>
     </None>
     <None Include="tests\testFiles\lib\iterators\HashSetIterator.mt">
@@ -9445,6 +9511,18 @@
     <None Include="tests\testFiles\stream\pass\streamForEach.mt">
       <Filter>tests\testFiles\stream\pass</Filter>
     </None>
+    <None Include="tests\testFiles\stream\pass\streamHashMap.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamHashMap.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamHashMapAdvanced.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamHashMapAdvanced.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
     <None Include="tests\testFiles\stream\pass\streamLimit.expected">
       <Filter>tests\testFiles\stream\pass</Filter>
     </None>
@@ -9461,6 +9539,24 @@
       <Filter>tests\testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stream\pass\streamSkip.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWith.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWith.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWithChaining.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWithChaining.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWithDescending.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWithDescending.mt">
       <Filter>tests\testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stringpool\StringPoolTestSuite.expected">

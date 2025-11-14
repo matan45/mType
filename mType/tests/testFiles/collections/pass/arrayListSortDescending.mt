@@ -1,12 +1,12 @@
-// Test ArrayList.sortWith() functionality
+// Test ArrayList.sortWith() with descending order comparator
 import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/functional/Comparator.mt";
 import * from "../../lib/primitives/Int.mt";
 
-// Simple comparator for Int wrapper objects
-class IntComparator implements Comparator<Int> {
+// Descending order comparator for Int wrapper objects
+class IntDescendingComparator implements Comparator<Int> {
     public function compare(Int a, Int b): int {
-        return a.getValue() - b.getValue();
+        return b.getValue() - a.getValue(); // Reversed comparison
     }
 
     public function reversed(): Comparator<Int> {
@@ -19,7 +19,7 @@ class IntComparator implements Comparator<Int> {
 }
 
 function main(): void {
-    print("Testing ArrayList sortWith:");
+    print("Testing ArrayList sortWith descending:");
 
     ArrayList<Int> list = new ArrayList<Int>();
     list.add(new Int(5));
@@ -27,21 +27,23 @@ function main(): void {
     list.add(new Int(8));
     list.add(new Int(1));
     list.add(new Int(9));
+    list.add(new Int(3));
 
     print("Before sort:");
     for (Int num : list) {
         print(num);
     }
 
-    // Sort the list
-    IntComparator comparator = new IntComparator();
+    // Sort in descending order
+    IntDescendingComparator comparator = new IntDescendingComparator();
     list.sortWith(comparator);
 
-    print("After sort:");
+    print("After descending sort:");
     for (Int num : list) {
         print(num);
     }
 
-    print("ArrayList sort test passed!");
+    print("ArrayList descending sort test passed!");
 }
+
 main();

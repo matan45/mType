@@ -1,7 +1,10 @@
 // HashMap<K,V> - Hash table implementation for O(1) operations using 2D arrays
 import * from "../../lib/interfaces/Map.mt";
+import * from "../../lib/interfaces/MapEntry.mt";
 import * from "../../lib/Iterator.mt";
 import * from "../../lib/iterators/HashMapKeyIterator.mt";
+import * from "../../lib/iterators/HashMapEntryIterator.mt";
+import * from "../../lib/iterators/HashMapValueIterator.mt";
 import * from "../../lib/stream/Stream.mt";
 import * from "../../lib/stream/StreamImpl.mt";
 
@@ -166,14 +169,51 @@ class HashMap<K,V> implements Map<K,V> {
         return hash;
     }
 
-    // Iterator support - NEW for enhanced for-loop over keys
+    // ==================== Iterator Support ====================
+
+    /**
+     * Returns an iterator over the keys in this map.
+     * Default iterator for enhanced for-loop: for (K key : map)
+     */
     public function iterator(): Iterator<K> {
         return new HashMapKeyIterator<K>(this.getKeys());
     }
 
-    // Stream support - NEW for functional programming over keys
+    /**
+     * Returns an iterator over the entries (key-value pairs) in this map.
+     */
+    public function entryIterator(): Iterator<MapEntry<K, V>> {
+        return new HashMapEntryIterator<K, V>(this.getKeys(), this.getValues());
+    }
+
+    /**
+     * Returns an iterator over the values in this map.
+     */
+    public function valueIterator(): Iterator<V> {
+        return new HashMapValueIterator<V>(this.getValues());
+    }
+
+    // ==================== Stream Support ====================
+
+    /**
+     * Returns a stream over the keys in this map.
+     */
     public function stream(): Stream<K> {
         return new StreamImpl<K>(this.iterator());
+    }
+
+    /**
+     * Returns a stream over the entries (key-value pairs) in this map.
+     */
+    public function streamEntries(): Stream<MapEntry<K, V>> {
+        return new StreamImpl<MapEntry<K, V>>(this.entryIterator());
+    }
+
+    /**
+     * Returns a stream over the values in this map.
+     */
+    public function streamValues(): Stream<V> {
+        return new StreamImpl<V>(this.valueIterator());
     }
 
     // Map interface methods - NEW
@@ -192,7 +232,7 @@ class HashMap<K,V> implements Map<K,V> {
         return false;
     }
 
-    public function putAll(HashMap<K,V> other): void {
+    public function putAll(Map<K,V> other): void {
         K[] keys = other.getKeys();
         for (K key : keys) {
             this.put(key, other.get(key));

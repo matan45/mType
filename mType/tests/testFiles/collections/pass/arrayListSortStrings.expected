@@ -1,0 +1,14 @@
+Testing ArrayList sortWith strings:
+Before sort:
+banana
+apple
+cherry
+date
+fig
+After sort (by length):
+fig
+date
+apple
+cherry
+banana
+ArrayList string sort test passed!

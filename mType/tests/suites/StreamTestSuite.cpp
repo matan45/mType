@@ -36,5 +36,20 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Stream Operation Chaining",
                                   passPath + "streamChaining.mt");
+
+        addOutputVerificationTest("Stream HashMap Operations",
+                                  passPath + "streamHashMap.mt");
+
+        addOutputVerificationTest("Stream HashMap Advanced Operations",
+                                  passPath + "streamHashMapAdvanced.mt");
+
+        addOutputVerificationTest("Stream SortedWith Ascending",
+                                  passPath + "streamSortedWith.mt");
+
+        addOutputVerificationTest("Stream SortedWith Descending",
+                                  passPath + "streamSortedWithDescending.mt");
+
+        addOutputVerificationTest("Stream SortedWith Chaining",
+                                  passPath + "streamSortedWithChaining.mt");
     }
 }

@@ -21,7 +21,7 @@ class SortUtils {
     /**
      * Recursive quicksort implementation for a range of the array.
      */
-    private static function <T> quicksortRange(T[] array, int low, int high, Comparator<T> comparator): void {
+    public static function <T> quicksortRange(T[] array, int low, int high, Comparator<T> comparator): void {
         if (low < high) {
             int pivotIndex = partition(array, low, high, comparator);
             quicksortRange(array, low, pivotIndex - 1, comparator);
