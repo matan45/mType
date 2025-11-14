@@ -1,0 +1,14 @@
+Testing Stream sortedWith:
+Original order:
+5
+2
+9
+1
+7
+After sortedWith:
+1
+2
+5
+7
+9
+Stream sortedWith test passed!

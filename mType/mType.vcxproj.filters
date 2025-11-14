@@ -157,6 +157,12 @@
     <Filter Include="tests\testFiles\class\pass">
       <UniqueIdentifier>{85E6A95D-71F6-552E-DAAF-BA4CC6DE44C7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\collections">
+      <UniqueIdentifier>{68157CEE-D422-AAD4-5D09-A6BFC915768B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\collections\pass">
+      <UniqueIdentifier>{6E4C7B4E-5A9D-6690-8301-55526FB1F9F9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\controlFlow">
       <UniqueIdentifier>{E299923D-4EA7-C023-D78D-BC0E439A8CDA}</UniqueIdentifier>
     </Filter>
@@ -165,6 +171,15 @@
     </Filter>
     <Filter Include="tests\testFiles\controlFlow\pass">
       <UniqueIdentifier>{28ADD980-14FE-C4C2-3D62-B3842912582C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\enhancedFor">
+      <UniqueIdentifier>{264C1EB0-9259-4C96-1B40-4881874C184D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\enhancedFor\error">
+      <UniqueIdentifier>{FFE7D2FA-6B56-287A-B43F-E37920ED1D16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\enhancedFor\pass">
+      <UniqueIdentifier>{EC692317-D8BA-0E59-011F-FD1AEDCEA1C2}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\error">
       <UniqueIdentifier>{3308DDE4-9F74-98DF-6868-303DD493BA47}</UniqueIdentifier>
@@ -265,6 +280,12 @@
     <Filter Include="tests\testFiles\interface\pass">
       <UniqueIdentifier>{2024644E-0C4A-2EB5-F58F-B380E1545381}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\iterator">
+      <UniqueIdentifier>{73AF13C5-5FD4-6245-881F-48D574A36163}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\iterator\pass">
+      <UniqueIdentifier>{59E58B2F-C5FD-7259-8EAA-02F3FA8107F3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lambda">
       <UniqueIdentifier>{CA939B8F-B68D-C4E1-9FFA-5AF28B932A4E}</UniqueIdentifier>
     </Filter>
@@ -283,8 +304,26 @@
     <Filter Include="tests\testFiles\lib\exceptions">
       <UniqueIdentifier>{9149D36D-7D6F-9DD4-66B5-22A0527AC2A0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\lib\functional">
+      <UniqueIdentifier>{220DD9A9-0E33-A310-F778-28DCE33DC8DC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib\interfaces">
+      <UniqueIdentifier>{F3A928A5-DFCF-F20B-C815-78D7B4DA17D8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib\internal">
+      <UniqueIdentifier>{CC63D16B-B81E-C117-61D6-39624D700BA8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib\iterators">
+      <UniqueIdentifier>{EC41020A-585A-E933-2107-79CD8DDE7DCD}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lib\primitives">
       <UniqueIdentifier>{7BC365C0-67E9-2F27-502F-B5F23CF454F3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib\stream">
+      <UniqueIdentifier>{7B213FA3-6731-EB73-D0EA-4F92BC19DA0C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib\utils">
+      <UniqueIdentifier>{00435C1C-6C05-90A6-B5B5-1E3321B76884}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\modifiers">
       <UniqueIdentifier>{4BD78D3A-B799-C1C4-004A-50516C4B9AA2}</UniqueIdentifier>
@@ -309,6 +348,15 @@
     </Filter>
     <Filter Include="tests\testFiles\overloading\pass">
       <UniqueIdentifier>{49E6A5F3-3537-9135-5E9B-7FF74A4B249F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\stream">
+      <UniqueIdentifier>{154C4AA1-0146-73F3-EAB2-0904D64BD95F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\stream\error">
+      <UniqueIdentifier>{2EDF6000-1A9A-50AC-C351-C9F6AFEB9A3C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\stream\pass">
+      <UniqueIdentifier>{3BB7277C-A7C4-5562-30AB-514D9CB72119}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\stringpool">
       <UniqueIdentifier>{1A101BE9-0620-C7B9-6FD9-2BD85B08B652}</UniqueIdentifier>
@@ -1086,7 +1134,13 @@
     <ClInclude Include="tests\suites\ClassTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\CollectionsTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ControlFlowTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\EnhancedForLoopTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\ErrorTestSuite.hpp">
@@ -1104,6 +1158,9 @@
     <ClInclude Include="tests\suites\InterfaceTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\IteratorTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\LambdaTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -1111,6 +1168,9 @@
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\OverloadingTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\StreamTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\StringPoolTestSuite.hpp">
@@ -2000,7 +2060,13 @@
     <ClCompile Include="tests\suites\ClassTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\CollectionsTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\ControlFlowTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\EnhancedForLoopTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ErrorTestSuite.cpp">
@@ -2018,6 +2084,9 @@
     <ClCompile Include="tests\suites\InterfaceTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\IteratorTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\LambdaTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
@@ -2025,6 +2094,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\OverloadingTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\StreamTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\StringPoolTestSuite.cpp">
@@ -4894,6 +4966,36 @@
     <None Include="tests\testFiles\class\pass\typeUpcastExplicit.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSort.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSort.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSortDescending.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSortDescending.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSortStrings.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListSortStrings.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListSort.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListSort.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListSortDescending.expected">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListSortDescending.mt">
+      <Filter>tests\testFiles\collections\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\error\errorBreakOutsideLoop_error.mt">
       <Filter>tests\testFiles\controlFlow\error</Filter>
     </None>
@@ -5475,6 +5577,72 @@
     </None>
     <None Include="tests\testFiles\controlFlow\pass\voidFunctions.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachNonIterable.expected">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachNonIterable.mt">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachPrimitiveMismatch.expected">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachPrimitiveMismatch.mt">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachTypeMismatch.expected">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\error\forEachTypeMismatch.mt">
+      <Filter>tests\testFiles\enhancedFor\error</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachArrayList.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachArrayList.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachEmpty.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachEmpty.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachHashMap.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachHashMap.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachHashSet.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachHashSet.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachLinkedList.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachLinkedList.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachNested.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachNested.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachQueue.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachQueue.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachStack.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachStack.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\error\assignNullToFinal.mt">
       <Filter>tests\testFiles\error\error</Filter>
@@ -7174,6 +7342,9 @@
     <None Include="tests\testFiles\import\error\partialcircular\PartialC.mt">
       <Filter>tests\testFiles\import\error\partialcircular</Filter>
     </None>
+    <None Include="tests\testFiles\import\error\selective_import_utils.mt">
+      <Filter>tests\testFiles\import\error</Filter>
+    </None>
     <None Include="tests\testFiles\import\error\test_import_nonexistent_symbol.mt">
       <Filter>tests\testFiles\import\error</Filter>
     </None>
@@ -8314,6 +8485,48 @@
     <None Include="tests\testFiles\interface\pass\multipleInterfaceImplementation.mt">
       <Filter>tests\testFiles\interface\pass</Filter>
     </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorBasic.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorBasic.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorEmpty.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorEmpty.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapEntries.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapEntries.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapKeys.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapKeys.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapValues.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashMapValues.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashSet.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorHashSet.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorLinkedList.expected">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorLinkedList.mt">
+      <Filter>tests\testFiles\iterator\pass</Filter>
+    </None>
     <None Include="tests\testFiles\lambda\error\breakInLambdaError.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
@@ -8788,8 +9001,23 @@
     <None Include="tests\testFiles\lambda\pass\test_lambda_interface_memory_mgmt.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
+    <None Include="tests\testFiles\lib\Collection.mt">
+      <Filter>tests\testFiles\lib</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\Iterable.mt">
+      <Filter>tests\testFiles\lib</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\Iterator.mt">
+      <Filter>tests\testFiles\lib</Filter>
+    </None>
     <None Include="tests\testFiles\lib\Object.mt">
       <Filter>tests\testFiles\lib</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\collections\ArrayList.mt">
+      <Filter>tests\testFiles\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\collections\ArrayQueue.mt">
+      <Filter>tests\testFiles\lib\collections</Filter>
     </None>
     <None Include="tests\testFiles\lib\collections\HashMap.mt">
       <Filter>tests\testFiles\lib\collections</Filter>
@@ -8798,12 +9026,6 @@
       <Filter>tests\testFiles\lib\collections</Filter>
     </None>
     <None Include="tests\testFiles\lib\collections\LinkedList.mt">
-      <Filter>tests\testFiles\lib\collections</Filter>
-    </None>
-    <None Include="tests\testFiles\lib\collections\List.mt">
-      <Filter>tests\testFiles\lib\collections</Filter>
-    </None>
-    <None Include="tests\testFiles\lib\collections\Queue.mt">
       <Filter>tests\testFiles\lib\collections</Filter>
     </None>
     <None Include="tests\testFiles\lib\collections\Stack.mt">
@@ -8824,6 +9046,78 @@
     <None Include="tests\testFiles\lib\exceptions\RuntimeException.mt">
       <Filter>tests\testFiles\lib\exceptions</Filter>
     </None>
+    <None Include="tests\testFiles\lib\functional\BiFunction.mt">
+      <Filter>tests\testFiles\lib\functional</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\functional\BinaryOperator.mt">
+      <Filter>tests\testFiles\lib\functional</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\functional\Comparator.mt">
+      <Filter>tests\testFiles\lib\functional</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\functional\Consumer.mt">
+      <Filter>tests\testFiles\lib\functional</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\functional\Function.mt">
+      <Filter>tests\testFiles\lib\functional</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\functional\Predicate.mt">
+      <Filter>tests\testFiles\lib\functional</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\interfaces\Comparable.mt">
+      <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\interfaces\Deque.mt">
+      <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\interfaces\List.mt">
+      <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\interfaces\Map.mt">
+      <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\interfaces\MapEntry.mt">
+      <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\interfaces\Queue.mt">
+      <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\interfaces\Set.mt">
+      <Filter>tests\testFiles\lib\interfaces</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\internal\Node.mt">
+      <Filter>tests\testFiles\lib\internal</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\FlatMappingIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\HashMapEntryIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\HashMapKeyIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\HashMapValueIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\HashSetIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\LinkedListIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\ListIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\QueueIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\StackIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\iterators\StreamFlatMappingIterator.mt">
+      <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
     <None Include="tests\testFiles\lib\primitives\Bool.mt">
       <Filter>tests\testFiles\lib\primitives</Filter>
     </None>
@@ -8835,6 +9129,21 @@
     </None>
     <None Include="tests\testFiles\lib\primitives\String.mt">
       <Filter>tests\testFiles\lib\primitives</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\stream\Stream.mt">
+      <Filter>tests\testFiles\lib\stream</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\stream\StreamImpl.mt">
+      <Filter>tests\testFiles\lib\stream</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\stream\StreamToIteratorAdapter.mt">
+      <Filter>tests\testFiles\lib\stream</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\stream\Streams.mt">
+      <Filter>tests\testFiles\lib\stream</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\utils\SortUtils.mt">
+      <Filter>tests\testFiles\lib\utils</Filter>
     </None>
     <None Include="tests\testFiles\modifiers\error\interfacePrivateField.mt">
       <Filter>tests\testFiles\modifiers\error</Filter>
@@ -9186,6 +9495,117 @@
     </None>
     <None Include="tests\testFiles\overloading\pass\staticMethodOverload.mt">
       <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamLimitNegative.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamNullConsumer.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamNullMapper.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamNullPredicate.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamReuse.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamReuseIntermediate.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamSkipNegative.mt">
+      <Filter>tests\testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamAllMatch.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamAllMatch.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamAnyMatch.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamAnyMatch.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamBasicOperations.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamBasicOperations.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamChaining.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamChaining.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamCount.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamCount.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamDistinct.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamDistinct.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamForEach.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamForEach.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamHashMap.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamHashMap.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamHashMapAdvanced.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamHashMapAdvanced.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamLimit.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamLimit.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamReduce.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamReduce.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSkip.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSkip.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWith.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWith.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWithChaining.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWithChaining.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWithDescending.expected">
+      <Filter>tests\testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamSortedWithDescending.mt">
+      <Filter>tests\testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stringpool\StringPoolTestSuite.expected">
       <Filter>tests\testFiles\stringpool</Filter>

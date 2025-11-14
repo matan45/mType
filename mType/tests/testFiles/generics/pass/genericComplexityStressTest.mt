@@ -1,4 +1,4 @@
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/collections/HashMap.mt";
 import * from "../../lib/collections/HashSet.mt";
 import * from "../../lib/primitives/String.mt";
@@ -69,11 +69,11 @@ function main(): void {
     print("=== Generic Complexity Stress Test ===");
 
     // Test 1: Multiple type parameters with collections
-    print("\nTest 1: Container<List<String>, HashMap<Int, String>, HashSet<Int>>");
+    print("\nTest 1: Container<ArrayList<String>, HashMap<Int, String>, HashSet<Int>>");
 
-    List<String> stringList = new List<String>();
-    stringList.add(new String("test1"));
-    stringList.add(new String("test2"));
+    ArrayList<String> stringArrayList = new ArrayList<String>();
+    stringArrayList.add(new String("test1"));
+    stringArrayList.add(new String("test2"));
 
     HashMap<Int, String> intStringMap = new HashMap<Int, String>();
     intStringMap.put(new Int(1), new String("one"));
@@ -83,8 +83,8 @@ function main(): void {
     intSet.add(new Int(10));
     intSet.add(new Int(20));
 
-    Container<List<String>, HashMap<Int, String>, HashSet<Int>> complexContainer =
-        new Container<List<String>, HashMap<Int,String>, HashSet<Int>>(stringList, intStringMap, intSet);
+    Container<ArrayList<String>, HashMap<Int, String>, HashSet<Int>> complexContainer =
+        new Container<ArrayList<String>, HashMap<Int,String>, HashSet<Int>>(stringArrayList, intStringMap, intSet);
 
     print("Container first size: " + complexContainer.getFirst().size());
     print("Container second size: " + complexContainer.getSecond().size());
@@ -101,36 +101,36 @@ function main(): void {
     print("Unwrapped value: " + unwrapped);
 
     // Test 3: Collections of complex containers
-    print("\nTest 3: List<Container<HashSet<String>, List<Int>, HashMap<String, Int>>>");
+    print("\nTest 3: ArrayList<Container<HashSet<String>, ArrayList<Int>, HashMap<String, Int>>>");
 
-    List<Container<HashSet<String>, List<Int>, HashMap<String, Int>>> containerList =
-        new List<Container<HashSet<String>, List<Int>, HashMap<String, Int>>>();
+    ArrayList<Container<HashSet<String>, ArrayList<Int>, HashMap<String, Int>>> containerArrayList =
+        new ArrayList<Container<HashSet<String>, ArrayList<Int>, HashMap<String, Int>>>();
 
     HashSet<String> set1 = new HashSet<String>();
     set1.add(new String("item1"));
     set1.add(new String("item2"));
 
-    List<Int> list1 = new List<Int>();
-    list1.add(new Int(100));
-    list1.add(new Int(200));
+    ArrayList<Int> ArrayList1 = new ArrayList<Int>();
+    ArrayList1.add(new Int(100));
+    ArrayList1.add(new Int(200));
 
     HashMap<String, Int> map1 = new HashMap<String, Int>();
     map1.put(new String("key1"), new Int(300));
     map1.put(new String("key2"), new Int(400));
 
-    Container<HashSet<String>, List<Int>, HashMap<String, Int>> container1 =
-        new Container<HashSet<String>, List<Int>, HashMap<String, Int>>(set1, list1, map1);
+    Container<HashSet<String>, ArrayList<Int>, HashMap<String, Int>> container1 =
+        new Container<HashSet<String>, ArrayList<Int>, HashMap<String, Int>>(set1, ArrayList1, map1);
 
-    containerList.add(container1);
+    containerArrayList.add(container1);
 
-    print("Container list size: " + containerList.size());
-    print("First container's first component size: " + containerList.get(0).getFirst().size());
+    print("Container ArrayList size: " + containerArrayList.size());
+    print("First container's first component size: " + containerArrayList.get(0).getFirst().size());
 
     // Test 4: HashMap with complex key and value types
-    print("\nTest 4: HashMap<Container<String, Int, String>, List<HashSet<String>>>");
+    print("\nTest 4: HashMap<Container<String, Int, String>, ArrayList<HashSet<String>>>");
 
-    HashMap<Container<String, Int, String>, List<HashSet<String>>> complexKeyMap =
-        new HashMap<Container<String, Int, String>, List<HashSet<String>>>();
+    HashMap<Container<String, Int, String>, ArrayList<HashSet<String>>> complexKeyMap =
+        new HashMap<Container<String, Int, String>, ArrayList<HashSet<String>>>();
 
     Container<String, Int, String> keyContainer = new Container<String, Int, String>(
         new String("key_first"),
@@ -138,46 +138,46 @@ function main(): void {
         new String("key_third")
     );
 
-    List<HashSet<String>> valueList = new List<HashSet<String>>();
+    ArrayList<HashSet<String>> valueArrayList = new ArrayList<HashSet<String>>();
     HashSet<String> valueSet = new HashSet<String>();
     valueSet.add(new String("value_item"));
-    valueList.add(valueSet);
+    valueArrayList.add(valueSet);
 
-    complexKeyMap.put(keyContainer, valueList);
+    complexKeyMap.put(keyContainer, valueArrayList);
 
     print("Complex key map size: " + complexKeyMap.size());
 
     // Test 5: Stress test with multiple instances of same nested type
-    print("\nTest 5: Multiple instances of HashMap<String, List<HashMap<Int, HashSet<String>>>>");
+    print("\nTest 5: Multiple instances of HashMap<String, ArrayList<HashMap<Int, HashSet<String>>>>");
 
-    HashMap<String, List<HashMap<Int, HashSet<String>>>> instance1 =
-        new HashMap<String, List<HashMap<Int, HashSet<String>>>>();
-    HashMap<String, List<HashMap<Int, HashSet<String>>>> instance2 =
-        new HashMap<String, List<HashMap<Int, HashSet<String>>>>();
-    HashMap<String, List<HashMap<Int, HashSet<String>>>> instance3 =
-        new HashMap<String, List<HashMap<Int, HashSet<String>>>>();
+    HashMap<String, ArrayList<HashMap<Int, HashSet<String>>>> instance1 =
+        new HashMap<String, ArrayList<HashMap<Int, HashSet<String>>>>();
+    HashMap<String, ArrayList<HashMap<Int, HashSet<String>>>> instance2 =
+        new HashMap<String, ArrayList<HashMap<Int, HashSet<String>>>>();
+    HashMap<String, ArrayList<HashMap<Int, HashSet<String>>>> instance3 =
+        new HashMap<String, ArrayList<HashMap<Int, HashSet<String>>>>();
 
     // Populate instance1
-    List<HashMap<Int, HashSet<String>>> mapList = new List<HashMap<Int, HashSet<String>>>();
+    ArrayList<HashMap<Int, HashSet<String>>> mapArrayList = new ArrayList<HashMap<Int, HashSet<String>>>();
     HashMap<Int, HashSet<String>> nestedMap = new HashMap<Int, HashSet<String>>();
     HashSet<String> finalSet = new HashSet<String>();
     finalSet.add(new String("final_value"));
     nestedMap.put(new Int(999), finalSet);
-    mapList.add(nestedMap);
-    instance1.put(new String("test_key"), mapList);
+    mapArrayList.add(nestedMap);
+    instance1.put(new String("test_key"), mapArrayList);
 
     print("Instance 1 size: " + instance1.size());
     print("Instance 2 size: " + instance2.size());
     print("Instance 3 size: " + instance3.size());
 
     // Test 6: Maximum complexity test
-    print("\nTest 6: Maximum complexity - List<HashMap<Container<String, Int, HashSet<String>>, Wrapper<List<HashMap<String, Int>>>>>");
+    print("\nTest 6: Maximum complexity - ArrayList<HashMap<Container<String, Int, HashSet<String>>, Wrapper<ArrayList<HashMap<String, Int>>>>>");
 
-    List<HashMap<Container<String, Int, HashSet<String>>, Wrapper<List<HashMap<String, Int>>>>> maxComplexity =
-        new List<HashMap<Container<String, Int, HashSet<String>>, Wrapper<List<HashMap<String, Int>>>>>();
+    ArrayList<HashMap<Container<String, Int, HashSet<String>>, Wrapper<ArrayList<HashMap<String, Int>>>>> maxComplexity =
+        new ArrayList<HashMap<Container<String, Int, HashSet<String>>, Wrapper<ArrayList<HashMap<String, Int>>>>>();
 
-    HashMap<Container<String, Int, HashSet<String>>, Wrapper<List<HashMap<String, Int>>>> maxMap =
-        new HashMap<Container<String, Int, HashSet<String>>, Wrapper<List<HashMap<String, Int>>>>();
+    HashMap<Container<String, Int, HashSet<String>>, Wrapper<ArrayList<HashMap<String, Int>>>> maxMap =
+        new HashMap<Container<String, Int, HashSet<String>>, Wrapper<ArrayList<HashMap<String, Int>>>>();
 
     HashSet<String> maxSet = new HashSet<String>();
     maxSet.add(new String("max_item"));
@@ -188,12 +188,12 @@ function main(): void {
         maxSet
     );
 
-    List<HashMap<String, Int>> maxList = new List<HashMap<String, Int>>();
+    ArrayList<HashMap<String, Int>> maxArrayList = new ArrayList<HashMap<String, Int>>();
     HashMap<String, Int> maxInnerMap = new HashMap<String, Int>();
     maxInnerMap.put(new String("max_inner"), new Int(2000));
-    maxList.add(maxInnerMap);
+    maxArrayList.add(maxInnerMap);
 
-    Wrapper<List<HashMap<String, Int>>> maxWrapper = new Wrapper<List<HashMap<String, Int>>>(maxList);
+    Wrapper<ArrayList<HashMap<String, Int>>> maxWrapper = new Wrapper<ArrayList<HashMap<String, Int>>>(maxArrayList);
 
     maxMap.put(maxKey, maxWrapper);
     maxComplexity.add(maxMap);

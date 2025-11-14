@@ -203,7 +203,7 @@ namespace validation
         size_t methodParamCount = method->getParameters().size();
         if (!method->isStatic() && methodParamCount > 0)
         {
-            methodParamCount--;  // Exclude 'this' parameter
+            methodParamCount--; // Exclude 'this' parameter
         }
 
         // Check all implemented interfaces

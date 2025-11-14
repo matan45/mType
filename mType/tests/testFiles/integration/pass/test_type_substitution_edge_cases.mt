@@ -1,11 +1,11 @@
 // Comprehensive test suite for type substitution edge cases
 // Tests both correctness and performance optimizations
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/collections/HashMap.mt";
 import * from "../../lib/collections/HashSet.mt";
 import * from "../../lib/collections/Stack.mt";
-import * from "../../lib/collections/Queue.mt";
+import * from "../../lib/collections/ArrayQueue.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Float.mt";
@@ -57,10 +57,10 @@ class Pair<K, V> {
 
 // Test 3: Nested generics
 class NestedContainer<T> {
-    List<T> items;
+    ArrayList<T> items;
 
     constructor() {
-        items = new List<T>();
+        items = new ArrayList<T>();
     }
 
     public function add(T item): void {
@@ -98,11 +98,11 @@ class FastCacheTest {
         print("=== Fast Cache Performance Tests ===");
 
         // These should hit fast cache (common patterns)
-        print("Testing List<Int> (should be fast cached)...");
-        List<Int> IntList = new List<Int>();
-        IntList.add(new Int(42));
-        IntList.add(new Int(100));
-        print("List<Int> size: " + IntList.size());
+        print("Testing ArrayList<Int> (should be fast cached)...");
+        ArrayList<Int> IntArrayList = new ArrayList<Int>();
+        IntArrayList.add(new Int(42));
+        IntArrayList.add(new Int(100));
+        print("ArrayList<Int> size: " + IntArrayList.size());
 
         print("Testing HashMap<String, Int> (should be fast cached)...");
         HashMap<String, Int> stringIntHashMap = new HashMap<String, Int>();
@@ -123,11 +123,11 @@ class FastCacheTest {
         floatStack.push(new Float(2.71));
         print("Stack<Float> peek: " + floatStack.peek());
 
-        print("Testing Queue<Bool> (should be fast cached)...");
-        Queue<Bool> boolQueue = new Queue<Bool>();
-        boolQueue.enqueue(new Bool(true));
-        boolQueue.enqueue(new Bool(false));
-        print("Queue<Bool> front: " + boolQueue.peek());
+        print("Testing ArrayQueue<Bool> (should be fast cached)...");
+        ArrayQueue<Bool> boolArrayQueue = new ArrayQueue<Bool>();
+        boolArrayQueue.enqueue(new Bool(true));
+        boolArrayQueue.enqueue(new Bool(false));
+        print("ArrayQueue<Bool> front: " + boolArrayQueue.peek());
     }
 }
 
@@ -137,8 +137,8 @@ class ComplexCacheTest {
         print("=== Complex Cache Tests ===");
 
         // These should NOT use fast cache (too complex)
-        print("Testing deeply nested: List<HashMap<String, HashSet<Int>>> (complex)...");
-        List<HashMap<String, HashSet<Int>>> complexNested = new List<HashMap<String, HashSet<Int>>>();
+        print("Testing deeply nested: ArrayList<HashMap<String, HashSet<Int>>> (complex)...");
+        ArrayList<HashMap<String, HashSet<Int>>> complexNested = new ArrayList<HashMap<String, HashSet<Int>>>();
         HashMap<String, HashSet<Int>> innerHashMap = new HashMap<String, HashSet<Int>>();
         HashSet<Int> innerHashSet = new HashSet<Int>();
         innerHashSet.add(new Int(1));
@@ -148,7 +148,7 @@ class ComplexCacheTest {
         print("Complex nested size: " + complexNested.size());
 
         print("Testing repeated instantiation of same complex type...");
-        List<HashMap<String, HashSet<Int>>> anotherComplex = new List<HashMap<String, HashSet<Int>>>();
+        ArrayList<HashMap<String, HashSet<Int>>> anotherComplex = new ArrayList<HashMap<String, HashSet<Int>>>();
         HashMap<String, HashSet<Int>> anotherHashMap = new HashMap<String, HashSet<Int>>();
         anotherComplex.add(anotherHashMap);
         print("Another complex size: " + anotherComplex.size());
@@ -208,12 +208,12 @@ class PerformanceStressTest {
     public static function stressTestCache(): void {
         print("=== Performance Stress Tests ===");
 
-        print("Stress testing repeated List<Int> instantiation...");
+        print("Stress testing repeated ArrayList<Int> instantiation...");
         for (int i = 0; i < 10; i++) {
-            List<Int> stressList = new List<Int>();
-            stressList.add(new Int(i));
+            ArrayList<Int> stressArrayList = new ArrayList<Int>();
+            stressArrayList.add(new Int(i));
             if (i % 3 == 0) {
-                print("Stress test iteration " + i + ", list size: " + stressList.size());
+                print("Stress test iteration " + i + ", ArrayList size: " + stressArrayList.size());
             }
         }
 
@@ -224,10 +224,10 @@ class PerformanceStressTest {
                 HashSet<String> simpleHashSet = new HashSet<String>();
                 simpleHashSet.add(new String("item" + i));
             } else {
-                HashMap<String, List<Int>> complexHashMap = new HashMap<String, List<Int>>();
-                List<Int> innerList = new List<Int>();
-                innerList.add(new Int(i));
-                complexHashMap.put(new String("key" + i), innerList);
+                HashMap<String, ArrayList<Int>> complexHashMap = new HashMap<String, ArrayList<Int>>();
+                ArrayList<Int> innerArrayList = new ArrayList<Int>();
+                innerArrayList.add(new Int(i));
+                complexHashMap.put(new String("key" + i), innerArrayList);
             }
         }
         print("Mixed pattern stress test completed");
@@ -266,7 +266,7 @@ function main(): void {
     print("All type substitution edge case tests completed successfully!");
     print("This test exercises:");
     print("- Basic generic instantiation and method calls");
-    print("- Fast cache patterns (List, HashMap, HashSet, Stack, Queue with simple types)");
+    print("- Fast cache patterns (ArrayList, HashMap, HashSet, Stack, ArrayQueue with simple types)");
     print("- Complex cache patterns (deeply nested generics)");
     print("- Performance stress testing with repeated instantiations");
     print("- Type substitution correctness across various scenarios");

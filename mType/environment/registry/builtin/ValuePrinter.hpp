@@ -40,5 +40,13 @@ namespace environment::registry::builtin
          */
         std::optional<std::string> getObjectStringRepresentation(
             const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& value) const;
+
+        /**
+         * @brief Try to unwrap a primitive wrapper object (String, Int, Bool, Float)
+         * @param value The object instance
+         * @return Optional Value containing the primitive value if unwrapping succeeds, nullopt otherwise
+         */
+        std::optional<Value> tryGetPrimitiveWrapperValue(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& value) const;
     };
 }

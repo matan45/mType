@@ -4,14 +4,14 @@ Creating exception with large string (100 elements):
 Caught exception with data size: 100
 Exception message: Large string payload
 ---
-Creating exception with large list (200 elements):
-Caught exception with list size: 200
-Exception message: Large list payload
+Creating exception with large ArrayList (200 elements):
+Caught exception with ArrayList size: 200
+Exception message: Large ArrayList payload
 ---
-Creating exception with both large string and list:
+Creating exception with both large string and ArrayList:
 Caught exception with combined data
 Data size: 150
-List size: 100
+ArrayList size: 100
 ---
 Testing multiple large exceptions:
 Caught large exceptions: 10

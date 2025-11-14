@@ -1,7 +1,7 @@
 // Test generic self-reference pattern (Comparable)
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 interface Comparable<T extends Comparable<T>> {
     function compareTo(T other): int;
@@ -35,10 +35,10 @@ class Score implements Comparable<Score> {
 }
 
 class Ranking<T extends Comparable<T>> {
-    private List<T> items;
+    private ArrayList<T> items;
 
     public constructor() {
-        this.items = new List<T>();
+        this.items = new ArrayList<T>();
     }
 
     public function add(T item): void {

@@ -196,8 +196,14 @@ namespace vm::bytecode
         INVOKE_FLOAT_EQUALS,    // Float.equals(Float) - optimized equality
         INVOKE_FLOAT_COMPARE,   // Float.compareTo(Float) - optimized comparison
 
-        // === Reserved for Future Use (151-255) ===
-        // 105 opcodes reserved for future extensions
+        // === Iterator Operations (151-154) ===
+        GET_ITERATOR,           // Get iterator from iterable object (calls iterator() method)
+        ITERATOR_HAS_NEXT,      // Check if iterator has more elements (calls hasNext())
+        ITERATOR_NEXT,          // Get next element from iterator (calls next())
+        ITERATOR_CLOSE,         // Close iterator for cleanup (calls close())
+
+        // === Reserved for Future Use (155-255) ===
+        // 101 opcodes reserved for future extensions
     };
 
     /**
@@ -362,6 +368,11 @@ namespace vm::bytecode
             case OpCode::INVOKE_FLOAT_ABS: return "INVOKE_FLOAT_ABS";
             case OpCode::INVOKE_FLOAT_EQUALS: return "INVOKE_FLOAT_EQUALS";
             case OpCode::INVOKE_FLOAT_COMPARE: return "INVOKE_FLOAT_COMPARE";
+
+            case OpCode::GET_ITERATOR: return "GET_ITERATOR";
+            case OpCode::ITERATOR_HAS_NEXT: return "ITERATOR_HAS_NEXT";
+            case OpCode::ITERATOR_NEXT: return "ITERATOR_NEXT";
+            case OpCode::ITERATOR_CLOSE: return "ITERATOR_CLOSE";
 
             default: return "UNKNOWN";
         }

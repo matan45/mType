@@ -1,6 +1,6 @@
 // Test: Global functions with generic interface constraints
 // Expected: Should compile and run successfully
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 
 interface Comparable<T> {
     function compareTo(T other): int;
@@ -54,7 +54,7 @@ function <T extends Comparable<T>> min(T a, T b): T {
 }
 
 // Global function with constraint and multiple parameters
-function <T extends Comparable<T>> isSorted(List<T> items): bool {
+function <T extends Comparable<T>> isSorted(ArrayList<T> items): bool {
     for (int i = 0; i < items.size() - 1; i = i + 1) {
         T current = items.get(i);
         T next = items.get(i + 1);
@@ -76,12 +76,12 @@ Student bottomStudent = min<Student>(alice, charlie);
 print("Top student: " + topStudent.getName() + " (Grade: " + topStudent.getGrade() + ")");
 print("Bottom student: " + bottomStudent.getName() + " (Grade: " + bottomStudent.getGrade() + ")");
 
-List<Student> students = new List<Student>();
+ArrayList<Student> students = new ArrayList<Student>();
 students.add(charlie);
 students.add(alice);
 students.add(bob);
 
 bool sorted = isSorted<Student>(students);
-print("Is list sorted? " + sorted);
+print("Is ArrayList sorted? " + sorted);
 
 print("Constrained global functions test passed!");

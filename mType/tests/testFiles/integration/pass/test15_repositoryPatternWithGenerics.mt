@@ -1,7 +1,7 @@
 // Integration Test 15: Repository Pattern with Generics
 // Tests: Generic repository + Collections + CRUD operations + Error handling
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/collections/HashMap.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
@@ -92,7 +92,7 @@ class RepositoryException extends Exception {
 interface Repository<T extends Entity> {
     function save(T entity): T;
     function findById(int id): T;
-    function findAll(): List<T>;
+    function findAll(): ArrayList<T>;
     function delete(int id): bool;
     function count(): int;
 }
@@ -135,9 +135,9 @@ class InMemoryRepository<T extends Entity> implements Repository<T> {
         return result;
     }
 
-    public function findAll(): List<T> {
+    public function findAll(): ArrayList<T> {
         // Get all values from HashMap
-        List<T> result = new List<T>();
+        ArrayList<T> result = new ArrayList<T>();
         Int[] keys = this.storage.getKeys();
 
         // Sort keys by ID for consistent ordering
@@ -210,8 +210,8 @@ class UserService {
         return user;
     }
 
-    public function listAllUsers(): void {
-        List<User> users = this.repository.findAll();
+    public function arrayListAllUsers(): void {
+        ArrayList<User> users = this.repository.findAll();
         print("Total users: " + users.size());
 
         for (int i = 0; i < users.size(); i = i + 1) {
@@ -248,9 +248,9 @@ if (found != null) {
 
 User notFound = userService.getUserById(99);
 
-// Test 3: List all
-print("--- Test 3: List all users ---");
-userService.listAllUsers();
+// Test 3: ArrayList all
+print("--- Test 3: ArrayList all users ---");
+userService.arrayListAllUsers();
 
 // Test 4: Delete
 print("--- Test 4: Delete user ---");
@@ -258,7 +258,7 @@ bool deleted = userService.deleteUser(2);
 print("Delete result: " + deleted);
 print("Count after delete: " + userRepo.count());
 
-userService.listAllUsers();
+userService.arrayListAllUsers();
 
 // Test 5: Product repository (different entity type)
 print("--- Test 5: Product Repository ---");
@@ -274,7 +274,7 @@ Product savedP3 = productRepo.save(p3);
 
 print("Products count: " + productRepo.count());
 
-List<Product> allProducts = productRepo.findAll();
+ArrayList<Product> allProducts = productRepo.findAll();
 print("All products:");
 for (int i = 0; i < allProducts.size(); i = i + 1) {
     Product p = allProducts.get(i);

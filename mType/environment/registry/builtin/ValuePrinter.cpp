@@ -67,14 +67,25 @@ namespace environment::registry::builtin
                 }
                 else
                 {
-                    auto stringRep = getObjectStringRepresentation(v);
-                    if (stringRep.has_value())
+                    // Check if this is a primitive wrapper (String, Int, Bool, Float) with a 'value' field
+                    auto primitiveValue = tryGetPrimitiveWrapperValue(v);
+                    if (primitiveValue.has_value())
                     {
-                        out << stringRep.value();
+                        // Recursively print the unwrapped primitive value
+                        print(primitiveValue.value(), out);
                     }
                     else
                     {
-                        out << "[object " << v->getTypeName() << "]";
+                        // Try calling toString() for non-primitive objects
+                        auto stringRep = getObjectStringRepresentation(v);
+                        if (stringRep.has_value())
+                        {
+                            out << stringRep.value();
+                        }
+                        else
+                        {
+                            out << "[object " << v->getTypeName() << "]";
+                        }
                     }
                 }
             }
@@ -137,6 +148,34 @@ namespace environment::registry::builtin
         catch (...)
         {
             // If toString() fails, return nullopt to fall back to default representation
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<Value> ValuePrinter::tryGetPrimitiveWrapperValue(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& value) const
+    {
+        if (!value)
+        {
+            return std::nullopt;
+        }
+
+        // Check if this is a primitive wrapper class (String, Int, Bool, Float)
+        std::string typeName = value->getTypeName();
+        if (typeName == "String" || typeName == "Int" || typeName == "Bool" || typeName == "Float")
+        {
+            try
+            {
+                // Try to get the 'value' field
+                Value fieldValue = value->getFieldValue("value");
+                return fieldValue;
+            }
+            catch (...)
+            {
+                // If getting field fails, it's not a valid wrapper
+                return std::nullopt;
+            }
         }
 
         return std::nullopt;

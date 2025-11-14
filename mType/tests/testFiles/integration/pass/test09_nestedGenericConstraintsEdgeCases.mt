@@ -1,7 +1,7 @@
 // Integration Test 09: Nested Generic Constraints Edge Cases
 // Tests: Complex generic hierarchies with constraints
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
@@ -122,12 +122,12 @@ class ContainerWrapper<T extends Comparable<T>> {
     }
 }
 
-// Test with List of generic containers
+// Test with ArrayList of generic containers
 class ContainerCollection<T extends Comparable<T>> {
-    private List<Container<T>> containers;
+    private ArrayList<Container<T>> containers;
 
     constructor() {
-        this.containers = new List<Container<T>>();
+        this.containers = new ArrayList<Container<T>>();
     }
 
     public function add(Container<T> container): void {

@@ -1,0 +1,9 @@
+=== Filter values > 80 ===
+High scores count: 3
+=== Map keys ===
+Processed keys count: 5
+=== Count entries with scores >= 70 ===
+Students with passing scores: 4
+=== Filter entries ===
+Excellent students count: 2
+HashMap advanced stream test passed!

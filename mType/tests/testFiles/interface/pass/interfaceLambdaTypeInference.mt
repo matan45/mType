@@ -1,8 +1,9 @@
 // Test lambda type inference with interface
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/RuntimeException.mt";
 
 interface Comparator<T> {
     function compare(T a, T b): int;
@@ -18,12 +19,20 @@ class IntComparator implements Comparator<Int> {
         }
         return 0;
     }
+
+    public function reversed(): Comparator<Int> {
+        throw new RuntimeException("reversed not implemented");
+    }
+
+    public function thenComparing(Comparator<Int> other): Comparator<Int> {
+        throw new RuntimeException("thenComparing not implemented");
+    }
 }
 
 class Sorter<T> {
-    private List<T> items;
+    private ArrayList<T> items;
 
-    public constructor(List<T> items) {
+    public constructor(ArrayList<T> items) {
         this.items = items;
     }
 
@@ -46,7 +55,7 @@ class Sorter<T> {
     }
 }
 
-List<Int> numbers = new List<Int>();
+ArrayList<Int> numbers = new ArrayList<Int>();
 numbers.add(new Int(5));
 numbers.add(new Int(2));
 numbers.add(new Int(8));

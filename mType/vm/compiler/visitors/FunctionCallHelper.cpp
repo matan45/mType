@@ -624,13 +624,17 @@ namespace vm::compiler::visitors
             if (isStaticMethodCall)
             {
                 // Static method call - use CALL_STATIC with fully qualified name
-                std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + functionName;
+                std::string className = ctx.currentClassNode->getClassName();
+
+                // Resolve method overload to get mangled name (includes parameter signature)
+                std::string resolvedMethodName = overloadResolver->resolveStaticMethodOverload(
+                    className, functionName, arguments, node->getLocation());
 
                 // Validate static method exists at compile time
                 if (ctx.compileTimeValidator)
                 {
                     ctx.compileTimeValidator->validateStaticMethodExists(
-                        ctx.currentClassNode->getClassName(), functionName,
+                        className, functionName,
                         arguments.size(), node->getLocation());
                 }
 
@@ -640,7 +644,7 @@ namespace vm::compiler::visitors
                     arg->accept(ctx.visitor);
                 }
 
-                size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+                size_t nameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                                              static_cast<uint32_t>(nameIndex),
                                              static_cast<uint32_t>(arguments.size()), node);
@@ -723,9 +727,11 @@ namespace vm::compiler::visitors
                 {
                     std::string argClassName = ctx.typeInference.inferExpressionClassName(arguments[i].get());
 
-                    // Auto-unbox Box types for native functions
-                    if (argClassName == "Int" || argClassName == "Float" ||
-                        argClassName == "Bool" || argClassName == "String")
+                    // Auto-unbox Box types for native functions (EXCEPT String)
+                    // IMPORTANT: Don't auto-unbox String objects because:
+                    // 1. String concatenation with mixed types may return primitive strings
+                    // 2. Native functions like print() handle both primitive and Box strings
+                    if (argClassName == "Int" || argClassName == "Float" || argClassName == "Bool")
                     {
                         // Compile argument (Box object)
                         arguments[i]->accept(ctx.visitor);
@@ -739,7 +745,7 @@ namespace vm::compiler::visitors
                     }
                     else
                     {
-                        // Not a Box type, compile normally
+                        // Not a Box type (or is String), compile normally
                         arguments[i]->accept(ctx.visitor);
                     }
                 }

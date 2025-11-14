@@ -48,6 +48,12 @@ namespace vm::runtime
         void handleSuperGetField(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSuperSetField(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // Iterator operations
+        void handleGetIterator(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleIteratorHasNext(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleIteratorNext(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleIteratorClose(const bytecode::BytecodeProgram::Instruction& instr);
+
     private:
         ExecutionContext& context;
         FunctionExecutor* functionExecutor = nullptr;

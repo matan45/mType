@@ -5,8 +5,8 @@ Add 100 to 50: 150
 --- Async transformers ---
 Value: 42
 String length: 11
---- Async list processing ---
-Mapped list:
+--- Async ArrayList processing ---
+Mapped ArrayList:
 15
 20
 25

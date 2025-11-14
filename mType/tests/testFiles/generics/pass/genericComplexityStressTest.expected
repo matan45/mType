@@ -1,6 +1,6 @@
 === Generic Complexity Stress Test ===
 
-Test 1: Container<List<String>, HashMap<Int, String>, HashSet<Int>>
+Test 1: Container<ArrayList<String>, HashMap<Int, String>, HashSet<Int>>
 Container first size: 2
 Container second size: 2
 Container third size: 2
@@ -8,19 +8,19 @@ Container third size: 2
 Test 2: Wrapper<Wrapper<Wrapper<String>>>
 Unwrapped value: deeply_wrapped
 
-Test 3: List<Container<HashSet<String>, List<Int>, HashMap<String, Int>>>
-Container list size: 1
+Test 3: ArrayList<Container<HashSet<String>, ArrayList<Int>, HashMap<String, Int>>>
+Container ArrayList size: 1
 First container's first component size: 2
 
-Test 4: HashMap<Container<String, Int, String>, List<HashSet<String>>>
+Test 4: HashMap<Container<String, Int, String>, ArrayList<HashSet<String>>>
 Complex key map size: 1
 
-Test 5: Multiple instances of HashMap<String, List<HashMap<Int, HashSet<String>>>>
+Test 5: Multiple instances of HashMap<String, ArrayList<HashMap<Int, HashSet<String>>>>
 Instance 1 size: 1
 Instance 2 size: 0
 Instance 3 size: 0
 
-Test 6: Maximum complexity - List<HashMap<Container<String, Int, HashSet<String>>, Wrapper<List<HashMap<String, Int>>>>>
+Test 6: Maximum complexity - ArrayList<HashMap<Container<String, Int, HashSet<String>>, Wrapper<ArrayList<HashMap<String, Int>>>>>
 Maximum complexity size: 1
 
 === All generic complexity stress tests completed successfully! ===

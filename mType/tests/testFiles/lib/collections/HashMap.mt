@@ -1,5 +1,14 @@
 // HashMap<K,V> - Hash table implementation for O(1) operations using 2D arrays
-class HashMap<K,V> {
+import * from "../../lib/interfaces/Map.mt";
+import * from "../../lib/interfaces/MapEntry.mt";
+import * from "../../lib/Iterator.mt";
+import * from "../../lib/iterators/HashMapKeyIterator.mt";
+import * from "../../lib/iterators/HashMapEntryIterator.mt";
+import * from "../../lib/iterators/HashMapValueIterator.mt";
+import * from "../../lib/stream/Stream.mt";
+import * from "../../lib/stream/StreamImpl.mt";
+
+class HashMap<K,V> implements Map<K,V> {
     K[][] keyBuckets;
     V[][] valueBuckets;
     int[] bucketSizes;
@@ -19,19 +28,21 @@ class HashMap<K,V> {
         }
     }
 
-    public function put(K key, V value): void {
+    public function put(K key, V value): V {
         // Null key validation
         if (key == null) {
             print("Error: HashMap.put() - key cannot be null");
-            return;
+            return null;
         }
 
         int bucketIndex = this.getBucketIndex(key);
         int keyIndex = this.findKeyInBucket(bucketIndex, key);
 
         if (keyIndex >= 0) {
-            // Update existing key
+            // Update existing key, return old value
+            V oldValue = this.valueBuckets[bucketIndex][keyIndex];
             this.valueBuckets[bucketIndex][keyIndex] = value;
+            return oldValue;
         } else {
             // Add new key-value pair
             if (this.bucketSizes[bucketIndex] >= this.keyBuckets[bucketIndex].length) {
@@ -48,6 +59,7 @@ class HashMap<K,V> {
             if (this.count > this.capacity * 3 / 4) {
                 this.resize();
             }
+            return null;  // No previous value
         }
     }
 
@@ -155,6 +167,76 @@ class HashMap<K,V> {
             }
         }
         return hash;
+    }
+
+    // ==================== Iterator Support ====================
+
+    /**
+     * Returns an iterator over the keys in this map.
+     * Default iterator for enhanced for-loop: for (K key : map)
+     */
+    public function iterator(): Iterator<K> {
+        return new HashMapKeyIterator<K>(this.getKeys());
+    }
+
+    /**
+     * Returns an iterator over the entries (key-value pairs) in this map.
+     */
+    public function entryIterator(): Iterator<MapEntry<K, V>> {
+        return new HashMapEntryIterator<K, V>(this.getKeys(), this.getValues());
+    }
+
+    /**
+     * Returns an iterator over the values in this map.
+     */
+    public function valueIterator(): Iterator<V> {
+        return new HashMapValueIterator<V>(this.getValues());
+    }
+
+    // ==================== Stream Support ====================
+
+    /**
+     * Returns a stream over the keys in this map.
+     */
+    public function stream(): Stream<K> {
+        return new StreamImpl<K>(this.iterator());
+    }
+
+    /**
+     * Returns a stream over the entries (key-value pairs) in this map.
+     */
+    public function streamEntries(): Stream<MapEntry<K, V>> {
+        return new StreamImpl<MapEntry<K, V>>(this.entryIterator());
+    }
+
+    /**
+     * Returns a stream over the values in this map.
+     */
+    public function streamValues(): Stream<V> {
+        return new StreamImpl<V>(this.valueIterator());
+    }
+
+    // Map interface methods - NEW
+    public function containsValue(V value): bool {
+        for (int bucket = 0; bucket < this.capacity; bucket++) {
+            for (int i = 0; i < this.bucketSizes[bucket]; i++) {
+                V v = this.valueBuckets[bucket][i];
+                if (v != null && v.equals(value)) {
+                    return true;
+                }
+                if (v == null && value == null) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public function putAll(Map<K,V> other): void {
+        K[] keys = other.getKeys();
+        for (K key : keys) {
+            this.put(key, other.get(key));
+        }
     }
 
     // Private helper methods

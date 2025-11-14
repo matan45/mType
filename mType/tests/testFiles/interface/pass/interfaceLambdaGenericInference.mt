@@ -1,7 +1,7 @@
 // Test generic lambda inference with interfaces
 // @Script
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/Bool.mt";
 
@@ -26,14 +26,14 @@ class IntFilter implements Filter<Int> {
 }
 
 class Pipeline<T> {
-    private List<T> items;
+    private ArrayList<T> items;
 
-    public constructor(List<T> items) {
+    public constructor(ArrayList<T> items) {
         this.items = items;
     }
 
     public function filter(Filter<T> predicate): Pipeline<T> {
-        List<T> filtered = new List<T>();
+        ArrayList<T> filtered = new ArrayList<T>();
         int i = 0;
         while (i < this.items.size()) {
             T item = this.items.get(i);
@@ -46,7 +46,7 @@ class Pipeline<T> {
     }
 
     public function <R> map(Mapper<T, R> mapper): Pipeline<R> {
-        List<R> mapped = new List<R>();
+        ArrayList<R> mapped = new ArrayList<R>();
         int i = 0;
         while (i < this.items.size()) {
             T item = this.items.get(i);
@@ -56,12 +56,12 @@ class Pipeline<T> {
         return new Pipeline<R>(mapped);
     }
 
-    public function collect(): List<T> {
+    public function collect(): ArrayList<T> {
         return this.items;
     }
 }
 
-List<Int> numbers = new List<Int>();
+ArrayList<Int> numbers = new ArrayList<Int>();
 numbers.add(new Int(1));
 numbers.add(new Int(2));
 numbers.add(new Int(3));
@@ -80,11 +80,11 @@ Pipeline<Int> result = pipeline
     .filter(evenFilter)
     .map<Int>(doubleMapper);
 
-List<Int> resultList = result.collect();
+ArrayList<Int> resultArrayList = result.collect();
 
 print("Results:");
 int i = 0;
-while (i < resultList.size()) {
-    print(resultList.get(i).toString());
+while (i < resultArrayList.size()) {
+    print(resultArrayList.get(i).toString());
     i = i + 1;
 }

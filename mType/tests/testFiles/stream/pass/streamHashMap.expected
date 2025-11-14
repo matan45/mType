@@ -1,0 +1,7 @@
+=== Stream over keys ===
+Total keys: 5
+=== Stream over values ===
+Sum of values: 15
+=== Stream over entries ===
+Total entries: 5
+HashMap stream test passed!

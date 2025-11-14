@@ -15,6 +15,10 @@
 #include "../tests/suites/AwaitTestSuite.hpp"
 #include "../tests/suites/AnnotationTestSuite.hpp"
 #include "../tests/suites/OverloadingTestSuite.hpp"
+#include "../tests/suites/IteratorTestSuite.hpp"
+#include "../tests/suites/EnhancedForLoopTestSuite.hpp"
+#include "../tests/suites/StreamTestSuite.hpp"
+#include "../tests/suites/CollectionsTestSuite.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
@@ -108,6 +112,22 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<OverloadingTestSuite>();
     }
+    else if (suiteName == "iterator" || suiteName == "iterators")
+    {
+        return std::make_unique<IteratorTestSuite>();
+    }
+    else if (suiteName == "foreach" || suiteName == "enhancedfor" || suiteName == "for-each")
+    {
+        return std::make_unique<EnhancedForLoopTestSuite>();
+    }
+    else if (suiteName == "stream" || suiteName == "streams")
+    {
+        return std::make_unique<StreamTestSuite>();
+    }
+    else if (suiteName == "collections" || suiteName == "collection")
+    {
+        return std::make_unique<CollectionsTestSuite>();
+    }
     return nullptr;
 }
 
@@ -130,6 +150,10 @@ void printAvailableTestSuites()
     std::cout << "  await        - Async/Await Test Suite\n";
     std::cout << "  annotation   - Annotation Test Suite\n";
     std::cout << "  overloading  - Method/Function Overloading Test Suite\n";
+    std::cout << "  iterator     - Iterator Protocol Test Suite\n";
+    std::cout << "  foreach      - Enhanced For-Loop Test Suite\n";
+    std::cout << "  stream       - Stream API Test Suite\n";
+    std::cout << "  collections  - Collections (ArrayList, LinkedList, HashMap) Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -354,6 +378,9 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
     suites.push_back(std::make_unique<AwaitTestSuite>());
     suites.push_back(std::make_unique<AnnotationTestSuite>());
     suites.push_back(std::make_unique<OverloadingTestSuite>());
+    suites.push_back(std::make_unique<IteratorTestSuite>());
+    suites.push_back(std::make_unique<EnhancedForLoopTestSuite>());
+    suites.push_back(std::make_unique<StreamTestSuite>());
 
     for (auto& suite : suites)
     {

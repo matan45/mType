@@ -267,6 +267,21 @@ namespace vm::runtime
             }
         }
 
+        // Check if we're in an outer function that has captured this variable
+        // If so, read from SharedStackFrame for reference semantics
+        if (!context.callStack.empty() && context.callStack.back().sharedFrame)
+        {
+            auto sharedFrame = context.callStack.back().sharedFrame;
+            value::Value sharedVal = sharedFrame->getLocal(slot);
+
+            // If the variable exists in the shared frame, use it (reference capture)
+            if (!std::holds_alternative<std::monostate>(sharedVal))
+            {
+                context.stackManager->push(sharedVal);
+                return;
+            }
+        }
+
         // Normal local variable access - read from stack
         size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
         size_t stackPos = frameBase + slot;
@@ -350,18 +365,25 @@ namespace vm::runtime
             (*context.stackManager)[stackPos] = val;
         }
 
-        // Also update the SharedStackFrame (for closure capture of non-captured variables)
-        // Create SharedStackFrame if it doesn't exist yet
-        if (!context.callStack.empty() && !varName.empty())
+        // Also update the SharedStackFrame (for closure capture reference semantics)
+        // IMPORTANT: Always update SharedStackFrame if it exists, to support C# reference semantics
+        // BUT: Only if we're NOT in a lambda context (lambdas handle their own captured var updates above)
+        if (!context.callStack.empty() && !context.callStack.back().originatingLambda)
         {
-            if (!context.callStack.back().sharedFrame) {
-                context.callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
+            // If SharedStackFrame already exists, update it
+            if (context.callStack.back().sharedFrame)
+            {
+                auto sharedFrame = context.callStack.back().sharedFrame;
+                // Update using slot-based storage (always, for consistency)
+                sharedFrame->setLocal(slot, val);
             }
-            auto sharedFrame = context.callStack.back().sharedFrame;
-
-            // Use slot-based storage to avoid name collisions
-            // Multiple variables with the same name at different slots should not interfere
-            sharedFrame->setLocal(varName, slot, val);
+            // If we have a varName and no SharedStackFrame yet, create one
+            else if (!varName.empty())
+            {
+                context.callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
+                auto sharedFrame = context.callStack.back().sharedFrame;
+                sharedFrame->setLocal(varName, slot, val);
+            }
         }
 
         // Push value back for assignment expressions (e.g., int i = 0 in for loop)

@@ -1,6 +1,6 @@
 // Test method reference to interface method (if supported)
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/String.mt";
 
 interface Printer {
@@ -20,7 +20,7 @@ class ConsolePrinter implements Printer {
 }
 
 class MessageProcessor {
-    public function process(List<String> messages, Printer printer): void {
+    public function process(ArrayList<String> messages, Printer printer): void {
         int i = 0;
         while (i < messages.size()) {
             printer.printMessage(messages.get(i));
@@ -29,7 +29,7 @@ class MessageProcessor {
     }
 }
 
-List<String> messages = new List<String>();
+ArrayList<String> messages = new ArrayList<String>();
 messages.add(new String("Hello"));
 messages.add(new String("World"));
 messages.add(new String("Test"));

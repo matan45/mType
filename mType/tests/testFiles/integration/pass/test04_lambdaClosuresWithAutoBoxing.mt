@@ -1,46 +1,46 @@
 // Integration Test 04: Lambda Closures with Auto-Boxing
 // Tests: Lambdas + Auto-boxing + Collections + For loops + Scoping
 
-import * from "../../lib/collections/List.mt";
+import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Bool.mt";
 
-// Functional interfaces for lambdas
-interface Function {
-    function apply(int x): int;
-}
-
-interface Predicate {
-    function test(int x): bool;
-}
 
 interface Transformer {
     function transform(int x): String;
 }
 
 // Lambda implementation with closure
-class ClosureFunction implements Function {
+class ClosureFunction implements Function<Int, Int> {
     private int captured;
 
     constructor(int cap) {
         this.captured = cap;
     }
 
-    public function apply(int x): int {
-        return x + this.captured;
+    public function apply(Int x): Int {
+        return new Int(x.getValue() + this.captured);
+    }
+
+    public function <V> andThen(Function<Int, V> after): Function<Int, V> {
+        throw "andThen not implemented";
+    }
+
+    public function <V> compose(Function<V, Int> before): Function<V, Int> {
+        throw "compose not implemented";
     }
 }
 
-class PredicateImpl implements Predicate {
+class PredicateImpl implements Predicate<Int> {
     private int threshold;
 
     constructor(int thresh) {
         this.threshold = thresh;
     }
 
-    public function test(int x): bool {
-        return x > this.threshold;
+    public function test(Int x): bool {
+        return x.getValue() > this.threshold;
     }
 }
 
@@ -58,31 +58,31 @@ class StringTransformer implements Transformer {
 
 // Container using lambdas
 class FunctionalContainer {
-    private List<Int> numbers;
+    private ArrayList<Int> numbers;
 
     constructor() {
-        this.numbers = new List<Int>();
+        this.numbers = new ArrayList<Int>();
     }
 
     public function addNumber(Int num): void {
         this.numbers.add(num);
     }
 
-    public function mapWithFunction(Function func): List<Int> {
-        List<Int> result = new List<Int>();
+    public function mapWithFunction(Function<Int, Int> func): ArrayList<Int> {
+        ArrayList<Int> result = new ArrayList<Int>();
         for (int i = 0; i < this.numbers.size(); i = i + 1) {
             Int current = this.numbers.get(i);
-            int mapped = func.apply(current.getValue());
-            result.add(new Int(mapped));  // Auto-boxing: int -> Int
+            Int mapped = func.apply(current);
+            result.add(mapped);
         }
         return result;
     }
 
-    public function filter(Predicate pred): List<Int> {
-        List<Int> result = new List<Int>();
+    public function filter(Predicate<Int> pred): ArrayList<Int> {
+        ArrayList<Int> result = new ArrayList<Int>();
         for (int i = 0; i < this.numbers.size(); i = i + 1) {
             Int current = this.numbers.get(i);
-            bool passes = pred.test(current.getValue());
+            bool passes = pred.test(current);
             if (passes) {
                 result.add(current);
             }
@@ -90,8 +90,8 @@ class FunctionalContainer {
         return result;
     }
 
-    public function transformToStrings(Transformer trans): List<String> {
-        List<String> result = new List<String>();
+    public function transformToStrings(Transformer trans): ArrayList<String> {
+        ArrayList<String> result = new ArrayList<String>();
         for (int i = 0; i < this.numbers.size(); i = i + 1) {
             Int current = this.numbers.get(i);
             String transformed = trans.transform(current.getValue());
@@ -174,8 +174,8 @@ container.addNumber(20);
 container.addNumber(25);
 
 // Map with closure (add 100 to each)
-Function adder = new ClosureFunction(100);
-List<Int> mapped = container.mapWithFunction(adder);
+Function<Int, Int> adder = new ClosureFunction(100);
+ArrayList<Int> mapped = container.mapWithFunction(adder);
 
 print("Mapped results (add 100):");
 for (int i = 0; i < mapped.size(); i++) {
@@ -184,8 +184,8 @@ for (int i = 0; i < mapped.size(); i++) {
 }
 
 // Filter with predicate (greater than 12)
-Predicate greaterThan12 = new PredicateImpl(12);
-List<Int> filtered = container.filter(greaterThan12);
+Predicate<Int> greaterThan12 = new PredicateImpl(12);
+ArrayList<Int> filtered = container.filter(greaterThan12);
 
 print("Filtered results (> 12):");
 for (int i = 0; i < filtered.size(); i++) {
@@ -195,7 +195,7 @@ for (int i = 0; i < filtered.size(); i++) {
 
 // Transform to strings
 Transformer transformer = new StringTransformer("Number: ");
-List<String> strings = container.transformToStrings(transformer);
+ArrayList<String> strings = container.transformToStrings(transformer);
 
 print("Transformed to strings:");
 for (int i = 0; i < strings.size(); i++) {
@@ -206,10 +206,10 @@ for (int i = 0; i < strings.size(); i++) {
 // Test 3: Nested closures
 print("--- Nested closure test ---");
 int baseValue = 50;
-Function nested = new ClosureFunction(baseValue);
+Function<Int, Int> nested = new ClosureFunction(baseValue);
 
 for (int i = 1; i <= 3; i++) {
-    int result = nested.apply(i);
+    Int result = nested.apply(new Int(i));
     print("Apply to " + i + ": " + result);
 }
 

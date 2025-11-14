@@ -1,0 +1,7 @@
+Testing HashMap value iterator:
+20
+10
+30
+Count: 3
+Sum: 60
+HashMap value iterator test passed!
