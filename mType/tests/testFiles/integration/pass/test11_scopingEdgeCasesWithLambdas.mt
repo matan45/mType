@@ -3,31 +3,37 @@
 
 import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/RuntimeException.mt";
 
-// Functional interfaces
-interface Function {
-    function apply(int x): int;
-}
+
 
 interface Transformer {
     function transform(int x, int y): int;
 }
 
 // Lambda captures instance variable
-        class AdderFunction implements Function {
+        class AdderFunction implements Function<Int, Int> {
             private int captured;
 
             constructor(int cap) {
                 this.captured = cap;
             }
 
-            public function apply(int x): int {
-                return x + this.captured;
+            public function apply(Int x): Int {
+                return new Int(x.getValue() + this.captured);
+            }
+
+            public function <V> andThen(Function<Int, V> after): Function<Int, V> {
+                throw new RuntimeException("andThen not implemented");
+            }
+
+            public function <V> compose(Function<V, Int> before): Function<V, Int> {
+                throw new RuntimeException("compose not implemented");
             }
         }
 		
 		// Lambda captures both instance and local variable
-        class MultiplierFunction implements Function {
+        class MultiplierFunction implements Function<Int, Int> {
             private int capturedInstance;
             private int capturedLocal;
 
@@ -36,20 +42,36 @@ interface Transformer {
                 this.capturedLocal = capLoc;
             }
 
-            public function apply(int x): int {
-                return (x + this.capturedInstance) * this.capturedLocal;
+            public function apply(Int x): Int {
+                return new Int((x.getValue() + this.capturedInstance) * this.capturedLocal);
+            }
+
+            public function <V> andThen(Function<Int, V> after): Function<Int, V> {
+                throw new RuntimeException("andThen not implemented");
+            }
+
+            public function <V> compose(Function<V, Int> before): Function<V, Int> {
+                throw new RuntimeException("compose not implemented");
             }
         }
-		
-		class StaticFunction implements Function {
+
+		class StaticFunction implements Function<Int, Int> {
             private int capturedStatic;
 
             constructor(int capStat) {
                 this.capturedStatic = capStat;
             }
 
-            public function apply(int x): int {
-                return x + this.capturedStatic;
+            public function apply(Int x): Int {
+                return new Int(x.getValue() + this.capturedStatic);
+            }
+
+            public function <V> andThen(Function<Int, V> after): Function<Int, V> {
+                throw new RuntimeException("andThen not implemented");
+            }
+
+            public function <V> compose(Function<V, Int> before): Function<V, Int> {
+                throw new RuntimeException("compose not implemented");
             }
         }
 
@@ -63,21 +85,21 @@ class ScopingTest {
     }
 
     // Method accessing instance variable
-    public function createAdder(): Function {
+    public function createAdder(): Function<Int, Int> {
         
 
         return new AdderFunction(this.instanceVar);
     }
 
     // Method with local variable
-    public function createMultiplier(int factor): Function {
+    public function createMultiplier(int factor): Function<Int, Int> {
         
 
         return new MultiplierFunction(this.instanceVar, factor);
     }
 
     // Static method accessing static variable
-    public static function createStaticFunction(): Function {
+    public static function createStaticFunction(): Function<Int, Int> {
         
 
         return new StaticFunction(ScopingTest::staticVar);
@@ -131,15 +153,23 @@ function testLoopScoping(): void {
 }
 
 // Helper class for capturing values (defined at module level to avoid local class issues)
-class CaptureFunction implements Function {
+class CaptureFunction implements Function<Int, Int> {
     private int captured;
 
     constructor(int cap) {
         this.captured = cap;
     }
 
-    public function apply(int x): int {
-        return x + this.captured;
+    public function apply(Int x): Int {
+        return new Int(x.getValue() + this.captured);
+    }
+
+    public function <V> andThen(Function<Int, V> after): Function<Int, V> {
+        throw new RuntimeException("andThen not implemented");
+    }
+
+    public function <V> compose(Function<V, Int> before): Function<V, Int> {
+        throw new RuntimeException("compose not implemented");
     }
 }
 
@@ -147,7 +177,7 @@ class CaptureFunction implements Function {
 function testLambdaCaptureInLoop(): void {
     print("--- Lambda capture in loop ---");
 
-    ArrayList<Function> functions = new ArrayList<Function>();
+    ArrayList<Function<Int, Int>> functions = new ArrayList<Function<Int, Int>>();
 
     for (int i = 0; i < 3; i = i + 1) {
         int captureValue = i;  // Capture in local variable
@@ -156,8 +186,8 @@ function testLambdaCaptureInLoop(): void {
 
     print("Applying captured functions:");
     for (int i = 0; i < functions.size(); i = i + 1) {
-        Function func = functions.get(i);
-        int result = func.apply(100);
+        Function<Int, Int> func = functions.get(i);
+        Int result = func.apply(new Int(100));
         print("Function " + i + " result: " + result);
     }
 }
@@ -178,16 +208,24 @@ class Counter {
         }
     }
 	
-	class IncrementFunction implements Function {
+	class IncrementFunction implements Function<Int, Int> {
         private Counter capturedCounter;
 
         constructor(Counter c) {
             this.capturedCounter = c;
         }
 
-        public function apply(int x): int {
+        public function apply(Int x): Int {
             this.capturedCounter.increment();
-            return this.capturedCounter.getCount();
+            return new Int(this.capturedCounter.getCount());
+        }
+
+        public function <V> andThen(Function<Int, V> after): Function<Int, V> {
+            throw new RuntimeException("andThen not implemented");
+        }
+
+        public function <V> compose(Function<V, Int> before): Function<V, Int> {
+            throw new RuntimeException("compose not implemented");
         }
     }
 
@@ -199,16 +237,16 @@ function testMutableCapture(): void {
 
     Counter counter = new Counter();
 
-    
 
-    Function incrementer = new IncrementFunction(counter);
+
+    Function<Int, Int> incrementer = new IncrementFunction(counter);
 
     print("Count: " + counter.getCount());
-    incrementer.apply(0);
+    incrementer.apply(new Int(0));
     print("After 1st call: " + counter.getCount());
-    incrementer.apply(0);
+    incrementer.apply(new Int(0));
     print("After 2nd call: " + counter.getCount());
-    incrementer.apply(0);
+    incrementer.apply(new Int(0));
     print("After 3rd call: " + counter.getCount());
 }
 
@@ -233,14 +271,14 @@ print("=== Test 11: Scoping Edge Cases with Lambdas ===");
 print("--- Class-level scoping ---");
 ScopingTest obj = new ScopingTest(50);
 
-Function adder = obj.createAdder();
-print("Adder result: " + adder.apply(25));
+Function<Int, Int> adder = obj.createAdder();
+print("Adder result: " + adder.apply(new Int(25)));
 
-Function multiplier = obj.createMultiplier(3);
-print("Multiplier result: " + multiplier.apply(10));
+Function<Int, Int> multiplier = obj.createMultiplier(3);
+print("Multiplier result: " + multiplier.apply(new Int(10)));
 
-Function staticFunc = ScopingTest::createStaticFunction();
-print("Static function result: " + staticFunc.apply(5));
+Function<Int, Int> staticFunc = ScopingTest::createStaticFunction();
+print("Static function result: " + staticFunc.apply(new Int(5)));
 
 // Test 2: Nested block scoping
 testNestedBlocks();
@@ -262,10 +300,10 @@ print("--- Multiple instances ---");
 ScopingTest obj1 = new ScopingTest(10);
 ScopingTest obj2 = new ScopingTest(20);
 
-Function f1 = obj1.createAdder();
-Function f2 = obj2.createAdder();
+Function<Int, Int> f1 = obj1.createAdder();
+Function<Int, Int> f2 = obj2.createAdder();
 
-print("f1 result: " + f1.apply(5));
-print("f2 result: " + f2.apply(5));
+print("f1 result: " + f1.apply(new Int(5)));
+print("f2 result: " + f2.apply(new Int(5)));
 
 print("=== Test 11 Complete ===");

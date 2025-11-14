@@ -125,8 +125,8 @@ class FastCacheTest {
 
         print("Testing ArrayQueue<Bool> (should be fast cached)...");
         ArrayQueue<Bool> boolArrayQueue = new ArrayQueue<Bool>();
-        boolArrayQueue.enArrayQueue(new Bool(true));
-        boolArrayQueue.enArrayQueue(new Bool(false));
+        boolArrayQueue.enqueue(new Bool(true));
+        boolArrayQueue.enqueue(new Bool(false));
         print("ArrayQueue<Bool> front: " + boolArrayQueue.peek());
     }
 }

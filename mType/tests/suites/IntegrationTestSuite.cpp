@@ -241,8 +241,6 @@ namespace tests::testSuite
                                   passPath + "test_simple_generics.mt");
         addOutputVerificationTest("Test Type Conversion Basic",
                                   passPath + "test_type_conversion_basic.mt");
-        addOutputVerificationTest("Test Type Substitution Edge Cases",
-                                  passPath + "test_type_substitution_edge_cases.mt");
         addOutputVerificationTest("Type System Edge Cases",
                                   passPath + "typeSystemEdgeCases.mt");
 

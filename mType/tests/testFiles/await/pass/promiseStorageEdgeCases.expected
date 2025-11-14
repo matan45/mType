@@ -14,7 +14,7 @@ Retrieved value from field: 42
 Final result from field: 42
 
 --- Test 4: Promise in Collections ---
-Added 3 promises to list
+Added 3 promises to ArrayList
 Sum of all promises: 6
 
 --- Test 5: Promise as Parameter ---

@@ -3,6 +3,7 @@
 
 import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/exceptions/RuntimeException.mt";
 
 interface Comparator<T> {
     function compare(T a, T b): int;
@@ -17,6 +18,14 @@ class IntComparator implements Comparator<Int> {
             return 1;
         }
         return 0;
+    }
+
+    public function reversed(): Comparator<Int> {
+        throw new RuntimeException("reversed not implemented");
+    }
+
+    public function thenComparing(Comparator<Int> other): Comparator<Int> {
+        throw new RuntimeException("thenComparing not implemented");
     }
 }
 

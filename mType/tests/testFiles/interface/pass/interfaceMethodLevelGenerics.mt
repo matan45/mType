@@ -11,9 +11,6 @@ interface Container {
     function <T, R> transform(T item, Function<T, R> mapper): R;
 }
 
-interface Function<T,R>{
-	function map(T value): R;
-}
 
 class SimpleContainer implements Container {
     private ArrayList<Int> items;
@@ -31,7 +28,7 @@ class SimpleContainer implements Container {
     }
 
     public function <T, R> transform(T item, Function<T, R> mapper): R {
-        return mapper.map(item);
+        return mapper.apply(item);
     }
 }
 

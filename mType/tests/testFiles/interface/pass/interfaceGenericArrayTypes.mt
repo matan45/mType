@@ -5,9 +5,6 @@ import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/primitives/String.mt";
 import * from "../../lib/primitives/Bool.mt";
 
-interface Function<T,R>{
-	function predicate(T value): R;
-}
 
 interface ArrayProcessor<T> {
     function process(ArrayList<T> items): ArrayList<T>;
@@ -29,7 +26,7 @@ class StringArrayProcessor implements ArrayProcessor<String> {
         ArrayList<String> result = new ArrayList<String>();
         for (int i = 0; i < items.size(); i++) {
             String item = items.get(i);
-            if (predicate.predicate(item)) {
+            if (predicate.apply(item).getValue()) {
                 result.add(item);
             }
         }

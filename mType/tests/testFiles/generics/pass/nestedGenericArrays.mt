@@ -39,27 +39,27 @@ function main(): void {
     print("grid[1][1]: " + grid[1][1].getData());
 
     // Test 2: Array of arrays containing ArrayLists
-    ArrayList<Int>[][] ArrayListGrid = new ArrayList<Int>[2][2];
+    ArrayList<Int>[][] arrayListGrid = new ArrayList<Int>[2][2];
 
-    ArrayListGrid[0][0] = new ArrayList<Int>();
-    ArrayListGrid[0][0].add(new Int(1));
-    ArrayListGrid[0][0].add(new Int(2));
+    arrayListGrid[0][0] = new ArrayList<Int>();
+    arrayListGrid[0][0].add(new Int(1));
+    arrayListGrid[0][0].add(new Int(2));
 
-    ArrayListGrid[0][1] = new ArrayList<Int>();
-    ArrayListGrid[0][1].add(new Int(3));
+    arrayListGrid[0][1] = new ArrayList<Int>();
+    arrayListGrid[0][1].add(new Int(3));
 
-    ArrayListGrid[1][0] = new ArrayList<Int>();
-    ArrayListGrid[1][0].add(new Int(4));
-    ArrayListGrid[1][0].add(new Int(5));
-    ArrayListGrid[1][0].add(new Int(6));
+    arrayListGrid[1][0] = new ArrayList<Int>();
+    arrayListGrid[1][0].add(new Int(4));
+    arrayListGrid[1][0].add(new Int(5));
+    arrayListGrid[1][0].add(new Int(6));
 
-    ArrayListGrid[1][1] = new ArrayList<Int>();
+    arrayListGrid[1][1] = new ArrayList<Int>();
 
     print("2D ArrayList grid created");
-    print("ArrayListGrid[0][0] size: " + ArrayListGrid[0][0].size());
-    print("ArrayListGrid[0][1] size: " + ArrayListGrid[0][1].size());
-    print("ArrayListGrid[1][0] size: " + ArrayListGrid[1][0].size());
-    print("ArrayListGrid[1][1] size: " + ArrayListGrid[1][1].size());
+    print("arrayListGrid[0][0] size: " + arrayListGrid[0][0].size());
+    print("arrayListGrid[0][1] size: " + arrayListGrid[0][1].size());
+    print("arrayListGrid[1][0] size: " + arrayListGrid[1][0].size());
+    print("arrayListGrid[1][1] size: " + arrayListGrid[1][1].size());
 
     // Test 3: Deeply nested generic
     Container<Container<Int>> nested = new Container<Container<Int>>();

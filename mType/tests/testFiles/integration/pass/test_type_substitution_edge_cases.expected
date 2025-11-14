@@ -9,29 +9,29 @@ NestedContainer size: 2
 
 --- Performance Optimization Tests ---
 === Fast Cache Performance Tests ===
-Testing List<Int> (should be fast cached)...
-List<Int> size: 2
+Testing ArrayList<Int> (should be fast cached)...
+ArrayList<Int> size: 2
 Testing HashMap<String, Int> (should be fast cached)...
 HashMap<String, Int> size: 2
 Testing HashSet<String> (should be fast cached)...
 HashSet<String> size: 2
 Testing Stack<Float> (should be fast cached)...
 Stack<Float> peek: 2.71
-Testing Queue<Bool> (should be fast cached)...
-Queue<Bool> front: true
+Testing ArrayQueue<Bool> (should be fast cached)...
+ArrayQueue<Bool> front: true
 === Complex Cache Tests ===
-Testing deeply nested: List<HashMap<String, HashSet<Int>>> (complex)...
+Testing deeply nested: ArrayList<HashMap<String, HashSet<Int>>> (complex)...
 Complex nested size: 1
 Testing repeated instantiation of same complex type...
 Another complex size: 1
 
 --- Stress Tests ---
 === Performance Stress Tests ===
-Stress testing repeated List<Int> instantiation...
-Stress test iteration 0, list size: 1
-Stress test iteration 3, list size: 1
-Stress test iteration 6, list size: 1
-Stress test iteration 9, list size: 1
+Stress testing repeated ArrayList<Int> instantiation...
+Stress test iteration 0, ArrayList size: 1
+Stress test iteration 3, ArrayList size: 1
+Stress test iteration 6, ArrayList size: 1
+Stress test iteration 9, ArrayList size: 1
 Stress testing mixed common/complex patterns...
 Mixed pattern stress test completed
 
@@ -39,7 +39,7 @@ Mixed pattern stress test completed
 All type substitution edge case tests completed successfully!
 This test exercises:
 - Basic generic instantiation and method calls
-- Fast cache patterns (List, HashMap, HashSet, Stack, Queue with simple types)
+- Fast cache patterns (ArrayList, HashMap, HashSet, Stack, ArrayQueue with simple types)
 - Complex cache patterns (deeply nested generics)
 - Performance stress testing with repeated instantiations
 - Type substitution correctness across various scenarios
