@@ -2,6 +2,7 @@
 #include "../errors/ParseException.hpp"
 #include "../ast/GenericType.hpp"
 #include "../types/TypeRegistry.hpp"
+#include "../types/UnifiedType.hpp"
 
 namespace parser
 {
@@ -436,5 +437,195 @@ namespace parser
 
         // Simple object type without generic parameters
         return TypeInfo(ValueType::OBJECT, genericType->getBaseTypeName());
+    }
+
+    // ============== UnifiedType Support Implementation ==============
+
+    types::UnifiedTypePtr TypeParser::parseUnifiedType(TokenStream& stream)
+    {
+        // Delegate to parseGenericType and convert
+        auto genericType = parseGenericType(stream);
+        return convertGenericTypeToUnifiedType(genericType);
+    }
+
+    types::UnifiedTypePtr TypeParser::convertGenericTypeToUnifiedType(
+        const std::shared_ptr<ast::GenericType>& genericType)
+    {
+        if (!genericType)
+        {
+            return nullptr;
+        }
+
+        // Handle generic type parameters (T, K, V, etc.)
+        if (genericType->isGenericParameter())
+        {
+            std::string name = genericType->getGenericName();
+
+            // Check if this is Array<T> (special case for arrays)
+            if (name == "Array" && genericType->isParameterized())
+            {
+                const auto& typeArgs = genericType->getTypeArguments();
+                if (!typeArgs.empty())
+                {
+                    auto elementType = convertGenericTypeToUnifiedType(typeArgs[0]);
+                    return types::UnifiedType::arrayOf(elementType);
+                }
+            }
+
+            // Check if it's parameterized (e.g., Container<T>)
+            if (genericType->isParameterized())
+            {
+                std::vector<types::UnifiedTypePtr> typeArgs;
+                for (const auto& arg : genericType->getTypeArguments())
+                {
+                    typeArgs.push_back(convertGenericTypeToUnifiedType(arg));
+                }
+                return types::UnifiedType::classType(name, std::move(typeArgs));
+            }
+
+            // Simple generic parameter (T, E, etc.)
+            return types::UnifiedType::genericParam(name);
+        }
+
+        // Handle concrete types
+        ValueType baseType = genericType->getConcreteType();
+
+        switch (baseType)
+        {
+            case ValueType::INT:
+                return types::UnifiedType::primitive(ValueType::INT);
+            case ValueType::FLOAT:
+                return types::UnifiedType::primitive(ValueType::FLOAT);
+            case ValueType::BOOL:
+                return types::UnifiedType::primitive(ValueType::BOOL);
+            case ValueType::STRING:
+                return types::UnifiedType::primitive(ValueType::STRING);
+            case ValueType::VOID:
+                return types::UnifiedType::voidType();
+            case ValueType::NULL_TYPE:
+                return types::UnifiedType::nullType();
+            case ValueType::LAMBDA:
+                return types::UnifiedType::lambdaType();
+            case ValueType::ARRAY:
+            {
+                // Array type with element type
+                if (genericType->isParameterized())
+                {
+                    const auto& typeArgs = genericType->getTypeArguments();
+                    if (!typeArgs.empty())
+                    {
+                        auto elementType = convertGenericTypeToUnifiedType(typeArgs[0]);
+                        return types::UnifiedType::arrayOf(elementType);
+                    }
+                }
+                // Untyped array
+                return types::UnifiedType::arrayOf(types::UnifiedType::classType("Object"));
+            }
+            case ValueType::OBJECT:
+            default:
+            {
+                std::string className = genericType->getBaseTypeName();
+
+                // Handle parameterized object types
+                if (genericType->isParameterized())
+                {
+                    std::vector<types::UnifiedTypePtr> typeArgs;
+                    for (const auto& arg : genericType->getTypeArguments())
+                    {
+                        typeArgs.push_back(convertGenericTypeToUnifiedType(arg));
+                    }
+                    return types::UnifiedType::classType(className, std::move(typeArgs));
+                }
+
+                return types::UnifiedType::classType(className);
+            }
+        }
+    }
+
+    std::shared_ptr<ast::GenericType> TypeParser::convertUnifiedTypeToGenericType(
+        const types::UnifiedTypePtr& unifiedType)
+    {
+        if (!unifiedType)
+        {
+            return nullptr;
+        }
+
+        switch (unifiedType->getKind())
+        {
+            case types::TypeKind::Primitive:
+                return std::make_shared<ast::GenericType>(unifiedType->toValueType());
+
+            case types::TypeKind::Void:
+                return std::make_shared<ast::GenericType>(ValueType::VOID);
+
+            case types::TypeKind::Null:
+                return std::make_shared<ast::GenericType>(ValueType::NULL_TYPE);
+
+            case types::TypeKind::Lambda:
+                return std::make_shared<ast::GenericType>(ValueType::LAMBDA);
+
+            case types::TypeKind::GenericParameter:
+                return std::make_shared<ast::GenericType>(unifiedType->getName());
+
+            case types::TypeKind::Array:
+            {
+                if (!unifiedType->getTypeArguments().empty())
+                {
+                    auto elementType = convertUnifiedTypeToGenericType(unifiedType->getTypeArguments()[0]);
+                    std::vector<std::shared_ptr<ast::GenericType>> args = {elementType};
+                    return std::make_shared<ast::GenericType>("Array", args);
+                }
+                return std::make_shared<ast::GenericType>(ValueType::ARRAY);
+            }
+
+            case types::TypeKind::Class:
+            case types::TypeKind::Interface:
+            {
+                std::string name = unifiedType->getName();
+                if (unifiedType->isParameterized())
+                {
+                    std::vector<std::shared_ptr<ast::GenericType>> args;
+                    for (const auto& arg : unifiedType->getTypeArguments())
+                    {
+                        args.push_back(convertUnifiedTypeToGenericType(arg));
+                    }
+                    return std::make_shared<ast::GenericType>(name, args);
+                }
+                return std::make_shared<ast::GenericType>(name);
+            }
+
+            default:
+                return std::make_shared<ast::GenericType>(ValueType::OBJECT);
+        }
+    }
+
+    types::UnifiedTypePtr TypeParser::convertTypeInfoToUnifiedType(const TypeInfo& typeInfo)
+    {
+        switch (typeInfo.baseType)
+        {
+            case ValueType::INT:
+                return types::UnifiedType::primitive(ValueType::INT);
+            case ValueType::FLOAT:
+                return types::UnifiedType::primitive(ValueType::FLOAT);
+            case ValueType::BOOL:
+                return types::UnifiedType::primitive(ValueType::BOOL);
+            case ValueType::STRING:
+                return types::UnifiedType::primitive(ValueType::STRING);
+            case ValueType::VOID:
+                return types::UnifiedType::voidType();
+            case ValueType::NULL_TYPE:
+                return types::UnifiedType::nullType();
+            case ValueType::LAMBDA:
+                return types::UnifiedType::lambdaType();
+            case ValueType::ARRAY:
+                return types::UnifiedType::arrayOf(types::UnifiedType::classType("Object"));
+            case ValueType::OBJECT:
+            default:
+                if (!typeInfo.className.empty())
+                {
+                    return types::UnifiedType::classType(typeInfo.className);
+                }
+                return types::UnifiedType::classType("Object");
+        }
     }
 }

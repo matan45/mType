@@ -4,7 +4,7 @@
 #include "../../../errors/SourceLocation.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../types/GenericTypeResolver.hpp"
+#include "../../../types/TypeSubstitutionService.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,7 +22,7 @@ namespace vm::compiler::registration
     public:
         InterfaceRegistrar(
             std::shared_ptr<environment::Environment> environment,
-            const types::GenericTypeResolver& genericResolver
+            ::types::TypeSubstitutionService& typeSubstitutionService
         );
 
         ~InterfaceRegistrar() = default;
@@ -41,7 +41,7 @@ namespace vm::compiler::registration
 
     private:
         std::shared_ptr<environment::Environment> environment;
-        const types::GenericTypeResolver& genericResolver;
+        ::types::TypeSubstitutionService& typeSubstitutionService;
 
         // Helper methods
         std::pair<std::string, std::vector<std::string>> parseGenericInterfaceName(

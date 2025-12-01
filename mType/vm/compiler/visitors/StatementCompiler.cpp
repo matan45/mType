@@ -54,7 +54,7 @@ namespace vm::compiler::visitors
 
             if (!isArrayType && !isGenericParam)
             {
-                std::string baseClassName = ctx.genericResolver.extractBaseTypeName(className);
+                std::string baseClassName = ctx.typeSubstitutionService.extractBaseTypeName(className);
 
                 // Validate that generic types have type arguments
                 if (ctx.compileTimeValidator)

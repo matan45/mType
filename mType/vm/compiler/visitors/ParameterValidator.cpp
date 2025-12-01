@@ -3,7 +3,7 @@
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
-#include "../types/GenericTypeResolver.hpp"
+#include "../../../types/TypeSubstitutionService.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -313,8 +313,8 @@ namespace vm::compiler::visitors
             return; // No validation if constructor not found
         }
 
-        // Create resolver for generic type substitution
-        types::GenericTypeResolver resolver;
+        // Create service for generic type substitution
+        ::types::TypeSubstitutionService service;
 
         const auto& params = constructor->getParametersWithTypes();
         for (size_t i = 0; i < arguments.size(); ++i)
@@ -338,7 +338,7 @@ namespace vm::compiler::visitors
                 // This transforms "TypeToken<T>" -> "TypeToken<Int>" when T=Int
                 if (!genericTypeBindings.empty())
                 {
-                    expectedClass = resolver.resolveGenericType(expectedClass, genericTypeBindings);
+                    expectedClass = service.resolveGenericType(expectedClass, genericTypeBindings);
                 }
 
                 // Skip generic type parameters (single uppercase letters) that weren't resolved

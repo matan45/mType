@@ -1,5 +1,5 @@
 #include "ExpectedTypeContext.hpp"
-#include "GenericTypeResolver.hpp"
+#include "../../../types/TypeSubstitutionService.hpp"
 
 namespace vm::compiler::types
 {
@@ -10,9 +10,9 @@ namespace vm::compiler::types
             return {};
         }
 
-        // Use GenericTypeResolver to parse the generic arguments
-        GenericTypeResolver resolver;
-        return resolver.extractTypeArguments(expectedClassName);
+        // Use TypeSubstitutionService to parse the generic arguments
+        ::types::TypeSubstitutionService service;
+        return service.extractTypeArguments(expectedClassName);
     }
 
     std::string ExpectedTypeContext::getBaseClassName() const
@@ -22,9 +22,9 @@ namespace vm::compiler::types
             return "";
         }
 
-        // Use GenericTypeResolver to extract base type name
-        GenericTypeResolver resolver;
-        return resolver.extractBaseTypeName(expectedClassName);
+        // Use TypeSubstitutionService to extract base type name
+        ::types::TypeSubstitutionService service;
+        return service.extractBaseTypeName(expectedClassName);
     }
 
     bool ExpectedTypeContext::hasGenericArguments() const

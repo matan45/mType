@@ -19,7 +19,7 @@ namespace vm::compiler
         , emitter(program)
         , typeInference(program, env, variableTracker, globalRegistry)
         , typeValidator(env)
-        , interfaceRegistrar(env, genericResolver)
+        , interfaceRegistrar(env, typeSubstitutionService)
         , classRegistrar(env, program, &interfaceRegistrar)
         , functionRegistrar(env, program)
         , compileTimeValidator(std::make_unique<validation::CompileTimeValidator>(env, program))
@@ -27,7 +27,7 @@ namespace vm::compiler
         , staticFieldInitDetector(std::make_shared<circularDependency::CircularDependencyDetector>())
         , context(*this, program, env, emitter, variableTracker, globalRegistry,
                   functionFrameManager, loopManager, switchManager, exceptionManager,
-                  typeInference, typeValidator, genericResolver)
+                  typeInference, typeValidator, typeSubstitutionService)
         , literalCompiler(context)
         , arrayCompiler(context)
         , expressionCompiler(context, literalCompiler, arrayCompiler)
