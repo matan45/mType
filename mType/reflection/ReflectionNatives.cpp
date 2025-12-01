@@ -219,7 +219,7 @@ namespace reflection
         auto parentClass = classDef->getParentClass();
         if (!parentClass)
         {
-            return std::monostate{}; // null
+            return 0; // No parent class
         }
 
         int parentHandle = registry.getOrCreateClassHandle(parentClass);
@@ -1344,10 +1344,9 @@ namespace reflection
 
     void ReflectionNatives::cleanup()
     {
-        // Clear the static environment reference to avoid static destruction order issues
-        currentEnvironment.reset();
-
-        // Clear the reflection handle registry
+        // Clear the reflection handle registry to avoid stale handles between tests
+        // Note: Do NOT reset currentEnvironment here - it will be set again by the next test
+        // Only reset it at program exit (handled by static destruction)
         ReflectionHandleRegistry::instance().clear();
     }
 

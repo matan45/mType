@@ -1,0 +1,5 @@
+Shape isInterface: false
+Number of interfaces: 2
+  Implements: Drawable
+  Implements: Resizable
+Test passed

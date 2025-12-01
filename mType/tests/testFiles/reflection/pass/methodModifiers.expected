@@ -1,0 +1,9 @@
+publicMethod is public: true
+publicMethod is private: false
+privateMethod is public: false
+privateMethod is private: true
+protectedMethod is protected: true
+staticMethod is static: true
+staticMethod is public: true
+finalMethod is final: true
+Test passed

@@ -1,0 +1,15 @@
+privateField is private: true
+privateField is public: false
+privateField is static: false
+publicField is private: false
+publicField is public: true
+publicField is static: false
+protectedField is protected: true
+protectedField is public: false
+staticField is static: true
+staticField is public: true
+finalField is final: true
+privateStaticFinal is private: true
+privateStaticFinal is static: true
+privateStaticFinal is final: true
+Test passed

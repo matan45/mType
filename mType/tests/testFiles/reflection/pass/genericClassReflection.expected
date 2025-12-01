@@ -1,0 +1,9 @@
+Container isGeneric: true
+Container type params: 1
+  Type param: T
+Pair isGeneric: true
+Pair type params: 2
+  Type param: K
+  Type param: V
+NonGeneric isGeneric: false
+Test passed

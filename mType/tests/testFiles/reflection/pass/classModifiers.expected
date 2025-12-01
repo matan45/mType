@@ -1,0 +1,10 @@
+AbstractClass modifiers: 32
+AbstractClass is abstract: true
+AbstractClass is final: false
+FinalClass modifiers: 16
+FinalClass is abstract: false
+FinalClass is final: true
+NormalClass modifiers: 0
+NormalClass is abstract: false
+NormalClass is final: false
+Test passed

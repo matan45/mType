@@ -19,6 +19,7 @@
 #include "../tests/suites/EnhancedForLoopTestSuite.hpp"
 #include "../tests/suites/StreamTestSuite.hpp"
 #include "../tests/suites/CollectionsTestSuite.hpp"
+#include "../tests/suites/ReflectionTestSuite.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
@@ -129,6 +130,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<CollectionsTestSuite>();
     }
+    else if (suiteName == "reflection" || suiteName == "reflect")
+    {
+        return std::make_unique<ReflectionTestSuite>();
+    }
     return nullptr;
 }
 
@@ -155,6 +160,7 @@ void printAvailableTestSuites()
     std::cout << "  foreach      - Enhanced For-Loop Test Suite\n";
     std::cout << "  stream       - Stream API Test Suite\n";
     std::cout << "  collections  - Collections (ArrayList, LinkedList, HashMap) Test Suite\n";
+    std::cout << "  reflection   - Reflection API Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -382,6 +388,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
     suites.push_back(std::make_unique<IteratorTestSuite>());
     suites.push_back(std::make_unique<EnhancedForLoopTestSuite>());
     suites.push_back(std::make_unique<StreamTestSuite>());
+    suites.push_back(std::make_unique<ReflectionTestSuite>());
 
     for (auto& suite : suites)
     {

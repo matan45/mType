@@ -1,0 +1,12 @@
+PUBLIC = 1
+PRIVATE = 2
+PROTECTED = 4
+STATIC = 8
+FINAL = 16
+ABSTRACT = 32
+ASYNC = 64
+PUBLIC | STATIC = 9
+PRIVATE | STATIC | FINAL = 26
+publicStatic equals 9: true
+privateStaticFinal equals 26: true
+Test passed
