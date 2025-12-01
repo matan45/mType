@@ -1,5 +1,6 @@
 #include "EnvironmentBuilder.hpp"
 #include "../runtimeTypes/global/ArrayOperationsNative.hpp"
+#include "../reflection/ReflectionNatives.hpp"
 
 namespace environment
 {
@@ -69,6 +70,9 @@ namespace environment
 
         // Register SIMD-accelerated array operations
         runtimeTypes::global::ArrayOperationsNative::registerAll(environment);
+
+        // Register reflection native functions
+        reflection::ReflectionNatives::registerAll(environment);
 
         return environment;
     }

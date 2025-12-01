@@ -253,5 +253,21 @@ namespace runtimeTypes::klass
         // NEW: Source location methods
         const ast::SourceLocation& getSourceLocation() const { return sourceLocation; }
         void setSourceLocation(const ast::SourceLocation& location) { sourceLocation = location; }
+
+        // Reflection support: get modifier flags as bitmask
+        // PUBLIC=1, PRIVATE=2, PROTECTED=4, STATIC=8, FINAL=16, ABSTRACT=32, ASYNC=64
+        int getModifierFlags() const {
+            int flags = 0;
+            switch (accessModifier) {
+                case ast::AccessModifier::PUBLIC: flags |= 1; break;
+                case ast::AccessModifier::PRIVATE: flags |= 2; break;
+                case ast::AccessModifier::PROTECTED: flags |= 4; break;
+            }
+            if (isStaticMethod) flags |= 8;
+            if (finalMethod) flags |= 16;
+            if (abstractMethod) flags |= 32;
+            if (isAsync) flags |= 64;
+            return flags;
+        }
     };
 }

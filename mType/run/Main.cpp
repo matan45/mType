@@ -28,6 +28,7 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../debugger/DebugContext.hpp"
 #include "../debugger/DebugHookHelper.hpp"
+#include "../reflection/ReflectionNatives.hpp"
 #include "../debugger/DebugProtocol.hpp"
 
 #include <vector>
@@ -736,8 +737,12 @@ int main(int argc, char* argv[])
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
+        reflection::ReflectionNatives::cleanup();
         return 1;
     }
+
+    // Cleanup reflection static state to avoid static destruction order issues
+    reflection::ReflectionNatives::cleanup();
 
     return 0;
 }

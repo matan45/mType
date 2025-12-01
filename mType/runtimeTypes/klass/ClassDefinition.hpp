@@ -333,6 +333,15 @@ namespace runtimeTypes::klass
         bool hasAnnotation(const std::string& annotationName) const;
         std::shared_ptr<ast::nodes::annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
 
+        // Reflection support: get modifier flags as bitmask
+        // FINAL=16, ABSTRACT=32
+        int getModifierFlags() const {
+            int flags = 0;
+            if (finalClass) flags |= 16;
+            if (abstractClass) flags |= 32;
+            return flags;
+        }
+
     private:
         // Depth protection for interface and class inheritance chains
         static constexpr int MAX_INTERFACE_DEPTH = 20;

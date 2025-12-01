@@ -71,5 +71,19 @@ namespace runtimeTypes::klass
         std::shared_ptr<ast::GenericType> getGenericType() const { return genericType; }
         void setGenericType(std::shared_ptr<ast::GenericType> genType) { genericType = genType; }
         bool hasGenericType() const { return genericType != nullptr; }
+
+        // Reflection support: get modifier flags as bitmask
+        // PUBLIC=1, PRIVATE=2, PROTECTED=4, STATIC=8, FINAL=16
+        int getModifierFlags() const {
+            int flags = 0;
+            switch (accessModifier) {
+                case ast::AccessModifier::PUBLIC: flags |= 1; break;
+                case ast::AccessModifier::PRIVATE: flags |= 2; break;
+                case ast::AccessModifier::PROTECTED: flags |= 4; break;
+            }
+            if (isStaticField) flags |= 8;
+            if (isFinalField) flags |= 16;
+            return flags;
+        }
     };
 }
