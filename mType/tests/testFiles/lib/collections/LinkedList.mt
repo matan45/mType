@@ -15,16 +15,13 @@ class LinkedList<T> implements List<T>, Deque<T> {
     Node<T> tail;
     int count;
 
-    // Constructor
     constructor() {
         this.head = null;
         this.tail = null;
         this.count = 0;
     }
 
-    // Core operations
     public function add(T item): bool {
-        // Null item validation
         if (item == null) {
             print("Error: LinkedList.add() - item cannot be null");
             return false;
@@ -33,11 +30,9 @@ class LinkedList<T> implements List<T>, Deque<T> {
         Node<T> newNode = new Node<T>(item);
 
         if (this.head == null) {
-            // First node
             this.head = newNode;
             this.tail = newNode;
         } else {
-            // Add to end
             newNode.prev = this.tail;
             this.tail.next = newNode;
             this.tail = newNode;
@@ -47,7 +42,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
     }
 
     public function addFirst(T item): void {
-        // Null item validation
         if (item == null) {
             print("Error: LinkedList.addFirst() - item cannot be null");
             return;
@@ -56,11 +50,9 @@ class LinkedList<T> implements List<T>, Deque<T> {
         Node<T> newNode = new Node<T>(item);
 
         if (this.head == null) {
-            // First node
             this.head = newNode;
             this.tail = newNode;
         } else {
-            // Add to beginning
             newNode.next = this.head;
             this.head.prev = newNode;
             this.head = newNode;
@@ -69,11 +61,10 @@ class LinkedList<T> implements List<T>, Deque<T> {
     }
 
     public function addLast(T item): void {
-        this.add(item); // Same as regular add
+        this.add(item);
     }
 
     public function addAt(int index, T item): void {
-        // Null item validation
         if (item == null) {
             print("Error: LinkedList.addAt() - item cannot be null");
             return;
@@ -118,7 +109,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return;
         }
 
-        // Null item validation
         if (item == null) {
             print("Error: LinkedList.set() - item cannot be null");
             return;
@@ -140,7 +130,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
     }
 
     public function remove(T item): bool {
-        // Null item validation
         if (item == null) {
             print("Error: LinkedList.remove() - item cannot be null");
             return false;
@@ -180,7 +169,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
     }
 
     public function contains(T item): bool {
-        // Null item validation
         if (item == null) {
             print("Error: LinkedList.contains() - item cannot be null");
             return false;
@@ -197,7 +185,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
     }
 
     public function indexOf(T item): int {
-        // Null item validation
         if (item == null) {
             print("Error: LinkedList.indexOf() - item cannot be null");
             return -1;
@@ -211,6 +198,23 @@ class LinkedList<T> implements List<T>, Deque<T> {
             }
             current = current.next;
             index++;
+        }
+        return -1;
+    }
+
+    public function lastIndexOf(T item): int {
+        if (item == null) {
+            return -1;
+        }
+
+        Node<T> current = this.tail;
+        int index = this.count - 1;
+        while (current != null) {
+            if (current.data != null && current.data.equals(item)) {
+                return index;
+            }
+            current = current.prev;
+            index = index - 1;
         }
         return -1;
     }
@@ -229,7 +233,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
         this.count = 0;
     }
 
-    // Get first element
     public function first(): T {
         if (this.head == null) {
             return null;
@@ -237,7 +240,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
         return this.head.data;
     }
 
-    // Get last element
     public function last(): T {
         if (this.tail == null) {
             return null;
@@ -245,7 +247,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
         return this.tail.data;
     }
 
-    // Convert to array for iteration
     public function toArray(): T[] {
         T[] result = new T[this.count];
         Node<T> current = this.head;
@@ -259,7 +260,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
         return result;
     }
 
-    // Content-based hash code
     public function hashCode(): int {
         int hash = 1;
         Node<T> current = this.head;
@@ -275,7 +275,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
         return hash;
     }
 
-    // Reverse the list
     public function reverse(): void {
         if (this.count <= 1) {
             return;
@@ -284,71 +283,18 @@ class LinkedList<T> implements List<T>, Deque<T> {
         Node<T> current = this.head;
         Node<T> temp = null;
 
-        // Swap next and prev for all nodes
         while (current != null) {
             temp = current.prev;
             current.prev = current.next;
             current.next = temp;
-            current = current.prev; // Move to next (which is now prev)
+            current = current.prev;
         }
 
-        // Swap head and tail
         temp = this.head;
         this.head = this.tail;
         this.tail = temp;
     }
 
-    // Private helper methods
-    private function getNodeAt(int index): Node<T> {
-        if (index < 0 || index >= this.count) {
-            return null;
-        }
-
-        Node<T> current;
-
-        // Optimize: start from head or tail depending on which is closer
-        if (index < this.count / 2) {
-            // Start from head
-            current = this.head;
-            for (int i = 0; i < index; i++) {
-                current = current.next;
-            }
-        } else {
-            // Start from tail
-            current = this.tail;
-            for (int i = this.count - 1; i > index; i--) {
-                current = current.prev;
-            }
-        }
-
-        return current;
-    }
-
-    private function removeNode(Node<T> node): void {
-        if (node == null) {
-            return;
-        }
-
-        // Update prev node
-        if (node.prev != null) {
-            node.prev.next = node.next;
-        } else {
-            // Removing head
-            this.head = node.next;
-        }
-
-        // Update next node
-        if (node.next != null) {
-            node.next.prev = node.prev;
-        } else {
-            // Removing tail
-            this.tail = node.prev;
-        }
-
-        this.count--;
-    }
-
-    // Additional utility methods
     public function addAll(T[] items): void {
         for (T item : items) {
             this.add(item);
@@ -356,7 +302,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
     }
 
     public function removeAll(T item): int {
-        // Null item validation
         if (item == null) {
             print("Error: LinkedList.removeAll() - item cannot be null");
             return 0;
@@ -377,7 +322,6 @@ class LinkedList<T> implements List<T>, Deque<T> {
         return removedCount;
     }
 
-    // Get a sublist (creates a new LinkedList)
     public function subList(int fromIndex, int toIndex): LinkedList<T> {
         if (fromIndex < 0 || toIndex > this.count || fromIndex > toIndex) {
             print("Error: LinkedList.subList() - invalid range: " + fromIndex + " to " + toIndex);
@@ -395,66 +339,28 @@ class LinkedList<T> implements List<T>, Deque<T> {
         return result;
     }
 
-    // Iterator support - NEW for enhanced for-loop
     public function iterator(): Iterator<T> {
         return new LinkedListIterator<T>(this.head);
     }
 
-    // Stream support - NEW for functional programming
     public function stream(): Stream<T> {
         return new StreamImpl<T>(this.iterator());
     }
 
-    // Additional List methods - NEW
-    public function lastIndexOf(T item): int {
-        if (item == null) {
-            return -1;
-        }
-
-        Node<T> current = this.tail;
-        int index = this.count - 1;
-        while (current != null) {
-            if (current.data != null && current.data.equals(item)) {
-                return index;
-            }
-            current = current.prev;
-            index = index - 1;
-        }
-        return -1;
-    }
-
-    public function sort(): void {
-        // Natural ordering sort requires Comparable<T> interface
-        // Since we can't enforce this at compile time, we throw an exception
-        // Use sortWith(Comparator) for custom sorting
-        throw "LinkedList.sort() requires elements to implement Comparable interface. Use sortWith(Comparator) instead.";
-    }
-
-    /**
-     * Sorts this list using the provided comparator.
-     * Converts to array, sorts, then rebuilds the list.
-     *
-     * @param comparator the comparator to determine element order
-     */
     public function sortWith(Comparator<T> comparator): void {
         if (this.count == 0) {
             return;
         }
 
-        // Convert to array
         T[] sortArray = this.toArray();
-
-        // Sort the array
         SortUtils::quicksort(sortArray, comparator);
 
-        // Rebuild the list from sorted array
         this.clear();
         for (int i = 0; i < sortArray.length; i++) {
             this.add(sortArray[i]);
         }
     }
 
-    // Deque interface methods - NEW
     public function peekFirst(): T {
         return this.first();
     }
@@ -477,5 +383,47 @@ class LinkedList<T> implements List<T>, Deque<T> {
 
     public function dequeue(): T {
         return this.removeFirst();
+    }
+
+    private function getNodeAt(int index): Node<T> {
+        if (index < 0 || index >= this.count) {
+            return null;
+        }
+
+        Node<T> current;
+
+        if (index < this.count / 2) {
+            current = this.head;
+            for (int i = 0; i < index; i++) {
+                current = current.next;
+            }
+        } else {
+            current = this.tail;
+            for (int i = this.count - 1; i > index; i--) {
+                current = current.prev;
+            }
+        }
+
+        return current;
+    }
+
+    private function removeNode(Node<T> node): void {
+        if (node == null) {
+            return;
+        }
+
+        if (node.prev != null) {
+            node.prev.next = node.next;
+        } else {
+            this.head = node.next;
+        }
+
+        if (node.next != null) {
+            node.next.prev = node.prev;
+        } else {
+            this.tail = node.prev;
+        }
+
+        this.count--;
     }
 }
