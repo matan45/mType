@@ -1197,10 +1197,25 @@
     <ClInclude Include="token\TokenType.hpp">
       <Filter>token</Filter>
     </ClInclude>
+    <ClInclude Include="types\ReifiedTypeRegistry.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\TypeConstraintValidator.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\TypeConversionBridge.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
     <ClInclude Include="types\TypeConversionUtils.hpp">
       <Filter>types</Filter>
     </ClInclude>
     <ClInclude Include="types\TypeRegistry.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\TypeSubstitutionService.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\UnifiedType.hpp">
       <Filter>types</Filter>
     </ClInclude>
     <ClInclude Include="validation\AnnotationValidator.hpp">
@@ -1351,9 +1366,6 @@
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\types\GenericPatternAnalyzer.hpp">
-      <Filter>vm\compiler\types</Filter>
-    </ClInclude>
-    <ClInclude Include="vm\compiler\types\GenericTypeResolver.hpp">
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\types\TypeInferenceEngine.hpp">
@@ -2114,10 +2126,25 @@
     <ClCompile Include="tests\testFramework\TestSuite.cpp">
       <Filter>tests\testFramework</Filter>
     </ClCompile>
+    <ClCompile Include="types\ReifiedTypeRegistry.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeConstraintValidator.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeConversionBridge.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
     <ClCompile Include="types\TypeConversionUtils.cpp">
       <Filter>types</Filter>
     </ClCompile>
     <ClCompile Include="types\TypeRegistry.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeSubstitutionService.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\UnifiedType.cpp">
       <Filter>types</Filter>
     </ClCompile>
     <ClCompile Include="validation\AnnotationValidator.cpp">
@@ -2214,9 +2241,6 @@
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\types\GenericPatternAnalyzer.cpp">
-      <Filter>vm\compiler\types</Filter>
-    </ClCompile>
-    <ClCompile Include="vm\compiler\types\GenericTypeResolver.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\types\TypeInferenceEngine.cpp">
@@ -5578,19 +5602,10 @@
     <None Include="tests\testFiles\controlFlow\pass\voidFunctions.mt">
       <Filter>tests\testFiles\controlFlow\pass</Filter>
     </None>
-    <None Include="tests\testFiles\enhancedFor\error\forEachNonIterable.expected">
-      <Filter>tests\testFiles\enhancedFor\error</Filter>
-    </None>
     <None Include="tests\testFiles\enhancedFor\error\forEachNonIterable.mt">
       <Filter>tests\testFiles\enhancedFor\error</Filter>
     </None>
-    <None Include="tests\testFiles\enhancedFor\error\forEachPrimitiveMismatch.expected">
-      <Filter>tests\testFiles\enhancedFor\error</Filter>
-    </None>
     <None Include="tests\testFiles\enhancedFor\error\forEachPrimitiveMismatch.mt">
-      <Filter>tests\testFiles\enhancedFor\error</Filter>
-    </None>
-    <None Include="tests\testFiles\enhancedFor\error\forEachTypeMismatch.expected">
       <Filter>tests\testFiles\enhancedFor\error</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\error\forEachTypeMismatch.mt">

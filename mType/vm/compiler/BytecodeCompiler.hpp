@@ -14,7 +14,7 @@
 #include "control/ExceptionContextManager.hpp"
 #include "types/TypeInferenceEngine.hpp"
 #include "types/TypeValidator.hpp"
-#include "types/GenericTypeResolver.hpp"
+#include "../../types/TypeSubstitutionService.hpp"
 #include "registration/ClassRegistrar.hpp"
 #include "registration/InterfaceRegistrar.hpp"
 #include "registration/FunctionRegistrar.hpp"
@@ -146,7 +146,7 @@ namespace vm::compiler
         control::LoopContextManager loopManager;
         control::SwitchContextManager switchManager;
         control::ExceptionContextManager exceptionManager;
-        types::GenericTypeResolver genericResolver;
+        ::types::TypeSubstitutionService typeSubstitutionService;
         types::TypeInferenceEngine typeInference;
         types::TypeValidator typeValidator;
         registration::InterfaceRegistrar interfaceRegistrar;

@@ -13,6 +13,7 @@
 #include "../../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
 #include "../../../ast/nodes/classes/ThisConstructorCallNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../../types/TypeSubstitutionService.hpp"
 #include "../../../circularDependency/TrueCyclicException.hpp"
 #include "../../../circularDependency/DepthLimitException.hpp"
 #include <unordered_set>
@@ -220,8 +221,8 @@ namespace vm::compiler::visitors
     {
         const auto& arguments = node->getArguments();
 
-        // Create resolver for generic type substitution
-        types::GenericTypeResolver resolver;
+        // Create service for generic type substitution
+        ::types::TypeSubstitutionService service;
 
         // Push constructor arguments onto stack (left to right) with auto-boxing
         for (size_t i = 0; i < arguments.size(); ++i)
@@ -243,7 +244,7 @@ namespace vm::compiler::visitors
                     // Resolve generic type parameters (T -> Int)
                     if (!genericTypeBindings.empty())
                     {
-                        expectedClass = resolver.resolveGenericType(expectedClass, genericTypeBindings);
+                        expectedClass = service.resolveGenericType(expectedClass, genericTypeBindings);
                     }
 
                     // Infer argument type

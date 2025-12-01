@@ -12,6 +12,8 @@
 #include "../../../errors/AbstractClassException.hpp"
 #include "../../../errors/DuplicateSignatureException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../../types/TypeSubstitutionService.hpp"
+#include "../../../types/TypeConversionBridge.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
@@ -31,6 +33,7 @@ namespace vm::compiler::registration
         , program(program)
         , interfaceRegistrar(interfaceRegistrar)
         , inheritanceValidator(std::make_unique<ClassInheritanceValidator>(environment->getClassRegistry()))
+        , typeSubstitutionService(std::make_shared<::types::TypeSubstitutionService>())
     {
     }
 
@@ -1117,5 +1120,53 @@ namespace vm::compiler::registration
 
         // Store in child class
         childClass->setParentTypeSubstitutionMap(substitutionMap);
+    }
+
+    void ClassRegistrar::parseAndStoreUnifiedTypeSubstitutions(
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+        const std::string& parentClassNameWithGenerics,
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass
+    ) const
+    {
+        // Parse concrete type arguments from parent class declaration
+        // E.g., "Processor<String>" → ["String"]
+        auto typeArgsStrings = parseGenericTypeArguments(parentClassNameWithGenerics);
+
+        // Convert string type args to UnifiedTypePtr
+        std::vector<::types::UnifiedTypePtr> typeArgs;
+        for (const auto& argStr : typeArgsStrings) {
+            // Simple conversion - could be enhanced for nested generics
+            typeArgs.push_back(::types::UnifiedType::classType(argStr));
+        }
+
+        // Get generic type parameters from parent class definition
+        const auto& parentGenericParams = parentClass->getGenericParameters();
+
+        // Use TypeSubstitutionService to build the substitution map
+        if (typeSubstitutionService) {
+            try {
+                auto unifiedSubstitutionMap = typeSubstitutionService->buildSubstitutionMap(
+                    parentGenericParams,
+                    typeArgs
+                );
+
+                // Convert UnifiedType substitution map to string-based map for backward compatibility
+                std::unordered_map<std::string, std::string> stringSubstitutionMap;
+                for (const auto& [paramName, typePtr] : unifiedSubstitutionMap) {
+                    if (typePtr) {
+                        stringSubstitutionMap[paramName] = typePtr->toString();
+                    }
+                }
+
+                // Store in child class
+                childClass->setParentTypeSubstitutionMap(stringSubstitutionMap);
+            } catch (const std::exception&) {
+                // Fall back to existing implementation if new service fails
+                parseAndStoreTypeSubstitutions(childClass, parentClassNameWithGenerics, parentClass);
+            }
+        } else {
+            // Fall back to existing implementation
+            parseAndStoreTypeSubstitutions(childClass, parentClassNameWithGenerics, parentClass);
+        }
     }
 }

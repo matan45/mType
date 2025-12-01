@@ -1,5 +1,5 @@
 #include "GenericPatternAnalyzer.hpp"
-#include "GenericTypeResolver.hpp"
+#include "../../../types/TypeSubstitutionService.hpp"
 #include "../../../errors/TypeException.hpp"
 #include <algorithm>
 
@@ -33,8 +33,8 @@ namespace vm::compiler::types
         }
 
         // Extract type arguments if this is a generic type
-        GenericTypeResolver resolver;
-        std::vector<std::string> typeArgs = resolver.extractTypeArguments(typeExpression);
+        ::types::TypeSubstitutionService service;
+        std::vector<std::string> typeArgs = service.extractTypeArguments(typeExpression);
 
         // Recursively check each type argument for nested type parameters
         for (const auto& arg : typeArgs)
@@ -104,12 +104,12 @@ namespace vm::compiler::types
         }
 
         // Base case 2: Both are non-generic types (exact match required)
-        GenericTypeResolver resolver;
-        std::string patternBase = resolver.extractBaseTypeName(patternTrimmed);
-        std::string concreteBase = resolver.extractBaseTypeName(concreteTrimmed);
+        ::types::TypeSubstitutionService service;
+        std::string patternBase = service.extractBaseTypeName(patternTrimmed);
+        std::string concreteBase = service.extractBaseTypeName(concreteTrimmed);
 
-        std::vector<std::string> patternArgs = resolver.extractTypeArguments(patternTrimmed);
-        std::vector<std::string> concreteArgs = resolver.extractTypeArguments(concreteTrimmed);
+        std::vector<std::string> patternArgs = service.extractTypeArguments(patternTrimmed);
+        std::vector<std::string> concreteArgs = service.extractTypeArguments(concreteTrimmed);
 
         // Base type names must match
         if (patternBase != concreteBase)

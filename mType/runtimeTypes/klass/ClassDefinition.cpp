@@ -2,6 +2,7 @@
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
 #include "../../vm/MethodSignature.hpp"
+#include "../../types/TypeSubstitutionService.hpp"
 #include <algorithm>
 #include <set>
 
@@ -1010,5 +1011,38 @@ namespace runtimeTypes::klass
     {
         // Use the argCount-based method with signature's parameter count
         return findStaticMethodInHierarchy(signature.getMethodName(), signature.getParameterCount());
+    }
+
+    // NEW (Phase 4): Resolve a type considering the full inheritance chain
+    ::types::UnifiedTypePtr ClassDefinition::resolveTypeInContext(const ::types::UnifiedTypePtr& type) const
+    {
+        if (!type)
+        {
+            return nullptr;
+        }
+
+        // If no inheritance chain, just use local substitution map
+        if (inheritanceSubstitutionChain.empty())
+        {
+            if (parentTypeSubstitutionMap.empty())
+            {
+                return type;
+            }
+
+            // Convert string-based map to UnifiedType-based map for backward compatibility
+            ::types::TypeSubstitutionMap legacyMap;
+            for (const auto& [param, concrete] : parentTypeSubstitutionMap)
+            {
+                legacyMap[param] = ::types::UnifiedType::classType(concrete);
+            }
+
+            ::types::TypeSubstitutionService service;
+            return service.substitute(type, legacyMap);
+        }
+
+        // Use the TypeSubstitutionService to compose the full chain and substitute
+        ::types::TypeSubstitutionService service;
+        auto composedMap = service.composeChain(inheritanceSubstitutionChain);
+        return service.substitute(type, composedMap);
     }
 }

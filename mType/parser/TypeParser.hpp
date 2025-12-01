@@ -3,6 +3,7 @@
 #include "../value/ValueType.hpp"
 #include "../token/TokenType.hpp"
 #include "../ast/GenericType.hpp"
+#include "../types/UnifiedType.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
@@ -88,6 +89,23 @@ namespace parser
         /// @brief Convert GenericType to TypeInfo (eliminates parseTypeInfo duplication)
         [[nodiscard]] static TypeInfo
         convertGenericTypeToTypeInfo(const std::shared_ptr<ast::GenericType>& genericType);
+
+        // ============== UnifiedType Support (New Type System) ==============
+
+        /// @brief Parse type and return UnifiedType (new unified type system)
+        [[nodiscard]] static types::UnifiedTypePtr parseUnifiedType(TokenStream& stream);
+
+        /// @brief Convert GenericType to UnifiedType
+        [[nodiscard]] static types::UnifiedTypePtr
+        convertGenericTypeToUnifiedType(const std::shared_ptr<ast::GenericType>& genericType);
+
+        /// @brief Convert UnifiedType to GenericType (for backward compatibility)
+        [[nodiscard]] static std::shared_ptr<ast::GenericType>
+        convertUnifiedTypeToGenericType(const types::UnifiedTypePtr& unifiedType);
+
+        /// @brief Convert TypeInfo to UnifiedType
+        [[nodiscard]] static types::UnifiedTypePtr
+        convertTypeInfoToUnifiedType(const TypeInfo& typeInfo);
 
     private:
         // Helper for qualified name parsing (Class::member)

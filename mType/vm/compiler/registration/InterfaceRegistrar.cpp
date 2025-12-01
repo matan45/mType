@@ -33,10 +33,10 @@ namespace vm::compiler::registration
     }
     InterfaceRegistrar::InterfaceRegistrar(
         std::shared_ptr<environment::Environment> environment,
-        const types::GenericTypeResolver& genericResolver
+        ::types::TypeSubstitutionService& typeSubstitutionService
     )
         : environment(environment)
-        , genericResolver(genericResolver)
+        , typeSubstitutionService(typeSubstitutionService)
     {
     }
 
@@ -317,7 +317,7 @@ namespace vm::compiler::registration
         const std::string& interfaceName
     ) const
     {
-        return genericResolver.parseGenericTypeName(interfaceName);
+        return typeSubstitutionService.parseGenericTypeName(interfaceName);
     }
 
     std::string InterfaceRegistrar::resolveGenericType(
@@ -325,7 +325,7 @@ namespace vm::compiler::registration
         const std::unordered_map<std::string, std::string>& substitutions
     ) const
     {
-        return genericResolver.resolveGenericType(typeName, substitutions);
+        return typeSubstitutionService.resolveGenericType(typeName, substitutions);
     }
 
     void InterfaceRegistrar::registerInterfaces(ast::ASTNode* node)

@@ -3,7 +3,8 @@
 namespace environment::registry
 {
     ClassRegistry::ClassRegistry()
-        : inheritanceTracker(std::make_unique<InheritanceTracker>())
+        : inheritanceTracker(std::make_unique<InheritanceTracker>()),
+          reifiedTypeRegistry(std::make_shared<::types::ReifiedTypeRegistry>())
     {
         // Set callback so InheritanceTracker can find class definitions
         inheritanceTracker->setFindClassCallback([this](const std::string& name) {
@@ -73,5 +74,30 @@ namespace environment::registry
     std::string ClassRegistry::getParentClass(const std::string& childName) const
     {
         return inheritanceTracker->getParentClass(childName);
+    }
+
+    // NEW (Phase 4): Reified type management
+    ::types::UnifiedTypePtr ClassRegistry::getReifiedClassType(
+        const std::string& className,
+        const std::vector<::types::UnifiedTypePtr>& typeArguments)
+    {
+        // Create the class type with type arguments
+        auto classType = ::types::UnifiedType::classType(className, typeArguments);
+
+        // Intern through the reified type registry to ensure identity
+        return reifiedTypeRegistry->intern(classType);
+    }
+
+    bool ClassRegistry::isSameReifiedType(
+        const ::types::UnifiedTypePtr& type1,
+        const ::types::UnifiedTypePtr& type2) const
+    {
+        if (!type1 || !type2)
+        {
+            return type1 == type2; // Both null = same
+        }
+
+        // Use canonical string comparison for type identity
+        return type1->toCanonicalString() == type2->toCanonicalString();
     }
 }

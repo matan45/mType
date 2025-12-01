@@ -687,21 +687,10 @@ namespace vm::compiler::types
             }
         }
 
-        // If still not found through interfaces, check if class has an iterator() method
-        // This allows duck-typed iteration (e.g., HashMap has iterator() but doesn't implement Iterable)
-        if (!implementsIterable) {
-            auto iteratorMethod = classDef->findMethod("iterator", 0);
-            if (iteratorMethod) {
-                // Found iterator() method with no parameters
-                implementsIterable = true;
-            }
-        }
-
-        // If still not found, throw error
         if (!implementsIterable) {
             throw errors::TypeException(
                 "Type error: Cannot use for-each loop on type '" + className +
-                "' - it does not implement Iterable<T> interface and has no iterator() method",
+                "' - it does not implement Iterable<T> interface",
                 location
             );
         }

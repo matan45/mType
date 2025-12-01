@@ -16,20 +16,18 @@ class HashMap<K,V> implements Map<K,V> {
     int count;
 
     public constructor() {
-        this.capacity = 16; // Power of 2 for efficient modulo
-        this.keyBuckets = new K[this.capacity][4]; // 16 buckets, each starts with capacity 4
+        this.capacity = 16;
+        this.keyBuckets = new K[this.capacity][4];
         this.valueBuckets = new V[this.capacity][4];
         this.bucketSizes = new int[this.capacity];
         this.count = 0;
 
-        // Initialize bucket sizes
         for (int i = 0; i < this.capacity; i++) {
             this.bucketSizes[i] = 0;
         }
     }
 
     public function put(K key, V value): V {
-        // Null key validation
         if (key == null) {
             print("Error: HashMap.put() - key cannot be null");
             return null;
@@ -39,12 +37,10 @@ class HashMap<K,V> implements Map<K,V> {
         int keyIndex = this.findKeyInBucket(bucketIndex, key);
 
         if (keyIndex >= 0) {
-            // Update existing key, return old value
             V oldValue = this.valueBuckets[bucketIndex][keyIndex];
             this.valueBuckets[bucketIndex][keyIndex] = value;
             return oldValue;
         } else {
-            // Add new key-value pair
             if (this.bucketSizes[bucketIndex] >= this.keyBuckets[bucketIndex].length) {
                 this.resizeBucket(bucketIndex);
             }
@@ -55,16 +51,14 @@ class HashMap<K,V> implements Map<K,V> {
             this.bucketSizes[bucketIndex] = this.bucketSizes[bucketIndex] + 1;
             this.count++;
 
-            // Resize hash table if load factor exceeds 0.75
             if (this.count > this.capacity * 3 / 4) {
                 this.resize();
             }
-            return null;  // No previous value
+            return null;
         }
     }
 
     public function get(K key): V {
-        // Null key validation
         if (key == null) {
             print("Error: HashMap.get() - key cannot be null");
             return null;
@@ -76,11 +70,10 @@ class HashMap<K,V> implements Map<K,V> {
         if (keyIndex >= 0) {
             return this.valueBuckets[bucketIndex][keyIndex];
         }
-        return null; // Key not found
+        return null;
     }
 
     public function containsKey(K key): bool {
-        // Null key validation
         if (key == null) {
             print("Error: HashMap.containsKey() - key cannot be null");
             return false;
@@ -91,7 +84,6 @@ class HashMap<K,V> implements Map<K,V> {
     }
 
     public function remove(K key): bool {
-        // Null key validation
         if (key == null) {
             print("Error: HashMap.remove() - key cannot be null");
             return false;
@@ -101,7 +93,6 @@ class HashMap<K,V> implements Map<K,V> {
         int keyIndex = this.findKeyInBucket(bucketIndex, key);
 
         if (keyIndex >= 0) {
-            // Shift elements left in bucket
             for (int i = keyIndex; i < this.bucketSizes[bucketIndex] - 1; i++) {
                 this.keyBuckets[bucketIndex][i] = this.keyBuckets[bucketIndex][i + 1];
                 this.valueBuckets[bucketIndex][i] = this.valueBuckets[bucketIndex][i + 1];
@@ -128,7 +119,6 @@ class HashMap<K,V> implements Map<K,V> {
         this.count = 0;
     }
 
-    // Get all keys
     public function getKeys(): K[] {
         K[] result = new K[this.count];
         int index = 0;
@@ -142,7 +132,6 @@ class HashMap<K,V> implements Map<K,V> {
         return result;
     }
 
-    // Get all values
     public function getValues(): V[] {
         V[] result = new V[this.count];
         int index = 0;
@@ -156,67 +145,46 @@ class HashMap<K,V> implements Map<K,V> {
         return result;
     }
 
-    // Content-based hash code (order-independent)
+    public function toArray(): K[] {
+        return this.getKeys();
+    }
+
     public function hashCode(): int {
         int hash = 0;
         for (int bucket = 0; bucket < this.capacity; bucket++) {
             for (int i = 0; i < this.bucketSizes[bucket]; i++) {
                 int keyHash = hashCode(this.keyBuckets[bucket][i]);
                 int valueHash = hashCode(this.valueBuckets[bucket][i]);
-                hash = hash + keyHash + valueHash; // Addition for order independence
+                hash = hash + keyHash + valueHash;
             }
         }
         return hash;
     }
 
-    // ==================== Iterator Support ====================
-
-    /**
-     * Returns an iterator over the keys in this map.
-     * Default iterator for enhanced for-loop: for (K key : map)
-     */
     public function iterator(): Iterator<K> {
         return new HashMapKeyIterator<K>(this.getKeys());
     }
 
-    /**
-     * Returns an iterator over the entries (key-value pairs) in this map.
-     */
     public function entryIterator(): Iterator<MapEntry<K, V>> {
         return new HashMapEntryIterator<K, V>(this.getKeys(), this.getValues());
     }
 
-    /**
-     * Returns an iterator over the values in this map.
-     */
     public function valueIterator(): Iterator<V> {
         return new HashMapValueIterator<V>(this.getValues());
     }
 
-    // ==================== Stream Support ====================
-
-    /**
-     * Returns a stream over the keys in this map.
-     */
     public function stream(): Stream<K> {
         return new StreamImpl<K>(this.iterator());
     }
 
-    /**
-     * Returns a stream over the entries (key-value pairs) in this map.
-     */
     public function streamEntries(): Stream<MapEntry<K, V>> {
         return new StreamImpl<MapEntry<K, V>>(this.entryIterator());
     }
 
-    /**
-     * Returns a stream over the values in this map.
-     */
     public function streamValues(): Stream<V> {
         return new StreamImpl<V>(this.valueIterator());
     }
 
-    // Map interface methods - NEW
     public function containsValue(V value): bool {
         for (int bucket = 0; bucket < this.capacity; bucket++) {
             for (int i = 0; i < this.bucketSizes[bucket]; i++) {
@@ -239,29 +207,19 @@ class HashMap<K,V> implements Map<K,V> {
         }
     }
 
-    // Private helper methods
     function getBucketIndex(K key): int {
         int hash = key.hashCode();
 
-        // Apply secondary hash mixing using only basic arithmetic
-        // This is a simplified version of multiplicative hashing
-
-        // Handle negative values by taking absolute value
         if (hash < 0) {
             hash = -hash;
-            if (hash < 0) { // Handle edge case of Integer.MIN_VALUE
+            if (hash < 0) {
                 hash = hash + 1;
             }
         }
 
-        // Apply multiplicative hash with good distribution properties
-        // Using a large prime for mixing
-        hash = hash * 1610612741; // Large prime constant for mixing (within int range)
+        hash = hash * 1610612741;
+        hash = hash + (hash / this.capacity);
 
-        // Additional mixing to reduce clustering
-        hash = hash + (hash / this.capacity); // Simple avalanche effect
-
-        // Ensure positive and within bounds
         if (hash < 0) {
             hash = -hash;
         }
@@ -297,25 +255,21 @@ class HashMap<K,V> implements Map<K,V> {
     }
 
     function resize(): void {
-        // Save current state
         K[][] oldKeyBuckets = this.keyBuckets;
         V[][] oldValueBuckets = this.valueBuckets;
         int[] oldBucketSizes = this.bucketSizes;
         int oldCapacity = this.capacity;
 
-        // Double capacity
         this.capacity = this.capacity * 2;
         this.keyBuckets = new K[this.capacity][4];
         this.valueBuckets = new V[this.capacity][4];
         this.bucketSizes = new int[this.capacity];
         this.count = 0;
 
-        // Initialize new bucket sizes
         for (int i = 0; i < this.capacity; i++) {
             this.bucketSizes[i] = 0;
         }
 
-        // Rehash all existing elements
         for (int bucket = 0; bucket < oldCapacity; bucket++) {
             for (int i = 0; i < oldBucketSizes[bucket]; i++) {
                 this.put(oldKeyBuckets[bucket][i], oldValueBuckets[bucket][i]);

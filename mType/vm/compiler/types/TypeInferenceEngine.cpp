@@ -309,10 +309,9 @@ namespace vm::compiler::types
                         substitutions[genericTypeParams[i]] = genericTypeArgs[i];
                     }
 
-                    // Use GenericTypeResolver to handle complex types like R[], List<R>, etc.
+                    // Use TypeSubstitutionService to handle complex types like R[], List<R>, etc.
                     if (!substitutions.empty())
                     {
-                        // Include GenericTypeResolver at the top of this file
                         // For now, manually resolve array types
                         size_t arrayPos = returnType.find('[');
                         if (arrayPos != std::string::npos)

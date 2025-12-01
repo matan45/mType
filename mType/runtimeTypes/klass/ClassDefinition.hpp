@@ -11,6 +11,7 @@
 #include "../Definition.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
+#include "../../types/UnifiedType.hpp"
 
 namespace vm
 {
@@ -55,6 +56,15 @@ namespace runtimeTypes::klass
         // Maps parent's generic type parameters to concrete types
         // E.g., when StringProcessor extends Processor<String>, maps: T → String
         std::unordered_map<std::string, std::string> parentTypeSubstitutionMap;
+
+        // NEW (Phase 4): Full inheritance substitution chain for multi-level inheritance
+        // For GrandChild<Int> extends Child<String> extends Parent<T>:
+        // Stores: [{T: String}, {U: Int}] - ordered from root to current
+        std::vector<::types::TypeSubstitutionMap> inheritanceSubstitutionChain;
+
+        // NEW (Phase 4): Reified type for this class instantiation
+        // E.g., Container<String> as a distinct type from Container<Int>
+        ::types::UnifiedTypePtr reifiedType;
 
         // NEW: Final modifier to prevent inheritance
         bool finalClass;
@@ -236,6 +246,33 @@ namespace runtimeTypes::klass
         {
             parentTypeSubstitutionMap[genericParam] = concreteType;
         }
+
+        // NEW (Phase 4): Inheritance substitution chain methods
+        const std::vector<::types::TypeSubstitutionMap>& getInheritanceSubstitutionChain() const
+        {
+            return inheritanceSubstitutionChain;
+        }
+
+        void setInheritanceSubstitutionChain(const std::vector<::types::TypeSubstitutionMap>& chain)
+        {
+            inheritanceSubstitutionChain = chain;
+        }
+
+        void addToInheritanceChain(const ::types::TypeSubstitutionMap& substitutions)
+        {
+            inheritanceSubstitutionChain.push_back(substitutions);
+        }
+
+        // NEW (Phase 4): Reified type methods
+        ::types::UnifiedTypePtr getReifiedType() const { return reifiedType; }
+
+        void setReifiedType(::types::UnifiedTypePtr type)
+        {
+            reifiedType = std::move(type);
+        }
+
+        // NEW (Phase 4): Resolve a type considering the full inheritance chain
+        ::types::UnifiedTypePtr resolveTypeInContext(const ::types::UnifiedTypePtr& type) const;
 
         // Polymorphic method lookup
         std::shared_ptr<MethodDefinition> findMethodInHierarchy(const std::string& methodName, size_t argCount) const;

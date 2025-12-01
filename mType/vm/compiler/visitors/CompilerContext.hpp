@@ -10,7 +10,7 @@
 #include "../control/ExceptionContextManager.hpp"
 #include "../types/TypeInferenceEngine.hpp"
 #include "../types/TypeValidator.hpp"
-#include "../types/GenericTypeResolver.hpp"
+#include "../../../types/TypeSubstitutionService.hpp"
 #include "../types/ExpectedTypeContext.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../ast/ASTVisitor.hpp"
@@ -52,7 +52,7 @@ namespace vm::compiler::visitors
         control::ExceptionContextManager& exceptionManager;
         types::TypeInferenceEngine& typeInference;
         types::TypeValidator& typeValidator;
-        types::GenericTypeResolver& genericResolver;
+        ::types::TypeSubstitutionService& typeSubstitutionService;
         validation::CompileTimeValidator* compileTimeValidator = nullptr;
         std::shared_ptr<circularDependency::CircularDependencyDetector> staticFieldInitDetector;
 
@@ -87,7 +87,7 @@ namespace vm::compiler::visitors
             control::ExceptionContextManager& excMgr,
             types::TypeInferenceEngine& typeInf,
             types::TypeValidator& typeVal,
-            types::GenericTypeResolver& genericRes
+            ::types::TypeSubstitutionService& typeSubstService
         )
             : visitor(vis)
             , program(prog)
@@ -101,7 +101,7 @@ namespace vm::compiler::visitors
             , exceptionManager(excMgr)
             , typeInference(typeInf)
             , typeValidator(typeVal)
-            , genericResolver(genericRes)
+            , typeSubstitutionService(typeSubstService)
         {
         }
 
@@ -136,9 +136,8 @@ namespace vm::compiler::visitors
                 return typeName;  // No bindings available
             }
 
-            // Use GenericTypeResolver to handle nested generics (e.g., "TypeToken<T>" -> "TypeToken<Int>")
-            types::GenericTypeResolver resolver;
-            return resolver.resolveGenericType(typeName, genericTypeBindingStack.back());
+            // Use TypeSubstitutionService to handle nested generics (e.g., "TypeToken<T>" -> "TypeToken<Int>")
+            return typeSubstitutionService.resolveGenericType(typeName, genericTypeBindingStack.back());
         }
 
         // Expected type context management for bidirectional type checking

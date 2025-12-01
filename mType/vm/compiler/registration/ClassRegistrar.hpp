@@ -3,6 +3,8 @@
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
+#include "../../../types/UnifiedType.hpp"
+#include "../../../types/TypeSubstitutionService.hpp"
 #include "InterfaceRegistrar.hpp"
 #include "ClassInheritanceValidator.hpp"
 #include <memory>
@@ -83,5 +85,15 @@ namespace vm::compiler::registration
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass
         ) const;
         std::vector<std::string> parseGenericTypeArguments(const std::string& classNameWithGenerics) const;
+
+        // NEW: UnifiedType-based substitution methods
+        void parseAndStoreUnifiedTypeSubstitutions(
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+            const std::string& parentClassNameWithGenerics,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass
+        ) const;
+
+        // Type substitution service (shared across compiler)
+        std::shared_ptr<::types::TypeSubstitutionService> typeSubstitutionService;
     };
 }

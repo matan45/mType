@@ -2,6 +2,7 @@
 #include "Registry.hpp"
 #include "InheritanceTracker.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../types/ReifiedTypeRegistry.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,11 +16,13 @@ namespace environment::registry
      *
      * Manages class definitions and delegates inheritance relationship
      * management to InheritanceTracker for better separation of concerns.
+     * Also integrates with ReifiedTypeRegistry for generic type reification.
      */
     class ClassRegistry : public Registry<ClassDefinition>
     {
     private:
         std::unique_ptr<InheritanceTracker> inheritanceTracker;
+        std::shared_ptr<::types::ReifiedTypeRegistry> reifiedTypeRegistry;
 
     public:
         ClassRegistry();
@@ -40,5 +43,21 @@ namespace environment::registry
         [[nodiscard]] std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain(const std::string& className) const;
         [[nodiscard]] std::vector<std::string> getChildClasses(const std::string& parentName) const;
         [[nodiscard]] std::string getParentClass(const std::string& childName) const;
+
+        // NEW (Phase 4): Reified type management for generic classes
+        [[nodiscard]] std::shared_ptr<::types::ReifiedTypeRegistry> getReifiedTypeRegistry() const
+        {
+            return reifiedTypeRegistry;
+        }
+
+        // Get or create a reified type for a generic class instantiation (e.g., Container<String>)
+        [[nodiscard]] ::types::UnifiedTypePtr getReifiedClassType(
+            const std::string& className,
+            const std::vector<::types::UnifiedTypePtr>& typeArguments);
+
+        // Check if two generic class instances are the same reified type
+        [[nodiscard]] bool isSameReifiedType(
+            const ::types::UnifiedTypePtr& type1,
+            const ::types::UnifiedTypePtr& type2) const;
     };
 }

@@ -1,10 +1,10 @@
 // Map<K,V> - Collection of key-value pairs
 // Each key maps to at most one value (no duplicate keys)
-// Separate hierarchy from Collection (not iterable directly)
 
 import * from "../Iterator.mt";
+import * from "../Iterable.mt";
 
-interface Map<K,V> {
+interface Map<K,V> extends Iterable<K> {
     // ===== Core operations =====
 
     // Associates the specified value with the specified key
