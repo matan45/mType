@@ -139,8 +139,8 @@ namespace vm::runtime
 
         // Integer operations
         if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
-            int l = std::get<int64_t>(unboxedLeft);
-            int r = std::get<int64_t>(unboxedRight);
+            int64_t l = std::get<int64_t>(unboxedLeft);
+            int64_t r = std::get<int64_t>(unboxedRight);
             switch (op) {
                 case OpCode::ADD: return l + r;
                 case OpCode::SUB: return l - r;

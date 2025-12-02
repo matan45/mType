@@ -23,10 +23,11 @@ namespace environment::registry::builtin
                 std::hash<std::string> hasher;
                 return static_cast<int>(hasher(value.getString()) & 0x7FFFFFFF);
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
+            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int64_t>)
             {
-                std::hash<int> hasher;
-                return static_cast<int>(hasher(value) & 0x7FFFFFFF);
+                // Return 31-bit positive hash to prevent overflow when used in hash calculations
+                std::hash<int64_t> hasher;
+                return static_cast<int64_t>(hasher(value) & 0x7FFFFFFF);
             }
             else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
             {

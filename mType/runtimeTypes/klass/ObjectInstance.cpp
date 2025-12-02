@@ -150,7 +150,7 @@ namespace runtimeTypes::klass
             
             // Convert field value to string
             std::visit([&hash](const auto& v) {
-                if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int>) {
+                if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int64_t>) {
                     hash += std::to_string(v);
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, float>) {
                     hash += std::to_string(v);
@@ -187,7 +187,7 @@ namespace runtimeTypes::klass
                     if (!thisV && !otherV) return true;
                     if (!thisV || !otherV) return false;
                     return thisV->contentEquals(*otherV);
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, int> ||
+                } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, int64_t> ||
                                    std::is_same_v<std::decay_t<decltype(thisV)>, float> ||
                                    std::is_same_v<std::decay_t<decltype(thisV)>, bool> ||
                                    std::is_same_v<std::decay_t<decltype(thisV)>, std::string>) {

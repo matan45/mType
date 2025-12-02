@@ -20,7 +20,7 @@ namespace environment::registry::builtin
             {
                 return value.getString();
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
+            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int64_t>)
             {
                 return std::to_string(value);
             }
