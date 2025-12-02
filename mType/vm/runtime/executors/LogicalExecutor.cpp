@@ -26,8 +26,8 @@ namespace vm::runtime
         if (std::holds_alternative<bool>(val)) {
             return std::get<bool>(val);
         }
-        if (std::holds_alternative<int>(val)) {
-            return std::get<int>(val) != 0;
+        if (std::holds_alternative<int64_t>(val)) {
+            return std::get<int64_t>(val) != 0;
         }
         if (std::holds_alternative<nullptr_t>(val)) {
             return false;

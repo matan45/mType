@@ -106,7 +106,7 @@ namespace vm::optimization::patterns
             Replacement rep(3);
             rep.instructions.push_back(BytecodeProgram::Instruction(
                 i3.opcode == OpCode::MUL_INT ? OpCode::PUSH_INT : OpCode::PUSH_FLOAT,
-                static_cast<uint32_t>(zeroIdx)
+                static_cast<uint64_t>(zeroIdx)
             ));
             return rep;
         }

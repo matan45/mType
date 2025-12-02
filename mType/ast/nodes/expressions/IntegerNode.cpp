@@ -2,13 +2,13 @@
 
 namespace ast::nodes::expressions
 {
-    IntegerNode::IntegerNode(int val, const SourceLocation& loc)
+    IntegerNode::IntegerNode(int64_t val, const SourceLocation& loc)
     : ASTNode(loc), value(val) {}
 
-    int IntegerNode::getValue() const
+    int64_t IntegerNode::getValue() const
     { return value; }
 
-    void IntegerNode::setValue(int val)
+    void IntegerNode::setValue(int64_t val)
     { value = val; }
 
     Value IntegerNode::accept(ASTVisitor<Value>& visitor)

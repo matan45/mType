@@ -33,8 +33,8 @@ std::shared_ptr<runtimeTypes::klass::ObjectInstance> IntegerCache::createCachedI
     );
 
     // Initialize the 'value' field with the cached integer value
-    // Int class has a private 'value' field of type int
-    instance->setField("value", static_cast<int>(value));
+    // Int class has a private 'value' field of type int64_t
+    instance->setField("value", value);
 
     return instance;
 }

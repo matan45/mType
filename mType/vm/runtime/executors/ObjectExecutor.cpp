@@ -278,11 +278,11 @@ namespace vm::runtime
                 bool needsBoxing = false;
                 std::string boxClassName;
 
-                if (expectedType == "Int" && std::holds_alternative<int>(argValue)) {
+                if (expectedType == "Int" && std::holds_alternative<int64_t>(argValue)) {
                     needsBoxing = true;
                     boxClassName = "Int";
                 }
-                else if (expectedType == "Float" && (std::holds_alternative<float>(argValue) || std::holds_alternative<int>(argValue))) {
+                else if (expectedType == "Float" && (std::holds_alternative<float>(argValue) || std::holds_alternative<int64_t>(argValue))) {
                     needsBoxing = true;
                     boxClassName = "Float";
                 }
@@ -682,7 +682,7 @@ namespace vm::runtime
             // Set the array field directly (constructor would do this, but let's do it directly)
             // ArrayIteratorHelper has fields: array, index
             iteratorInstance->setField("array", collectionValue);
-            iteratorInstance->setField("index", 0);
+            iteratorInstance->setField("index", static_cast<int64_t>(0));
 
             // Push the iterator onto the stack
             context.stackManager->push(iteratorInstance);

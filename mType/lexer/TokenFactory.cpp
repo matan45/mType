@@ -14,7 +14,7 @@ namespace lexer
         return empty;
     }
 
-    Token TokenFactory::createIntegerToken(int value, const errors::SourceLocation& location)
+    Token TokenFactory::createIntegerToken(int64_t value, const errors::SourceLocation& location)
     {
         return Token{TokenType::INT_NUMBER, 0.0f, value, emptyString(), location};
     }

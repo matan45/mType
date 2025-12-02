@@ -37,14 +37,14 @@ namespace vm::runtime
 
         // Array creation helpers
         std::shared_ptr<value::NativeArray> createJaggedArray(
-            const std::vector<int>& dimensions,
+            const std::vector<int64_t>& dimensions,
             size_t dimIndex,
             const std::string& elementTypeName,
             size_t totalDimensions
         );
 
         std::shared_ptr<value::NativeArray> createNestedArray(
-            const std::vector<int>& dimensions,
+            const std::vector<int64_t>& dimensions,
             size_t dimIndex,
             const std::string& elementTypeName
         );
@@ -56,13 +56,13 @@ namespace vm::runtime
         );
 
         // Helper methods for handleArrayGet
-        void getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int index);
-        void getFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int index);
-        void getSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int index);
+        void getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index);
+        void getFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index);
+        void getSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index);
 
         // Helper methods for handleArraySet
-        void setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int index, const value::Value& valueToSet);
-        void setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int index, const value::Value& valueToSet);
-        void setSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int index, const value::Value& valueToSet);
+        void setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index, const value::Value& valueToSet);
+        void setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index, const value::Value& valueToSet);
+        void setSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index, const value::Value& valueToSet);
     };
 }

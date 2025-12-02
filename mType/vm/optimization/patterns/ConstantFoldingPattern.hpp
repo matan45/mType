@@ -69,13 +69,13 @@ namespace vm::optimization::patterns
                                 size_t offset) const;
 
         // Helper: Perform integer operation
-        int performIntOp(bytecode::OpCode op, int a, int b) const;
+        int64_t performIntOp(bytecode::OpCode op, int64_t a, int64_t b) const;
 
         // Helper: Perform float operation
         double performFloatOp(bytecode::OpCode op, double a, double b) const;
 
         // Helper: Perform comparison
-        bool performComparison(bytecode::OpCode op, int a, int b) const;
+        bool performComparison(bytecode::OpCode op, int64_t a, int64_t b) const;
     };
 
 } // namespace vm::optimization::patterns

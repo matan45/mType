@@ -186,7 +186,7 @@ namespace vm::runtime
                 if (std::holds_alternative<std::monostate>(initialValue)) {
                     switch (fieldDef->getType()) {
                         case value::ValueType::INT:
-                            initialValue = 0;
+                            initialValue = static_cast<int64_t>(0);
                             break;
                         case value::ValueType::FLOAT:
                             initialValue = 0.0f;
@@ -659,8 +659,8 @@ namespace vm::runtime
 
         // PHASE 2 OPTIMIZATION: Integer Caching
         // If creating Int object with single int argument in cacheable range, use cached instance
-        if (baseClassName == "Int" && argCount == 1 && std::holds_alternative<int>(args[0])) {
-            int intValue = std::get<int>(args[0]);
+        if (baseClassName == "Int" && argCount == 1 && std::holds_alternative<int64_t>(args[0])) {
+            int intValue = std::get<int64_t>(args[0]);
 
             // Check if value is cacheable
             if (value::IntegerCache::isCacheable(intValue)) {

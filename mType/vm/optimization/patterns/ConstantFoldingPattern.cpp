@@ -127,17 +127,17 @@ namespace vm::optimization::patterns
         const auto& i2 = program.getInstruction(offset + 1);
         const auto& i3 = program.getInstruction(offset + 2);
 
-        int val1 = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
-        int val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
+        int64_t val1 = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
+        int64_t val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
 
-        int result = performIntOp(i3.opcode, val1, val2);
+        int64_t result = performIntOp(i3.opcode, val1, val2);
 
         // Add result to constant pool
         auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
         size_t resultIdx = mutablePool.addInteger(result);
 
         Replacement rep(3);
-        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_INT, static_cast<uint32_t>(resultIdx)));
+        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_INT, static_cast<uint64_t>(resultIdx)));
 
         return rep;
     }
@@ -191,7 +191,7 @@ namespace vm::optimization::patterns
         size_t resultIdx = mutablePool.addFloat(result);
 
         Replacement rep(3);
-        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_FLOAT, static_cast<uint32_t>(resultIdx)));
+        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_FLOAT, static_cast<uint64_t>(resultIdx)));
 
         return rep;
     }
@@ -239,21 +239,21 @@ namespace vm::optimization::patterns
 
         if (i2.opcode == OpCode::NEG)
         {
-            int val = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
-            int result = -val;
+            int64_t val = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
+            int64_t result = -val;
 
             auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
             size_t resultIdx = mutablePool.addInteger(result);
-            rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_INT, static_cast<uint32_t>(resultIdx)));
+            rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_INT, static_cast<uint64_t>(resultIdx)));
         }
         else if (i2.opcode == OpCode::NOT)
         {
-            int val = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);  // Boolean stored as int
-            int result = !val;
+            int64_t val = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);  // Boolean stored as int64_t
+            int64_t result = !val;
 
             auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
             size_t resultIdx = mutablePool.addInteger(result);
-            rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, static_cast<uint32_t>(resultIdx)));
+            rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, static_cast<uint64_t>(resultIdx)));
         }
 
         return rep;
@@ -310,8 +310,8 @@ namespace vm::optimization::patterns
         const auto& i2 = program.getInstruction(offset + 1);
         const auto& i3 = program.getInstruction(offset + 2);
 
-        int val1 = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
-        int val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
+        int64_t val1 = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
+        int64_t val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
 
         bool result = performComparison(i3.opcode, val1, val2);
 
@@ -319,7 +319,7 @@ namespace vm::optimization::patterns
         size_t resultIdx = mutablePool.addInteger(result ? 1 : 0);
 
         Replacement rep(3);
-        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, static_cast<uint32_t>(resultIdx)));
+        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, static_cast<uint64_t>(resultIdx)));
 
         return rep;
     }
@@ -377,14 +377,14 @@ namespace vm::optimization::patterns
         size_t resultIdx = mutablePool.addInteger(result ? 1 : 0);
 
         Replacement rep(3);
-        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, static_cast<uint32_t>(resultIdx)));
+        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, static_cast<uint64_t>(resultIdx)));
 
         return rep;
     }
 
     // === Helper Methods ===
 
-    int ConstantFoldingPattern::performIntOp(OpCode op, int a, int b) const
+    int64_t ConstantFoldingPattern::performIntOp(OpCode op, int64_t a, int64_t b) const
     {
         switch (op)
         {
@@ -409,7 +409,7 @@ namespace vm::optimization::patterns
         }
     }
 
-    bool ConstantFoldingPattern::performComparison(OpCode op, int a, int b) const
+    bool ConstantFoldingPattern::performComparison(OpCode op, int64_t a, int64_t b) const
     {
         switch (op)
         {

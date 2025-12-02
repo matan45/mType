@@ -12,18 +12,18 @@ namespace vm::bytecode
 
     BytecodeProgram::Instruction::Instruction(OpCode op) : opcode(op) {}
 
-    BytecodeProgram::Instruction::Instruction(OpCode op, uint32_t operand1)
+    BytecodeProgram::Instruction::Instruction(OpCode op, uint64_t operand1)
         : opcode(op), operands{operand1} {}
 
-    BytecodeProgram::Instruction::Instruction(OpCode op, uint32_t operand1, uint32_t operand2)
+    BytecodeProgram::Instruction::Instruction(OpCode op, uint64_t operand1, uint64_t operand2)
         : opcode(op), operands{operand1, operand2} {}
 
-    BytecodeProgram::Instruction::Instruction(OpCode op, std::vector<uint32_t> ops)
+    BytecodeProgram::Instruction::Instruction(OpCode op, std::vector<uint64_t> ops)
         : opcode(op), operands(std::move(ops)) {}
 
     // === ConstantPool Implementation ===
 
-    size_t BytecodeProgram::ConstantPool::addInteger(int value) {
+    size_t BytecodeProgram::ConstantPool::addInteger(int64_t value) {
         integers.push_back(value);
         return integers.size() - 1;
     }
@@ -44,7 +44,7 @@ namespace vm::bytecode
         return index;
     }
 
-    int BytecodeProgram::ConstantPool::getInteger(size_t index) const {
+    int64_t BytecodeProgram::ConstantPool::getInteger(size_t index) const {
         return integers.at(index);
     }
 
@@ -64,15 +64,15 @@ namespace vm::bytecode
         instructions.emplace_back(opcode);
     }
 
-    void BytecodeProgram::emit(OpCode opcode, uint32_t operand) {
+    void BytecodeProgram::emit(OpCode opcode, uint64_t operand) {
         instructions.emplace_back(opcode, operand);
     }
 
-    void BytecodeProgram::emit(OpCode opcode, uint32_t operand1, uint32_t operand2) {
+    void BytecodeProgram::emit(OpCode opcode, uint64_t operand1, uint64_t operand2) {
         instructions.emplace_back(opcode, operand1, operand2);
     }
 
-    void BytecodeProgram::emit(OpCode opcode, const std::vector<uint32_t>& operands) {
+    void BytecodeProgram::emit(OpCode opcode, const std::vector<uint64_t>& operands) {
         instructions.emplace_back(opcode, operands);
     }
 
@@ -80,7 +80,7 @@ namespace vm::bytecode
         return instructions.size();
     }
 
-    void BytecodeProgram::patchJump(size_t instructionIndex, uint32_t targetOffset) {
+    void BytecodeProgram::patchJump(size_t instructionIndex, uint64_t targetOffset) {
         if (instructionIndex < instructions.size() && !instructions[instructionIndex].operands.empty()) {
             instructions[instructionIndex].operands[0] = targetOffset;
         }
@@ -433,7 +433,7 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
         // Write version
-        uint32_t version = 1;
+        uint32_t version = 2;  // Version 2: 64-bit integers and operands
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
         // Write entry point
@@ -476,8 +476,13 @@ namespace vm::bytecode
         // Read version
         uint32_t version;
         in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version != 1) {
-            throw std::runtime_error("Unsupported bytecode version");
+        if (version == 1) {
+            throw std::runtime_error(
+                "Bytecode file uses version 1 (32-bit integers). "
+                "Please recompile from source using the current compiler.");
+        }
+        if (version != 2) {
+            throw std::runtime_error("Unsupported bytecode version: " + std::to_string(version));
         }
 
         // Read entry point
@@ -514,11 +519,11 @@ namespace vm::bytecode
     // === Private Serialization Helpers ===
 
     void BytecodeProgram::writeConstantPool(std::ostream& out) const {
-        // Write integers
+        // Write integers (64-bit)
         size_t count = constantPool.integers.size();
         out.write(reinterpret_cast<const char*>(&count), sizeof(count));
         out.write(reinterpret_cast<const char*>(constantPool.integers.data()),
-                 count * sizeof(int));
+                 count * sizeof(int64_t));
 
         // Write floats
         count = constantPool.floats.size();
@@ -537,12 +542,12 @@ namespace vm::bytecode
     }
 
     void BytecodeProgram::readConstantPool(std::istream& in) {
-        // Read integers
+        // Read integers (64-bit)
         size_t count;
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
         constantPool.integers.resize(count);
         in.read(reinterpret_cast<char*>(constantPool.integers.data()),
-               count * sizeof(int));
+               count * sizeof(int64_t));
 
         // Read floats
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
@@ -572,7 +577,7 @@ namespace vm::bytecode
             out.write(reinterpret_cast<const char*>(&opCount), sizeof(opCount));
             if (opCount > 0) {
                 out.write(reinterpret_cast<const char*>(instr.operands.data()),
-                         opCount * sizeof(uint32_t));
+                         opCount * sizeof(uint64_t));
             }
         }
     }
@@ -589,7 +594,7 @@ namespace vm::bytecode
             if (opCount > 0) {
                 instructions[i].operands.resize(opCount);
                 in.read(reinterpret_cast<char*>(instructions[i].operands.data()),
-                       opCount * sizeof(uint32_t));
+                       opCount * sizeof(uint64_t));
             }
         }
     }

@@ -22,7 +22,7 @@ namespace vm::optimization::patterns
          * @return The integer value
          * @throws std::runtime_error if operand doesn't exist or pool index is invalid
          */
-        static int safeGetInteger(const bytecode::BytecodeProgram::ConstantPool& pool,
+        static int64_t safeGetInteger(const bytecode::BytecodeProgram::ConstantPool& pool,
                                   const bytecode::BytecodeProgram::Instruction& instr,
                                   size_t operandIndex = 0,
                                   size_t instrOffset = 0);
@@ -63,7 +63,7 @@ namespace vm::optimization::patterns
          * @return The operand value
          * @throws std::runtime_error if operand doesn't exist
          */
-        static uint32_t safeGetOperand(const bytecode::BytecodeProgram::Instruction& instr,
+        static uint64_t safeGetOperand(const bytecode::BytecodeProgram::Instruction& instr,
                                        size_t operandIndex = 0,
                                        size_t instrOffset = 0);
 

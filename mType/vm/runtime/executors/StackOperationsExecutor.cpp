@@ -11,7 +11,7 @@ namespace vm::runtime
         if (instr.operands.empty()) {
             throw errors::RuntimeException("PUSH_INT requires operand");
         }
-        int value = context.program->getConstantPool().getInteger(instr.operands[0]);
+        int64_t value = context.program->getConstantPool().getInteger(instr.operands[0]);
         context.stackManager->push(value);
     }
 

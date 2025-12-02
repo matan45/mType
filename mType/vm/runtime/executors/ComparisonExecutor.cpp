@@ -35,10 +35,10 @@ namespace vm::runtime
         }
 
         // Handle bool-to-int conversion for comparisons
-        if (std::holds_alternative<bool>(left) && std::holds_alternative<int>(right)) {
-            context.stackManager->push(static_cast<int>(std::get<bool>(left)) == std::get<int>(right));
-        } else if (std::holds_alternative<int>(left) && std::holds_alternative<bool>(right)) {
-            context.stackManager->push(std::get<int>(left) == static_cast<int>(std::get<bool>(right)));
+        if (std::holds_alternative<bool>(left) && std::holds_alternative<int64_t>(right)) {
+            context.stackManager->push(static_cast<int>(std::get<bool>(left)) == std::get<int64_t>(right));
+        } else if (std::holds_alternative<int64_t>(left) && std::holds_alternative<bool>(right)) {
+            context.stackManager->push(std::get<int64_t>(left) == static_cast<int>(std::get<bool>(right)));
         } else {
             // Direct equality comparison
             context.stackManager->push(left == right);
@@ -70,8 +70,8 @@ namespace vm::runtime
         value::Value unboxedLeft = unboxIfNeeded(left);
         value::Value unboxedRight = unboxIfNeeded(right);
 
-        if (std::holds_alternative<int>(unboxedLeft) && std::holds_alternative<int>(unboxedRight)) {
-            context.stackManager->push(std::get<int>(unboxedLeft) < std::get<int>(unboxedRight));
+        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
+            context.stackManager->push(std::get<int64_t>(unboxedLeft) < std::get<int64_t>(unboxedRight));
         } else if (std::holds_alternative<float>(unboxedLeft) && std::holds_alternative<float>(unboxedRight)) {
             context.stackManager->push(std::get<float>(unboxedLeft) < std::get<float>(unboxedRight));
         } else {
@@ -87,8 +87,8 @@ namespace vm::runtime
         value::Value unboxedLeft = unboxIfNeeded(left);
         value::Value unboxedRight = unboxIfNeeded(right);
 
-        if (std::holds_alternative<int>(unboxedLeft) && std::holds_alternative<int>(unboxedRight)) {
-            context.stackManager->push(std::get<int>(unboxedLeft) > std::get<int>(unboxedRight));
+        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
+            context.stackManager->push(std::get<int64_t>(unboxedLeft) > std::get<int64_t>(unboxedRight));
         } else if (std::holds_alternative<float>(unboxedLeft) && std::holds_alternative<float>(unboxedRight)) {
             context.stackManager->push(std::get<float>(unboxedLeft) > std::get<float>(unboxedRight));
         } else {
@@ -104,8 +104,8 @@ namespace vm::runtime
         value::Value unboxedLeft = unboxIfNeeded(left);
         value::Value unboxedRight = unboxIfNeeded(right);
 
-        if (std::holds_alternative<int>(unboxedLeft) && std::holds_alternative<int>(unboxedRight)) {
-            context.stackManager->push(std::get<int>(unboxedLeft) <= std::get<int>(unboxedRight));
+        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
+            context.stackManager->push(std::get<int64_t>(unboxedLeft) <= std::get<int64_t>(unboxedRight));
         } else if (std::holds_alternative<float>(unboxedLeft) && std::holds_alternative<float>(unboxedRight)) {
             context.stackManager->push(std::get<float>(unboxedLeft) <= std::get<float>(unboxedRight));
         } else {
@@ -121,8 +121,8 @@ namespace vm::runtime
         value::Value unboxedLeft = unboxIfNeeded(left);
         value::Value unboxedRight = unboxIfNeeded(right);
 
-        if (std::holds_alternative<int>(unboxedLeft) && std::holds_alternative<int>(unboxedRight)) {
-            context.stackManager->push(std::get<int>(unboxedLeft) >= std::get<int>(unboxedRight));
+        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
+            context.stackManager->push(std::get<int64_t>(unboxedLeft) >= std::get<int64_t>(unboxedRight));
         } else if (std::holds_alternative<float>(unboxedLeft) && std::holds_alternative<float>(unboxedRight)) {
             context.stackManager->push(std::get<float>(unboxedLeft) >= std::get<float>(unboxedRight));
         } else {

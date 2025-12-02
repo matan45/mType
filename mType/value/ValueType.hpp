@@ -45,7 +45,7 @@ namespace value
     };
 
     // Runtime value that can hold different types
-    using Value = std::variant<int, float, bool, std::string, InternedString, std::monostate,
+    using Value = std::variant<int64_t, float, bool, std::string, InternedString, std::monostate,
                                std::shared_ptr<runtimeTypes::klass::ObjectInstance>,
                                std::shared_ptr<NativeArray>,
                                std::shared_ptr<FlatMultiArray>,

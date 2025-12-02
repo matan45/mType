@@ -24,13 +24,13 @@ namespace vm::bytecode
         struct Instruction
         {
             OpCode opcode;
-            std::vector<uint32_t> operands;
+            std::vector<uint64_t> operands;
 
             Instruction();
             Instruction(OpCode op);
-            Instruction(OpCode op, uint32_t operand1);
-            Instruction(OpCode op, uint32_t operand1, uint32_t operand2);
-            Instruction(OpCode op, std::vector<uint32_t> ops);
+            Instruction(OpCode op, uint64_t operand1);
+            Instruction(OpCode op, uint64_t operand1, uint64_t operand2);
+            Instruction(OpCode op, std::vector<uint64_t> ops);
         };
 
         /**
@@ -38,15 +38,15 @@ namespace vm::bytecode
          */
         struct ConstantPool
         {
-            std::vector<int> integers;
+            std::vector<int64_t> integers;
             std::vector<double> floats;
             std::vector<std::string> strings;
             std::unordered_map<std::string, size_t> stringIndexMap;
 
-            size_t addInteger(int value);
+            size_t addInteger(int64_t value);
             size_t addFloat(double value);
             size_t addString(const std::string& value);
-            int getInteger(size_t index) const;
+            int64_t getInteger(size_t index) const;
             double getFloat(size_t index) const;
             const std::string& getString(size_t index) const;
         };
@@ -192,12 +192,12 @@ namespace vm::bytecode
 
         // Instruction Management
         void emit(OpCode opcode);
-        void emit(OpCode opcode, uint32_t operand);
-        void emit(OpCode opcode, uint32_t operand1, uint32_t operand2);
-        void emit(OpCode opcode, const std::vector<uint32_t>& operands);
+        void emit(OpCode opcode, uint64_t operand);
+        void emit(OpCode opcode, uint64_t operand1, uint64_t operand2);
+        void emit(OpCode opcode, const std::vector<uint64_t>& operands);
 
         size_t getCurrentOffset() const;
-        void patchJump(size_t instructionIndex, uint32_t targetOffset);
+        void patchJump(size_t instructionIndex, uint64_t targetOffset);
 
         const Instruction& getInstruction(size_t offset) const;
         const std::vector<Instruction>& getInstructions() const;

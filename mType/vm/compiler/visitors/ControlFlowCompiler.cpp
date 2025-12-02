@@ -28,7 +28,7 @@ namespace vm::compiler::visitors
                 // Auto-unbox: call getValue() to get primitive bool
                 size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(methodNameIndex),
+                                             static_cast<uint64_t>(methodNameIndex),
                                              0u,  // 0 arguments
                                              node->getCondition());
             }
@@ -87,7 +87,7 @@ namespace vm::compiler::visitors
                 // Auto-unbox: call getValue() to get primitive bool
                 size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(methodNameIndex),
+                                             static_cast<uint64_t>(methodNameIndex),
                                              0u,  // 0 arguments
                                              node->getCondition());
             }
@@ -117,7 +117,7 @@ namespace vm::compiler::visitors
             ctx.emitter.patchJump(breakJump);
         }
         for (size_t continueJump : ctx.loopManager.getContinueJumps()) {
-            ctx.program.patchJump(continueJump, static_cast<uint32_t>(loopStart));
+            ctx.program.patchJump(continueJump, static_cast<uint64_t>(loopStart));
         }
         ctx.loopManager.exitLoop();
 
@@ -153,7 +153,7 @@ namespace vm::compiler::visitors
                 // Auto-unbox: call getValue() to get primitive bool
                 size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(methodNameIndex),
+                                             static_cast<uint64_t>(methodNameIndex),
                                              0u,  // 0 arguments
                                              node->getCondition());
             }
@@ -161,7 +161,7 @@ namespace vm::compiler::visitors
 
         // Jump back to start if condition is true
         size_t continueJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
-        ctx.program.patchJump(continueJump, static_cast<uint32_t>(loopStart));
+        ctx.program.patchJump(continueJump, static_cast<uint64_t>(loopStart));
 
         // Emit LOOP_END marker
         ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
@@ -171,7 +171,7 @@ namespace vm::compiler::visitors
             ctx.emitter.patchJump(breakJump);
         }
         for (size_t contJump : ctx.loopManager.getContinueJumps()) {
-            ctx.program.patchJump(contJump, static_cast<uint32_t>(loopStart));
+            ctx.program.patchJump(contJump, static_cast<uint64_t>(loopStart));
         }
         ctx.loopManager.exitLoop();
 
@@ -238,7 +238,7 @@ namespace vm::compiler::visitors
             ctx.emitter.patchJump(breakJump);
         }
         for (size_t continueJump : ctx.loopManager.getContinueJumps()) {
-            ctx.program.patchJump(continueJump, static_cast<uint32_t>(incrementStart));
+            ctx.program.patchJump(continueJump, static_cast<uint64_t>(incrementStart));
         }
         ctx.loopManager.exitLoop();
 
@@ -317,47 +317,47 @@ namespace vm::compiler::visitors
             ctx.variableTracker.declareLocal("__foreach_array__", value::ValueType::OBJECT, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t arraySlot = ctx.variableTracker.getNextLocalSlot() - 1;
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(arraySlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(arraySlot), node);
 
             // Get array length
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arraySlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(arraySlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
 
             // Store length in local
             ctx.variableTracker.declareLocal("__foreach_length__", value::ValueType::INT, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t lengthSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(lengthSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(lengthSlot), node);
 
             // Initialize counter
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
-                           static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(0)), node);
+                           static_cast<uint64_t>(ctx.program.getConstantPool().addInteger(0)), node);
             ctx.variableTracker.declareLocal("__foreach_counter__", value::ValueType::INT, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t counterSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(counterSlot), node);
 
             // Emit LOOP_START marker for optimization passes
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
 
             // Loop start
             size_t loopStart = ctx.program.getCurrentOffset();
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot), node);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(lengthSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(lengthSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::LT, node);
 
             size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
             // Get current element
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(arraySlot), node);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(arraySlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(counterSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET, node);
 
             // Store in loop variable
             ctx.variableTracker.declareLocal(varName, varType, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(loopVarSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(loopVarSlot), node);
 
             // Enter loop context
             size_t continueTarget = ctx.program.getCurrentOffset();
@@ -371,11 +371,11 @@ namespace vm::compiler::visitors
             ctx.loopManager.exitLoop();
 
             // Increment counter
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(counterSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
-                           static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(1)), node);
+                           static_cast<uint64_t>(ctx.program.getConstantPool().addInteger(1)), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ADD, node);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(counterSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
 
             // Jump back to loop start
@@ -436,28 +436,28 @@ namespace vm::compiler::visitors
             ctx.variableTracker.declareLocal("__foreach_iterator__", value::ValueType::OBJECT, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t iteratorSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(iteratorSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
 
             // Emit LOOP_START marker
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
 
             // Loop start - check hasNext()
             size_t loopStart = ctx.program.getCurrentOffset();
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(iteratorSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_HAS_NEXT, node);
 
             // Jump if false (no more elements)
             size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
             // Get next element
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(iteratorSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_NEXT, node);
 
             // Store in loop variable
             ctx.variableTracker.declareLocal(varName, varType, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(loopVarSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(loopVarSlot), node);
 
             // Enter loop context
             size_t continueTarget = ctx.program.getCurrentOffset();
@@ -480,7 +480,7 @@ namespace vm::compiler::visitors
             ctx.emitter.patchJump(exitJump);
 
             // Cleanup: Close the iterator
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(iteratorSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_CLOSE, node);
         }
 
@@ -548,7 +548,7 @@ namespace vm::compiler::visitors
         // Patch jump to default or end
         ctx.emitter.patchJump(jumpToDefaultOrEnd);
         if (defaultBodyStart != SIZE_MAX) {
-            ctx.emitter.emitWithLocation(bytecode::OpCode::JUMP, static_cast<uint32_t>(defaultBodyStart), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::JUMP, static_cast<uint64_t>(defaultBodyStart), node);
         } else {
             ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
         }
