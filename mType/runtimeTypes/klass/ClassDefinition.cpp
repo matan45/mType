@@ -59,7 +59,7 @@ namespace runtimeTypes::klass
 
                 // Get the runtime type of the argument
                 value::ValueType argType;
-                if (std::holds_alternative<int>(arg)) {
+                if (std::holds_alternative<int64_t>(arg)) {
                     argType = value::ValueType::INT;
                 } else if (std::holds_alternative<float>(arg)) {
                     argType = value::ValueType::FLOAT;

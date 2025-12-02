@@ -30,10 +30,10 @@ namespace environment::registry::builtin
         }, args[0]);
 
         // Extract startIndex
-        int startIndex = 0;
+        int64_t startIndex = 0;
         std::visit([&startIndex](const auto& value)
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
+            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int64_t>)
             {
                 startIndex = value;
             }
@@ -44,10 +44,10 @@ namespace environment::registry::builtin
         }, args[1]);
 
         // Extract length
-        int length = 0;
+        int64_t length = 0;
         std::visit([&length](const auto& value)
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int>)
+            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int64_t>)
             {
                 length = value;
             }

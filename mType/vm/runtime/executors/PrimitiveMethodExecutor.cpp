@@ -13,7 +13,7 @@ PrimitiveMethodExecutor::PrimitiveMethodExecutor(ExecutionContext& ctx)
 
 // === Helper Methods ===
 
-int PrimitiveMethodExecutor::unboxInt(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj) {
+int64_t PrimitiveMethodExecutor::unboxInt(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj) {
     if (!obj) {
         throw errors::RuntimeException("Cannot unbox null Int object");
     }
@@ -21,11 +21,11 @@ int PrimitiveMethodExecutor::unboxInt(const std::shared_ptr<runtimeTypes::klass:
     // Get the 'value' field from the Int object
     value::Value fieldValue = obj->getFieldValue("value");
 
-    if (!std::holds_alternative<int>(fieldValue)) {
+    if (!std::holds_alternative<int64_t>(fieldValue)) {
         throw errors::RuntimeException("Int object 'value' field is not an int");
     }
 
-    return std::get<int>(fieldValue);
+    return std::get<int64_t>(fieldValue);
 }
 
 float PrimitiveMethodExecutor::unboxFloat(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj) {
@@ -43,7 +43,7 @@ float PrimitiveMethodExecutor::unboxFloat(const std::shared_ptr<runtimeTypes::kl
     return std::get<float>(fieldValue);
 }
 
-std::shared_ptr<runtimeTypes::klass::ObjectInstance> PrimitiveMethodExecutor::boxInt(int value) {
+std::shared_ptr<runtimeTypes::klass::ObjectInstance> PrimitiveMethodExecutor::boxInt(int64_t value) {
     // Get Int class definition (cached)
     auto intClass = getIntClass();
 
@@ -123,15 +123,15 @@ void PrimitiveMethodExecutor::handleInvokeIntAdd() {
     // 1. Pop argument
     value::Value argValue = context.stackManager->pop();
     auto argObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(argValue);
-    int arg = unboxInt(argObj);
+    int64_t arg = unboxInt(argObj);
 
     // 2. Pop receiver
     value::Value receiverValue = context.stackManager->pop();
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-    int receiver = unboxInt(receiverObj);
+    int64_t receiver = unboxInt(receiverObj);
 
     // 3. Fast arithmetic
-    int result = receiver + arg;
+    int64_t result = receiver + arg;
 
     // 4. Box result (with caching)
     auto resultObj = boxInt(result);
@@ -143,13 +143,13 @@ void PrimitiveMethodExecutor::handleInvokeIntAdd() {
 void PrimitiveMethodExecutor::handleInvokeIntSub() {
     value::Value argValue = context.stackManager->pop();
     auto argObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(argValue);
-    int arg = unboxInt(argObj);
+    int64_t arg = unboxInt(argObj);
 
     value::Value receiverValue = context.stackManager->pop();
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-    int receiver = unboxInt(receiverObj);
+    int64_t receiver = unboxInt(receiverObj);
 
-    int result = receiver - arg;
+    int64_t result = receiver - arg;
     auto resultObj = boxInt(result);
     context.stackManager->push(resultObj);
 }
@@ -157,13 +157,13 @@ void PrimitiveMethodExecutor::handleInvokeIntSub() {
 void PrimitiveMethodExecutor::handleInvokeIntMul() {
     value::Value argValue = context.stackManager->pop();
     auto argObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(argValue);
-    int arg = unboxInt(argObj);
+    int64_t arg = unboxInt(argObj);
 
     value::Value receiverValue = context.stackManager->pop();
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-    int receiver = unboxInt(receiverObj);
+    int64_t receiver = unboxInt(receiverObj);
 
-    int result = receiver * arg;
+    int64_t result = receiver * arg;
     auto resultObj = boxInt(result);
     context.stackManager->push(resultObj);
 }
@@ -171,7 +171,7 @@ void PrimitiveMethodExecutor::handleInvokeIntMul() {
 void PrimitiveMethodExecutor::handleInvokeIntDiv() {
     value::Value argValue = context.stackManager->pop();
     auto argObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(argValue);
-    int arg = unboxInt(argObj);
+    int64_t arg = unboxInt(argObj);
 
     // Check for division by zero
     if (arg == 0) {
@@ -180,9 +180,9 @@ void PrimitiveMethodExecutor::handleInvokeIntDiv() {
 
     value::Value receiverValue = context.stackManager->pop();
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-    int receiver = unboxInt(receiverObj);
+    int64_t receiver = unboxInt(receiverObj);
 
-    int result = receiver / arg;
+    int64_t result = receiver / arg;
     auto resultObj = boxInt(result);
     context.stackManager->push(resultObj);
 }
@@ -190,7 +190,7 @@ void PrimitiveMethodExecutor::handleInvokeIntDiv() {
 void PrimitiveMethodExecutor::handleInvokeIntMod() {
     value::Value argValue = context.stackManager->pop();
     auto argObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(argValue);
-    int arg = unboxInt(argObj);
+    int64_t arg = unboxInt(argObj);
 
     // Check for modulo by zero
     if (arg == 0) {
@@ -199,9 +199,9 @@ void PrimitiveMethodExecutor::handleInvokeIntMod() {
 
     value::Value receiverValue = context.stackManager->pop();
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-    int receiver = unboxInt(receiverObj);
+    int64_t receiver = unboxInt(receiverObj);
 
-    int result = receiver % arg;
+    int64_t result = receiver % arg;
     auto resultObj = boxInt(result);
     context.stackManager->push(resultObj);
 }
@@ -212,9 +212,9 @@ void PrimitiveMethodExecutor::handleInvokeIntNeg() {
 
     value::Value receiverValue = context.stackManager->pop();
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-    int receiver = unboxInt(receiverObj);
+    int64_t receiver = unboxInt(receiverObj);
 
-    int result = -receiver;
+    int64_t result = -receiver;
     auto resultObj = boxInt(result);
     context.stackManager->push(resultObj);
 }
@@ -222,9 +222,9 @@ void PrimitiveMethodExecutor::handleInvokeIntNeg() {
 void PrimitiveMethodExecutor::handleInvokeIntAbs() {
     value::Value receiverValue = context.stackManager->pop();
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-    int receiver = unboxInt(receiverObj);
+    int64_t receiver = unboxInt(receiverObj);
 
-    int result = (receiver < 0) ? -receiver : receiver;
+    int64_t result = (receiver < 0) ? -receiver : receiver;
     auto resultObj = boxInt(result);
     context.stackManager->push(resultObj);
 }
@@ -233,11 +233,11 @@ void PrimitiveMethodExecutor::handleInvokeIntEquals() {
     // Returns primitive bool, not Bool object
     value::Value argValue = context.stackManager->pop();
     auto argObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(argValue);
-    int arg = unboxInt(argObj);
+    int64_t arg = unboxInt(argObj);
 
     value::Value receiverValue = context.stackManager->pop();
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-    int receiver = unboxInt(receiverObj);
+    int64_t receiver = unboxInt(receiverObj);
 
     bool result = (receiver == arg);
     context.stackManager->push(result);
@@ -247,11 +247,11 @@ void PrimitiveMethodExecutor::handleInvokeIntCompare() {
     // Returns primitive int: -1, 0, or 1
     value::Value argValue = context.stackManager->pop();
     auto argObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(argValue);
-    int arg = unboxInt(argObj);
+    int64_t arg = unboxInt(argObj);
 
     value::Value receiverValue = context.stackManager->pop();
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-    int receiver = unboxInt(receiverObj);
+    int64_t receiver = unboxInt(receiverObj);
 
     int result = (receiver < arg) ? -1 : (receiver > arg) ? 1 : 0;
     context.stackManager->push(result);
@@ -355,7 +355,7 @@ void PrimitiveMethodExecutor::handleInvokeFloatEquals() {
 }
 
 void PrimitiveMethodExecutor::handleInvokeFloatCompare() {
-    // Returns primitive int: -1, 0, or 1
+    // Returns primitive int64_t: -1, 0, or 1
     value::Value argValue = context.stackManager->pop();
     auto argObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(argValue);
     float arg = unboxFloat(argObj);
@@ -364,7 +364,7 @@ void PrimitiveMethodExecutor::handleInvokeFloatCompare() {
     auto receiverObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
     float receiver = unboxFloat(receiverObj);
 
-    int result = (receiver < arg) ? -1 : (receiver > arg) ? 1 : 0;
+    int64_t result = (receiver < arg) ? -1 : (receiver > arg) ? 1 : 0;
     context.stackManager->push(result);
 }
 

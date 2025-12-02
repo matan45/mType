@@ -20,46 +20,46 @@ namespace mType::value::simd
      * New implementation: 8 template functions + 4 policies = 12 implementations total
      */
 
-    // ========== INTEGER OPERATIONS ==========
+    // ========== INTEGER OPERATIONS (64-bit) ==========
 
-    void SIMDOperations::addInt(const int* a, const int* b, int* result, size_t size)
+    void SIMDOperations::addInt(const int64_t* a, const int64_t* b, int64_t* result, size_t size)
     {
-        addImpl<IntPolicy, int>(a, b, result, size);
+        addImpl<Int64Policy, int64_t>(a, b, result, size);
     }
 
-    void SIMDOperations::addScalarInt(const int* a, int scalar, int* result, size_t size)
+    void SIMDOperations::addScalarInt(const int64_t* a, int64_t scalar, int64_t* result, size_t size)
     {
-        addScalarImpl<IntPolicy, int>(a, scalar, result, size);
+        addScalarImpl<Int64Policy, int64_t>(a, scalar, result, size);
     }
 
-    void SIMDOperations::subtractInt(const int* a, const int* b, int* result, size_t size)
+    void SIMDOperations::subtractInt(const int64_t* a, const int64_t* b, int64_t* result, size_t size)
     {
-        subtractImpl<IntPolicy, int>(a, b, result, size);
+        subtractImpl<Int64Policy, int64_t>(a, b, result, size);
     }
 
-    void SIMDOperations::multiplyInt(const int* a, const int* b, int* result, size_t size)
+    void SIMDOperations::multiplyInt(const int64_t* a, const int64_t* b, int64_t* result, size_t size)
     {
-        multiplyImpl<IntPolicy, int>(a, b, result, size);
+        multiplyImpl<Int64Policy, int64_t>(a, b, result, size);
     }
 
-    void SIMDOperations::multiplyScalarInt(const int* a, int scalar, int* result, size_t size)
+    void SIMDOperations::multiplyScalarInt(const int64_t* a, int64_t scalar, int64_t* result, size_t size)
     {
-        multiplyScalarImpl<IntPolicy, int>(a, scalar, result, size);
+        multiplyScalarImpl<Int64Policy, int64_t>(a, scalar, result, size);
     }
 
-    int SIMDOperations::sumInt(const int* data, size_t size)
+    int64_t SIMDOperations::sumInt(const int64_t* data, size_t size)
     {
-        return sumImpl<IntPolicy, int>(data, size);
+        return sumImpl<Int64Policy, int64_t>(data, size);
     }
 
-    int SIMDOperations::minInt(const int* data, size_t size)
+    int64_t SIMDOperations::minInt(const int64_t* data, size_t size)
     {
-        return minImpl<IntPolicy, int>(data, size);
+        return minImpl<Int64Policy, int64_t>(data, size);
     }
 
-    int SIMDOperations::maxInt(const int* data, size_t size)
+    int64_t SIMDOperations::maxInt(const int64_t* data, size_t size)
     {
-        return maxImpl<IntPolicy, int>(data, size);
+        return maxImpl<Int64Policy, int64_t>(data, size);
     }
 
     // ========== FLOAT OPERATIONS ==========

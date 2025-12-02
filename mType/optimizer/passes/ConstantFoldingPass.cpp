@@ -79,9 +79,9 @@ namespace optimizer::passes
         const SourceLocation& loc
     )
     {
-        if (std::holds_alternative<int>(value))
+        if (std::holds_alternative<int64_t>(value))
         {
-            return std::make_unique<ast::nodes::expressions::IntegerNode>(std::get<int>(value), loc);
+            return std::make_unique<ast::nodes::expressions::IntegerNode>(std::get<int64_t>(value), loc);
         }
         if (std::holds_alternative<float>(value))
         {

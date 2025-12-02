@@ -11,21 +11,21 @@ namespace vm::compiler::visitors
     value::Value LiteralCompiler::compileInteger(ast::IntegerNode* node)
     {
         size_t index = ctx.program.getConstantPool().addInteger(node->getValue());
-        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(index), node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint64_t>(index), node);
         return std::monostate{};
     }
 
     value::Value LiteralCompiler::compileFloat(ast::FloatNode* node)
     {
         size_t index = ctx.program.getConstantPool().addFloat(node->getValue());
-        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_FLOAT, static_cast<uint32_t>(index), node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_FLOAT, static_cast<uint64_t>(index), node);
         return std::monostate{};
     }
 
     value::Value LiteralCompiler::compileString(ast::StringNode* node)
     {
         size_t index = ctx.program.getConstantPool().addString(node->getValue());
-        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_STRING, static_cast<uint32_t>(index), node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_STRING, static_cast<uint64_t>(index), node);
         return std::monostate{};
     }
 

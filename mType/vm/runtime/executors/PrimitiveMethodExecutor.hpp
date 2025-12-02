@@ -69,9 +69,9 @@ private:
     /**
      * Unbox an Int object to get its primitive int value
      * @param obj The Int object
-     * @return The primitive int value from the 'value' field
+     * @return The primitive int64_t value from the 'value' field
      */
-    int unboxInt(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+    int64_t unboxInt(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
 
     /**
      * Unbox a Float object to get its primitive float value
@@ -82,10 +82,10 @@ private:
 
     /**
      * Box a primitive int value into an Int object (with caching)
-     * @param value The primitive int value
+     * @param value The primitive int64_t value
      * @return Shared pointer to Int object (cached if in range)
      */
-    std::shared_ptr<runtimeTypes::klass::ObjectInstance> boxInt(int value);
+    std::shared_ptr<runtimeTypes::klass::ObjectInstance> boxInt(int64_t value);
 
     /**
      * Box a primitive float value into a Float object

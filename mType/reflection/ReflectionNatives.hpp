@@ -481,7 +481,7 @@ namespace reflection
         // ========== Helper Methods ==========
 
         static void validateArgCount(const std::vector<value::Value>& args, size_t expected, const std::string& funcName);
-        static int extractInt(const value::Value& arg, const std::string& funcName, const std::string& paramName);
+        static int64_t extractInt(const value::Value& arg, const std::string& funcName, const std::string& paramName);
         static const std::string& extractString(const value::Value& arg, const std::string& funcName, const std::string& paramName);
         static bool extractBool(const value::Value& arg, const std::string& funcName, const std::string& paramName);
         static std::shared_ptr<runtimeTypes::klass::ObjectInstance> extractObject(

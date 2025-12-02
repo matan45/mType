@@ -252,6 +252,46 @@ namespace mType::value::simd
     using IntPolicy = ScalarIntPolicy;
 #endif
 
+    // ========== INT64 POLICY (Scalar only - SIMD for 64-bit integers is complex) ==========
+    /**
+     * @brief Scalar policy for 64-bit integers
+     *
+     * Note: SIMD support for 64-bit integers is limited:
+     * - SSE2: Has add/sub but NO multiply, NO min/max for 64-bit integers
+     * - AVX2: Has add/sub but NO multiply, NO min/max for 64-bit integers
+     * - AVX-512: Full support but limited availability
+     *
+     * For simplicity and portability, we use scalar operations for int64_t.
+     * The performance impact is minimal since:
+     * 1. Modern CPUs have fast 64-bit arithmetic
+     * 2. Memory bandwidth is often the bottleneck anyway
+     * 3. Most mType arrays are not large enough for SIMD to matter significantly
+     */
+    struct ScalarInt64Policy
+    {
+        using VectorType = int64_t;
+        static constexpr size_t WIDTH = 1;
+        static constexpr const char* NAME = "Scalar64";
+
+        static inline VectorType load(const int64_t* ptr) { return *ptr; }
+        static inline void store(int64_t* ptr, VectorType v) { *ptr = v; }
+
+        static inline VectorType add(VectorType a, VectorType b) { return a + b; }
+        static inline VectorType subtract(VectorType a, VectorType b) { return a - b; }
+        static inline VectorType multiply(VectorType a, VectorType b) { return a * b; }
+        static inline VectorType set1(int64_t value) { return value; }
+
+        static inline VectorType min(VectorType a, VectorType b) { return std::min(a, b); }
+        static inline VectorType max(VectorType a, VectorType b) { return std::max(a, b); }
+        static inline VectorType zero() { return 0; }
+
+        static inline int64_t horizontal_sum(VectorType v) { return v; }
+        static inline int64_t horizontal_min(VectorType v) { return v; }
+        static inline int64_t horizontal_max(VectorType v) { return v; }
+    };
+
+    using Int64Policy = ScalarInt64Policy;
+
     // ========== FLOAT SIMD POLICIES ==========
 
 #if defined(MTYPE_SIMD_AVX2)

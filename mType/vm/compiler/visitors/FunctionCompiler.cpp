@@ -426,7 +426,7 @@ namespace vm::compiler::visitors
             }
 
             // Store return value in the special slot
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeReturnSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeReturnSlot), node);
         }
         else
         {
@@ -440,7 +440,7 @@ namespace vm::compiler::visitors
             }
 
             // Store return value
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeReturnSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeReturnSlot), node);
         }
 
         // Jump to finally
@@ -475,7 +475,7 @@ namespace vm::compiler::visitors
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
             }
             // Store return value in outer slot
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeOuterReturnSlot),
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeOuterReturnSlot),
                                          node);
         }
         else
@@ -490,7 +490,7 @@ namespace vm::compiler::visitors
             }
 
             // Store return value
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeOuterReturnSlot),
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeOuterReturnSlot),
                                          node);
         }
 
@@ -809,43 +809,43 @@ namespace vm::compiler::visitors
         //                   paramNameIdx1, ..., paramNameIdxN,
         //                   capturedNameIdx1, ..., capturedNameIdxN,
         //                   parentNameIdx1, parentSlot1, ...]
-        std::vector<uint32_t> operands;
-        operands.push_back(static_cast<uint32_t>(lambdaStart));
-        operands.push_back(static_cast<uint32_t>(params.size()));
-        operands.push_back(static_cast<uint32_t>(capturedVars.size()));
-        operands.push_back(static_cast<uint32_t>(currentLocals.size())); // Number of parent locals
+        std::vector<uint64_t> operands;
+        operands.push_back(static_cast<uint64_t>(lambdaStart));
+        operands.push_back(static_cast<uint64_t>(params.size()));
+        operands.push_back(static_cast<uint64_t>(capturedVars.size()));
+        operands.push_back(static_cast<uint64_t>(currentLocals.size())); // Number of parent locals
 
         // Add lambda function name for metadata lookup
         size_t funcNameIdx = ctx.program.getConstantPool().addString(lambdaFuncName);
-        operands.push_back(static_cast<uint32_t>(funcNameIdx));
+        operands.push_back(static_cast<uint64_t>(funcNameIdx));
 
         // Add captured variable slot numbers
         for (const auto& capture : capturedVars)
         {
             size_t relativeSlot = capture.slot - currentFrameStart;
-            operands.push_back(static_cast<uint32_t>(relativeSlot));
+            operands.push_back(static_cast<uint64_t>(relativeSlot));
         }
 
         // Add parameter names for debugging
         for (const auto& param : params)
         {
             size_t nameIndex = ctx.program.getConstantPool().addString(param.name);
-            operands.push_back(static_cast<uint32_t>(nameIndex));
+            operands.push_back(static_cast<uint64_t>(nameIndex));
         }
 
         // Add captured variable names for debugging (in the same order as capture slots)
         for (const auto& capture : capturedVars)
         {
             size_t nameIndex = ctx.program.getConstantPool().addString(capture.name);
-            operands.push_back(static_cast<uint32_t>(nameIndex));
+            operands.push_back(static_cast<uint64_t>(nameIndex));
         }
 
         // Add parent local variable name->slot mapping for late-bound access
         for (const auto& local : currentLocals)
         {
             size_t nameIndex = ctx.program.getConstantPool().addString(local.name);
-            operands.push_back(static_cast<uint32_t>(nameIndex));
-            operands.push_back(static_cast<uint32_t>(local.slot));
+            operands.push_back(static_cast<uint64_t>(nameIndex));
+            operands.push_back(static_cast<uint64_t>(local.slot));
         }
 
         ctx.emitter.emitWithLocation(bytecode::OpCode::LAMBDA, operands, node);
@@ -959,7 +959,7 @@ namespace vm::compiler::visitors
         size_t lambdaEnd = ctx.program.getCurrentOffset();
 
         // Patch the skip jump to here
-        ctx.program.patchJump(skipJump, static_cast<uint32_t>(lambdaEnd));
+        ctx.program.patchJump(skipJump, static_cast<uint64_t>(lambdaEnd));
 
         // Update lambda metadata (preserving exception table from body compilation)
         auto* existingMetadata = const_cast<bytecode::BytecodeProgram::FunctionMetadata*>(
@@ -1102,7 +1102,7 @@ namespace vm::compiler::visitors
         // 2. Emit NEW_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(expectedReturnType);
         ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                     static_cast<uint32_t>(classNameIndex),
+                                     static_cast<uint64_t>(classNameIndex),
                                      1u, // 1 constructor argument
                                      literalToBox);
 

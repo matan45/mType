@@ -42,8 +42,8 @@ namespace vm::runtime
 
     void ArithmeticExecutor::handleNeg() {
         value::Value val = context.stackManager->pop();
-        if (std::holds_alternative<int>(val)) {
-            context.stackManager->push(-std::get<int>(val));
+        if (std::holds_alternative<int64_t>(val)) {
+            context.stackManager->push(-std::get<int64_t>(val));
         } else if (std::holds_alternative<float>(val)) {
             context.stackManager->push(-std::get<float>(val));
         } else {
@@ -53,8 +53,8 @@ namespace vm::runtime
 
     void ArithmeticExecutor::handleInc() {
         value::Value val = context.stackManager->pop();
-        if (std::holds_alternative<int>(val)) {
-            context.stackManager->push(std::get<int>(val) + 1);
+        if (std::holds_alternative<int64_t>(val)) {
+            context.stackManager->push(std::get<int64_t>(val) + 1);
         } else if (std::holds_alternative<float>(val)) {
             context.stackManager->push(std::get<float>(val) + 1.0f);
         } else {
@@ -64,8 +64,8 @@ namespace vm::runtime
 
     void ArithmeticExecutor::handleDec() {
         value::Value val = context.stackManager->pop();
-        if (std::holds_alternative<int>(val)) {
-            context.stackManager->push(std::get<int>(val) - 1);
+        if (std::holds_alternative<int64_t>(val)) {
+            context.stackManager->push(std::get<int64_t>(val) - 1);
         } else if (std::holds_alternative<float>(val)) {
             context.stackManager->push(std::get<float>(val) - 1.0f);
         } else {
@@ -77,8 +77,8 @@ namespace vm::runtime
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: ADD_INT requires 2 values");
         }
-        int right = std::get<int>(context.stackManager->pop());
-        int left = std::get<int>(context.stackManager->pop());
+        int64_t right = std::get<int64_t>(context.stackManager->pop());
+        int64_t left = std::get<int64_t>(context.stackManager->pop());
         context.stackManager->push(left + right);
     }
 
@@ -86,8 +86,8 @@ namespace vm::runtime
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: SUB_INT requires 2 values");
         }
-        int right = std::get<int>(context.stackManager->pop());
-        int left = std::get<int>(context.stackManager->pop());
+        int64_t right = std::get<int64_t>(context.stackManager->pop());
+        int64_t left = std::get<int64_t>(context.stackManager->pop());
         context.stackManager->push(left - right);
     }
 
@@ -95,8 +95,8 @@ namespace vm::runtime
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: MUL_INT requires 2 values");
         }
-        int right = std::get<int>(context.stackManager->pop());
-        int left = std::get<int>(context.stackManager->pop());
+        int64_t right = std::get<int64_t>(context.stackManager->pop());
+        int64_t left = std::get<int64_t>(context.stackManager->pop());
         context.stackManager->push(left * right);
     }
 
@@ -104,8 +104,8 @@ namespace vm::runtime
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: DIV_INT requires 2 values");
         }
-        int right = std::get<int>(context.stackManager->pop());
-        int left = std::get<int>(context.stackManager->pop());
+        int64_t right = std::get<int64_t>(context.stackManager->pop());
+        int64_t left = std::get<int64_t>(context.stackManager->pop());
         if (right == 0) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
         }
@@ -138,9 +138,9 @@ namespace vm::runtime
         }
 
         // Integer operations
-        if (std::holds_alternative<int>(unboxedLeft) && std::holds_alternative<int>(unboxedRight)) {
-            int l = std::get<int>(unboxedLeft);
-            int r = std::get<int>(unboxedRight);
+        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
+            int64_t l = std::get<int64_t>(unboxedLeft);
+            int64_t r = std::get<int64_t>(unboxedRight);
             switch (op) {
                 case OpCode::ADD: return l + r;
                 case OpCode::SUB: return l - r;
@@ -160,10 +160,10 @@ namespace vm::runtime
         }
 
         // Float operations
-        if ((std::holds_alternative<float>(unboxedLeft) || std::holds_alternative<int>(unboxedLeft)) &&
-            (std::holds_alternative<float>(unboxedRight) || std::holds_alternative<int>(unboxedRight))) {
-            float l = std::holds_alternative<float>(unboxedLeft) ? std::get<float>(unboxedLeft) : static_cast<float>(std::get<int>(unboxedLeft));
-            float r = std::holds_alternative<float>(unboxedRight) ? std::get<float>(unboxedRight) : static_cast<float>(std::get<int>(unboxedRight));
+        if ((std::holds_alternative<float>(unboxedLeft) || std::holds_alternative<int64_t>(unboxedLeft)) &&
+            (std::holds_alternative<float>(unboxedRight) || std::holds_alternative<int64_t>(unboxedRight))) {
+            float l = std::holds_alternative<float>(unboxedLeft) ? std::get<float>(unboxedLeft) : static_cast<float>(std::get<int64_t>(unboxedLeft));
+            float r = std::holds_alternative<float>(unboxedRight) ? std::get<float>(unboxedRight) : static_cast<float>(std::get<int64_t>(unboxedRight));
             switch (op) {
                 case OpCode::ADD: return l + r;
                 case OpCode::SUB: return l - r;
@@ -198,8 +198,8 @@ namespace vm::runtime
     }
 
     std::string ArithmeticExecutor::valueToString(const value::Value& val) const {
-        if (std::holds_alternative<int>(val)) {
-            return std::to_string(std::get<int>(val));
+        if (std::holds_alternative<int64_t>(val)) {
+            return std::to_string(std::get<int64_t>(val));
         }
         if (std::holds_alternative<float>(val)) {
             // Format float to match interpreter behavior (remove trailing zeros)

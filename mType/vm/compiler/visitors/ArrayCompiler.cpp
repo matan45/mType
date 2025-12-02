@@ -30,7 +30,7 @@ namespace vm::compiler::visitors
             size_t typeNameIndex = ctx.program.getConstantPool().addString(typeInfo.toString());
 
             // Emit NEW_ARRAY with element type and source location
-            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_ARRAY, static_cast<uint32_t>(typeNameIndex), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_ARRAY, static_cast<uint64_t>(typeNameIndex), node);
         }
         else {
             // Multi-dimensional array: new Type[size1][size2]...
@@ -48,10 +48,10 @@ namespace vm::compiler::visitors
 
             // Emit NEW_ARRAY_MULTI with element type, total dimensions, and specified dimensions
             ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_ARRAY_MULTI,
-                           std::vector<uint32_t>{
-                               static_cast<uint32_t>(typeNameIndex),
-                               static_cast<uint32_t>(dimensionCount),
-                               static_cast<uint32_t>(specifiedDimensions)
+                           std::vector<uint64_t>{
+                               static_cast<uint64_t>(typeNameIndex),
+                               static_cast<uint64_t>(dimensionCount),
+                               static_cast<uint64_t>(specifiedDimensions)
                            }, node);
         }
 
@@ -122,11 +122,11 @@ namespace vm::compiler::visitors
 
         // Push array size onto stack
         ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
-                       static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(static_cast<int>(elementCount))), node);
+                       static_cast<uint64_t>(ctx.program.getConstantPool().addInteger(static_cast<int64_t>(elementCount))), node);
 
         // Create array with generic "Object" type (type will be inferred from elements)
         size_t typeNameIndex = ctx.program.getConstantPool().addString("Object");
-        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_ARRAY, static_cast<uint32_t>(typeNameIndex), node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_ARRAY, static_cast<uint64_t>(typeNameIndex), node);
 
         // Array is now on stack. For each element:
         // 1. Duplicate array reference
@@ -138,7 +138,7 @@ namespace vm::compiler::visitors
 
             // Push index
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
-                           static_cast<uint32_t>(ctx.program.getConstantPool().addInteger(static_cast<int>(i))), node);
+                           static_cast<uint64_t>(ctx.program.getConstantPool().addInteger(static_cast<int64_t>(i))), node);
 
             // Compile element value
             // Note: Auto-boxing for array literals is handled by VariableCompiler
@@ -207,7 +207,7 @@ namespace vm::compiler::visitors
                         node->getValue()->accept(ctx.visitor);
                         size_t classNameIndex = ctx.program.getConstantPool().addString(elementType);
                         ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                                     static_cast<uint32_t>(classNameIndex),
+                                                     static_cast<uint64_t>(classNameIndex),
                                                      1u,  // 1 constructor argument
                                                      node->getValue());
                         autoBoxed = true;

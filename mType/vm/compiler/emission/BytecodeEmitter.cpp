@@ -19,7 +19,7 @@ namespace vm::compiler::emission
         }
     }
 
-    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, uint32_t operand, ast::ASTNode* node)
+    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, uint64_t operand, ast::ASTNode* node)
     {
         size_t offset = program.getCurrentOffset();
         program.emit(opcode, operand);
@@ -30,7 +30,7 @@ namespace vm::compiler::emission
         }
     }
 
-    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, uint32_t operand1, uint32_t operand2, ast::ASTNode* node)
+    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, uint64_t operand1, uint64_t operand2, ast::ASTNode* node)
     {
         size_t offset = program.getCurrentOffset();
         program.emit(opcode, operand1, operand2);
@@ -41,10 +41,10 @@ namespace vm::compiler::emission
         }
     }
 
-    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, uint32_t operand1, uint32_t operand2, uint32_t operand3, ast::ASTNode* node)
+    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, uint64_t operand1, uint64_t operand2, uint64_t operand3, ast::ASTNode* node)
     {
         size_t offset = program.getCurrentOffset();
-        program.emit(opcode, std::vector<uint32_t>{operand1, operand2, operand3});
+        program.emit(opcode, std::vector<uint64_t>{operand1, operand2, operand3});
 
         if (node) {
             const auto& loc = node->getLocation();
@@ -52,7 +52,7 @@ namespace vm::compiler::emission
         }
     }
 
-    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, const std::vector<uint32_t>& operands, ast::ASTNode* node)
+    void BytecodeEmitter::emitWithLocation(bytecode::OpCode opcode, const std::vector<uint64_t>& operands, ast::ASTNode* node)
     {
         size_t offset = program.getCurrentOffset();
         program.emit(opcode, operands);
@@ -66,7 +66,7 @@ namespace vm::compiler::emission
     size_t BytecodeEmitter::emitJump(bytecode::OpCode jumpOp, ast::ASTNode* node)
     {
         size_t offset = program.getCurrentOffset();
-        program.emit(jumpOp, 0xFFFFFFFF);  // Placeholder offset
+        program.emit(jumpOp, 0xFFFFFFFFFFFFFFFF);  // Placeholder offset (64-bit)
 
         if (node) {
             const auto& loc = node->getLocation();
@@ -79,13 +79,13 @@ namespace vm::compiler::emission
     void BytecodeEmitter::patchJump(size_t offset)
     {
         size_t jumpTarget = program.getCurrentOffset();
-        program.patchJump(offset, static_cast<uint32_t>(jumpTarget));
+        program.patchJump(offset, static_cast<uint64_t>(jumpTarget));
     }
 
     void BytecodeEmitter::emitLoop(size_t loopStart, ast::ASTNode* node)
     {
         size_t offset = program.getCurrentOffset();
-        program.emit(bytecode::OpCode::JUMP_BACK, static_cast<uint32_t>(loopStart));
+        program.emit(bytecode::OpCode::JUMP_BACK, static_cast<uint64_t>(loopStart));
 
         if (node) {
             const auto& loc = node->getLocation();

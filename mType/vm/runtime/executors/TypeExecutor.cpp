@@ -59,7 +59,7 @@ namespace vm::runtime
 
     bool TypeExecutor::checkInstanceofPrimitive(const value::Value& val, const std::string& targetTypeName) {
         if (targetTypeName == "Int" || targetTypeName == "int") {
-            return std::holds_alternative<int>(val);
+            return std::holds_alternative<int64_t>(val);
         }
         if (targetTypeName == "Float" || targetTypeName == "float") {
             return std::holds_alternative<float>(val);
@@ -143,18 +143,18 @@ namespace vm::runtime
     }
 
     value::Value TypeExecutor::castToInt(const value::Value& val) {
-        if (std::holds_alternative<int>(val)) {
+        if (std::holds_alternative<int64_t>(val)) {
             return val; // Already int
         }
         else if (std::holds_alternative<float>(val)) {
-            return static_cast<int>(std::get<float>(val));
+            return static_cast<int64_t>(std::get<float>(val));
         }
         else if (std::holds_alternative<bool>(val)) {
-            return std::get<bool>(val) ? 1 : 0;
+            return std::get<bool>(val) ? static_cast<int64_t>(1) : static_cast<int64_t>(0);
         }
         else if (std::holds_alternative<std::string>(val)) {
             try {
-                return std::stoi(std::get<std::string>(val));
+                return std::stoll(std::get<std::string>(val));
             } catch (...) {
                 throwCastError("Cannot cast string to int: " + std::get<std::string>(val));
             }
@@ -176,8 +176,8 @@ namespace vm::runtime
         if (std::holds_alternative<float>(val)) {
             return val; // Already float
         }
-        else if (std::holds_alternative<int>(val)) {
-            return static_cast<float>(std::get<int>(val));
+        else if (std::holds_alternative<int64_t>(val)) {
+            return static_cast<float>(std::get<int64_t>(val));
         }
         else if (std::holds_alternative<std::string>(val)) {
             try {
@@ -199,11 +199,11 @@ namespace vm::runtime
         if (std::holds_alternative<bool>(val)) {
             return val; // Already bool
         }
-        else if (std::holds_alternative<int>(val)) {
-            return std::get<int>(val) != 0;
+        else if (std::holds_alternative<int64_t>(val)) {
+            return std::get<int64_t>(val) != 0;
         }
         else if (std::holds_alternative<float>(val)) {
-            return std::get<float>(val) != 0.0f;
+            return std::get<float>(val) != 0.0;
         }
         else if (std::holds_alternative<std::string>(val)) {
             const std::string& str = std::get<std::string>(val);
@@ -418,8 +418,8 @@ namespace vm::runtime
     }
 
     std::string TypeExecutor::valueToString(const value::Value& val) {
-        if (std::holds_alternative<int>(val)) {
-            return std::to_string(std::get<int>(val));
+        if (std::holds_alternative<int64_t>(val)) {
+            return std::to_string(std::get<int64_t>(val));
         }
         if (std::holds_alternative<float>(val)) {
             std::ostringstream oss;

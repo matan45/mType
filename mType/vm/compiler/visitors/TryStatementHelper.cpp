@@ -129,7 +129,7 @@ namespace vm::compiler::visitors
             );
 
             // Emit CATCH instruction with exception type
-            uint32_t typeIndex = static_cast<uint32_t>(ctx.program.getConstantPool().addString(exceptionType));
+            uint64_t typeIndex = static_cast<uint64_t>(ctx.program.getConstantPool().addString(exceptionType));
             ctx.emitter.emitWithLocation(bytecode::OpCode::CATCH, typeIndex, catchBlock.get());
 
             // Enter scope for catch variable
@@ -154,7 +154,7 @@ namespace vm::compiler::visitors
                 relativeSlot = catchVarSlot - startSlot;
             }
 
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeSlot), catchBlock.get());
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeSlot), catchBlock.get());
 
             // Build exception table entry for this catch block
             bytecode::ExceptionTableEntry entry(
@@ -270,12 +270,12 @@ namespace vm::compiler::visitors
         std::vector<size_t> newExitJumps;
         for (size_t exitJump : ctx.exceptionManager.getExitJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(normalExitIndex), finallyBlock);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint64_t>(normalExitIndex), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
-            ctx.program.patchJump(exitJump, static_cast<uint32_t>(trampolineOffset));
+            ctx.program.patchJump(exitJump, static_cast<uint64_t>(trampolineOffset));
             newExitJumps.push_back(jumpToFinally);
         }
 
@@ -283,12 +283,12 @@ namespace vm::compiler::visitors
         std::vector<size_t> newReturnJumps;
         for (size_t returnJump : ctx.exceptionManager.getReturnJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(returnIndex), finallyBlock);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint64_t>(returnIndex), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
-            ctx.program.patchJump(returnJump, static_cast<uint32_t>(trampolineOffset));
+            ctx.program.patchJump(returnJump, static_cast<uint64_t>(trampolineOffset));
             newReturnJumps.push_back(jumpToFinally);
         }
 
@@ -296,12 +296,12 @@ namespace vm::compiler::visitors
         std::vector<size_t> newBreakJumps;
         for (size_t breakJump : ctx.exceptionManager.getBreakJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(breakIndex), finallyBlock);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint64_t>(breakIndex), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
-            ctx.program.patchJump(breakJump, static_cast<uint32_t>(trampolineOffset));
+            ctx.program.patchJump(breakJump, static_cast<uint64_t>(trampolineOffset));
             newBreakJumps.push_back(jumpToFinally);
         }
 
@@ -309,12 +309,12 @@ namespace vm::compiler::visitors
         std::vector<size_t> newContinueJumps;
         for (size_t continueJump : ctx.exceptionManager.getContinueJumps()) {
             size_t trampolineOffset = ctx.program.getCurrentOffset();
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(continueIndex), finallyBlock);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint64_t>(continueIndex), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeFlagSlot), finallyBlock);
             size_t jumpToFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
             // Patch original jump to trampoline
-            ctx.program.patchJump(continueJump, static_cast<uint32_t>(trampolineOffset));
+            ctx.program.patchJump(continueJump, static_cast<uint64_t>(trampolineOffset));
             newContinueJumps.push_back(jumpToFinally);
         }
 
@@ -328,8 +328,8 @@ namespace vm::compiler::visitors
         // IMPORTANT: Initialize hasReturnFlagSlot to 0 (normal exit) as default
         // This runs when exception handler jumps to finallyOffset (FINALLY instruction)
         // Trampolines will jump to AFTER this initialization (afterInit), skipping it
-        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(normalExitIndex), finallyBlock);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint64_t>(normalExitIndex), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeFlagSlot), finallyBlock);
 
         // afterInit: Trampolines jump here, skipping the default initialization above
         size_t afterInit = ctx.program.getCurrentOffset();
@@ -447,20 +447,20 @@ namespace vm::compiler::visitors
         // Flag values: 0=normal exit, 1=return, 2=break, 3=continue
 
         // Check if flag == 1 (return)
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(returnIndex), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(relativeFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint64_t>(returnIndex), finallyBlock);
         ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, finallyBlock);
         size_t jumpToReturnHandler = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
 
         // Check if flag == 2 (break)
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(breakIndex), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(relativeFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint64_t>(breakIndex), finallyBlock);
         ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, finallyBlock);
         size_t jumpToBreakHandler = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
 
         // Check if flag == 3 (continue)
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(relativeFlagSlot), finallyBlock);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint32_t>(continueIndex), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(relativeFlagSlot), finallyBlock);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT, static_cast<uint64_t>(continueIndex), finallyBlock);
         ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, finallyBlock);
         size_t jumpToContinueHandler = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
 
@@ -480,7 +480,7 @@ namespace vm::compiler::visitors
 
             // Load the return value back from the special slot
             // Note: For async functions, the value is already wrapped in a Promise
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(relativeReturnSlot), finallyBlock);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(relativeReturnSlot), finallyBlock);
 
             // Check if we're inside another try block with a finally (nested try-finally)
             bool hasOuterFinally = ctx.exceptionManager.hasOuterFinally();
@@ -501,7 +501,7 @@ namespace vm::compiler::visitors
                     relativeOuterReturnSlot = outerReturnValueSlot - startSlot;
                 }
 
-                ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(relativeOuterReturnSlot), finallyBlock);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeOuterReturnSlot), finallyBlock);
 
                 size_t jumpToOuterFinally = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
                 ctx.exceptionManager.registerReturnJumpWithOuter(jumpToOuterFinally);

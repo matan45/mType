@@ -66,8 +66,8 @@ namespace vm::compiler::visitors
                     std::string currentClassName = node->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
                     ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
-                                     static_cast<uint32_t>(classNameIndex),
-                                     static_cast<uint32_t>(0), node); // 0 arguments
+                                     static_cast<uint64_t>(classNameIndex),
+                                     static_cast<uint64_t>(0), node); // 0 arguments
                 }
             }
         }
@@ -151,7 +151,7 @@ namespace vm::compiler::visitors
                     // Store in field
                     std::string fieldName = fieldNode->getName();
                     size_t fieldNameIndex = ctx.program.getConstantPool().addString(fieldName);
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), fieldNode);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint64_t>(fieldNameIndex), fieldNode);
                 }
             }
         }
@@ -668,12 +668,12 @@ namespace vm::compiler::visitors
 
                         // Load the parameter value (parameters start at slot 1, after 'this')
                         ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL,
-                                                   static_cast<uint32_t>(i + 1), node);
+                                                   static_cast<uint64_t>(i + 1), node);
 
                         // Set the field (pops value, then object)
                         size_t fieldNameIndex = ctx.program.getConstantPool().addString(paramName);
                         ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD,
-                                                   static_cast<uint32_t>(fieldNameIndex), node);
+                                                   static_cast<uint64_t>(fieldNameIndex), node);
                         break;
                     }
                 }
@@ -705,8 +705,8 @@ namespace vm::compiler::visitors
                     std::string currentClassName = ctx.currentClassNode->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
                     ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
-                                     static_cast<uint32_t>(classNameIndex),
-                                     static_cast<uint32_t>(0), node); // 0 arguments
+                                     static_cast<uint64_t>(classNameIndex),
+                                     static_cast<uint64_t>(0), node); // 0 arguments
                 }
             }
         }

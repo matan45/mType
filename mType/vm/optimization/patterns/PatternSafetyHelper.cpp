@@ -23,7 +23,7 @@ namespace vm::optimization::patterns
         }
     }
 
-    int PatternSafetyHelper::safeGetInteger(const BytecodeProgram::ConstantPool& pool,
+    int64_t PatternSafetyHelper::safeGetInteger(const BytecodeProgram::ConstantPool& pool,
                                             const BytecodeProgram::Instruction& instr,
                                             size_t operandIndex,
                                             size_t instrOffset)
@@ -32,7 +32,7 @@ namespace vm::optimization::patterns
         validateOperandExists(instr, operandIndex, instrOffset);
 
         // Get the constant pool index
-        uint32_t poolIndex = instr.operands[operandIndex];
+        uint64_t poolIndex = instr.operands[operandIndex];
 
         // Access constant pool (throws std::out_of_range if invalid)
         try
@@ -60,7 +60,7 @@ namespace vm::optimization::patterns
         validateOperandExists(instr, operandIndex, instrOffset);
 
         // Get the constant pool index
-        uint32_t poolIndex = instr.operands[operandIndex];
+        uint64_t poolIndex = instr.operands[operandIndex];
 
         // Access constant pool (throws std::out_of_range if invalid)
         try
@@ -88,7 +88,7 @@ namespace vm::optimization::patterns
         validateOperandExists(instr, operandIndex, instrOffset);
 
         // Get the constant pool index
-        uint32_t poolIndex = instr.operands[operandIndex];
+        uint64_t poolIndex = instr.operands[operandIndex];
 
         // Access constant pool (throws std::out_of_range if invalid)
         try
@@ -107,7 +107,7 @@ namespace vm::optimization::patterns
         }
     }
 
-    uint32_t PatternSafetyHelper::safeGetOperand(const BytecodeProgram::Instruction& instr,
+    uint64_t PatternSafetyHelper::safeGetOperand(const BytecodeProgram::Instruction& instr,
                                                  size_t operandIndex,
                                                  size_t instrOffset)
     {

@@ -293,7 +293,7 @@ namespace vm::runtime
                 if (obj->getTypeName() == "Int")
                 {
                     value::Value unboxedValue = obj->getFieldValue("value");
-                    if (std::holds_alternative<int>(unboxedValue))
+                    if (std::holds_alternative<int64_t>(unboxedValue))
                     {
                         arg = unboxedValue;
                     }
@@ -341,7 +341,7 @@ namespace vm::runtime
             }
 
             // AUTO-BOXING: Convert primitives to wrapper objects (Int, Float, Bool, String)
-            if (paramType == "Int" && std::holds_alternative<int>(arg))
+            if (paramType == "Int" && std::holds_alternative<int64_t>(arg))
             {
                 // Auto-box int to Int
                 auto intClass = context.environment->findClass("Int");

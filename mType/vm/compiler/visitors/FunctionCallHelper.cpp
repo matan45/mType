@@ -553,8 +553,8 @@ namespace vm::compiler::visitors
         size_t nameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
         // Static method call - use CALL_STATIC with source location
         ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
-                                     static_cast<uint32_t>(nameIndex),
-                                     static_cast<uint32_t>(arguments.size()), node);
+                                     static_cast<uint64_t>(nameIndex),
+                                     static_cast<uint64_t>(arguments.size()), node);
     }
 
     void FunctionCallHelper::emitMethodCallInClassContext(ast::FunctionCallNode* node, const std::string& functionName,
@@ -646,8 +646,8 @@ namespace vm::compiler::visitors
 
                 size_t nameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
-                                             static_cast<uint32_t>(nameIndex),
-                                             static_cast<uint32_t>(arguments.size()), node);
+                                             static_cast<uint64_t>(nameIndex),
+                                             static_cast<uint64_t>(arguments.size()), node);
             }
             else
             {
@@ -661,7 +661,7 @@ namespace vm::compiler::visitors
                         arguments.size(), node->getLocation());
                 }
 
-                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(0), node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(0), node);
 
                 // Now compile arguments
                 for (const auto& arg : arguments)
@@ -672,8 +672,8 @@ namespace vm::compiler::visitors
                 size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
                 // Call method on 'this' with source location
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(nameIndex),
-                                             static_cast<uint32_t>(arguments.size()), node);
+                                             static_cast<uint64_t>(nameIndex),
+                                             static_cast<uint64_t>(arguments.size()), node);
             }
         }
         else
@@ -739,7 +739,7 @@ namespace vm::compiler::visitors
                         // Call getValue() to extract primitive
                         size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
                         ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                                     static_cast<uint32_t>(methodNameIndex),
+                                                     static_cast<uint64_t>(methodNameIndex),
                                                      0u,  // 0 arguments
                                                      arguments[i].get());
                     }
@@ -780,16 +780,16 @@ namespace vm::compiler::visitors
             std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + plainFunctionName;
             size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
-                                         static_cast<uint32_t>(nameIndex),
-                                         static_cast<uint32_t>(arguments.size()), node);
+                                         static_cast<uint64_t>(nameIndex),
+                                         static_cast<uint64_t>(arguments.size()), node);
         }
         else
         {
             // Regular function call - use CALL with resolved (mangled) function name
             size_t nameIndex = ctx.program.getConstantPool().addString(resolvedFunctionName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::CALL,
-                                         static_cast<uint32_t>(nameIndex),
-                                         static_cast<uint32_t>(arguments.size()), node);
+                                         static_cast<uint64_t>(nameIndex),
+                                         static_cast<uint64_t>(arguments.size()), node);
         }
     }
 
@@ -896,7 +896,7 @@ namespace vm::compiler::visitors
                 // Call getValue() method to extract primitive value
                 size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(methodNameIndex),
+                                             static_cast<uint64_t>(methodNameIndex),
                                              0u,  // 0 arguments
                                              argument);
                 return;
@@ -964,7 +964,7 @@ namespace vm::compiler::visitors
         // 2. Emit NEW_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(expectedTypeName);
         ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                     static_cast<uint32_t>(classNameIndex),
+                                     static_cast<uint64_t>(classNameIndex),
                                      1u,  // 1 constructor argument
                                      argument);
     }

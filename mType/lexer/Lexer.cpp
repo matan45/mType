@@ -129,7 +129,7 @@ namespace lexer
         }
         else
         {
-            int value = parseInteger();
+            int64_t value = parseInteger();
             return TokenFactory::createIntegerToken(value, location);
         }
     }
@@ -255,7 +255,7 @@ namespace lexer
         }
     }
 
-    int Lexer::parseInteger()
+    int64_t Lexer::parseInteger()
     {
         size_t start = pos;
         while (pos < input.length() && std::isdigit(input[pos]))
@@ -266,14 +266,14 @@ namespace lexer
 
         try
         {
-            return std::stoi(std::string(intView));
+            return std::stoll(std::string(intView));
         }
         catch (const std::out_of_range&)
         {
-            // Integer literal is too large to fit in an int
+            // Integer literal is too large to fit in an int64_t
             throw errors::ParseException(
                 "Integer literal '" + std::string(intView) + "' is out of range for type 'int' (must be between " +
-                std::to_string(INT_MIN) + " and " + std::to_string(INT_MAX) + ")",
+                std::to_string(LLONG_MIN) + " and " + std::to_string(LLONG_MAX) + ")",
                 locationTracker->getCurrentLocation());
         }
         catch (const std::invalid_argument&)

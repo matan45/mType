@@ -166,8 +166,8 @@ namespace debugger {
     std::string VariableInspector::valueToString(const value::Value& val) {
         using namespace value;
 
-        if (std::holds_alternative<int>(val)) {
-            return std::to_string(std::get<int>(val));
+        if (std::holds_alternative<int64_t>(val)) {
+            return std::to_string(std::get<int64_t>(val));
         }
         if (std::holds_alternative<float>(val)) {
             std::stringstream ss;
@@ -249,7 +249,7 @@ namespace debugger {
     std::string VariableInspector::getTypeName(const value::Value& val) {
         using namespace value;
 
-        if (std::holds_alternative<int>(val)) {
+        if (std::holds_alternative<int64_t>(val)) {
             return "int";
         }
         if (std::holds_alternative<float>(val)) {

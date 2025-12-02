@@ -56,7 +56,7 @@ namespace vm::compiler::visitors
             if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
                 size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(getValueIndex),
+                                             static_cast<uint64_t>(getValueIndex),
                                              0u, node->getLeft());
             }
 
@@ -68,7 +68,7 @@ namespace vm::compiler::visitors
             if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
                 size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(getValueIndex),
+                                             static_cast<uint64_t>(getValueIndex),
                                              0u, node->getRight());
             }
 
@@ -85,7 +85,7 @@ namespace vm::compiler::visitors
             if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
                 size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(getValueIndex),
+                                             static_cast<uint64_t>(getValueIndex),
                                              0u, node->getLeft());
             }
 
@@ -97,7 +97,7 @@ namespace vm::compiler::visitors
             if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
                 size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(getValueIndex),
+                                             static_cast<uint64_t>(getValueIndex),
                                              0u, node->getRight());
             }
 
@@ -118,7 +118,7 @@ namespace vm::compiler::visitors
             {
                 size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(getValueIndex),
+                                             static_cast<uint64_t>(getValueIndex),
                                              0u, node->getLeft());
             }
         }
@@ -133,7 +133,7 @@ namespace vm::compiler::visitors
             {
                 size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint32_t>(getValueIndex),
+                                             static_cast<uint64_t>(getValueIndex),
                                              0u, node->getRight());
             }
         }
@@ -181,12 +181,12 @@ namespace vm::compiler::visitors
                 // Load current value
                 if (isQualifiedStatic) {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varName);
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint64_t>(nameIndex), node);
                 } else if (isLocal) {
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(localSlot), node);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(localSlot), node);
                 } else {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varName);
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex), node);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint64_t>(nameIndex), node);
                 }
 
                 // Apply increment/decrement
@@ -196,13 +196,13 @@ namespace vm::compiler::visitors
                 // Store back
                 if (isQualifiedStatic) {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varName);
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint64_t>(nameIndex), node);
                 } else if (isLocal) {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varNode->getName());
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint32_t>(localSlot), static_cast<uint32_t>(nameIndex), node);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(localSlot), static_cast<uint64_t>(nameIndex), node);
                 } else {
                     size_t nameIndex = ctx.program.getConstantPool().addString(varNode->getName());
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_VAR, static_cast<uint32_t>(nameIndex), node);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_VAR, static_cast<uint64_t>(nameIndex), node);
                 }
 
                 return std::monostate{};
@@ -221,7 +221,7 @@ namespace vm::compiler::visitors
                 // Get current field value
                 // Stack: [object, fieldValue]
                 size_t fieldNameIndex = ctx.program.getConstantPool().addString(fieldName);
-                ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
 
                 // Apply increment/decrement
                 // Stack: [object, incrementedValue]
@@ -231,7 +231,7 @@ namespace vm::compiler::visitors
                 // SET_FIELD pops value first (top), then object (below)
                 // Current stack: [object, incrementedValue] - value already on top, object below
                 // This is the correct order! No swap needed.
-                ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
 
                 return std::monostate{};
             }
@@ -252,7 +252,7 @@ namespace vm::compiler::visitors
                     // Auto-unbox: call getValue() to get primitive bool
                     size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
                     ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                                 static_cast<uint32_t>(methodNameIndex),
+                                                 static_cast<uint64_t>(methodNameIndex),
                                                  0u,  // 0 arguments
                                                  node->getOperand());
                 }
@@ -293,7 +293,7 @@ namespace vm::compiler::visitors
         // Check if this is a qualified static access
         if (name.find("::") != std::string::npos) {
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint64_t>(nameIndex), node);
             return std::monostate{};
         }
 
@@ -308,7 +308,7 @@ namespace vm::compiler::visitors
         }
 
         if (localSlot != SIZE_MAX) {
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(localSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(localSlot), node);
             return std::monostate{};
         }
 
@@ -321,15 +321,15 @@ namespace vm::compiler::visitors
                         if (fieldNode->getIsStatic()) {
                             std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + name;
                             size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
-                            ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint64_t>(nameIndex), node);
                             return std::monostate{};
                         } else if (ctx.inInstanceMethod) {
                             size_t thisSlot = ctx.variableTracker.resolveLocal("this",
                                 ctx.functionFrameManager.currentFrame().localStartSlot);
                             if (thisSlot != SIZE_MAX) {
-                                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(thisSlot), node);
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(thisSlot), node);
                                 size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
-                                ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
                                 return std::monostate{};
                             }
                         }
@@ -351,16 +351,16 @@ namespace vm::compiler::visitors
                             // Access inherited static field using the class where it's defined
                             std::string qualifiedName = currentParentDef->getName() + "::" + name;
                             size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
-                            ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint32_t>(nameIndex), node);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint64_t>(nameIndex), node);
                             return std::monostate{};
                         } else if (ctx.inInstanceMethod) {
                             // Access inherited instance field through 'this'
                             size_t thisSlot = ctx.variableTracker.resolveLocal("this",
                                 ctx.functionFrameManager.currentFrame().localStartSlot);
                             if (thisSlot != SIZE_MAX) {
-                                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint32_t>(thisSlot), node);
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(thisSlot), node);
                                 size_t fieldNameIndex = ctx.program.getConstantPool().addString(name);
-                                ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint32_t>(fieldNameIndex), node);
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
                                 return std::monostate{};
                             }
                         }
@@ -386,7 +386,7 @@ namespace vm::compiler::visitors
         }
 
         size_t nameIndex = ctx.program.getConstantPool().addString(name);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint32_t>(nameIndex), node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_VAR, static_cast<uint64_t>(nameIndex), node);
 
         return std::monostate{};
     }
@@ -404,7 +404,7 @@ namespace vm::compiler::visitors
         size_t typeNameIndex = ctx.program.getConstantPool().addString(targetTypeName);
 
         // Emit CAST instruction
-        ctx.emitter.emitWithLocation(bytecode::OpCode::CAST, static_cast<uint32_t>(typeNameIndex), node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::CAST, static_cast<uint64_t>(typeNameIndex), node);
 
         return std::monostate{};
     }
@@ -422,7 +422,7 @@ namespace vm::compiler::visitors
         size_t typeNameIndex = ctx.program.getConstantPool().addString(targetTypeName);
 
         // Emit INSTANCEOF instruction
-        ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF, static_cast<uint32_t>(typeNameIndex), node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF, static_cast<uint64_t>(typeNameIndex), node);
 
         return std::monostate{};
     }
@@ -619,7 +619,7 @@ namespace vm::compiler::visitors
             left->accept(ctx.visitor);
             size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                         static_cast<uint32_t>(classNameIndex),
+                                         static_cast<uint64_t>(classNameIndex),
                                          1u,  // 1 constructor argument
                                          left);
         }
@@ -652,7 +652,7 @@ namespace vm::compiler::visitors
             right->accept(ctx.visitor);
             size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                         static_cast<uint32_t>(classNameIndex),
+                                         static_cast<uint64_t>(classNameIndex),
                                          1u,  // 1 constructor argument
                                          right);
         }
@@ -665,7 +665,7 @@ namespace vm::compiler::visitors
         // 3. Emit CALL_METHOD instruction
         size_t methodNameIndex = ctx.program.getConstantPool().addString(methodName);
         ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                     static_cast<uint32_t>(methodNameIndex),
+                                     static_cast<uint64_t>(methodNameIndex),
                                      1u,  // 1 argument
                                      node);
 

@@ -10,7 +10,7 @@ namespace token
     {
         TokenType type;
         float floatValue;
-        int intValue;
+        int64_t intValue;
         value::InternedString stringValue;
         errors::SourceLocation location;
     };

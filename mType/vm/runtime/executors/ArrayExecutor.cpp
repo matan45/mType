@@ -17,7 +17,7 @@ namespace vm::runtime
 
         // Pop array size from stack
         value::Value sizeVal = context.stackManager->pop();
-        int size = std::get<int>(sizeVal);
+        int64_t size = std::get<int64_t>(sizeVal);
 
         if (size < 0) {
             utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
@@ -51,11 +51,11 @@ namespace vm::runtime
 
         // Pop dimension sizes from stack (in reverse order - last dimension first)
         // Only pop the number of specified dimensions
-        std::vector<int> dimensions;
+        std::vector<int64_t> dimensions;
         dimensions.reserve(specifiedDimensions);
         for (size_t i = 0; i < specifiedDimensions; ++i) {
             value::Value sizeVal = context.stackManager->pop();
-            int size = std::get<int>(sizeVal);
+            int64_t size = std::get<int64_t>(sizeVal);
             if (size < 0) {
                 utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
                     context,
@@ -97,7 +97,7 @@ namespace vm::runtime
         context.stackManager->push(result);
     }
 
-    void ArrayExecutor::getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int index) {
+    void ArrayExecutor::getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index) {
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
 
@@ -107,7 +107,7 @@ namespace vm::runtime
         context.stackManager->push(element);
     }
 
-    void ArrayExecutor::getFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int index) {
+    void ArrayExecutor::getFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index) {
         // Bounds check
         utils::ArrayBoundsChecker::checkBounds(context, index, flatArray->size(), "FlatMultiArray");
 
@@ -121,7 +121,7 @@ namespace vm::runtime
         }
     }
 
-    void ArrayExecutor::getSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int index) {
+    void ArrayExecutor::getSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index) {
         // Bounds check
         utils::ArrayBoundsChecker::checkBounds(context, index, sparseArray->size(), "SparseMultiArray");
 
@@ -139,7 +139,7 @@ namespace vm::runtime
     void ArrayExecutor::handleArrayGet() {
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
-        int index = std::get<int>(indexVal);
+        int64_t index = std::get<int64_t>(indexVal);
 
         // Pop array from stack
         value::Value arrayVal = context.stackManager->pop();
@@ -171,7 +171,7 @@ namespace vm::runtime
         );
     }
 
-    void ArrayExecutor::setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int index, const value::Value& valueToSet) {
+    void ArrayExecutor::setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index, const value::Value& valueToSet) {
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
 
@@ -313,7 +313,7 @@ namespace vm::runtime
         }
     }
 
-    void ArrayExecutor::setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int index, const value::Value& valueToSet) {
+    void ArrayExecutor::setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index, const value::Value& valueToSet) {
         // Bounds check
         utils::ArrayBoundsChecker::checkBounds(context, index, flatArray->size(), "FlatMultiArray");
 
@@ -328,7 +328,7 @@ namespace vm::runtime
         }
     }
 
-    void ArrayExecutor::setSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int index, const value::Value& valueToSet) {
+    void ArrayExecutor::setSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index, const value::Value& valueToSet) {
         // Bounds check
         utils::ArrayBoundsChecker::checkBounds(context, index, sparseArray->size(), "SparseMultiArray");
 
@@ -350,7 +350,7 @@ namespace vm::runtime
 
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
-        int index = std::get<int>(indexVal);
+        int64_t index = std::get<int64_t>(indexVal);
 
         // Pop array from stack
         value::Value arrayVal = context.stackManager->pop();
@@ -389,7 +389,7 @@ namespace vm::runtime
         // Handle NativeArray
         if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayVal)) {
             auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
-            int length = static_cast<int>(array->size());
+            int64_t length = static_cast<int64_t>(array->size());
             context.stackManager->push(length);
             return;
         }
@@ -397,7 +397,7 @@ namespace vm::runtime
         // Handle FlatMultiArray
         if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(arrayVal)) {
             auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(arrayVal);
-            int length = static_cast<int>(flatArray->size());
+            int64_t length = static_cast<int64_t>(flatArray->size());
             context.stackManager->push(length);
             return;
         }
@@ -405,7 +405,7 @@ namespace vm::runtime
         // Handle SparseMultiArray
         if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(arrayVal)) {
             auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(arrayVal);
-            int length = static_cast<int>(sparseArray->size());
+            int64_t length = static_cast<int64_t>(sparseArray->size());
             context.stackManager->push(length);
             return;
         }
@@ -417,7 +417,7 @@ namespace vm::runtime
     }
 
     std::shared_ptr<value::NativeArray> ArrayExecutor::createJaggedArray(
-        const std::vector<int>& dimensions,
+        const std::vector<int64_t>& dimensions,
         size_t dimIndex,
         const std::string& elementTypeName,
         size_t totalDimensions)
@@ -429,7 +429,7 @@ namespace vm::runtime
             );
         }
 
-        int currentDimSize = dimensions[dimIndex];
+        int64_t currentDimSize = dimensions[dimIndex];
 
         if (dimIndex == dimensions.size() - 1) {
             // Last specified dimension
@@ -482,7 +482,7 @@ namespace vm::runtime
     }
 
     std::shared_ptr<value::NativeArray> ArrayExecutor::createNestedArray(
-        const std::vector<int>& dimensions,
+        const std::vector<int64_t>& dimensions,
         size_t dimIndex,
         const std::string& elementTypeName)
     {
@@ -493,7 +493,7 @@ namespace vm::runtime
             );
         }
 
-        int currentDimSize = dimensions[dimIndex];
+        int64_t currentDimSize = dimensions[dimIndex];
         auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
 
         if (dimIndex == dimensions.size() - 1) {
@@ -533,7 +533,7 @@ namespace vm::runtime
 
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
-        int index = std::get<int>(indexVal);
+        int64_t index = std::get<int64_t>(indexVal);
 
         // Pop array from stack
         value::Value arrayVal = context.stackManager->pop();
@@ -582,7 +582,7 @@ namespace vm::runtime
 
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
-        int index = std::get<int>(indexVal);
+        int64_t index = std::get<int64_t>(indexVal);
 
         // Pop array from stack
         value::Value arrayVal = context.stackManager->pop();

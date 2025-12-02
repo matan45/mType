@@ -6,31 +6,31 @@ namespace constant_folding {
 
 // ==================== Integer Overflow Detection ====================
 
-bool SafeArithmetic::wouldOverflowAdd(int a, int b) {
-    // Positive overflow: a > INT_MAX - b
-    if (b > 0 && a > std::numeric_limits<int>::max() - b) {
+bool SafeArithmetic::wouldOverflowAdd(int64_t a, int64_t b) {
+    // Positive overflow: a > INT64_MAX - b
+    if (b > 0 && a > std::numeric_limits<int64_t>::max() - b) {
         return true;
     }
-    // Negative overflow (underflow): a < INT_MIN - b
-    if (b < 0 && a < std::numeric_limits<int>::min() - b) {
-        return true;
-    }
-    return false;
-}
-
-bool SafeArithmetic::wouldUnderflowSubtract(int a, int b) {
-    // Subtracting positive can underflow: a < INT_MIN + b
-    if (b > 0 && a < std::numeric_limits<int>::min() + b) {
-        return true;
-    }
-    // Subtracting negative can overflow: a > INT_MAX + b
-    if (b < 0 && a > std::numeric_limits<int>::max() + b) {
+    // Negative overflow (underflow): a < INT64_MIN - b
+    if (b < 0 && a < std::numeric_limits<int64_t>::min() - b) {
         return true;
     }
     return false;
 }
 
-bool SafeArithmetic::wouldOverflowMultiply(int a, int b) {
+bool SafeArithmetic::wouldUnderflowSubtract(int64_t a, int64_t b) {
+    // Subtracting positive can underflow: a < INT64_MIN + b
+    if (b > 0 && a < std::numeric_limits<int64_t>::min() + b) {
+        return true;
+    }
+    // Subtracting negative can overflow: a > INT64_MAX + b
+    if (b < 0 && a > std::numeric_limits<int64_t>::max() + b) {
+        return true;
+    }
+    return false;
+}
+
+bool SafeArithmetic::wouldOverflowMultiply(int64_t a, int64_t b) {
     // Special cases: multiplication by 0 or 1 never overflows
     if (a == 0 || b == 0 || a == 1 || b == 1) {
         return false;
@@ -38,22 +38,22 @@ bool SafeArithmetic::wouldOverflowMultiply(int a, int b) {
 
     // Handle multiplication by -1 specially
     if (a == -1) {
-        return b == std::numeric_limits<int>::min();
+        return b == std::numeric_limits<int64_t>::min();
     }
     if (b == -1) {
-        return a == std::numeric_limits<int>::min();
+        return a == std::numeric_limits<int64_t>::min();
     }
 
-    // General case: check if |a| > INT_MAX / |b|
-    int absA = (a < 0) ? -a : a;
-    int absB = (b < 0) ? -b : b;
+    // General case: check if |a| > INT64_MAX / |b|
+    int64_t absA = (a < 0) ? -a : a;
+    int64_t absB = (b < 0) ? -b : b;
 
-    // Handle INT_MIN edge case (abs(INT_MIN) overflows)
-    if (a == std::numeric_limits<int>::min() || b == std::numeric_limits<int>::min()) {
+    // Handle INT64_MIN edge case (abs(INT64_MIN) overflows)
+    if (a == std::numeric_limits<int64_t>::min() || b == std::numeric_limits<int64_t>::min()) {
         return true; // Always overflow except for cases handled above
     }
 
-    if (absA > std::numeric_limits<int>::max() / absB) {
+    if (absA > std::numeric_limits<int64_t>::max() / absB) {
         return true;
     }
 
@@ -62,43 +62,43 @@ bool SafeArithmetic::wouldOverflowMultiply(int a, int b) {
 
 // ==================== Integer Safe Operations ====================
 
-std::optional<int> SafeArithmetic::safeAdd(int a, int b) {
+std::optional<int64_t> SafeArithmetic::safeAdd(int64_t a, int64_t b) {
     if (wouldOverflowAdd(a, b)) {
         return std::nullopt;
     }
     return a + b;
 }
 
-std::optional<int> SafeArithmetic::safeSubtract(int a, int b) {
+std::optional<int64_t> SafeArithmetic::safeSubtract(int64_t a, int64_t b) {
     if (wouldUnderflowSubtract(a, b)) {
         return std::nullopt;
     }
     return a - b;
 }
 
-std::optional<int> SafeArithmetic::safeMultiply(int a, int b) {
+std::optional<int64_t> SafeArithmetic::safeMultiply(int64_t a, int64_t b) {
     if (wouldOverflowMultiply(a, b)) {
         return std::nullopt;
     }
     return a * b;
 }
 
-std::optional<int> SafeArithmetic::safeDivide(int dividend, int divisor) {
+std::optional<int64_t> SafeArithmetic::safeDivide(int64_t dividend, int64_t divisor) {
     // Division by zero check
     if (divisor == 0) {
         return std::nullopt;
     }
 
-    // Special case: INT_MIN / -1 causes overflow
-    // (because -INT_MIN = INT_MAX + 1, which doesn't fit in int)
-    if (dividend == std::numeric_limits<int>::min() && divisor == -1) {
+    // Special case: INT64_MIN / -1 causes overflow
+    // (because -INT64_MIN = INT64_MAX + 1, which doesn't fit in int64_t)
+    if (dividend == std::numeric_limits<int64_t>::min() && divisor == -1) {
         return std::nullopt;
     }
 
     return dividend / divisor;
 }
 
-std::optional<int> SafeArithmetic::safeModulo(int dividend, int divisor) {
+std::optional<int64_t> SafeArithmetic::safeModulo(int64_t dividend, int64_t divisor) {
     // Modulo by zero check
     if (divisor == 0) {
         return std::nullopt;
@@ -110,10 +110,10 @@ std::optional<int> SafeArithmetic::safeModulo(int dividend, int divisor) {
     return dividend % divisor;
 }
 
-std::optional<int> SafeArithmetic::safeNegate(int value) {
-    // Special case: -INT_MIN causes overflow
-    // (because -INT_MIN = INT_MAX + 1)
-    if (value == std::numeric_limits<int>::min()) {
+std::optional<int64_t> SafeArithmetic::safeNegate(int64_t value) {
+    // Special case: -INT64_MIN causes overflow
+    // (because -INT64_MIN = INT64_MAX + 1)
+    if (value == std::numeric_limits<int64_t>::min()) {
         return std::nullopt;
     }
     return -value;
