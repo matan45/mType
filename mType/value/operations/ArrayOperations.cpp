@@ -18,10 +18,10 @@ namespace value::operations
         return true;
     }
 
-    bool ArrayOperations::extractInt(const Value& val, int& out)
+    bool ArrayOperations::extractInt(const Value& val, int64_t& out)
     {
-        if (std::holds_alternative<int>(val)) {
-            out = std::get<int>(val);
+        if (std::holds_alternative<int64_t>(val)) {
+            out = std::get<int64_t>(val);
             return true;
         }
         return false;
@@ -33,8 +33,8 @@ namespace value::operations
             out = std::get<float>(val);
             return true;
         }
-        if (std::holds_alternative<int>(val)) {
-            out = static_cast<float>(std::get<int>(val));
+        if (std::holds_alternative<int64_t>(val)) {
+            out = static_cast<float>(std::get<int64_t>(val));
             return true;
         }
         return false;
@@ -100,8 +100,8 @@ namespace value::operations
             Value val1 = array1->get(i);
             Value val2 = array2->get(i);
 
-            if (std::holds_alternative<int>(val1) && std::holds_alternative<int>(val2)) {
-                result->set(i, Value(scalarOp(std::get<int>(val1), std::get<int>(val2))));
+            if (std::holds_alternative<int64_t>(val1) && std::holds_alternative<int64_t>(val2)) {
+                result->set(i, Value(scalarOp(std::get<int64_t>(val1), std::get<int64_t>(val2))));
             } else if (std::holds_alternative<float>(val1) && std::holds_alternative<float>(val2)) {
                 result->set(i, Value(scalarOp(std::get<float>(val1), std::get<float>(val2))));
             }
@@ -127,7 +127,7 @@ namespace value::operations
 
         // SIMD path for int arrays
         if (elemType == ValueType::INT && array->getSIMDIntData()) {
-            int scalarVal;
+            int64_t scalarVal;
             if (!extractInt(scalar, scalarVal)) {
                 throw errors::RuntimeException(
                     std::string("Scalar must be int for int array in ") + operationName);
@@ -165,8 +165,8 @@ namespace value::operations
         auto result = std::make_shared<NativeArray>(size, elemType);
         for (size_t i = 0; i < size; ++i) {
             Value val = array->get(i);
-            if (std::holds_alternative<int>(val) && std::holds_alternative<int>(scalar)) {
-                result->set(i, Value(scalarOp(std::get<int>(val), std::get<int>(scalar))));
+            if (std::holds_alternative<int64_t>(val) && std::holds_alternative<int64_t>(scalar)) {
+                result->set(i, Value(scalarOp(std::get<int64_t>(val), std::get<int64_t>(scalar))));
             } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(scalar)) {
                 result->set(i, Value(scalarOp(std::get<float>(val), std::get<float>(scalar))));
             }
@@ -287,20 +287,20 @@ namespace value::operations
             mType::value::simd::SIMDOperations::sumInt,
             mType::value::simd::SIMDOperations::sumFloat,
             [](const std::shared_ptr<NativeArray>& arr) -> Value {
-                int intSum = 0;
+                int64_t intSum = 0;
                 float floatSum = 0.0f;
                 bool isFloat = false;
 
                 for (size_t i = 0; i < arr->size(); ++i) {
                     Value val = arr->get(i);
-                    if (std::holds_alternative<int>(val)) {
-                        intSum += std::get<int>(val);
+                    if (std::holds_alternative<int64_t>(val)) {
+                        intSum += std::get<int64_t>(val);
                     } else if (std::holds_alternative<float>(val)) {
                         floatSum += std::get<float>(val);
                         isFloat = true;
                     }
                 }
-                return isFloat ? Value(floatSum + intSum) : Value(intSum);
+                return isFloat ? Value(floatSum + static_cast<float>(intSum)) : Value(intSum);
             },
             "sum",
             true  // allowEmpty
@@ -317,8 +317,8 @@ namespace value::operations
                 Value minVal = arr->get(0);
                 for (size_t i = 1; i < arr->size(); ++i) {
                     Value val = arr->get(i);
-                    if (std::holds_alternative<int>(val) && std::holds_alternative<int>(minVal)) {
-                        if (std::get<int>(val) < std::get<int>(minVal)) minVal = val;
+                    if (std::holds_alternative<int64_t>(val) && std::holds_alternative<int64_t>(minVal)) {
+                        if (std::get<int64_t>(val) < std::get<int64_t>(minVal)) minVal = val;
                     } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(minVal)) {
                         if (std::get<float>(val) < std::get<float>(minVal)) minVal = val;
                     }
@@ -340,8 +340,8 @@ namespace value::operations
                 Value maxVal = arr->get(0);
                 for (size_t i = 1; i < arr->size(); ++i) {
                     Value val = arr->get(i);
-                    if (std::holds_alternative<int>(val) && std::holds_alternative<int>(maxVal)) {
-                        if (std::get<int>(val) > std::get<int>(maxVal)) maxVal = val;
+                    if (std::holds_alternative<int64_t>(val) && std::holds_alternative<int64_t>(maxVal)) {
+                        if (std::get<int64_t>(val) > std::get<int64_t>(maxVal)) maxVal = val;
                     } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(maxVal)) {
                         if (std::get<float>(val) > std::get<float>(maxVal)) maxVal = val;
                     }
@@ -362,8 +362,8 @@ namespace value::operations
         Value total = sum(array);
         size_t count = array->size();
 
-        if (std::holds_alternative<int>(total)) {
-            return Value(static_cast<float>(std::get<int>(total)) / count);
+        if (std::holds_alternative<int64_t>(total)) {
+            return Value(static_cast<float>(std::get<int64_t>(total)) / static_cast<float>(count));
         } else if (std::holds_alternative<float>(total)) {
             return Value(std::get<float>(total) / count);
         }

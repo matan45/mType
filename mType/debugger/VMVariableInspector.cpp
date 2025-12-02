@@ -670,9 +670,9 @@ namespace debugger
             {
                 return "null";
             }
-            else if (std::holds_alternative<int>(val))
+            else if (std::holds_alternative<int64_t>(val))
             {
-                return std::to_string(std::get<int>(val));
+                return std::to_string(std::get<int64_t>(val));
             }
             else if (std::holds_alternative<float>(val))
             {
@@ -779,7 +779,7 @@ namespace debugger
             {
                 return "null";
             }
-            else if (std::holds_alternative<int>(val))
+            else if (std::holds_alternative<int64_t>(val))
             {
                 return "Int";
             }

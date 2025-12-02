@@ -1249,9 +1249,9 @@ namespace vm::runtime
         {
             return std::get<bool>(val);
         }
-        if (std::holds_alternative<int>(val))
+        if (std::holds_alternative<int64_t>(val))
         {
-            return std::get<int>(val) != 0;
+            return std::get<int64_t>(val) != 0;
         }
         if (std::holds_alternative<nullptr_t>(val))
         {
@@ -1266,9 +1266,9 @@ namespace vm::runtime
 
     std::string VirtualMachine::valueToString(const value::Value& val) const
     {
-        if (std::holds_alternative<int>(val))
+        if (std::holds_alternative<int64_t>(val))
         {
-            return std::to_string(std::get<int>(val));
+            return std::to_string(std::get<int64_t>(val));
         }
         if (std::holds_alternative<float>(val))
         {
@@ -1362,10 +1362,10 @@ namespace vm::runtime
 
         // Debug output
         // Integer operations
-        if (std::holds_alternative<int>(left) && std::holds_alternative<int>(right))
+        if (std::holds_alternative<int64_t>(left) && std::holds_alternative<int64_t>(right))
         {
-            int l = std::get<int>(left);
-            int r = std::get<int>(right);
+            int64_t l = std::get<int64_t>(left);
+            int64_t r = std::get<int64_t>(right);
             switch (op)
             {
             case OpCode::ADD: return l + r;
@@ -1382,15 +1382,15 @@ namespace vm::runtime
         }
 
         // Float operations
-        if ((std::holds_alternative<float>(left) || std::holds_alternative<int>(left)) &&
-            (std::holds_alternative<float>(right) || std::holds_alternative<int>(right)))
+        if ((std::holds_alternative<float>(left) || std::holds_alternative<int64_t>(left)) &&
+            (std::holds_alternative<float>(right) || std::holds_alternative<int64_t>(right)))
         {
             float l = std::holds_alternative<float>(left)
                           ? std::get<float>(left)
-                          : static_cast<float>(std::get<int>(left));
+                          : static_cast<float>(std::get<int64_t>(left));
             float r = std::holds_alternative<float>(right)
                           ? std::get<float>(right)
-                          : static_cast<float>(std::get<int>(right));
+                          : static_cast<float>(std::get<int64_t>(right));
             switch (op)
             {
             case OpCode::ADD: return l + r;

@@ -128,7 +128,7 @@ namespace value::operations
             const std::shared_ptr<NativeArray>& array2);
 
         // Helper to extract scalar value
-        static bool extractInt(const Value& val, int& out);
+        static bool extractInt(const Value& val, int64_t& out);
         static bool extractFloat(const Value& val, float& out);
         static bool extractBool(const Value& val, bool& out);
 

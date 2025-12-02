@@ -107,13 +107,13 @@ namespace reflection
         }
     }
 
-    int ReflectionNatives::extractInt(const Value& arg, const std::string& funcName, const std::string& paramName)
+    int64_t ReflectionNatives::extractInt(const Value& arg, const std::string& funcName, const std::string& paramName)
     {
-        if (!std::holds_alternative<int>(arg))
+        if (!std::holds_alternative<int64_t>(arg))
         {
             throw errors::RuntimeException(funcName + " requires " + paramName + " to be an int");
         }
-        return std::get<int>(arg);
+        return std::get<int64_t>(arg);
     }
 
     const std::string& ReflectionNatives::extractString(const Value& arg, const std::string& funcName, const std::string& paramName)

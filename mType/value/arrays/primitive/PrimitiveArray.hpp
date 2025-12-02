@@ -205,9 +205,9 @@ namespace mType
             };
 
             // Type aliases for clarity
-            // Note: Using 'int' to match the Value variant type (line 45 in ValueType.hpp)
-            // On most platforms, int is 32-bit (same as int32_t)
-            using IntArray = PrimitiveArray<int>;
+            // Note: Using 'int64_t' to match the Value variant type (line 45 in ValueType.hpp)
+            // Full 64-bit integer support
+            using IntArray = PrimitiveArray<int64_t>;
             using FloatArray = PrimitiveArray<float>;
             using BoolArray = PrimitiveArray<bool>;
         } // namespace arrays

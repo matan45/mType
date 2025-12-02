@@ -25,37 +25,37 @@ public:
      * @brief Safely add two integers with overflow detection
      * @return Result if safe, std::nullopt if overflow would occur
      */
-    static std::optional<int> safeAdd(int a, int b);
+    static std::optional<int64_t> safeAdd(int64_t a, int64_t b);
 
     /**
      * @brief Safely subtract two integers with underflow detection
      * @return Result if safe, std::nullopt if underflow would occur
      */
-    static std::optional<int> safeSubtract(int a, int b);
+    static std::optional<int64_t> safeSubtract(int64_t a, int64_t b);
 
     /**
      * @brief Safely multiply two integers with overflow detection
      * @return Result if safe, std::nullopt if overflow would occur
      */
-    static std::optional<int> safeMultiply(int a, int b);
+    static std::optional<int64_t> safeMultiply(int64_t a, int64_t b);
 
     /**
      * @brief Safely divide two integers with zero-check
      * @return Result if safe, std::nullopt if divisor is zero
      */
-    static std::optional<int> safeDivide(int dividend, int divisor);
+    static std::optional<int64_t> safeDivide(int64_t dividend, int64_t divisor);
 
     /**
      * @brief Safely compute modulo with zero-check
      * @return Result if safe, std::nullopt if divisor is zero
      */
-    static std::optional<int> safeModulo(int dividend, int divisor);
+    static std::optional<int64_t> safeModulo(int64_t dividend, int64_t divisor);
 
     /**
      * @brief Safely negate an integer with overflow detection
      * @return Result if safe, std::nullopt if negation would overflow (INT_MIN case)
      */
-    static std::optional<int> safeNegate(int value);
+    static std::optional<int64_t> safeNegate(int64_t value);
 
     // ==================== Float Operations ====================
 
@@ -94,17 +94,17 @@ public:
     /**
      * @brief Check if addition would cause overflow
      */
-    static bool wouldOverflowAdd(int a, int b);
+    static bool wouldOverflowAdd(int64_t a, int64_t b);
 
     /**
      * @brief Check if subtraction would cause underflow
      */
-    static bool wouldUnderflowSubtract(int a, int b);
+    static bool wouldUnderflowSubtract(int64_t a, int64_t b);
 
     /**
      * @brief Check if multiplication would cause overflow
      */
-    static bool wouldOverflowMultiply(int a, int b);
+    static bool wouldOverflowMultiply(int64_t a, int64_t b);
 
     /**
      * @brief Check if float value is finite (not NaN or Infinity)

@@ -162,7 +162,7 @@ namespace value
                     auto intArray = std::make_shared<mType::value::arrays::IntArray>(size);
                     // Initialize with default value (0)
                     for (size_t i = 0; i < size; ++i) {
-                        intArray->set(i, Value(0));
+                        intArray->set(i, Value(static_cast<int64_t>(0)));
                     }
                     storage = intArray;
                     break;
@@ -305,7 +305,7 @@ namespace value
         void setUnchecked(size_t index, const Value& value) {
             switch (storage.index()) {
                 case 1: // SIMD_INT
-                    if (std::holds_alternative<int>(value)) {
+                    if (std::holds_alternative<int64_t>(value)) {
                         std::get<1>(storage)->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();

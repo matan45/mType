@@ -244,7 +244,7 @@ void demonstrateScriptObjectUsage(const std::string& scriptFile,
             // Call getHealth()
             std::vector<value::Value> noArgs;
             value::Value health = interpreter.callMethod(player, "getHealth", noArgs);
-            std::cout << "  player.getHealth() = " << std::get<int>(health) << "\n";
+            std::cout << "  player.getHealth() = " << std::get<int64_t>(health) << "\n";
 
             // Call takeDamage(30)
             std::vector<value::Value> damageArgs;
@@ -254,7 +254,7 @@ void demonstrateScriptObjectUsage(const std::string& scriptFile,
 
             // Call getHealth() again
             value::Value newHealth = interpreter.callMethod(player, "getHealth", noArgs);
-            std::cout << "  player.getHealth() = " << std::get<int>(newHealth) << " (after damage)\n\n";
+            std::cout << "  player.getHealth() = " << std::get<int64_t>(newHealth) << " (after damage)\n\n";
         }
 
         // Step 5: Create and use GameWorld
@@ -271,7 +271,7 @@ void demonstrateScriptObjectUsage(const std::string& scriptFile,
             // Call getLevel()
             std::vector<value::Value> noArgs;
             value::Value level = interpreter.callMethod(world, "getLevel", noArgs);
-            std::cout << "  world.getLevel() = " << std::get<int>(level) << "\n\n";
+            std::cout << "  world.getLevel() = " << std::get<int64_t>(level) << "\n\n";
         }
 
         std::cout << std::string(80, '=') << "\n";
