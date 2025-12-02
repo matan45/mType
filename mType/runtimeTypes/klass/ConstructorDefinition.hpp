@@ -91,5 +91,17 @@ namespace runtimeTypes::klass
             genericParameters = genParams;
         }
         bool hasGenericParameters() const { return !genericParameters.empty(); }
+
+        // Reflection support: get modifier flags as bitmask
+        // PUBLIC=1, PRIVATE=2, PROTECTED=4
+        int getModifierFlags() const {
+            int flags = 0;
+            switch (accessModifier) {
+                case ast::AccessModifier::PUBLIC: flags |= 1; break;
+                case ast::AccessModifier::PRIVATE: flags |= 2; break;
+                case ast::AccessModifier::PROTECTED: flags |= 4; break;
+            }
+            return flags;
+        }
     };
 }

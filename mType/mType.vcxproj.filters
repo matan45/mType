@@ -85,6 +85,9 @@
     <Filter Include="parser\utilities">
       <UniqueIdentifier>{FD68964F-E961-B5A1-1294-9A26FEEB94AD}</UniqueIdentifier>
     </Filter>
+    <Filter Include="reflection">
+      <UniqueIdentifier>{30732186-1C2B-63D3-8532-3C2F7109FEC3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="run">
       <UniqueIdentifier>{5AA7880B-C6B0-887C-4F2C-9F7CBB34947C}</UniqueIdentifier>
     </Filter>
@@ -319,6 +322,9 @@
     <Filter Include="tests\testFiles\lib\primitives">
       <UniqueIdentifier>{7BC365C0-67E9-2F27-502F-B5F23CF454F3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\lib\reflect">
+      <UniqueIdentifier>{7473569A-E080-8480-6967-806BD5735037}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lib\stream">
       <UniqueIdentifier>{7B213FA3-6731-EB73-D0EA-4F92BC19DA0C}</UniqueIdentifier>
     </Filter>
@@ -348,6 +354,15 @@
     </Filter>
     <Filter Include="tests\testFiles\overloading\pass">
       <UniqueIdentifier>{49E6A5F3-3537-9135-5E9B-7FF74A4B249F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\reflection">
+      <UniqueIdentifier>{F4E359D0-E0F3-05A1-49AD-6ABF35DCF439}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\reflection\error">
+      <UniqueIdentifier>{4DA280A6-39F3-6BE8-6257-5AAA4E07FF51}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\reflection\pass">
+      <UniqueIdentifier>{7A12BCAF-E6F5-CAEF-EFF8-F82B5B5B9140}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\stream">
       <UniqueIdentifier>{154C4AA1-0146-73F3-EAB2-0904D64BD95F}</UniqueIdentifier>
@@ -1047,6 +1062,12 @@
     <ClInclude Include="parser\utilities\VisibilityParser.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
+    <ClInclude Include="reflection\ReflectionHandle.hpp">
+      <Filter>reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="reflection\ReflectionNatives.hpp">
+      <Filter>reflection</Filter>
+    </ClInclude>
     <ClInclude Include="runtime\EventLoop.hpp">
       <Filter>runtime</Filter>
     </ClInclude>
@@ -1168,6 +1189,9 @@
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\OverloadingTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\ReflectionTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\StreamTestSuite.hpp">
@@ -1985,6 +2009,12 @@
     <ClCompile Include="parser\utilities\VisibilityParser.cpp">
       <Filter>parser\utilities</Filter>
     </ClCompile>
+    <ClCompile Include="reflection\ReflectionHandle.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\ReflectionNatives.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
     <ClCompile Include="run\Main.cpp">
       <Filter>run</Filter>
     </ClCompile>
@@ -2106,6 +2136,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\OverloadingTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ReflectionTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\StreamTestSuite.cpp">
@@ -9145,6 +9178,30 @@
     <None Include="tests\testFiles\lib\primitives\String.mt">
       <Filter>tests\testFiles\lib\primitives</Filter>
     </None>
+    <None Include="tests\testFiles\lib\reflect\AccessibleObject.mt">
+      <Filter>tests\testFiles\lib\reflect</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\reflect\Annotation.mt">
+      <Filter>tests\testFiles\lib\reflect</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\reflect\Class.mt">
+      <Filter>tests\testFiles\lib\reflect</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\reflect\Constructor.mt">
+      <Filter>tests\testFiles\lib\reflect</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\reflect\Field.mt">
+      <Filter>tests\testFiles\lib\reflect</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\reflect\Method.mt">
+      <Filter>tests\testFiles\lib\reflect</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\reflect\Modifier.mt">
+      <Filter>tests\testFiles\lib\reflect</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\reflect\Parameter.mt">
+      <Filter>tests\testFiles\lib\reflect</Filter>
+    </None>
     <None Include="tests\testFiles\lib\stream\Stream.mt">
       <Filter>tests\testFiles\lib\stream</Filter>
     </None>
@@ -9510,6 +9567,141 @@
     </None>
     <None Include="tests\testFiles\overloading\pass\staticMethodOverload.mt">
       <Filter>tests\testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\error\classNotFound.mt">
+      <Filter>tests\testFiles\reflection\error</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\error\fieldNotFound.mt">
+      <Filter>tests\testFiles\reflection\error</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\error\methodNotFound.mt">
+      <Filter>tests\testFiles\reflection\error</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\annotationReflection.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\annotationReflection.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\basicReflection.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\basicReflection.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classForName.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classForName.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classMetadata.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classMetadata.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classModifiers.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classModifiers.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\constructorDiscovery.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\constructorDiscovery.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\constructorParameters.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\constructorParameters.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\fieldDiscovery.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\fieldDiscovery.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\fieldModifiers.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\fieldModifiers.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\fieldTypes.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\fieldTypes.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\genericClassReflection.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\genericClassReflection.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\inheritanceReflection.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\inheritanceReflection.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\interfaceReflection.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\interfaceReflection.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodDiscovery.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodDiscovery.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodModifiers.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodModifiers.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodParameters.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodParameters.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodReturnTypes.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodReturnTypes.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\modifierConstants.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\modifierConstants.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\modifierUtilities.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\modifierUtilities.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\staticFieldAccess.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\staticFieldAccess.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\superclassReflection.expected">
+      <Filter>tests\testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\superclassReflection.mt">
+      <Filter>tests\testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\stream\error\streamLimitNegative.mt">
       <Filter>tests\testFiles\stream\error</Filter>

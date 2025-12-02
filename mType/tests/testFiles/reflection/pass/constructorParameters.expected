@@ -1,0 +1,8 @@
+Constructor param count: 3
+Number of param types: 3
+Param 0 type: String
+Param 1 type: int
+Param 2 type: bool
+Constructor is public: true
+Constructor is private: false
+Test passed

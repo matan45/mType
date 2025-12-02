@@ -1,0 +1,5 @@
+Direct access - count: 3
+countField is static: true
+Reflection access - count: 3
+Reflection access - max: 100
+Test passed

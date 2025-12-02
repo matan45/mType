@@ -1,0 +1,8 @@
+Number of declared fields: 4
+Field: name type=String
+Field: age type=int
+Field: score type=float
+Field: count type=int
+Found field 'age': age
+Found field 'count': count
+Test passed

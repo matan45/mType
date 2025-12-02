@@ -3,6 +3,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
 #include "../../services/ScriptInterpreter.hpp"
+#include "../../reflection/ReflectionNatives.hpp"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -31,6 +32,9 @@ namespace tests::testFramework
                 interfaceRegistry->clearValidationCache();
             }
         }
+
+        // Clear reflection handle registry to prevent stale handles between tests
+        reflection::ReflectionNatives::cleanup();
 
         try
         {

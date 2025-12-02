@@ -1,0 +1,19 @@
+isPublic(PUBLIC): true
+isPublic(PRIVATE): false
+isPrivate(PRIVATE): true
+isPrivate(PUBLIC): false
+isProtected(PROTECTED): true
+isProtected(PUBLIC): false
+isStatic(STATIC): true
+isStatic(PUBLIC): false
+isFinal(FINAL): true
+isFinal(PUBLIC): false
+isAbstract(ABSTRACT): true
+isAbstract(PUBLIC): false
+Combined PUBLIC|STATIC|FINAL:
+  isPublic: true
+  isStatic: true
+  isFinal: true
+  isPrivate: false
+  isAbstract: false
+Test passed

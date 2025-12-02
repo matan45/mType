@@ -21,7 +21,7 @@
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
 #include <stdexcept>
-#include  <iostream>
+
 namespace vm::compiler::registration
 {
     ClassRegistrar::ClassRegistrar(

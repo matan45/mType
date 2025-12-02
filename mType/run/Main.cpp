@@ -19,6 +19,7 @@
 #include "../tests/suites/EnhancedForLoopTestSuite.hpp"
 #include "../tests/suites/StreamTestSuite.hpp"
 #include "../tests/suites/CollectionsTestSuite.hpp"
+#include "../tests/suites/ReflectionTestSuite.hpp"
 
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
@@ -28,6 +29,7 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../debugger/DebugContext.hpp"
 #include "../debugger/DebugHookHelper.hpp"
+#include "../reflection/ReflectionNatives.hpp"
 #include "../debugger/DebugProtocol.hpp"
 
 #include <vector>
@@ -128,6 +130,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<CollectionsTestSuite>();
     }
+    else if (suiteName == "reflection" || suiteName == "reflect")
+    {
+        return std::make_unique<ReflectionTestSuite>();
+    }
     return nullptr;
 }
 
@@ -154,6 +160,7 @@ void printAvailableTestSuites()
     std::cout << "  foreach      - Enhanced For-Loop Test Suite\n";
     std::cout << "  stream       - Stream API Test Suite\n";
     std::cout << "  collections  - Collections (ArrayList, LinkedList, HashMap) Test Suite\n";
+    std::cout << "  reflection   - Reflection API Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -175,6 +182,9 @@ void runSpecificTestSuite(const std::string& suiteName,
     suite->setExecutionModeForAll(execMode);
 
     suite->run();
+
+    // Cleanup reflection static state to avoid static destruction order issues
+    reflection::ReflectionNatives::cleanup();
 }
 
 // Helper function to convert string type name to ValueType
@@ -381,6 +391,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
     suites.push_back(std::make_unique<IteratorTestSuite>());
     suites.push_back(std::make_unique<EnhancedForLoopTestSuite>());
     suites.push_back(std::make_unique<StreamTestSuite>());
+    suites.push_back(std::make_unique<ReflectionTestSuite>());
 
     for (auto& suite : suites)
     {
@@ -388,6 +399,9 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
         suite->setExecutionModeForAll(execMode); // Set execution mode
         suite->run(); // Run tests and generate reports
     }
+
+    // Cleanup reflection static state to avoid static destruction order issues
+    reflection::ReflectionNatives::cleanup();
 
     // Print final summary
     std::cout << "\n" << std::string(80, '=') << std::endl;
@@ -736,8 +750,12 @@ int main(int argc, char* argv[])
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
+        reflection::ReflectionNatives::cleanup();
         return 1;
     }
+
+    // Cleanup reflection static state to avoid static destruction order issues
+    reflection::ReflectionNatives::cleanup();
 
     return 0;
 }

@@ -1,0 +1,7 @@
+Animal is abstract: true
+Animal is final: false
+Dog is abstract: false
+Dog is final: true
+Cat is abstract: false
+Cat is final: false
+Test passed

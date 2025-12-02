@@ -1,0 +1,6 @@
+returnsInt return type: int
+returnsFloat return type: float
+returnsBool return type: bool
+returnsString return type: String
+returnsVoid return type: void
+Test passed

@@ -1,0 +1,5 @@
+Child class name: Child
+Child's superclass: Parent
+Parent's superclass: GrandParent
+GrandParent has no superclass
+Test passed
