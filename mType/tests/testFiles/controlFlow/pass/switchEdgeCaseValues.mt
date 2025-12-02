@@ -246,20 +246,23 @@ switch (random_test) {
         break;
 }
 
-// Test 15: Testing integer overflow behavior (if applicable)
-// This depends on how the language handles integer arithmetic
-int overflow_test = 2147483647;  // Max int
-overflow_test = overflow_test + 1;  // This might overflow to -2147483647 or wrap
+// Test 15: Testing 64-bit integer behavior
+// With 64-bit integers, adding 1 to 2147483647 doesn't overflow
+int overflow_test = 2147483647;  // Old max 32-bit int
+overflow_test = overflow_test + 1;  // With 64-bit, this is just 2147483648
 
 switch (overflow_test) {
-    case -2147483647:
-        print("Integer overflowed near min value");
+    case -2147483648:
+        print("Integer overflowed to min value (32-bit behavior)");
         break;
     case 2147483647:
-        print("Integer stayed at max (if supported)");
+        print("Integer stayed at max");
+        break;
+    case 2147483648:
+        print("Overflow behavior: " + overflow_test);  // 64-bit: no overflow
         break;
     default:
-        print("Overflow behavior: " + overflow_test);
+        print("Unexpected value: " + overflow_test);
         break;
 }
 

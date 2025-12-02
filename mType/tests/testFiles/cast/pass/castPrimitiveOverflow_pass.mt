@@ -1,15 +1,14 @@
-// Test: Casting large integers to float handles overflow gracefully
-// Expected: Values should be converted, potentially losing precision
+// Test: Casting large integers to float handles precision correctly
+// Expected: Values should be converted, potentially losing precision for very large values
 
 function testLargeIntToFloat(): void {
-    // Test maximum int value (32-bit signed int max)
+    // Test maximum 32-bit int value
     int maxInt = 2147483647; // Max 32-bit int
     float maxAsFloat = (float)maxInt;
     print("Max int to float: " + maxAsFloat);
 
-    // Test minimum int value (32-bit signed int min: -2147483648)
-    // Note: Can't use -2147483648 directly due to literal parsing, so use -2147483647 - 1
-    int minInt = -2147483647 - 1; // Min 32-bit int
+    // Test minimum 32-bit int value
+    int minInt = -2147483648; // Min 32-bit int
     float minAsFloat = (float)minInt;
     print("Min int to float: " + minAsFloat);
 
@@ -23,7 +22,7 @@ function testLargeIntToFloat(): void {
     float positiveFloat = (float)largePositive;
     print("Large positive to float: " + positiveFloat);
 
-    // Test that casting works in expressions
+    // Test that casting works in expressions (64-bit: 1 trillion, no overflow)
     int million = 1000000;
     float computed = (float)(million * million);
     print("Computed large value: " + computed);

@@ -1,12 +1,12 @@
-// Test MIN_VALUE and MAX_VALUE integers in arrays
+// Test integer boundary values in arrays (64-bit integers)
 print("Testing integer boundary values in arrays");
 
 int[] boundaries = new int[4];
 print("Created int array with length: " + boundaries.length);
 
-// Assign boundary values
-boundaries[0] = 2147483647;   // MAX_VALUE (2^31 - 1)
-boundaries[1] = -2147483647 - 1;  // MIN_VALUE (-2^31)
+// Assign boundary values (using 32-bit style boundaries for compatibility)
+boundaries[0] = 2147483647;   // Old MAX_VALUE (2^31 - 1)
+boundaries[1] = -2147483648;  // Old MIN_VALUE (-2^31)
 boundaries[2] = 0;
 boundaries[3] = -1;
 
@@ -18,15 +18,15 @@ for (int i = 0; i < boundaries.length; i++) {
 // Test arithmetic near boundaries
 print("Testing arithmetic near boundaries:");
 
-// Test addition that would overflow (wraps around)
+// With 64-bit integers, these no longer overflow
 int maxPlusOne = boundaries[0] + 1;
 print("MAX_VALUE + 1 = " + maxPlusOne);
 
-// Test subtraction that would underflow
+// This also doesn't underflow with 64-bit
 int minMinusOne = boundaries[1] - 1;
 print("MIN_VALUE - 1 = " + minMinusOne);
 
-// Test negation of MIN_VALUE
+// Negation works correctly with 64-bit
 int negatedMin = -boundaries[1];
 print("-(MIN_VALUE) = " + negatedMin);
 
