@@ -192,7 +192,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getSimpleName(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getSimpleName");
-        int classHandle = extractInt(args[0], "__reflect_getSimpleName", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getSimpleName", "classHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto classDef = registry.getClass(classHandle);
@@ -207,7 +207,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getSuperclass(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getSuperclass");
-        int classHandle = extractInt(args[0], "__reflect_getSuperclass", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getSuperclass", "classHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto classDef = registry.getClass(classHandle);
@@ -229,7 +229,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getInterfaces(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getInterfaces");
-        int classHandle = extractInt(args[0], "__reflect_getInterfaces", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getInterfaces", "classHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto classDef = registry.getClass(classHandle);
@@ -261,7 +261,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_isAbstract(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_isAbstract");
-        int classHandle = extractInt(args[0], "__reflect_isAbstract", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_isAbstract", "classHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto classDef = registry.getClass(classHandle);
@@ -276,7 +276,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_isFinal(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_isFinal");
-        int classHandle = extractInt(args[0], "__reflect_isFinal", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_isFinal", "classHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto classDef = registry.getClass(classHandle);
@@ -291,7 +291,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_isInstance(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_isInstance");
-        int classHandle = extractInt(args[0], "__reflect_isInstance", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_isInstance", "classHandle");
 
         // Handle null check
         if (std::holds_alternative<std::monostate>(args[1]) || std::holds_alternative<nullptr_t>(args[1]))
@@ -318,8 +318,8 @@ namespace reflection
     Value ReflectionNatives::__reflect_isAssignableFrom(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_isAssignableFrom");
-        int thisHandle = extractInt(args[0], "__reflect_isAssignableFrom", "thisClassHandle");
-        int otherHandle = extractInt(args[1], "__reflect_isAssignableFrom", "otherClassHandle");
+        int64_t thisHandle = extractInt(args[0], "__reflect_isAssignableFrom", "thisClassHandle");
+        int64_t otherHandle = extractInt(args[1], "__reflect_isAssignableFrom", "otherClassHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto thisClass = registry.getClass(thisHandle);
@@ -342,7 +342,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_newInstance(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_newInstance");
-        int classHandle = extractInt(args[0], "__reflect_newInstance", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_newInstance", "classHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto classDef = registry.getClass(classHandle);
@@ -371,7 +371,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_isGenericClass(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_isGenericClass");
-        int classHandle = extractInt(args[0], "__reflect_isGenericClass", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_isGenericClass", "classHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto classDef = registry.getClass(classHandle);
@@ -386,7 +386,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getTypeParameters(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getTypeParameters");
-        int classHandle = extractInt(args[0], "__reflect_getTypeParameters", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getTypeParameters", "classHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto classDef = registry.getClass(classHandle);
@@ -409,7 +409,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getClassModifiers(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getClassModifiers");
-        int classHandle = extractInt(args[0], "__reflect_getClassModifiers", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getClassModifiers", "classHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto classDef = registry.getClass(classHandle);
@@ -426,7 +426,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getField(const std::vector<Value>& args)
     {
         validateArgCount(args, 3, "__reflect_getField");
-        int classHandle = extractInt(args[0], "__reflect_getField", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getField", "classHandle");
         std::string fieldName = extractString(args[1], "__reflect_getField", "fieldName");
         bool declaredOnly = extractBool(args[2], "__reflect_getField", "declaredOnly");
 
@@ -482,7 +482,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getFields(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_getFields");
-        int classHandle = extractInt(args[0], "__reflect_getFields", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getFields", "classHandle");
         bool declaredOnly = extractBool(args[1], "__reflect_getFields", "declaredOnly");
 
         auto& handleRegistry = ReflectionHandleRegistry::instance();
@@ -527,7 +527,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getFieldType(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getFieldType");
-        int fieldHandle = extractInt(args[0], "__reflect_getFieldType", "fieldHandle");
+        int64_t fieldHandle = extractInt(args[0], "__reflect_getFieldType", "fieldHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto fieldInfo = registry.getField(fieldHandle);
@@ -543,7 +543,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getFieldDeclaringClass(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getFieldDeclaringClass");
-        int classHandle = extractInt(args[0], "__reflect_getFieldDeclaringClass", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getFieldDeclaringClass", "classHandle");
 
         // The classHandle is already the declaring class handle
         return classHandle;
@@ -552,7 +552,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getFieldModifiers(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getFieldModifiers");
-        int fieldHandle = extractInt(args[0], "__reflect_getFieldModifiers", "fieldHandle");
+        int64_t fieldHandle = extractInt(args[0], "__reflect_getFieldModifiers", "fieldHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto fieldInfo = registry.getField(fieldHandle);
@@ -568,7 +568,7 @@ namespace reflection
     {
         validateArgCount(args, 3, "__reflect_getFieldValue");
         auto instance = extractObject(args[0], "__reflect_getFieldValue", "instance");
-        int fieldHandle = extractInt(args[1], "__reflect_getFieldValue", "fieldHandle");
+        int64_t fieldHandle = extractInt(args[1], "__reflect_getFieldValue", "fieldHandle");
         bool accessible = extractBool(args[2], "__reflect_getFieldValue", "accessible");
 
         auto& registry = ReflectionHandleRegistry::instance();
@@ -600,7 +600,7 @@ namespace reflection
     {
         validateArgCount(args, 4, "__reflect_setFieldValue");
         auto instance = extractObject(args[0], "__reflect_setFieldValue", "instance");
-        int fieldHandle = extractInt(args[1], "__reflect_setFieldValue", "fieldHandle");
+        int64_t fieldHandle = extractInt(args[1], "__reflect_setFieldValue", "fieldHandle");
         const Value& newValue = args[2];
         bool accessible = extractBool(args[3], "__reflect_setFieldValue", "accessible");
 
@@ -639,8 +639,8 @@ namespace reflection
     Value ReflectionNatives::__reflect_getStaticFieldValue(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_getStaticFieldValue");
-        int classHandle = extractInt(args[0], "__reflect_getStaticFieldValue", "classHandle");
-        int fieldHandle = extractInt(args[1], "__reflect_getStaticFieldValue", "fieldHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getStaticFieldValue", "classHandle");
+        int64_t fieldHandle = extractInt(args[1], "__reflect_getStaticFieldValue", "fieldHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto fieldInfo = registry.getField(fieldHandle);
@@ -660,8 +660,8 @@ namespace reflection
     Value ReflectionNatives::__reflect_setStaticFieldValue(const std::vector<Value>& args)
     {
         validateArgCount(args, 3, "__reflect_setStaticFieldValue");
-        int classHandle = extractInt(args[0], "__reflect_setStaticFieldValue", "classHandle");
-        int fieldHandle = extractInt(args[1], "__reflect_setStaticFieldValue", "fieldHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_setStaticFieldValue", "classHandle");
+        int64_t fieldHandle = extractInt(args[1], "__reflect_setStaticFieldValue", "fieldHandle");
         const Value& newValue = args[2];
 
         auto& registry = ReflectionHandleRegistry::instance();
@@ -683,7 +683,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getFieldName(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getFieldName");
-        int fieldHandle = extractInt(args[0], "__reflect_getFieldName", "fieldHandle");
+        int64_t fieldHandle = extractInt(args[0], "__reflect_getFieldName", "fieldHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto fieldInfo = registry.getField(fieldHandle);
@@ -700,7 +700,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethod(const std::vector<Value>& args)
     {
         validateArgCount(args, 4, "__reflect_getMethod");
-        int classHandle = extractInt(args[0], "__reflect_getMethod", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getMethod", "classHandle");
         std::string methodName = extractString(args[1], "__reflect_getMethod", "methodName");
         // args[2] is paramTypes array - for simplicity, we'll use argCount-based lookup
         bool declaredOnly = extractBool(args[3], "__reflect_getMethod", "declaredOnly");
@@ -756,7 +756,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethods(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_getMethods");
-        int classHandle = extractInt(args[0], "__reflect_getMethods", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getMethods", "classHandle");
         bool declaredOnly = extractBool(args[1], "__reflect_getMethods", "declaredOnly");
 
         auto& handleRegistry = ReflectionHandleRegistry::instance();
@@ -806,7 +806,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethodReturnType(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getMethodReturnType");
-        int methodHandle = extractInt(args[0], "__reflect_getMethodReturnType", "methodHandle");
+        int64_t methodHandle = extractInt(args[0], "__reflect_getMethodReturnType", "methodHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto methodInfo = registry.getMethod(methodHandle);
@@ -821,7 +821,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethodParamTypes(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getMethodParamTypes");
-        int methodHandle = extractInt(args[0], "__reflect_getMethodParamTypes", "methodHandle");
+        int64_t methodHandle = extractInt(args[0], "__reflect_getMethodParamTypes", "methodHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto methodInfo = registry.getMethod(methodHandle);
@@ -844,7 +844,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethodParamCount(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getMethodParamCount");
-        int methodHandle = extractInt(args[0], "__reflect_getMethodParamCount", "methodHandle");
+        int64_t methodHandle = extractInt(args[0], "__reflect_getMethodParamCount", "methodHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto methodInfo = registry.getMethod(methodHandle);
@@ -859,14 +859,14 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethodDeclaringClass(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getMethodDeclaringClass");
-        int classHandle = extractInt(args[0], "__reflect_getMethodDeclaringClass", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getMethodDeclaringClass", "classHandle");
         return classHandle;
     }
 
     Value ReflectionNatives::__reflect_getMethodModifiers(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getMethodModifiers");
-        int methodHandle = extractInt(args[0], "__reflect_getMethodModifiers", "methodHandle");
+        int64_t methodHandle = extractInt(args[0], "__reflect_getMethodModifiers", "methodHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto methodInfo = registry.getMethod(methodHandle);
@@ -881,7 +881,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_isMethodAsync(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_isMethodAsync");
-        int methodHandle = extractInt(args[0], "__reflect_isMethodAsync", "methodHandle");
+        int64_t methodHandle = extractInt(args[0], "__reflect_isMethodAsync", "methodHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto methodInfo = registry.getMethod(methodHandle);
@@ -896,7 +896,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_isMethodGeneric(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_isMethodGeneric");
-        int methodHandle = extractInt(args[0], "__reflect_isMethodGeneric", "methodHandle");
+        int64_t methodHandle = extractInt(args[0], "__reflect_isMethodGeneric", "methodHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto methodInfo = registry.getMethod(methodHandle);
@@ -924,7 +924,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethodName(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getMethodName");
-        int methodHandle = extractInt(args[0], "__reflect_getMethodName", "methodHandle");
+        int64_t methodHandle = extractInt(args[0], "__reflect_getMethodName", "methodHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto methodInfo = registry.getMethod(methodHandle);
@@ -941,7 +941,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getConstructor(const std::vector<Value>& args)
     {
         validateArgCount(args, 3, "__reflect_getConstructor");
-        int classHandle = extractInt(args[0], "__reflect_getConstructor", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getConstructor", "classHandle");
         // args[1] is paramTypes array
         bool declaredOnly = extractBool(args[2], "__reflect_getConstructor", "declaredOnly");
 
@@ -987,7 +987,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getConstructors(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_getConstructors");
-        int classHandle = extractInt(args[0], "__reflect_getConstructors", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getConstructors", "classHandle");
         bool declaredOnly = extractBool(args[1], "__reflect_getConstructors", "declaredOnly");
 
         auto& handleRegistry = ReflectionHandleRegistry::instance();
@@ -1021,7 +1021,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getConstructorParamTypes(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorParamTypes");
-        int ctorHandle = extractInt(args[0], "__reflect_getConstructorParamTypes", "ctorHandle");
+        int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorParamTypes", "ctorHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto ctorInfo = registry.getConstructor(ctorHandle);
@@ -1044,7 +1044,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getConstructorParamCount(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorParamCount");
-        int ctorHandle = extractInt(args[0], "__reflect_getConstructorParamCount", "ctorHandle");
+        int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorParamCount", "ctorHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto ctorInfo = registry.getConstructor(ctorHandle);
@@ -1059,7 +1059,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getConstructorModifiers(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorModifiers");
-        int ctorHandle = extractInt(args[0], "__reflect_getConstructorModifiers", "ctorHandle");
+        int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorModifiers", "ctorHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto ctorInfo = registry.getConstructor(ctorHandle);
@@ -1080,7 +1080,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getConstructorDeclaringClass(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorDeclaringClass");
-        int classHandle = extractInt(args[0], "__reflect_getConstructorDeclaringClass", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getConstructorDeclaringClass", "classHandle");
         return classHandle;
     }
 
@@ -1089,7 +1089,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getClassAnnotations(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getClassAnnotations");
-        int classHandle = extractInt(args[0], "__reflect_getClassAnnotations", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getClassAnnotations", "classHandle");
 
         auto& handleRegistry = ReflectionHandleRegistry::instance();
         auto classDef = handleRegistry.getClass(classHandle);
@@ -1119,7 +1119,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getClassAnnotation(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_getClassAnnotation");
-        int classHandle = extractInt(args[0], "__reflect_getClassAnnotation", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_getClassAnnotation", "classHandle");
         std::string annotationName = extractString(args[1], "__reflect_getClassAnnotation", "annotationName");
 
         auto& handleRegistry = ReflectionHandleRegistry::instance();
@@ -1142,7 +1142,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_hasClassAnnotation(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_hasClassAnnotation");
-        int classHandle = extractInt(args[0], "__reflect_hasClassAnnotation", "classHandle");
+        int64_t classHandle = extractInt(args[0], "__reflect_hasClassAnnotation", "classHandle");
         std::string annotationName = extractString(args[1], "__reflect_hasClassAnnotation", "annotationName");
 
         auto& handleRegistry = ReflectionHandleRegistry::instance();
@@ -1158,7 +1158,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethodAnnotations(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getMethodAnnotations");
-        int methodHandle = extractInt(args[0], "__reflect_getMethodAnnotations", "methodHandle");
+        int64_t methodHandle = extractInt(args[0], "__reflect_getMethodAnnotations", "methodHandle");
 
         auto& handleRegistry = ReflectionHandleRegistry::instance();
         auto methodInfo = handleRegistry.getMethod(methodHandle);
@@ -1195,7 +1195,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getAnnotationParam(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_getAnnotationParam");
-        int annotationHandle = extractInt(args[0], "__reflect_getAnnotationParam", "annotationHandle");
+        int64_t annotationHandle = extractInt(args[0], "__reflect_getAnnotationParam", "annotationHandle");
         std::string paramKey = extractString(args[1], "__reflect_getAnnotationParam", "paramKey");
 
         auto& registry = ReflectionHandleRegistry::instance();
@@ -1218,7 +1218,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_hasAnnotationParam(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__reflect_hasAnnotationParam");
-        int annotationHandle = extractInt(args[0], "__reflect_hasAnnotationParam", "annotationHandle");
+        int64_t annotationHandle = extractInt(args[0], "__reflect_hasAnnotationParam", "annotationHandle");
         std::string paramKey = extractString(args[1], "__reflect_hasAnnotationParam", "paramKey");
 
         auto& registry = ReflectionHandleRegistry::instance();
@@ -1234,7 +1234,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getAnnotationParams(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getAnnotationParams");
-        int annotationHandle = extractInt(args[0], "__reflect_getAnnotationParams", "annotationHandle");
+        int64_t annotationHandle = extractInt(args[0], "__reflect_getAnnotationParams", "annotationHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto annotationInfo = registry.getAnnotation(annotationHandle);
@@ -1267,7 +1267,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethodParameters(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getMethodParameters");
-        int methodHandle = extractInt(args[0], "__reflect_getMethodParameters", "methodHandle");
+        int64_t methodHandle = extractInt(args[0], "__reflect_getMethodParameters", "methodHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto methodInfo = registry.getMethod(methodHandle);
@@ -1291,7 +1291,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getConstructorParameters(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorParameters");
-        int ctorHandle = extractInt(args[0], "__reflect_getConstructorParameters", "ctorHandle");
+        int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorParameters", "ctorHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
         auto ctorInfo = registry.getConstructor(ctorHandle);
@@ -1314,7 +1314,7 @@ namespace reflection
     Value ReflectionNatives::__reflect_getParameterType(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getParameterType");
-        int typeHandle = extractInt(args[0], "__reflect_getParameterType", "typeHandle");
+        int64_t typeHandle = extractInt(args[0], "__reflect_getParameterType", "typeHandle");
 
         // typeHandle is actually a class handle in this context
         auto& registry = ReflectionHandleRegistry::instance();
@@ -1332,31 +1332,31 @@ namespace reflection
     Value ReflectionNatives::__bitwise_and(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__bitwise_and");
-        int a = extractInt(args[0], "__bitwise_and", "a");
-        int b = extractInt(args[1], "__bitwise_and", "b");
+        int64_t a = extractInt(args[0], "__bitwise_and", "a");
+        int64_t b = extractInt(args[1], "__bitwise_and", "b");
         return a & b;
     }
 
     Value ReflectionNatives::__bitwise_or(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__bitwise_or");
-        int a = extractInt(args[0], "__bitwise_or", "a");
-        int b = extractInt(args[1], "__bitwise_or", "b");
+        int64_t a = extractInt(args[0], "__bitwise_or", "a");
+        int64_t b = extractInt(args[1], "__bitwise_or", "b");
         return a | b;
     }
 
     Value ReflectionNatives::__bitwise_xor(const std::vector<Value>& args)
     {
         validateArgCount(args, 2, "__bitwise_xor");
-        int a = extractInt(args[0], "__bitwise_xor", "a");
-        int b = extractInt(args[1], "__bitwise_xor", "b");
+        int64_t a = extractInt(args[0], "__bitwise_xor", "a");
+        int64_t b = extractInt(args[1], "__bitwise_xor", "b");
         return a ^ b;
     }
 
     Value ReflectionNatives::__bitwise_not(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__bitwise_not");
-        int a = extractInt(args[0], "__bitwise_not", "a");
+        int64_t a = extractInt(args[0], "__bitwise_not", "a");
         return ~a;
     }
 

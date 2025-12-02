@@ -177,7 +177,7 @@ namespace vm::runtime
             return val; // Already float
         }
         else if (std::holds_alternative<int64_t>(val)) {
-            return static_cast<double>(std::get<int64_t>(val));
+            return static_cast<float>(std::get<int64_t>(val));
         }
         else if (std::holds_alternative<std::string>(val)) {
             try {

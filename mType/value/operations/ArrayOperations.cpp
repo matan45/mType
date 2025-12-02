@@ -196,7 +196,7 @@ namespace value::operations
         // SIMD path for int arrays
         if (elemType == ValueType::INT && array->getSIMDIntData()) {
             auto data = array->getSIMDIntData();
-            int result = intSimdOp(data->data(), array->size());
+            int64_t result = intSimdOp(data->data(), array->size());
             return Value(result);
         }
 

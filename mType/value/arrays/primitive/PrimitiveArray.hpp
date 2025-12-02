@@ -28,9 +28,10 @@ namespace mType
                 static_assert(
                     std::is_same<T, int>::value ||
                     std::is_same<T, int32_t>::value ||
+                    std::is_same<T, int64_t>::value ||
                     std::is_same<T, float>::value ||
                     std::is_same<T, bool>::value,
-                    "PrimitiveArray only supports int, int32_t, float, and bool"
+                    "PrimitiveArray only supports int, int32_t, int64_t, float, and bool"
                 );
 
                 // Construction
@@ -56,7 +57,7 @@ namespace mType
 
                 std::string elementTypeName() const override
                 {
-                    if (std::is_same<T, int>::value || std::is_same<T, int32_t>::value) return "int";
+                    if (std::is_same<T, int>::value || std::is_same<T, int32_t>::value || std::is_same<T, int64_t>::value) return "int";
                     if (std::is_same<T, float>::value) return "float";
                     if (std::is_same<T, bool>::value) return "bool";
                     return "unknown";
@@ -64,7 +65,7 @@ namespace mType
 
                 ::value::ValueType elementType() const override
                 {
-                    if (std::is_same<T, int>::value || std::is_same<T, int32_t>::value) return ::value::ValueType::INT;
+                    if (std::is_same<T, int>::value || std::is_same<T, int32_t>::value || std::is_same<T, int64_t>::value) return ::value::ValueType::INT;
                     if (std::is_same<T, float>::value) return ::value::ValueType::FLOAT;
                     if (std::is_same<T, bool>::value) return ::value::ValueType::BOOL;
                     return ::value::ValueType::VOID;
@@ -123,7 +124,7 @@ namespace mType
                 size_t simdWidth() const override
                 {
 #ifdef MTYPE_SIMD_ENABLED
-                    if (std::is_same<T, int>::value || std::is_same<T, int32_t>::value) return
+                    if (std::is_same<T, int>::value || std::is_same<T, int32_t>::value || std::is_same<T, int64_t>::value) return
                         mType::value::simd::SIMDWidth::INT32;
                     if (std::is_same<T, float>::value) return mType::value::simd::SIMDWidth::FLOAT;
 #endif

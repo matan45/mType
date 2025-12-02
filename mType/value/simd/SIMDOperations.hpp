@@ -29,7 +29,7 @@ namespace mType::value::simd
     class SIMDOperations
     {
     public:
-        // ========== INTEGER OPERATIONS ==========
+        // ========== INTEGER OPERATIONS (64-bit) ==========
 
         /**
          * @brief SIMD-accelerated integer array addition: result[i] = a[i] + b[i]
@@ -38,45 +38,45 @@ namespace mType::value::simd
          * @param result Output array
          * @param size Number of elements (must be same for all arrays)
          */
-        static void addInt(const int* a, const int* b, int* result, size_t size);
+        static void addInt(const int64_t* a, const int64_t* b, int64_t* result, size_t size);
 
         /**
          * @brief SIMD-accelerated integer scalar addition: result[i] = a[i] + scalar
          */
-        static void addScalarInt(const int* a, int scalar, int* result, size_t size);
+        static void addScalarInt(const int64_t* a, int64_t scalar, int64_t* result, size_t size);
 
         /**
          * @brief SIMD-accelerated integer array subtraction: result[i] = a[i] - b[i]
          */
-        static void subtractInt(const int* a, const int* b, int* result, size_t size);
+        static void subtractInt(const int64_t* a, const int64_t* b, int64_t* result, size_t size);
 
         /**
          * @brief SIMD-accelerated integer array multiplication: result[i] = a[i] * b[i]
          */
-        static void multiplyInt(const int* a, const int* b, int* result, size_t size);
+        static void multiplyInt(const int64_t* a, const int64_t* b, int64_t* result, size_t size);
 
         /**
          * @brief SIMD-accelerated integer scalar multiplication: result[i] = a[i] * scalar
          */
-        static void multiplyScalarInt(const int* a, int scalar, int* result, size_t size);
+        static void multiplyScalarInt(const int64_t* a, int64_t scalar, int64_t* result, size_t size);
 
         /**
          * @brief SIMD-accelerated integer sum reduction
          * @return Sum of all elements
          */
-        static int sumInt(const int* data, size_t size);
+        static int64_t sumInt(const int64_t* data, size_t size);
 
         /**
          * @brief SIMD-accelerated integer minimum
          * @return Minimum element
          */
-        static int minInt(const int* data, size_t size);
+        static int64_t minInt(const int64_t* data, size_t size);
 
         /**
          * @brief SIMD-accelerated integer maximum
          * @return Maximum element
          */
-        static int maxInt(const int* data, size_t size);
+        static int64_t maxInt(const int64_t* data, size_t size);
 
         // ========== FLOAT OPERATIONS ==========
 
