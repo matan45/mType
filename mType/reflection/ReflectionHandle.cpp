@@ -5,25 +5,25 @@ namespace reflection
 {
     // ========== Cache Key Helper Functions ==========
 
-    std::string ReflectionHandleRegistry::makeFieldKey(int classHandle, const std::string& fieldName)
+    std::string ReflectionHandleRegistry::makeFieldKey(int64_t classHandle, const std::string& fieldName)
     {
         return std::to_string(classHandle) + ":" + fieldName;
     }
 
-    std::string ReflectionHandleRegistry::makeMethodKey(int classHandle, const std::string& methodName,
+    std::string ReflectionHandleRegistry::makeMethodKey(int64_t classHandle, const std::string& methodName,
                                                          const std::vector<std::string>& paramTypes)
     {
-        std::string key = std::to_string(classHandle) + ":" + methodName + "(";
-        for (size_t i = 0; i < paramTypes.size(); ++i)
+        // Use length-prefixed encoding to avoid delimiter collisions with generic types like Foo<A,B>
+        // Format: "classHandle:methodName#count:len1:type1:len2:type2:..."
+        std::string key = std::to_string(classHandle) + ":" + methodName + "#" + std::to_string(paramTypes.size());
+        for (const auto& paramType : paramTypes)
         {
-            if (i > 0) key += ",";
-            key += paramTypes[i];
+            key += ":" + std::to_string(paramType.length()) + ":" + paramType;
         }
-        key += ")";
         return key;
     }
 
-    std::string ReflectionHandleRegistry::makeConstructorKey(int classHandle, int constructorIndex)
+    std::string ReflectionHandleRegistry::makeConstructorKey(int64_t classHandle, int constructorIndex)
     {
         return std::to_string(classHandle) + ":ctor:" + std::to_string(constructorIndex);
     }
@@ -36,7 +36,7 @@ namespace reflection
 
     // ========== Class Handle Management ==========
 
-    int ReflectionHandleRegistry::registerClass(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef)
+    int64_t ReflectionHandleRegistry::registerClass(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef)
     {
         if (!classDef)
         {
@@ -54,7 +54,7 @@ namespace reflection
         }
 
         // Create new handle
-        int handle = nextHandle++;
+        int64_t handle = nextHandle++;
         classHandles[handle] = classDef;
         classNameToHandle[className] = handle;
         handleTypeMap[handle] = HandleType::CLASS;
@@ -62,7 +62,7 @@ namespace reflection
         return handle;
     }
 
-    std::shared_ptr<runtimeTypes::klass::ClassDefinition> ReflectionHandleRegistry::getClass(int handle) const
+    std::shared_ptr<runtimeTypes::klass::ClassDefinition> ReflectionHandleRegistry::getClass(int64_t handle) const
     {
         std::lock_guard<std::mutex> lock(mutex);
 
@@ -74,7 +74,7 @@ namespace reflection
         return nullptr;
     }
 
-    int ReflectionHandleRegistry::findClassHandle(const std::string& className) const
+    int64_t ReflectionHandleRegistry::findClassHandle(const std::string& className) const
     {
         std::lock_guard<std::mutex> lock(mutex);
 
@@ -86,7 +86,7 @@ namespace reflection
         return -1;
     }
 
-    int ReflectionHandleRegistry::getOrCreateClassHandle(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef)
+    int64_t ReflectionHandleRegistry::getOrCreateClassHandle(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef)
     {
         if (!classDef)
         {
@@ -94,7 +94,7 @@ namespace reflection
         }
 
         // Try to find existing handle first
-        int existingHandle = findClassHandle(classDef->getName());
+        int64_t existingHandle = findClassHandle(classDef->getName());
         if (existingHandle != -1)
         {
             return existingHandle;
@@ -106,8 +106,8 @@ namespace reflection
 
     // ========== Field Handle Management ==========
 
-    int ReflectionHandleRegistry::registerField(const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
-                                                int classHandle, const std::string& fieldName)
+    int64_t ReflectionHandleRegistry::registerField(const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
+                                                int64_t classHandle, const std::string& fieldName)
     {
         if (!field)
         {
@@ -125,7 +125,7 @@ namespace reflection
         }
 
         // Create new handle
-        int handle = nextHandle++;
+        int64_t handle = nextHandle++;
         fieldHandles[handle] = FieldHandleInfo{field, classHandle, fieldName};
         fieldKeyToHandle[key] = handle;
         handleTypeMap[handle] = HandleType::FIELD;
@@ -133,7 +133,7 @@ namespace reflection
         return handle;
     }
 
-    FieldHandleInfo ReflectionHandleRegistry::getField(int handle) const
+    FieldHandleInfo ReflectionHandleRegistry::getField(int64_t handle) const
     {
         std::lock_guard<std::mutex> lock(mutex);
 
@@ -147,8 +147,8 @@ namespace reflection
 
     // ========== Method Handle Management ==========
 
-    int ReflectionHandleRegistry::registerMethod(const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& method,
-                                                 int classHandle, const std::string& methodName)
+    int64_t ReflectionHandleRegistry::registerMethod(const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& method,
+                                                 int64_t classHandle, const std::string& methodName)
     {
         if (!method)
         {
@@ -173,7 +173,7 @@ namespace reflection
         }
 
         // Create new handle
-        int handle = nextHandle++;
+        int64_t handle = nextHandle++;
         methodHandles[handle] = MethodHandleInfo{method, classHandle, methodName};
         methodKeyToHandle[key] = handle;
         handleTypeMap[handle] = HandleType::METHOD;
@@ -181,7 +181,7 @@ namespace reflection
         return handle;
     }
 
-    MethodHandleInfo ReflectionHandleRegistry::getMethod(int handle) const
+    MethodHandleInfo ReflectionHandleRegistry::getMethod(int64_t handle) const
     {
         std::lock_guard<std::mutex> lock(mutex);
 
@@ -195,8 +195,8 @@ namespace reflection
 
     // ========== Constructor Handle Management ==========
 
-    int ReflectionHandleRegistry::registerConstructor(const std::shared_ptr<runtimeTypes::klass::ConstructorDefinition>& constructor,
-                                                      int classHandle, int constructorIndex)
+    int64_t ReflectionHandleRegistry::registerConstructor(const std::shared_ptr<runtimeTypes::klass::ConstructorDefinition>& constructor,
+                                                      int64_t classHandle, int constructorIndex)
     {
         if (!constructor)
         {
@@ -214,7 +214,7 @@ namespace reflection
         }
 
         // Create new handle
-        int handle = nextHandle++;
+        int64_t handle = nextHandle++;
         constructorHandles[handle] = ConstructorHandleInfo{constructor, classHandle, constructorIndex};
         constructorKeyToHandle[key] = handle;
         handleTypeMap[handle] = HandleType::CONSTRUCTOR;
@@ -222,7 +222,7 @@ namespace reflection
         return handle;
     }
 
-    ConstructorHandleInfo ReflectionHandleRegistry::getConstructor(int handle) const
+    ConstructorHandleInfo ReflectionHandleRegistry::getConstructor(int64_t handle) const
     {
         std::lock_guard<std::mutex> lock(mutex);
 
@@ -236,7 +236,7 @@ namespace reflection
 
     // ========== Annotation Handle Management ==========
 
-    int ReflectionHandleRegistry::registerAnnotation(const std::shared_ptr<ast::nodes::annotations::AnnotationNode>& annotation,
+    int64_t ReflectionHandleRegistry::registerAnnotation(const std::shared_ptr<ast::nodes::annotations::AnnotationNode>& annotation,
                                                      const std::string& annotationName)
     {
         if (!annotation)
@@ -255,7 +255,7 @@ namespace reflection
         }
 
         // Create new handle
-        int handle = nextHandle++;
+        int64_t handle = nextHandle++;
         annotationHandles[handle] = AnnotationHandleInfo{annotation, annotationName};
         annotationPtrToHandle[ptrKey] = handle;
         handleTypeMap[handle] = HandleType::ANNOTATION;
@@ -263,7 +263,7 @@ namespace reflection
         return handle;
     }
 
-    AnnotationHandleInfo ReflectionHandleRegistry::getAnnotation(int handle) const
+    AnnotationHandleInfo ReflectionHandleRegistry::getAnnotation(int64_t handle) const
     {
         std::lock_guard<std::mutex> lock(mutex);
 
@@ -277,7 +277,7 @@ namespace reflection
 
     // ========== Utility Methods ==========
 
-    void ReflectionHandleRegistry::releaseHandle(int handle)
+    void ReflectionHandleRegistry::releaseHandle(int64_t handle)
     {
         std::lock_guard<std::mutex> lock(mutex);
 

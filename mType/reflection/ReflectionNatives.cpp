@@ -184,9 +184,9 @@ namespace reflection
         }
 
         auto& registry = ReflectionHandleRegistry::instance();
-        int handle = registry.getOrCreateClassHandle(classDef);
+        int64_t handle = registry.getOrCreateClassHandle(classDef);
 
-        return handle;
+        return static_cast<int>(handle);
     }
 
     Value ReflectionNatives::__reflect_getSimpleName(const std::vector<Value>& args)
@@ -222,8 +222,8 @@ namespace reflection
             return 0; // No parent class
         }
 
-        int parentHandle = registry.getOrCreateClassHandle(parentClass);
-        return parentHandle;
+        int64_t parentHandle = registry.getOrCreateClassHandle(parentClass);
+        return static_cast<int>(parentHandle);
     }
 
     Value ReflectionNatives::__reflect_getInterfaces(const std::vector<Value>& args)
@@ -475,8 +475,8 @@ namespace reflection
             throw errors::RuntimeException("Field " + fieldName + " is not public. Use getDeclaredField() instead.");
         }
 
-        int fieldHandle = handleRegistry.registerField(fieldDef, classHandle, fieldName);
-        return fieldHandle;
+        int64_t fieldHandle = handleRegistry.registerField(fieldDef, classHandle, fieldName);
+        return static_cast<int>(fieldHandle);
     }
 
     Value ReflectionNatives::__reflect_getFields(const std::vector<Value>& args)
@@ -499,8 +499,8 @@ namespace reflection
         {
             if (declaredOnly || fieldDef->getAccessModifier() == ast::AccessModifier::PUBLIC)
             {
-                int handle = handleRegistry.registerField(fieldDef, classHandle, name);
-                fieldHandles.push_back(handle);
+                int64_t handle = handleRegistry.registerField(fieldDef, classHandle, name);
+                fieldHandles.push_back(static_cast<int>(handle));
             }
         }
 
@@ -509,8 +509,8 @@ namespace reflection
         {
             if (declaredOnly || fieldDef->getAccessModifier() == ast::AccessModifier::PUBLIC)
             {
-                int handle = handleRegistry.registerField(fieldDef, classHandle, name);
-                fieldHandles.push_back(handle);
+                int64_t handle = handleRegistry.registerField(fieldDef, classHandle, name);
+                fieldHandles.push_back(static_cast<int>(handle));
             }
         }
 
@@ -749,8 +749,8 @@ namespace reflection
             throw errors::RuntimeException("Method " + methodName + " is not public. Use getDeclaredMethod() instead.");
         }
 
-        int methodHandle = handleRegistry.registerMethod(methodDef, classHandle, methodName);
-        return methodHandle;
+        int64_t methodHandle = handleRegistry.registerMethod(methodDef, classHandle, methodName);
+        return static_cast<int>(methodHandle);
     }
 
     Value ReflectionNatives::__reflect_getMethods(const std::vector<Value>& args)
@@ -775,8 +775,8 @@ namespace reflection
             {
                 if (declaredOnly || methodDef->getAccessModifier() == ast::AccessModifier::PUBLIC)
                 {
-                    int handle = handleRegistry.registerMethod(methodDef, classHandle, name);
-                    methodHandles.push_back(handle);
+                    int64_t handle = handleRegistry.registerMethod(methodDef, classHandle, name);
+                    methodHandles.push_back(static_cast<int>(handle));
                 }
             }
         }
@@ -788,8 +788,8 @@ namespace reflection
             {
                 if (declaredOnly || methodDef->getAccessModifier() == ast::AccessModifier::PUBLIC)
                 {
-                    int handle = handleRegistry.registerMethod(methodDef, classHandle, name);
-                    methodHandles.push_back(handle);
+                    int64_t handle = handleRegistry.registerMethod(methodDef, classHandle, name);
+                    methodHandles.push_back(static_cast<int>(handle));
                 }
             }
         }
@@ -976,8 +976,8 @@ namespace reflection
         {
             if (constructors[i].get() == ctorDef)
             {
-                int ctorHandle = handleRegistry.registerConstructor(constructors[i], classHandle, static_cast<int>(i));
-                return ctorHandle;
+                int64_t ctorHandle = handleRegistry.registerConstructor(constructors[i], classHandle, static_cast<int>(i));
+                return static_cast<int>(ctorHandle);
             }
         }
 
@@ -1004,8 +1004,8 @@ namespace reflection
         {
             if (declaredOnly || constructors[i]->getAccessModifier() == ast::AccessModifier::PUBLIC)
             {
-                int handle = handleRegistry.registerConstructor(constructors[i], classHandle, static_cast<int>(i));
-                ctorHandles.push_back(handle);
+                int64_t handle = handleRegistry.registerConstructor(constructors[i], classHandle, static_cast<int>(i));
+                ctorHandles.push_back(static_cast<int>(handle));
             }
         }
 
@@ -1103,8 +1103,8 @@ namespace reflection
 
         for (const auto& annotation : annotations)
         {
-            int handle = handleRegistry.registerAnnotation(annotation, annotation->getName());
-            annotationHandles.push_back(handle);
+            int64_t handle = handleRegistry.registerAnnotation(annotation, annotation->getName());
+            annotationHandles.push_back(static_cast<int>(handle));
         }
 
         auto result = std::make_shared<NativeArray>(annotationHandles.size(), ValueType::INT);
@@ -1135,8 +1135,8 @@ namespace reflection
             return std::monostate{}; // null
         }
 
-        int handle = handleRegistry.registerAnnotation(annotation, annotationName);
-        return handle;
+        int64_t handle = handleRegistry.registerAnnotation(annotation, annotationName);
+        return static_cast<int>(handle);
     }
 
     Value ReflectionNatives::__reflect_hasClassAnnotation(const std::vector<Value>& args)
@@ -1172,8 +1172,8 @@ namespace reflection
 
         for (const auto& annotation : annotations)
         {
-            int handle = handleRegistry.registerAnnotation(annotation, annotation->getName());
-            annotationHandles.push_back(handle);
+            int64_t handle = handleRegistry.registerAnnotation(annotation, annotation->getName());
+            annotationHandles.push_back(static_cast<int>(handle));
         }
 
         auto result = std::make_shared<NativeArray>(annotationHandles.size(), ValueType::INT);

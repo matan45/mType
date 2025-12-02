@@ -34,7 +34,7 @@ namespace reflection
     struct FieldHandleInfo
     {
         std::shared_ptr<runtimeTypes::klass::FieldDefinition> field;
-        int classHandle;
+        int64_t classHandle;
         std::string fieldName;
     };
 
@@ -44,7 +44,7 @@ namespace reflection
     struct MethodHandleInfo
     {
         std::shared_ptr<runtimeTypes::klass::MethodDefinition> method;
-        int classHandle;
+        int64_t classHandle;
         std::string methodName;
     };
 
@@ -54,7 +54,7 @@ namespace reflection
     struct ConstructorHandleInfo
     {
         std::shared_ptr<runtimeTypes::klass::ConstructorDefinition> constructor;
-        int classHandle;
+        int64_t classHandle;
         int constructorIndex;
     };
 
@@ -80,51 +80,51 @@ namespace reflection
     class ReflectionHandleRegistry
     {
     private:
-        std::atomic<int> nextHandle{1};
+        std::atomic<int64_t> nextHandle{1};
         mutable std::mutex mutex;
 
         // Handle -> ClassDefinition mapping
-        std::unordered_map<int, std::shared_ptr<runtimeTypes::klass::ClassDefinition>> classHandles;
+        std::unordered_map<int64_t, std::shared_ptr<runtimeTypes::klass::ClassDefinition>> classHandles;
 
         // Reverse mapping: class name -> handle (for fast lookup)
-        std::unordered_map<std::string, int> classNameToHandle;
+        std::unordered_map<std::string, int64_t> classNameToHandle;
 
         // Handle -> FieldHandleInfo mapping
-        std::unordered_map<int, FieldHandleInfo> fieldHandles;
+        std::unordered_map<int64_t, FieldHandleInfo> fieldHandles;
 
         // Handle -> MethodHandleInfo mapping
-        std::unordered_map<int, MethodHandleInfo> methodHandles;
+        std::unordered_map<int64_t, MethodHandleInfo> methodHandles;
 
         // Handle -> ConstructorHandleInfo mapping
-        std::unordered_map<int, ConstructorHandleInfo> constructorHandles;
+        std::unordered_map<int64_t, ConstructorHandleInfo> constructorHandles;
 
         // Handle -> AnnotationHandleInfo mapping
-        std::unordered_map<int, AnnotationHandleInfo> annotationHandles;
+        std::unordered_map<int64_t, AnnotationHandleInfo> annotationHandles;
 
         // ========== Reverse Mapping Caches for Deduplication ==========
         // These prevent unbounded handle growth by reusing existing handles
 
         // "classHandle:fieldName" -> handle
-        std::unordered_map<std::string, int> fieldKeyToHandle;
+        std::unordered_map<std::string, int64_t> fieldKeyToHandle;
 
         // "classHandle:methodName(param1,param2,...)" -> handle
-        std::unordered_map<std::string, int> methodKeyToHandle;
+        std::unordered_map<std::string, int64_t> methodKeyToHandle;
 
         // "classHandle:ctor:index" -> handle
-        std::unordered_map<std::string, int> constructorKeyToHandle;
+        std::unordered_map<std::string, int64_t> constructorKeyToHandle;
 
         // annotation pointer address -> handle
-        std::unordered_map<std::uintptr_t, int> annotationPtrToHandle;
+        std::unordered_map<std::uintptr_t, int64_t> annotationPtrToHandle;
 
         // ========== Handle Type Tracking for O(1) Release ==========
         // Maps handle -> type for efficient releaseHandle lookup
-        std::unordered_map<int, HandleType> handleTypeMap;
+        std::unordered_map<int64_t, HandleType> handleTypeMap;
 
         // ========== Private Helper Methods ==========
-        static std::string makeFieldKey(int classHandle, const std::string& fieldName);
-        static std::string makeMethodKey(int classHandle, const std::string& methodName,
+        static std::string makeFieldKey(int64_t classHandle, const std::string& fieldName);
+        static std::string makeMethodKey(int64_t classHandle, const std::string& methodName,
                                          const std::vector<std::string>& paramTypes);
-        static std::string makeConstructorKey(int classHandle, int constructorIndex);
+        static std::string makeConstructorKey(int64_t classHandle, int constructorIndex);
 
         // Private constructor for singleton
         ReflectionHandleRegistry() = default;
@@ -171,28 +171,28 @@ namespace reflection
          * @param classDef The class definition to register
          * @return Integer handle for the class
          */
-        int registerClass(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef);
+        int64_t registerClass(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef);
 
         /**
          * @brief Get class definition by handle
          * @param handle The class handle
          * @return ClassDefinition or nullptr if not found
          */
-        std::shared_ptr<runtimeTypes::klass::ClassDefinition> getClass(int handle) const;
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> getClass(int64_t handle) const;
 
         /**
          * @brief Find existing handle for a class by name
          * @param className The fully qualified class name
          * @return Handle if found, -1 otherwise
          */
-        int findClassHandle(const std::string& className) const;
+        int64_t findClassHandle(const std::string& className) const;
 
         /**
          * @brief Get or create a handle for a class
          * @param classDef The class definition
          * @return Existing or new handle
          */
-        int getOrCreateClassHandle(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef);
+        int64_t getOrCreateClassHandle(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef);
 
         // ========== Field Handle Management ==========
 
@@ -203,15 +203,15 @@ namespace reflection
          * @param fieldName Name of the field
          * @return Integer handle for the field
          */
-        int registerField(const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
-                         int classHandle, const std::string& fieldName);
+        int64_t registerField(const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
+                         int64_t classHandle, const std::string& fieldName);
 
         /**
          * @brief Get field info by handle
          * @param handle The field handle
          * @return FieldHandleInfo (field may be nullptr if not found)
          */
-        FieldHandleInfo getField(int handle) const;
+        FieldHandleInfo getField(int64_t handle) const;
 
         // ========== Method Handle Management ==========
 
@@ -222,15 +222,15 @@ namespace reflection
          * @param methodName Name of the method
          * @return Integer handle for the method
          */
-        int registerMethod(const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& method,
-                          int classHandle, const std::string& methodName);
+        int64_t registerMethod(const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& method,
+                          int64_t classHandle, const std::string& methodName);
 
         /**
          * @brief Get method info by handle
          * @param handle The method handle
          * @return MethodHandleInfo (method may be nullptr if not found)
          */
-        MethodHandleInfo getMethod(int handle) const;
+        MethodHandleInfo getMethod(int64_t handle) const;
 
         // ========== Constructor Handle Management ==========
 
@@ -241,15 +241,15 @@ namespace reflection
          * @param constructorIndex Index in the class's constructor list
          * @return Integer handle for the constructor
          */
-        int registerConstructor(const std::shared_ptr<runtimeTypes::klass::ConstructorDefinition>& constructor,
-                               int classHandle, int constructorIndex);
+        int64_t registerConstructor(const std::shared_ptr<runtimeTypes::klass::ConstructorDefinition>& constructor,
+                               int64_t classHandle, int constructorIndex);
 
         /**
          * @brief Get constructor info by handle
          * @param handle The constructor handle
          * @return ConstructorHandleInfo (constructor may be nullptr if not found)
          */
-        ConstructorHandleInfo getConstructor(int handle) const;
+        ConstructorHandleInfo getConstructor(int64_t handle) const;
 
         // ========== Annotation Handle Management ==========
 
@@ -259,7 +259,7 @@ namespace reflection
          * @param annotationName Name of the annotation
          * @return Integer handle for the annotation
          */
-        int registerAnnotation(const std::shared_ptr<ast::nodes::annotations::AnnotationNode>& annotation,
+        int64_t registerAnnotation(const std::shared_ptr<ast::nodes::annotations::AnnotationNode>& annotation,
                               const std::string& annotationName);
 
         /**
@@ -267,7 +267,7 @@ namespace reflection
          * @param handle The annotation handle
          * @return AnnotationHandleInfo (annotation may be nullptr if not found)
          */
-        AnnotationHandleInfo getAnnotation(int handle) const;
+        AnnotationHandleInfo getAnnotation(int64_t handle) const;
 
         // ========== Utility Methods ==========
 
@@ -275,7 +275,7 @@ namespace reflection
          * @brief Release a handle (for cleanup)
          * @param handle The handle to release
          */
-        void releaseHandle(int handle);
+        void releaseHandle(int64_t handle);
 
         /**
          * @brief Clear all handles (use with caution)
