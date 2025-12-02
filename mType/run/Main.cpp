@@ -182,6 +182,9 @@ void runSpecificTestSuite(const std::string& suiteName,
     suite->setExecutionModeForAll(execMode);
 
     suite->run();
+
+    // Cleanup reflection static state to avoid static destruction order issues
+    reflection::ReflectionNatives::cleanup();
 }
 
 // Helper function to convert string type name to ValueType
@@ -396,6 +399,9 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
         suite->setExecutionModeForAll(execMode); // Set execution mode
         suite->run(); // Run tests and generate reports
     }
+
+    // Cleanup reflection static state to avoid static destruction order issues
+    reflection::ReflectionNatives::cleanup();
 
     // Print final summary
     std::cout << "\n" << std::string(80, '=') << std::endl;

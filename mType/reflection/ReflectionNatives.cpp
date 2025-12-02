@@ -116,7 +116,7 @@ namespace reflection
         return std::get<int>(arg);
     }
 
-    std::string ReflectionNatives::extractString(const Value& arg, const std::string& funcName, const std::string& paramName)
+    const std::string& ReflectionNatives::extractString(const Value& arg, const std::string& funcName, const std::string& paramName)
     {
         if (std::holds_alternative<std::string>(arg))
         {
@@ -578,10 +578,19 @@ namespace reflection
             throw errors::RuntimeException("Invalid field handle");
         }
 
-        // Check access control
-        if (!accessible && fieldInfo.field->getAccessModifier() == ast::AccessModifier::PRIVATE)
+        // Check access control - without caller context, we can't verify protected access properly,
+        // so we treat both private and protected as requiring setAccessible(true)
+        if (!accessible)
         {
-            throw errors::RuntimeException("Cannot access private field. Call setAccessible(true) first.");
+            auto accessMod = fieldInfo.field->getAccessModifier();
+            if (accessMod == ast::AccessModifier::PRIVATE)
+            {
+                throw errors::RuntimeException("Cannot access private field. Call setAccessible(true) first.");
+            }
+            if (accessMod == ast::AccessModifier::PROTECTED)
+            {
+                throw errors::RuntimeException("Cannot access protected field. Call setAccessible(true) first.");
+            }
         }
 
         return instance->getFieldValue(fieldInfo.fieldName);
@@ -602,10 +611,19 @@ namespace reflection
             throw errors::RuntimeException("Invalid field handle");
         }
 
-        // Check access control
-        if (!accessible && fieldInfo.field->getAccessModifier() == ast::AccessModifier::PRIVATE)
+        // Check access control - without caller context, we can't verify protected access properly,
+        // so we treat both private and protected as requiring setAccessible(true)
+        if (!accessible)
         {
-            throw errors::RuntimeException("Cannot access private field. Call setAccessible(true) first.");
+            auto accessMod = fieldInfo.field->getAccessModifier();
+            if (accessMod == ast::AccessModifier::PRIVATE)
+            {
+                throw errors::RuntimeException("Cannot access private field. Call setAccessible(true) first.");
+            }
+            if (accessMod == ast::AccessModifier::PROTECTED)
+            {
+                throw errors::RuntimeException("Cannot access protected field. Call setAccessible(true) first.");
+            }
         }
 
         // Check final field - accessible bypasses this too
@@ -1345,9 +1363,11 @@ namespace reflection
     void ReflectionNatives::cleanup()
     {
         // Clear the reflection handle registry to avoid stale handles between tests
-        // Note: Do NOT reset currentEnvironment here - it will be set again by the next test
-        // Only reset it at program exit (handled by static destruction)
         ReflectionHandleRegistry::instance().clear();
+        // Reset currentEnvironment to avoid static destruction order issues
+        // When program exits, this prevents the shared_ptr from trying to
+        // destroy Environment objects that may depend on other static objects
+        currentEnvironment.reset();
     }
 
 } // namespace reflection

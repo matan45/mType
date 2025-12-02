@@ -5,6 +5,8 @@
 #include <string>
 #include <mutex>
 #include <atomic>
+#include <vector>
+#include <cstdint>
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
@@ -14,6 +16,18 @@
 
 namespace reflection
 {
+    /**
+     * @brief Type tag for efficient handle type lookup
+     */
+    enum class HandleType : uint8_t
+    {
+        CLASS,
+        FIELD,
+        METHOD,
+        CONSTRUCTOR,
+        ANNOTATION
+    };
+
     /**
      * @brief Information associated with a field handle
      */
@@ -87,13 +101,41 @@ namespace reflection
         // Handle -> AnnotationHandleInfo mapping
         std::unordered_map<int, AnnotationHandleInfo> annotationHandles;
 
+        // ========== Reverse Mapping Caches for Deduplication ==========
+        // These prevent unbounded handle growth by reusing existing handles
+
+        // "classHandle:fieldName" -> handle
+        std::unordered_map<std::string, int> fieldKeyToHandle;
+
+        // "classHandle:methodName(param1,param2,...)" -> handle
+        std::unordered_map<std::string, int> methodKeyToHandle;
+
+        // "classHandle:ctor:index" -> handle
+        std::unordered_map<std::string, int> constructorKeyToHandle;
+
+        // annotation pointer address -> handle
+        std::unordered_map<std::uintptr_t, int> annotationPtrToHandle;
+
+        // ========== Handle Type Tracking for O(1) Release ==========
+        // Maps handle -> type for efficient releaseHandle lookup
+        std::unordered_map<int, HandleType> handleTypeMap;
+
+        // ========== Private Helper Methods ==========
+        static std::string makeFieldKey(int classHandle, const std::string& fieldName);
+        static std::string makeMethodKey(int classHandle, const std::string& methodName,
+                                         const std::vector<std::string>& paramTypes);
+        static std::string makeConstructorKey(int classHandle, int constructorIndex);
+
         // Private constructor for singleton
         ReflectionHandleRegistry() = default;
 
         // Destructor - clears all maps to avoid issues with static destruction order
         ~ReflectionHandleRegistry()
         {
-            // Don't lock mutex in destructor - we're being destroyed, so no other threads should access us
+            // Lock mutex for thread safety - static destruction order is undefined,
+            // so another thread could still be accessing the registry
+            std::lock_guard<std::mutex> lock(mutex);
+
             // Clear all maps to release shared_ptr references before other static objects are destroyed
             classHandles.clear();
             classNameToHandle.clear();
@@ -101,6 +143,13 @@ namespace reflection
             methodHandles.clear();
             constructorHandles.clear();
             annotationHandles.clear();
+            // Clear reverse mapping caches
+            fieldKeyToHandle.clear();
+            methodKeyToHandle.clear();
+            constructorKeyToHandle.clear();
+            annotationPtrToHandle.clear();
+            // Clear handle type tracking
+            handleTypeMap.clear();
         }
 
     public:
@@ -122,7 +171,7 @@ namespace reflection
          * @param classDef The class definition to register
          * @return Integer handle for the class
          */
-        int registerClass(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef);
+        int registerClass(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef);
 
         /**
          * @brief Get class definition by handle
@@ -143,7 +192,7 @@ namespace reflection
          * @param classDef The class definition
          * @return Existing or new handle
          */
-        int getOrCreateClassHandle(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef);
+        int getOrCreateClassHandle(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef);
 
         // ========== Field Handle Management ==========
 
@@ -154,7 +203,7 @@ namespace reflection
          * @param fieldName Name of the field
          * @return Integer handle for the field
          */
-        int registerField(std::shared_ptr<runtimeTypes::klass::FieldDefinition> field,
+        int registerField(const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
                          int classHandle, const std::string& fieldName);
 
         /**
@@ -173,7 +222,7 @@ namespace reflection
          * @param methodName Name of the method
          * @return Integer handle for the method
          */
-        int registerMethod(std::shared_ptr<runtimeTypes::klass::MethodDefinition> method,
+        int registerMethod(const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& method,
                           int classHandle, const std::string& methodName);
 
         /**
@@ -192,7 +241,7 @@ namespace reflection
          * @param constructorIndex Index in the class's constructor list
          * @return Integer handle for the constructor
          */
-        int registerConstructor(std::shared_ptr<runtimeTypes::klass::ConstructorDefinition> constructor,
+        int registerConstructor(const std::shared_ptr<runtimeTypes::klass::ConstructorDefinition>& constructor,
                                int classHandle, int constructorIndex);
 
         /**
@@ -210,7 +259,7 @@ namespace reflection
          * @param annotationName Name of the annotation
          * @return Integer handle for the annotation
          */
-        int registerAnnotation(std::shared_ptr<ast::nodes::annotations::AnnotationNode> annotation,
+        int registerAnnotation(const std::shared_ptr<ast::nodes::annotations::AnnotationNode>& annotation,
                               const std::string& annotationName);
 
         /**
