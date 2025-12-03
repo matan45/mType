@@ -190,7 +190,7 @@ namespace parser
             GenericParameterParser genericParser(tokenStream, context);
             methodGenericParameters = genericParser.parseGenericTypeParameters();
 
-            tokenStream.expect(TokenType::GREATER); // consume '>'
+            tokenStream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics in constraints)
         }
         return methodGenericParameters;
     }

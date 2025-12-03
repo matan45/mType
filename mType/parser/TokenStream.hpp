@@ -18,6 +18,7 @@ namespace parser
         Lexer& lexer;
         Token currentToken;
         mutable std::vector<Token> lookaheadBuffer;
+        bool hasRightShiftPending = false;  // Track if we have a pending > from splitting >>
 
     public:
         explicit TokenStream(Lexer& lex);
@@ -43,6 +44,14 @@ namespace parser
 
         /// @brief Expect specific token type, advance if matches, throw if not
         void expect(TokenType type);
+
+        /// @brief Expect a GREATER token, handling >> as two > tokens for generics
+        /// If current token is RIGHT_SHIFT (>>), converts it to a single GREATER
+        /// and leaves the second > for the next call
+        void expectGreaterForGeneric();
+
+        /// @brief Check if current token is GREATER or RIGHT_SHIFT (for generic closing)
+        [[nodiscard]] bool checkGreaterForGeneric() const noexcept;
 
         /// @brief Peek at next token without advancing
         [[nodiscard]] Token peek() const;

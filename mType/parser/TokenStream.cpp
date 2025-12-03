@@ -74,6 +74,47 @@ namespace parser
         }
     }
 
+    void TokenStream::expectGreaterForGeneric()
+    {
+        // If we have a pending > from a split >>, consume it
+        if (hasRightShiftPending)
+        {
+            hasRightShiftPending = false;
+            // The current token is already the next real token (advanced after splitting)
+            // Just return - we've "consumed" the virtual > that was left over
+            return;
+        }
+
+        if (check(TokenType::GREATER))
+        {
+            advance();
+            return;
+        }
+
+        // Handle >> as two > tokens (e.g., Stream<List<T>>)
+        if (check(TokenType::RIGHT_SHIFT))
+        {
+            // Mark that we have a pending > from splitting >>
+            hasRightShiftPending = true;
+            // Advance to the next real token
+            advance();
+            return;
+        }
+
+        throw ParseException("Expected '>' for generic type but found different token",
+                             currentToken.location);
+    }
+
+    bool TokenStream::checkGreaterForGeneric() const noexcept
+    {
+        // If we have a pending > from splitting >>, we can match a >
+        if (hasRightShiftPending)
+        {
+            return true;
+        }
+        return check(TokenType::GREATER) || check(TokenType::RIGHT_SHIFT);
+    }
+
     Token TokenStream::peek() const
     {
         return lexer.peekNextToken();

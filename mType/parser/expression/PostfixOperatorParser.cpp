@@ -132,7 +132,7 @@ namespace parser::expression
                                          tokenStream.current().location);
                 }
                 genericTypeArguments = expressionParser->parseGenericTypeArguments();
-                expectToken(TokenType::GREATER);
+                tokenStream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics)
             }
 
             ArgumentParser argParser(tokenStream, context);
@@ -169,7 +169,7 @@ namespace parser::expression
                                      tokenStream.current().location);
             }
             genericTypeArguments = expressionParser->parseGenericTypeArguments();
-            expectToken(TokenType::GREATER);
+            tokenStream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics)
         }
 
         // Check if it's a method call
@@ -234,7 +234,7 @@ namespace parser::expression
                                          tokenStream.current().location);
                 }
                 genericTypeArguments = expressionParser->parseGenericTypeArguments();
-                expectToken(TokenType::GREATER);
+                tokenStream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics)
             }
 
             // Check if this is a function call (e.g., MathUtils::max(10, 5))
@@ -351,6 +351,27 @@ namespace parser::expression
                         // Found matching '>', now check for '('
                         Token afterGreater = tokenStream.peekAhead(offset + 1);
                         return afterGreater.type == TokenType::LPAREN;
+                    }
+                }
+                // Handle >> as two > tokens for nested generics like Box<List<T>>
+                else if (nextToken.type == TokenType::RIGHT_SHIFT)
+                {
+                    depth -= 2;
+                    if (depth == 0)
+                    {
+                        // >> closed all brackets, check for '(' after
+                        Token afterRightShift = tokenStream.peekAhead(offset + 1);
+                        return afterRightShift.type == TokenType::LPAREN;
+                    }
+                    else if (depth < 0)
+                    {
+                        // We're in a situation where >> closed more than we had open
+                        // This is likely >> followed by something that closes the outer context
+                        // For example: func<Box<T>>(args) - the >> in Box<T>> is valid
+                        // We closed one more > than needed, meaning the outer > is next
+                        // Return true if the next logical position after consuming the "extra" > is '('
+                        Token afterRightShift = tokenStream.peekAhead(offset + 1);
+                        return afterRightShift.type == TokenType::LPAREN;
                     }
                 }
                 else if (nextToken.type != TokenType::IDENTIFIER &&

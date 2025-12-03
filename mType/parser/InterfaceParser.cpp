@@ -155,7 +155,7 @@ namespace parser
         {
             tokenStream.advance(); // consume '<'
             genericParams = parseGenericTypeParameters();
-            tokenStream.expect(TokenType::GREATER); // consume '>'
+            tokenStream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics in constraints)
 
             // Validate generic parameter count limit
             if (genericParams.size() > constants::MAX_GENERIC_PARAMETERS)

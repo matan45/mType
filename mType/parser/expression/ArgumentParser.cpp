@@ -86,7 +86,7 @@ namespace parser::expression
                     typeArg += nestedArgs[i];
                 }
 
-                expectToken(TokenType::GREATER); // consume '>'
+                tokenStream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics)
                 typeArg += ">";
             }
 
