@@ -60,8 +60,32 @@ namespace parser::expression
     std::unique_ptr<ASTNode> BinaryOperatorParser::parseLogicalAnd()
     {
         return parseBinaryLevel(
-            [this]() { return parseEquality(); },
+            [this]() { return parseBitwiseOr(); },
             {TokenType::AND}
+        );
+    }
+
+    std::unique_ptr<ASTNode> BinaryOperatorParser::parseBitwiseOr()
+    {
+        return parseBinaryLevel(
+            [this]() { return parseBitwiseXor(); },
+            {TokenType::BITWISE_OR}
+        );
+    }
+
+    std::unique_ptr<ASTNode> BinaryOperatorParser::parseBitwiseXor()
+    {
+        return parseBinaryLevel(
+            [this]() { return parseBitwiseAnd(); },
+            {TokenType::BITWISE_XOR}
+        );
+    }
+
+    std::unique_ptr<ASTNode> BinaryOperatorParser::parseBitwiseAnd()
+    {
+        return parseBinaryLevel(
+            [this]() { return parseEquality(); },
+            {TokenType::BITWISE_AND}
         );
     }
 
@@ -83,7 +107,7 @@ namespace parser::expression
 
     std::unique_ptr<ASTNode> BinaryOperatorParser::parseIsClassOf()
     {
-        auto left = parseAdditive();
+        auto left = parseShift();
 
         // Check for isClassOf operator
         while (tokenStream.check(TokenType::ISCLASSOF))
@@ -101,6 +125,14 @@ namespace parser::expression
         }
 
         return left;
+    }
+
+    std::unique_ptr<ASTNode> BinaryOperatorParser::parseShift()
+    {
+        return parseBinaryLevel(
+            [this]() { return parseAdditive(); },
+            {TokenType::LEFT_SHIFT, TokenType::RIGHT_SHIFT}
+        );
     }
 
     std::unique_ptr<ASTNode> BinaryOperatorParser::parseAdditive()

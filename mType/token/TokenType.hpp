@@ -18,6 +18,12 @@ namespace token
         COLON, // : (for return type and for-each)
         QUESTION, // ? (for ternary operator)
         AND, OR, NOT, // &&, ||, !
+        BITWISE_AND,    // &
+        BITWISE_OR,     // |
+        BITWISE_XOR,    // ^
+        LEFT_SHIFT,     // <<
+        RIGHT_SHIFT,    // >>
+        BITWISE_NOT,    // ~ (unary)
         EQUALS, NOT_EQUALS, // ==, !=
         PLUS_ASSIGN, // +=
         MINUS_ASSIGN, // -=

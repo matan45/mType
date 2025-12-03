@@ -1512,6 +1512,9 @@
     <ClInclude Include="vm\runtime\executors\ArrayExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\executors\BitwiseExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\executors\ComparisonExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
@@ -2391,6 +2394,9 @@
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\ArrayExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\BitwiseExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\ComparisonExecutor.cpp">
@@ -10057,6 +10063,12 @@
     <None Include="tests\testFiles\typeChecking\error\typeOverloadAmbiguous_error.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\pass\bitwiseOperators_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\bitwiseOperators_pass.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\pass\chainedObjectAssignments.expected">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
@@ -10136,6 +10148,12 @@
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\methodParameterTypeChecking.mt">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\modifierTest_pass.expected">
+      <Filter>tests\testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\modifierTest_pass.mt">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\multipleAssignments.expected">

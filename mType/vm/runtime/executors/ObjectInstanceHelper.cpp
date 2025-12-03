@@ -660,7 +660,7 @@ namespace vm::runtime
         // PHASE 2 OPTIMIZATION: Integer Caching
         // If creating Int object with single int argument in cacheable range, use cached instance
         if (baseClassName == "Int" && argCount == 1 && std::holds_alternative<int64_t>(args[0])) {
-            int intValue = std::get<int64_t>(args[0]);
+            int intValue = static_cast<int>(std::get<int64_t>(args[0]));
 
             // Check if value is cacheable
             if (value::IntegerCache::isCacheable(intValue)) {

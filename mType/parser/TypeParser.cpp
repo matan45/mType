@@ -155,7 +155,7 @@ namespace parser
                     }
                     while (true);
 
-                    stream.expect(TokenType::GREATER); // consume '>'
+                    stream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics)
 
                     // Create generic type for custom class with type arguments
                     baseType = std::make_shared<ast::GenericType>(typeName, typeArgs);

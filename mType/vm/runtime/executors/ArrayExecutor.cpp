@@ -99,7 +99,7 @@ namespace vm::runtime
 
     void ArrayExecutor::getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index) {
         // Bounds check (VM does bounds check once)
-        utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
+        utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
 
         // Get element using unchecked access (bounds already verified)
         // PERFORMANCE: Eliminates redundant bounds check in array->get()
@@ -109,7 +109,7 @@ namespace vm::runtime
 
     void ArrayExecutor::getFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index) {
         // Bounds check
-        utils::ArrayBoundsChecker::checkBounds(context, index, flatArray->size(), "FlatMultiArray");
+        utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), flatArray->size(), "FlatMultiArray");
 
         // For multi-dimensional arrays, return sub-array; for 1D, return element
         if (flatArray->getRank() > 1) {
@@ -123,7 +123,7 @@ namespace vm::runtime
 
     void ArrayExecutor::getSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index) {
         // Bounds check
-        utils::ArrayBoundsChecker::checkBounds(context, index, sparseArray->size(), "SparseMultiArray");
+        utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), sparseArray->size(), "SparseMultiArray");
 
         // For multi-dimensional arrays, return sub-array; for 1D, return element
         if (sparseArray->getRank() > 1) {
@@ -173,7 +173,7 @@ namespace vm::runtime
 
     void ArrayExecutor::setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index, const value::Value& valueToSet) {
         // Bounds check (VM does bounds check once)
-        utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
+        utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
 
         // Type check for object arrays with generics (e.g., Box<Int>[] cannot accept Box<String>)
         if (array->getElementType() == value::ValueType::OBJECT) {
@@ -315,7 +315,7 @@ namespace vm::runtime
 
     void ArrayExecutor::setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index, const value::Value& valueToSet) {
         // Bounds check
-        utils::ArrayBoundsChecker::checkBounds(context, index, flatArray->size(), "FlatMultiArray");
+        utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), flatArray->size(), "FlatMultiArray");
 
         // For 1D arrays, set directly; multi-dimensional arrays cannot be set this way
         if (flatArray->getRank() == 1) {
@@ -330,7 +330,7 @@ namespace vm::runtime
 
     void ArrayExecutor::setSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index, const value::Value& valueToSet) {
         // Bounds check
-        utils::ArrayBoundsChecker::checkBounds(context, index, sparseArray->size(), "SparseMultiArray");
+        utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), sparseArray->size(), "SparseMultiArray");
 
         // For 1D arrays, set directly; multi-dimensional arrays cannot be set this way
         if (sparseArray->getRank() == 1) {
@@ -540,7 +540,7 @@ namespace vm::runtime
         auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
 
         // Bounds check (VM does bounds check once)
-        utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
+        utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
 
         size_t arrayIndex = static_cast<size_t>(index);
 
@@ -589,7 +589,7 @@ namespace vm::runtime
         auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
 
         // Bounds check (VM does bounds check once)
-        utils::ArrayBoundsChecker::checkBounds(context, index, array->size(), "Array");
+        utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
 
         size_t arrayIndex = static_cast<size_t>(index);
 

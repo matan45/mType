@@ -3,6 +3,7 @@
 #include "executors/ComparisonExecutor.hpp"
 #include "executors/LogicalExecutor.hpp"
 #include "executors/ArithmeticExecutor.hpp"
+#include "executors/BitwiseExecutor.hpp"
 #include "executors/ControlFlowExecutor.hpp"
 #include "executors/VariableExecutor.hpp"
 #include "executors/FunctionExecutor.hpp"
@@ -535,6 +536,7 @@ namespace vm::runtime
         comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
         logicalExecutor = std::make_unique<LogicalExecutor>(context);
         arithmeticExecutor = std::make_unique<ArithmeticExecutor>(context);
+        bitwiseExecutor = std::make_unique<BitwiseExecutor>(context);
         controlFlowExecutor = std::make_unique<ControlFlowExecutor>(context);
         variableExecutor = std::make_unique<VariableExecutor>(context);
         functionExecutor = std::make_unique<FunctionExecutor>(context);
@@ -802,6 +804,20 @@ namespace vm::runtime
         case OpCode::OR: logicalExecutor->handleOr();
             break;
         case OpCode::NOT: logicalExecutor->handleNot();
+            break;
+
+        // Bitwise - delegated to BitwiseExecutor
+        case OpCode::BITWISE_AND_OP: bitwiseExecutor->handleBitwiseAnd();
+            break;
+        case OpCode::BITWISE_OR_OP: bitwiseExecutor->handleBitwiseOr();
+            break;
+        case OpCode::BITWISE_XOR_OP: bitwiseExecutor->handleBitwiseXor();
+            break;
+        case OpCode::LEFT_SHIFT_OP: bitwiseExecutor->handleLeftShift();
+            break;
+        case OpCode::RIGHT_SHIFT_OP: bitwiseExecutor->handleRightShift();
+            break;
+        case OpCode::BITWISE_NOT_OP: bitwiseExecutor->handleBitwiseNot();
             break;
 
         // Variables - delegated to VariableExecutor

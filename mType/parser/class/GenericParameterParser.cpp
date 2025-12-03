@@ -70,14 +70,14 @@ namespace parser
 
                 paramType += parseGenericParameters(); // Recursive call
 
-                // Validate matching '>'
-                if (!tokenStream.check(TokenType::GREATER))
+                // Validate matching '>' (handles >> for nested generics)
+                if (!tokenStream.checkGreaterForGeneric())
                 {
                     throw ParseException(
                         "Malformed generic type '" + paramType + "': expected '>' to close generic type arguments",
                         typeLocation);
                 }
-                tokenStream.expect(TokenType::GREATER); // consume '>'
+                tokenStream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics)
                 paramType += ">";
             }
 
@@ -146,8 +146,12 @@ namespace parser
 
             // VALIDATION: Each generic parameter can only extend ONE interface
             // Check for additional extends/implements keywords
-            if (tokenStream.current().type == TokenType::EXTENDS ||
-                tokenStream.current().type == TokenType::IMPLEMENTS)
+            // IMPORTANT: If checkGreaterForGeneric() returns true, we're at the closing > of the
+            // generic parameter list, so any 'extends' after that is for class inheritance, not
+            // a second constraint. Only validate if we're NOT at the closing >.
+            if (!tokenStream.checkGreaterForGeneric() &&
+                (tokenStream.current().type == TokenType::EXTENDS ||
+                 tokenStream.current().type == TokenType::IMPLEMENTS))
             {
                 throw ParseException(
                     "Generic type parameter '" + paramName + "' can only extend one interface. "

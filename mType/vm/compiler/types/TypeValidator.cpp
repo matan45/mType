@@ -493,6 +493,12 @@ namespace vm::compiler::types
         return false;
     }
 
+    bool TypeValidator::isBitwiseOperationValid(value::ValueType leftType, value::ValueType rightType) const
+    {
+        // Bitwise operations only work on integers
+        return leftType == value::ValueType::INT && rightType == value::ValueType::INT;
+    }
+
     void TypeValidator::throwBinaryOperationError(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
                                                   const ast::SourceLocation& location) const
     {
@@ -508,6 +514,11 @@ namespace vm::compiler::types
             case token::TokenType::MODULO: opStr = "%"; break;
             case token::TokenType::AND: opStr = "&&"; break;
             case token::TokenType::OR: opStr = "||"; break;
+            case token::TokenType::BITWISE_AND: opStr = "&"; break;
+            case token::TokenType::BITWISE_OR: opStr = "|"; break;
+            case token::TokenType::BITWISE_XOR: opStr = "^"; break;
+            case token::TokenType::LEFT_SHIFT: opStr = "<<"; break;
+            case token::TokenType::RIGHT_SHIFT: opStr = ">>"; break;
             default: opStr = "operator"; break;
         }
 
@@ -548,6 +559,12 @@ namespace vm::compiler::types
         // Logical operations: &&, ||
         else if (op == token::TokenType::AND || op == token::TokenType::OR) {
             isValid = isLogicalOperationValid(leftType, rightType);
+        }
+        // Bitwise operations: &, |, ^, <<, >>
+        else if (op == token::TokenType::BITWISE_AND || op == token::TokenType::BITWISE_OR ||
+                 op == token::TokenType::BITWISE_XOR || op == token::TokenType::LEFT_SHIFT ||
+                 op == token::TokenType::RIGHT_SHIFT) {
+            isValid = isBitwiseOperationValid(leftType, rightType);
         }
         else {
             // Unknown operator, allow it
@@ -592,6 +609,12 @@ namespace vm::compiler::types
         // Logical operations: &&, ||
         else if (op == token::TokenType::AND || op == token::TokenType::OR) {
             isValid = isLogicalOperationValid(leftType, rightType);
+        }
+        // Bitwise operations: &, |, ^, <<, >>
+        else if (op == token::TokenType::BITWISE_AND || op == token::TokenType::BITWISE_OR ||
+                 op == token::TokenType::BITWISE_XOR || op == token::TokenType::LEFT_SHIFT ||
+                 op == token::TokenType::RIGHT_SHIFT) {
+            isValid = isBitwiseOperationValid(leftType, rightType);
         }
         else {
             // Unknown operator, allow it

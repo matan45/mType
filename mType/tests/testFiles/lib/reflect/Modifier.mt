@@ -13,57 +13,57 @@ class Modifier {
 
     // Check if modifier flags include PUBLIC
     public static function isPublic(int mod): bool {
-        return __bitwise_and(mod, PUBLIC) != 0;
+        return (mod & PUBLIC) != 0;
     }
 
     // Check if modifier flags include PRIVATE
     public static function isPrivate(int mod): bool {
-        return __bitwise_and(mod, PRIVATE) != 0;
+        return (mod & PRIVATE) != 0;
     }
 
     // Check if modifier flags include PROTECTED
     public static function isProtected(int mod): bool {
-        return __bitwise_and(mod, PROTECTED) != 0;
+        return (mod & PROTECTED) != 0;
     }
 
     // Check if modifier flags include STATIC
     public static function isStatic(int mod): bool {
-        return __bitwise_and(mod, STATIC) != 0;
+        return (mod & STATIC) != 0;
     }
 
     // Check if modifier flags include FINAL
     public static function isFinal(int mod): bool {
-        return __bitwise_and(mod, FINAL) != 0;
+        return (mod & FINAL) != 0;
     }
 
     // Check if modifier flags include ABSTRACT
     public static function isAbstract(int mod): bool {
-        return __bitwise_and(mod, ABSTRACT) != 0;
+        return (mod & ABSTRACT) != 0;
     }
 
     // Check if modifier flags include ASYNC
     public static function isAsync(int mod): bool {
-        return __bitwise_and(mod, ASYNC) != 0;
+        return (mod & ASYNC) != 0;
     }
 
     // Combine two modifier flags (bitwise OR)
     public static function combine(int mod1, int mod2): int {
-        return __bitwise_or(mod1, mod2);
+        return mod1 | mod2;
     }
 
     // Bitwise AND of modifiers
     public static function and(int mod1, int mod2): int {
-        return __bitwise_and(mod1, mod2);
+        return mod1 & mod2;
     }
 
     // Bitwise XOR of modifiers
     public static function xor(int mod1, int mod2): int {
-        return __bitwise_xor(mod1, mod2);
+        return mod1 ^ mod2;
     }
 
     // Bitwise NOT of modifier
     public static function not(int mod): int {
-        return __bitwise_not(mod);
+        return ~mod;
     }
 
     // Convert modifier flags to string representation

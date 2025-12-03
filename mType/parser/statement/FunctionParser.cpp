@@ -97,7 +97,7 @@ namespace parser::statement
             tokenStream.advance(); // consume '<'
             GenericParameterParser genericParser(tokenStream, context);
             functionGenericParameters = genericParser.parseGenericTypeParameters();
-            tokenStream.expect(TokenType::GREATER); // consume '>'
+            tokenStream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics in constraints)
         }
 
         if (!tokenStream.check(TokenType::IDENTIFIER))

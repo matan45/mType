@@ -170,46 +170,80 @@ namespace parser
             {
                 depth++;
                 result += "<";
+                stream.advance();
             }
             else if (stream.current().type == TokenType::GREATER)
             {
                 depth--;
                 result += ">";
+                stream.advance();
+            }
+            // Handle >> as two > tokens for nested generics like Comparable<T>>
+            else if (stream.current().type == TokenType::RIGHT_SHIFT)
+            {
+                // When at depth 1 with >>, we only consume one > (close our level)
+                // and leave the second > for the outer context using expectGreaterForGeneric
+                if (depth == 1)
+                {
+                    depth--;
+                    result += ">";
+                    // Use expectGreaterForGeneric which will set pending flag for the second >
+                    stream.expectGreaterForGeneric();
+                }
+                else
+                {
+                    // At deeper levels, >> closes two levels
+                    depth -= 2;
+                    result += ">>";
+                    stream.advance();
+                }
             }
             else if (stream.current().type == TokenType::IDENTIFIER)
             {
                 result += stream.current().stringValue.getString();
+                stream.advance();
             }
             else if (stream.current().type == TokenType::COMMA)
             {
                 result += ",";
+                stream.advance();
             }
             else if (stream.current().type == TokenType::SCOPE)
             {
                 result += "::";
+                stream.advance();
             }
             // Handle primitive type keywords (needed for validation to work)
             else if (stream.current().type == TokenType::VOID)
             {
                 result += "void";
+                stream.advance();
             }
             else if (stream.current().type == TokenType::INT)
             {
                 result += "int";
+                stream.advance();
             }
             else if (stream.current().type == TokenType::FLOAT)
             {
                 result += "float";
+                stream.advance();
             }
             else if (stream.current().type == TokenType::BOOL)
             {
                 result += "bool";
+                stream.advance();
             }
             else if (stream.current().type == TokenType::STRING_TYPE)
             {
                 result += "string";
+                stream.advance();
             }
-            stream.advance();
+            else
+            {
+                // Unknown token, just advance
+                stream.advance();
+            }
         }
 
         return result;

@@ -36,7 +36,7 @@ namespace vm::optimization::patterns
             // Check if second operand is 1
             if (i2.opcode == OpCode::PUSH_INT)
             {
-                int val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
+                int val2 = static_cast<int>(PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1));
                 if (val2 == 1 && i3.opcode == OpCode::DIV_INT)
                 {
                     // Keep only first operand
@@ -101,7 +101,7 @@ namespace vm::optimization::patterns
         // Check if second operand is 1
         if (i2.opcode == OpCode::PUSH_INT)
         {
-            int val = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
+            int val = static_cast<int>(PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1));
             if (val == 1)
             {
                 return cfg.canOptimizeRange(offset, offset + 3);
@@ -144,7 +144,7 @@ namespace vm::optimization::patterns
         }
 
         const auto& pool = program.getConstantPool();
-        int val = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1);
+        int val = static_cast<int>(PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1));
 
         if (val == -1)
         {
