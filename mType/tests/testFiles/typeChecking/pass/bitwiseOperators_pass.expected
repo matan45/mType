@@ -1,0 +1,11 @@
+AND: 8
+OR: 14
+XOR: 6
+Left shift: 12
+Right shift: 4
+NOT: -1
+Precedence (1 | 2 & 4): 1
+Shift precedence (1 << 2 & 12): 4
+Chained: 27
+With parens ((12 | 10) & 3): 2
+Double NOT: 5

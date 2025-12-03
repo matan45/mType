@@ -98,6 +98,7 @@ namespace parser::expression
         case TokenType::PLUS:
         case TokenType::INCREMENT:
         case TokenType::DECREMENT:
+        case TokenType::BITWISE_NOT:
             return true;
         default:
             return false;

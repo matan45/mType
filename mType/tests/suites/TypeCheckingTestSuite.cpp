@@ -154,13 +154,17 @@ namespace tests::testSuite
         addOutputVerificationTest("Type Inference Local Variable",
                         passPath + "typeInferenceLocalVariable_pass.mt");
 
-        // === OPERATOR TESTS (3 tests) ===
+        // === OPERATOR TESTS (5 tests) ===
         addOutputVerificationTest("Type Operator Arithmetic Promotion",
                         passPath + "typeOperatorArithmeticPromotion_pass.mt");
         addOutputVerificationTest("Type Operator Assignment Compound",
                         passPath + "typeOperatorAssignmentCompound_pass.mt");
         addOutputVerificationTest("Type Operator Logical Short Circuit",
                         passPath + "typeOperatorLogicalShortCircuit_pass.mt");
+        addOutputVerificationTest("Bitwise Operators",
+                        passPath + "bitwiseOperators_pass.mt");
+        addOutputVerificationTest("Modifier Bitwise Test",
+                        passPath + "modifierTest_pass.mt");
 
         // === OVERLOADING TESTS (5 tests) ===
         addOutputVerificationTest("Type Overload Constructor",

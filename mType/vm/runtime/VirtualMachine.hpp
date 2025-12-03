@@ -14,6 +14,7 @@ namespace vm::runtime {
     class ComparisonExecutor;
     class LogicalExecutor;
     class ArithmeticExecutor;
+    class BitwiseExecutor;
     class ControlFlowExecutor;
     class VariableExecutor;
     class FunctionExecutor;
@@ -95,6 +96,7 @@ namespace vm::runtime
         std::unique_ptr<ComparisonExecutor> comparisonExecutor;
         std::unique_ptr<LogicalExecutor> logicalExecutor;
         std::unique_ptr<ArithmeticExecutor> arithmeticExecutor;
+        std::unique_ptr<BitwiseExecutor> bitwiseExecutor;
         std::unique_ptr<ControlFlowExecutor> controlFlowExecutor;
         std::unique_ptr<VariableExecutor> variableExecutor;
         std::unique_ptr<FunctionExecutor> functionExecutor;

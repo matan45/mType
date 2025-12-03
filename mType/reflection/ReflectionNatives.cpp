@@ -87,12 +87,6 @@ namespace reflection
         nativeRegistry->registerNativeFunction("__reflect_getMethodParameters", __reflect_getMethodParameters);
         nativeRegistry->registerNativeFunction("__reflect_getConstructorParameters", __reflect_getConstructorParameters);
         nativeRegistry->registerNativeFunction("__reflect_getParameterType", __reflect_getParameterType);
-
-        // Bitwise operations (for Modifier class)
-        nativeRegistry->registerNativeFunction("__bitwise_and", __bitwise_and);
-        nativeRegistry->registerNativeFunction("__bitwise_or", __bitwise_or);
-        nativeRegistry->registerNativeFunction("__bitwise_xor", __bitwise_xor);
-        nativeRegistry->registerNativeFunction("__bitwise_not", __bitwise_not);
     }
 
     // ========== Helper Methods ==========
@@ -1325,39 +1319,6 @@ namespace reflection
         }
 
         return "unknown";
-    }
-
-    // ========== Bitwise Operations (for Modifier class) ==========
-
-    Value ReflectionNatives::__bitwise_and(const std::vector<Value>& args)
-    {
-        validateArgCount(args, 2, "__bitwise_and");
-        int64_t a = extractInt(args[0], "__bitwise_and", "a");
-        int64_t b = extractInt(args[1], "__bitwise_and", "b");
-        return a & b;
-    }
-
-    Value ReflectionNatives::__bitwise_or(const std::vector<Value>& args)
-    {
-        validateArgCount(args, 2, "__bitwise_or");
-        int64_t a = extractInt(args[0], "__bitwise_or", "a");
-        int64_t b = extractInt(args[1], "__bitwise_or", "b");
-        return a | b;
-    }
-
-    Value ReflectionNatives::__bitwise_xor(const std::vector<Value>& args)
-    {
-        validateArgCount(args, 2, "__bitwise_xor");
-        int64_t a = extractInt(args[0], "__bitwise_xor", "a");
-        int64_t b = extractInt(args[1], "__bitwise_xor", "b");
-        return a ^ b;
-    }
-
-    Value ReflectionNatives::__bitwise_not(const std::vector<Value>& args)
-    {
-        validateArgCount(args, 1, "__bitwise_not");
-        int64_t a = extractInt(args[0], "__bitwise_not", "a");
-        return ~a;
     }
 
     void ReflectionNatives::cleanup()

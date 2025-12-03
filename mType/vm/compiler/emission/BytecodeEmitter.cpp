@@ -122,6 +122,16 @@ namespace vm::compiler::emission
                 return bytecode::OpCode::AND;
             case token::TokenType::OR:
                 return bytecode::OpCode::OR;
+            case token::TokenType::BITWISE_AND:
+                return bytecode::OpCode::BITWISE_AND_OP;
+            case token::TokenType::BITWISE_OR:
+                return bytecode::OpCode::BITWISE_OR_OP;
+            case token::TokenType::BITWISE_XOR:
+                return bytecode::OpCode::BITWISE_XOR_OP;
+            case token::TokenType::LEFT_SHIFT:
+                return bytecode::OpCode::LEFT_SHIFT_OP;
+            case token::TokenType::RIGHT_SHIFT:
+                return bytecode::OpCode::RIGHT_SHIFT_OP;
             default:
                 throw errors::ParseException("Unsupported binary operator");
         }
@@ -138,6 +148,8 @@ namespace vm::compiler::emission
                 return bytecode::OpCode::INC;
             case token::TokenType::DECREMENT:
                 return bytecode::OpCode::DEC;
+            case token::TokenType::BITWISE_NOT:
+                return bytecode::OpCode::BITWISE_NOT_OP;
             default:
                 throw errors::ParseException("Unsupported unary operator");
         }

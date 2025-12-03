@@ -326,7 +326,7 @@ namespace vm::optimization
 
             if (isJump && !instr.operands.empty())
             {
-                uint32_t target = instr.operands[0];
+                uint32_t target = static_cast<uint32_t>(instr.operands[0]);
 
                 // If the jump target is after the replacement point, adjust it
                 if (target >= replacementEndOffset)
@@ -358,7 +358,7 @@ namespace vm::optimization
             // LAMBDA instruction format: operands[0] = lambda start offset
             if (instr.opcode == bytecode::OpCode::LAMBDA && !instr.operands.empty())
             {
-                uint32_t lambdaOffset = instr.operands[0];
+                uint32_t lambdaOffset = static_cast<uint32_t>(instr.operands[0]);
 
                 // If the lambda start is after the replacement point, adjust it
                 if (lambdaOffset >= replacementEndOffset)

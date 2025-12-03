@@ -1,0 +1,8 @@
+Combined (public | static): 9
+isPublic: true
+isStatic: true
+isPrivate: false
+AND result: 1
+XOR result: 8
+NOT result: -1
+Modifier string: public static

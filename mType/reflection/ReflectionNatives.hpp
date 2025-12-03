@@ -444,39 +444,6 @@ namespace reflection
          */
         static value::Value __reflect_getParameterType(const std::vector<value::Value>& args);
 
-        // ========== Bitwise Operations (for Modifier class) ==========
-
-        /**
-         * @brief Bitwise AND operation
-         * args[0]: a (int)
-         * args[1]: b (int)
-         * Returns: int (a & b)
-         */
-        static value::Value __bitwise_and(const std::vector<value::Value>& args);
-
-        /**
-         * @brief Bitwise OR operation
-         * args[0]: a (int)
-         * args[1]: b (int)
-         * Returns: int (a | b)
-         */
-        static value::Value __bitwise_or(const std::vector<value::Value>& args);
-
-        /**
-         * @brief Bitwise XOR operation
-         * args[0]: a (int)
-         * args[1]: b (int)
-         * Returns: int (a ^ b)
-         */
-        static value::Value __bitwise_xor(const std::vector<value::Value>& args);
-
-        /**
-         * @brief Bitwise NOT operation
-         * args[0]: a (int)
-         * Returns: int (~a)
-         */
-        static value::Value __bitwise_not(const std::vector<value::Value>& args);
-
     private:
         // ========== Helper Methods ==========
 

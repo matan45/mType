@@ -8,7 +8,7 @@
 namespace lexer
 {
     // Static operator lookup table definitions
-    const std::array<Lexer::OperatorInfo, 15> Lexer::TWO_CHAR_OPERATORS = {
+    const std::array<Lexer::OperatorInfo, 17> Lexer::TWO_CHAR_OPERATORS = {
         {
             {"++", TokenType::INCREMENT, 2},
             {"--", TokenType::DECREMENT, 2},
@@ -24,11 +24,13 @@ namespace lexer
             {"/=", TokenType::DIVIDE_ASSIGN, 2},
             {"%=", TokenType::MODULO_ASSIGN, 2},
             {"::", TokenType::SCOPE, 2},
-            {"->", TokenType::ARROW, 2}
+            {"->", TokenType::ARROW, 2},
+            {"<<", TokenType::LEFT_SHIFT, 2},
+            {">>", TokenType::RIGHT_SHIFT, 2}
         }
     };
 
-    const std::array<Lexer::OperatorInfo, 21> Lexer::SINGLE_CHAR_OPERATORS = {
+    const std::array<Lexer::OperatorInfo, 25> Lexer::SINGLE_CHAR_OPERATORS = {
         {
             {"+", TokenType::PLUS, 1},
             {"-", TokenType::MINUS, 1},
@@ -50,7 +52,11 @@ namespace lexer
             {"<", TokenType::LESS, 1},
             {">", TokenType::GREATER, 1},
             {".", TokenType::DOT, 1},
-            {"@", TokenType::AT, 1}
+            {"@", TokenType::AT, 1},
+            {"&", TokenType::BITWISE_AND, 1},
+            {"|", TokenType::BITWISE_OR, 1},
+            {"^", TokenType::BITWISE_XOR, 1},
+            {"~", TokenType::BITWISE_NOT, 1}
         }
     };
 

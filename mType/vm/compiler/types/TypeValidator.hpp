@@ -97,6 +97,7 @@ namespace vm::compiler::types
                                        value::ValueType rightType, const std::string& rightClassName,
                                        token::TokenType op, bool leftIsNull, bool rightIsNull) const;
         bool isLogicalOperationValid(value::ValueType leftType, value::ValueType rightType) const;
+        bool isBitwiseOperationValid(value::ValueType leftType, value::ValueType rightType) const;
         void throwBinaryOperationError(value::ValueType leftType, value::ValueType rightType, token::TokenType op,
                                        const ast::SourceLocation& location) const;
     };

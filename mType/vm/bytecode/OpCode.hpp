@@ -59,6 +59,14 @@ namespace vm::bytecode
         NOT,                // Logical NOT
         XOR,                // Logical XOR
 
+        // === Bitwise Operations ===
+        BITWISE_AND_OP,     // Bitwise AND (&)
+        BITWISE_OR_OP,      // Bitwise OR (|)
+        BITWISE_XOR_OP,     // Bitwise XOR (^)
+        LEFT_SHIFT_OP,      // Left shift (<<)
+        RIGHT_SHIFT_OP,     // Right shift (>>)
+        BITWISE_NOT_OP,     // Bitwise NOT (~) - unary
+
         // === Variable Operations (40-49) ===
         LOAD_VAR,           // Load variable (by name from environment)
         STORE_VAR,          // Store to variable (by name)
@@ -253,6 +261,13 @@ namespace vm::bytecode
             case OpCode::OR: return "OR";
             case OpCode::NOT: return "NOT";
             case OpCode::XOR: return "XOR";
+
+            case OpCode::BITWISE_AND_OP: return "BITWISE_AND_OP";
+            case OpCode::BITWISE_OR_OP: return "BITWISE_OR_OP";
+            case OpCode::BITWISE_XOR_OP: return "BITWISE_XOR_OP";
+            case OpCode::LEFT_SHIFT_OP: return "LEFT_SHIFT_OP";
+            case OpCode::RIGHT_SHIFT_OP: return "RIGHT_SHIFT_OP";
+            case OpCode::BITWISE_NOT_OP: return "BITWISE_NOT_OP";
 
             case OpCode::LOAD_VAR: return "LOAD_VAR";
             case OpCode::STORE_VAR: return "STORE_VAR";

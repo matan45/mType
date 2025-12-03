@@ -189,7 +189,7 @@ namespace vm::bytecode
                     // Jump instructions have target offset as first operand
                     // Ensure the target is within bounds
                     if (!instr.operands.empty()) {
-                        uint32_t target = instr.operands[0];
+                        uint32_t target = static_cast<uint32_t>(instr.operands[0]);
                         if (target >= instructions.size()) {
                             // CRITICAL: Invalid jump target detected - fail fast
                             throw std::runtime_error(
