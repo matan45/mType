@@ -203,6 +203,10 @@ namespace tests::testSuite
                         passPath + "fieldShadowing.mt");
         addOutputVerificationTest("Field Uninitialized Defaults",
                         passPath + "fieldUninitializedDefaults.mt");
+        addOutputVerificationTest("Void vs Null Returns",
+                        passPath + "voidVsNullReturns.mt");
+        addOutputVerificationTest("Uninitialized Slot Edge Cases",
+                        passPath + "uninitializedSlotEdgeCases.mt");
         addOutputVerificationTest("Field Final Init Timing",
                         passPath + "fieldFinalInitTiming.mt");
         addOutputVerificationTest("Field Final Mutable Ref",

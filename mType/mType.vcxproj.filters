@@ -5029,6 +5029,18 @@
     <None Include="tests\testFiles\class\pass\typeUpcastExplicit.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\uninitializedSlotEdgeCases.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\uninitializedSlotEdgeCases.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\voidVsNullReturns.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\voidVsNullReturns.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\collections\pass\arrayListSort.expected">
       <Filter>tests\testFiles\collections\pass</Filter>
     </None>
@@ -5722,16 +5734,10 @@
     <None Include="tests\testFiles\error\error\duplicateFunctionName.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
-    <None Include="tests\testFiles\error\error\duplicateFunctionNativeName.mt">
-      <Filter>tests\testFiles\error\error</Filter>
-    </None>
     <None Include="tests\testFiles\error\error\duplicateInstanceMethodName.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\duplicateInterfaceName.mt">
-      <Filter>tests\testFiles\error\error</Filter>
-    </None>
-    <None Include="tests\testFiles\error\error\duplicateNativeFunctionName.mt">
       <Filter>tests\testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\duplicateStaticInstanceMethodName.mt">
@@ -8749,6 +8755,12 @@
     <None Include="tests\testFiles\lambda\pass\lambdaCaptureInLoop.mt">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaCaptureNull.expected">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaCaptureNull.mt">
+      <Filter>tests\testFiles\lambda\pass</Filter>
+    </None>
     <None Include="tests\testFiles\lambda\pass\lambdaClosureModification.expected">
       <Filter>tests\testFiles\lambda\pass</Filter>
     </None>
@@ -9965,9 +9977,6 @@
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\namespaceReturnTypesWrongClass.mt">
-      <Filter>tests\testFiles\typeChecking\error</Filter>
-    </None>
-    <None Include="tests\testFiles\typeChecking\error\nativeFunctionNamingConventionError.mt">
       <Filter>tests\testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\nullToNonNullableConversionError.mt">

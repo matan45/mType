@@ -1303,6 +1303,10 @@ namespace vm::runtime
         {
             return std::get<value::InternedString>(val).getString();
         }
+        if (std::holds_alternative<std::monostate>(val))
+        {
+            return "void";  // monostate represents void/uninitialized - should not typically be printed
+        }
         if (std::holds_alternative<nullptr_t>(val))
         {
             return "null";

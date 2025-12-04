@@ -347,7 +347,7 @@ namespace vm::runtime
             if (lambdaMetadata->localCount > pushedSlots) {
                 size_t additionalLocals = lambdaMetadata->localCount - pushedSlots;
                 for (size_t i = 0; i < additionalLocals; ++i) {
-                    context.stackManager->push(std::monostate{});
+                    context.stackManager->push(std::monostate{});  // Sentinel for uninitialized slot
                 }
             }
         }
@@ -505,7 +505,7 @@ namespace vm::runtime
         if (funcMetadata->localCount > pushedSlots) {
             size_t additionalLocals = funcMetadata->localCount - pushedSlots;
             for (size_t i = 0; i < additionalLocals; ++i) {
-                context.stackManager->push(std::monostate{});
+                context.stackManager->push(std::monostate{});  // Sentinel for uninitialized slot
             }
         }
 

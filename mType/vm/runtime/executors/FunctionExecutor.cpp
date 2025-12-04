@@ -97,7 +97,7 @@ namespace vm::runtime
 
             // Reserve and initialize remaining local variable slots (beyond parameters)
             // to prevent showing uninitialized variables in debugger
-            // All non-parameter slots are initialized to std::monostate (null) until explicitly assigned by STORE_LOCAL
+            // All non-parameter slots are initialized to null until explicitly assigned by STORE_LOCAL
             for (size_t i = argCount; i < funcMetadata->localCount; ++i)
             {
                 context.stackManager->push(std::monostate{});
@@ -242,7 +242,7 @@ namespace vm::runtime
                 size_t additionalLocals = funcMetadata->localCount - argCount;
                 for (size_t i = 0; i < additionalLocals; ++i)
                 {
-                    context.stackManager->push(std::monostate{}); // Initialize with null/undefined
+                    context.stackManager->push(std::monostate{});  // Initialize with null
                 }
             }
 

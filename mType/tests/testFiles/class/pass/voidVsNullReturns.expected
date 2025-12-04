@@ -1,0 +1,18 @@
+=== Void vs Null Returns Test ===
+Test 1: Calling void method
+doNothing executed
+Test 1 PASS: Void method completed
+Test 2: Calling null-returning method
+Test 2 PASS: Got null as expected
+Test 3: Calling object-returning method
+Test 3 PASS: Got non-null object
+Test 4: Conditional returns
+Test 4 PASS: Conditional returns work correctly
+Test 5: Global void function
+voidFunction executed
+Test 5 PASS: Global void function completed
+Test 6: Global null function
+Test 6 PASS: Global function returned null
+Test 7: Null equality
+Test 7 PASS: Null equality works correctly
+=== Void vs Null Returns Test Complete ===

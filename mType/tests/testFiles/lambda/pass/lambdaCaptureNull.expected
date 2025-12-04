@@ -1,0 +1,7 @@
+=== Lambda Capture Null Test ===
+Test 1 PASS: Captured null variable correctly
+Test 2 PASS: Null capture persists
+Test 3 PASS: Captured null field through object
+Test 4 PASS: Captured reassigned null
+Test 5 PASS: Multiple lambdas captured same null
+=== Lambda Capture Null Test Complete ===
