@@ -100,7 +100,7 @@ namespace vm::runtime
             // All non-parameter slots are initialized to null until explicitly assigned by STORE_LOCAL
             for (size_t i = argCount; i < funcMetadata->localCount; ++i)
             {
-                context.stackManager->push(nullptr);
+                context.stackManager->push(std::monostate{});
             }
 
             // Jump to function start
@@ -242,7 +242,7 @@ namespace vm::runtime
                 size_t additionalLocals = funcMetadata->localCount - argCount;
                 for (size_t i = 0; i < additionalLocals; ++i)
                 {
-                    context.stackManager->push(nullptr);  // Initialize with null
+                    context.stackManager->push(std::monostate{});  // Initialize with null
                 }
             }
 

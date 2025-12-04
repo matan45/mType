@@ -351,7 +351,7 @@ namespace vm::runtime
         // Extend stack if needed to reach the slot position
         while (context.stackManager->size() < stackPos)
         {
-            context.stackManager->getStack().push_back(nullptr);  // null for uninitialized slots
+            context.stackManager->getStack().push_back(std::monostate{});  // Sentinel for uninitialized slots
         }
 
         // If the slot is beyond current stack size, push the value

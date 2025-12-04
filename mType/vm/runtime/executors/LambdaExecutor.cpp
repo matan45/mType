@@ -98,9 +98,9 @@ namespace vm::runtime
 
             if (stackPos < context.stackManager->size()) {
                 value::Value val = (*context.stackManager)[stackPos];
-                // Skip registering null/monostate values - they represent uninitialized slots
+                // Skip registering monostate values - they represent uninitialized slots
                 // These will be properly accessed from the stack when they get actual values
-                if (!std::holds_alternative<std::monostate>(val) && !std::holds_alternative<nullptr_t>(val)) {
+                if (!std::holds_alternative<std::monostate>(val)) {
                     std::string capturedName = lambda->capturedNames[i];  // Get the name
                     sharedFrame->setLocal(capturedName, varSlot, val);  // Register with NAME for setLocalByName to work
                 }
