@@ -238,6 +238,8 @@ namespace tests::testSuite
         // ====================================
         // Special Values Tests
         // ====================================
+        addOutputVerificationTest("Lambda Capture Null",
+                        passPath + "lambdaCaptureNull.mt");
         addOutputVerificationTest("Lambda Null Parameter",
                         passPath + "lambdaNullParameter.mt");
         addOutputVerificationTest("Lambda Null Lambda Variable",
