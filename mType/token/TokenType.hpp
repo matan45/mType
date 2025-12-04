@@ -48,7 +48,6 @@ namespace token
         PUBLIC, // public keyword
         PROTECTED, // protected keyword
         CONSTRUCTOR, // constructor keyword
-        NATIVE, // Add this for native function declarations
         SCOPE, // :: scope resolution operator
         SWITCH, CASE, DEFAULT, // Switch-case keywords
         INTERFACE, // interface keyword

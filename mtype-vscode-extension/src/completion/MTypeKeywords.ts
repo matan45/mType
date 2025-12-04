@@ -203,15 +203,6 @@ export class MTypeKeywords {
             priority: 8
         },
         {
-            keyword: 'native',
-            detail: 'native modifier',
-            documentation: 'Marks a method as implemented in native code',
-            insertText: 'native ',
-            kind: vscode.CompletionItemKind.Keyword,
-            contexts: ['class', 'function'],
-            priority: 7
-        },
-        {
             keyword: 'isClassOf',
             detail: 'type check operator',
             documentation: 'Checks if an object is an instance of a class',

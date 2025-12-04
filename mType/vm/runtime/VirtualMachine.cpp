@@ -853,8 +853,6 @@ namespace vm::runtime
         // Functions - delegated to FunctionExecutor
         case OpCode::CALL: functionExecutor->handleCall(instr);
             break;
-        case OpCode::CALL_NATIVE: functionExecutor->handleCallNative(instr);
-            break;
         case OpCode::CALL_STATIC: functionExecutor->handleCallStatic(instr);
             break;
 

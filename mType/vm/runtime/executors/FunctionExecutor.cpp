@@ -111,11 +111,6 @@ namespace vm::runtime
         throw errors::RuntimeException("Function not found: " + functionName);
     }
 
-    void FunctionExecutor::handleCallNative(const bytecode::BytecodeProgram::Instruction& instr)
-    {
-        throw errors::RuntimeException("CALL_NATIVE not yet implemented");
-    }
-
     void FunctionExecutor::handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr)
     {
         // Get static method name from constant pool (should be fully qualified: ClassName::methodName)

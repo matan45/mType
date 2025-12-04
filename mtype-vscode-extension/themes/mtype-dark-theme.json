@@ -45,15 +45,6 @@
       }
     },
     {
-      "name": "mType Native Keyword",
-      "scope": [
-        "keyword.native.mtype"
-      ],
-      "settings": {
-        "foreground": "#ff8c00"
-      }
-    },
-    {
       "name": "mType Primitive Types",
       "scope": [
         "storage.type.primitive.mtype"

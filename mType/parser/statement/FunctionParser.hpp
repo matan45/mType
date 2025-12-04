@@ -20,7 +20,6 @@ namespace parser::statement
         bool canParse(const TokenStream& stream) const override;
 
         std::unique_ptr<ASTNode> parseFunction();
-        std::unique_ptr<ASTNode> parseNativeFunction();
 
     private:
         bool isFunctionToken(TokenType type) const noexcept;

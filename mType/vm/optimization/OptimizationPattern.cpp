@@ -71,7 +71,6 @@ namespace vm::optimization
                opcode == OpCode::RETURN_VALUE ||
                opcode == OpCode::THROW ||
                opcode == OpCode::CALL ||
-               opcode == OpCode::CALL_NATIVE ||
                opcode == OpCode::CALL_FAST ||
                opcode == OpCode::TAIL_CALL;
     }
@@ -91,7 +90,6 @@ namespace vm::optimization
                opcode == OpCode::ARRAY_SET_INT ||
                opcode == OpCode::ARRAY_SET_FIELD ||
                opcode == OpCode::CALL ||
-               opcode == OpCode::CALL_NATIVE ||
                opcode == OpCode::CALL_METHOD ||
                opcode == OpCode::CALL_STATIC ||
                opcode == OpCode::INVOKE ||

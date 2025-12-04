@@ -181,11 +181,6 @@ namespace parser
         return importParser->parseImport();
     }
 
-    std::unique_ptr<ASTNode> StatementParser::parseNativeFunction()
-    {
-        return functionParser->parseNativeFunction();
-    }
-
     std::unique_ptr<ASTNode> StatementParser::parseTryStatement()
     {
         return exceptionParser->parseTryStatement();

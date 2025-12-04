@@ -39,10 +39,6 @@ namespace parser::statement
             // Visibility modifiers are handled in parseFunction()
             return parseFunction();
         }
-        else if (current.type == TokenType::NATIVE)
-        {
-            return parseNativeFunction();
-        }
         else if (current.type == TokenType::FUNCTION)
         {
             return parseFunction();
@@ -73,14 +69,7 @@ namespace parser::statement
         // Default is PUBLIC if not specified
         VisibilityModifier visibility = VisibilityParser::parseVisibilityModifier(tokenStream);
 
-        bool isNative = false;
         bool isAsync = false;
-
-        // Check for native keyword
-        if (tryConsumeToken(TokenType::NATIVE))
-        {
-            isNative = true;
-        }
 
         expectToken(TokenType::FUNCTION);
 
@@ -127,20 +116,10 @@ namespace parser::statement
             utilities::AsyncValidator::validateAsyncReturnType(genericReturnType, tokenStream.location());
         }
 
-        std::unique_ptr<ASTNode> body = nullptr;
-
-        if (isNative)
-        {
-            // Native functions don't have a body
-            expectToken(TokenType::SEMICOLON);
-        }
-        else
-        {
-            // Set function and async context when parsing function body
-            ParseContext::FunctionContextGuard functionGuard(context.getContextState());
-            ParseContext::AsyncContextGuard asyncGuard(context.getContextState(), isAsync);
-            body = context.parseStatement(); // Should be a block
-        }
+        // Set function and async context when parsing function body
+        ParseContext::FunctionContextGuard functionGuard(context.getContextState());
+        ParseContext::AsyncContextGuard asyncGuard(context.getContextState(), isAsync);
+        std::unique_ptr<ASTNode> body = context.parseStatement(); // Should be a block
 
         // Use new generic-aware constructor with function generic parameters and async flag
         auto funcNode = std::make_unique<FunctionNode>(funcName, genericReturnType,
@@ -157,36 +136,6 @@ namespace parser::statement
         return funcNode;
     }
 
-    std::unique_ptr<ASTNode> FunctionParser::parseNativeFunction()
-    {
-        expectToken(TokenType::NATIVE);
-        expectToken(TokenType::FUNCTION);
-
-        if (!tokenStream.check(TokenType::IDENTIFIER))
-        {
-            throw ParseException("Expected function name", tokenStream.current().location);
-        }
-
-        std::string funcName = tokenStream.current().stringValue.getString();
-        auto funcLocation = tokenStream.current().location;
-        validateFunctionName(funcName);
-        tokenStream.advance();
-
-        // NOTE: Duplicate signature checking is done by FunctionRegistrar during registration phase
-        // This allows function overloading (same name, different parameter types)
-
-        auto parameters = parseParameterList();
-
-        expectToken(TokenType::COLON);
-        ValueType returnType = TypeParser::parseType(tokenStream);
-
-        expectToken(TokenType::SEMICOLON);
-
-        // Native functions don't have a body - explicitly use unique_ptr nullptr
-        return std::make_unique<FunctionNode>(funcName, returnType, std::move(parameters),
-                                              std::unique_ptr<ASTNode>(nullptr), false, funcLocation);
-    }
-
     bool FunctionParser::isFunctionToken(TokenType type) const noexcept
     {
         switch (type)
@@ -195,7 +144,6 @@ namespace parser::statement
         case TokenType::PUBLIC:    // Visibility modifiers
         case TokenType::PRIVATE:
         case TokenType::FUNCTION:
-        case TokenType::NATIVE:
             return true;
         default:
             return false;

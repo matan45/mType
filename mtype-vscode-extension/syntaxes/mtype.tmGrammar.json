@@ -51,10 +51,6 @@
           "match": "\\b(class|interface|extends|implements|import|new|this|super|null|static|final|function|constructor|return|isClassOf|private|public|protected|await|async|from|abstract)\\b"
         },
         {
-          "name": "keyword.native.mtype",
-          "match": "\\b(native)\\b"
-        },
-        {
           "name": "constant.language.mtype",
           "match": "\\b(true|false)\\b"
         }
