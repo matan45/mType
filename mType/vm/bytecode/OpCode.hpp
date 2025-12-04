@@ -92,7 +92,6 @@ namespace vm::bytecode
 
         // === Function Operations (60-64) ===
         CALL,               // Call function (operand: arg count)
-        CALL_NATIVE,        // Call native C++ function (operand: function index)
         CALL_FAST,          // Optimized call for known functions
         TAIL_CALL,          // Tail call optimization
         CLOSURE,            // Create closure (operand: function index)
@@ -291,7 +290,6 @@ namespace vm::bytecode
             case OpCode::RETURN_VALUE: return "RETURN_VALUE";
 
             case OpCode::CALL: return "CALL";
-            case OpCode::CALL_NATIVE: return "CALL_NATIVE";
             case OpCode::CALL_FAST: return "CALL_FAST";
             case OpCode::TAIL_CALL: return "TAIL_CALL";
             case OpCode::CLOSURE: return "CLOSURE";

@@ -196,12 +196,6 @@ namespace tests::testSuite
         addTestFromFile("Duplicate Function Name Error",
                         errorPath + "duplicateFunctionName.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Duplicate Native Function Name Error",
-                        errorPath + "duplicateNativeFunctionName.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Duplicate Function and Native Function Name Error",
-                        errorPath + "duplicateFunctionNativeName.mt",
-                        TestType::ERROR_EXPECTED);
 
         // === DUPLICATE METHOD DECLARATION TESTS ===
         // These tests verify that duplicate method names within a class are rejected

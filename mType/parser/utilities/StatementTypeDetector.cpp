@@ -13,7 +13,7 @@ namespace parser::utilities
         {
             return StatementType::INTERFACE;
         }
-        else if (next.type == TokenType::FUNCTION || next.type == TokenType::NATIVE)
+        else if (next.type == TokenType::FUNCTION)
         {
             return StatementType::FUNCTION;
         }
@@ -30,7 +30,7 @@ namespace parser::utilities
             {
                 return StatementType::INTERFACE;
             }
-            else if (afterModifier.type == TokenType::FUNCTION || afterModifier.type == TokenType::NATIVE)
+            else if (afterModifier.type == TokenType::FUNCTION)
             {
                 return StatementType::FUNCTION;
             }
@@ -144,7 +144,7 @@ namespace parser::utilities
         {
             return StatementType::INTERFACE;
         }
-        else if (afterAnnotations == TokenType::FUNCTION || afterAnnotations == TokenType::NATIVE)
+        else if (afterAnnotations == TokenType::FUNCTION)
         {
             return StatementType::FUNCTION;
         }
@@ -161,7 +161,7 @@ namespace parser::utilities
             {
                 return StatementType::INTERFACE;
             }
-            else if (afterModifier == TokenType::FUNCTION || afterModifier == TokenType::NATIVE)
+            else if (afterModifier == TokenType::FUNCTION)
             {
                 return StatementType::FUNCTION;
             }
@@ -184,7 +184,7 @@ namespace parser::utilities
             {
                 return StatementType::INTERFACE;
             }
-            else if (afterModifier == TokenType::FUNCTION || afterModifier == TokenType::NATIVE)
+            else if (afterModifier == TokenType::FUNCTION)
             {
                 return StatementType::FUNCTION;
             }
@@ -353,7 +353,6 @@ namespace parser::utilities
         switch (type)
         {
         case TokenType::FUNCTION:
-        case TokenType::NATIVE:
             return true;
         default:
             return false;

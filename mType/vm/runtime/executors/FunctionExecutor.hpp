@@ -8,7 +8,7 @@ namespace vm::runtime
 {
     /**
      * Executes function call opcodes
-     * Handles CALL, CALL_NATIVE, CALL_STATIC
+     * Handles CALL, CALL_STATIC
      * Manages call frames, argument passing, and static method access validation
      */
     class FunctionExecutor
@@ -19,7 +19,6 @@ namespace vm::runtime
 
         // Function call operations
         void handleCall(const bytecode::BytecodeProgram::Instruction& instr);
-        void handleCallNative(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Public helper for lambda-to-interface conversion (used by ObjectExecutor too)

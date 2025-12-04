@@ -365,9 +365,6 @@ namespace tests::testSuite
         addTestFromFile("Static Method Naming Convention Error",
                         errorPath + "staticMethodNamingConventionError.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Native Function Naming Convention Error",
-                        errorPath + "nativeFunctionNamingConventionError.mt",
-                        TestType::ERROR_EXPECTED);
         addTestFromFile("Mixed Naming Convention Errors",
                         errorPath + "mixedNamingConventionErrors.mt",
                         TestType::ERROR_EXPECTED);

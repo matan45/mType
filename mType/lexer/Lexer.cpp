@@ -86,7 +86,6 @@ namespace lexer
         {"constructor", TokenType::CONSTRUCTOR},
         {"null", TokenType::NULL_LITERAL},
         {"true", TokenType::TRUE},
-        {"native", TokenType::NATIVE},
         {"import", TokenType::IMPORT},
         {"from", TokenType::FROM},
         {"false", TokenType::FALSE},

@@ -290,7 +290,7 @@ export class MTypeSemanticTokensProvider implements vscode.DocumentSemanticToken
             'if', 'else', 'while', 'do', 'for', 'switch', 'case', 'default', 'break', 'continue',
             'return', 'new', 'this', 'super', 'try', 'catch', 'finally', 'throw',
             'import', 'from', 'extends', 'implements', 'abstract', 'final',
-            'public', 'private', 'protected', 'static', 'native', 'async', 'await'
+            'public', 'private', 'protected', 'static', 'async', 'await'
         ];
 
         for (const keyword of keywords) {
@@ -349,7 +349,7 @@ export class MTypeSemanticTokensProvider implements vscode.DocumentSemanticToken
      * Tokenize modifiers (visibility, static, final, etc.)
      */
     private tokenizeModifiers(line: string, lineIndex: number, builder: vscode.SemanticTokensBuilder): void {
-        const modifiers = ['public', 'private', 'protected', 'static', 'final', 'abstract', 'native', 'async'];
+        const modifiers = ['public', 'private', 'protected', 'static', 'final', 'abstract', 'async'];
 
         for (const modifier of modifiers) {
             const regex = new RegExp(`\\b${modifier}\\b`, 'g');

@@ -68,7 +68,6 @@ namespace parser
         std::unique_ptr<ASTNode> parseExpressionStatement();
         std::unique_ptr<ASTNode> parseFunction();
         std::unique_ptr<ASTNode> parseImport();
-        std::unique_ptr<ASTNode> parseNativeFunction();
         std::unique_ptr<ASTNode> parseTryStatement();
         std::unique_ptr<ASTNode> parseThrowStatement();
 
