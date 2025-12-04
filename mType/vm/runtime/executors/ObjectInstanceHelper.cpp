@@ -198,7 +198,8 @@ namespace vm::runtime
                             initialValue = std::string("");
                             break;
                         default:
-                            initialValue = std::monostate{};
+                            // Objects, arrays, lambdas initialize to null
+                            initialValue = nullptr;
                             break;
                     }
                 }

@@ -75,13 +75,13 @@ namespace value
     private:
         static Value getDefaultValueForType(ValueType type) {
             switch (type) {
-                case ValueType::INT: return 0;
+                case ValueType::INT: return static_cast<int64_t>(0);
                 case ValueType::FLOAT: return 0.0f;
                 case ValueType::BOOL: return false;
                 case ValueType::STRING: return std::string("");
-                case ValueType::OBJECT: return std::monostate{}; // null for objects
-                case ValueType::VOID: return std::monostate{};
-                default: return std::monostate{};
+                case ValueType::OBJECT: return nullptr;  // null for objects
+                case ValueType::VOID: return std::monostate{};  // void stays as monostate
+                default: return nullptr;  // null for unknown types
             }
         }
 

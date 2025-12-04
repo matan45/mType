@@ -318,13 +318,14 @@ namespace vm::compiler::registration
                         defaultValue = false;
                         break;
                     default:
-                        defaultValue = std::monostate{}; // null for objects
+                        // Objects, arrays, lambdas initialize to null
+                        defaultValue = nullptr;
                         break;
                     }
                 }
                 else
                 {
-                    // Instance fields don't need default values here (initialized in constructor)
+                    // Instance fields use monostate as sentinel - ObjectInstanceHelper applies proper type defaults
                     defaultValue = std::monostate{};
                 }
 

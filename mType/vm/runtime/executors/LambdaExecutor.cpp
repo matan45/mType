@@ -91,14 +91,19 @@ namespace vm::runtime
             lambda->capturedSlots.push_back(varSlot);
 
             // Register captured variable in current SharedStackFrame WITH NAME for reference semantics
-            // ALWAYS update with current stack value for proper reference semantics
+            // Only register if the value is meaningful (not null or monostate)
+            // This prevents uninitialized locals from polluting the sharedFrame
             size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
             size_t stackPos = frameBase + varSlot;
 
             if (stackPos < context.stackManager->size()) {
                 value::Value val = (*context.stackManager)[stackPos];
-                std::string capturedName = lambda->capturedNames[i];  // Get the name
-                sharedFrame->setLocal(capturedName, varSlot, val);  // Register with NAME for setLocalByName to work
+                // Skip registering null/monostate values - they represent uninitialized slots
+                // These will be properly accessed from the stack when they get actual values
+                if (!std::holds_alternative<std::monostate>(val) && !std::holds_alternative<nullptr_t>(val)) {
+                    std::string capturedName = lambda->capturedNames[i];  // Get the name
+                    sharedFrame->setLocal(capturedName, varSlot, val);  // Register with NAME for setLocalByName to work
+                }
             }
         }
 

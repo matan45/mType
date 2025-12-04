@@ -2,7 +2,7 @@ Test 1: Uninitialized fields
 intField: 0
 boolField: false
 stringField:
-objectField: <object>
+objectField: null
 
 Test 2: After initialization
 Fields initialized
@@ -15,4 +15,4 @@ Test 3: New object
 intField: 0
 boolField: false
 stringField:
-objectField: <object>
+objectField: null

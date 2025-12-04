@@ -456,7 +456,7 @@ namespace vm::runtime
                     nullptr,
                     classRegistry
                 );
-                // Elements are initialized to std::monostate{} (null) by default
+                // Elements are initialized to null by default
                 return array;
             }
         }
@@ -638,7 +638,7 @@ namespace vm::runtime
                 defaultValue = std::string("");
                 break;
             default:
-                defaultValue = std::monostate{}; // null for objects
+                defaultValue = nullptr;  // null for objects/arrays/lambdas
                 break;
         }
 

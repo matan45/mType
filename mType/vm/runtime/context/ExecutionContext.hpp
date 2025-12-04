@@ -26,7 +26,7 @@ namespace vm::runtime
             if (slot < locals.size()) {
                 return locals[slot];
             }
-            return std::monostate{};
+            return std::monostate{};  // sentinel for slot not found
         }
 
         value::Value getLocalByName(const std::string& name) const {
@@ -39,12 +39,12 @@ namespace vm::runtime
             if (parentFrame) {
                 return parentFrame->getLocalByName(name);
             }
-            return std::monostate{};
+            return std::monostate{};  // sentinel for not found
         }
 
         void setLocal(size_t slot, const value::Value& value) {
             if (slot >= locals.size()) {
-                locals.resize(slot + 1, std::monostate{});
+                locals.resize(slot + 1, std::monostate{});  // sentinel for uninitialized slots
             }
             locals[slot] = value;
         }
