@@ -2,7 +2,6 @@
 
 #include "UnifiedType.hpp"
 #include <unordered_map>
-#include <unordered_set>
 #include <mutex>
 #include <vector>
 #include <memory>
@@ -164,7 +163,8 @@ namespace types
         // Object type registrations: object pointer -> reified type
         // Uses weak_ptr to avoid preventing object destruction
         mutable std::mutex objectRegistryMutex;
-        std::unordered_map<const void*, std::pair<std::weak_ptr<runtimeTypes::klass::ObjectInstance>, UnifiedTypePtr>> objectTypes;
+        std::unordered_map<const void*, std::pair<std::weak_ptr<runtimeTypes::klass::ObjectInstance>, UnifiedTypePtr>>
+        objectTypes;
 
         /**
          * Checks type compatibility for instanceof checks.

@@ -37,10 +37,11 @@ project "mType"
       -- GCC/Clang SIMD flags
       buildoptions { "-msse2", "-msse4.1" }
 
-      -- AVX2 for release builds
-      filter "configurations:Release"
-         buildoptions { "-mavx2", "-mfma" }
-      filter {}
+   -- AVX2 for release builds on Linux/macOS
+   filter { "system:linux or system:macosx", "configurations:Release" }
+      buildoptions { "-mavx2", "-mfma" }
+
+   filter {}
 
    filter "configurations:Debug"
       defines { "DEBUG" }
