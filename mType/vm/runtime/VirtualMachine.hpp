@@ -166,6 +166,9 @@ namespace vm::runtime
         // Reset VM state
         void reset();
 
+        // GC: Collect root set for garbage collection
+        std::vector<void*> collectGCRoots() const;
+
     private:
         // Main execution loop
         value::Value interpretLoop();

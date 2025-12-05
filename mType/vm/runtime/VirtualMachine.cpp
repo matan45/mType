@@ -30,6 +30,7 @@
 #include "../../debugger/DebugContext.hpp"
 #include "../../debugger/DebugHookHelper.hpp"
 #include "../../constants/ExecutionMode.hpp"
+#include "../../gc/GC.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
@@ -56,6 +57,12 @@ namespace vm::runtime
           , pendingFinallyOffset(SIZE_MAX) // No pending exception initially
     {
         callStack.reserve(constants::vm::DEFAULT_CALL_STACK_CAPACITY);
+
+        // Initialize garbage collector if not already initialized
+        if (!gc::GC::isInitialized())
+        {
+            gc::GC::initialize();
+        }
 
         // Note: Executors will be initialized in execute() when program is available
         // because ExecutionContext requires a valid program pointer
@@ -553,8 +560,18 @@ namespace vm::runtime
         // Initialize exception handler
         exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
 
+        // GC: Counter for periodic collection checks
+        size_t instructionsSinceGC = 0;
+
         while (instructionPointer < program->getInstructionCount())
         {
+            // GC: Periodic collection check
+            if (++instructionsSinceGC >= gc::config::GC_CHECK_INTERVAL)
+            {
+                instructionsSinceGC = 0;
+                gc::GC::maybeCollect();
+            }
+
             const auto& instr = program->getInstruction(instructionPointer);
 
             // Check if we have a pending exception and we're hitting RETURN
@@ -1478,6 +1495,58 @@ namespace vm::runtime
         callStack.clear();
         instructionPointer = 0;
         stats = ExecutionStats{};
+    }
+
+    std::vector<void*> VirtualMachine::collectGCRoots() const
+    {
+        std::vector<void*> roots;
+
+        // 1. Stack values - all values on the operand stack
+        const auto& stack = stackManager->getStack();
+        for (const auto& val : stack)
+        {
+            void* ptr = gc::extractPointer(val);
+            if (ptr)
+            {
+                roots.push_back(ptr);
+            }
+        }
+
+        // 2. Call frame 'this' instances and shared frames
+        for (const auto& frame : callStack)
+        {
+            // Check thisInstance
+            if (frame.thisInstance)
+            {
+                roots.push_back(frame.thisInstance.get());
+            }
+
+            // Check shared frame locals (closure captures)
+            if (frame.sharedFrame)
+            {
+                for (const auto& local : frame.sharedFrame->locals)
+                {
+                    void* ptr = gc::extractPointer(local);
+                    if (ptr)
+                    {
+                        roots.push_back(ptr);
+                    }
+                }
+            }
+
+            // Check originating lambda
+            if (frame.originatingLambda)
+            {
+                roots.push_back(frame.originatingLambda.get());
+            }
+        }
+
+        // 3. Global variables from environment
+        // The environment's VariableManager holds global variables
+        // These would need to be exposed via a method if we want to track them
+        // For now, we rely on class/field definitions being separate from GC tracking
+
+        return roots;
     }
 
     VirtualMachine::VMState VirtualMachine::saveState() const

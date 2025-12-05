@@ -49,6 +49,9 @@
     <Filter Include="errors">
       <UniqueIdentifier>{4260C7FB-2E02-F2D1-17BD-052603FE7822}</UniqueIdentifier>
     </Filter>
+    <Filter Include="gc">
+      <UniqueIdentifier>{EF775900-DB03-880B-44B2-880B305D880B}</UniqueIdentifier>
+    </Filter>
     <Filter Include="lexer">
       <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
     </Filter>
@@ -195,6 +198,12 @@
     </Filter>
     <Filter Include="tests\testFiles\error\pass\modules">
       <UniqueIdentifier>{01E429CE-ED1F-2D38-5632-452F428DD552}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\gc">
+      <UniqueIdentifier>{B3641F6E-9F48-E0C3-08A9-DA16F4ABCA45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\gc\pass">
+      <UniqueIdentifier>{99E27A02-051A-C399-0E24-27BD7ADAE992}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\generics">
       <UniqueIdentifier>{99C7027E-85EC-51FE-AE37-378E9ABB501C}</UniqueIdentifier>
@@ -882,6 +891,30 @@
     <ClInclude Include="errors\UserException.hpp">
       <Filter>errors</Filter>
     </ClInclude>
+    <ClInclude Include="gc\CycleDetector.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GC.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GCConfig.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GCCoordinator.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GCStats.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GCTracker.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\SuspectBuffer.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\WriteBarrier.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
     <ClInclude Include="lexer\BracketBalancer.hpp">
       <Filter>lexer</Filter>
     </ClInclude>
@@ -1165,6 +1198,9 @@
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\ErrorTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\GCTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\GenericsTestSuite.hpp">
@@ -1841,6 +1877,24 @@
     <ClCompile Include="errors\UserException.cpp">
       <Filter>errors</Filter>
     </ClCompile>
+    <ClCompile Include="gc\CycleDetector.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\GC.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\GCCoordinator.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\GCTracker.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\SuspectBuffer.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\WriteBarrier.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
     <ClCompile Include="lexer\BracketBalancer.cpp">
       <Filter>lexer</Filter>
     </ClCompile>
@@ -2115,6 +2169,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ErrorTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\GCTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\GenericsTestSuite.cpp">
@@ -6357,6 +6414,42 @@
     </None>
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>tests\testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\deepCycle.expected">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\deepCycle.mt">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\forceAbort.expected">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\forceAbort.mt">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\selfReference.expected">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\selfReference.mt">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\simpleCycle.expected">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\simpleCycle.mt">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\stressTestAbort.expected">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\stressTestAbort.mt">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\stressTestAbortLarge.expected">
+      <Filter>tests\testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\stressTestAbortLarge.mt">
+      <Filter>tests\testFiles\gc\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\error\boundedWildcardsError.mt">
       <Filter>tests\testFiles\generics\error</Filter>

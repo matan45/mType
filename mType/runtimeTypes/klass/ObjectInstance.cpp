@@ -1,9 +1,18 @@
 #include "ObjectInstance.hpp"
+#include "../../gc/GC.hpp"
 #include <algorithm>
 #include <vector>
 
 namespace runtimeTypes::klass
 {
+    void ObjectInstance::registerWithGC()
+    {
+        if (!gcRegistered && gc::GC::isInitialized())
+        {
+            gc::GC::registerAllocation(shared_from_this(), gc::config::GCObjectType::OBJECT_INSTANCE);
+            gcRegistered = true;
+        }
+    }
     std::shared_ptr<FieldDefinition> ObjectInstance::getField(const std::string& fieldName) const
     {
         // Search in class hierarchy to support inherited fields
@@ -47,14 +56,54 @@ namespace runtimeTypes::klass
         if (field) {
             // For static fields, set value in the field definition (shared across all instances)
             if (field->isStatic()) {
+                // GC: Write barrier for static field
+                Value oldValue = field->getValue();
+                void* oldPtr = gc::extractPointer(oldValue);
+                void* newPtr = gc::extractPointer(value);
+                if (oldPtr != nullptr && oldPtr != newPtr)
+                {
+                    gc::GC::onRefCountDecrement(oldPtr);
+                }
                 field->setValue(value);
             } else {
                 // For instance fields, set value in this instance's storage
+                // GC: Write barrier for instance field
+                auto it = fieldValues.find(fieldName);
+                void* newPtr = gc::extractPointer(value);
+                if (it != fieldValues.end())
+                {
+                    void* oldPtr = gc::extractPointer(it->second);
+                    if (oldPtr != nullptr && oldPtr != newPtr)
+                    {
+                        gc::GC::onRefCountDecrement(oldPtr);
+                    }
+                }
+                // If storing an object reference, this object becomes a potential cycle root
+                if (newPtr != nullptr && gcRegistered)
+                {
+                    gc::GC::onRefCountDecrement(this);
+                }
                 fieldValues[fieldName] = value;
             }
         } else {
             // Allow setting dynamic fields that aren't part of the class definition
             // This is needed for lambda backing fields
+            // GC: Write barrier for dynamic field
+            auto it = fieldValues.find(fieldName);
+            void* newPtr = gc::extractPointer(value);
+            if (it != fieldValues.end())
+            {
+                void* oldPtr = gc::extractPointer(it->second);
+                if (oldPtr != nullptr && oldPtr != newPtr)
+                {
+                    gc::GC::onRefCountDecrement(oldPtr);
+                }
+            }
+            // If storing an object reference, this object becomes a potential cycle root
+            if (newPtr != nullptr && gcRegistered)
+            {
+                gc::GC::onRefCountDecrement(this);
+            }
             fieldValues[fieldName] = value;
         }
     }

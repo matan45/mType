@@ -24,6 +24,9 @@ namespace runtimeTypes::klass
         // Helper method for field value comparison
         static bool compareFieldValues(const Value& thisValue, const Value& otherValue);
 
+        // GC: Flag to track if this instance is registered with GC
+        bool gcRegistered = false;
+
     public :
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef)
             : classDefinition(classDef)
@@ -36,6 +39,10 @@ namespace runtimeTypes::klass
             : classDefinition(classDef), genericTypeBindings(typeBindings)
         {
         }
+
+        // GC: Register this instance with garbage collector
+        // Call this after creating a shared_ptr to the instance
+        void registerWithGC();
 
         std::shared_ptr<FieldDefinition> getField(const std::string& fieldName) const;
         Value getFieldValue(const std::string& fieldName) const;

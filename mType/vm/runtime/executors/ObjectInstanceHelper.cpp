@@ -6,6 +6,7 @@
 #include "../../../types/TypeRegistry.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
+#include "../../../gc/GC.hpp"
 #include <algorithm>
 #include  <iostream>
 namespace vm::runtime
@@ -161,6 +162,9 @@ namespace vm::runtime
 
         auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, genericTypeBindings);
         initializeObjectFields(instance, classDef);
+
+        // GC: Register the newly created object with the garbage collector
+        instance->registerWithGC();
 
         return instance;
     }

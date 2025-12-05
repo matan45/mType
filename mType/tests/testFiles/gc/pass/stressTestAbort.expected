@@ -1,0 +1,5 @@
+Created graph with 5000 nodes
+Each node has 2 references (next + prev)
+Total reference edges: 10000
+Graph created - GC will attempt collection at program end
+If collection takes > 5ms, it will be aborted
