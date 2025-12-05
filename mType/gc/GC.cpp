@@ -92,4 +92,17 @@ namespace gc
         }
         return nullptr;
     }
+
+    void GC::reset()
+    {
+        if (coordinator)
+        {
+            coordinator->reset();
+        }
+        else
+        {
+            // Even if coordinator isn't initialized, reset tracker directly
+            GCTracker::getInstance().reset();
+        }
+    }
 }

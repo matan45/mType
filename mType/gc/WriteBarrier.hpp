@@ -122,4 +122,13 @@ namespace gc
      * This is the main entry point for GC reference traversal.
      */
     void visitReferences(void* object, config::GCObjectType type, std::function<void(void*)> callback);
+
+    /**
+     * @brief Break all outgoing references from an object
+     *
+     * Clears all reference fields in the object to break cycles.
+     * This allows the shared_ptr refcounts to reach zero.
+     * Called by the GC before unregistering cyclic garbage.
+     */
+    void breakReferences(void* object, config::GCObjectType type);
 }

@@ -2,25 +2,16 @@
 
 namespace gc
 {
-    // Static member initialization
-    GCTracker* GCTracker::instance = nullptr;
-    std::mutex GCTracker::instanceMutex;
-
     GCTracker& GCTracker::getInstance()
     {
-        std::lock_guard<std::mutex> lock(instanceMutex);
-        if (instance == nullptr)
-        {
-            instance = new GCTracker();
-        }
-        return *instance;
+        static GCTracker instance;
+        return instance;
     }
 
     void GCTracker::destroyInstance()
     {
-        std::lock_guard<std::mutex> lock(instanceMutex);
-        delete instance;
-        instance = nullptr;
+        // No-op: Meyer's Singleton is destroyed automatically at program exit
+        // This method is kept for API compatibility but does nothing
     }
 
     void GCTracker::unregisterObject(void* rawPtr)
@@ -116,5 +107,14 @@ namespace gc
         }
 
         return removed;
+    }
+
+    void GCTracker::reset()
+    {
+        std::lock_guard<std::mutex> lock(trackerMutex);
+        objectHeaders.clear();
+        weakReferences.clear();
+        allocationCount = 0;
+        totalTrackedObjects = 0;
     }
 }

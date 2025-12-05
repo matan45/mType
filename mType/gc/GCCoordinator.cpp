@@ -24,8 +24,8 @@ namespace gc
 
     void GCCoordinator::setReferenceVisitor(ReferenceVisitor visitor)
     {
-        referenceVisitor = std::move(visitor);
-        detector->setReferenceVisitor(visitor);
+        referenceVisitor = visitor;  // Copy first
+        detector->setReferenceVisitor(std::move(visitor));  // Then move to detector
     }
 
     void GCCoordinator::onDeallocation(void* object)
@@ -141,5 +141,27 @@ namespace gc
         }
 
         collectionInProgress = false;
+    }
+
+    void GCCoordinator::reset()
+    {
+        // Wait for any in-progress collection to complete
+        while (collectionInProgress.load())
+        {
+            // Spin wait
+        }
+
+        // Clear suspect buffer
+        suspects->clear();
+
+        // Reset tracker
+        GCTracker::getInstance().reset();
+
+        // Reset stats
+        stats.reset();
+
+        // Reset flags
+        collectionInProgress = false;
+        enabled = true;
     }
 }

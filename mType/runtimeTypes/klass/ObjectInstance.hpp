@@ -59,6 +59,9 @@ namespace runtimeTypes::klass
 
         // Get all field values (for debugging/inspection)
         const std::unordered_map<std::string, Value>& getAllFieldValues() const { return fieldValues; }
+
+        // GC: Clear all field values to break reference cycles
+        void clearAllFields() { fieldValues.clear(); }
         // Type checking
         bool isInstanceOf(const std::string& className) const;
         std::string getTypeName() const;

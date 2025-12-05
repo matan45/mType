@@ -116,4 +116,56 @@ namespace gc
                 break;
         }
     }
+
+    void breakReferences(void* object, config::GCObjectType type)
+    {
+        if (!object) return;
+
+        switch (type)
+        {
+            case config::GCObjectType::OBJECT_INSTANCE:
+            {
+                auto* instance = static_cast<runtimeTypes::klass::ObjectInstance*>(object);
+                instance->clearAllFields();
+                break;
+            }
+
+            case config::GCObjectType::BYTECODE_LAMBDA:
+            {
+                auto* lambda = static_cast<vm::runtime::BytecodeLambda*>(object);
+                lambda->capturedThis.reset();
+                if (lambda->capturedFrame)
+                {
+                    lambda->capturedFrame->locals.clear();
+                    lambda->capturedFrame->parentFrame.reset();
+                }
+                break;
+            }
+
+            case config::GCObjectType::NATIVE_ARRAY:
+            case config::GCObjectType::FLAT_MULTI_ARRAY:
+            case config::GCObjectType::SPARSE_MULTI_ARRAY:
+            {
+                auto* array = static_cast<value::NativeArray*>(object);
+                // Only clear if array can contain object references
+                if (array->getElementType() == value::ValueType::OBJECT ||
+                    array->getElementType() == value::ValueType::VOID)
+                {
+                    size_t sz = array->size();
+                    for (size_t i = 0; i < sz; ++i)
+                    {
+                        array->set(i, nullptr);  // Set to null to release shared_ptr
+                    }
+                }
+                break;
+            }
+
+            case config::GCObjectType::PROMISE_VALUE:
+                // TODO: Clear promise result if it can hold object references
+                break;
+
+            default:
+                break;
+        }
+    }
 }

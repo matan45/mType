@@ -13,8 +13,9 @@ namespace gc
         constexpr size_t MEMORY_THRESHOLD_MB = 100;         // Trigger at N MB heap usage
 
         // Collection limits
-        constexpr size_t MAX_CYCLE_DETECTION_TIME_MS = 5;   // Abort if taking too long
+        constexpr size_t MAX_CYCLE_DETECTION_TIME_MS = 50;   // Abort if taking too long
         constexpr size_t MAX_OBJECTS_PER_CYCLE = 10000;     // Limit objects processed per cycle
+        constexpr size_t MAX_TRAVERSAL_DEPTH = 10000;       // Max depth for iterative traversal stack
 
         // Suspect buffer configuration
         constexpr size_t SUSPECT_BUFFER_INITIAL_SIZE = 256;

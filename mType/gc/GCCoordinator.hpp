@@ -84,6 +84,9 @@ namespace gc
         // Tracker access
         GCTracker& getTracker() { return GCTracker::getInstance(); }
 
+        // Reset all GC state (for test isolation)
+        void reset();
+
     private:
         void performCollection();
         bool shouldCollect() const;

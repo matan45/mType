@@ -87,5 +87,13 @@ namespace gc
          * @brief Get GC statistics
          */
         static const GCStats* getStats();
+
+        /**
+         * @brief Reset all GC state (for test isolation)
+         *
+         * Clears all tracked objects, suspects, and statistics.
+         * Use between tests to ensure clean state.
+         */
+        static void reset();
     };
 }

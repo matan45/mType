@@ -1,5 +1,8 @@
 #include "CycleDetector.hpp"
+#include "WriteBarrier.hpp"
 #include <algorithm>
+#include <stack>
+#include <vector>
 
 namespace gc
 {
@@ -60,7 +63,37 @@ namespace gc
         result.duration = std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::steady_clock::now() - startTime);
 
-        // Actually break cycles by unregistering collected objects
+        // Break reference cycles by clearing all fields in collected objects
+        // IMPORTANT: We must keep all objects alive while clearing to avoid
+        // destroying objects while still iterating. We do this by first collecting
+        // shared_ptrs to all objects, then clearing fields.
+
+        // First, get shared_ptrs to keep all objects alive during clearing
+        std::vector<std::shared_ptr<void>> liveRefs;
+        liveRefs.reserve(toFree.size());
+        for (void* obj : toFree)
+        {
+            auto sharedPtr = tracker.getSharedPtr(obj);
+            if (sharedPtr)
+            {
+                liveRefs.push_back(sharedPtr);
+            }
+        }
+
+        // Now clear all fields - objects won't be destroyed yet because liveRefs holds them
+        for (void* obj : toFree)
+        {
+            GCObjectHeader* header = tracker.getHeader(obj);
+            if (header)
+            {
+                breakReferences(obj, header->type);
+            }
+        }
+
+        // liveRefs goes out of scope here, allowing objects to be destroyed
+        liveRefs.clear();
+
+        // Now unregister from tracker (objects should be freed when last shared_ptr goes away)
         for (void* obj : toFree)
         {
             tracker.unregisterObject(obj);
@@ -90,12 +123,6 @@ namespace gc
             else
             {
                 header->buffered = false;
-
-                // If black and has no references, it's garbage
-                if (header->color == config::ObjectColor::BLACK)
-                {
-                    // Reference count reached zero, handled by shared_ptr
-                }
             }
         }
 
@@ -138,25 +165,36 @@ namespace gc
     {
         if (!object) return;
 
-        GCObjectHeader* header = tracker.getHeader(object);
-        if (!header) return;
+        std::stack<void*> workStack;
+        workStack.push(object);
 
-        if (header->color != config::ObjectColor::GRAY)
+        while (!workStack.empty() && workStack.size() < config::MAX_TRAVERSAL_DEPTH)
         {
-            header->color = config::ObjectColor::GRAY;
-            visited.insert(object);
+            void* current = workStack.top();
+            workStack.pop();
 
-            // Decrement virtual refcount of all children
-            forEachReference(object, [this](void* child) {
-                if (!child) return;
+            if (!current) continue;
 
-                GCObjectHeader* childHeader = tracker.getHeader(child);
-                if (childHeader)
-                {
-                    childHeader->virtualRefCount--;
-                    markGray(child);
-                }
-            });
+            GCObjectHeader* header = tracker.getHeader(current);
+            if (!header) continue;
+
+            if (header->color != config::ObjectColor::GRAY)
+            {
+                header->color = config::ObjectColor::GRAY;
+                visited.insert(current);
+
+                // Decrement virtual refcount of all children and queue them
+                forEachReference(current, [this, &workStack](void* child) {
+                    if (!child) return;
+
+                    GCObjectHeader* childHeader = tracker.getHeader(child);
+                    if (childHeader)
+                    {
+                        childHeader->virtualRefCount--;
+                        workStack.push(child);
+                    }
+                });
+            }
         }
     }
 
@@ -164,24 +202,35 @@ namespace gc
     {
         if (!object) return;
 
-        GCObjectHeader* header = tracker.getHeader(object);
-        if (!header) return;
+        std::stack<void*> workStack;
+        workStack.push(object);
 
-        if (header->color == config::ObjectColor::GRAY)
+        while (!workStack.empty() && workStack.size() < config::MAX_TRAVERSAL_DEPTH)
         {
-            if (header->virtualRefCount > 0)
-            {
-                // Object is reachable from outside the cycle
-                scanBlack(object);
-            }
-            else
-            {
-                // Object is only reachable through the cycle - mark as garbage
-                header->color = config::ObjectColor::WHITE;
+            void* current = workStack.top();
+            workStack.pop();
 
-                forEachReference(object, [this](void* child) {
-                    scan(child);
-                });
+            if (!current) continue;
+
+            GCObjectHeader* header = tracker.getHeader(current);
+            if (!header) continue;
+
+            if (header->color == config::ObjectColor::GRAY)
+            {
+                if (header->virtualRefCount > 0)
+                {
+                    // Object is reachable from outside the cycle
+                    scanBlack(current);
+                }
+                else
+                {
+                    // Object is only reachable through the cycle - mark as garbage
+                    header->color = config::ObjectColor::WHITE;
+
+                    forEachReference(current, [&workStack](void* child) {
+                        workStack.push(child);
+                    });
+                }
             }
         }
     }
@@ -190,27 +239,38 @@ namespace gc
     {
         if (!object) return;
 
-        GCObjectHeader* header = tracker.getHeader(object);
-        if (!header) return;
+        std::stack<void*> workStack;
+        workStack.push(object);
 
-        if (header->color != config::ObjectColor::BLACK)
+        while (!workStack.empty() && workStack.size() < config::MAX_TRAVERSAL_DEPTH)
         {
-            header->color = config::ObjectColor::BLACK;
+            void* current = workStack.top();
+            workStack.pop();
 
-            forEachReference(object, [this](void* child) {
-                if (!child) return;
+            if (!current) continue;
 
-                GCObjectHeader* childHeader = tracker.getHeader(child);
-                if (childHeader)
-                {
-                    childHeader->virtualRefCount++;
+            GCObjectHeader* header = tracker.getHeader(current);
+            if (!header) continue;
 
-                    if (childHeader->color != config::ObjectColor::BLACK)
+            if (header->color != config::ObjectColor::BLACK)
+            {
+                header->color = config::ObjectColor::BLACK;
+
+                forEachReference(current, [this, &workStack](void* child) {
+                    if (!child) return;
+
+                    GCObjectHeader* childHeader = tracker.getHeader(child);
+                    if (childHeader)
                     {
-                        scanBlack(child);
+                        childHeader->virtualRefCount++;
+
+                        if (childHeader->color != config::ObjectColor::BLACK)
+                        {
+                            workStack.push(child);
+                        }
                     }
-                }
-            });
+                });
+            }
         }
     }
 
@@ -218,20 +278,31 @@ namespace gc
     {
         if (!object) return;
 
-        GCObjectHeader* header = tracker.getHeader(object);
-        if (!header) return;
+        std::stack<void*> workStack;
+        workStack.push(object);
 
-        if (header->color == config::ObjectColor::WHITE && !header->buffered)
+        while (!workStack.empty() && workStack.size() < config::MAX_TRAVERSAL_DEPTH)
         {
-            header->color = config::ObjectColor::BLACK;
-            header->cycleCount++;
+            void* current = workStack.top();
+            workStack.pop();
 
-            forEachReference(object, [this](void* child) {
-                collectWhite(child);
-            });
+            if (!current) continue;
 
-            // Mark for collection
-            toFree.insert(object);
+            GCObjectHeader* header = tracker.getHeader(current);
+            if (!header) continue;
+
+            if (header->color == config::ObjectColor::WHITE && !header->buffered)
+            {
+                header->color = config::ObjectColor::BLACK;
+                header->cycleCount++;
+
+                forEachReference(current, [&workStack](void* child) {
+                    workStack.push(child);
+                });
+
+                // Mark for collection
+                toFree.insert(current);
+            }
         }
     }
 
@@ -255,9 +326,11 @@ namespace gc
         toFree.clear();
         visited.clear();
 
-        // Reset virtual refcounts for all tracked objects
-        tracker.forEachTrackedObject([](void* ptr, GCObjectHeader& header) {
-            header.virtualRefCount = 0;
+        // Reset virtual refcounts to CURRENT refcounts for Bacon algorithm
+        // The callback receives the current use_count() from weak_ptr
+        tracker.forEachTrackedObject([](void* ptr, GCObjectHeader& header, long currentRefCount) {
+            header.virtualRefCount = static_cast<int32_t>(currentRefCount);
+
             if (header.color == config::ObjectColor::WHITE ||
                 header.color == config::ObjectColor::GRAY)
             {

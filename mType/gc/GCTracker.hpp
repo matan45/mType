@@ -31,6 +31,7 @@ namespace gc
         config::ObjectColor color = config::ObjectColor::BLACK;
         config::GCObjectType type = config::GCObjectType::UNKNOWN;
         bool buffered = false;           // Is this object in the suspect buffer?
+        int32_t actualRefCount = 1;      // Actual shared_ptr refcount at registration
         int32_t virtualRefCount = 0;     // Virtual refcount for cycle detection
         uint32_t cycleCount = 0;         // Number of times this object was in a cycle
 
@@ -38,7 +39,7 @@ namespace gc
         {
             color = config::ObjectColor::BLACK;
             buffered = false;
-            virtualRefCount = 0;
+            virtualRefCount = actualRefCount;
         }
     };
 
@@ -61,10 +62,6 @@ namespace gc
         std::atomic<size_t> allocationCount{0};
         std::atomic<size_t> totalTrackedObjects{0};
 
-        // Singleton instance
-        static GCTracker* instance;
-        static std::mutex instanceMutex;
-
     public:
         static GCTracker& getInstance();
         static void destroyInstance();
@@ -83,6 +80,7 @@ namespace gc
                 GCObjectHeader header;
                 header.type = type;
                 header.color = config::ObjectColor::BLACK;
+                header.actualRefCount = static_cast<int32_t>(obj.use_count());
                 objectHeaders[rawPtr] = header;
                 weakReferences[rawPtr] = std::weak_ptr<void>(obj);
                 totalTrackedObjects++;
@@ -104,15 +102,34 @@ namespace gc
         size_t getTotalTrackedObjects() const { return totalTrackedObjects.load(); }
         void resetAllocationCount() { allocationCount = 0; }
 
-        // Iteration for cycle detection
+        // Iteration for cycle detection (callback receives ptr, header, and current refcount)
         template<typename Func>
         void forEachTrackedObject(Func&& callback)
         {
             std::lock_guard<std::mutex> lock(trackerMutex);
             for (auto& [ptr, header] : objectHeaders)
             {
-                callback(ptr, header);
+                // Get current refcount while we hold the lock
+                long refCount = 0;
+                auto it = weakReferences.find(ptr);
+                if (it != weakReferences.end())
+                {
+                    refCount = it->second.use_count();
+                }
+                callback(ptr, header, refCount);
             }
+        }
+
+        // Get shared_ptr for an object (to keep it alive during GC operations)
+        std::shared_ptr<void> getSharedPtr(void* rawPtr)
+        {
+            std::lock_guard<std::mutex> lock(trackerMutex);
+            auto it = weakReferences.find(rawPtr);
+            if (it != weakReferences.end())
+            {
+                return it->second.lock();
+            }
+            return nullptr;
         }
 
         // Get all tracked object pointers (for root scanning)
@@ -120,6 +137,9 @@ namespace gc
 
         // Cleanup dead objects (weak_ptr expired)
         size_t cleanupDeadObjects();
+
+        // Reset all GC state (for test isolation)
+        void reset();
 
     private:
         GCTracker() = default;
