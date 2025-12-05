@@ -18,13 +18,22 @@ namespace vm::bytecode
     class BytecodeProgram
     {
     public:
+        // Forward declaration for inline cache
+        struct FunctionMetadata;
+
         /**
          * Instruction structure: opcode + operands
+         * PERFORMANCE: Includes inline cache for method calls
          */
         struct Instruction
         {
             OpCode opcode;
             std::vector<uint64_t> operands;
+
+            // PERFORMANCE: Inline cache for method calls - avoids repeated hash lookups
+            // Cached after first resolution, used on subsequent calls
+            mutable const FunctionMetadata* cachedFuncMetadata = nullptr;
+            mutable size_t cachedStartOffset = 0;
 
             Instruction();
             Instruction(OpCode op);

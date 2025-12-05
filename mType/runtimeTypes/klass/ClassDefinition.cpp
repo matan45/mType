@@ -165,6 +165,28 @@ namespace runtimeTypes::klass
         return instanceFields.size();
     }
 
+    size_t ClassDefinition::getTotalFieldCount() const
+    {
+        // PERFORMANCE: Return cached value if available
+        if (totalFieldCountCached) {
+            return cachedTotalFieldCount;
+        }
+
+        // Count this class's fields
+        size_t count = instanceFields.size();
+
+        // Add parent class fields
+        auto parent = parentClass.lock();
+        if (parent) {
+            count += parent->getTotalFieldCount();
+        }
+
+        // Cache the result
+        cachedTotalFieldCount = count;
+        totalFieldCountCached = true;
+        return count;
+    }
+
     size_t ClassDefinition::getInstanceMethodCount() const
     {
         return instanceMethods.size();
@@ -570,6 +592,60 @@ namespace runtimeTypes::klass
         return traverseHierarchyForMethod([&](const ClassDefinition* classDef) {
             return classDef->findInstanceMethod(methodName, argCount);
         });
+    }
+
+    ClassDefinition::MethodLookupResult ClassDefinition::findInstanceMethodCached(
+        const std::string& methodName, size_t argCount) const
+    {
+        // Build cache key
+        std::string cacheKey = methodName + "/" + std::to_string(argCount);
+
+        // Check cache first
+        auto cacheIt = instanceMethodCache.find(cacheKey);
+        if (cacheIt != instanceMethodCache.end()) {
+            return cacheIt->second;
+        }
+
+        // Not in cache - do the lookup and find defining class in single traversal
+        MethodLookupResult result;
+
+        // Check this class first
+        auto method = findInstanceMethod(methodName, argCount);
+        if (method) {
+            result.method = method;
+            result.definingClassName = getName();
+            // PERFORMANCE: Pre-build the qualified name for function lookup
+            auto signature = vm::MethodSignature::fromMethodDefinition(method.get());
+            result.qualifiedName = signature.toMangledName(result.definingClassName, false);
+            instanceMethodCache[cacheKey] = result;
+            return result;
+        }
+
+        // Search parent hierarchy - find both method and defining class
+        auto current = parentClass.lock();
+        int depth = 0;
+
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            method = current->findInstanceMethod(methodName, argCount);
+            if (method) {
+                result.method = method;
+                result.definingClassName = current->getName();
+                // PERFORMANCE: Pre-build the qualified name for function lookup
+                auto signature = vm::MethodSignature::fromMethodDefinition(method.get());
+                result.qualifiedName = signature.toMangledName(result.definingClassName, false);
+                instanceMethodCache[cacheKey] = result;
+                return result;
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
+        // Not found - cache the negative result too
+        result.method = nullptr;
+        result.definingClassName = "";
+        result.qualifiedName = "";
+        instanceMethodCache[cacheKey] = result;
+        return result;
     }
 
     std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodInHierarchy(const std::string& methodName, size_t argCount) const

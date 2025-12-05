@@ -31,6 +31,10 @@ namespace runtimeTypes::klass
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef)
             : classDefinition(classDef)
         {
+            // PERFORMANCE: Pre-size field map to avoid rehashing during field initialization
+            if (classDef) {
+                fieldValues.reserve(classDef->getTotalFieldCount());
+            }
         }
 
         // Constructor with generic type bindings
@@ -38,6 +42,10 @@ namespace runtimeTypes::klass
                       const std::unordered_map<std::string, std::string>& typeBindings)
             : classDefinition(classDef), genericTypeBindings(typeBindings)
         {
+            // PERFORMANCE: Pre-size field map to avoid rehashing during field initialization
+            if (classDef) {
+                fieldValues.reserve(classDef->getTotalFieldCount());
+            }
         }
 
         // GC: Register this instance with garbage collector

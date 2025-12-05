@@ -593,23 +593,19 @@ namespace vm::runtime
                 // Continue with normal return (do NOT re-throw)
             }
 
-            // Always track source location for error reporting (not just when debugging)
-            auto sourceLoc = program->getSourceLocation(instructionPointer);
-            if (sourceLoc && sourceLoc->line > 0)
-            {
-                currentSourceFile = sourceLoc->filename;
-                currentSourceLine = static_cast<int>(sourceLoc->line);
-            }
+            // PERFORMANCE: Source location is tracked via LINE and SOURCE_FILE opcodes
+            // No per-instruction lookup needed - saves hash map lookup on every instruction
 
             // Debug hook: Check for breakpoints and stepping before executing instruction
+            // Only do expensive checks when debugging is actually enabled
             if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
             {
-                if (sourceLoc && sourceLoc->line > 0)
+                if (currentSourceLine > 0)
                 {
-                    // Convert BytecodeProgram::SourceLocation to errors::SourceLocation
-                    errors::SourceLocation location(sourceLoc->filename,
-                                                    static_cast<int>(sourceLoc->line),
-                                                    static_cast<int>(sourceLoc->column));
+                    // Convert to errors::SourceLocation for debugger
+                    errors::SourceLocation location(currentSourceFile,
+                                                    currentSourceLine,
+                                                    0);  // Column not tracked per-instruction
 
                     // Check for breakpoints/stepping
                     if (debugger::DebugHookHelper::shouldPause(location))
