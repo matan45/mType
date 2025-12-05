@@ -100,6 +100,10 @@ namespace runtimeTypes::klass
         // Getter methods for AST node integration
         const std::string& getClassName() const;
         const std::unordered_map<std::string, std::shared_ptr<FieldDefinition>>& getInstanceFields() const;
+
+        // PERFORMANCE: Get total field count including inherited fields (cached)
+        size_t getTotalFieldCount() const;
+
         // NEW: Returns map of method name -> vector of overloads
         const std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>>&
         getInstanceMethods() const;
@@ -288,6 +292,17 @@ namespace runtimeTypes::klass
         std::shared_ptr<MethodDefinition> findInstanceMethodInHierarchy(const vm::MethodSignature& signature) const;
         std::shared_ptr<MethodDefinition> findStaticMethodInHierarchy(const vm::MethodSignature& signature) const;
 
+        // PERFORMANCE: Cached method lookup result containing method, defining class, and qualified name
+        struct MethodLookupResult {
+            std::shared_ptr<MethodDefinition> method;
+            std::string definingClassName;
+            std::string qualifiedName;  // PERFORMANCE: Pre-built qualified name for function lookup
+        };
+
+        // PERFORMANCE: Cached instance method lookup - O(1) for repeated calls
+        // Returns the method, defining class, and pre-built qualified name in a single traversal
+        MethodLookupResult findInstanceMethodCached(const std::string& methodName, size_t argCount) const;
+
         // Polymorphic field lookup (search in parent classes)
         std::shared_ptr<FieldDefinition> getFieldInHierarchy(const std::string& fieldName) const;
 
@@ -343,6 +358,14 @@ namespace runtimeTypes::klass
         }
 
     private:
+        // PERFORMANCE: Method resolution cache - avoids repeated hierarchy traversals
+        // Key: "methodName/argCount", Value: cached lookup result
+        mutable std::unordered_map<std::string, MethodLookupResult> instanceMethodCache;
+
+        // PERFORMANCE: Cached total field count (including inherited fields)
+        mutable size_t cachedTotalFieldCount = 0;
+        mutable bool totalFieldCountCached = false;
+
         // Depth protection for interface and class inheritance chains
         static constexpr int MAX_INTERFACE_DEPTH = 20;
         static constexpr int MAX_INHERITANCE_DEPTH = 20;

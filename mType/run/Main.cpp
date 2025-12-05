@@ -20,7 +20,9 @@
 #include "../tests/suites/StreamTestSuite.hpp"
 #include "../tests/suites/CollectionsTestSuite.hpp"
 #include "../tests/suites/ReflectionTestSuite.hpp"
+#include "../tests/suites/GCTestSuite.hpp"
 
+#include "../gc/GC.hpp"
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
@@ -134,6 +136,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<ReflectionTestSuite>();
     }
+    else if (suiteName == "gc" || suiteName == "garbage" || suiteName == "garbage-collection")
+    {
+        return std::make_unique<GCTestSuite>();
+    }
     return nullptr;
 }
 
@@ -161,6 +167,7 @@ void printAvailableTestSuites()
     std::cout << "  stream       - Stream API Test Suite\n";
     std::cout << "  collections  - Collections (ArrayList, LinkedList, HashMap) Test Suite\n";
     std::cout << "  reflection   - Reflection API Test Suite\n";
+    std::cout << "  gc           - Garbage Collection Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -392,6 +399,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
     suites.push_back(std::make_unique<EnhancedForLoopTestSuite>());
     suites.push_back(std::make_unique<StreamTestSuite>());
     suites.push_back(std::make_unique<ReflectionTestSuite>());
+    suites.push_back(std::make_unique<GCTestSuite>());
 
     for (auto& suite : suites)
     {
@@ -546,6 +554,7 @@ int main(int argc, char* argv[])
         std::cout << "Usage:\n";
         std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (bytecode VM mode)\n";
         std::cout << "  " << argv[0] << " --debug <script.mt>        - Run with debugger (breakpoints, stepping)\n";
+        std::cout << "  " << argv[0] << " --gc-stats <script.mt>     - Run and print GC statistics after execution\n";
         std::cout << "  " << argv[0] << " -debug <script.mt>         - Run with debug optimization level\n";
         std::cout << "  " << argv[0] << " -release <script.mt>       - Run with release mode (full optimization)\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
@@ -683,10 +692,11 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Parse optimization level, debug mode, and filename
+    // Parse optimization level, debug mode, gc-stats flag, and filename
     constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug;
     std::string filename;
     bool debugMode = false;
+    bool printGCStats = false;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -695,6 +705,10 @@ int main(int argc, char* argv[])
         if (arg == "--debug")
         {
             debugMode = true;
+        }
+        else if (arg == "--gc-stats")
+        {
+            printGCStats = true;
         }
         // --bytecode and --dual flags removed (bytecode is the only mode)
         else if (arg == "-debug")
@@ -746,6 +760,15 @@ int main(int argc, char* argv[])
         std::cout << "Execution Mode: " << modeStr << " (Optimization: " << optStr << ")\n\n";
 
         interpreter.runScript(filename);
+
+        // Force a GC collection at program end to detect any remaining cycles
+        gc::GC::forceCollect();
+
+        // Print GC statistics if requested
+        if (printGCStats)
+        {
+            gc::GC::printStats();
+        }
     }
     catch (const std::exception& e)
     {

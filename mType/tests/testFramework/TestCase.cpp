@@ -4,6 +4,7 @@
 #include "../../errors/ParseException.hpp"
 #include "../../services/ScriptInterpreter.hpp"
 #include "../../reflection/ReflectionNatives.hpp"
+#include "../../gc/GC.hpp"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -35,6 +36,9 @@ namespace tests::testFramework
 
         // Clear reflection handle registry to prevent stale handles between tests
         reflection::ReflectionNatives::cleanup();
+
+        // Reset GC state to prevent cross-test contamination
+        gc::GC::reset();
 
         try
         {

@@ -24,10 +24,17 @@ namespace runtimeTypes::klass
         // Helper method for field value comparison
         static bool compareFieldValues(const Value& thisValue, const Value& otherValue);
 
+        // GC: Flag to track if this instance is registered with GC
+        bool gcRegistered = false;
+
     public :
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef)
             : classDefinition(classDef)
         {
+            // PERFORMANCE: Pre-size field map to avoid rehashing during field initialization
+            if (classDef) {
+                fieldValues.reserve(classDef->getTotalFieldCount());
+            }
         }
 
         // Constructor with generic type bindings
@@ -35,7 +42,15 @@ namespace runtimeTypes::klass
                       const std::unordered_map<std::string, std::string>& typeBindings)
             : classDefinition(classDef), genericTypeBindings(typeBindings)
         {
+            // PERFORMANCE: Pre-size field map to avoid rehashing during field initialization
+            if (classDef) {
+                fieldValues.reserve(classDef->getTotalFieldCount());
+            }
         }
+
+        // GC: Register this instance with garbage collector
+        // Call this after creating a shared_ptr to the instance
+        void registerWithGC();
 
         std::shared_ptr<FieldDefinition> getField(const std::string& fieldName) const;
         Value getFieldValue(const std::string& fieldName) const;
@@ -44,6 +59,9 @@ namespace runtimeTypes::klass
 
         // Get all field values (for debugging/inspection)
         const std::unordered_map<std::string, Value>& getAllFieldValues() const { return fieldValues; }
+
+        // GC: Clear all field values to break reference cycles
+        void clearAllFields() { fieldValues.clear(); }
         // Type checking
         bool isInstanceOf(const std::string& className) const;
         std::string getTypeName() const;
