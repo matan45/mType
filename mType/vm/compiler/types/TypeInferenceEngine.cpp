@@ -680,9 +680,13 @@ namespace vm::compiler::types
                 while (parentDef) {
                     auto parentField = parentDef->getField(varName);
                     if (parentField && !parentField->isStatic()) {
-                        auto genericType = parentField->getGenericType();
-                        if (genericType) {
-                            return genericType->toString();
+                        // Check if field is accessible (protected or public, not private)
+                        auto accessMod = parentField->getAccessModifier();
+                        if (accessMod != ast::AccessModifier::PRIVATE) {
+                            auto genericType = parentField->getGenericType();
+                            if (genericType) {
+                                return genericType->toString();
+                            }
                         }
                     }
                     // Continue to next parent
