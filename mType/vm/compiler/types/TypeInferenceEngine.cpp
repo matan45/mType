@@ -15,6 +15,7 @@
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../token/TokenType.hpp"
 #include "../overload/OverloadResolver.hpp"
@@ -649,11 +650,46 @@ namespace vm::compiler::types
     {
         std::string varName = varNode->getName();
 
-        // Check locals
+        // Check locals first
         const auto& locals = variableTracker.getLocals();
         for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
             if (it->name == varName) {
                 return it->className;
+            }
+        }
+
+        // Check class fields if we're in a class context
+        if (currentClassNode && inInstanceMethod) {
+            // Check current class fields
+            for (const auto& field : currentClassNode->getFields()) {
+                if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get())) {
+                    if (fieldNode->getName() == varName && !fieldNode->getIsStatic()) {
+                        // Return the field's generic type
+                        auto genericType = fieldNode->getGenericType();
+                        if (genericType) {
+                            return genericType->toString();
+                        }
+                    }
+                }
+            }
+
+            // Check parent class fields
+            if (currentClassNode->hasParentClass()) {
+                std::string parentClassName = currentClassNode->getParentClassName();
+                auto parentDef = environment->getClassRegistry()->findClass(parentClassName);
+                while (parentDef) {
+                    auto parentField = parentDef->getField(varName);
+                    if (parentField && !parentField->isStatic()) {
+                        auto genericType = parentField->getGenericType();
+                        if (genericType) {
+                            return genericType->toString();
+                        }
+                    }
+                    // Continue to next parent
+                    parentClassName = parentDef->getParentClassName();
+                    if (parentClassName.empty()) break;
+                    parentDef = environment->getClassRegistry()->findClass(parentClassName);
+                }
             }
         }
 
@@ -1171,6 +1207,12 @@ namespace vm::compiler::types
         const std::unordered_map<const ast::ASTNode*, std::string>* cache)
     {
         resolvedFunctionCallTypes = cache;
+    }
+
+    void TypeInferenceEngine::setCurrentClassContext(ast::ClassNode* classNode, bool instanceMethod)
+    {
+        currentClassNode = classNode;
+        inInstanceMethod = instanceMethod;
     }
 
     std::string TypeInferenceEngine::resolveGenericType(const std::string& typeName) const

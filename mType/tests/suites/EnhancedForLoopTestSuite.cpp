@@ -31,6 +31,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Enhanced For-Loop with Empty Collection",
                                   passPath + "forEachEmpty.mt");
 
+        addOutputVerificationTest("Enhanced For-Loop with Generic Class Context",
+                                  passPath + "forEachGenericClass.mt");
+
         // Add error tests for iterator type safety
         addTestFromFile("For-Each on Non-Iterable Type",
                        errorPath + "forEachNonIterable.mt",

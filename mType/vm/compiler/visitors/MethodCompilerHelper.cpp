@@ -470,6 +470,9 @@ namespace vm::compiler::visitors
         ctx.inInstanceMethod = !isStatic;
         ctx.inStaticMethod = isStatic;
 
+        // Synchronize TypeInferenceEngine with class context for field type inference
+        ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);
+
         // Handle generic methods - store generic type parameter names
         if (node->isGeneric())
         {
@@ -563,6 +566,9 @@ namespace vm::compiler::visitors
         ctx.inInstanceMethod = wasInInstanceMethod;
         ctx.inStaticMethod = wasInStaticMethod;
 
+        // Restore TypeInferenceEngine class context
+        ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);
+
         // Finalize method compilation (patch jump, register metadata)
         finalizeMethodCompilation(node, params, methodStart, skipJump, bodyInfo, isStatic);
 
@@ -576,6 +582,9 @@ namespace vm::compiler::visitors
         // Set instance method context (constructors are like instance methods)
         bool wasInInstanceMethod = ctx.inInstanceMethod;
         ctx.inInstanceMethod = true;
+
+        // Synchronize TypeInferenceEngine with class context for field type inference
+        ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);
 
         // Emit JUMP to skip over constructor body during main execution
         size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
@@ -726,6 +735,9 @@ namespace vm::compiler::visitors
 
         // Restore instance method context
         ctx.inInstanceMethod = wasInInstanceMethod;
+
+        // Restore TypeInferenceEngine class context
+        ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);
 
         // Constructors implicitly return 'this'
         ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
