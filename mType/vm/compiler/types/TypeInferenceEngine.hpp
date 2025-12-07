@@ -1,5 +1,6 @@
 #pragma once
 #include "../../../ast/ASTNode.hpp"
+#include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
 #include "../../../environment/Environment.hpp"
@@ -38,6 +39,9 @@ namespace vm::compiler::types
         // PHASE 3: Set reference to resolved function call types cache
         void setResolvedFunctionCallTypes(const std::unordered_map<const ast::ASTNode*, std::string>* cache);
 
+        // Set current class context for field type inference
+        void setCurrentClassContext(ast::ClassNode* classNode, bool isInstanceMethod);
+
     private:
         const bytecode::BytecodeProgram& program;
         std::shared_ptr<environment::Environment> environment;
@@ -45,6 +49,8 @@ namespace vm::compiler::types
         const variables::GlobalVariableRegistry& globalRegistry;
         const std::vector<std::unordered_map<std::string, std::string>>* genericTypeBindingsStack = nullptr;
         const std::unordered_map<const ast::ASTNode*, std::string>* resolvedFunctionCallTypes = nullptr;  // PHASE 3
+        ast::ClassNode* currentClassNode = nullptr;  // Current class context for field lookup
+        bool inInstanceMethod = false;  // Whether we're in an instance method
 
         // Helper to resolve generic types
         std::string resolveGenericType(const std::string& typeName) const;

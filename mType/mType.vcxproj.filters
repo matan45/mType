@@ -5731,6 +5731,12 @@
     <None Include="tests\testFiles\enhancedFor\pass\forEachEmpty.mt">
       <Filter>tests\testFiles\enhancedFor\pass</Filter>
     </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachGenericClass.expected">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachGenericClass.mt">
+      <Filter>tests\testFiles\enhancedFor\pass</Filter>
+    </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachHashMap.expected">
       <Filter>tests\testFiles\enhancedFor\pass</Filter>
     </None>
