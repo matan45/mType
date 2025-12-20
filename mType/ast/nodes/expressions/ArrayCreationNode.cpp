@@ -93,8 +93,12 @@ namespace ast::nodes::expressions
         std::vector<std::unique_ptr<ASTNode>> clonedSizeExprs;
         clonedSizeExprs.reserve(sizeExpressions.size());
         for (const auto& sizeExpr : sizeExpressions) {
+            // Important: preserve null size expressions for jagged arrays (e.g., int[2][])
+            // Skipping nulls would reduce dimension count and break multi-dimensional arrays
             if (sizeExpr) {
                 clonedSizeExprs.push_back(sizeExpr->clone());
+            } else {
+                clonedSizeExprs.push_back(nullptr);
             }
         }
         return std::make_unique<ArrayCreationNode>(elementTypeInfo, std::move(clonedSizeExprs), location);

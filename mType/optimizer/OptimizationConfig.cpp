@@ -5,8 +5,8 @@ namespace optimizer
     OptimizationConfig::OptimizationConfig()
         : enableDeadCodeElimination(false)
         , enableUnusedDeclarationElimination(false)  // Disabled - can't reliably track generics/imports
-        , enableConstantFolding(false)
-        , enableUnreachableCodeRemoval(false)
+        , enableConstantFolding(true)
+        , enableUnreachableCodeRemoval(true)
         , maxPassIterations(50)
         , timeoutPerPass(std::chrono::milliseconds(5000))
     {
