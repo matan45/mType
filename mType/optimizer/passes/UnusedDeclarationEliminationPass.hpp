@@ -73,6 +73,12 @@ namespace optimizer::passes {
 			// Track which functions contain which calls (for transitive closure)
 			std::unordered_map<std::string, std::unordered_set<std::string>> functionCalls;
 
+			// Track which interfaces each class implements (for interface propagation)
+			std::unordered_map<std::string, std::unordered_set<std::string>> classImplementsInterfaces;
+
+			// Track which interfaces extend other interfaces
+			std::unordered_map<std::string, std::unordered_set<std::string>> interfaceExtendsInterfaces;
+
 			void analyzeDeclaredFunction(const std::string& name, bool isPublic);
 			void analyzeDeclaredClass(const std::string& name, bool isPublic);
 			void analyzeDeclaredInterface(const std::string& name, bool isPublic);

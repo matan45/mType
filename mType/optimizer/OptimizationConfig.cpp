@@ -2,53 +2,34 @@
 
 namespace optimizer
 {
-    OptimizationConfig::OptimizationConfig(OptimizationLevel level)
-        : level(level)
-          , maxPassIterations(50)
-          , timeoutPerPass(std::chrono::milliseconds(5000))
+    OptimizationConfig::OptimizationConfig()
+        : enableDeadCodeElimination(false)
+        , enableUnusedDeclarationElimination(false)  // Disabled - can't reliably track generics/imports
+        , enableConstantFolding(false)
+        , enableUnreachableCodeRemoval(false)
+        , maxPassIterations(50)
+        , timeoutPerPass(std::chrono::milliseconds(5000))
     {
-        // Configure based on optimization level
-        switch (level)
-        {
-        case OptimizationLevel::Debug:
-            // Debug mode - no dead code passes
-            enableDeadCodeElimination = false;
-            enableUnusedDeclarationElimination = false;
-            enableConstantFolding = false;
-            enableUnreachableCodeRemoval = false;
-            break;
-
-        case OptimizationLevel::Release:
-            // Release mode - full optimization including dead code elimination
-            enableDeadCodeElimination = true;
-            enableUnusedDeclarationElimination = true;
-            enableConstantFolding = true;
-            enableUnreachableCodeRemoval = true;
-            break;
-
-        default:
-            // Default to Debug
-            enableDeadCodeElimination = false;
-            enableUnusedDeclarationElimination = false;
-            enableConstantFolding = false;
-            enableUnreachableCodeRemoval = false;
-            break;
-        }
+        // Default: safe optimizations enabled
+        // UnusedDeclarationElimination is disabled because it can't reliably track:
+        // - Generic type instantiations (e.g., ArrayList<String>)
+        // - Functions/interfaces used through imports
+        // - Implicit method calls
     }
 
-    OptimizationConfig OptimizationConfig::forLevel(OptimizationLevel level)
+    OptimizationConfig OptimizationConfig::forRelease()
     {
-        return OptimizationConfig(level);
+        return OptimizationConfig();
     }
 
     OptimizationConfig OptimizationConfig::noOptimization()
     {
-        return OptimizationConfig(OptimizationLevel::Debug);
-    }
-
-    OptimizationConfig OptimizationConfig::aggressive()
-    {
-        return OptimizationConfig(OptimizationLevel::Release);
+        OptimizationConfig config;
+        config.enableDeadCodeElimination = false;
+        config.enableUnusedDeclarationElimination = false;
+        config.enableConstantFolding = false;
+        config.enableUnreachableCodeRemoval = false;
+        return config;
     }
 
     OptimizationConfig& OptimizationConfig::setDeadCodeElimination(bool enable)
@@ -87,5 +68,5 @@ namespace optimizer
         return *this;
     }
 
-    
+
 } // namespace optimizer

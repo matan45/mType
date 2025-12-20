@@ -16,15 +16,6 @@ namespace constants
     };
 
     /**
-     * Optimization level for the compiler
-     */
-    enum class OptimizationLevel
-    {
-        Debug,   // No optimization - no dead code passes
-        Release  // Full optimization - includes dead code elimination and unused declaration removal
-    };
-
-    /**
      * Virtual Machine configuration constants
      */
     namespace vm

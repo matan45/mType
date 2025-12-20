@@ -103,8 +103,7 @@ namespace vm::optimization
         analysis::ControlFlowAnalyzer cfgAnalyzer;
         analysis::DataFlowAnalyzer dataFlowAnalyzer;
         Statistics statistics;
-        
-        void logOptimizationEnd(const bytecode::BytecodeProgram& program);
+
         /**
          * Run a single optimization pass over the program
          * @param program The bytecode program

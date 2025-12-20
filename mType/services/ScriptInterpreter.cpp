@@ -47,24 +47,24 @@ namespace services
     ScriptInterpreter::ScriptInterpreter()
         : executionMode(constants::ExecutionMode::BYTECODE_VM)
     {
-        initializeServices(constants::OptimizationLevel::Debug);
+        initializeServices();
     }
 
-    ScriptInterpreter::ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel)
+    ScriptInterpreter::ScriptInterpreter(constants::ExecutionMode mode)
         : executionMode(mode)
     {
-        initializeServices(optLevel);
+        initializeServices();
     }
 
-    void ScriptInterpreter::initializeServices(constants::OptimizationLevel optLevel)
+    void ScriptInterpreter::initializeServices()
     {
         environment::EnvironmentBuilder envBuilder;
         environment = envBuilder.build();
-        optimizationService = std::make_unique<OptimizationService>(optLevel);
+        optimizationService = std::make_unique<OptimizationService>();
         nativeRegistry = std::make_unique<NativeFunctionRegistry>(environment);
         importResolver = std::make_unique<ImportResolver>(environment);
-        bool skipStrictValidation = (optLevel == constants::OptimizationLevel::Release);
-        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, skipStrictValidation, optLevel);
+        // Always skip strict validation since optimizations may have removed unused methods
+        compiler = std::make_unique<vm::compiler::BytecodeCompiler>(environment, true);
         vm = std::make_shared<vm::runtime::VirtualMachine>(environment);
 
         // ScriptAPI initialized with VM support (program will be set when bytecode is loaded)
@@ -282,20 +282,6 @@ namespace services
     constants::ExecutionMode ScriptInterpreter::getExecutionMode() const
     {
         return executionMode;
-    }
-
-    void ScriptInterpreter::setOptimizationLevel(constants::OptimizationLevel level)
-    {
-        if (optimizationService)
-        {
-            optimizationService->setOptimizationLevel(level);
-        }
-    }
-
-    constants::OptimizationLevel ScriptInterpreter::getOptimizationLevel() const
-    {
-        return optimizationService ? optimizationService->getOptimizationLevel()
-                                   : constants::OptimizationLevel::Debug;
     }
 
     std::shared_ptr<environment::Environment> ScriptInterpreter::getEnvironment() const

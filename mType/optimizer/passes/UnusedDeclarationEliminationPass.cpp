@@ -53,7 +53,7 @@
 #include "../../ast/nodes/statements/ThrowNode.hpp"
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include <chrono>
-#include  <iostream>
+
 namespace optimizer::passes
 {
     using namespace ast;
@@ -193,6 +193,48 @@ namespace optimizer::passes
                 }
             }
         }
+
+        // CRITICAL: Propagate interface usage from used classes
+        // If class A is used and implements interface B, then B is also used
+        changed = true;
+        while (changed)
+        {
+            changed = false;
+
+            // For each used class, mark its implemented interfaces as used
+            for (const auto& usedClass : usedClasses)
+            {
+                auto it = classImplementsInterfaces.find(usedClass);
+                if (it != classImplementsInterfaces.end())
+                {
+                    for (const auto& iface : it->second)
+                    {
+                        if (usedInterfaces.find(iface) == usedInterfaces.end())
+                        {
+                            usedInterfaces.insert(iface);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+            // For each used interface, mark its parent interfaces as used
+            for (const auto& usedIface : usedInterfaces)
+            {
+                auto it = interfaceExtendsInterfaces.find(usedIface);
+                if (it != interfaceExtendsInterfaces.end())
+                {
+                    for (const auto& parentIface : it->second)
+                    {
+                        if (usedInterfaces.find(parentIface) == usedInterfaces.end())
+                        {
+                            usedInterfaces.insert(parentIface);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     bool UnusedDeclarationEliminationPass::UsageAnalyzer::isFunctionUsed(
@@ -313,10 +355,12 @@ namespace optimizer::passes
                 analyzer.analyzeUsedClass(classNode->getParentClassName());
             }
 
-            // Classes that implement interfaces use those interfaces
+            // Track which interfaces this class implements (for transitive closure)
             for (const auto& iface : classNode->getImplementedInterfaces())
             {
-                analyzer.analyzeUsedInterface(iface);
+                analyzer.classImplementsInterfaces[className].insert(iface);
+                // Note: We don't mark interfaces as used here anymore
+                // The transitive closure will handle this based on whether the class is used
             }
 
             // Declare all methods in this class
@@ -373,7 +417,14 @@ namespace optimizer::passes
         if (auto* ifaceNode = dynamic_cast<InterfaceNode*>(node))
         {
             bool isPublic = ifaceNode->getVisibility() == VisibilityModifier::PUBLIC;
-            analyzer.analyzeDeclaredInterface(ifaceNode->getName(), isPublic);
+            std::string ifaceName = ifaceNode->getName();
+            analyzer.analyzeDeclaredInterface(ifaceName, isPublic);
+
+            // Track which interfaces this interface extends (for transitive closure)
+            for (const auto& parentIface : ifaceNode->getExtendedInterfaces())
+            {
+                analyzer.interfaceExtendsInterfaces[ifaceName].insert(parentIface);
+            }
             return;
         }
 

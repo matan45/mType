@@ -39,7 +39,6 @@ namespace optimizer::base {
 
 		// Configuration access
 		const OptimizationConfig& getConfig() const { return config; }
-		OptimizationLevel getOptimizationLevel() const { return config.getLevel(); }
 
 		// Environment access
 		std::shared_ptr<environment::Environment> getEnvironment() const { return environment; }

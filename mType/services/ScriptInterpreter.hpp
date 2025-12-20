@@ -56,11 +56,11 @@ namespace services
         value::Value executeScriptAST(std::unique_ptr<ast::ASTNode> ast);
 
         // Constructor helper
-        void initializeServices(constants::OptimizationLevel optLevel);
+        void initializeServices();
 
     public:
         ScriptInterpreter();
-        explicit ScriptInterpreter(constants::ExecutionMode mode, constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug);
+        explicit ScriptInterpreter(constants::ExecutionMode mode);
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
         void parseAndRegisterClasses(const std::string& filename);
@@ -72,9 +72,7 @@ namespace services
 
         // Execution mode control
         void setExecutionMode(constants::ExecutionMode mode);
-        void setOptimizationLevel(constants::OptimizationLevel level);
         constants::ExecutionMode getExecutionMode() const;
-        constants::OptimizationLevel getOptimizationLevel() const;
 
         // Memory management methods
         void cleanupRegistries();

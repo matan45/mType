@@ -1,21 +1,18 @@
 #pragma once
 
 #include <chrono>
-#include "../constants/ExecutionMode.hpp"
 
 namespace optimizer {
-
-	using constants::OptimizationLevel;
 
 	/**
 	 * Configuration for optimization behavior.
 	 * Controls which passes are enabled and their parameters.
+	 * Always uses release-mode optimizations.
 	 */
 	class OptimizationConfig {
 	private:
-		OptimizationLevel level;
-		bool enableDeadCodeElimination;  // Release: Unreachable code after return/break/continue/throw
-		bool enableUnusedDeclarationElimination;  // Release: Remove unused functions/classes/variables
+		bool enableDeadCodeElimination;
+		bool enableUnusedDeclarationElimination;
 		bool enableConstantFolding;
 		bool enableUnreachableCodeRemoval;
 
@@ -24,15 +21,13 @@ namespace optimizer {
 		std::chrono::milliseconds timeoutPerPass;
 
 	public:
-		explicit OptimizationConfig(OptimizationLevel level = OptimizationLevel::Debug);
+		OptimizationConfig();
 
-		// Level-based presets
-		static OptimizationConfig forLevel(OptimizationLevel level);
+		// Factory methods
+		static OptimizationConfig forRelease();
 		static OptimizationConfig noOptimization();
-		static OptimizationConfig aggressive();
 
 		// Configuration accessors
-		OptimizationLevel getLevel() const { return level; }
 		bool isDeadCodeEliminationEnabled() const { return enableDeadCodeElimination; }
 		bool isUnusedDeclarationEliminationEnabled() const { return enableUnusedDeclarationElimination; }
 		bool isConstantFoldingEnabled() const { return enableConstantFolding; }

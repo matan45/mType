@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <chrono>
 #include <sstream>
-#include <iostream>
+
 namespace vm::optimization
 {
     // === Statistics Implementation ===
@@ -144,10 +144,7 @@ namespace vm::optimization
 
         auto endTime = std::chrono::high_resolution_clock::now();
         statistics.totalTimeMs = std::chrono::duration<double, std::milli>(endTime - startTime).count();
-        
-        logOptimizationEnd(program);
-        std::cout << "\n" << statistics.toString() << "\n";
-        
+
         return anyOptimizationsApplied;
     }
 
@@ -399,18 +396,5 @@ namespace vm::optimization
     {
         statistics.patternApplications[patternName]++;
     }
-    
 
-    void PeepholeOptimizer::logOptimizationEnd(const bytecode::BytecodeProgram& program)
-    {
-        std::cout << "\n========================================\n";
-        std::cout << "  PEEPHOLE OPTIMIZATION COMPLETED\n";
-        std::cout << "========================================\n";
-        std::cout << "Final instruction count: " << program.getInstructionCount() << "\n";
-        std::cout << "Instructions eliminated: " << statistics.instructionsEliminated << "\n";
-        std::cout << "Time elapsed: " << statistics.totalTimeMs << " ms\n";
-        std::cout << "========================================\n";
-    }
-    
-    
 } // namespace vm::optimization

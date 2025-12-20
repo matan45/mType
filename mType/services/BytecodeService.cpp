@@ -82,10 +82,8 @@ namespace services
         ast = optimizationService->applyOptimizations(std::move(ast), environment);
 
         // Compile to bytecode
-        // Skip strict validation in Release mode as AST optimizer may have removed unused methods
-        constants::OptimizationLevel optLevel = optimizationService->getOptimizationLevel();
-        bool skipStrictValidation = (optLevel == constants::OptimizationLevel::Release);
-        BytecodeCompiler bytecodeCompiler(environment, skipStrictValidation, optLevel);
+        // Skip strict validation as AST optimizer may have removed unused methods
+        BytecodeCompiler bytecodeCompiler(environment, true);
         auto program = bytecodeCompiler.compile(ast.get());
 
         // Store source file path for class registration when loading
