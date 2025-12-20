@@ -4,17 +4,10 @@ namespace optimizer
 {
     OptimizationConfig::OptimizationConfig()
         : enableDeadCodeElimination(true)
-        , enableUnusedDeclarationElimination(false)  // Disabled - can't reliably track generics/imports
         , enableConstantFolding(true)
-        , enableUnreachableCodeRemoval(true)
         , maxPassIterations(50)
         , timeoutPerPass(std::chrono::milliseconds(5000))
     {
-        // Default: safe optimizations enabled
-        // UnusedDeclarationElimination is disabled because it can't reliably track:
-        // - Generic type instantiations (e.g., ArrayList<String>)
-        // - Functions/interfaces used through imports
-        // - Implicit method calls
     }
 
     OptimizationConfig OptimizationConfig::forRelease()
@@ -26,9 +19,7 @@ namespace optimizer
     {
         OptimizationConfig config;
         config.enableDeadCodeElimination = false;
-        config.enableUnusedDeclarationElimination = false;
         config.enableConstantFolding = false;
-        config.enableUnreachableCodeRemoval = false;
         return config;
     }
 
@@ -38,21 +29,9 @@ namespace optimizer
         return *this;
     }
 
-    OptimizationConfig& OptimizationConfig::setUnusedDeclarationElimination(bool enable)
-    {
-        enableUnusedDeclarationElimination = enable;
-        return *this;
-    }
-
     OptimizationConfig& OptimizationConfig::setConstantFolding(bool enable)
     {
         enableConstantFolding = enable;
-        return *this;
-    }
-
-    OptimizationConfig& OptimizationConfig::setUnreachableCodeRemoval(bool enable)
-    {
-        enableUnreachableCodeRemoval = enable;
         return *this;
     }
 
@@ -67,6 +46,5 @@ namespace optimizer
         timeoutPerPass = timeout;
         return *this;
     }
-
 
 } // namespace optimizer
