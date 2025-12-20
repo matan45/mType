@@ -16,6 +16,16 @@ class Player {
         x = x + 1;
     }
 
+    // Required: start method
+    public function start(): void {
+        print("Player started");
+    }
+
+    // Required: clean method
+    public function clean(): void {
+        print("Player cleaned up");
+    }
+
     public function getX(): int {
         return x;
     }

@@ -4,6 +4,13 @@
 #include "builtin/StrLengthFunction.hpp"
 #include "builtin/HashCodeFunction.hpp"
 #include "builtin/SqrtFunction.hpp"
+#include "builtin/SinFunction.hpp"
+#include "builtin/CosFunction.hpp"
+#include "builtin/TanFunction.hpp"
+#include "builtin/AsinFunction.hpp"
+#include "builtin/AcosFunction.hpp"
+#include "builtin/AtanFunction.hpp"
+#include "builtin/Atan2Function.hpp"
 #include "builtin/SubstringFunction.hpp"
 #include "builtin/ToUpperCaseFunction.hpp"
 #include "builtin/ToLowerCaseFunction.hpp"
@@ -75,7 +82,16 @@ namespace environment::registry
         registerBuiltinFunction(std::make_unique<builtin::ParsePrimitiveFunction>());
         registerBuiltinFunction(std::make_unique<builtin::StrLengthFunction>());
         registerBuiltinFunction(std::make_unique<builtin::HashCodeFunction>());
+
+        // Math functions
         registerBuiltinFunction(std::make_unique<builtin::SqrtFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::SinFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::CosFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::TanFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::AsinFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::AcosFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::AtanFunction>());
+        registerBuiltinFunction(std::make_unique<builtin::Atan2Function>());
 
         // String manipulation functions
         registerBuiltinFunction(std::make_unique<builtin::SubstringFunction>());

@@ -8,7 +8,7 @@ interface Updatable {
 @Script
 class Component implements Updatable {
     string name;
-	
+
 	constructor(){}
 
     constructor(string componentName) {
@@ -19,24 +19,31 @@ class Component implements Updatable {
     public function update(float dt): void {
         print("Updating component");
     }
+
+    public function start(): void {}
+    public function clean(): void {}
 }
 
 @Script
 class GameObject {
 
 	constructor(){}
+
     public function init(): void {
         print("GameObject initialized");
     }
-	
+
 	public function update(float dt): void {
         print("Updating component");
     }
+
+    public function start(): void {}
+    public function clean(): void {}
 }
 
 @Script
 class Entity extends GameObject implements Updatable {
-	
+
 	constructor(){}
 
     @Override
@@ -48,6 +55,9 @@ class Entity extends GameObject implements Updatable {
     public function update(float dt): void {
         print("Entity updated");
     }
+
+    public function start(): void {}
+    public function clean(): void {}
 }
 
 // Test execution

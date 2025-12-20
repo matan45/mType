@@ -6,13 +6,14 @@ class PlayerController {
     private int health;
 
 	constructor(){}
-	
+
     constructor(int initialHealth) {
         health = initialHealth;
     }
-	
-	public function update(float dt): void
-	{}
+
+	public function update(float dt): void {}
+	public function start(): void {}
+	public function clean(): void {}
 
     public function getHealth(): int {
         return health;
@@ -34,7 +35,9 @@ class GameWorld {
     }
 
 	public function update(float dt): void {}
-	
+	public function start(): void {}
+	public function clean(): void {}
+
     public function getLevel(): int {
         return level;
     }

@@ -90,6 +90,14 @@ namespace tests::testSuite
                         errorPath + "script_annotation_wrong_update_signature_error.mt",
                         TestType::ERROR_EXPECTED);
 
+        addTestFromFile("Script Without Start Method",
+                        errorPath + "script_annotation_no_start_method_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Script Without Clean Method",
+                        errorPath + "script_annotation_no_clean_method_error.mt",
+                        TestType::ERROR_EXPECTED);
+
         // ===== @Throw ANNOTATION - ERROR TESTS =====
         // Tests for invalid @Throw usage that should fail compilation
 

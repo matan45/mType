@@ -62,6 +62,8 @@ namespace validation
          * 1. The class is not abstract
          * 2. The class has a default constructor (0 parameters)
          * 3. The class has an update(float dt): void method
+         * 4. The class has a start(): void method
+         * 5. The class has a clean(): void method
          *
          * @param classDefinition The class definition to validate
          * @param location Source location for error reporting

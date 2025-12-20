@@ -328,6 +328,9 @@
     <Filter Include="tests\testFiles\lib\iterators">
       <UniqueIdentifier>{EC41020A-585A-E933-2107-79CD8DDE7DCD}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\lib\math">
+      <UniqueIdentifier>{79F2622F-6517-B2AF-8E62-973F7AE6B0CD}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lib\primitives">
       <UniqueIdentifier>{7BC365C0-67E9-2F27-502F-B5F23CF454F3}</UniqueIdentifier>
     </Filter>
@@ -777,7 +780,22 @@
     <ClInclude Include="environment\registry\Registry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\builtin\AcosFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\AsinFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\Atan2Function.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\AtanFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\builtin\BuiltinFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\CosFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\builtin\HashCodeFunction.hpp">
@@ -792,6 +810,9 @@
     <ClInclude Include="environment\registry\builtin\PrintFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\builtin\SinFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\builtin\SqrtFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
@@ -799,6 +820,9 @@
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\builtin\SubstringFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\TanFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\builtin\ToLowerCaseFunction.hpp">
@@ -1841,6 +1865,21 @@
     <ClCompile Include="environment\registry\NativeRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\builtin\AcosFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\AsinFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\Atan2Function.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\AtanFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\CosFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\builtin\HashCodeFunction.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
@@ -1853,6 +1892,9 @@
     <ClCompile Include="environment\registry\builtin\PrintFunction.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\builtin\SinFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\builtin\SqrtFunction.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
@@ -1860,6 +1902,9 @@
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\builtin\SubstringFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\TanFunction.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\builtin\ToLowerCaseFunction.cpp">
@@ -2533,7 +2578,13 @@
     <None Include="tests\testFiles\annotation\error\script_annotation_abstract_error.mt">
       <Filter>tests\testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_no_clean_method_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\script_annotation_no_default_constructor_error.mt">
+      <Filter>tests\testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\script_annotation_no_start_method_error.mt">
       <Filter>tests\testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\script_annotation_no_update_method_error.mt">
@@ -9282,6 +9333,24 @@
     </None>
     <None Include="tests\testFiles\lib\iterators\StreamFlatMappingIterator.mt">
       <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\math\Matrix3f.mt">
+      <Filter>tests\testFiles\lib\math</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\math\Matrix4f.mt">
+      <Filter>tests\testFiles\lib\math</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\math\Quaternion.mt">
+      <Filter>tests\testFiles\lib\math</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\math\Vec2f.mt">
+      <Filter>tests\testFiles\lib\math</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\math\Vec3f.mt">
+      <Filter>tests\testFiles\lib\math</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\math\Vec4f.mt">
+      <Filter>tests\testFiles\lib\math</Filter>
     </None>
     <None Include="tests\testFiles\lib\primitives\Bool.mt">
       <Filter>tests\testFiles\lib\primitives</Filter>

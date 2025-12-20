@@ -12,7 +12,9 @@ class GameEntity {
     }
 
 	public function update(float dt): void{}
-	
+	public function start(): void{}
+	public function clean(): void{}
+
     public function move(int dx, int dy):void {
         x = x + dx;
         y = y + dy;
@@ -22,14 +24,16 @@ class GameEntity {
 @Script
 class Player extends GameEntity {
     string name;
-	
+
 	constructor(){}
-	
+
     constructor(string playerName, int posX, int posY): super(posX, posY) {
         name = playerName;
     }
-	
+
 	public function update(float dt): void{}
+	public function start(): void{}
+	public function clean(): void{}
 
     public function attack(): void {
         print("Player attacking");

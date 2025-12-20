@@ -365,7 +365,69 @@ namespace validation
             oss << "Class '" << className <<
                 "' is marked with @Script but does not have the required update method.\n\n"
                 << "@Script classes must have an update method with signature:\n"
-                << " function update(float dt ): void\n\n"
+                << "  function update(float dt): void\n\n"
+                << "Please add this method to your class.";
+            throw TypeException(oss.str(), location);
+        }
+
+        // Check 4: Must have start(): void method
+        bool hasStartMethod = false;
+
+        auto startIt = instanceMethods.find("start");
+        if (startIt != instanceMethods.end())
+        {
+            for (const auto& method : startIt->second)
+            {
+                const auto& params = method->getParameters();
+
+                // Check: no parameters (only implicit 'this'), return type void
+                if (params.size() == 1 &&
+                    method->getReturnType() == value::ValueType::VOID)
+                {
+                    hasStartMethod = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasStartMethod)
+        {
+            std::ostringstream oss;
+            oss << "Class '" << className <<
+                "' is marked with @Script but does not have the required start method.\n\n"
+                << "@Script classes must have a start method with signature:\n"
+                << "  function start(): void\n\n"
+                << "Please add this method to your class.";
+            throw TypeException(oss.str(), location);
+        }
+
+        // Check 5: Must have clean(): void method
+        bool hasCleanMethod = false;
+
+        auto cleanIt = instanceMethods.find("clean");
+        if (cleanIt != instanceMethods.end())
+        {
+            for (const auto& method : cleanIt->second)
+            {
+                const auto& params = method->getParameters();
+
+                // Check: no parameters (only implicit 'this'), return type void
+                if (params.size() == 1 &&
+                    method->getReturnType() == value::ValueType::VOID)
+                {
+                    hasCleanMethod = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasCleanMethod)
+        {
+            std::ostringstream oss;
+            oss << "Class '" << className <<
+                "' is marked with @Script but does not have the required clean method.\n\n"
+                << "@Script classes must have a clean method with signature:\n"
+                << "  function clean(): void\n\n"
                 << "Please add this method to your class.";
             throw TypeException(oss.str(), location);
         }
