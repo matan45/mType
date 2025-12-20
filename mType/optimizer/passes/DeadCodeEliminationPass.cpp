@@ -320,6 +320,12 @@ namespace optimizer::passes
             // Preserve visibility modifier
             transformedFunction->setVisibility(node->getVisibility());
 
+            // Preserve annotations (e.g., @Throw, @Script)
+            for (const auto& annotation : node->getAnnotations())
+            {
+                transformedFunction->addAnnotation(annotation);
+            }
+
             return transformedFunction;
         }
 

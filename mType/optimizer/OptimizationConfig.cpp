@@ -3,7 +3,7 @@
 namespace optimizer
 {
     OptimizationConfig::OptimizationConfig()
-        : enableDeadCodeElimination(false)
+        : enableDeadCodeElimination(true)
         , enableUnusedDeclarationElimination(false)  // Disabled - can't reliably track generics/imports
         , enableConstantFolding(true)
         , enableUnreachableCodeRemoval(true)
