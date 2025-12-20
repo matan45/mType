@@ -117,7 +117,6 @@ namespace vm::compiler
         loopOptimizer.optimize();
 
         // PEEPHOLE OPTIMIZATION PASS
-        /*
         {
             auto config = optimization::PeepholeOptimizer::Config::forReleaseMode();
 
@@ -131,7 +130,7 @@ namespace vm::compiler
                 std::cerr << "Continuing with unoptimized bytecode..." << std::endl;
             }
         }
-*/
+
         return std::move(program);
     }
 

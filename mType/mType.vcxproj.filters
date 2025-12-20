@@ -1533,9 +1533,6 @@
     <ClInclude Include="vm\optimization\patterns\JumpThreadingPattern.hpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClInclude>
-    <ClInclude Include="vm\optimization\patterns\LoadStoreOptimizationPattern.hpp">
-      <Filter>vm\optimization\patterns</Filter>
-    </ClInclude>
     <ClInclude Include="vm\optimization\patterns\NullSequencePattern.hpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClInclude>
@@ -2454,9 +2451,6 @@
       <Filter>vm\optimization\patterns</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\patterns\JumpThreadingPattern.cpp">
-      <Filter>vm\optimization\patterns</Filter>
-    </ClCompile>
-    <ClCompile Include="vm\optimization\patterns\LoadStoreOptimizationPattern.cpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\patterns\NullSequencePattern.cpp">

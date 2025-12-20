@@ -298,6 +298,39 @@ namespace vm::bytecode
         }
     }
 
+    void BytecodeProgram::updateExceptionTableOffsets(size_t removalOffset, int delta) {
+        // Helper lambda to update a single offset
+        auto updateOffset = [removalOffset, delta, this](size_t& offset) {
+            if (offset == SIZE_MAX) return;  // Skip sentinel values
+            if (offset >= removalOffset) {
+                int newOffset = static_cast<int>(offset) + delta;
+                if (newOffset >= 0 && newOffset < static_cast<int>(instructions.size())) {
+                    offset = static_cast<size_t>(newOffset);
+                }
+                // Note: We don't throw on invalid offsets for exception tables
+                // because they might point to valid locations after different optimizations
+            }
+        };
+
+        // Update global exception table
+        for (auto& entry : globalExceptionTable.getEntriesMutable()) {
+            updateOffset(entry.startIP);
+            updateOffset(entry.endIP);
+            updateOffset(entry.catchIP);
+            updateOffset(entry.finallyIP);
+        }
+
+        // Update each function's exception table
+        for (auto& [name, metadata] : functions) {
+            for (auto& entry : metadata.exceptionTable.getEntriesMutable()) {
+                updateOffset(entry.startIP);
+                updateOffset(entry.endIP);
+                updateOffset(entry.catchIP);
+                updateOffset(entry.finallyIP);
+            }
+        }
+    }
+
     BytecodeProgram::ConstantPool& BytecodeProgram::getConstantPool() {
         return constantPool;
     }
