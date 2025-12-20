@@ -190,6 +190,9 @@ void runSpecificTestSuite(const std::string& suiteName,
 
     suite->run();
 
+    // Clean up GC to avoid static destruction order issues
+    gc::GC::shutdown();
+
     // Cleanup reflection static state to avoid static destruction order issues
     reflection::ReflectionNatives::cleanup();
 }
@@ -730,9 +733,13 @@ int main(int argc, char* argv[])
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
+        gc::GC::shutdown();  // Clean up GC before exit
         reflection::ReflectionNatives::cleanup();
         return 1;
     }
+
+    // Clean up GC to avoid static destruction order issues
+    gc::GC::shutdown();
 
     // Cleanup reflection static state to avoid static destruction order issues
     reflection::ReflectionNatives::cleanup();

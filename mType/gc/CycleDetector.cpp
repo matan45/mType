@@ -69,19 +69,26 @@ namespace gc
         // shared_ptrs to all objects, then clearing fields.
 
         // First, get shared_ptrs to keep all objects alive during clearing
-        std::vector<std::shared_ptr<void>> liveRefs;
+        // Use a vector of pairs to track which objects we successfully locked
+        std::vector<std::pair<void*, std::shared_ptr<void>>> liveRefs;
         liveRefs.reserve(toFree.size());
         for (void* obj : toFree)
         {
             auto sharedPtr = tracker.getSharedPtr(obj);
             if (sharedPtr)
             {
-                liveRefs.push_back(sharedPtr);
+                liveRefs.push_back({obj, sharedPtr});
+            }
+            else
+            {
+                // Object already destroyed - just unregister it from tracker
+                tracker.unregisterObject(obj);
             }
         }
 
-        // Now clear all fields - objects won't be destroyed yet because liveRefs holds them
-        for (void* obj : toFree)
+        // Now clear all fields - ONLY on objects we successfully locked
+        // This prevents use-after-free on already-destroyed objects
+        for (const auto& [obj, sharedPtr] : liveRefs)
         {
             GCObjectHeader* header = tracker.getHeader(obj);
             if (header)
@@ -93,10 +100,15 @@ namespace gc
         // liveRefs goes out of scope here, allowing objects to be destroyed
         liveRefs.clear();
 
-        // Now unregister from tracker (objects should be freed when last shared_ptr goes away)
+        // Unregister remaining objects (those we managed to lock above)
+        // Note: Objects whose weak_ptrs expired were already unregistered above
         for (void* obj : toFree)
         {
-            tracker.unregisterObject(obj);
+            // Check if still registered (might have been unregistered above)
+            if (tracker.getHeader(obj))
+            {
+                tracker.unregisterObject(obj);
+            }
         }
 
         return result;
@@ -310,7 +322,12 @@ namespace gc
     {
         if (referenceVisitor)
         {
-            referenceVisitor(object, callback);
+            // CRITICAL: Only visit references if object is still alive
+            // Otherwise we'd be accessing freed memory (use-after-free)
+            if (tracker.isObjectAlive(object))
+            {
+                referenceVisitor(object, callback);
+            }
         }
     }
 
