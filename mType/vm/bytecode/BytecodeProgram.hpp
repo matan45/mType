@@ -218,6 +218,7 @@ namespace vm::bytecode
         std::vector<Instruction> getInstructionRange(size_t start, size_t end) const;
         void updateAllJumpOffsets();  // Call after modifying instructions
         void updateFunctionOffsets(size_t removalOffset, int delta);  // Update function metadata after optimization
+        void updateExceptionTableOffsets(size_t removalOffset, int delta);  // Update exception table offsets after optimization
 
         // Constant Pool Management
         ConstantPool& getConstantPool();

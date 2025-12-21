@@ -13,8 +13,7 @@
 namespace vm::compiler
 {
     BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env,
-                                       bool skipStrictValidation,
-                                       constants::OptimizationLevel optimizationLevel)
+                                       bool skipStrictValidation)
         : environment(env)
         , emitter(program)
         , typeInference(program, env, variableTracker, globalRegistry)
@@ -36,7 +35,6 @@ namespace vm::compiler
         , functionCompiler(context)
         , classCompiler(context)
         , skipStrictValidation(skipStrictValidation)
-        , optimizationLevel(optimizationLevel)
     {
         // Set up type inference engine to use context's generic type bindings stack
         typeInference.setGenericTypeBindingsStack(&context.genericTypeBindingStack);
@@ -118,8 +116,8 @@ namespace vm::compiler
         runtime::optimization::LoopOptimizer loopOptimizer(program);
         loopOptimizer.optimize();
 
-        // PEEPHOLE OPTIMIZATION PASS: Only run in Release mode
-        if (optimizationLevel == constants::OptimizationLevel::Release) {
+        // PEEPHOLE OPTIMIZATION PASS
+        {
             auto config = optimization::PeepholeOptimizer::Config::forReleaseMode();
 
             optimization::PeepholeOptimizer peepholeOptimizer(config);

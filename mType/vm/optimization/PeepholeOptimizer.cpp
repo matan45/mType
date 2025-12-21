@@ -4,7 +4,6 @@
 #include "patterns/AlgebraicSimplificationPattern.hpp"
 #include "patterns/JumpThreadingPattern.hpp"
 #include "patterns/StrengthReductionPattern.hpp"
-#include "patterns/LoadStoreOptimizationPattern.hpp"
 #include "patterns/NullSequencePattern.hpp"
 #include "patterns/StackOptimizationPattern.hpp"
 #include "patterns/TypeSpecializationPattern.hpp"
@@ -12,7 +11,7 @@
 #include <algorithm>
 #include <chrono>
 #include <sstream>
-#include <iostream>
+
 namespace vm::optimization
 {
     // === Statistics Implementation ===
@@ -97,7 +96,7 @@ namespace vm::optimization
 
         size_t initialInstructionCount = program.getInstructionCount();
         bool anyOptimizationsApplied = false;
-        
+
         // Analyze the program once before optimization
         cfgAnalyzer.analyze(program);
         dataFlowAnalyzer.analyze(program);
@@ -144,10 +143,7 @@ namespace vm::optimization
 
         auto endTime = std::chrono::high_resolution_clock::now();
         statistics.totalTimeMs = std::chrono::duration<double, std::milli>(endTime - startTime).count();
-        
-        logOptimizationEnd(program);
-        std::cout << "\n" << statistics.toString() << "\n";
-        
+
         return anyOptimizationsApplied;
     }
 
@@ -183,11 +179,8 @@ namespace vm::optimization
         // Priority 70: Algebraic Simplification
         registerPattern(std::make_unique<patterns::AlgebraicSimplificationPattern>());
 
-        // Priority 60: Jump Threading
+        // Priority 60: Jump Threading - DISABLED: threads across function boundaries incorrectly
         registerPattern(std::make_unique<patterns::JumpThreadingPattern>());
-
-        // Priority 55: Load/Store Optimization
-        registerPattern(std::make_unique<patterns::LoadStoreOptimizationPattern>());
 
         // Priority 50: Strength Reduction
         registerPattern(std::make_unique<patterns::StrengthReductionPattern>());
@@ -281,6 +274,10 @@ namespace vm::optimization
             // Update function metadata offsets
             // This ensures function entry points remain correct after instruction removal
             program.updateFunctionOffsets(offset + replacement.originalLength, delta);
+
+            // Update exception table offsets
+            // This ensures try-catch-finally handler offsets remain correct after instruction removal
+            program.updateExceptionTableOffsets(offset + replacement.originalLength, delta);
 
             // NOTE: CFG/dataflow re-analysis is NOT done here for performance reasons.
             // Most peephole patterns are local and don't require global CFG updates.
@@ -399,18 +396,4 @@ namespace vm::optimization
     {
         statistics.patternApplications[patternName]++;
     }
-    
-
-    void PeepholeOptimizer::logOptimizationEnd(const bytecode::BytecodeProgram& program)
-    {
-        std::cout << "\n========================================\n";
-        std::cout << "  PEEPHOLE OPTIMIZATION COMPLETED\n";
-        std::cout << "========================================\n";
-        std::cout << "Final instruction count: " << program.getInstructionCount() << "\n";
-        std::cout << "Instructions eliminated: " << statistics.instructionsEliminated << "\n";
-        std::cout << "Time elapsed: " << statistics.totalTimeMs << " ms\n";
-        std::cout << "========================================\n";
-    }
-    
-    
 } // namespace vm::optimization

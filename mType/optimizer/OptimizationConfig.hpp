@@ -1,11 +1,8 @@
 #pragma once
 
 #include <chrono>
-#include "../constants/ExecutionMode.hpp"
 
 namespace optimizer {
-
-	using constants::OptimizationLevel;
 
 	/**
 	 * Configuration for optimization behavior.
@@ -13,36 +10,27 @@ namespace optimizer {
 	 */
 	class OptimizationConfig {
 	private:
-		OptimizationLevel level;
-		bool enableDeadCodeElimination;  // Release: Unreachable code after return/break/continue/throw
-		bool enableUnusedDeclarationElimination;  // Release: Remove unused functions/classes/variables
+		bool enableDeadCodeElimination;
 		bool enableConstantFolding;
-		bool enableUnreachableCodeRemoval;
 
 		// Performance limits
 		size_t maxPassIterations;
 		std::chrono::milliseconds timeoutPerPass;
 
 	public:
-		explicit OptimizationConfig(OptimizationLevel level = OptimizationLevel::Debug);
+		OptimizationConfig();
 
-		// Level-based presets
-		static OptimizationConfig forLevel(OptimizationLevel level);
+		// Factory methods
+		static OptimizationConfig forRelease();
 		static OptimizationConfig noOptimization();
-		static OptimizationConfig aggressive();
 
 		// Configuration accessors
-		OptimizationLevel getLevel() const { return level; }
 		bool isDeadCodeEliminationEnabled() const { return enableDeadCodeElimination; }
-		bool isUnusedDeclarationEliminationEnabled() const { return enableUnusedDeclarationElimination; }
 		bool isConstantFoldingEnabled() const { return enableConstantFolding; }
-		bool isUnreachableCodeRemovalEnabled() const { return enableUnreachableCodeRemoval; }
 
 		// Pass-specific configuration
 		OptimizationConfig& setDeadCodeElimination(bool enable);
-		OptimizationConfig& setUnusedDeclarationElimination(bool enable);
 		OptimizationConfig& setConstantFolding(bool enable);
-		OptimizationConfig& setUnreachableCodeRemoval(bool enable);
 
 		// Performance limits
 		OptimizationConfig& setMaxPassIterations(size_t iterations);

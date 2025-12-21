@@ -1,7 +1,6 @@
 #include "OptimizationPassManager.hpp"
 #include "passes/ConstantFoldingPass.hpp"
 #include "passes/DeadCodeEliminationPass.hpp"
-#include "passes/UnusedDeclarationEliminationPass.hpp"
 
 namespace optimizer
 {
@@ -28,13 +27,12 @@ namespace optimizer
 
     void OptimizationPassManager::registerDefaultPasses()
     {
-        // Register passes based on optimization level
-        // CRITICAL ORDER: Constant Folding -> Dead Code Elimination -> Unused Declaration Elimination
+        // Register passes based on optimization config
+        // ORDER: Constant Folding -> Dead Code Elimination
         //
         // Rationale:
         // 1. Constant Folding exposes unreachable code (e.g., if(false) branches)
         // 2. Dead Code Elimination removes unreachable code after control flow terminators
-        // 3. Unused Declaration Elimination removes unused functions/classes
         //
         // These will run in fixed-point iteration until no changes occur
 
@@ -46,11 +44,6 @@ namespace optimizer
         if (config.isDeadCodeEliminationEnabled())
         {
             registerPass(std::make_unique<passes::DeadCodeEliminationPass>());
-        }
-
-        if (config.isUnusedDeclarationEliminationEnabled())
-        {
-            registerPass(std::make_unique<passes::UnusedDeclarationEliminationPass>());
         }
     }
 

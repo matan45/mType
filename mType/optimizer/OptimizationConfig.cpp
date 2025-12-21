@@ -2,53 +2,25 @@
 
 namespace optimizer
 {
-    OptimizationConfig::OptimizationConfig(OptimizationLevel level)
-        : level(level)
-          , maxPassIterations(50)
-          , timeoutPerPass(std::chrono::milliseconds(5000))
+    OptimizationConfig::OptimizationConfig()
+        : enableDeadCodeElimination(true)
+        , enableConstantFolding(true)
+        , maxPassIterations(50)
+        , timeoutPerPass(std::chrono::milliseconds(5000))
     {
-        // Configure based on optimization level
-        switch (level)
-        {
-        case OptimizationLevel::Debug:
-            // Debug mode - no dead code passes
-            enableDeadCodeElimination = false;
-            enableUnusedDeclarationElimination = false;
-            enableConstantFolding = false;
-            enableUnreachableCodeRemoval = false;
-            break;
-
-        case OptimizationLevel::Release:
-            // Release mode - full optimization including dead code elimination
-            enableDeadCodeElimination = true;
-            enableUnusedDeclarationElimination = true;
-            enableConstantFolding = true;
-            enableUnreachableCodeRemoval = true;
-            break;
-
-        default:
-            // Default to Debug
-            enableDeadCodeElimination = false;
-            enableUnusedDeclarationElimination = false;
-            enableConstantFolding = false;
-            enableUnreachableCodeRemoval = false;
-            break;
-        }
     }
 
-    OptimizationConfig OptimizationConfig::forLevel(OptimizationLevel level)
+    OptimizationConfig OptimizationConfig::forRelease()
     {
-        return OptimizationConfig(level);
+        return OptimizationConfig();
     }
 
     OptimizationConfig OptimizationConfig::noOptimization()
     {
-        return OptimizationConfig(OptimizationLevel::Debug);
-    }
-
-    OptimizationConfig OptimizationConfig::aggressive()
-    {
-        return OptimizationConfig(OptimizationLevel::Release);
+        OptimizationConfig config;
+        config.enableDeadCodeElimination = false;
+        config.enableConstantFolding = false;
+        return config;
     }
 
     OptimizationConfig& OptimizationConfig::setDeadCodeElimination(bool enable)
@@ -57,21 +29,9 @@ namespace optimizer
         return *this;
     }
 
-    OptimizationConfig& OptimizationConfig::setUnusedDeclarationElimination(bool enable)
-    {
-        enableUnusedDeclarationElimination = enable;
-        return *this;
-    }
-
     OptimizationConfig& OptimizationConfig::setConstantFolding(bool enable)
     {
         enableConstantFolding = enable;
-        return *this;
-    }
-
-    OptimizationConfig& OptimizationConfig::setUnreachableCodeRemoval(bool enable)
-    {
-        enableUnreachableCodeRemoval = enable;
         return *this;
     }
 
@@ -87,5 +47,4 @@ namespace optimizer
         return *this;
     }
 
-    
 } // namespace optimizer

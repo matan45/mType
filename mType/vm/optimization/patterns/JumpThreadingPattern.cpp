@@ -1,6 +1,7 @@
 #include "JumpThreadingPattern.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
+#include <algorithm>
 
 namespace vm::optimization::patterns
 {
@@ -88,7 +89,11 @@ namespace vm::optimization::patterns
         size_t currentOffset = startOffset;
         int depth = 0;
 
-        while (depth < maxDepth && currentOffset < program.getInstructionCount())
+        // Use instruction count as max to ensure we follow entire chain
+        // This prevents multiple passes for long jump chains
+        int effectiveMaxDepth = std::max(maxDepth, static_cast<int>(program.getInstructionCount()));
+
+        while (depth < effectiveMaxDepth && currentOffset < program.getInstructionCount())
         {
             const auto& instr = program.getInstruction(currentOffset);
 

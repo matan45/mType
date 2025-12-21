@@ -190,6 +190,9 @@ void runSpecificTestSuite(const std::string& suiteName,
 
     suite->run();
 
+    // Clean up GC to avoid static destruction order issues
+    gc::GC::shutdown();
+
     // Cleanup reflection static state to avoid static destruction order issues
     reflection::ReflectionNatives::cleanup();
 }
@@ -423,8 +426,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
  * Run script in debug mode with debugger protocol active
  */
 void runInDebugMode(const std::string& filename,
-                    constants::ExecutionMode execMode = constants::ExecutionMode::BYTECODE_VM,
-                    constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug)
+                    constants::ExecutionMode execMode = constants::ExecutionMode::BYTECODE_VM)
 {
     // Output debug banner to stderr so it doesn't interfere with debug protocol on stdout
     std::cerr << "\n" << std::string(80, '=') << "\n";
@@ -441,7 +443,7 @@ void runInDebugMode(const std::string& filename,
         auto& debugCtx = debugger::DebugContext::getInstance();
 
         // Create interpreter and enable debugging
-        ScriptInterpreter interpreter(execMode, optLevel);
+        ScriptInterpreter interpreter(execMode);
         interpreter.enableDebugging();
 
         // Start debug server in a separate thread
@@ -552,13 +554,10 @@ int main(int argc, char* argv[])
     if (argc >= 2 && std::string(argv[1]) == "--help")
     {
         std::cout << "Usage:\n";
-        std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file (bytecode VM mode)\n";
+        std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file\n";
         std::cout << "  " << argv[0] << " --debug <script.mt>        - Run with debugger (breakpoints, stepping)\n";
         std::cout << "  " << argv[0] << " --gc-stats <script.mt>     - Run and print GC statistics after execution\n";
-        std::cout << "  " << argv[0] << " -debug <script.mt>         - Run with debug optimization level\n";
-        std::cout << "  " << argv[0] << " -release <script.mt>       - Run with release mode (full optimization)\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
-        std::cout << "  " << argv[0] << " --compile -release <script.mt> - Compile with optimizations\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
         std::cout << "  " << argv[0] <<
             " --find-script-classes <script.mt> - Analyze script and show all @Script classes\n";
@@ -567,34 +566,22 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
-        std::cout << "Optimization Levels:\n";
-        std::cout << "  -debug   - Debug mode (no dead code optimization)\n";
-        std::cout << "  -release - Release mode (includes dead code elimination and unused declaration removal)\n";
         printAvailableTestSuites();
         return 0;
     }
 
-    // Handle --compile command (supports --compile -release <file.mt>)
+    // Handle --compile command
     for (int i = 1; i < argc; ++i)
     {
         if (std::string(argv[i]) == "--compile")
         {
             std::string sourceFile;
-            constants::OptimizationLevel compileOptLevel = constants::OptimizationLevel::Debug;
 
-            // Parse remaining arguments for optimization level and filename
+            // Parse remaining arguments for filename
             for (int j = i + 1; j < argc; ++j)
             {
                 std::string arg = argv[j];
-                if (arg == "-release")
-                {
-                    compileOptLevel = constants::OptimizationLevel::Release;
-                }
-                else if (arg == "-debug")
-                {
-                    compileOptLevel = constants::OptimizationLevel::Debug;
-                }
-                else if (arg[0] != '-')
+                if (arg[0] != '-')
                 {
                     sourceFile = arg;
                 }
@@ -610,12 +597,9 @@ int main(int argc, char* argv[])
 
             try
             {
-                std::cout << "Compiling " << sourceFile << " to " << outputFile;
-                std::cout << " (Optimization: " << (compileOptLevel == constants::OptimizationLevel::Release
-                                                        ? "Release"
-                                                        : "Debug") << ")...\n";
+                std::cout << "Compiling " << sourceFile << " to " << outputFile << "...\n";
 
-                ScriptInterpreter interpreter(constants::ExecutionMode::BYTECODE_VM, compileOptLevel);
+                ScriptInterpreter interpreter(constants::ExecutionMode::BYTECODE_VM);
                 interpreter.compileToFile(sourceFile, outputFile);
                 return 0;
             }
@@ -692,8 +676,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Parse optimization level, debug mode, gc-stats flag, and filename
-    constants::OptimizationLevel optLevel = constants::OptimizationLevel::Debug;
+    // Parse debug mode, gc-stats flag, and filename
     std::string filename;
     bool debugMode = false;
     bool printGCStats = false;
@@ -709,15 +692,6 @@ int main(int argc, char* argv[])
         else if (arg == "--gc-stats")
         {
             printGCStats = true;
-        }
-        // --bytecode and --dual flags removed (bytecode is the only mode)
-        else if (arg == "-debug")
-        {
-            optLevel = constants::OptimizationLevel::Debug;
-        }
-        else if (arg == "-release")
-        {
-            optLevel = constants::OptimizationLevel::Release;
         }
         else if (arg[0] != '-')
         {
@@ -735,29 +709,15 @@ int main(int argc, char* argv[])
     // Run in debug mode if --debug flag present
     if (debugMode)
     {
-        runInDebugMode(filename, execMode, optLevel);
+        runInDebugMode(filename, execMode);
         return 0;
     }
 
     try
     {
-        ScriptInterpreter interpreter(execMode, optLevel);
+        ScriptInterpreter interpreter(execMode);
 
-        // Print execution mode to both stdout and stderr (for debug console visibility)
-        std::string modeStr = "Bytecode VM";
-
-        std::string optStr;
-        switch (optLevel)
-        {
-        case constants::OptimizationLevel::Debug:
-            optStr = "Debug";
-            break;
-        case constants::OptimizationLevel::Release:
-            optStr = "Release";
-            break;
-        }
-
-        std::cout << "Execution Mode: " << modeStr << " (Optimization: " << optStr << ")\n\n";
+        std::cout << "Execution Mode: Bytecode VM\n\n";
 
         interpreter.runScript(filename);
 
@@ -773,9 +733,13 @@ int main(int argc, char* argv[])
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
+        gc::GC::shutdown();  // Clean up GC before exit
         reflection::ReflectionNatives::cleanup();
         return 1;
     }
+
+    // Clean up GC to avoid static destruction order issues
+    gc::GC::shutdown();
 
     // Cleanup reflection static state to avoid static destruction order issues
     reflection::ReflectionNatives::cleanup();

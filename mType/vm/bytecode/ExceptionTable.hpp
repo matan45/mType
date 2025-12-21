@@ -138,6 +138,14 @@ namespace vm::bytecode
         }
 
         /**
+         * Get mutable access to entries (for peephole optimizer offset updates)
+         */
+        std::vector<ExceptionTableEntry>& getEntriesMutable()
+        {
+            return entries;
+        }
+
+        /**
          * Check if table is empty
          */
         bool isEmpty() const

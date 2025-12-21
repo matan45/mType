@@ -3,7 +3,6 @@
 #include <string>
 #include "../ast/ASTNode.hpp"
 #include "../environment/Environment.hpp"
-#include "../constants/ExecutionMode.hpp"
 
 namespace optimizer
 {
@@ -20,19 +19,14 @@ namespace services
     {
     private:
         std::unique_ptr<optimizer::Optimizer> optimizer;
-        constants::OptimizationLevel optimizationLevel;
 
     public:
-        explicit OptimizationService(constants::OptimizationLevel level);
+        OptimizationService();
         ~OptimizationService();
 
-        // Apply optimizations to AST and print report
+        // Apply optimizations to AST
         std::unique_ptr<ast::ASTNode> applyOptimizations(
             std::unique_ptr<ast::ASTNode> ast,
             std::shared_ptr<environment::Environment> environment);
-
-        // Change optimization level
-        void setOptimizationLevel(constants::OptimizationLevel level);
-        constants::OptimizationLevel getOptimizationLevel() const;
     };
 }
