@@ -334,6 +334,10 @@ namespace services
             // Set ImportManager on environment
             environment->setImportManager(importManager.get());
 
+            // IMPORTANT: Resolve all imports BEFORE compilation
+            // This ensures imported classes are included in the bytecode
+            importResolver->resolveImports(ast.get());
+
             // Compile the AST to bytecode (this registers all classes)
             // Classes are registered during compilation by ClassRegistrar
             // We don't need to execute the bytecode - just compile and cache it

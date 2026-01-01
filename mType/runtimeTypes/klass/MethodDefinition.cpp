@@ -2,6 +2,7 @@
 #include "../../parser/TypeParser.hpp"
 #include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
 #include "../../types/TypeRegistry.hpp"
+#include "../../types/TypeConversionUtils.hpp"
 #include <algorithm>
 #include <sstream>
 #include <unordered_set>
@@ -390,5 +391,31 @@ namespace runtimeTypes::klass
             }
         }
         return nullptr;
+    }
+
+    std::string MethodDefinition::getTypeSignature() const
+    {
+        // IMPORTANT: Skip "this" parameter for instance methods (it's added implicitly)
+        // Instance methods have "this" as first parameter, static methods don't
+        size_t startIndex = isStaticMethod ? 0 : 1;
+
+        if (parameters.size() <= startIndex) {
+            return "";
+        }
+
+        std::string signature;
+        for (size_t i = startIndex; i < parameters.size(); ++i) {
+            if (i > startIndex) signature += ",";
+
+            const auto& paramType = parameters[i].second;
+
+            // Use class name if it's an object, otherwise use basic type display name
+            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
+                signature += paramType.className.value();
+            } else {
+                signature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
+            }
+        }
+        return signature;
     }
 }
