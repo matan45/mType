@@ -345,14 +345,21 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
                 const auto& staticMethods = classDef->getStaticMethods();
                 for (const auto& pair : staticMethods) {
                     const std::string& methodName = pair.first;
-                    const auto& methodDef = pair.second;
+                    const auto& methodOverloads = pair.second;
+                    if (methodOverloads.empty()) continue;
+
+                    // Use first overload for access modifier info
+                    const auto& firstOverload = methodOverloads.front();
 
                     CompletionItem item;
                     item.label = methodName;
                     item.kind = static_cast<int>(CompletionItemKind::Method);
 
                     // Include access modifier and static keyword
-                    std::string detail = std::string(ast::accessModifierToString(methodDef->getAccessModifier())) + " static method";
+                    std::string detail = std::string(ast::accessModifierToString(firstOverload->getAccessModifier())) + " static method";
+                    if (methodOverloads.size() > 1) {
+                        detail += " (" + std::to_string(methodOverloads.size()) + " overloads)";
+                    }
                     item.detail = detail;
                     item.insertText = methodName;
                     items.push_back(item);
@@ -394,14 +401,21 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
             const auto& instanceMethods = classDef->getInstanceMethods();
             for (const auto& pair : instanceMethods) {
                 const std::string& methodName = pair.first;
-                const auto& methodDef = pair.second;
+                const auto& methodOverloads = pair.second;
+                if (methodOverloads.empty()) continue;
+
+                // Use first overload for access modifier info
+                const auto& firstOverload = methodOverloads.front();
 
                 CompletionItem item;
                 item.label = methodName;
                 item.kind = static_cast<int>(CompletionItemKind::Method);
 
                 // Include access modifier
-                std::string detail = std::string(ast::accessModifierToString(methodDef->getAccessModifier())) + " method from " + className;
+                std::string detail = std::string(ast::accessModifierToString(firstOverload->getAccessModifier())) + " method from " + className;
+                if (methodOverloads.size() > 1) {
+                    detail += " (" + std::to_string(methodOverloads.size()) + " overloads)";
+                }
                 item.detail = detail;
                 item.insertText = methodName;
                 items.push_back(item);
@@ -441,14 +455,21 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
     const auto& instanceMethods = classDef->getInstanceMethods();
     for (const auto& pair : instanceMethods) {
         const std::string& methodName = pair.first;
-        const auto& methodDef = pair.second;
+        const auto& methodOverloads = pair.second;
+        if (methodOverloads.empty()) continue;
+
+        // Use first overload for access modifier info
+        const auto& firstOverload = methodOverloads.front();
 
         CompletionItem item;
         item.label = methodName;
         item.kind = static_cast<int>(CompletionItemKind::Method);
 
         // Include access modifier
-        std::string detail = std::string(ast::accessModifierToString(methodDef->getAccessModifier())) + " " + varType + " method";
+        std::string detail = std::string(ast::accessModifierToString(firstOverload->getAccessModifier())) + " " + varType + " method";
+        if (methodOverloads.size() > 1) {
+            detail += " (" + std::to_string(methodOverloads.size()) + " overloads)";
+        }
         item.detail = detail;
         item.insertText = methodName;
         items.push_back(item);
