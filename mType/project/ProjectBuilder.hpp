@@ -41,6 +41,8 @@ namespace project
 
         BuildResult build(const ProjectConfig& config);
 
+        BuildResult buildLibrary(const ProjectConfig& config, const std::string& outputPath);
+
         void clean(const ProjectConfig& config);
 
     private:

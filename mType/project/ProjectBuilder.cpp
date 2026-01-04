@@ -1,8 +1,14 @@
 #include "ProjectBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
 #include "../services/ImportManager.hpp"
+#include "../lexer/Lexer.hpp"
+#include "../parser/Parser.hpp"
+#include "../vm/compiler/BytecodeCompiler.hpp"
+#include "../environment/EnvironmentBuilder.hpp"
+#include "../services/OptimizationService.hpp"
 #include <iostream>
 #include <filesystem>
+#include <fstream>
 
 namespace project
 {
@@ -74,6 +80,123 @@ namespace project
         {
             std::filesystem::remove_all(outputDir);
         }
+    }
+
+    BuildResult ProjectBuilder::buildLibrary(const ProjectConfig& config, const std::string& outputPath)
+    {
+        BuildResult result;
+        auto startTime = std::chrono::steady_clock::now();
+
+        const auto& sourceFiles = config.resolvedSourceFiles;
+
+        if (sourceFiles.empty())
+        {
+            result.errors.push_back("No source files to compile");
+            result.success = false;
+            auto endTime = std::chrono::steady_clock::now();
+            result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+            return result;
+        }
+
+        try
+        {
+            // Create a virtual source that imports all files
+            std::string virtualSource;
+            for (const auto& sourceFile : sourceFiles)
+            {
+                // Use relative path from project root
+                std::filesystem::path srcPath(sourceFile);
+                std::filesystem::path projRoot(config.projectRoot);
+                std::filesystem::path relativePath = std::filesystem::relative(srcPath, projRoot);
+                virtualSource += "import * from \"" + relativePath.string() + "\";\n";
+            }
+
+            // Create temp file for virtual source
+            std::filesystem::path tempDir = std::filesystem::temp_directory_path();
+            std::filesystem::path tempFile = tempDir / "_mtype_lib_bundle.mt";
+
+            {
+                std::ofstream out(tempFile);
+                out << virtualSource;
+            }
+
+            reportProgress(1, 1, "Building library...");
+
+            // Configure search paths
+            std::vector<std::string> absoluteSearchPaths;
+            for (const auto& searchPath : config.imports.searchPaths)
+            {
+                std::filesystem::path absPath = std::filesystem::path(config.projectRoot) / searchPath;
+                absoluteSearchPaths.push_back(absPath.string());
+            }
+
+            // Set up environment and compiler
+            environment::EnvironmentBuilder envBuilder;
+            auto environment = envBuilder.build();
+
+            // Create import manager with project settings
+            auto importManager = std::make_unique<services::ImportManager>();
+            importManager->setBaseDirectory(config.projectRoot);
+            importManager->setSearchPaths(absoluteSearchPaths);
+            importManager->setPathAliases(config.imports.aliases);
+            importManager->setCurrentFilePath(tempFile.string());
+
+            services::ImportManager* importMgrPtr = importManager.get();
+
+            // Parse the virtual source
+            lexer::Lexer lexer(tempFile.string());
+            parser::Parser parser(lexer, std::move(importManager));
+            auto ast = parser.parseProgram();
+
+            // Set ImportManager on environment
+            environment->setImportManager(importMgrPtr);
+
+            // Resolve imports
+            importMgrPtr->resolveAllImports(ast.get());
+
+            // Apply optimizations
+            services::OptimizationService optimizationService;
+            ast = optimizationService.applyOptimizations(std::move(ast), environment);
+
+            // Compile to bytecode
+            vm::compiler::BytecodeCompiler compiler(environment, true);
+            auto program = compiler.compile(ast.get());
+
+            // Ensure output directory exists
+            std::filesystem::path outPath(outputPath);
+            if (outPath.has_parent_path() && !std::filesystem::exists(outPath.parent_path()))
+            {
+                std::filesystem::create_directories(outPath.parent_path());
+            }
+
+            // Serialize to library file
+            std::ofstream outFile(outputPath, std::ios::binary);
+            if (!outFile)
+            {
+                throw std::runtime_error("Could not create output file: " + outputPath);
+            }
+            program.serialize(outFile);
+            outFile.close();
+
+            // Clean up temp file
+            std::filesystem::remove(tempFile);
+
+            result.filesCompiled = sourceFiles.size();
+
+            std::cout << "Successfully built library: " << outputPath << "\n";
+            std::cout << "  Classes: " << program.getClasses().size() << "\n";
+            std::cout << "  Instructions: " << program.getInstructionCount() << "\n";
+        }
+        catch (const std::exception& e)
+        {
+            result.success = false;
+            result.errors.push_back(e.what());
+        }
+
+        auto endTime = std::chrono::steady_clock::now();
+        result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+        return result;
     }
 
     bool ProjectBuilder::compileFile(const std::string& sourcePath,

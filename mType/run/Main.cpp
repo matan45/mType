@@ -564,6 +564,7 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
         std::cout << "  " << argv[0] << " --build [project.mtproj]   - Build project (compile all files to bytecode)\n";
+        std::cout << "  " << argv[0] << " --build --lib [.mtproj]    - Build project into single .mtcLib file\n";
         std::cout << "  " << argv[0] << " --clean [project.mtproj]   - Remove compiled bytecode files\n";
         std::cout << "  " << argv[0] << " --init <name> <include>    - Create new .mtproj file (e.g. --init MyApp src/**/*.mt)\n";
         std::cout << "  " << argv[0] << " --add <pattern> [.mtproj]  - Add include pattern to project\n";
@@ -583,11 +584,16 @@ int main(int argc, char* argv[])
     if (argc >= 2 && std::string(argv[1]) == "--build")
     {
         std::string mtprojPath;
+        bool buildLib = false;
 
         for (int i = 2; i < argc; ++i)
         {
             std::string arg = argv[i];
-            if (arg[0] != '-')
+            if (arg == "--lib")
+            {
+                buildLib = true;
+            }
+            else if (arg[0] != '-')
             {
                 mtprojPath = arg;
             }
@@ -619,15 +625,29 @@ int main(int argc, char* argv[])
             }
             std::cout << "\n";
             std::cout << "Source files: " << config->resolvedSourceFiles.size() << "\n";
-            std::cout << "Output directory: " << config->output.directory << "\n\n";
+            std::cout << "Output directory: " << config->output.directory << "\n";
 
             project::ProjectBuilder builder;
 
             builder.setProgressCallback([](const project::BuildProgress& progress) {
-                std::cout << "[" << progress.current << "/" << progress.total << "] Compiling " << progress.currentFile << "\n";
+                std::cout << "[" << progress.current << "/" << progress.total << "] " << progress.currentFile << "\n";
             });
 
-            auto result = builder.build(*config);
+            project::BuildResult result;
+
+            if (buildLib)
+            {
+                // Build into single library file
+                std::filesystem::path outputDir = std::filesystem::path(config->projectRoot) / config->output.directory;
+                std::string libPath = (outputDir / (config->name + ".mtcLib")).string();
+                std::cout << "Building library: " << libPath << "\n\n";
+                result = builder.buildLibrary(*config, libPath);
+            }
+            else
+            {
+                std::cout << "\n";
+                result = builder.build(*config);
+            }
 
             std::cout << "\nBuild " << (result.success ? "succeeded" : "failed") << "\n";
             std::cout << "  Compiled: " << result.filesCompiled << " files\n";
