@@ -566,7 +566,8 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --build [project.mtproj]   - Build project (compile all files to bytecode)\n";
         std::cout << "  " << argv[0] << " --build --lib [.mtproj]    - Build project into single .mtcLib file\n";
         std::cout << "  " << argv[0] << " --clean [project.mtproj]   - Remove compiled bytecode files\n";
-        std::cout << "  " << argv[0] << " --init <name> <include>    - Create new .mtproj file (e.g. --init MyApp src/**/*.mt)\n";
+        std::cout << "  " << argv[0] <<
+            " --init <name> <include>    - Create new .mtproj file (e.g. --init MyApp src/**/*.mt)\n";
         std::cout << "  " << argv[0] << " --add <pattern> [.mtproj]  - Add include pattern to project\n";
         std::cout << "  " << argv[0] << " --remove <pattern> [.mtproj] - Remove include pattern from project\n";
         std::cout << "  " << argv[0] <<
@@ -629,7 +630,8 @@ int main(int argc, char* argv[])
 
             project::ProjectBuilder builder;
 
-            builder.setProgressCallback([](const project::BuildProgress& progress) {
+            builder.setProgressCallback([](const project::BuildProgress& progress)
+            {
                 std::cout << "[" << progress.current << "/" << progress.total << "] " << progress.currentFile << "\n";
             });
 
@@ -1060,7 +1062,7 @@ int main(int argc, char* argv[])
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
-        gc::GC::shutdown();  // Clean up GC before exit
+        gc::GC::shutdown(); // Clean up GC before exit
         reflection::ReflectionNatives::cleanup();
         return 1;
     }
