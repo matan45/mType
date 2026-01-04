@@ -250,13 +250,19 @@ namespace services
 
         auto classRegistry = environment->getClassRegistry();
 
-        // First pass: Create all ClassDefinitions
+        // First pass: Create all ClassDefinitions (skip already registered classes)
         std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> classMap;
         createClassDefinitionsFirstPass(classes, classMap);
 
         // Second pass: Link parent classes and populate members
         for (const auto& classMeta : classes)
         {
+            // Skip if class is already registered (e.g., from buildLibrary in same session)
+            if (classRegistry->findClass(classMeta.name))
+            {
+                continue;
+            }
+
             auto classDef = classMap[classMeta.name];
             populateClassFromMetadata(classMeta, classDef, classMap);
 
