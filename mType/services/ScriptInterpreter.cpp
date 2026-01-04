@@ -380,6 +380,16 @@ namespace services
         bytecodeService->compileToFile(sourceFile, outputFile);
     }
 
+    void ScriptInterpreter::compileToFile(const std::string& sourceFile, const std::string& outputFile,
+                                          const std::vector<std::string>& searchPaths,
+                                          const std::unordered_map<std::string, std::string>& aliases)
+    {
+        ImportConfig config;
+        config.searchPaths = searchPaths;
+        config.aliases = aliases;
+        bytecodeService->compileToFile(sourceFile, outputFile, config);
+    }
+
     void ScriptInterpreter::runCompiledBytecode(const std::string& bytecodeFile)
     {
         bytecodeService->runCompiledBytecode(bytecodeFile);

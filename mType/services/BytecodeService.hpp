@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <unordered_map>
 #include "../environment/Environment.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
 
@@ -14,6 +15,12 @@ namespace services
 {
     class OptimizationService;
     class ScriptAPI;
+
+    struct ImportConfig
+    {
+        std::vector<std::string> searchPaths;
+        std::unordered_map<std::string, std::string> aliases;
+    };
 
     /**
      * Service for bytecode compilation and execution
@@ -63,6 +70,10 @@ namespace services
 
         // Compile source file to bytecode file
         void compileToFile(const std::string& sourceFile, const std::string& outputFile);
+
+        // Compile source file with custom import configuration
+        void compileToFile(const std::string& sourceFile, const std::string& outputFile,
+                          const ImportConfig& importConfig);
 
         // Load and execute bytecode file
         void runCompiledBytecode(const std::string& bytecodeFile);

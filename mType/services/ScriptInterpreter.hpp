@@ -67,6 +67,9 @@ namespace services
 
         // Bytecode compilation and execution
         void compileToFile(const std::string& sourceFile, const std::string& outputFile);
+        void compileToFile(const std::string& sourceFile, const std::string& outputFile,
+                          const std::vector<std::string>& searchPaths,
+                          const std::unordered_map<std::string, std::string>& aliases);
         void runCompiledBytecode(const std::string& bytecodeFile);
         void loadCompiledBytecode(const std::string& bytecodeFile);  // Load without executing
 

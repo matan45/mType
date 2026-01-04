@@ -32,6 +32,12 @@ namespace services
         // Current file being processed (for resolving relative imports)
         std::string currentFilePath;
 
+        // Project-level search paths for imports
+        std::vector<std::string> searchPaths;
+
+        // Path aliases (e.g., @core -> lib/core)
+        std::unordered_map<std::string, std::string> pathAliases;
+
     public:
         explicit ImportManager();
 
@@ -43,6 +49,10 @@ namespace services
         // Get/Set current file path (for nested import resolution)
         std::string getCurrentFilePath() const;
         void setCurrentFilePath(const std::string& path);
+
+        // Configure project-level import settings
+        void setSearchPaths(const std::vector<std::string>& paths);
+        void setPathAliases(const std::unordered_map<std::string, std::string>& aliases);
 
         // Resolve relative and absolute paths
         std::string resolvePath(const std::string& path);
