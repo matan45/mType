@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="ast">
@@ -87,6 +87,9 @@
     </Filter>
     <Filter Include="parser\utilities">
       <UniqueIdentifier>{FD68964F-E961-B5A1-1294-9A26FEEB94AD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="project">
+      <UniqueIdentifier>{7CC43AC3-E8A3-B95E-F1BB-44355D1A20C0}</UniqueIdentifier>
     </Filter>
     <Filter Include="reflection">
       <UniqueIdentifier>{30732186-1C2B-63D3-8532-3C2F7109FEC3}</UniqueIdentifier>
@@ -360,6 +363,21 @@
     </Filter>
     <Filter Include="tests\testFiles\overloading\pass">
       <UniqueIdentifier>{49E6A5F3-3537-9135-5E9B-7FF74A4B249F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\projectManifest">
+      <UniqueIdentifier>{374612CB-A329-210B-AC2C-4F47188FE75B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\projectManifest\lib">
+      <UniqueIdentifier>{DD28C4FA-49E2-2EA5-D241-497F3EFAE414}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\projectManifest\src">
+      <UniqueIdentifier>{CE47C4FA-3A01-2FA5-C360-497F2F19E514}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\projectManifest\src\core">
+      <UniqueIdentifier>{06099AD7-F285-8D1A-1B03-8E2E07DF29AE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\projectManifest\src\utils">
+      <UniqueIdentifier>{CE7B23CC-3A96-866D-83B8-9601EF11AE74}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\reflection">
       <UniqueIdentifier>{F4E359D0-E0F3-05A1-49AD-6ABF35DCF439}</UniqueIdentifier>
@@ -1109,6 +1127,18 @@
     </ClInclude>
     <ClInclude Include="parser\utilities\VisibilityParser.hpp">
       <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="project\GlobMatcher.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\ProjectBuilder.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\ProjectConfig.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\ProjectConfigParser.hpp">
+      <Filter>project</Filter>
     </ClInclude>
     <ClInclude Include="reflection\ReflectionHandle.hpp">
       <Filter>reflection</Filter>
@@ -2095,6 +2125,15 @@
     </ClCompile>
     <ClCompile Include="parser\utilities\VisibilityParser.cpp">
       <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="project\GlobMatcher.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ProjectBuilder.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ProjectConfigParser.cpp">
+      <Filter>project</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionHandle.cpp">
       <Filter>reflection</Filter>
@@ -9610,6 +9649,21 @@
     <None Include="tests\testFiles\overloading\pass\staticMethodOverload.mt">
       <Filter>tests\testFiles\overloading\pass</Filter>
     </None>
+    <None Include="tests\testFiles\projectManifest\lib\LibUtil.mt">
+      <Filter>tests\testFiles\projectManifest\lib</Filter>
+    </None>
+    <None Include="tests\testFiles\projectManifest\src\Main.mt">
+      <Filter>tests\testFiles\projectManifest\src</Filter>
+    </None>
+    <None Include="tests\testFiles\projectManifest\src\core\Calculator.mt">
+      <Filter>tests\testFiles\projectManifest\src\core</Filter>
+    </None>
+    <None Include="tests\testFiles\projectManifest\src\utils\Helper.mt">
+      <Filter>tests\testFiles\projectManifest\src\utils</Filter>
+    </None>
+    <None Include="tests\testFiles\projectManifest\src\utils\TestHelper.mt">
+      <Filter>tests\testFiles\projectManifest\src\utils</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\error\classNotFound.mt">
       <Filter>tests\testFiles\reflection\error</Filter>
     </None>
@@ -10569,9 +10623,6 @@
     </None>
     <None Include="tests\testFiles\typeChecking\pass\typeVarianceCovariant_pass.mt">
       <Filter>tests\testFiles\typeChecking\pass</Filter>
-    </None>
-    <None Include="vm\compiler\visitors\ExpressionCompiler.cpp~">
-      <Filter>vm\compiler\visitors</Filter>
     </None>
   </ItemGroup>
 </Project>

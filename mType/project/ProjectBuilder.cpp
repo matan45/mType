@@ -187,10 +187,6 @@ namespace project
             std::filesystem::remove(tempFile);
 
             result.filesCompiled = sourceFiles.size();
-
-            std::cout << "Successfully built library: " << outputPath << "\n";
-            std::cout << "  Classes: " << program.getClasses().size() << "\n";
-            std::cout << "  Instructions: " << program.getInstructionCount() << "\n";
         }
         catch (const std::exception& e)
         {
