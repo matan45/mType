@@ -84,6 +84,15 @@ namespace project
 
     BuildResult ProjectBuilder::buildLibrary(const ProjectConfig& config, const std::string& outputPath)
     {
+        // Use default environment (no native functions)
+        environment::EnvironmentBuilder envBuilder;
+        auto environment = envBuilder.build();
+        return buildLibrary(config, outputPath, environment);
+    }
+
+    BuildResult ProjectBuilder::buildLibrary(const ProjectConfig& config, const std::string& outputPath,
+                                              std::shared_ptr<environment::Environment> environment)
+    {
         BuildResult result;
         auto startTime = std::chrono::steady_clock::now();
 
@@ -129,10 +138,6 @@ namespace project
                 std::filesystem::path absPath = std::filesystem::path(config.projectRoot) / searchPath;
                 absoluteSearchPaths.push_back(absPath.string());
             }
-
-            // Set up environment and compiler
-            environment::EnvironmentBuilder envBuilder;
-            auto environment = envBuilder.build();
 
             // Create import manager with project settings
             auto importManager = std::make_unique<services::ImportManager>();

@@ -5,6 +5,11 @@
 #include <vector>
 #include <memory>
 
+namespace environment
+{
+    class Environment;
+}
+
 namespace services
 {
     class ScriptInterpreter;
@@ -42,6 +47,10 @@ namespace project
         BuildResult build(const ProjectConfig& config);
 
         BuildResult buildLibrary(const ProjectConfig& config, const std::string& outputPath);
+
+        // Build library using a pre-configured environment (with native functions registered)
+        BuildResult buildLibrary(const ProjectConfig& config, const std::string& outputPath,
+                                 std::shared_ptr<environment::Environment> env);
 
         void clean(const ProjectConfig& config);
 
