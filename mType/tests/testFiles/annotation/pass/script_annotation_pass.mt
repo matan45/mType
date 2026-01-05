@@ -11,9 +11,9 @@ class GameEntity {
         y = posY;
     }
 
-	public function update(float dt): void{}
-	public function start(): void{}
-	public function clean(): void{}
+	public function onUpdate(float dt): void{}
+	public function onStart(): void{}
+	public function onDestroy(): void{}
 
     public function move(int dx, int dy):void {
         x = x + dx;
@@ -31,9 +31,9 @@ class Player extends GameEntity {
         name = playerName;
     }
 
-	public function update(float dt): void{}
-	public function start(): void{}
-	public function clean(): void{}
+	public function onUpdate(float dt): void{}
+	public function onStart(): void{}
+	public function onDestroy(): void{}
 
     public function attack(): void {
         print("Player attacking");

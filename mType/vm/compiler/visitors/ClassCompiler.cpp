@@ -372,7 +372,15 @@ namespace vm::compiler::visitors
         if (isStaticAccess)
         {
             // Static field access: ClassName::fieldName
-            size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
+            // Build qualified name from the object (class name) and member name
+            std::string qualifiedName;
+            if (auto* varNode = dynamic_cast<ast::VariableNode*>(node->getObject())) {
+                qualifiedName = varNode->getName() + "::" + memberName;
+            } else {
+                // Fallback - shouldn't happen for valid static access
+                qualifiedName = memberName;
+            }
+            size_t fieldNameIndex = ctx.program.getConstantPool().addString(qualifiedName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::GET_STATIC, static_cast<uint64_t>(fieldNameIndex), node);
         }
         else

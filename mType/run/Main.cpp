@@ -33,10 +33,14 @@
 #include "../debugger/DebugHookHelper.hpp"
 #include "../reflection/ReflectionNatives.hpp"
 #include "../debugger/DebugProtocol.hpp"
+#include "../project/ProjectConfigParser.hpp"
+#include "../project/ProjectBuilder.hpp"
 
 #include <vector>
 #include <memory>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <filesystem>
 #include <thread>
@@ -559,6 +563,13 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --gc-stats <script.mt>     - Run and print GC statistics after execution\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
+        std::cout << "  " << argv[0] << " --build [project.mtproj]   - Build project (compile all files to bytecode)\n";
+        std::cout << "  " << argv[0] << " --build --lib [.mtproj]    - Build project into single .mtcLib file\n";
+        std::cout << "  " << argv[0] << " --clean [project.mtproj]   - Remove compiled bytecode files\n";
+        std::cout << "  " << argv[0] <<
+            " --init <name> <include>    - Create new .mtproj file (e.g. --init MyApp src/**/*.mt)\n";
+        std::cout << "  " << argv[0] << " --add <pattern> [.mtproj]  - Add include pattern to project\n";
+        std::cout << "  " << argv[0] << " --remove <pattern> [.mtproj] - Remove include pattern from project\n";
         std::cout << "  " << argv[0] <<
             " --find-script-classes <script.mt> - Analyze script and show all @Script classes\n";
         std::cout << "  " << argv[0] <<
@@ -568,6 +579,324 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
         printAvailableTestSuites();
         return 0;
+    }
+
+    // Handle --build command (project compilation)
+    if (argc >= 2 && std::string(argv[1]) == "--build")
+    {
+        std::string mtprojPath;
+        bool buildLib = false;
+
+        for (int i = 2; i < argc; ++i)
+        {
+            std::string arg = argv[i];
+            if (arg == "--lib")
+            {
+                buildLib = true;
+            }
+            else if (arg[0] != '-')
+            {
+                mtprojPath = arg;
+            }
+        }
+
+        try
+        {
+            project::ProjectConfigParser parser;
+
+            if (mtprojPath.empty())
+            {
+                auto found = parser.findProject(".");
+                if (!found)
+                {
+                    std::cerr << "Error: No .mtproj file found in current directory or parents\n";
+                    return 1;
+                }
+                mtprojPath = *found;
+            }
+
+            std::cout << "Loading project: " << mtprojPath << "\n";
+
+            auto config = parser.parse(mtprojPath);
+
+            std::cout << "Project: " << config->name;
+            if (!config->version.empty())
+            {
+                std::cout << " v" << config->version;
+            }
+            std::cout << "\n";
+            std::cout << "Source files: " << config->resolvedSourceFiles.size() << "\n";
+            std::cout << "Output directory: " << config->output.directory << "\n";
+
+            project::ProjectBuilder builder;
+
+            builder.setProgressCallback([](const project::BuildProgress& progress)
+            {
+                std::cout << "[" << progress.current << "/" << progress.total << "] " << progress.currentFile << "\n";
+            });
+
+            project::BuildResult result;
+
+            if (buildLib)
+            {
+                // Build into single library file
+                std::filesystem::path outputDir = std::filesystem::path(config->projectRoot) / config->output.directory;
+                std::string libPath = (outputDir / (config->name + ".mtcLib")).string();
+                std::cout << "Building library: " << libPath << "\n\n";
+                result = builder.buildLibrary(*config, libPath);
+            }
+            else
+            {
+                std::cout << "\n";
+                result = builder.build(*config);
+            }
+
+            std::cout << "\nBuild " << (result.success ? "succeeded" : "failed") << "\n";
+            std::cout << "  Compiled: " << result.filesCompiled << " files\n";
+            if (result.filesFailed > 0)
+            {
+                std::cout << "  Failed:   " << result.filesFailed << " files\n";
+            }
+            std::cout << "  Duration: " << result.duration.count() << "ms\n";
+
+            if (!result.errors.empty())
+            {
+                std::cout << "\nErrors:\n";
+                for (const auto& error : result.errors)
+                {
+                    std::cout << "  " << error << "\n";
+                }
+            }
+
+            return result.success ? 0 : 1;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Build error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    // Handle --clean command
+    if (argc >= 2 && std::string(argv[1]) == "--clean")
+    {
+        std::string mtprojPath;
+
+        for (int i = 2; i < argc; ++i)
+        {
+            std::string arg = argv[i];
+            if (arg[0] != '-')
+            {
+                mtprojPath = arg;
+                break;
+            }
+        }
+
+        try
+        {
+            project::ProjectConfigParser parser;
+
+            if (mtprojPath.empty())
+            {
+                auto found = parser.findProject(".");
+                if (!found)
+                {
+                    std::cerr << "Error: No .mtproj file found in current directory or parents\n";
+                    return 1;
+                }
+                mtprojPath = *found;
+            }
+
+            auto config = parser.parse(mtprojPath);
+
+            project::ProjectBuilder builder;
+            builder.clean(*config);
+
+            std::cout << "Clean completed. Removed: " << config->output.directory << "\n";
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Clean error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    // Handle --init command (create new .mtproj file)
+    if (argc >= 4 && std::string(argv[1]) == "--init")
+    {
+        std::string projectName = argv[2];
+        std::string includePath = argv[3];
+
+        std::string filename = projectName + ".mtproj";
+
+        if (std::filesystem::exists(filename))
+        {
+            std::cerr << "Error: " << filename << " already exists\n";
+            return 1;
+        }
+
+        std::ofstream outFile(filename);
+        if (!outFile)
+        {
+            std::cerr << "Error: Could not create " << filename << "\n";
+            return 1;
+        }
+
+        outFile << "<Project Name=\"" << projectName << "\" Version=\"1.0.0\">\n";
+        outFile << "  <Source>\n";
+        outFile << "    <Include>" << includePath << "</Include>\n";
+        outFile << "  </Source>\n";
+        outFile << "  <Output Directory=\"build\" />\n";
+        outFile << "  <Imports>\n";
+        outFile << "  </Imports>\n";
+        outFile << "</Project>\n";
+
+        outFile.close();
+
+        std::cout << "Created " << filename << "\n";
+        return 0;
+    }
+
+    // Handle --add command (add include pattern to project)
+    if (argc >= 3 && std::string(argv[1]) == "--add")
+    {
+        std::string pattern = argv[2];
+        std::string mtprojPath;
+
+        if (argc >= 4)
+        {
+            mtprojPath = argv[3];
+        }
+        else
+        {
+            project::ProjectConfigParser parser;
+            auto found = parser.findProject(".");
+            if (!found)
+            {
+                std::cerr << "Error: No .mtproj file found\n";
+                return 1;
+            }
+            mtprojPath = *found;
+        }
+
+        try
+        {
+            std::ifstream inFile(mtprojPath);
+            if (!inFile)
+            {
+                std::cerr << "Error: Could not open " << mtprojPath << "\n";
+                return 1;
+            }
+
+            std::stringstream buffer;
+            buffer << inFile.rdbuf();
+            std::string content = buffer.str();
+            inFile.close();
+
+            // Find </Source> and insert before it
+            std::string searchTag = "</Source>";
+            size_t pos = content.find(searchTag);
+            if (pos == std::string::npos)
+            {
+                std::cerr << "Error: Invalid .mtproj format (missing </Source>)\n";
+                return 1;
+            }
+
+            std::string newInclude = "    <Include>" + pattern + "</Include>\n  ";
+            content.insert(pos, newInclude);
+
+            std::ofstream outFile(mtprojPath);
+            outFile << content;
+            outFile.close();
+
+            std::cout << "Added include pattern: " << pattern << "\n";
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+
+    // Handle --remove command (remove include pattern from project)
+    if (argc >= 3 && std::string(argv[1]) == "--remove")
+    {
+        std::string pattern = argv[2];
+        std::string mtprojPath;
+
+        if (argc >= 4)
+        {
+            mtprojPath = argv[3];
+        }
+        else
+        {
+            project::ProjectConfigParser parser;
+            auto found = parser.findProject(".");
+            if (!found)
+            {
+                std::cerr << "Error: No .mtproj file found\n";
+                return 1;
+            }
+            mtprojPath = *found;
+        }
+
+        try
+        {
+            std::ifstream inFile(mtprojPath);
+            if (!inFile)
+            {
+                std::cerr << "Error: Could not open " << mtprojPath << "\n";
+                return 1;
+            }
+
+            std::stringstream buffer;
+            buffer << inFile.rdbuf();
+            std::string content = buffer.str();
+            inFile.close();
+
+            // Find and remove the include line
+            std::string searchPattern = "<Include>" + pattern + "</Include>";
+            size_t pos = content.find(searchPattern);
+            if (pos == std::string::npos)
+            {
+                std::cerr << "Error: Pattern not found in project: " << pattern << "\n";
+                return 1;
+            }
+
+            // Find the start of the line (go back to newline or start)
+            size_t lineStart = pos;
+            while (lineStart > 0 && content[lineStart - 1] != '\n')
+            {
+                --lineStart;
+            }
+
+            // Find end of line
+            size_t lineEnd = pos + searchPattern.length();
+            while (lineEnd < content.length() && content[lineEnd] != '\n')
+            {
+                ++lineEnd;
+            }
+            if (lineEnd < content.length())
+            {
+                ++lineEnd; // Include the newline
+            }
+
+            content.erase(lineStart, lineEnd - lineStart);
+
+            std::ofstream outFile(mtprojPath);
+            outFile << content;
+            outFile.close();
+
+            std::cout << "Removed include pattern: " << pattern << "\n";
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: " << e.what() << std::endl;
+            return 1;
+        }
     }
 
     // Handle --compile command
@@ -733,7 +1062,7 @@ int main(int argc, char* argv[])
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
-        gc::GC::shutdown();  // Clean up GC before exit
+        gc::GC::shutdown(); // Clean up GC before exit
         reflection::ReflectionNatives::cleanup();
         return 1;
     }

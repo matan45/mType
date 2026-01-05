@@ -1,12 +1,9 @@
 // Test: Multiple annotations on class and methods
 // Expected: Pass - both @Script and @Override work together
 
-interface Updatable {
-    function update(float dt): void;
-}
 
 @Script
-class Component implements Updatable {
+class Component {
     string name;
 
 	constructor(){}
@@ -15,13 +12,13 @@ class Component implements Updatable {
         name = componentName;
     }
 
-    @Override
-    public function update(float dt): void {
+   
+    public function onUpdate(float deltaTime): void {
         print("Updating component");
     }
 
-    public function start(): void {}
-    public function clean(): void {}
+    public function onStart(): void {}
+    public function onDestroy(): void {}
 }
 
 @Script
@@ -33,12 +30,12 @@ class GameObject {
         print("GameObject initialized");
     }
 
-	public function update(float dt): void {
+	public function onUpdate(float deltaTime): void {
         print("Updating component");
     }
 
-    public function start(): void {}
-    public function clean(): void {}
+    public function onStart(): void {}
+    public function onDestroy(): void {}
 }
 
 @Script
@@ -52,15 +49,15 @@ class Entity extends GameObject implements Updatable {
     }
 
     @Override
-    public function update(float dt): void {
+    public function onUpdate(float deltaTime): void {
         print("Entity updated");
     }
 
-    public function start(): void {}
-    public function clean(): void {}
+    public function onStart(): void {}
+    public function onDestroy(): void {}
 }
 
 // Test execution
 Entity entity = new Entity();
 entity.init();
-entity.update(0.004);
+entity.onUpdate(0.004);

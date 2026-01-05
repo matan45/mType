@@ -126,7 +126,7 @@ void ImportResolver::parseImportedFile(
 
         if (cachedEnv->getFunctionRegistry()) {
             for (const auto& funcName : cachedEnv->getFunctionRegistry()->getAllItemNames()) {
-                auto funcDef = cachedEnv->getFunctionRegistry()->findItem(funcName);
+                auto funcDef = cachedEnv->getFunctionRegistry()->findFunction(funcName);
                 if (funcDef) {
                     try {
                         targetEnv->registerFunction(funcName, funcDef);
@@ -226,7 +226,7 @@ void ImportResolver::parseImportedFile(
 
         if (importEnv->getFunctionRegistry()) {
             for (const auto& funcName : importEnv->getFunctionRegistry()->getAllItemNames()) {
-                auto funcDef = importEnv->getFunctionRegistry()->findItem(funcName);
+                auto funcDef = importEnv->getFunctionRegistry()->findFunction(funcName);
                 if (funcDef) {
                     try {
                         targetEnv->registerFunction(funcName, funcDef);

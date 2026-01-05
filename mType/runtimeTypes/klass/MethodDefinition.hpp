@@ -269,5 +269,8 @@ namespace runtimeTypes::klass
             if (isAsync) flags |= 64;
             return flags;
         }
+
+        // Get type signature for bytecode function lookup (e.g., "float" for onUpdate(float deltaTime))
+        std::string getTypeSignature() const;
     };
 }

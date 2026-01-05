@@ -38,30 +38,119 @@ namespace services
         currentFilePath = path;
     }
 
+    void ImportManager::setSearchPaths(const std::vector<std::string>& paths)
+    {
+        searchPaths = paths;
+    }
+
+    void ImportManager::setPathAliases(const std::unordered_map<std::string, std::string>& aliases)
+    {
+        pathAliases = aliases;
+    }
+
     std::string ImportManager::resolvePath(const std::string& path)
     {
-        fs::path filePath(path);
+        std::string resolvedPath = path;
 
-        // If path is relative, resolve it relative to current file's directory
-        // (or base directory if no current file)
-        if (filePath.is_relative())
+        // Check for path alias (e.g., @core/utils.mt -> lib/core/utils.mt)
+        if (!resolvedPath.empty() && resolvedPath[0] == '@')
         {
-            if (!currentFilePath.empty())
+            size_t slashPos = resolvedPath.find('/');
+            if (slashPos == std::string::npos)
             {
-                // Resolve relative to the current file's directory
-                fs::path currentFileDir = fs::path(currentFilePath).parent_path();
-                filePath = currentFileDir / filePath;
+                slashPos = resolvedPath.find('\\');
             }
-            else
+
+            std::string aliasName = (slashPos != std::string::npos)
+                ? resolvedPath.substr(0, slashPos)
+                : resolvedPath;
+
+            auto it = pathAliases.find(aliasName);
+            if (it != pathAliases.end())
             {
-                // No current file - resolve relative to base directory
-                filePath = fs::path(baseDirectory) / filePath;
+                std::string remainder = (slashPos != std::string::npos)
+                    ? resolvedPath.substr(slashPos)
+                    : "";
+                resolvedPath = it->second + remainder;
             }
         }
 
-        // Normalize the path (resolve . and .. components)
-        filePath = normalizeFilePath(filePath, false);
+        fs::path filePath(resolvedPath);
 
+        // If path is absolute, just normalize and return
+        if (!filePath.is_relative())
+        {
+            filePath = normalizeFilePath(filePath, false);
+            return filePath.string();
+        }
+
+        // Try resolving relative to current file's directory first
+        if (!currentFilePath.empty())
+        {
+            fs::path currentFileDir = fs::path(currentFilePath).parent_path();
+            fs::path candidate = currentFileDir / filePath;
+
+            try
+            {
+                candidate = normalizeFilePath(candidate, true);
+                if (fs::exists(candidate))
+                {
+                    return candidate.string();
+                }
+            }
+            catch (const std::filesystem::filesystem_error&)
+            {
+            }
+        }
+
+        // Try resolving relative to base directory
+        {
+            fs::path candidate = fs::path(baseDirectory) / filePath;
+
+            try
+            {
+                candidate = normalizeFilePath(candidate, true);
+                if (fs::exists(candidate))
+                {
+                    return candidate.string();
+                }
+            }
+            catch (const std::filesystem::filesystem_error&)
+            {
+            }
+        }
+
+        // Try each search path
+        for (const auto& searchPath : searchPaths)
+        {
+            fs::path searchDir = fs::path(baseDirectory) / searchPath;
+            fs::path candidate = searchDir / filePath;
+
+            try
+            {
+                candidate = normalizeFilePath(candidate, true);
+                if (fs::exists(candidate))
+                {
+                    return candidate.string();
+                }
+            }
+            catch (const std::filesystem::filesystem_error&)
+            {
+            }
+        }
+
+        // Fall back to original resolution (may throw if file doesn't exist)
+        if (!currentFilePath.empty())
+        {
+            fs::path currentFileDir = fs::path(currentFilePath).parent_path();
+            filePath = currentFileDir / filePath;
+        }
+        else
+        {
+            filePath = fs::path(baseDirectory) / filePath;
+        }
+
+        filePath = normalizeFilePath(filePath, false);
         return filePath.string();
     }
 

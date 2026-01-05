@@ -178,17 +178,26 @@ namespace vm::runtime
         // Create object instance
         auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
 
-        // Find constructor
-        auto constructor = classDef->findConstructor(args.size());
+        // Find constructor using type-aware lookup
+        auto constructor = classDef->findConstructorByTypes(args);
         if (!constructor)
         {
+            // Check for default constructor case (no params, no explicit constructor)
+            bool hasAnyConstructor = !classDef->getConstructors().empty();
+            if (args.empty() && !hasAnyConstructor)
+            {
+                // Default constructor - just return the instance
+                return value::Value(instance);
+            }
             throw errors::RuntimeException("Constructor not found for class '" + className +
                 "' with " + std::to_string(args.size()) + " parameters");
         }
 
-        // Look for constructor bytecode
-        // Constructors are registered as "ClassName::<init>/paramCount"
-        std::string qualifiedName = className + "::<init>/" + std::to_string(args.size());
+        // Look for constructor bytecode using type signature (matches compiler naming)
+        std::string typeSignature = constructor->getTypeSignature();
+        std::string qualifiedName = typeSignature.empty()
+            ? className + "::<init>"
+            : className + "::<init>/" + typeSignature;
         auto* ctorMetadata = program->getFunction(qualifiedName);
         if (!ctorMetadata)
         {
@@ -274,8 +283,9 @@ namespace vm::runtime
                 " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
         }
 
-        // Find which class defines this method
+        // Find which class defines this method and get the type signature
         std::string definingClassName = classDef->getName();
+        std::string typeSignature;
         auto currentClass = classDef;
         while (currentClass)
         {
@@ -283,13 +293,16 @@ namespace vm::runtime
             if (localMethod)
             {
                 definingClassName = currentClass->getName();
+                typeSignature = localMethod->getTypeSignature();
                 break;
             }
             currentClass = currentClass->getParentClass();
         }
 
-        // Look for method bytecode
-        std::string qualifiedName = definingClassName + "::" + methodName;
+        // Look for method bytecode using type signature (matches compiler naming)
+        std::string qualifiedName = typeSignature.empty()
+            ? definingClassName + "::" + methodName
+            : definingClassName + "::" + methodName + "/" + typeSignature;
         auto* funcMetadata = program->getFunction(qualifiedName);
         if (!funcMetadata)
         {
@@ -373,8 +386,15 @@ namespace vm::runtime
                 " with " + std::to_string(argCount) + " arguments in class " + className);
         }
 
-        // Look for method bytecode
-        std::string qualifiedName = className + "::" + methodName;
+        // Look for method bytecode using type signature (matches compiler naming)
+        std::string typeSignature = method->getTypeSignature();
+        std::string qualifiedName = typeSignature.empty()
+            ? className + "::" + methodName
+            : className + "::" + methodName + "/" + typeSignature;
+        // For static methods, append $static suffix
+        if (method->isStatic()) {
+            qualifiedName += "$static";
+        }
         auto* funcMetadata = program->getFunction(qualifiedName);
         if (!funcMetadata)
         {

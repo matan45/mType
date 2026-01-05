@@ -103,6 +103,64 @@ namespace services
         std::cout << "  Classes: " << program.getClasses().size() << "\n";
     }
 
+    void BytecodeService::compileToFile(const std::string& sourceFile, const std::string& outputFile,
+                                        const ImportConfig& importConfig)
+    {
+        using namespace lexer;
+        using namespace parser;
+        using namespace vm::compiler;
+
+        // Parse the source file
+        Lexer lexer(sourceFile);
+        auto importManager = std::make_unique<ImportManager>();
+        std::filesystem::path scriptPath(sourceFile);
+        std::string baseDir = scriptPath.parent_path().string();
+        importManager->setBaseDirectory(baseDir);
+
+        // Configure search paths and aliases from project config
+        importManager->setSearchPaths(importConfig.searchPaths);
+        importManager->setPathAliases(importConfig.aliases);
+
+        // Set current file path to the main script file
+        std::string canonicalPath = std::filesystem::canonical(sourceFile).string();
+        importManager->setCurrentFilePath(canonicalPath);
+
+        // Keep a raw pointer before moving
+        ImportManager* importMgrPtr = importManager.get();
+
+        Parser parser(lexer, std::move(importManager));
+        auto ast = parser.parseProgram();
+
+        // Set ImportManager on environment
+        environment->setImportManager(importMgrPtr);
+
+        // Resolve all imports using ImportManager
+        importMgrPtr->resolveAllImports(ast.get());
+
+        // Apply AST optimizations
+        ast = optimizationService->applyOptimizations(std::move(ast), environment);
+
+        // Compile to bytecode
+        BytecodeCompiler bytecodeCompiler(environment, true);
+        auto program = bytecodeCompiler.compile(ast.get());
+
+        // Store source file path for class registration when loading
+        program.setSourceFilePath(sourceFile);
+
+        // Serialize to file
+        std::ofstream outFile(outputFile, std::ios::binary);
+        if (!outFile)
+        {
+            throw std::runtime_error("Could not open output file: " + outputFile);
+        }
+        program.serialize(outFile);
+        outFile.close();
+
+        std::cout << "Successfully compiled to " << outputFile << "\n";
+        std::cout << "  Instructions: " << program.getInstructionCount() << "\n";
+        std::cout << "  Classes: " << program.getClasses().size() << "\n";
+    }
+
     void BytecodeService::runCompiledBytecode(const std::string& bytecodeFile)
     {
         using namespace vm::bytecode;
@@ -192,13 +250,19 @@ namespace services
 
         auto classRegistry = environment->getClassRegistry();
 
-        // First pass: Create all ClassDefinitions
+        // First pass: Create all ClassDefinitions (skip already registered classes)
         std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> classMap;
         createClassDefinitionsFirstPass(classes, classMap);
 
         // Second pass: Link parent classes and populate members
         for (const auto& classMeta : classes)
         {
+            // Skip if class is already registered (e.g., from buildLibrary in same session)
+            if (classRegistry->findClass(classMeta.name))
+            {
+                continue;
+            }
+
             auto classDef = classMap[classMeta.name];
             populateClassFromMetadata(classMeta, classDef, classMap);
 

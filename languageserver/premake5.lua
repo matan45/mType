@@ -119,6 +119,12 @@ project "mtype-language-server"
         -- Type system
         "../mType/types/TypeConversionUtils.cpp",
         "../mType/types/TypeRegistry.cpp",
+        "../mType/types/UnifiedType.cpp",
+        "../mType/types/ReifiedTypeRegistry.cpp",
+        "../mType/types/TypeSubstitutionService.cpp",
+
+        -- VM components (minimal for LSP)
+        "../mType/vm/MethodSignature.cpp",
 
         -- Runtime types (for class/function definitions - minimal set for LSP)
         "../mType/runtimeTypes/Definition.cpp",
@@ -131,7 +137,7 @@ project "mtype-language-server"
         "../mType/runtimeTypes/klass/InterfaceDefinition.cpp",
         "../mType/runtimeTypes/klass/InterfaceRegistry.cpp",
         "../mType/runtimeTypes/klass/MethodDefinition.cpp",
-        "../mType/runtimeTypes/klass/ObjectInstance.cpp",
+        -- Note: ObjectInstance.cpp excluded - using stub in src/stubs/ObjectInstanceStub.cpp
 
         -- Circular dependency detection
         "../mType/circularDependency/CircularDependencyDetector.cpp",

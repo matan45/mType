@@ -473,10 +473,13 @@ std::vector<DocumentManager::SymbolInfo> DocumentManager::getDocumentSymbols(con
 std::string DocumentManager::inferVariableType(const std::string& content, const std::string& varName) const {
     // Pattern 1: ClassName<GenericType> varName = new ClassName<GenericType>(...)
     // Pattern 2: ClassName<GenericType> varName = ...
+    // Pattern 3: for (ClassName varName : ...) - for-each loop variable
+    // Pattern 4: for (ClassName<GenericType> varName : ...) - for-each loop with generic type
     // Note: <GenericType> is optional, handles both generic and non-generic types
     // Captures only the base class name without generic parameters
     std::regex declPattern1("([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*=\\s*new\\s+([A-Z][a-zA-Z0-9_]*)");
     std::regex declPattern2("([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*=");
+    std::regex forEachPattern("for\\s*\\(\\s*([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*:");
 
     std::istringstream stream(content);
     std::string line;
@@ -495,6 +498,12 @@ std::string DocumentManager::inferVariableType(const std::string& content, const
         if (std::regex_search(line, match, declPattern2)) {
             std::string declType = match[1].str();
             return declType;
+        }
+
+        // Try pattern 3: for-each loop variable
+        if (std::regex_search(line, match, forEachPattern)) {
+            std::string loopVarType = match[1].str();
+            return loopVarType;
         }
     }
 

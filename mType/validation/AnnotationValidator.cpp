@@ -335,11 +335,11 @@ namespace validation
             throw TypeException(oss.str(), location);
         }
 
-        // Check 3: Must have update(float): void method
+        // Check 3: Must have onUpdate(float): void method
         bool hasUpdateMethod = false;
         const auto& instanceMethods = classDefinition->getInstanceMethods();
 
-        auto it = instanceMethods.find("update");
+        auto it = instanceMethods.find("onUpdate");
         if (it != instanceMethods.end())
         {
             // Check all overloads for the required signature
@@ -363,17 +363,17 @@ namespace validation
         {
             std::ostringstream oss;
             oss << "Class '" << className <<
-                "' is marked with @Script but does not have the required update method.\n\n"
-                << "@Script classes must have an update method with signature:\n"
-                << "  function update(float dt): void\n\n"
+                "' is marked with @Script but does not have the required onUpdate method.\n\n"
+                << "@Script classes must have an onUpdate method with signature:\n"
+                << "  function onUpdate(float deltaTime): void\n\n"
                 << "Please add this method to your class.";
             throw TypeException(oss.str(), location);
         }
 
-        // Check 4: Must have start(): void method
+        // Check 4: Must have onStart(): void method
         bool hasStartMethod = false;
 
-        auto startIt = instanceMethods.find("start");
+        auto startIt = instanceMethods.find("onStart");
         if (startIt != instanceMethods.end())
         {
             for (const auto& method : startIt->second)
@@ -394,20 +394,20 @@ namespace validation
         {
             std::ostringstream oss;
             oss << "Class '" << className <<
-                "' is marked with @Script but does not have the required start method.\n\n"
-                << "@Script classes must have a start method with signature:\n"
-                << "  function start(): void\n\n"
+                "' is marked with @Script but does not have the required onStart method.\n\n"
+                << "@Script classes must have an onStart method with signature:\n"
+                << "  function onStart(): void\n\n"
                 << "Please add this method to your class.";
             throw TypeException(oss.str(), location);
         }
 
-        // Check 5: Must have clean(): void method
-        bool hasCleanMethod = false;
+        // Check 5: Must have onDestroy(): void method
+        bool hasDestroyMethod = false;
 
-        auto cleanIt = instanceMethods.find("clean");
-        if (cleanIt != instanceMethods.end())
+        auto destroyIt = instanceMethods.find("onDestroy");
+        if (destroyIt != instanceMethods.end())
         {
-            for (const auto& method : cleanIt->second)
+            for (const auto& method : destroyIt->second)
             {
                 const auto& params = method->getParameters();
 
@@ -415,19 +415,19 @@ namespace validation
                 if (params.size() == 1 &&
                     method->getReturnType() == value::ValueType::VOID)
                 {
-                    hasCleanMethod = true;
+                    hasDestroyMethod = true;
                     break;
                 }
             }
         }
 
-        if (!hasCleanMethod)
+        if (!hasDestroyMethod)
         {
             std::ostringstream oss;
             oss << "Class '" << className <<
-                "' is marked with @Script but does not have the required clean method.\n\n"
-                << "@Script classes must have a clean method with signature:\n"
-                << "  function clean(): void\n\n"
+                "' is marked with @Script but does not have the required onDestroy method.\n\n"
+                << "@Script classes must have an onDestroy method with signature:\n"
+                << "  function onDestroy(): void\n\n"
                 << "Please add this method to your class.";
             throw TypeException(oss.str(), location);
         }

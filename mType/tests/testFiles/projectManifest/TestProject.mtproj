@@ -1,0 +1,13 @@
+<Project Name="TestProject" Version="1.0.0">
+  <Source>
+    <Include>src/**/*.mt</Include>
+    <Include>lib/*.mt</Include>
+    <Exclude>src/**/Test*.mt</Exclude>
+  </Source>
+  <Output Directory="build" />
+  <Imports>
+    <SearchPath>lib</SearchPath>
+    <Alias Name="@core" Path="src/core" />
+    <Alias Name="@utils" Path="src/utils" />
+  </Imports>
+</Project>

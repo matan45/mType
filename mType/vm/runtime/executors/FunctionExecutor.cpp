@@ -5,8 +5,9 @@
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include "../../../value/NativeArray.hpp"
 #include <algorithm>
-#include  <iostream>
+#include <iostream>
 namespace vm::runtime
 {
     FunctionExecutor::FunctionExecutor(ExecutionContext& ctx)
@@ -179,14 +180,92 @@ namespace vm::runtime
 
         // Look up static method bytecode
         // Important: Static methods are registered with "$static" suffix to distinguish from instance methods
-        // Check if $static suffix is already present (from overload resolution)
+        // Functions may be registered with type signatures like "ClassName::methodName/paramTypes$static"
+
+        // Build base qualified name with $static suffix
         std::string staticQualifiedName = qualifiedName;
         if (staticQualifiedName.find("$static") == std::string::npos)
         {
             staticQualifiedName += "$static";
         }
 
-        auto funcMetadata = context.program->getFunction(staticQualifiedName);
+        // First, try lookup with type signature built from arguments
+        std::string typeSignature;
+        for (size_t i = 0; i < args.size(); ++i)
+        {
+            if (i > 0) typeSignature += ",";
+            const auto& arg = args[i];
+            if (std::holds_alternative<int64_t>(arg))
+            {
+                typeSignature += "int";
+            }
+            else if (std::holds_alternative<float>(arg))
+            {
+                typeSignature += "float";
+            }
+            else if (std::holds_alternative<bool>(arg))
+            {
+                typeSignature += "bool";
+            }
+            else if (std::holds_alternative<std::string>(arg))
+            {
+                typeSignature += "string";
+            }
+            else if (std::holds_alternative<value::InternedString>(arg))
+            {
+                typeSignature += "string";
+            }
+            else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+            {
+                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                typeSignature += obj->getTypeName();
+            }
+            else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arg))
+            {
+                auto arr = std::get<std::shared_ptr<value::NativeArray>>(arg);
+                // Build array type signature like "int[]", "float[]", "string[]"
+                switch (arr->getElementType())
+                {
+                    case value::ValueType::INT: typeSignature += "int[]"; break;
+                    case value::ValueType::FLOAT: typeSignature += "float[]"; break;
+                    case value::ValueType::BOOL: typeSignature += "bool[]"; break;
+                    case value::ValueType::STRING: typeSignature += "string[]"; break;
+                    case value::ValueType::OBJECT:
+                        typeSignature += arr->getElementTypeName() + "[]";
+                        break;
+                    default: typeSignature += "any[]"; break;
+                }
+            }
+            else if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(arg))
+            {
+                typeSignature += "function";
+            }
+            else if (std::holds_alternative<std::monostate>(arg) || std::holds_alternative<nullptr_t>(arg))
+            {
+                typeSignature += "null";
+            }
+            else
+            {
+                // FlatMultiArray, SparseMultiArray, FlatMultiObjectArray, PromiseValue
+                typeSignature += "any";
+            }
+        }
+
+        // Try lookup with type signature first: ClassName::methodName/paramTypes$static
+        std::string signedQualifiedName = className + "::" + simpleMethodName;
+        if (!typeSignature.empty())
+        {
+            signedQualifiedName += "/" + typeSignature;
+        }
+        signedQualifiedName += "$static";
+
+        auto funcMetadata = context.program->getFunction(signedQualifiedName);
+
+        // Fallback to lookup without type signature
+        if (!funcMetadata)
+        {
+            funcMetadata = context.program->getFunction(staticQualifiedName);
+        }
         if (funcMetadata)
         {
             // Convert lambda arguments to interface implementations if needed
