@@ -137,6 +137,7 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                 auto* fieldNode = dynamic_cast<ast::nodes::classes::FieldNode*>(field.get());
                 if (fieldNode) {
                     const auto& fieldName = fieldNode->getName();
+                    const auto& fieldLoc = fieldNode->getLocation();
 
                     // Create a FieldDefinition for LSP purposes
                     auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
@@ -154,6 +155,16 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                     } else {
                         classDef->addInstanceField(fieldName, fieldDef);
                     }
+
+                    // Store field location with class context
+                    // Key format: "ClassName.fieldName"
+                    std::string fieldKey = className + "." + fieldName;
+                    symbolLocations_[fieldKey] = SymbolLocationInfo{
+                        currentUri_,
+                        fieldLoc.getLine() - 1,  // Convert to 0-based
+                        fieldLoc.getColumn() - 1,
+                        className  // Track which class this field belongs to
+                    };
                 }
             }
 

@@ -273,6 +273,49 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
         return std::nullopt;
     }
 
+    // Check if this is a static member access (e.g., "ClassName::methodName(...)")
+    // Look backwards from the character position to see if there's ::
+    if (character > 1 && currentLineNum == line) {
+        int colonPos = -1;
+
+        // Look backwards through the current identifier and any whitespace to find ::
+        for (int i = character - 1; i >= 1; i--) {
+            if (currentLine[i] == ':' && currentLine[i - 1] == ':') {
+                colonPos = i - 1; // Position of the first colon
+                break;
+            } else if (!std::isalnum(currentLine[i]) && currentLine[i] != '_' && !std::isspace(currentLine[i])) {
+                // Found a character that's not part of an identifier, whitespace, or colon
+                break;
+            }
+        }
+
+        if (colonPos != -1) {
+            // This is a static member access: extract the class name before ::
+            int classStart = colonPos - 1;
+            while (classStart >= 0 && (std::isalnum(currentLine[classStart]) || currentLine[classStart] == '_')) {
+                classStart--;
+            }
+            classStart++;
+
+            std::string className = currentLine.substr(classStart, colonPos - classStart);
+
+            if (!className.empty()) {
+                // Look for ClassName.memberName in symbol locations (static members use same format)
+                std::string memberKey = className + "." + symbolName;
+
+                auto it = doc->symbolLocations.find(memberKey);
+                if (it != doc->symbolLocations.end()) {
+                    const auto& symbolLoc = it->second;
+                    SymbolLocation result;
+                    result.uri = symbolLoc.uri;
+                    result.line = symbolLoc.line;
+                    result.column = symbolLoc.column;
+                    return result;
+                }
+            }
+        }
+    }
+
     // Check if this is a method call (e.g., "variable.methodName(...)")
     // Look backwards from the character position to see if there's a dot
     if (character > 0 && currentLineNum == line) {
