@@ -273,6 +273,24 @@ namespace services
         return scriptAPI->getObjectClassName(object);
     }
 
+    bool ScriptInterpreter::classImplementsInterface(const std::string& className, const std::string& interfaceName)
+    {
+        if (!environment)
+        {
+            return false;
+        }
+
+        auto classDef = environment->findClass(className);
+        if (!classDef)
+        {
+            return false;
+        }
+
+        // Use the full interface checking with transitive support
+        auto interfaceRegistry = environment->getInterfaceRegistry();
+        return classDef->implementsInterface(interfaceName, interfaceRegistry);
+    }
+
     // Execution mode control
     void ScriptInterpreter::setExecutionMode(constants::ExecutionMode mode)
     {

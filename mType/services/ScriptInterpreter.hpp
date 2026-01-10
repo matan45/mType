@@ -124,6 +124,9 @@ namespace services
         bool isObjectOfClass(const value::Value& object, const std::string& className);
         std::string getObjectClassName(const value::Value& object);
 
+        // Interface checking - returns true if the class implements the specified interface
+        bool classImplementsInterface(const std::string& className, const std::string& interfaceName);
+
 
         // Access to environment and VM for advanced operations
         std::shared_ptr<environment::Environment> getEnvironment() const;
