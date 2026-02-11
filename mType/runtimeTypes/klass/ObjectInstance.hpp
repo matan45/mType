@@ -27,6 +27,10 @@ namespace runtimeTypes::klass
         // GC: Flag to track if this instance is registered with GC
         bool gcRegistered = false;
 
+        // Phase 6 (IC): Vector-based field storage for O(1) indexed access
+        std::vector<Value> fieldVector;
+        bool fieldVectorInitialized = false;
+
     public :
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef)
             : classDefinition(classDef)
@@ -75,6 +79,12 @@ namespace runtimeTypes::klass
         
         // Content-based equality comparison for collections
         bool contentEquals(const ObjectInstance& other) const;
+
+        // Phase 6 (IC): Indexed field access for inline caching
+        void ensureFieldVector();
+        const Value& getFieldByIndex(size_t index) const;
+        void setFieldByIndex(size_t index, const Value& value);
+        bool hasFieldVector() const { return fieldVectorInitialized; }
 
         // Generic type binding management
         void setGenericTypeBinding(const std::string& parameter, const std::string& concreteType);

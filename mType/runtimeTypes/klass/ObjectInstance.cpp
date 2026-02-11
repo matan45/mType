@@ -84,6 +84,16 @@ namespace runtimeTypes::klass
                     gc::GC::onRefCountDecrement(this);
                 }
                 fieldValues[fieldName] = value;
+
+                // Phase 6 (IC): Keep fieldVector in sync
+                if (fieldVectorInitialized)
+                {
+                    size_t idx = classDefinition->getFieldIndex(fieldName);
+                    if (idx != SIZE_MAX && idx < fieldVector.size())
+                    {
+                        fieldVector[idx] = value;
+                    }
+                }
             }
         } else {
             // Allow setting dynamic fields that aren't part of the class definition
@@ -105,6 +115,65 @@ namespace runtimeTypes::klass
                 gc::GC::onRefCountDecrement(this);
             }
             fieldValues[fieldName] = value;
+        }
+    }
+
+    void ObjectInstance::ensureFieldVector()
+    {
+        if (fieldVectorInitialized) return;
+        if (!classDefinition) return;
+
+        const auto& indexMap = classDefinition->getFieldIndexMap();
+        size_t count = classDefinition->getIndexedFieldCount();
+        fieldVector.resize(count, std::monostate{});
+
+        // Populate from existing fieldValues
+        for (const auto& [name, value] : fieldValues)
+        {
+            auto it = indexMap.find(name);
+            if (it != indexMap.end() && it->second < count)
+            {
+                fieldVector[it->second] = value;
+            }
+        }
+
+        fieldVectorInitialized = true;
+    }
+
+    const Value& ObjectInstance::getFieldByIndex(size_t index) const
+    {
+        return fieldVector[index];
+    }
+
+    void ObjectInstance::setFieldByIndex(size_t index, const Value& value)
+    {
+        // GC: Write barrier
+        void* newPtr = gc::extractPointer(value);
+        if (index < fieldVector.size())
+        {
+            void* oldPtr = gc::extractPointer(fieldVector[index]);
+            if (oldPtr != nullptr && oldPtr != newPtr)
+            {
+                gc::GC::onRefCountDecrement(oldPtr);
+            }
+        }
+        if (newPtr != nullptr && gcRegistered)
+        {
+            gc::GC::onRefCountDecrement(this);
+        }
+
+        fieldVector[index] = value;
+
+        // Keep fieldValues map in sync
+        if (!classDefinition) return;
+        const auto& indexMap = classDefinition->getFieldIndexMap();
+        for (const auto& [name, idx] : indexMap)
+        {
+            if (idx == index)
+            {
+                fieldValues[name] = value;
+                break;
+            }
         }
     }
 

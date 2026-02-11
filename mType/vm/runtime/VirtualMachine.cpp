@@ -36,6 +36,9 @@
 #include "../jit/JitCompiler.hpp"
 #include "../jit/JitContext.hpp"
 #include "../jit/OSRManager.hpp"
+#include "../jit/ic/InlineCacheTable.hpp"
+#include "../jit/ic/TypeFeedbackCollector.hpp"
+#include "executors/InlineCacheExecutor.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
@@ -61,6 +64,7 @@ namespace vm::runtime
           , currentFinallyOffset(SIZE_MAX) // Not in finally initially
           , pendingFinallyOffset(SIZE_MAX) // No pending exception initially
           , jitEnabled(false)
+          , icEnabled(false)
     {
         callStack.reserve(constants::vm::DEFAULT_CALL_STACK_CAPACITY);
 
@@ -85,6 +89,18 @@ namespace vm::runtime
             jitCodeCache = std::make_unique<jit::JitCodeCache>();
             jitCompiler = std::make_unique<jit::JitCompiler>();
             osrManager = std::make_unique<jit::OSRManager>();
+        }
+        // JIT implies IC
+        if (enabled) setICEnabled(true);
+    }
+
+    void VirtualMachine::setICEnabled(bool enabled)
+    {
+        icEnabled = enabled;
+        if (enabled && !inlineCacheTable)
+        {
+            inlineCacheTable = std::make_unique<jit::ic::InlineCacheTable>();
+            typeFeedbackCollector = std::make_unique<jit::ic::TypeFeedbackCollector>(*inlineCacheTable);
         }
     }
 
@@ -686,6 +702,14 @@ namespace vm::runtime
         // Set function executor reference in object executor for lambda-to-interface conversion
         objectExecutor->setFunctionExecutor(functionExecutor.get());
 
+        // Phase 6: Initialize inline cache executor
+        if (icEnabled && inlineCacheTable)
+        {
+            inlineCacheExecutor = std::make_unique<InlineCacheExecutor>(context, *inlineCacheTable);
+            inlineCacheExecutor->setObjectExecutor(objectExecutor.get());
+            inlineCacheExecutor->setFunctionExecutor(functionExecutor.get());
+        }
+
         // Initialize exception handler
         exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
 
@@ -901,13 +925,62 @@ namespace vm::runtime
             break;
 
         // Arithmetic - delegated to ArithmeticExecutor
-        case OpCode::ADD: arithmeticExecutor->handleAdd();
+        // Phase 6: Type feedback collection + opcode rewriting
+        case OpCode::ADD:
+            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
+                typeFeedbackCollector->recordBinaryOp(instructionPointer,
+                    stackManager->peek(1), stackManager->peek(0));
+                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
+                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
+                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::ADD_INT;
+                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+                    }
+                }
+            }
+            arithmeticExecutor->handleAdd();
             break;
-        case OpCode::SUB: arithmeticExecutor->handleSub();
+        case OpCode::SUB:
+            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
+                typeFeedbackCollector->recordBinaryOp(instructionPointer,
+                    stackManager->peek(1), stackManager->peek(0));
+                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
+                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
+                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::SUB_INT;
+                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+                    }
+                }
+            }
+            arithmeticExecutor->handleSub();
             break;
-        case OpCode::MUL: arithmeticExecutor->handleMul();
+        case OpCode::MUL:
+            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
+                typeFeedbackCollector->recordBinaryOp(instructionPointer,
+                    stackManager->peek(1), stackManager->peek(0));
+                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
+                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
+                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::MUL_INT;
+                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+                    }
+                }
+            }
+            arithmeticExecutor->handleMul();
             break;
-        case OpCode::DIV: arithmeticExecutor->handleDiv();
+        case OpCode::DIV:
+            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
+                typeFeedbackCollector->recordBinaryOp(instructionPointer,
+                    stackManager->peek(1), stackManager->peek(0));
+                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
+                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
+                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::DIV_INT;
+                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+                    }
+                }
+            }
+            arithmeticExecutor->handleDiv();
             break;
         case OpCode::MOD: arithmeticExecutor->handleMod();
             break;
@@ -1046,15 +1119,27 @@ namespace vm::runtime
         // Objects - delegated to ObjectExecutor
         case OpCode::NEW_OBJECT: objectExecutor->handleNewObject(instr);
             break;
-        case OpCode::GET_FIELD: objectExecutor->handleGetField(instr);
+        case OpCode::GET_FIELD:
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleGetFieldIC(instr);
+            else
+                objectExecutor->handleGetField(instr);
             break;
-        case OpCode::SET_FIELD: objectExecutor->handleSetField(instr);
+        case OpCode::SET_FIELD:
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleSetFieldIC(instr);
+            else
+                objectExecutor->handleSetField(instr);
             break;
         case OpCode::GET_STATIC: objectExecutor->handleGetStatic(instr);
             break;
         case OpCode::SET_STATIC: objectExecutor->handleSetStatic(instr);
             break;
-        case OpCode::CALL_METHOD: objectExecutor->handleCallMethod(instr);
+        case OpCode::CALL_METHOD:
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleCallMethodIC(instr);
+            else
+                objectExecutor->handleCallMethod(instr);
             break;
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;
