@@ -86,6 +86,94 @@ namespace vm::runtime
         }
     }
 
+    value::Value VirtualMachine::callFunctionFromJit(const std::string& funcName,
+                                                      const std::vector<value::Value>& args)
+    {
+        auto funcMeta = program->getFunction(funcName);
+        if (!funcMeta)
+        {
+            throw std::runtime_error("JIT interpreter fallback: function not found: " + funcName);
+        }
+
+        // Save current interpreter state
+        size_t savedIP = instructionPointer;
+        size_t savedCallStackDepth = callStack.size();
+        size_t savedStackSize = stackManager->size();
+
+        // Push arguments as locals
+        for (const auto& arg : args)
+        {
+            stackManager->push(arg);
+        }
+
+        // Initialize remaining locals to null
+        for (size_t i = args.size(); i < funcMeta->localCount; ++i)
+        {
+            stackManager->push(std::monostate{});
+        }
+
+        // Create call frame
+        CallFrame frame;
+        frame.returnAddress = savedIP;
+        frame.frameBase = savedStackSize;
+        frame.localBase = savedStackSize;
+        frame.functionName = funcName;
+        frame.thisInstance = nullptr;
+        callStack.push_back(frame);
+
+        // Jump to function start
+        instructionPointer = funcMeta->startOffset;
+
+        // Run interpreter until this call frame is popped
+        while (callStack.size() > savedCallStackDepth)
+        {
+            if (instructionPointer >= program->getInstructionCount())
+            {
+                break;
+            }
+
+            const auto& instr = program->getInstruction(instructionPointer);
+            instructionPointer++;
+
+            try
+            {
+                executeInstruction(instr);
+            }
+            catch (...)
+            {
+                // Restore state on exception
+                while (callStack.size() > savedCallStackDepth)
+                {
+                    callStack.pop_back();
+                }
+                instructionPointer = savedIP;
+                while (stackManager->size() > savedStackSize)
+                {
+                    stackManager->pop();
+                }
+                throw;
+            }
+        }
+
+        // Get return value (if any)
+        value::Value result = std::monostate{};
+        if (stackManager->size() > savedStackSize)
+        {
+            result = stackManager->pop();
+        }
+
+        // Clean up stack to original size
+        while (stackManager->size() > savedStackSize)
+        {
+            stackManager->pop();
+        }
+
+        // Restore instruction pointer
+        instructionPointer = savedIP;
+
+        return result;
+    }
+
     ::runtime::EventLoop* VirtualMachine::ensureEventLoop()
     {
         if (!eventLoop)
@@ -928,6 +1016,8 @@ namespace vm::runtime
                     jitCtx.program = program;
                     jitCtx.stackManager = stackManager.get();
                     jitCtx.environment = environment.get();
+                    jitCtx.vm = this;
+                    jitCtx.jitCodeCache = jitCodeCache.get();
 
                     // Execute JIT-compiled function
                     jitCode(&jitCtx);

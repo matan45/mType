@@ -6,6 +6,7 @@
 // Forward declarations
 namespace vm::runtime {
     class StackManager;
+    class VirtualMachine;
     struct CallFrame;
 }
 
@@ -19,6 +20,8 @@ namespace environment {
 
 namespace vm::jit
 {
+    class JitCodeCache;
+
     /**
      * Lightweight context passed to JIT-compiled functions.
      * Uses raw pointers to avoid shared_ptr overhead in the hot path.
@@ -42,5 +45,15 @@ namespace vm::jit
 
         // Environment for global variable access and native function calls
         environment::Environment* environment;
+
+        // Phase 3: VM pointer for interpreter fallback calls from JIT
+        vm::runtime::VirtualMachine* vm;
+
+        // Phase 3: JIT code cache for JIT→JIT dispatch
+        vm::jit::JitCodeCache* jitCodeCache;
+
+        // Phase 3: Pre-allocated scratch space for boxing arguments before CALL
+        static constexpr size_t MAX_CALL_ARGS = 16;
+        value::Value callArgs[MAX_CALL_ARGS];
     };
 }

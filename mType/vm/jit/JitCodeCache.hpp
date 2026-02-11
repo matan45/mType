@@ -4,7 +4,7 @@
 #include <memory>
 #include "../../value/ValueType.hpp"
 #include "JitContext.hpp"
-#include <asmjit/asmjit.h>
+#include <asmjit/x86.h>
 
 namespace vm::jit
 {

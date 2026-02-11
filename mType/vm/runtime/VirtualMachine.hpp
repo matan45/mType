@@ -182,6 +182,9 @@ namespace vm::runtime
         vm::jit::JitCodeCache* getJitCodeCache() const { return jitCodeCache.get(); }
         vm::jit::JitProfiler* getJitProfiler() const { return jitProfiler.get(); }
 
+        // JIT helper: execute a function call from JIT code via interpreter
+        value::Value callFunctionFromJit(const std::string& funcName, const std::vector<value::Value>& args);
+
         // Reset VM state
         void reset();
 
