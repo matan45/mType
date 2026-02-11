@@ -966,15 +966,17 @@ namespace vm::jit
                     stackDepth -= static_cast<int>(argCount);
 
                     // Call jit_call_function(ctx, nameIndex, argCount)
+                    // Arguments must be defined BEFORE the invoke node
+                    Gp niReg = cc.new_gp64();
+                    cc.mov(niReg, static_cast<int64_t>(nameIndex));
+                    Gp acReg = cc.new_gp64();
+                    cc.mov(acReg, static_cast<int64_t>(argCount));
+
                     InvokeNode* callInv;
                     cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_function),
                               FuncSignature::build<void, JitContext*, uint32_t, size_t>());
                     callInv->set_arg(0, ctxPtr);
-                    Gp niReg = cc.new_gp64();
-                    cc.mov(niReg, static_cast<int64_t>(nameIndex));
                     callInv->set_arg(1, niReg);
-                    Gp acReg = cc.new_gp64();
-                    cc.mov(acReg, static_cast<int64_t>(argCount));
                     callInv->set_arg(2, acReg);
 
                     // Unbox return value
