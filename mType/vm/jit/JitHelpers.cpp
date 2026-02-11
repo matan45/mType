@@ -1,12 +1,20 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/NullPointerException.hpp"
 #include "../../gc/GC.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../environment/registry/NativeRegistry.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../runtime/VirtualMachine.hpp"
+#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../value/NativeArray.hpp"
+#include "../../value/StringPool.hpp"
+#include "../../types/TypeConversionUtils.hpp"
 #include <vector>
+#include <new>
+#include <memory>
 
 namespace vm::jit
 {
@@ -85,6 +93,30 @@ namespace vm::jit
         void jit_box_null(value::Value* dest)
         {
             *dest = std::monostate{};
+        }
+
+        // --- Phase 4: Boxed value lifecycle ---
+
+        void jit_locals_init(value::Value* base, size_t count)
+        {
+            for (size_t i = 0; i < count; i++)
+            {
+                new (&base[i]) value::Value(std::monostate{});
+            }
+        }
+
+        void jit_locals_cleanup(value::Value* base, size_t count)
+        {
+            for (size_t i = 0; i < count; i++)
+            {
+                std::destroy_at(&base[i]);
+            }
+        }
+
+        void jit_value_destroy(value::Value* dest)
+        {
+            std::destroy_at(dest);
+            new (dest) value::Value(std::monostate{});
         }
 
     } // extern "C"
@@ -230,5 +262,238 @@ namespace vm::jit
     void jit_throw_div_by_zero()
     {
         throw errors::RuntimeException("Division by zero");
+    }
+
+    // --- Phase 4: Boxed value helpers ---
+
+    void jit_value_copy(value::Value* dest, const value::Value* src)
+    {
+        *dest = *src;
+    }
+
+    void jit_set_return_boxed(JitContext* ctx, const value::Value* val)
+    {
+        ctx->returnValue = *val;
+        ctx->hasReturnValue = true;
+    }
+
+    void jit_value_swap(value::Value* a, value::Value* b)
+    {
+        value::Value temp = std::move(*a);
+        *a = std::move(*b);
+        *b = std::move(temp);
+    }
+
+    // --- Phase 4A: String support ---
+
+    void jit_push_string(value::Value* dest,
+                          const vm::bytecode::BytecodeProgram* prog,
+                          uint32_t constIndex)
+    {
+        const std::string& str = prog->getConstantPool().getString(constIndex);
+        auto& pool = value::StringPool::getInstance();
+        *dest = pool.intern(str);
+    }
+
+    // --- Phase 4B: Object field access ---
+
+    void jit_get_field(value::Value* dest, const value::Value* object,
+                        const vm::bytecode::BytecodeProgram* prog,
+                        uint32_t fieldNameIndex)
+    {
+        if (std::holds_alternative<std::nullptr_t>(*object) ||
+            std::holds_alternative<std::monostate>(*object))
+        {
+            throw errors::NullPointerException("Cannot access field on null");
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
+        const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
+        value::Value fieldValue = instance->getFieldValue(fieldName);
+        *dest = fieldValue;
+    }
+
+    void jit_set_field(value::Value* destValue, const value::Value* object,
+                        const value::Value* newValue,
+                        const vm::bytecode::BytecodeProgram* prog,
+                        uint32_t fieldNameIndex)
+    {
+        if (std::holds_alternative<std::nullptr_t>(*object) ||
+            std::holds_alternative<std::monostate>(*object))
+        {
+            throw errors::NullPointerException("Cannot set field on null");
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
+        const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
+        instance->setField(fieldName, *newValue);
+        *destValue = *newValue;
+    }
+
+    // --- Phase 4C: Array operations ---
+
+    void jit_new_array(value::Value* dest, JitContext* ctx,
+                        uint32_t typeIndex, int64_t size)
+    {
+        const std::string& elementTypeName = ctx->program->getConstantPool().getString(typeIndex);
+        value::ValueType elemType = types::TypeConversionUtils::stringToValueType(elementTypeName);
+        auto array = std::make_shared<value::NativeArray>(
+            static_cast<size_t>(size), elemType, elementTypeName);
+        *dest = array;
+    }
+
+    void jit_array_get(value::Value* dest, const value::Value* array,
+                        int64_t index)
+    {
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        {
+            auto arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+            *dest = arr->getUnchecked(index);
+            return;
+        }
+        throw errors::RuntimeException("ARRAY_GET on non-array value");
+    }
+
+    void jit_array_set(const value::Value* array, int64_t index,
+                        const value::Value* newValue)
+    {
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        {
+            auto arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+            arr->setUnchecked(index, *newValue);
+            return;
+        }
+        throw errors::RuntimeException("ARRAY_SET on non-array value");
+    }
+
+    int64_t jit_array_length(const value::Value* array)
+    {
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        {
+            auto arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+            return static_cast<int64_t>(arr->size());
+        }
+        throw errors::RuntimeException("ARRAY_LENGTH on non-array value");
+    }
+
+    // --- Phase 4D: Method calls ---
+
+    void jit_call_static(JitContext* ctx, uint32_t nameIndex, size_t argCount)
+    {
+        // Static methods use qualified names in the constant pool,
+        // same dispatch as regular function calls.
+        jit_call_function(ctx, nameIndex, argCount);
+    }
+
+    void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount)
+    {
+        const std::string& methodName = ctx->program->getConstantPool().getString(methodNameIndex);
+
+        // Object is in callArgs[0], args in callArgs[1..argCount]
+        value::Value& objectValue = ctx->callArgs[0];
+
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
+        {
+            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+
+            // Collect method arguments (skip callArgs[0] which is the object)
+            std::vector<value::Value> args;
+            for (size_t i = 1; i <= argCount; i++)
+            {
+                args.push_back(ctx->callArgs[i]);
+            }
+
+            // Delegate to VM's invokeMethod which handles method resolution
+            if (ctx->vm)
+            {
+                ctx->returnValue = ctx->vm->invokeMethod(instance, methodName, args);
+                ctx->hasReturnValue = true;
+                return;
+            }
+        }
+
+        throw errors::RuntimeException("JIT: cannot call method '" + methodName + "'");
+    }
+
+    // --- Phase 4E: Type operations ---
+
+    int64_t jit_instanceof(const value::Value* val,
+                            const vm::bytecode::BytecodeProgram* prog,
+                            uint32_t typeIndex)
+    {
+        const std::string& typeName = prog->getConstantPool().getString(typeIndex);
+
+        if (typeName == "Int" || typeName == "int")
+            return std::holds_alternative<int64_t>(*val) ? 1 : 0;
+        if (typeName == "Float" || typeName == "float")
+            return std::holds_alternative<float>(*val) ? 1 : 0;
+        if (typeName == "Bool" || typeName == "bool")
+            return std::holds_alternative<bool>(*val) ? 1 : 0;
+        if (typeName == "String" || typeName == "string")
+            return (std::holds_alternative<std::string>(*val) ||
+                    std::holds_alternative<value::InternedString>(*val)) ? 1 : 0;
+
+        // Object instance check with hierarchy
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*val))
+        {
+            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*val);
+            auto classDef = instance->getClassDefinition();
+            while (classDef)
+            {
+                if (classDef->getName() == typeName) return 1;
+                classDef = classDef->getParentClass();
+            }
+        }
+
+        return 0;
+    }
+
+    void jit_cast(value::Value* dest, const value::Value* src,
+                   const vm::bytecode::BytecodeProgram* prog,
+                   uint32_t typeIndex)
+    {
+        const std::string& targetType = prog->getConstantPool().getString(typeIndex);
+
+        if (targetType == "Int" || targetType == "int")
+        {
+            if (std::holds_alternative<int64_t>(*src))
+                { *dest = *src; return; }
+            if (std::holds_alternative<float>(*src))
+                { *dest = static_cast<int64_t>(std::get<float>(*src)); return; }
+            if (std::holds_alternative<bool>(*src))
+                { *dest = std::get<bool>(*src) ? static_cast<int64_t>(1) : static_cast<int64_t>(0); return; }
+        }
+        else if (targetType == "Float" || targetType == "float")
+        {
+            if (std::holds_alternative<float>(*src))
+                { *dest = *src; return; }
+            if (std::holds_alternative<int64_t>(*src))
+                { *dest = static_cast<float>(std::get<int64_t>(*src)); return; }
+        }
+        else if (targetType == "Bool" || targetType == "bool")
+        {
+            if (std::holds_alternative<bool>(*src))
+                { *dest = *src; return; }
+            if (std::holds_alternative<int64_t>(*src))
+                { *dest = (std::get<int64_t>(*src) != 0); return; }
+        }
+
+        // Object cast or pass-through (type system should have validated at compile time)
+        *dest = *src;
+    }
+
+    void jit_new_object(value::Value* dest, JitContext* ctx,
+                         uint32_t classIndex, size_t argCount)
+    {
+        const std::string& className = ctx->program->getConstantPool().getString(classIndex);
+        std::vector<value::Value> args(ctx->callArgs, ctx->callArgs + argCount);
+
+        if (ctx->vm)
+        {
+            *dest = ctx->vm->createObject(className, args);
+            return;
+        }
+
+        throw errors::RuntimeException("JIT: cannot create object '" + className + "'");
     }
 }

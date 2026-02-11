@@ -18,14 +18,25 @@ namespace vm::jit
     {
         INT,    // int64_t in GP register
         FLOAT,  // float in XMM register (stored as 32-bit in 8-byte slot)
-        BOOL    // bool stored as int64_t (0 or 1)
+        BOOL,   // bool stored as int64_t (0 or 1)
+        STRING, // InternedString in boxed stack
+        OBJECT, // shared_ptr<ObjectInstance> in boxed stack
+        ARRAY,  // shared_ptr<NativeArray> in boxed stack
+        BOXED   // Unknown non-primitive Value in boxed stack
     };
+
+    inline bool isBoxedSlotType(SlotType t)
+    {
+        return t == SlotType::STRING || t == SlotType::OBJECT ||
+               t == SlotType::ARRAY || t == SlotType::BOXED;
+    }
 
     /**
      * JIT compiler that translates mType bytecode to x86-64 native code.
      *
      * Phase 2: Integer/boolean arithmetic only.
      * Phase 3: Adds CALL support, generic arithmetic, float ops.
+     * Phase 4: Adds object, array, string, method call support.
      *
      * The compiler uses asmjit's Compiler API for virtual register allocation
      * and compile-time stack depth tracking to eliminate operand stack overhead.

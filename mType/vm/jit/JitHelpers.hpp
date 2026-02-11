@@ -3,6 +3,11 @@
 #include "../../value/ValueType.hpp"
 #include <cstdint>
 
+// Forward declaration
+namespace vm::bytecode {
+    class BytecodeProgram;
+}
+
 namespace vm::jit
 {
     /**
@@ -39,20 +44,25 @@ namespace vm::jit
         void jit_box_float(value::Value* dest, float val);
         void jit_box_bool(value::Value* dest, int64_t val);
         void jit_box_null(value::Value* dest);
+
+        // --- Phase 4: Boxed value lifecycle (non-throwing) ---
+
+        // Placement-new monostate into count consecutive Value slots
+        void jit_locals_init(value::Value* base, size_t count);
+
+        // Destroy count consecutive Value slots (calls destructors)
+        void jit_locals_cleanup(value::Value* base, size_t count);
+
+        // Destroy a single Value slot and reinitialize as monostate
+        void jit_value_destroy(value::Value* dest);
     }
 
     // --- Phase 3: Call dispatch ---
     // Not extern "C" because these may throw C++ exceptions.
 
-    // Dispatch a function call from JIT code.
-    // Checks JIT cache -> native registry -> interpreter fallback.
-    // Stores result in ctx->returnValue, sets ctx->hasReturnValue.
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount);
 
     // --- Phase 3: Generic arithmetic helpers ---
-
-    // These replicate ArithmeticExecutor::performBinaryOp logic:
-    // int+int->int, float+float->float, int+float->float (promote)
     void jit_generic_add(value::Value* result, const value::Value* left, const value::Value* right);
     void jit_generic_sub(value::Value* result, const value::Value* left, const value::Value* right);
     void jit_generic_mul(value::Value* result, const value::Value* left, const value::Value* right);
@@ -61,4 +71,77 @@ namespace vm::jit
 
     // Not extern "C" because it throws a C++ exception.
     void jit_throw_div_by_zero();
+
+    // --- Phase 4: Boxed value helpers (may allocate/throw) ---
+
+    // Copy a Value from src to dest (uses variant assignment, safe for overwrite)
+    void jit_value_copy(value::Value* dest, const value::Value* src);
+
+    // Store a boxed Value as the function return value
+    void jit_set_return_boxed(JitContext* ctx, const value::Value* val);
+
+    // Swap two Values
+    void jit_value_swap(value::Value* a, value::Value* b);
+
+    // --- Phase 4A: String support ---
+
+    // Intern a string from the constant pool and store in dest
+    void jit_push_string(value::Value* dest,
+                          const vm::bytecode::BytecodeProgram* prog,
+                          uint32_t constIndex);
+
+    // --- Phase 4B: Object field access ---
+
+    // Get field value from object, store in dest
+    void jit_get_field(value::Value* dest, const value::Value* object,
+                        const vm::bytecode::BytecodeProgram* prog,
+                        uint32_t fieldNameIndex);
+
+    // Set field on object, copy newValue to destValue (for assignment chaining)
+    void jit_set_field(value::Value* destValue, const value::Value* object,
+                        const value::Value* newValue,
+                        const vm::bytecode::BytecodeProgram* prog,
+                        uint32_t fieldNameIndex);
+
+    // --- Phase 4C: Array operations ---
+
+    // Create a new array and store in dest
+    void jit_new_array(value::Value* dest, JitContext* ctx,
+                        uint32_t typeIndex, int64_t size);
+
+    // Get element at index from array, store in dest
+    void jit_array_get(value::Value* dest, const value::Value* array,
+                        int64_t index);
+
+    // Set element at index in array
+    void jit_array_set(const value::Value* array, int64_t index,
+                        const value::Value* newValue);
+
+    // Get array length
+    int64_t jit_array_length(const value::Value* array);
+
+    // --- Phase 4D: Method calls ---
+
+    // Dispatch a static method call (qualified name already in constant pool)
+    void jit_call_static(JitContext* ctx, uint32_t nameIndex, size_t argCount);
+
+    // Dispatch an instance method call
+    // Object is in ctx->callArgs[0], args in callArgs[1..argCount]
+    void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount);
+
+    // --- Phase 4E: Type operations ---
+
+    // Check if value is an instance of the given type. Returns 1 or 0.
+    int64_t jit_instanceof(const value::Value* val,
+                            const vm::bytecode::BytecodeProgram* prog,
+                            uint32_t typeIndex);
+
+    // Cast value to target type, store result in dest
+    void jit_cast(value::Value* dest, const value::Value* src,
+                   const vm::bytecode::BytecodeProgram* prog,
+                   uint32_t typeIndex);
+
+    // Create a new object instance with constructor args from ctx->callArgs
+    void jit_new_object(value::Value* dest, JitContext* ctx,
+                         uint32_t classIndex, size_t argCount);
 }
