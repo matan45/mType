@@ -21,7 +21,11 @@ project "mType"
     -- Set the target output directory using the shared variable
    targetdir (builddir)
 
-   defines { "_CRT_SECURE_NO_WARNINGS", "MTYPE_SIMD_ENABLED" }
+   -- asmjit JIT library integration
+   includedirs { "vendor/asmjit" }
+   files { "vendor/asmjit/asmjit/**.cpp", "vendor/asmjit/asmjit/**.h" }
+
+   defines { "_CRT_SECURE_NO_WARNINGS", "MTYPE_SIMD_ENABLED", "ASMJIT_STATIC" }
 
    -- Platform-specific SIMD configurations
    filter "system:windows"

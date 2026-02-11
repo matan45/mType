@@ -8,6 +8,13 @@
 #include "context/ExecutionContext.hpp"
 #include "stack/StackManager.hpp"
 
+// Forward declarations for JIT
+namespace vm::jit {
+    class JitProfiler;
+    class JitCodeCache;
+    class JitCompiler;
+}
+
 // Forward declarations of executors
 namespace vm::runtime {
     class StackOperationsExecutor;
@@ -110,6 +117,12 @@ namespace vm::runtime
         // Utility helpers
         std::unique_ptr<utils::ExceptionHandler> exceptionHandler;
 
+        // JIT compilation support
+        std::unique_ptr<vm::jit::JitProfiler> jitProfiler;
+        std::unique_ptr<vm::jit::JitCodeCache> jitCodeCache;
+        std::unique_ptr<vm::jit::JitCompiler> jitCompiler;
+        bool jitEnabled;
+
     public:
         explicit VirtualMachine(std::shared_ptr<environment::Environment> env,
                                size_t maxStackDepth = 0);  // 0 means use default from constants
@@ -162,6 +175,12 @@ namespace vm::runtime
         const std::vector<CallFrame>& getCallStack() const { return callStack; }
         std::shared_ptr<StackManager> getStackManager() const { return stackManager; }
         const bytecode::BytecodeProgram* getProgram() const { return program; }
+
+        // JIT compilation control
+        void setJitEnabled(bool enabled);
+        bool isJitEnabled() const { return jitEnabled; }
+        vm::jit::JitCodeCache* getJitCodeCache() const { return jitCodeCache.get(); }
+        vm::jit::JitProfiler* getJitProfiler() const { return jitProfiler.get(); }
 
         // Reset VM state
         void reset();

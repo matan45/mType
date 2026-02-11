@@ -561,6 +561,7 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file\n";
         std::cout << "  " << argv[0] << " --debug <script.mt>        - Run with debugger (breakpoints, stepping)\n";
         std::cout << "  " << argv[0] << " --gc-stats <script.mt>     - Run and print GC statistics after execution\n";
+        std::cout << "  " << argv[0] << " --jit <script.mt>          - Run with JIT compilation for hot functions\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
         std::cout << "  " << argv[0] << " --build [project.mtproj]   - Build project (compile all files to bytecode)\n";
@@ -1005,10 +1006,11 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Parse debug mode, gc-stats flag, and filename
+    // Parse debug mode, gc-stats flag, jit flag, and filename
     std::string filename;
     bool debugMode = false;
     bool printGCStats = false;
+    bool enableJit = false;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -1021,6 +1023,10 @@ int main(int argc, char* argv[])
         else if (arg == "--gc-stats")
         {
             printGCStats = true;
+        }
+        else if (arg == "--jit")
+        {
+            enableJit = true;
         }
         else if (arg[0] != '-')
         {
@@ -1046,7 +1052,15 @@ int main(int argc, char* argv[])
     {
         ScriptInterpreter interpreter(execMode);
 
-        std::cout << "Execution Mode: Bytecode VM\n\n";
+        if (enableJit)
+        {
+            interpreter.getVM()->setJitEnabled(true);
+            std::cout << "Execution Mode: Bytecode VM + JIT\n\n";
+        }
+        else
+        {
+            std::cout << "Execution Mode: Bytecode VM\n\n";
+        }
 
         interpreter.runScript(filename);
 

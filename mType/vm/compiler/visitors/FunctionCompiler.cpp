@@ -40,6 +40,9 @@ namespace vm::compiler::visitors
         // Function starts here
         size_t functionStart = ctx.program.getCurrentOffset();
 
+        // Emit profiling opcode for JIT compilation support
+        ctx.program.emit(bytecode::OpCode::PROFILE_ENTER);
+
         // Build list of valid generic type parameter names for validation
         std::vector<std::string> validGenericParams;
         if (node->isGeneric())

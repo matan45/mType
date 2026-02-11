@@ -31,6 +31,10 @@
 #include "../../debugger/DebugHookHelper.hpp"
 #include "../../constants/ExecutionMode.hpp"
 #include "../../gc/GC.hpp"
+#include "../jit/JitProfiler.hpp"
+#include "../jit/JitCodeCache.hpp"
+#include "../jit/JitCompiler.hpp"
+#include "../jit/JitContext.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
@@ -55,6 +59,7 @@ namespace vm::runtime
           , currentSourceLine(0)
           , currentFinallyOffset(SIZE_MAX) // Not in finally initially
           , pendingFinallyOffset(SIZE_MAX) // No pending exception initially
+          , jitEnabled(false)
     {
         callStack.reserve(constants::vm::DEFAULT_CALL_STACK_CAPACITY);
 
@@ -69,6 +74,17 @@ namespace vm::runtime
     }
 
     VirtualMachine::~VirtualMachine() = default;
+
+    void VirtualMachine::setJitEnabled(bool enabled)
+    {
+        jitEnabled = enabled;
+        if (enabled && !jitProfiler)
+        {
+            jitProfiler = std::make_unique<jit::JitProfiler>();
+            jitCodeCache = std::make_unique<jit::JitCodeCache>();
+            jitCompiler = std::make_unique<jit::JitCompiler>();
+        }
+    }
 
     ::runtime::EventLoop* VirtualMachine::ensureEventLoop()
     {
@@ -883,9 +899,52 @@ namespace vm::runtime
         case OpCode::RETURN_VALUE: controlFlowExecutor->handleReturnValue();
             break;
 
-        // Functions - delegated to FunctionExecutor
-        case OpCode::CALL: functionExecutor->handleCall(instr);
+        // Functions - with JIT dispatch
+        case OpCode::CALL:
+        {
+            // Check JIT code cache before falling back to interpreter
+            if (jitEnabled && jitCodeCache)
+            {
+                std::string funcName = program->getConstantPool().getString(instr.operands[0]);
+                auto jitCode = jitCodeCache->lookup(funcName);
+                if (jitCode)
+                {
+                    size_t argCount = instr.operands[1];
+
+                    // Pop arguments from stack
+                    std::vector<value::Value> args;
+                    args.reserve(argCount);
+                    for (size_t i = 0; i < argCount; ++i)
+                    {
+                        args.push_back(stackManager->pop());
+                    }
+                    std::reverse(args.begin(), args.end());
+
+                    // Set up JIT context
+                    jit::JitContext jitCtx{};
+                    jitCtx.args = args.data();
+                    jitCtx.argCount = args.size();
+                    jitCtx.hasReturnValue = false;
+                    jitCtx.program = program;
+                    jitCtx.stackManager = stackManager.get();
+                    jitCtx.environment = environment.get();
+
+                    // Execute JIT-compiled function
+                    jitCode(&jitCtx);
+
+                    // Push return value if any
+                    if (jitCtx.hasReturnValue)
+                    {
+                        stackManager->push(jitCtx.returnValue);
+                    }
+
+                    stats.functionCalls++;
+                    break;
+                }
+            }
+            functionExecutor->handleCall(instr);
             break;
+        }
         case OpCode::CALL_STATIC: functionExecutor->handleCallStatic(instr);
             break;
 
@@ -1218,9 +1277,19 @@ namespace vm::runtime
             break;
 
         case OpCode::PROFILE_ENTER:
+            if (jitEnabled && jitProfiler && !callStack.empty())
+            {
+                const std::string& funcName = callStack.back().functionName;
+                bool justBecameHot = jitProfiler->recordEntry(funcName);
+                if (justBecameHot && jitCompiler && jitCodeCache)
+                {
+                    // Attempt to compile the hot function
+                    jitCompiler->compile(funcName, *program, *jitCodeCache);
+                }
+            }
+            break;
         case OpCode::PROFILE_EXIT:
-            // Profiling opcodes - currently no-op
-            // Can be implemented for performance profiling
+            // No-op for now — profiling uses entry counts only
             break;
 
         default:
