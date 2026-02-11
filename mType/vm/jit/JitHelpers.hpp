@@ -144,4 +144,15 @@ namespace vm::jit
     // Create a new object instance with constructor args from ctx->callArgs
     void jit_new_object(value::Value* dest, JitContext* ctx,
                          uint32_t classIndex, size_t argCount);
+
+    // --- Phase 5: OSR helpers ---
+
+    // Write a local Value to the OSR output buffer
+    extern "C" {
+        void jit_osr_write_local(JitContext* ctx, size_t slot, const value::Value* val);
+        void jit_osr_exit(JitContext* ctx, uint64_t exitOffset);
+    }
+
+    // Trigger deoptimization from JIT code (throws OSRDeoptException)
+    void jit_osr_deoptimize(JitContext* ctx, uint64_t bytecodeOffset);
 }

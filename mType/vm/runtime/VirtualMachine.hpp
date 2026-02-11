@@ -13,6 +13,7 @@ namespace vm::jit {
     class JitProfiler;
     class JitCodeCache;
     class JitCompiler;
+    class OSRManager;
 }
 
 // Forward declarations of executors
@@ -121,6 +122,7 @@ namespace vm::runtime
         std::unique_ptr<vm::jit::JitProfiler> jitProfiler;
         std::unique_ptr<vm::jit::JitCodeCache> jitCodeCache;
         std::unique_ptr<vm::jit::JitCompiler> jitCompiler;
+        std::unique_ptr<vm::jit::OSRManager> osrManager;
         bool jitEnabled;
 
     public:
@@ -181,6 +183,8 @@ namespace vm::runtime
         bool isJitEnabled() const { return jitEnabled; }
         vm::jit::JitCodeCache* getJitCodeCache() const { return jitCodeCache.get(); }
         vm::jit::JitProfiler* getJitProfiler() const { return jitProfiler.get(); }
+        vm::jit::JitCompiler* getJitCompiler() const { return jitCompiler.get(); }
+        vm::jit::OSRManager* getOSRManager() const { return osrManager.get(); }
 
         // JIT helper: execute a function call from JIT code via interpreter
         value::Value callFunctionFromJit(const std::string& funcName, const std::vector<value::Value>& args);

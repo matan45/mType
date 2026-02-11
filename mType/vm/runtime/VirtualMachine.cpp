@@ -35,6 +35,7 @@
 #include "../jit/JitCodeCache.hpp"
 #include "../jit/JitCompiler.hpp"
 #include "../jit/JitContext.hpp"
+#include "../jit/OSRManager.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
@@ -83,6 +84,7 @@ namespace vm::runtime
             jitProfiler = std::make_unique<jit::JitProfiler>();
             jitCodeCache = std::make_unique<jit::JitCodeCache>();
             jitCompiler = std::make_unique<jit::JitCompiler>();
+            osrManager = std::make_unique<jit::OSRManager>();
         }
     }
 
@@ -662,13 +664,16 @@ namespace vm::runtime
         // This ensures executors always have valid references, even when called from C++ API
         ExecutionContext context(program, instructionPointer, callStack, maxCallStackSize,
                                  environment, stackManager, stats, executionStart,
-                                 debuggingEnabled, currentSourceFile, currentSourceLine);
+                                 debuggingEnabled, currentSourceFile, currentSourceLine, this);
         stackOpsExecutor = std::make_unique<StackOperationsExecutor>(context);
         comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
         logicalExecutor = std::make_unique<LogicalExecutor>(context);
         arithmeticExecutor = std::make_unique<ArithmeticExecutor>(context);
         bitwiseExecutor = std::make_unique<BitwiseExecutor>(context);
         controlFlowExecutor = std::make_unique<ControlFlowExecutor>(context);
+        if (jitEnabled && osrManager) {
+            controlFlowExecutor->setOSRManager(osrManager.get());
+        }
         variableExecutor = std::make_unique<VariableExecutor>(context);
         functionExecutor = std::make_unique<FunctionExecutor>(context);
         typeExecutor = std::make_unique<TypeExecutor>(context);

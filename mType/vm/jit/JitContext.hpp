@@ -55,5 +55,16 @@ namespace vm::jit
         // Phase 3: Pre-allocated scratch space for boxing arguments before CALL
         static constexpr size_t MAX_CALL_ARGS = 16;
         value::Value callArgs[MAX_CALL_ARGS];
+
+        // Phase 5 (OSR): Input locals captured from interpreter at OSR entry
+        value::Value* osrLocals = nullptr;
+        size_t osrLocalCount = 0;
+
+        // Phase 5 (OSR): Output locals written by JIT on loop exit
+        value::Value* osrOutputLocals = nullptr;
+
+        // Phase 5 (OSR): Loop exit info set by JIT code
+        size_t osrExitOffset = 0;
+        bool osrExited = false;
     };
 }

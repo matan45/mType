@@ -5,32 +5,13 @@
 #include <vector>
 #include "JitCodeCache.hpp"
 #include "JitContext.hpp"
+#include "SlotType.hpp"
+#include "OSRState.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include <asmjit/x86.h>
 
 namespace vm::jit
 {
-    /**
-     * Compile-time type of an operand stack slot.
-     * Used to determine boxing/unboxing and which native instructions to emit.
-     */
-    enum class SlotType : uint8_t
-    {
-        INT,    // int64_t in GP register
-        FLOAT,  // float in XMM register (stored as 32-bit in 8-byte slot)
-        BOOL,   // bool stored as int64_t (0 or 1)
-        STRING, // InternedString in boxed stack
-        OBJECT, // shared_ptr<ObjectInstance> in boxed stack
-        ARRAY,  // shared_ptr<NativeArray> in boxed stack
-        BOXED   // Unknown non-primitive Value in boxed stack
-    };
-
-    inline bool isBoxedSlotType(SlotType t)
-    {
-        return t == SlotType::STRING || t == SlotType::OBJECT ||
-               t == SlotType::ARRAY || t == SlotType::BOXED;
-    }
-
     /**
      * JIT compiler that translates mType bytecode to x86-64 native code.
      *
@@ -58,9 +39,26 @@ namespace vm::jit
         size_t getCompileCount() const { return compileCount; }
         size_t getBailoutCount() const { return bailoutCount; }
 
+        /**
+         * Phase 5 (OSR): Compile a loop body for on-stack replacement.
+         * Generates native code that loads locals from JitContext.osrLocals,
+         * executes the loop, and writes updated locals on exit.
+         * Stores in codeCache under key "osr@{jumpBackOffset}".
+         */
+        bool compileLoopOSR(size_t loopStartOffset,
+                            size_t loopEndOffset,
+                            size_t jumpBackOffset,
+                            const std::vector<LocalSlotInfo>& localSlotInfos,
+                            size_t localCount,
+                            const bytecode::BytecodeProgram& program,
+                            JitCodeCache& codeCache);
+
     private:
         bool canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
                         const bytecode::BytecodeProgram& program) const;
+
+        bool canCompileLoopOSR(size_t loopStartOffset, size_t loopEndOffset,
+                               const bytecode::BytecodeProgram& program) const;
 
         static const std::unordered_set<uint8_t>& getSupportedOpcodes();
 

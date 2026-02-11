@@ -2,6 +2,9 @@
 #include "../context/ExecutionContext.hpp"
 #include "../../../errors/RuntimeException.hpp"
 
+// Forward declaration for OSR
+namespace vm::jit { class OSRManager; }
+
 namespace vm::runtime
 {
     /**
@@ -26,8 +29,12 @@ namespace vm::runtime
         void handleReturn();
         void handleReturnValue();
 
+        // Phase 5: OSR integration
+        void setOSRManager(vm::jit::OSRManager* manager) { osrManager = manager; }
+
     private:
         ExecutionContext& context;
+        vm::jit::OSRManager* osrManager = nullptr;
 
         // Helper method for truthiness evaluation
         bool isTruthy(const value::Value& val) const;
