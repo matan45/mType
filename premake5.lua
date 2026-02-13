@@ -21,12 +21,16 @@ project "mType"
     -- Set the target output directory using the shared variable
    targetdir (builddir)
 
-   defines { "_CRT_SECURE_NO_WARNINGS", "MTYPE_SIMD_ENABLED" }
+   -- asmjit JIT library integration
+   includedirs { "vendor/asmjit" }
+   files { "vendor/asmjit/asmjit/**.cpp", "vendor/asmjit/asmjit/**.h" }
 
-   -- Platform-specific SIMD configurations
+   defines { "_CRT_SECURE_NO_WARNINGS", "MTYPE_SIMD_ENABLED", "ASMJIT_STATIC" }
+
+   -- Platform-specific configurations
    filter "system:windows"
       systemversion "latest"
-      -- SSE2 is already the baseline for x64, no flag needed
+      buildoptions { "/MP" }
 
       -- AVX2 support for release builds
       filter "configurations:Release"

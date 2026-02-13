@@ -77,39 +77,64 @@ namespace vm::runtime
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: ADD_INT requires 2 values");
         }
-        int64_t right = std::get<int64_t>(context.stackManager->pop());
-        int64_t left = std::get<int64_t>(context.stackManager->pop());
-        context.stackManager->push(left + right);
+        // Phase 6: Type guard — deopt to generic ADD if types don't match
+        const auto& right = context.stackManager->peek(0);
+        const auto& left = context.stackManager->peek(1);
+        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+            handleAdd(); // Fall back to generic
+            return;
+        }
+        int64_t r = std::get<int64_t>(context.stackManager->pop());
+        int64_t l = std::get<int64_t>(context.stackManager->pop());
+        context.stackManager->push(l + r);
     }
 
     void ArithmeticExecutor::handleSubInt() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: SUB_INT requires 2 values");
         }
-        int64_t right = std::get<int64_t>(context.stackManager->pop());
-        int64_t left = std::get<int64_t>(context.stackManager->pop());
-        context.stackManager->push(left - right);
+        const auto& right = context.stackManager->peek(0);
+        const auto& left = context.stackManager->peek(1);
+        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+            handleSub();
+            return;
+        }
+        int64_t r = std::get<int64_t>(context.stackManager->pop());
+        int64_t l = std::get<int64_t>(context.stackManager->pop());
+        context.stackManager->push(l - r);
     }
 
     void ArithmeticExecutor::handleMulInt() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: MUL_INT requires 2 values");
         }
-        int64_t right = std::get<int64_t>(context.stackManager->pop());
-        int64_t left = std::get<int64_t>(context.stackManager->pop());
-        context.stackManager->push(left * right);
+        const auto& right = context.stackManager->peek(0);
+        const auto& left = context.stackManager->peek(1);
+        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+            handleMul();
+            return;
+        }
+        int64_t r = std::get<int64_t>(context.stackManager->pop());
+        int64_t l = std::get<int64_t>(context.stackManager->pop());
+        context.stackManager->push(l * r);
     }
 
     void ArithmeticExecutor::handleDivInt() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: DIV_INT requires 2 values");
         }
-        int64_t right = std::get<int64_t>(context.stackManager->pop());
-        int64_t left = std::get<int64_t>(context.stackManager->pop());
-        if (right == 0) {
+        const auto& right = context.stackManager->peek(0);
+        const auto& left = context.stackManager->peek(1);
+        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+            handleDiv();
+            return;
+        }
+        int64_t r = std::get<int64_t>(context.stackManager->pop());
+        int64_t l = std::get<int64_t>(context.stackManager->pop());
+        if (r == 0) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
         }
-        context.stackManager->push(left / right);
+        context.stackManager->push(l / r);
     }
 
     value::Value ArithmeticExecutor::performBinaryOp(const value::Value& left, const value::Value& right, bytecode::OpCode op) {

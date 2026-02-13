@@ -187,6 +187,59 @@ namespace runtimeTypes::klass
         return count;
     }
 
+    void ClassDefinition::buildFieldIndexMap() const
+    {
+        if (fieldIndexMapBuilt) return;
+
+        fieldIndexMap.clear();
+        fieldIndexToName.clear();
+
+        // First, add parent class fields (so inherited fields get lower indices)
+        auto parent = parentClass.lock();
+        if (parent)
+        {
+            parent->buildFieldIndexMap();
+            fieldIndexMap = parent->fieldIndexMap;
+            fieldIndexToName = parent->fieldIndexToName;
+        }
+
+        // Then add this class's own instance fields
+        for (const auto& [name, field] : instanceFields)
+        {
+            if (fieldIndexMap.find(name) == fieldIndexMap.end())
+            {
+                size_t index = fieldIndexToName.size();
+                fieldIndexMap[name] = index;
+                fieldIndexToName.push_back(name);
+            }
+        }
+
+        fieldIndexMapBuilt = true;
+    }
+
+    size_t ClassDefinition::getFieldIndex(const std::string& fieldName) const
+    {
+        buildFieldIndexMap();
+        auto it = fieldIndexMap.find(fieldName);
+        if (it != fieldIndexMap.end())
+        {
+            return it->second;
+        }
+        return SIZE_MAX;
+    }
+
+    size_t ClassDefinition::getIndexedFieldCount() const
+    {
+        buildFieldIndexMap();
+        return fieldIndexToName.size();
+    }
+
+    const std::unordered_map<std::string, size_t>& ClassDefinition::getFieldIndexMap() const
+    {
+        buildFieldIndexMap();
+        return fieldIndexMap;
+    }
+
     size_t ClassDefinition::getInstanceMethodCount() const
     {
         return instanceMethods.size();

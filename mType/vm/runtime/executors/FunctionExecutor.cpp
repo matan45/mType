@@ -6,6 +6,8 @@
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../value/NativeArray.hpp"
+#include "../../jit/JitCodeCache.hpp"
+#include "../../jit/JitContext.hpp"
 #include <algorithm>
 #include <iostream>
 namespace vm::runtime

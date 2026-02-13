@@ -3,6 +3,7 @@
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
 #include "../../services/ScriptInterpreter.hpp"
+#include "../../vm/runtime/VirtualMachine.hpp"
 #include "../../reflection/ReflectionNatives.hpp"
 #include "../../gc/GC.hpp"
 #include <fstream>
@@ -61,6 +62,8 @@ namespace tests::testFramework
             {
                 // Always use ScriptInterpreter with bytecode mode
                 ScriptInterpreter testInterpreter(executionMode);
+                // Enable JIT compilation for all tests
+                testInterpreter.getVM()->setJitEnabled(true);
                 testInterpreter.runScript(filePath);
 
                 // Restore stdout
