@@ -3,6 +3,8 @@
 #include "../../../value/AsyncPromiseValue.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../jit/OSRManager.hpp"
+#include "../VirtualMachine.hpp"
 #include <iostream>
 namespace vm::runtime
 {
@@ -71,7 +73,28 @@ namespace vm::runtime
         if (instr.operands.empty()) {
             throw errors::RuntimeException("JUMP_BACK requires operand");
         }
-        // Jump back to loop start (operand is the target instruction)
+
+        // Phase 5: OSR check at loop back-edge
+        if (osrManager && context.vm && context.vm->isJitEnabled())
+        {
+            auto* compiler = context.vm->getJitCompiler();
+            auto* codeCache = context.vm->getJitCodeCache();
+            if (compiler && codeCache)
+            {
+                if (osrManager->tryOSR(context.instructionPointer,
+                                        *context.program,
+                                        context,
+                                        *context.vm,
+                                        *compiler,
+                                        *codeCache))
+                {
+                    // OSR executed the loop natively and set instructionPointer
+                    return;
+                }
+            }
+        }
+
+        // Normal interpreter path: jump back to loop start
         context.instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
     }
 

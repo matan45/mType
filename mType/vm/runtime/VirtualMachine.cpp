@@ -31,6 +31,14 @@
 #include "../../debugger/DebugHookHelper.hpp"
 #include "../../constants/ExecutionMode.hpp"
 #include "../../gc/GC.hpp"
+#include "../jit/JitProfiler.hpp"
+#include "../jit/JitCodeCache.hpp"
+#include "../jit/JitCompiler.hpp"
+#include "../jit/JitContext.hpp"
+#include "../jit/OSRManager.hpp"
+#include "../jit/ic/InlineCacheTable.hpp"
+#include "../jit/ic/TypeFeedbackCollector.hpp"
+#include "executors/InlineCacheExecutor.hpp"
 #include <chrono>
 #include <sstream>
 #include <algorithm>
@@ -55,6 +63,8 @@ namespace vm::runtime
           , currentSourceLine(0)
           , currentFinallyOffset(SIZE_MAX) // Not in finally initially
           , pendingFinallyOffset(SIZE_MAX) // No pending exception initially
+          , jitEnabled(false)
+          , icEnabled(false)
     {
         callStack.reserve(constants::vm::DEFAULT_CALL_STACK_CAPACITY);
 
@@ -69,6 +79,118 @@ namespace vm::runtime
     }
 
     VirtualMachine::~VirtualMachine() = default;
+
+    void VirtualMachine::setJitEnabled(bool enabled)
+    {
+        jitEnabled = enabled;
+        if (enabled && !jitProfiler)
+        {
+            jitProfiler = std::make_unique<jit::JitProfiler>();
+            jitCodeCache = std::make_unique<jit::JitCodeCache>();
+            jitCompiler = std::make_unique<jit::JitCompiler>();
+            osrManager = std::make_unique<jit::OSRManager>();
+        }
+        // JIT implies IC
+        if (enabled) setICEnabled(true);
+    }
+
+    void VirtualMachine::setICEnabled(bool enabled)
+    {
+        icEnabled = enabled;
+        if (enabled && !inlineCacheTable)
+        {
+            inlineCacheTable = std::make_unique<jit::ic::InlineCacheTable>();
+            typeFeedbackCollector = std::make_unique<jit::ic::TypeFeedbackCollector>(*inlineCacheTable);
+        }
+    }
+
+    value::Value VirtualMachine::callFunctionFromJit(const std::string& funcName,
+                                                      const std::vector<value::Value>& args)
+    {
+        auto funcMeta = program->getFunction(funcName);
+        if (!funcMeta)
+        {
+            throw std::runtime_error("JIT interpreter fallback: function not found: " + funcName);
+        }
+
+        // Save current interpreter state
+        size_t savedIP = instructionPointer;
+        size_t savedCallStackDepth = callStack.size();
+        size_t savedStackSize = stackManager->size();
+
+        // Push arguments as locals
+        for (const auto& arg : args)
+        {
+            stackManager->push(arg);
+        }
+
+        // Initialize remaining locals to null
+        for (size_t i = args.size(); i < funcMeta->localCount; ++i)
+        {
+            stackManager->push(std::monostate{});
+        }
+
+        // Create call frame
+        CallFrame frame;
+        frame.returnAddress = savedIP;
+        frame.frameBase = savedStackSize;
+        frame.localBase = savedStackSize;
+        frame.functionName = funcName;
+        frame.thisInstance = nullptr;
+        callStack.push_back(frame);
+
+        // Jump to function start
+        instructionPointer = funcMeta->startOffset;
+
+        // Run interpreter until this call frame is popped
+        while (callStack.size() > savedCallStackDepth)
+        {
+            if (instructionPointer >= program->getInstructionCount())
+            {
+                break;
+            }
+
+            const auto& instr = program->getInstruction(instructionPointer);
+            instructionPointer++;
+
+            try
+            {
+                executeInstruction(instr);
+            }
+            catch (...)
+            {
+                // Restore state on exception
+                while (callStack.size() > savedCallStackDepth)
+                {
+                    callStack.pop_back();
+                }
+                instructionPointer = savedIP;
+                while (stackManager->size() > savedStackSize)
+                {
+                    stackManager->pop();
+                }
+                throw;
+            }
+        }
+
+        // Get return value (if any)
+        value::Value result = std::monostate{};
+        if (stackManager->size() > savedStackSize)
+        {
+            result = stackManager->pop();
+        }
+
+        // Clean up stack to original size
+        while (stackManager->size() > savedStackSize)
+        {
+            stackManager->pop();
+        }
+
+        // Restore instruction pointer
+        instructionPointer = savedIP;
+
+        return result;
+    }
 
     ::runtime::EventLoop* VirtualMachine::ensureEventLoop()
     {
@@ -558,13 +680,16 @@ namespace vm::runtime
         // This ensures executors always have valid references, even when called from C++ API
         ExecutionContext context(program, instructionPointer, callStack, maxCallStackSize,
                                  environment, stackManager, stats, executionStart,
-                                 debuggingEnabled, currentSourceFile, currentSourceLine);
+                                 debuggingEnabled, currentSourceFile, currentSourceLine, this);
         stackOpsExecutor = std::make_unique<StackOperationsExecutor>(context);
         comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
         logicalExecutor = std::make_unique<LogicalExecutor>(context);
         arithmeticExecutor = std::make_unique<ArithmeticExecutor>(context);
         bitwiseExecutor = std::make_unique<BitwiseExecutor>(context);
         controlFlowExecutor = std::make_unique<ControlFlowExecutor>(context);
+        if (jitEnabled && osrManager) {
+            controlFlowExecutor->setOSRManager(osrManager.get());
+        }
         variableExecutor = std::make_unique<VariableExecutor>(context);
         functionExecutor = std::make_unique<FunctionExecutor>(context);
         typeExecutor = std::make_unique<TypeExecutor>(context);
@@ -576,6 +701,14 @@ namespace vm::runtime
 
         // Set function executor reference in object executor for lambda-to-interface conversion
         objectExecutor->setFunctionExecutor(functionExecutor.get());
+
+        // Phase 6: Initialize inline cache executor
+        if (icEnabled && inlineCacheTable)
+        {
+            inlineCacheExecutor = std::make_unique<InlineCacheExecutor>(context, *inlineCacheTable);
+            inlineCacheExecutor->setObjectExecutor(objectExecutor.get());
+            inlineCacheExecutor->setFunctionExecutor(functionExecutor.get());
+        }
 
         // Initialize exception handler
         exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
@@ -792,13 +925,62 @@ namespace vm::runtime
             break;
 
         // Arithmetic - delegated to ArithmeticExecutor
-        case OpCode::ADD: arithmeticExecutor->handleAdd();
+        // Phase 6: Type feedback collection + opcode rewriting
+        case OpCode::ADD:
+            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
+                typeFeedbackCollector->recordBinaryOp(instructionPointer,
+                    stackManager->peek(1), stackManager->peek(0));
+                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
+                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
+                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::ADD_INT;
+                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+                    }
+                }
+            }
+            arithmeticExecutor->handleAdd();
             break;
-        case OpCode::SUB: arithmeticExecutor->handleSub();
+        case OpCode::SUB:
+            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
+                typeFeedbackCollector->recordBinaryOp(instructionPointer,
+                    stackManager->peek(1), stackManager->peek(0));
+                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
+                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
+                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::SUB_INT;
+                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+                    }
+                }
+            }
+            arithmeticExecutor->handleSub();
             break;
-        case OpCode::MUL: arithmeticExecutor->handleMul();
+        case OpCode::MUL:
+            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
+                typeFeedbackCollector->recordBinaryOp(instructionPointer,
+                    stackManager->peek(1), stackManager->peek(0));
+                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
+                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
+                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::MUL_INT;
+                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+                    }
+                }
+            }
+            arithmeticExecutor->handleMul();
             break;
-        case OpCode::DIV: arithmeticExecutor->handleDiv();
+        case OpCode::DIV:
+            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
+                typeFeedbackCollector->recordBinaryOp(instructionPointer,
+                    stackManager->peek(1), stackManager->peek(0));
+                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
+                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
+                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::DIV_INT;
+                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+                    }
+                }
+            }
+            arithmeticExecutor->handleDiv();
             break;
         case OpCode::MOD: arithmeticExecutor->handleMod();
             break;
@@ -883,24 +1065,89 @@ namespace vm::runtime
         case OpCode::RETURN_VALUE: controlFlowExecutor->handleReturnValue();
             break;
 
-        // Functions - delegated to FunctionExecutor
-        case OpCode::CALL: functionExecutor->handleCall(instr);
+        // Functions - with JIT dispatch
+        case OpCode::CALL:
+        {
+            // Check JIT code cache before falling back to interpreter
+            if (jitEnabled && jitCodeCache)
+            {
+                std::string funcName = program->getConstantPool().getString(instr.operands[0]);
+                auto jitCode = jitCodeCache->lookup(funcName);
+                if (jitCode)
+                {
+                    size_t argCount = instr.operands[1];
+
+                    // Pop arguments from stack
+                    std::vector<value::Value> args;
+                    args.reserve(argCount);
+                    for (size_t i = 0; i < argCount; ++i)
+                    {
+                        args.push_back(stackManager->pop());
+                    }
+                    std::reverse(args.begin(), args.end());
+
+                    // Set up JIT context
+                    jit::JitContext jitCtx{};
+                    jitCtx.args = args.data();
+                    jitCtx.argCount = args.size();
+                    jitCtx.hasReturnValue = false;
+                    jitCtx.program = program;
+                    jitCtx.stackManager = stackManager.get();
+                    jitCtx.environment = environment.get();
+                    jitCtx.vm = this;
+                    jitCtx.jitCodeCache = jitCodeCache.get();
+                    jitCtx.icTable = inlineCacheTable.get();
+
+                    // Extract calling class name for access validation
+                    {
+                        size_t sepPos = funcName.find("::");
+                        if (sepPos != std::string::npos)
+                            jitCtx.callingClassName = funcName.substr(0, sepPos);
+                    }
+
+                    // Execute JIT-compiled function
+                    jitCode(&jitCtx);
+
+                    // Push return value if any
+                    if (jitCtx.hasReturnValue)
+                    {
+                        stackManager->push(jitCtx.returnValue);
+                    }
+
+                    stats.functionCalls++;
+                    break;
+                }
+            }
+            functionExecutor->handleCall(instr);
             break;
+        }
         case OpCode::CALL_STATIC: functionExecutor->handleCallStatic(instr);
             break;
 
         // Objects - delegated to ObjectExecutor
         case OpCode::NEW_OBJECT: objectExecutor->handleNewObject(instr);
             break;
-        case OpCode::GET_FIELD: objectExecutor->handleGetField(instr);
+        case OpCode::GET_FIELD:
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleGetFieldIC(instr);
+            else
+                objectExecutor->handleGetField(instr);
             break;
-        case OpCode::SET_FIELD: objectExecutor->handleSetField(instr);
+        case OpCode::SET_FIELD:
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleSetFieldIC(instr);
+            else
+                objectExecutor->handleSetField(instr);
             break;
         case OpCode::GET_STATIC: objectExecutor->handleGetStatic(instr);
             break;
         case OpCode::SET_STATIC: objectExecutor->handleSetStatic(instr);
             break;
-        case OpCode::CALL_METHOD: objectExecutor->handleCallMethod(instr);
+        case OpCode::CALL_METHOD:
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleCallMethodIC(instr);
+            else
+                objectExecutor->handleCallMethod(instr);
             break;
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;
@@ -1218,9 +1465,19 @@ namespace vm::runtime
             break;
 
         case OpCode::PROFILE_ENTER:
+            if (jitEnabled && jitProfiler && !callStack.empty())
+            {
+                const std::string& funcName = callStack.back().functionName;
+                bool justBecameHot = jitProfiler->recordEntry(funcName);
+                if (justBecameHot && jitCompiler && jitCodeCache)
+                {
+                    // Attempt to compile the hot function
+                    jitCompiler->compile(funcName, *program, *jitCodeCache);
+                }
+            }
+            break;
         case OpCode::PROFILE_EXIT:
-            // Profiling opcodes - currently no-op
-            // Can be implemented for performance profiling
+            // No-op for now — profiling uses entry counts only
             break;
 
         default:

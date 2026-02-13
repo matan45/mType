@@ -9,6 +9,9 @@
 #include "../../bytecode/BytecodeProgram.hpp"
 #include "../stack/StackManager.hpp"
 
+// Forward declaration for VM back-pointer
+namespace vm::runtime { class VirtualMachine; }
+
 namespace vm::runtime
 {
 
@@ -138,6 +141,9 @@ namespace vm::runtime
         std::string& currentSourceFile;
         int& currentSourceLine;
 
+        // VM back-pointer for OSR and other VM-level operations
+        VirtualMachine* vm = nullptr;
+
         ExecutionContext(
             const bytecode::BytecodeProgram* prog,
             size_t& ip,
@@ -149,7 +155,8 @@ namespace vm::runtime
             std::chrono::steady_clock::time_point& exStart,
             bool& debugEnabled,
             std::string& srcFile,
-            int& srcLine)
+            int& srcLine,
+            VirtualMachine* vmPtr = nullptr)
             : program(prog)
             , instructionPointer(ip)
             , callStack(cs)
@@ -161,6 +168,7 @@ namespace vm::runtime
             , debuggingEnabled(debugEnabled)
             , currentSourceFile(srcFile)
             , currentSourceLine(srcLine)
+            , vm(vmPtr)
         {}
 
         // Call stack management with overflow protection

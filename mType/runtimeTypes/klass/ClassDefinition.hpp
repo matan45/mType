@@ -357,6 +357,12 @@ namespace runtimeTypes::klass
             return flags;
         }
 
+        // Phase 6 (IC): Field index infrastructure for inline caching
+        void buildFieldIndexMap() const;
+        size_t getFieldIndex(const std::string& fieldName) const;
+        size_t getIndexedFieldCount() const;
+        const std::unordered_map<std::string, size_t>& getFieldIndexMap() const;
+
     private:
         // PERFORMANCE: Method resolution cache - avoids repeated hierarchy traversals
         // Key: "methodName/argCount", Value: cached lookup result
@@ -365,6 +371,12 @@ namespace runtimeTypes::klass
         // PERFORMANCE: Cached total field count (including inherited fields)
         mutable size_t cachedTotalFieldCount = 0;
         mutable bool totalFieldCountCached = false;
+
+        // Phase 6 (IC): Field index map for O(1) indexed field access
+        // Maps field name → stable integer index (includes inherited fields)
+        mutable std::unordered_map<std::string, size_t> fieldIndexMap;
+        mutable std::vector<std::string> fieldIndexToName;
+        mutable bool fieldIndexMapBuilt = false;
 
         // Depth protection for interface and class inheritance chains
         static constexpr int MAX_INTERFACE_DEPTH = 20;

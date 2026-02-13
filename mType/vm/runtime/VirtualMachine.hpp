@@ -8,6 +8,20 @@
 #include "context/ExecutionContext.hpp"
 #include "stack/StackManager.hpp"
 
+// Forward declarations for JIT
+namespace vm::jit {
+    class JitProfiler;
+    class JitCodeCache;
+    class JitCompiler;
+    class OSRManager;
+}
+
+// Forward declarations for inline caching
+namespace vm::jit::ic {
+    class InlineCacheTable;
+    class TypeFeedbackCollector;
+}
+
 // Forward declarations of executors
 namespace vm::runtime {
     class StackOperationsExecutor;
@@ -24,6 +38,7 @@ namespace vm::runtime {
     class LambdaExecutor;
     class ExceptionExecutor;
     class PrimitiveMethodExecutor;  // Phase 3
+    class InlineCacheExecutor;      // Phase 6
 }
 
 // Forward declarations of utility helpers
@@ -110,6 +125,19 @@ namespace vm::runtime
         // Utility helpers
         std::unique_ptr<utils::ExceptionHandler> exceptionHandler;
 
+        // JIT compilation support
+        std::unique_ptr<vm::jit::JitProfiler> jitProfiler;
+        std::unique_ptr<vm::jit::JitCodeCache> jitCodeCache;
+        std::unique_ptr<vm::jit::JitCompiler> jitCompiler;
+        std::unique_ptr<vm::jit::OSRManager> osrManager;
+        bool jitEnabled;
+
+        // Phase 6: Inline caching and type specialization
+        std::unique_ptr<vm::jit::ic::InlineCacheTable> inlineCacheTable;
+        std::unique_ptr<vm::jit::ic::TypeFeedbackCollector> typeFeedbackCollector;
+        std::unique_ptr<InlineCacheExecutor> inlineCacheExecutor;
+        bool icEnabled;
+
     public:
         explicit VirtualMachine(std::shared_ptr<environment::Environment> env,
                                size_t maxStackDepth = 0);  // 0 means use default from constants
@@ -162,6 +190,22 @@ namespace vm::runtime
         const std::vector<CallFrame>& getCallStack() const { return callStack; }
         std::shared_ptr<StackManager> getStackManager() const { return stackManager; }
         const bytecode::BytecodeProgram* getProgram() const { return program; }
+
+        // JIT compilation control
+        void setJitEnabled(bool enabled);
+        bool isJitEnabled() const { return jitEnabled; }
+        vm::jit::JitCodeCache* getJitCodeCache() const { return jitCodeCache.get(); }
+        vm::jit::JitProfiler* getJitProfiler() const { return jitProfiler.get(); }
+        vm::jit::JitCompiler* getJitCompiler() const { return jitCompiler.get(); }
+        vm::jit::OSRManager* getOSRManager() const { return osrManager.get(); }
+        vm::jit::ic::InlineCacheTable* getInlineCacheTable() const { return inlineCacheTable.get(); }
+
+        // Phase 6: Inline caching control
+        void setICEnabled(bool enabled);
+        bool isICEnabled() const { return icEnabled; }
+
+        // JIT helper: execute a function call from JIT code via interpreter
+        value::Value callFunctionFromJit(const std::string& funcName, const std::vector<value::Value>& args);
 
         // Reset VM state
         void reset();

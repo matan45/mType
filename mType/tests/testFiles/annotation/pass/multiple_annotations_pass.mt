@@ -39,7 +39,7 @@ class GameObject {
 }
 
 @Script
-class Entity extends GameObject implements Updatable {
+class Entity extends GameObject {
 
 	constructor(){}
 
