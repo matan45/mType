@@ -950,6 +950,7 @@ int main(int argc, char* argv[])
             std::cout << "Loading cached bytecode from " << cachedFile << "...\n";
 
             ScriptInterpreter interpreter;
+            interpreter.getVM()->setJitEnabled(true);
             interpreter.runCompiledBytecode(cachedFile);
             return 0;
         }
