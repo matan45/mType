@@ -132,8 +132,10 @@ namespace vm::jit
                     const auto& si = program.getInstruction(ip);
                     if (si.opcode == OpCode::CALL && si.operands.size() >= 2)
                     {
-                        const std::string& fn = program.getConstantPool().getString(
-                            static_cast<uint32_t>(si.operands[0]));
+                        uint32_t fnIdx = static_cast<uint32_t>(si.operands[0]);
+                        if (fnIdx >= program.getConstantPool().strings.size())
+                            continue;
+                        const std::string& fn = program.getConstantPool().getString(fnIdx);
                         const auto* cm = program.getFunction(fn);
                         if (cm && cm->returnType != "int" && cm->returnType != "float" &&
                             cm->returnType != "bool" && cm->returnType != "void")

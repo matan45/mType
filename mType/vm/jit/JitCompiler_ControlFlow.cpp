@@ -283,6 +283,11 @@ namespace vm::jit
                     return true;
                 }
 
+                if (nameIndex >= s.program.getConstantPool().strings.size())
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
                 const std::string& funcName = s.program.getConstantPool().getString(nameIndex);
 
                 const auto* calleeMeta = s.program.getFunction(funcName);

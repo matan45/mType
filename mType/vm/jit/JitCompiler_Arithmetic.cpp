@@ -119,6 +119,11 @@ namespace vm::jit
 
             case OpCode::PUSH_INT:
             {
+                if (instr.operands[0] >= s.program.getConstantPool().integers.size())
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
                 int64_t val = s.program.getConstantPool().getInteger(instr.operands[0]);
                 Gp tmp = cc.new_gp64();
                 cc.mov(tmp, val);
@@ -130,6 +135,11 @@ namespace vm::jit
 
             case OpCode::PUSH_FLOAT:
             {
+                if (instr.operands[0] >= s.program.getConstantPool().floats.size())
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
                 double dval = s.program.getConstantPool().getFloat(instr.operands[0]);
                 float fval = static_cast<float>(dval);
                 uint32_t bits;
@@ -439,6 +449,26 @@ namespace vm::jit
                     cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8),
                            instr.opcode == OpCode::DIV ? rax : rdx);
                     s.slotTypes.push_back(SlotType::INT);
+                }
+                else if (lType == SlotType::FLOAT && rType == SlotType::FLOAT
+                         && instr.opcode == OpCode::DIV)
+                {
+                    Vec right = cc.new_xmm();
+                    Vec left = cc.new_xmm();
+                    cc.movss(right, Mem(s.stackBase, s.stackDepth * 8));
+                    cc.movss(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+                    Vec zero = cc.new_xmm();
+                    cc.xorps(zero, zero);
+                    cc.ucomiss(right, zero);
+                    Label nz = cc.new_label();
+                    cc.jne(nz);
+                    InvokeNode* dz;
+                    cc.invoke(Out(dz), (uint64_t)jit_throw_div_by_zero,
+                              FuncSignature::build<void>());
+                    cc.bind(nz);
+                    cc.divss(left, right);
+                    cc.movss(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
+                    s.slotTypes.push_back(SlotType::FLOAT);
                 }
                 else
                 {
