@@ -27,10 +27,10 @@ project "mType"
 
    defines { "_CRT_SECURE_NO_WARNINGS", "MTYPE_SIMD_ENABLED", "ASMJIT_STATIC" }
 
-   -- Platform-specific SIMD configurations
+   -- Platform-specific configurations
    filter "system:windows"
       systemversion "latest"
-      -- SSE2 is already the baseline for x64, no flag needed
+      buildoptions { "/MP" }
 
       -- AVX2 support for release builds
       filter "configurations:Release"
