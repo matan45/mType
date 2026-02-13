@@ -61,7 +61,7 @@ namespace vm::runtime
             }
         }
 
-        // IC miss or uninitialized — check access before using fast path
+        // IC miss or uninitialized — validate access then cache
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
 
         auto fieldDef = instance->getField(fieldName);
@@ -70,18 +70,22 @@ namespace vm::runtime
             throw errors::FieldNotFoundException(fieldName, classDef->getName());
         }
 
-        // Non-public fields: delegate to ObjectExecutor for full access validation
+        // Validate access control
         if (fieldDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
         {
-            context.stackManager->push(objectValue);
-            objectExecutor->handleGetField(instr);
-            return;
+            auto fieldOwnerClass = instance->getClassDefinition()
+                ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());
+            std::string targetClassName = fieldOwnerClass
+                ? fieldOwnerClass->getName() : classDef->getName();
+            auto accessContext = objectExecutor->createAccessContext(targetClassName, false);
+            validation::AccessValidator::validateFieldAccess(
+                fieldName, fieldDef->getAccessModifier(), accessContext);
         }
 
         value::Value fieldValue = instance->getFieldValue(fieldName);
         context.stackManager->push(fieldValue);
 
-        // Populate IC only for PUBLIC non-static instance fields
+        // Populate IC for non-static fields (access was validated above)
         if (cache.state != ICState::MEGAMORPHIC && !fieldDef->isStatic())
         {
             size_t fieldIndex = classDef->getFieldIndex(fieldName);
@@ -147,22 +151,25 @@ namespace vm::runtime
             }
         }
 
-        // IC miss — check access before using fast path
+        // IC miss — validate access then cache
         auto fieldDef = instance->getField(fieldName);
 
-        // Non-public fields: delegate to ObjectExecutor for full access validation
+        // Validate access control
         if (fieldDef && fieldDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
         {
-            context.stackManager->push(objectValue);
-            context.stackManager->push(newValue);
-            objectExecutor->handleSetField(instr);
-            return;
+            auto fieldOwnerClass = instance->getClassDefinition()
+                ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());
+            std::string targetClassName = fieldOwnerClass
+                ? fieldOwnerClass->getName() : classDef->getName();
+            auto accessContext = objectExecutor->createAccessContext(targetClassName, true);
+            validation::AccessValidator::validateFieldAccess(
+                fieldName, fieldDef->getAccessModifier(), accessContext);
         }
 
         instance->setField(fieldName, newValue);
         context.stackManager->push(newValue);
 
-        // Populate IC only for PUBLIC non-static fields
+        // Populate IC for non-static fields (access was validated above)
         if (cache.state != ICState::MEGAMORPHIC && fieldDef && !fieldDef->isStatic())
         {
             size_t fieldIndex = classDef->getFieldIndex(fieldName);

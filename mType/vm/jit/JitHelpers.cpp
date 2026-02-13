@@ -614,7 +614,7 @@ namespace vm::jit
                 ctx->program->getConstantPool().getString(fieldNameIndex);
 
             auto fieldDef = instance->getField(fieldName);
-            if (fieldDef)
+            if (fieldDef && fieldDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
             {
                 auto ownerClass = instance->getClassDefinition()
                     ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());
@@ -624,19 +624,15 @@ namespace vm::jit
 
             *dest = instance->getFieldValue(fieldName);
 
-            // Only cache PUBLIC fields so IC fast path stays safe
+            // Cache after access validation (safe: IC is per-bytecodeOffset)
             if (cache.state != ICState::MEGAMORPHIC)
             {
-                bool isPublic = !fieldDef || fieldDef->getAccessModifier() == ast::AccessModifier::PUBLIC;
-                if (isPublic)
+                size_t fieldIndex = classDef->getFieldIndex(fieldName);
+                if (fieldIndex != SIZE_MAX)
                 {
-                    size_t fieldIndex = classDef->getFieldIndex(fieldName);
-                    if (fieldIndex != SIZE_MAX)
-                    {
-                        if (!instance->hasFieldVector())
-                            instance->ensureFieldVector();
-                        cache.addEntry(classDef, fieldIndex);
-                    }
+                    if (!instance->hasFieldVector())
+                        instance->ensureFieldVector();
+                    cache.addEntry(classDef, fieldIndex);
                 }
             }
             return;
@@ -646,7 +642,7 @@ namespace vm::jit
             ctx->program->getConstantPool().getString(fieldNameIndex);
 
         auto fieldDef = instance->getField(fieldName);
-        if (fieldDef)
+        if (fieldDef && fieldDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
         {
             auto ownerClass = instance->getClassDefinition()
                 ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());
@@ -695,7 +691,7 @@ namespace vm::jit
                 ctx->program->getConstantPool().getString(fieldNameIndex);
 
             auto fieldDef = instance->getField(fieldName);
-            if (fieldDef)
+            if (fieldDef && fieldDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
             {
                 auto ownerClass = instance->getClassDefinition()
                     ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());
@@ -706,19 +702,15 @@ namespace vm::jit
             instance->setField(fieldName, *newValue);
             *destValue = *newValue;
 
-            // Only cache PUBLIC fields so IC fast path stays safe
+            // Cache after access validation (safe: IC is per-bytecodeOffset)
             if (cache.state != ICState::MEGAMORPHIC)
             {
-                bool isPublic = !fieldDef || fieldDef->getAccessModifier() == ast::AccessModifier::PUBLIC;
-                if (isPublic)
+                size_t fieldIndex = classDef->getFieldIndex(fieldName);
+                if (fieldIndex != SIZE_MAX)
                 {
-                    size_t fieldIndex = classDef->getFieldIndex(fieldName);
-                    if (fieldIndex != SIZE_MAX)
-                    {
-                        if (!instance->hasFieldVector())
-                            instance->ensureFieldVector();
-                        cache.addEntry(classDef, fieldIndex);
-                    }
+                    if (!instance->hasFieldVector())
+                        instance->ensureFieldVector();
+                    cache.addEntry(classDef, fieldIndex);
                 }
             }
             return;
@@ -728,7 +720,7 @@ namespace vm::jit
             ctx->program->getConstantPool().getString(fieldNameIndex);
 
         auto fieldDef = instance->getField(fieldName);
-        if (fieldDef)
+        if (fieldDef && fieldDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
         {
             auto ownerClass = instance->getClassDefinition()
                 ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());

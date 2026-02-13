@@ -54,19 +54,18 @@ namespace vm::runtime
         void handleIteratorNext(const bytecode::BytecodeProgram::Instruction& instr);
         void handleIteratorClose(const bytecode::BytecodeProgram::Instruction& instr);
 
-    private:
-        ExecutionContext& context;
-        FunctionExecutor* functionExecutor = nullptr;
-        std::unique_ptr<ObjectInstanceHelper> instanceHelper;
-
-        // Helper methods for access context creation (used by field access operations)
+        // Access context helpers (also used by InlineCacheExecutor)
         validation::AccessContext createAccessContext(
             const std::string& targetClassName,
             bool isSetter = false
         );
-
         std::string getCurrentClassName();
         bool isSubclass(const std::string& derivedClass, const std::string& baseClass);
+
+    private:
+        ExecutionContext& context;
+        FunctionExecutor* functionExecutor = nullptr;
+        std::unique_ptr<ObjectInstanceHelper> instanceHelper;
 
         // Helper methods for handleCallMethod
         std::vector<value::Value> prepareMethodCallArguments(size_t argCount);
