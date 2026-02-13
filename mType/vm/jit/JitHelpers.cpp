@@ -1,6 +1,8 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
 #include "ic/InlineCacheTable.hpp"
+#include "../../errors/AccessViolationException.hpp"
+#include "../../environment/registry/ClassRegistry.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/NullPointerException.hpp"
@@ -526,6 +528,56 @@ namespace vm::jit
 
     // --- Phase 7: IC-aware field access ---
 
+    static void jitValidateFieldAccess(
+        const std::string& fieldName,
+        ast::AccessModifier modifier,
+        const std::string& targetClassName,
+        JitContext* ctx)
+    {
+        if (modifier == ast::AccessModifier::PUBLIC)
+            return;
+
+        const std::string& caller = ctx->callingClassName;
+        bool isSameClass = (caller == targetClassName);
+
+        if (modifier == ast::AccessModifier::PRIVATE)
+        {
+            if (!isSameClass)
+            {
+                std::string callingCtx = caller.empty() ? "global scope" : caller;
+                throw errors::AccessViolationException(
+                    fieldName, "field", modifier, targetClassName, callingCtx,
+                    errors::SourceLocation());
+            }
+            return;
+        }
+
+        // PROTECTED: same class or subclass
+        if (isSameClass)
+            return;
+
+        if (!caller.empty() && ctx->environment)
+        {
+            auto registry = ctx->environment->getClassRegistry();
+            auto currentClass = registry->findClass(caller);
+            while (currentClass && currentClass->hasParentClass())
+            {
+                std::string parentName = currentClass->getParentClassName();
+                size_t gPos = parentName.find('<');
+                if (gPos != std::string::npos)
+                    parentName = parentName.substr(0, gPos);
+                if (parentName == targetClassName)
+                    return;
+                currentClass = registry->findClass(parentName);
+            }
+        }
+
+        std::string callingCtx = caller.empty() ? "global scope" : caller;
+        throw errors::AccessViolationException(
+            fieldName, "field", modifier, targetClassName, callingCtx,
+            errors::SourceLocation());
+    }
+
     void jit_get_field_ic(value::Value* dest, const value::Value* object,
                           JitContext* ctx, size_t bytecodeOffset,
                           uint32_t fieldNameIndex)
@@ -560,16 +612,31 @@ namespace vm::jit
 
             const std::string& fieldName =
                 ctx->program->getConstantPool().getString(fieldNameIndex);
+
+            auto fieldDef = instance->getField(fieldName);
+            if (fieldDef)
+            {
+                auto ownerClass = instance->getClassDefinition()
+                    ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());
+                std::string targetClass = ownerClass ? ownerClass->getName() : classDef->getName();
+                jitValidateFieldAccess(fieldName, fieldDef->getAccessModifier(), targetClass, ctx);
+            }
+
             *dest = instance->getFieldValue(fieldName);
 
+            // Only cache PUBLIC fields so IC fast path stays safe
             if (cache.state != ICState::MEGAMORPHIC)
             {
-                size_t fieldIndex = classDef->getFieldIndex(fieldName);
-                if (fieldIndex != SIZE_MAX)
+                bool isPublic = !fieldDef || fieldDef->getAccessModifier() == ast::AccessModifier::PUBLIC;
+                if (isPublic)
                 {
-                    if (!instance->hasFieldVector())
-                        instance->ensureFieldVector();
-                    cache.addEntry(classDef, fieldIndex);
+                    size_t fieldIndex = classDef->getFieldIndex(fieldName);
+                    if (fieldIndex != SIZE_MAX)
+                    {
+                        if (!instance->hasFieldVector())
+                            instance->ensureFieldVector();
+                        cache.addEntry(classDef, fieldIndex);
+                    }
                 }
             }
             return;
@@ -577,6 +644,16 @@ namespace vm::jit
 
         const std::string& fieldName =
             ctx->program->getConstantPool().getString(fieldNameIndex);
+
+        auto fieldDef = instance->getField(fieldName);
+        if (fieldDef)
+        {
+            auto ownerClass = instance->getClassDefinition()
+                ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());
+            std::string targetClass = ownerClass ? ownerClass->getName() : classDef->getName();
+            jitValidateFieldAccess(fieldName, fieldDef->getAccessModifier(), targetClass, ctx);
+        }
+
         *dest = instance->getFieldValue(fieldName);
     }
 
@@ -616,17 +693,32 @@ namespace vm::jit
 
             const std::string& fieldName =
                 ctx->program->getConstantPool().getString(fieldNameIndex);
+
+            auto fieldDef = instance->getField(fieldName);
+            if (fieldDef)
+            {
+                auto ownerClass = instance->getClassDefinition()
+                    ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());
+                std::string targetClass = ownerClass ? ownerClass->getName() : classDef->getName();
+                jitValidateFieldAccess(fieldName, fieldDef->getAccessModifier(), targetClass, ctx);
+            }
+
             instance->setField(fieldName, *newValue);
             *destValue = *newValue;
 
+            // Only cache PUBLIC fields so IC fast path stays safe
             if (cache.state != ICState::MEGAMORPHIC)
             {
-                size_t fieldIndex = classDef->getFieldIndex(fieldName);
-                if (fieldIndex != SIZE_MAX)
+                bool isPublic = !fieldDef || fieldDef->getAccessModifier() == ast::AccessModifier::PUBLIC;
+                if (isPublic)
                 {
-                    if (!instance->hasFieldVector())
-                        instance->ensureFieldVector();
-                    cache.addEntry(classDef, fieldIndex);
+                    size_t fieldIndex = classDef->getFieldIndex(fieldName);
+                    if (fieldIndex != SIZE_MAX)
+                    {
+                        if (!instance->hasFieldVector())
+                            instance->ensureFieldVector();
+                        cache.addEntry(classDef, fieldIndex);
+                    }
                 }
             }
             return;
@@ -634,6 +726,16 @@ namespace vm::jit
 
         const std::string& fieldName =
             ctx->program->getConstantPool().getString(fieldNameIndex);
+
+        auto fieldDef = instance->getField(fieldName);
+        if (fieldDef)
+        {
+            auto ownerClass = instance->getClassDefinition()
+                ->getFieldOwnerInHierarchy(fieldName, instance->getClassDefinition());
+            std::string targetClass = ownerClass ? ownerClass->getName() : classDef->getName();
+            jitValidateFieldAccess(fieldName, fieldDef->getAccessModifier(), targetClass, ctx);
+        }
+
         instance->setField(fieldName, *newValue);
         *destValue = *newValue;
     }

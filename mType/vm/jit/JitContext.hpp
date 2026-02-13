@@ -61,6 +61,9 @@ namespace vm::jit
         // Phase 7 (IC): Inline cache table for field/method specialization
         vm::jit::ic::InlineCacheTable* icTable = nullptr;
 
+        // Phase 7: Calling class name for access validation in JIT helpers
+        std::string callingClassName;
+
         // Phase 5 (OSR): Input locals captured from interpreter at OSR entry
         value::Value* osrLocals = nullptr;
         size_t osrLocalCount = 0;

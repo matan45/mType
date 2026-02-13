@@ -61,7 +61,7 @@ namespace vm::runtime
             }
         }
 
-        // IC miss or uninitialized — full slow path
+        // IC miss or uninitialized — check access before using fast path
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
 
         auto fieldDef = instance->getField(fieldName);
@@ -70,16 +70,23 @@ namespace vm::runtime
             throw errors::FieldNotFoundException(fieldName, classDef->getName());
         }
 
+        // Non-public fields: delegate to ObjectExecutor for full access validation
+        if (fieldDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
+        {
+            context.stackManager->push(objectValue);
+            objectExecutor->handleGetField(instr);
+            return;
+        }
+
         value::Value fieldValue = instance->getFieldValue(fieldName);
         context.stackManager->push(fieldValue);
 
-        // Populate IC (only for non-static instance fields)
+        // Populate IC only for PUBLIC non-static instance fields
         if (cache.state != ICState::MEGAMORPHIC && !fieldDef->isStatic())
         {
             size_t fieldIndex = classDef->getFieldIndex(fieldName);
             if (fieldIndex != SIZE_MAX)
             {
-                // Ensure field vector is ready for future fast-path hits
                 if (!instance->hasFieldVector())
                 {
                     instance->ensureFieldVector();
@@ -140,12 +147,22 @@ namespace vm::runtime
             }
         }
 
-        // IC miss — full slow path using existing setField
+        // IC miss — check access before using fast path
+        auto fieldDef = instance->getField(fieldName);
+
+        // Non-public fields: delegate to ObjectExecutor for full access validation
+        if (fieldDef && fieldDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
+        {
+            context.stackManager->push(objectValue);
+            context.stackManager->push(newValue);
+            objectExecutor->handleSetField(instr);
+            return;
+        }
+
         instance->setField(fieldName, newValue);
         context.stackManager->push(newValue);
 
-        // Populate IC for non-static fields
-        auto fieldDef = instance->getField(fieldName);
+        // Populate IC only for PUBLIC non-static fields
         if (cache.state != ICState::MEGAMORPHIC && fieldDef && !fieldDef->isStatic())
         {
             size_t fieldIndex = classDef->getFieldIndex(fieldName);

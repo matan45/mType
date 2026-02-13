@@ -1098,6 +1098,13 @@ namespace vm::runtime
                     jitCtx.jitCodeCache = jitCodeCache.get();
                     jitCtx.icTable = inlineCacheTable.get();
 
+                    // Extract calling class name for access validation
+                    {
+                        size_t sepPos = funcName.find("::");
+                        if (sepPos != std::string::npos)
+                            jitCtx.callingClassName = funcName.substr(0, sepPos);
+                    }
+
                     // Execute JIT-compiled function
                     jitCode(&jitCtx);
 

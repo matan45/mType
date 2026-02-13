@@ -227,6 +227,14 @@ namespace vm::jit
         jitCtx.vm = &vm;
         jitCtx.jitCodeCache = &codeCache;
         jitCtx.icTable = vm.getInlineCacheTable();
+
+        // Extract calling class name for access validation
+        {
+            size_t sepPos = state.functionName.find("::");
+            if (sepPos != std::string::npos)
+                jitCtx.callingClassName = state.functionName.substr(0, sepPos);
+        }
+
         jitCtx.osrLocals = inputLocals.data();
         jitCtx.osrLocalCount = state.localCount;
         jitCtx.osrOutputLocals = outputLocals.data();
