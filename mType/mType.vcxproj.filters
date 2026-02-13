@@ -511,6 +511,15 @@
     <Filter Include="vm\jit">
       <UniqueIdentifier>{9EC4EF22-8A66-1AF9-7321-2E4D5F62A149}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\jit\codegen">
+      <UniqueIdentifier>{A26C54FC-8E3A-4802-77CE-B828633B2467}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\jit\guards">
+      <UniqueIdentifier>{137D5DF2-7F3D-D928-4878-22A6B4F71D05}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\jit\ic">
+      <UniqueIdentifier>{B9BD605C-2528-15D3-6E66-C678DA0FF327}</UniqueIdentifier>
+    </Filter>
     <Filter Include="vm\optimization">
       <UniqueIdentifier>{5E952225-CA20-90E9-D331-13DE3F3CECE9}</UniqueIdentifier>
     </Filter>
@@ -1887,11 +1896,41 @@
     <ClInclude Include="vm\jit\JitContext.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
+    <ClInclude Include="vm\jit\JitEmissionState.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
     <ClInclude Include="vm\jit\JitHelpers.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
     <ClInclude Include="vm\jit\JitProfiler.hpp">
       <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\LoopProfiler.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\OSRManager.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\OSRState.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\SlotType.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\codegen\OSREntryCodegen.hpp">
+      <Filter>vm\jit\codegen</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\guards\DeoptimizationHandler.hpp">
+      <Filter>vm\jit\guards</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\ic\InlineCacheTable.hpp">
+      <Filter>vm\jit\ic</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\ic\InlineCacheTypes.hpp">
+      <Filter>vm\jit\ic</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\ic\TypeFeedbackCollector.hpp">
+      <Filter>vm\jit\ic</Filter>
     </ClInclude>
     <ClInclude Include="vm\optimization\OptimizationPattern.hpp">
       <Filter>vm\optimization</Filter>
@@ -1963,6 +2002,9 @@
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\executors\FunctionExecutor.hpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\executors\InlineCacheExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\executors\LambdaExecutor.hpp">
@@ -3011,7 +3053,19 @@
     <ClCompile Include="vm\jit\JitCodeCache.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
-    <ClCompile Include="vm\jit\JitCompiler.cpp">
+    <ClCompile Include="vm\jit\JitCompiler_Arithmetic.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ControlFlow.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Core.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_OSR.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Objects.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitHelpers.cpp">
@@ -3019,6 +3073,24 @@
     </ClCompile>
     <ClCompile Include="vm\jit\JitProfiler.cpp">
       <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\LoopProfiler.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\OSRManager.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\codegen\OSREntryCodegen.cpp">
+      <Filter>vm\jit\codegen</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\guards\DeoptimizationHandler.cpp">
+      <Filter>vm\jit\guards</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\ic\InlineCacheTable.cpp">
+      <Filter>vm\jit\ic</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\ic\TypeFeedbackCollector.cpp">
+      <Filter>vm\jit\ic</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\OptimizationPattern.cpp">
       <Filter>vm\optimization</Filter>
@@ -3090,6 +3162,9 @@
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\FunctionExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\LambdaExecutor.cpp">
