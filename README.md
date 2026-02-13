@@ -7,13 +7,13 @@
 ![Version](https://img.shields.io/badge/version-0.2.0-blue)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![C++](https://img.shields.io/badge/C%2B%2B-17-blue.svg)
+![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)
 
 A modern, statically-typed programming language with a bytecode virtual machine, featuring object-oriented programming, generics, lambdas, async/await, and a comprehensive type system inspired by TypeScript and Java.
 
 ## Key Highlights
 
-- **Bytecode VM Architecture**: Stack-based virtual machine with 130+ optimized opcodes
+- **Bytecode VM + JIT Compilation**: Stack-based VM with asmjit-powered x86-64 JIT compiler
 - **Advanced Type System**: Full generic support with type constraints and inference
 - **Modern Features**: Async/await, lambdas, closures, and functional programming
 - **Object-Oriented**: Classes, interfaces, inheritance, and polymorphism
@@ -91,6 +91,9 @@ Optimized AST
     ↓ Bytecode Compiler
 Bytecode Program (.mtc)
     ↓ Virtual Machine
+    ↓   ↓ Hot functions detected by profiler
+    ↓   ↓ JIT Compiler (asmjit x86-64)
+    ↓   ↓ Native Machine Code
 Execution Result
 ```
 
@@ -115,12 +118,85 @@ mType --compile -release script.mt
 mType script.mtc
 ```
 
+### Project System (`.mtproj`)
+
+mType includes a built-in project system for managing multi-file projects using XML-based `.mtproj` configuration files.
+
+**Initialize a new project:**
+```bash
+mType --init MyApp src/**/*.mt
+```
+
+This creates a `MyApp.mtproj` file:
+```xml
+<Project Name="MyApp" Version="1.0.0">
+  <Source>
+    <Include>src/**/*.mt</Include>
+  </Source>
+  <Output Directory="build" />
+  <Imports>
+  </Imports>
+</Project>
+```
+
+**Build the project:**
+```bash
+# Compile all source files to bytecode
+mType --build
+
+# Build into a single .mtcLib library file
+mType --build --lib
+
+# Specify project file explicitly
+mType --build MyApp.mtproj
+```
+
+**Manage source files:**
+```bash
+# Add include pattern
+mType --add "tests/**/*.mt"
+
+# Remove include pattern
+mType --remove "tests/**/*.mt"
+
+# Clean build artifacts
+mType --clean
+```
+
+**Project features:**
+- **Auto-discovery**: Walks up directory tree to find the nearest `.mtproj` file
+- **Glob patterns**: Include/exclude files using `**/*.mt` glob syntax
+- **Import paths**: Configure search paths and aliases for module resolution
+- **Library builds**: Compile into a single `.mtcLib` distributable file
+- **Progress reporting**: Real-time compilation progress with file counts
+
+```xml
+<Project Name="MyApp" Version="1.0.0">
+  <Source>
+    <Include>src/**/*.mt</Include>
+    <Include>lib/**/*.mt</Include>
+    <Exclude>src/tests/**/*.mt</Exclude>
+  </Source>
+  <Output Directory="build" />
+  <Imports>
+    <SearchPath>lib</SearchPath>
+    <Alias Name="utils" Path="src/utils" />
+  </Imports>
+</Project>
+```
+
 ### Virtual Machine Features
 
 - **Stack-Based Architecture**: Fast execution with 130+ specialized opcodes
+- **JIT Compilation**: Automatic compilation of hot functions to native x86-64 code via [asmjit](https://github.com/asmjit/asmjit)
+  - Profile-guided: functions are JIT-compiled after becoming hot
+  - On-Stack Replacement (OSR): hot loops are compiled mid-execution
+  - Inline Caching (IC): monomorphic/polymorphic field access optimization
+  - Typed array fast paths: direct primitive access for `int[]`/`float[]`
+  - SoA-aware array field access: column-oriented storage for object arrays
 - **Call Stack Protection**: Configurable stack depth with overflow detection (max: 1000)
 - **Type-Specialized Instructions**: Optimized int/float operations
-- **Fast Field Access**: Cached offset-based field access
+- **Fast Field Access**: Inline-cached offset-based field access
 - **Debugging Support**: Breakpoints, line tracking, stack traces
 - **Event Loop Integration**: For async/await execution
 
@@ -237,14 +313,14 @@ Full-featured IDE support with the **mType Language Extension**:
 ## 📦 Getting Started
 
 ### Prerequisites
-- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
+- C++20 compatible compiler (GCC 10+, Clang 10+, MSVC 2019+)
 - Premake5 (for project generation)
 
 ### Building from Source
 
 #### Windows (Visual Studio)
 ```bash
-git clone https://github.com/matan45/mType.git
+git clone --recursive https://github.com/matan45/mType.git
 cd mType
 runPremake.bat
 # Open Interpreter.sln in Visual Studio and build
@@ -252,11 +328,16 @@ runPremake.bat
 
 #### Linux/macOS
 ```bash
-git clone https://github.com/matan45/mType.git
+git clone --recursive https://github.com/matan45/mType.git
 cd mType
 premake5 gmake2
 make
 ```
+
+> **Note:** If you cloned without `--recursive`, initialize the asmjit submodule:
+> ```bash
+> git submodule update --init --recursive
+> ```
 
 ### Installing VS Code Extension
 
@@ -296,6 +377,8 @@ mType/
 │   ├── Object.mt
 │   ├── collections/              # List, HashMap, Stack, Queue, etc.
 │   └── primitives/               # Int, Float, String, Bool wrappers
+├── vendor/
+│   └── asmjit/                   # JIT assembler library (git submodule)
 ├── mType/                        # Core interpreter
 │   ├── ast/                      # Abstract Syntax Tree nodes
 │   ├── lexer/                    # Lexical analysis
@@ -304,8 +387,13 @@ mType/
 │   ├── vm/                       # Virtual Machine
 │   │   ├── bytecode/             # Bytecode definitions and serialization
 │   │   ├── compiler/             # Bytecode compiler
-│   │   └── runtime/              # VM execution engine
+│   │   ├── runtime/              # VM execution engine
+│   │   └── jit/                  # JIT compiler (x86-64 via asmjit)
+│   │       ├── ic/               # Inline cache types and table
+│   │       ├── guards/           # Deoptimization handlers
+│   │       └── codegen/          # OSR entry codegen
 │   ├── environment/              # Variable scoping and registries
+│   ├── project/                  # Project system (.mtproj parsing, building)
 │   ├── types/                    # Type system
 │   ├── value/                    # Value types and memory management
 │   ├── services/                 # File reading, imports, script execution
@@ -526,6 +614,8 @@ function main(): void {
 - ✅ Debugging Support (Debug adapter protocol)
 - ✅ SIMD Acceleration (SSE2, AVX2, NEON)
 - ✅ Language Server Protocol (LSP) - Universal editor support (Vim, Emacs, Sublime, etc.)
+- ✅ JIT Compilation (x86-64 via asmjit, profile-guided, OSR, inline caching)
+- ✅ Project System (`.mtproj` with glob patterns, library builds, auto-discovery)
 
 ### In Progress
 - 🚧 Standard Library Expansion
@@ -534,7 +624,6 @@ function main(): void {
 - 🚧 LSP: Additional Features (go-to-definition, find references, formatting)
 
 ### Planned
-- 📋 JIT Compilation
 - 📋 Package Manager
 - 📋 REPL (Read-Eval-Print Loop)
 - 📋 Native Code Generation
