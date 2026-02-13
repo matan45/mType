@@ -31,6 +31,7 @@ namespace vm::jit
         std::vector<SlotType> slotTypes;
         std::unordered_map<size_t, SlotType> localTypes;
         bool compileFailed = false;
+        size_t currentIP = 0;
         std::unordered_map<size_t, asmjit::Label> labels;
 
         const bytecode::BytecodeProgram& program;
@@ -62,6 +63,9 @@ namespace vm::jit
     bool emitControlFlowOps(JitEmissionState& s,
                             const bytecode::BytecodeProgram::Instruction& instr,
                             const ExitHandler& onExit);
+
+    bool emitArrayOps(JitEmissionState& s,
+                      const bytecode::BytecodeProgram::Instruction& instr);
 
     bool emitObjectOps(JitEmissionState& s,
                        const bytecode::BytecodeProgram::Instruction& instr);

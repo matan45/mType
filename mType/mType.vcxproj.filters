@@ -3056,6 +3056,9 @@
     <ClCompile Include="vm\jit\JitCompiler_Arithmetic.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Arrays.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_ControlFlow.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>

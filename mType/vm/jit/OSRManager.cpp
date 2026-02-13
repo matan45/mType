@@ -226,6 +226,7 @@ namespace vm::jit
         jitCtx.environment = context.environment.get();
         jitCtx.vm = &vm;
         jitCtx.jitCodeCache = &codeCache;
+        jitCtx.icTable = vm.getInlineCacheTable();
         jitCtx.osrLocals = inputLocals.data();
         jitCtx.osrLocalCount = state.localCount;
         jitCtx.osrOutputLocals = outputLocals.data();

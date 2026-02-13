@@ -18,6 +18,8 @@ namespace environment {
     class Environment;
 }
 
+namespace vm::jit::ic { class InlineCacheTable; }
+
 namespace vm::jit
 {
     class JitCodeCache;
@@ -55,6 +57,9 @@ namespace vm::jit
         // Phase 3: Pre-allocated scratch space for boxing arguments before CALL
         static constexpr size_t MAX_CALL_ARGS = 16;
         value::Value callArgs[MAX_CALL_ARGS];
+
+        // Phase 7 (IC): Inline cache table for field/method specialization
+        vm::jit::ic::InlineCacheTable* icTable = nullptr;
 
         // Phase 5 (OSR): Input locals captured from interpreter at OSR entry
         value::Value* osrLocals = nullptr;

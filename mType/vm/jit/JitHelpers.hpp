@@ -155,4 +155,33 @@ namespace vm::jit
 
     // Trigger deoptimization from JIT code (throws OSRDeoptException)
     void jit_osr_deoptimize(JitContext* ctx, uint64_t bytecodeOffset);
+
+    // --- Phase 7: IC-aware field access ---
+
+    void jit_get_field_ic(value::Value* dest, const value::Value* object,
+                          JitContext* ctx, size_t bytecodeOffset,
+                          uint32_t fieldNameIndex);
+
+    void jit_set_field_ic(value::Value* destValue, const value::Value* object,
+                          const value::Value* newValue,
+                          JitContext* ctx, size_t bytecodeOffset,
+                          uint32_t fieldNameIndex);
+
+    // --- Phase 7: Typed array access ---
+
+    int64_t jit_array_get_int(const value::Value* array, int64_t index);
+    void jit_array_set_int(const value::Value* array, int64_t index,
+                           int64_t val);
+
+    // --- Phase 7: SoA-aware array field access ---
+
+    void jit_array_get_field(value::Value* dest, const value::Value* array,
+                             int64_t index,
+                             const vm::bytecode::BytecodeProgram* prog,
+                             uint32_t fieldNameIndex);
+
+    void jit_array_set_field(const value::Value* array, int64_t index,
+                             const value::Value* newValue,
+                             const vm::bytecode::BytecodeProgram* prog,
+                             uint32_t fieldNameIndex);
 }

@@ -81,6 +81,10 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::ARRAY_GET),
             static_cast<uint8_t>(OpCode::ARRAY_SET),
             static_cast<uint8_t>(OpCode::ARRAY_LENGTH),
+            static_cast<uint8_t>(OpCode::ARRAY_GET_INT),
+            static_cast<uint8_t>(OpCode::ARRAY_SET_INT),
+            static_cast<uint8_t>(OpCode::ARRAY_GET_FIELD),
+            static_cast<uint8_t>(OpCode::ARRAY_SET_FIELD),
 
             static_cast<uint8_t>(OpCode::INSTANCEOF),
             static_cast<uint8_t>(OpCode::CAST),

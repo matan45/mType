@@ -72,6 +72,9 @@ namespace vm::jit
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
+        // Delegate array opcodes to JitCompiler_Arrays.cpp
+        if (emitArrayOps(s, instr)) return true;
+
         switch (instr.opcode)
         {
             case OpCode::PUSH_STRING:
@@ -102,18 +105,19 @@ namespace vm::jit
                 cc.lea(objAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
                 Gp dest = cc.new_gp64();
                 cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
-                Gp pPtr = cc.new_gp64();
-                cc.mov(pPtr, s.progPtr);
+                Gp ipReg = cc.new_gp64();
+                cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
                 Gp idx = cc.new_gp64();
                 cc.mov(idx, static_cast<int64_t>(fieldNameIndex));
                 InvokeNode* inv;
-                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_get_field),
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_get_field_ic),
                           FuncSignature::build<void, value::Value*, const value::Value*,
-                              const vm::bytecode::BytecodeProgram*, uint32_t>());
+                              JitContext*, size_t, uint32_t>());
                 inv->set_arg(0, dest);
                 inv->set_arg(1, objAddr);
-                inv->set_arg(2, pPtr);
-                inv->set_arg(3, idx);
+                inv->set_arg(2, s.ctxPtr);
+                inv->set_arg(3, ipReg);
+                inv->set_arg(4, idx);
                 popType(s);
                 s.slotTypes.push_back(SlotType::BOXED);
                 return true;
@@ -140,21 +144,22 @@ namespace vm::jit
                 cc.lea(objAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
                 Gp dest = cc.new_gp64();
                 cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
-                Gp pPtr = cc.new_gp64();
-                cc.mov(pPtr, s.progPtr);
+                Gp ipReg = cc.new_gp64();
+                cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
                 Gp idx = cc.new_gp64();
                 cc.mov(idx, static_cast<int64_t>(fieldNameIndex));
 
                 InvokeNode* inv;
-                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_set_field),
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_set_field_ic),
                           FuncSignature::build<void, value::Value*, const value::Value*,
                               const value::Value*,
-                              const vm::bytecode::BytecodeProgram*, uint32_t>());
+                              JitContext*, size_t, uint32_t>());
                 inv->set_arg(0, dest);
                 inv->set_arg(1, objAddr);
                 inv->set_arg(2, newValAddr);
-                inv->set_arg(3, pPtr);
-                inv->set_arg(4, idx);
+                inv->set_arg(3, s.ctxPtr);
+                inv->set_arg(4, ipReg);
+                inv->set_arg(5, idx);
 
                 if (isBoxedSlotType(valType))
                 {
@@ -168,137 +173,6 @@ namespace vm::jit
 
                 s.stackDepth--;
                 s.slotTypes.push_back(SlotType::BOXED);
-                return true;
-            }
-
-            case OpCode::NEW_ARRAY:
-            {
-                uint32_t typeIndex = static_cast<uint32_t>(instr.operands[0]);
-                popType(s);
-
-                Gp sizeVal = cc.new_gp64();
-                cc.mov(sizeVal, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-
-                Gp dest = cc.new_gp64();
-                cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
-                Gp idx = cc.new_gp64();
-                cc.mov(idx, static_cast<int64_t>(typeIndex));
-
-                InvokeNode* inv;
-                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_new_array),
-                          FuncSignature::build<void, value::Value*, JitContext*,
-                              uint32_t, int64_t>());
-                inv->set_arg(0, dest);
-                inv->set_arg(1, s.ctxPtr);
-                inv->set_arg(2, idx);
-                inv->set_arg(3, sizeVal);
-
-                s.slotTypes.push_back(SlotType::ARRAY);
-                return true;
-            }
-
-            case OpCode::ARRAY_GET:
-            {
-                popType(s);
-                popType(s);
-
-                Gp indexVal = cc.new_gp64();
-                cc.mov(indexVal, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-                Gp arrAddr = cc.new_gp64();
-                cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
-                Gp dest = cc.new_gp64();
-                cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
-
-                InvokeNode* inv;
-                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_array_get),
-                          FuncSignature::build<void, value::Value*, const value::Value*,
-                              int64_t>());
-                inv->set_arg(0, dest);
-                inv->set_arg(1, arrAddr);
-                inv->set_arg(2, indexVal);
-
-                s.stackDepth--;
-                s.slotTypes.push_back(SlotType::BOXED);
-                return true;
-            }
-
-            case OpCode::ARRAY_SET:
-            {
-                SlotType valType = popType(s);
-                popType(s);
-                popType(s);
-
-                Gp valAddr = cc.new_gp64();
-                if (!isBoxedSlotType(valType))
-                {
-                    cc.lea(valAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)));
-                    emitBox(s, valAddr, s.stackDepth - 1, valType);
-                }
-                else
-                {
-                    cc.lea(valAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
-                }
-
-                Gp indexVal = cc.new_gp64();
-                cc.mov(indexVal, Mem(s.stackBase, (s.stackDepth - 2) * 8));
-                Gp arrAddr = cc.new_gp64();
-                cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 3) * valueSize)));
-
-                InvokeNode* inv;
-                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_array_set),
-                          FuncSignature::build<void, const value::Value*, int64_t,
-                              const value::Value*>());
-                inv->set_arg(0, arrAddr);
-                inv->set_arg(1, indexVal);
-                inv->set_arg(2, valAddr);
-
-                if (isBoxedSlotType(valType))
-                {
-                    Gp dAddr = cc.new_gp64();
-                    cc.lea(dAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
-                    InvokeNode* dInv;
-                    cc.invoke(Out(dInv), reinterpret_cast<uint64_t>(jit_value_destroy),
-                              FuncSignature::build<void, value::Value*>());
-                    dInv->set_arg(0, dAddr);
-                }
-                {
-                    Gp dAddr = cc.new_gp64();
-                    cc.lea(dAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 3) * valueSize)));
-                    InvokeNode* dInv;
-                    cc.invoke(Out(dInv), reinterpret_cast<uint64_t>(jit_value_destroy),
-                              FuncSignature::build<void, value::Value*>());
-                    dInv->set_arg(0, dAddr);
-                }
-
-                s.stackDepth -= 3;
-                return true;
-            }
-
-            case OpCode::ARRAY_LENGTH:
-            {
-                popType(s);
-
-                Gp arrAddr = cc.new_gp64();
-                cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
-
-                InvokeNode* inv;
-                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_array_length),
-                          FuncSignature::build<int64_t, const value::Value*>());
-                inv->set_arg(0, arrAddr);
-                Gp lenVal = cc.new_gp64();
-                inv->set_ret(0, lenVal);
-
-                {
-                    Gp dAddr = cc.new_gp64();
-                    cc.lea(dAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
-                    InvokeNode* dInv;
-                    cc.invoke(Out(dInv), reinterpret_cast<uint64_t>(jit_value_destroy),
-                              FuncSignature::build<void, value::Value*>());
-                    dInv->set_arg(0, dAddr);
-                }
-
-                cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), lenVal);
-                s.slotTypes.push_back(SlotType::INT);
                 return true;
             }
 

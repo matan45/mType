@@ -1096,6 +1096,7 @@ namespace vm::runtime
                     jitCtx.environment = environment.get();
                     jitCtx.vm = this;
                     jitCtx.jitCodeCache = jitCodeCache.get();
+                    jitCtx.icTable = inlineCacheTable.get();
 
                     // Execute JIT-compiled function
                     jitCode(&jitCtx);

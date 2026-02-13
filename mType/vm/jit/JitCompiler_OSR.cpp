@@ -266,7 +266,7 @@ namespace vm::jit
         // Build emission state
         JitEmissionState s{cc, ctxPtr, localsBase, stackBase, boxedBase, progPtr,
                            usesBoxedTypes, localCount, localStride,
-                           0, {}, localTypes, false, labels, program};
+                           0, {}, localTypes, false, 0, labels, program};
 
         // OSR exit handler: write back locals and return
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
@@ -301,6 +301,7 @@ namespace vm::jit
                 cc.bind(labelIt->second);
 
             const auto& instr = program.getInstruction(ip);
+            s.currentIP = ip;
 
             // Check for unsupported Phase 4 opcodes in OSR
             if (osrBailoutOpcodes.count(static_cast<uint8_t>(instr.opcode)))

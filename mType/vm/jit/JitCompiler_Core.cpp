@@ -479,7 +479,7 @@ namespace vm::jit
         // Build emission state and run main codegen loop
         JitEmissionState s{cc, ctxPtr, localsBase, stackBase, boxedBase, progPtr,
                            usesBoxedTypes, localCount, localStride,
-                           0, {}, localTypes, false, labels, program};
+                           0, {}, localTypes, false, 0, labels, program};
 
         for (size_t ip = startOffset; ip < startOffset + instrCount && !s.compileFailed; ++ip)
         {
@@ -488,6 +488,7 @@ namespace vm::jit
                 cc.bind(labelIt->second);
 
             const auto& instr = program.getInstruction(ip);
+            s.currentIP = ip;
             if (emitCoreOps(s, instr)) continue;
             if (emitArithmeticOps(s, instr)) continue;
             if (emitControlFlowOps(s, instr, nullptr)) continue;

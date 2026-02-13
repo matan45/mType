@@ -1,5 +1,6 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
+#include "ic/InlineCacheTable.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/NullPointerException.hpp"
@@ -521,5 +522,181 @@ namespace vm::jit
     void jit_osr_deoptimize(JitContext* ctx, uint64_t bytecodeOffset)
     {
         throw OSRDeoptException(static_cast<size_t>(bytecodeOffset));
+    }
+
+    // --- Phase 7: IC-aware field access ---
+
+    void jit_get_field_ic(value::Value* dest, const value::Value* object,
+                          JitContext* ctx, size_t bytecodeOffset,
+                          uint32_t fieldNameIndex)
+    {
+        using namespace vm::jit::ic;
+
+        if (std::holds_alternative<std::nullptr_t>(*object) ||
+            std::holds_alternative<std::monostate>(*object))
+        {
+            throw errors::NullPointerException("Cannot access field on null");
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
+        auto* classDef = instance->getClassDefinition().get();
+
+        if (ctx->icTable)
+        {
+            FieldInlineCache& cache = ctx->icTable->getFieldIC(bytecodeOffset);
+
+            if (cache.state == ICState::MONOMORPHIC ||
+                cache.state == ICState::POLYMORPHIC)
+            {
+                const FieldICEntry* entry = cache.lookup(classDef);
+                if (entry && entry->fieldIndex != SIZE_MAX)
+                {
+                    if (!instance->hasFieldVector())
+                        instance->ensureFieldVector();
+                    *dest = instance->getFieldByIndex(entry->fieldIndex);
+                    return;
+                }
+            }
+
+            const std::string& fieldName =
+                ctx->program->getConstantPool().getString(fieldNameIndex);
+            *dest = instance->getFieldValue(fieldName);
+
+            if (cache.state != ICState::MEGAMORPHIC)
+            {
+                size_t fieldIndex = classDef->getFieldIndex(fieldName);
+                if (fieldIndex != SIZE_MAX)
+                {
+                    if (!instance->hasFieldVector())
+                        instance->ensureFieldVector();
+                    cache.addEntry(classDef, fieldIndex);
+                }
+            }
+            return;
+        }
+
+        const std::string& fieldName =
+            ctx->program->getConstantPool().getString(fieldNameIndex);
+        *dest = instance->getFieldValue(fieldName);
+    }
+
+    void jit_set_field_ic(value::Value* destValue, const value::Value* object,
+                          const value::Value* newValue,
+                          JitContext* ctx, size_t bytecodeOffset,
+                          uint32_t fieldNameIndex)
+    {
+        using namespace vm::jit::ic;
+
+        if (std::holds_alternative<std::nullptr_t>(*object) ||
+            std::holds_alternative<std::monostate>(*object))
+        {
+            throw errors::NullPointerException("Cannot set field on null");
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
+        auto* classDef = instance->getClassDefinition().get();
+
+        if (ctx->icTable)
+        {
+            FieldInlineCache& cache = ctx->icTable->getFieldIC(bytecodeOffset);
+
+            if (cache.state == ICState::MONOMORPHIC ||
+                cache.state == ICState::POLYMORPHIC)
+            {
+                const FieldICEntry* entry = cache.lookup(classDef);
+                if (entry && entry->fieldIndex != SIZE_MAX)
+                {
+                    if (!instance->hasFieldVector())
+                        instance->ensureFieldVector();
+                    instance->setFieldByIndex(entry->fieldIndex, *newValue);
+                    *destValue = *newValue;
+                    return;
+                }
+            }
+
+            const std::string& fieldName =
+                ctx->program->getConstantPool().getString(fieldNameIndex);
+            instance->setField(fieldName, *newValue);
+            *destValue = *newValue;
+
+            if (cache.state != ICState::MEGAMORPHIC)
+            {
+                size_t fieldIndex = classDef->getFieldIndex(fieldName);
+                if (fieldIndex != SIZE_MAX)
+                {
+                    if (!instance->hasFieldVector())
+                        instance->ensureFieldVector();
+                    cache.addEntry(classDef, fieldIndex);
+                }
+            }
+            return;
+        }
+
+        const std::string& fieldName =
+            ctx->program->getConstantPool().getString(fieldNameIndex);
+        instance->setField(fieldName, *newValue);
+        *destValue = *newValue;
+    }
+
+    // --- Phase 7: Typed array access ---
+
+    int64_t jit_array_get_int(const value::Value* array, int64_t index)
+    {
+        auto arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        value::Value val = arr->getUnchecked(static_cast<size_t>(index));
+        return std::get<int64_t>(val);
+    }
+
+    void jit_array_set_int(const value::Value* array, int64_t index,
+                           int64_t val)
+    {
+        auto arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        arr->setUnchecked(static_cast<size_t>(index), value::Value(val));
+    }
+
+    // --- Phase 7: SoA-aware array field access ---
+
+    void jit_array_get_field(value::Value* dest, const value::Value* array,
+                             int64_t index,
+                             const vm::bytecode::BytecodeProgram* prog,
+                             uint32_t fieldNameIndex)
+    {
+        auto arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
+        size_t idx = static_cast<size_t>(index);
+
+        auto objectArray = arr->getObjectArrayData();
+        if (objectArray)
+        {
+            *dest = objectArray->getFieldUnchecked(idx, fieldName);
+            return;
+        }
+
+        value::Value element = arr->getUnchecked(idx);
+        auto objInstance =
+            std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element);
+        *dest = objInstance->getFieldValue(fieldName);
+    }
+
+    void jit_array_set_field(const value::Value* array, int64_t index,
+                             const value::Value* newValue,
+                             const vm::bytecode::BytecodeProgram* prog,
+                             uint32_t fieldNameIndex)
+    {
+        auto arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
+        size_t idx = static_cast<size_t>(index);
+
+        auto objectArray = arr->getObjectArrayData();
+        if (objectArray)
+        {
+            objectArray->setFieldUnchecked(idx, fieldName, *newValue);
+            return;
+        }
+
+        value::Value element = arr->getUnchecked(idx);
+        auto objInstance =
+            std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element);
+        objInstance->setField(fieldName, *newValue);
     }
 }
