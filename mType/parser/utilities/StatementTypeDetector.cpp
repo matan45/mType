@@ -17,6 +17,15 @@ namespace parser::utilities
         {
             return StatementType::FUNCTION;
         }
+        // Check if next is 'value' keyword: public value class ...
+        else if (next.type == TokenType::VALUE)
+        {
+            Token afterValue = stream.peekAhead(2);
+            if (afterValue.type == TokenType::CLASS)
+            {
+                return StatementType::CLASS;
+            }
+        }
         // PHASE 4 FIX: Check if next is another modifier (final/abstract) that might precede class/interface
         else if (next.type == TokenType::FINAL || next.type == TokenType::ABSTRACT)
         {
@@ -33,6 +42,15 @@ namespace parser::utilities
             else if (afterModifier.type == TokenType::FUNCTION)
             {
                 return StatementType::FUNCTION;
+            }
+            // Check for: public final value class ... or public abstract value class ...
+            if (afterModifier.type == TokenType::VALUE)
+            {
+                Token afterValue = stream.peekAhead(3);
+                if (afterValue.type == TokenType::CLASS)
+                {
+                    return StatementType::CLASS;
+                }
             }
             // Otherwise, it's a declaration: public final int x;
             return StatementType::DECLARATION;
@@ -56,6 +74,15 @@ namespace parser::utilities
         {
             return StatementType::INTERFACE;
         }
+        // final value class ...
+        else if (next.type == TokenType::VALUE)
+        {
+            Token afterValue = stream.peekAhead(2);
+            if (afterValue.type == TokenType::CLASS)
+            {
+                return StatementType::CLASS;
+            }
+        }
         return StatementType::UNKNOWN;
     }
 
@@ -73,6 +100,15 @@ namespace parser::utilities
         else if (next.type == TokenType::FUNCTION)
         {
             return StatementType::FUNCTION;
+        }
+        // abstract value class ... (will be rejected by parser, but route to CLASS for proper error)
+        else if (next.type == TokenType::VALUE)
+        {
+            Token afterValue = stream.peekAhead(2);
+            if (afterValue.type == TokenType::CLASS)
+            {
+                return StatementType::CLASS;
+            }
         }
         return StatementType::UNKNOWN;
     }
@@ -171,6 +207,16 @@ namespace parser::utilities
                 return StatementType::DECLARATION;
             }
         }
+        // Annotations with value: @Annotation value class ...
+        else if (afterAnnotations == TokenType::VALUE)
+        {
+            lookAheadIndex++; // Skip 'value'
+            TokenType afterValue = getTokenAt(lookAheadIndex).type;
+            if (afterValue == TokenType::CLASS)
+            {
+                return StatementType::CLASS;
+            }
+        }
         // Annotations with final/abstract: @Override abstract function ...
         else if (afterAnnotations == TokenType::FINAL || afterAnnotations == TokenType::ABSTRACT)
         {
@@ -187,6 +233,15 @@ namespace parser::utilities
             else if (afterModifier == TokenType::FUNCTION)
             {
                 return StatementType::FUNCTION;
+            }
+            // final/abstract followed by value class
+            if (afterModifier == TokenType::VALUE)
+            {
+                lookAheadIndex++;
+                if (getTokenAt(lookAheadIndex).type == TokenType::CLASS)
+                {
+                    return StatementType::CLASS;
+                }
             }
         }
         // Annotations directly on typed declarations: @Deprecated int x;
@@ -253,6 +308,14 @@ namespace parser::utilities
                 StatementType result = analyzeAccessModifier(stream);
                 if (result != StatementType::UNKNOWN)
                     return result;
+            }
+            break;
+        case TokenType::VALUE:
+            {
+                // value class ...
+                Token next = stream.peek();
+                if (next.type == TokenType::CLASS)
+                    return StatementType::CLASS;
             }
             break;
         case TokenType::FINAL:

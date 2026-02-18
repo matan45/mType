@@ -96,6 +96,7 @@ namespace vm::optimization
                opcode == OpCode::SUPER_INVOKE ||
                opcode == OpCode::THROW ||
                opcode == OpCode::NEW_OBJECT ||
+               opcode == OpCode::NEW_VALUE_OBJECT ||
                opcode == OpCode::NEW_ARRAY ||
                opcode == OpCode::NEW_ARRAY_MULTI;
     }

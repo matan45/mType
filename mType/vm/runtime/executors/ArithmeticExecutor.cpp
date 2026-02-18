@@ -2,6 +2,7 @@
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../value/StringPool.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ValueObject.hpp"
 #include <sstream>
 
 namespace vm::runtime
@@ -290,6 +291,17 @@ namespace vm::runtime
                     // Recursively convert the field value to string
                     return valueToString(fieldValue);
                 }
+            }
+        }
+        // Handle ValueObject (value types)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj) {
+                // For primitive wrapper value objects, extract "value" field
+                if (obj->hasField("value") && obj->getFieldCount() == 1) {
+                    return valueToString(obj->getFieldValue("value"));
+                }
+                return "<" + obj->getClassName() + ">";
             }
         }
         return "<object>";

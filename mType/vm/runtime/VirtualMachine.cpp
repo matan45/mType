@@ -23,6 +23,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
+#include "../../value/ValueObject.hpp"
 #include "../../value/StringPool.hpp"
 #include "../../value/PromiseValue.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
@@ -1127,6 +1128,10 @@ namespace vm::runtime
         // Objects - delegated to ObjectExecutor
         case OpCode::NEW_OBJECT: objectExecutor->handleNewObject(instr);
             break;
+        case OpCode::NEW_VALUE_OBJECT: objectExecutor->handleNewValueObject(instr);
+            break;
+        case OpCode::OBJECT_TO_VALUE: objectExecutor->handleObjectToValue(instr);
+            break;
         case OpCode::GET_FIELD:
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleGetFieldIC(instr);
@@ -1658,6 +1663,19 @@ namespace vm::runtime
                     // Recursively convert the field value to string
                     return valueToString(fieldValue);
                 }
+            }
+        }
+        // Handle ValueObject (value types)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val))
+        {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj)
+            {
+                // For primitive wrapper value objects, extract "value" field
+                if (obj->hasField("value") && obj->getFieldCount() == 1) {
+                    return valueToString(obj->getFieldValue("value"));
+                }
+                return "<" + obj->getClassName() + ">";
             }
         }
         return "<object>";

@@ -10,6 +10,7 @@
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../value/NativeArray.hpp"
+#include "../../../value/ValueObject.hpp"
 #include <algorithm>
 namespace vm::runtime
 {
@@ -24,6 +25,42 @@ namespace vm::runtime
         instanceHelper->handleNewObject(instr);
     }
 
+    void ObjectExecutor::handleNewValueObject(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Value object construction uses the same mechanism as regular objects.
+        // The constructor needs an ObjectInstance for 'this' (frame.thisInstance).
+        // After the constructor completes, OBJECT_TO_VALUE converts the result to ValueObject.
+        instanceHelper->handleNewObject(instr);
+    }
+
+    void ObjectExecutor::handleObjectToValue(const bytecode::BytecodeProgram::Instruction& instr) {
+        // Convert the ObjectInstance on the stack top to a lightweight ValueObject
+        value::Value topValue = context.stackManager->pop();
+
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(topValue)) {
+            // Already a ValueObject or not an object — just push it back
+            context.stackManager->push(topValue);
+            return;
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(topValue);
+        auto classDef = instance->getClassDefinition();
+
+        auto valueObj = std::make_shared<value::ValueObject>(classDef);
+
+        // Copy fields from ObjectInstance to ValueObject using field index map
+        const auto& fieldIndexMap = classDef->getFieldIndexMap();
+        for (const auto& [name, index] : fieldIndexMap) {
+            valueObj->setFieldByIndex(index, instance->getFieldValue(name));
+        }
+
+        // Copy generic type bindings
+        for (const auto& [param, type] : instance->getGenericTypeBindings()) {
+            valueObj->setGenericTypeBinding(param, type);
+        }
+
+        context.stackManager->push(value::Value(valueObj));
+    }
+
     void ObjectExecutor::handleGetField(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires operand");
@@ -35,6 +72,26 @@ namespace vm::runtime
         if (std::holds_alternative<std::nullptr_t>(objectValue)) {
             utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
                 "Cannot access field '" + fieldName + "' on null object");
+        }
+
+        // Handle ValueObject (value types)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+            auto classDef = valueObj->getClassDefinition();
+
+            auto fieldDef = classDef ? classDef->getField(fieldName) : nullptr;
+            if (!fieldDef) {
+                throw errors::FieldNotFoundException(fieldName, valueObj->getClassName());
+            }
+
+            auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+            std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+            auto accessContext = createAccessContext(targetClassName, false);
+            validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+
+            value::Value fieldValue = valueObj->getFieldValue(fieldName);
+            context.stackManager->push(fieldValue);
+            return;
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
@@ -74,6 +131,31 @@ namespace vm::runtime
         if (std::holds_alternative<std::nullptr_t>(objectValue)) {
             utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
                 "Cannot set field '" + fieldName + "' on null object");
+        }
+
+        // Handle ValueObject (value types) — deep copy before mutation for value semantics
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+
+            // Deep copy for value semantics: always mutate a fresh copy
+            auto copy = valueObj->deepCopy();
+
+            auto classDef = copy->getClassDefinition();
+            auto fieldDef = classDef ? classDef->getField(fieldName) : nullptr;
+            if (!fieldDef) {
+                throw errors::FieldNotFoundException(fieldName, copy->getClassName());
+            }
+
+            auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+            std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+            auto accessContext = createAccessContext(targetClassName, true);
+            validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+
+            copy->setField(fieldName, newValue);
+
+            // Push the modified copy back (caller must store it back to the variable)
+            context.stackManager->push(value::Value(copy));
+            return;
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
@@ -299,14 +381,16 @@ namespace vm::runtime
                     // Create boxed instance: new BoxClass(primitiveValue)
                     auto classDef = context.environment->findClass(boxClassName);
                     if (classDef) {
-                        std::unordered_map<std::string, std::string> emptyBindings;
-                        auto boxedInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, emptyBindings);
-
-                        // Directly set the 'value' field to avoid constructor call complexity
-                        // This is safe for primitive wrappers (Int, Float, Bool, String) which just store the primitive
-                        boxedInstance->setField("value", argValue);
-
-                        argValue = boxedInstance;
+                        if (classDef->isValueClass()) {
+                            auto valueObj = std::make_shared<value::ValueObject>(classDef);
+                            valueObj->setField("value", argValue);
+                            argValue = value::Value(valueObj);
+                        } else {
+                            std::unordered_map<std::string, std::string> emptyBindings;
+                            auto boxedInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, emptyBindings);
+                            boxedInstance->setField("value", argValue);
+                            argValue = boxedInstance;
+                        }
                     }
                 }
             }
@@ -511,6 +595,36 @@ namespace vm::runtime
         if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(objectValue)) {
             auto lambda = std::get<std::shared_ptr<BytecodeLambda>>(objectValue);
             invokeLambdaMethod(lambda, args, methodName);
+            return;
+        }
+
+        // Handle value object method invocation
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+            // Value types use the same method dispatch as regular objects
+            // but 'this' is a copy (value semantics — mutations don't propagate back)
+            auto classDef = valueObj->getClassDefinition();
+            if (!classDef) {
+                utils::ErrorLocationHelper::throwRuntimeError(context,
+                    "Value object has no class definition");
+            }
+
+            // Create a temporary ObjectInstance to serve as 'this' for the method call
+            // This reuses existing method invocation infrastructure
+            auto tempInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+            // Copy fields from ValueObject to temporary ObjectInstance
+            const auto& fieldIndexMap = classDef->getFieldIndexMap();
+            for (const auto& [name, index] : fieldIndexMap) {
+                if (index < valueObj->getFieldCount()) {
+                    tempInstance->setField(name, valueObj->getFieldByIndex(index));
+                }
+            }
+            // Copy generic type bindings
+            for (const auto& [param, type] : valueObj->getGenericTypeBindings()) {
+                tempInstance->setGenericTypeBinding(param, type);
+            }
+
+            invokeInstanceMethod(tempInstance, methodName, args, argCount);
             return;
         }
 

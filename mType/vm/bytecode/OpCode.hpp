@@ -209,8 +209,12 @@ namespace vm::bytecode
         ITERATOR_NEXT,          // Get next element from iterator (calls next())
         ITERATOR_CLOSE,         // Close iterator for cleanup (calls close())
 
-        // === Reserved for Future Use (155-255) ===
-        // 101 opcodes reserved for future extensions
+        // === Value Type Operations (155-159) ===
+        NEW_VALUE_OBJECT,       // Create new value object (operand: class index, arg count)
+        OBJECT_TO_VALUE,        // Convert ObjectInstance on stack top to ValueObject
+
+        // === Reserved for Future Use (157-255) ===
+        // 100 opcodes reserved for future extensions
     };
 
     /**
@@ -386,6 +390,9 @@ namespace vm::bytecode
             case OpCode::ITERATOR_HAS_NEXT: return "ITERATOR_HAS_NEXT";
             case OpCode::ITERATOR_NEXT: return "ITERATOR_NEXT";
             case OpCode::ITERATOR_CLOSE: return "ITERATOR_CLOSE";
+
+            case OpCode::NEW_VALUE_OBJECT: return "NEW_VALUE_OBJECT";
+            case OpCode::OBJECT_TO_VALUE: return "OBJECT_TO_VALUE";
 
             default: return "UNKNOWN";
         }

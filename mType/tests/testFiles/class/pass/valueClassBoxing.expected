@@ -1,0 +1,8 @@
+Int add: 50
+Int value: 50
+Float multiply: 6.28
+Bool and: false
+Bool not: true
+String concat: Hello World
+String length: 11
+Int equality: true

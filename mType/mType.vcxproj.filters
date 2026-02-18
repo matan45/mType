@@ -1722,6 +1722,9 @@
     <ClInclude Include="value\StringPool.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\ValueObject.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\ValueType.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -2910,6 +2913,9 @@
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\StringPool.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\ValueObject.cpp">
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\ValueTypeUtils.cpp">

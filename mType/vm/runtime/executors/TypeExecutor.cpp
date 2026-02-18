@@ -1,6 +1,7 @@
 #include "TypeExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../value/StringPool.hpp"
+#include "../../../value/ValueObject.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/UserException.hpp"
 #include <sstream>
@@ -133,6 +134,38 @@ namespace vm::runtime
             } else {
                 return false; // null is not instance of any type
             }
+        }
+        // ValueObject type check (value classes)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj) {
+                auto classDef = obj->getClassDefinition();
+                std::string className = classDef->getName();
+                std::string baseClassName = ::types::TypeConversionUtils::extractBaseTypeName(className);
+                std::string baseTargetName = ::types::TypeConversionUtils::extractBaseTypeName(targetTypeName);
+
+                bool result = (className == targetTypeName) || (baseClassName == baseTargetName);
+
+                // Check implemented interfaces
+                if (!result) {
+                    const auto& interfaces = classDef->getImplementedInterfaces();
+                    for (const auto& iface : interfaces) {
+                        std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
+                        if (iface == targetTypeName || baseIfaceName == baseTargetName) {
+                            result = true;
+                            break;
+                        }
+                        std::unordered_set<std::string> visited;
+                        if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+                            result = true;
+                            break;
+                        }
+                    }
+                }
+
+                return result;
+            }
+            return false;
         }
         else if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
             return false; // null is not instance of any type
@@ -440,6 +473,13 @@ namespace vm::runtime
         }
         if (std::holds_alternative<std::monostate>(val)) {
             return "null";
+        }
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj && obj->hasField("value") && obj->getFieldCount() == 1) {
+                return valueToString(obj->getFieldValue("value"));
+            }
+            return obj ? "<" + obj->getClassName() + ">" : "null";
         }
         return "<object>";
     }

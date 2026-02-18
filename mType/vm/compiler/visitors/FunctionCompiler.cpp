@@ -1102,12 +1102,20 @@ namespace vm::compiler::visitors
         // 1. Compile the literal value (pushes it onto stack)
         literalToBox->accept(ctx.visitor);
 
-        // 2. Emit NEW_OBJECT for the Box class
+        // 2. Emit NEW_OBJECT or NEW_VALUE_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(expectedReturnType);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                     static_cast<uint64_t>(classNameIndex),
-                                     1u, // 1 constructor argument
-                                     literalToBox);
+        auto boxClassDef = ctx.environment->findClass(expectedReturnType);
+        bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+        if (boxIsValue) {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, literalToBox);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, literalToBox);
+        } else {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, literalToBox);
+        }
 
         return true; // Auto-boxing was applied
     }

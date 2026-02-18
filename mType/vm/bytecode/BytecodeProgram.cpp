@@ -902,6 +902,11 @@ namespace vm::bytecode
         BytecodeIOHelper::writeStringVector(out, classMeta.implementedInterfaces);
         BytecodeIOHelper::writeStringVector(out, classMeta.genericParameters);
 
+        // Write class modifier flags
+        BytecodeIOHelper::writePrimitive(out, classMeta.isAbstract);
+        BytecodeIOHelper::writePrimitive(out, classMeta.isFinal);
+        BytecodeIOHelper::writePrimitive(out, classMeta.isValueClass);
+
         // Write annotations
         size_t annotCount = classMeta.annotations.size();
         out.write(reinterpret_cast<const char*>(&annotCount), sizeof(annotCount));
@@ -1006,6 +1011,11 @@ namespace vm::bytecode
         // Read implemented interfaces and generic parameters
         classMeta.implementedInterfaces = BytecodeIOHelper::readStringVector(in);
         classMeta.genericParameters = BytecodeIOHelper::readStringVector(in);
+
+        // Read class modifier flags
+        classMeta.isAbstract = BytecodeIOHelper::readPrimitive<bool>(in);
+        classMeta.isFinal = BytecodeIOHelper::readPrimitive<bool>(in);
+        classMeta.isValueClass = BytecodeIOHelper::readPrimitive<bool>(in);
 
         // Read annotations
         size_t annotCount;

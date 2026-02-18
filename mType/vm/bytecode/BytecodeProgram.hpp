@@ -177,6 +177,7 @@ namespace vm::bytecode
             std::vector<std::string> genericParameters;
             bool isAbstract; // NEW: Abstract class flag
             bool isFinal; // Final class flag
+            bool isValueClass; // NEW: Value class flag for value types
             std::vector<AnnotationData> annotations; // NEW: Class annotations (e.g., @Script)
             std::vector<FieldMetadata> instanceFields;
             std::vector<FieldMetadata> staticFields;

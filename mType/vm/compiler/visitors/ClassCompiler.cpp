@@ -269,20 +269,45 @@ namespace vm::compiler::visitors
             if (needsAutoBoxing)
             {
                 size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
-                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                           static_cast<uint64_t>(classNameIndex),
-                                           1u,  // 1 constructor argument (the primitive value)
-                                           arguments[i].get());
+                auto boxClassDef = ctx.environment->findClass(boxClassName);
+                bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+                if (boxIsValue) {
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                               static_cast<uint64_t>(classNameIndex),
+                                               1u, arguments[i].get());
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, arguments[i].get());
+                } else {
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                               static_cast<uint64_t>(classNameIndex),
+                                               1u, arguments[i].get());
+                }
             }
         }
 
         // Store the FULL class name including generics (e.g., "Box<Int>")
         size_t classNameIndex = ctx.program.getConstantPool().addString(fullClassName);
 
-        // Emit NEW_OBJECT instruction with full class name and argument count
-        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                         static_cast<uint64_t>(classNameIndex),
-                         static_cast<uint64_t>(arguments.size()), node);
+        // Check if the target class is a value class
+        std::string baseClassName = fullClassName;
+        size_t genStart = fullClassName.find('<');
+        if (genStart != std::string::npos) {
+            baseClassName = fullClassName.substr(0, genStart);
+        }
+        auto classDef = ctx.environment->findClass(baseClassName);
+        bool isValueClass = classDef && classDef->isValueClass();
+
+        if (isValueClass) {
+            // Emit NEW_VALUE_OBJECT + OBJECT_TO_VALUE for value classes
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                             static_cast<uint64_t>(classNameIndex),
+                             static_cast<uint64_t>(arguments.size()), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, node);
+        } else {
+            // Emit NEW_OBJECT instruction with full class name and argument count
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                             static_cast<uint64_t>(classNameIndex),
+                             static_cast<uint64_t>(arguments.size()), node);
+        }
     }
 
     value::Value ClassCompiler::compileNew(ast::NewNode* node)
@@ -1007,13 +1032,21 @@ namespace vm::compiler::visitors
 
                         if (needsBoxing)
                         {
-                            // Auto-box: compile value, then emit NEW_OBJECT
+                            // Auto-box: compile value, then emit NEW_OBJECT or NEW_VALUE_OBJECT
                             arguments[i]->accept(ctx.visitor);
                             size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
-                            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                                        static_cast<uint64_t>(classNameIndex),
-                                                        1u, // 1 constructor argument
-                                                        arguments[i].get());
+                            auto boxClassDef = ctx.environment->findClass(boxClassName);
+                            bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+                            if (boxIsValue) {
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                                            static_cast<uint64_t>(classNameIndex),
+                                                            1u, arguments[i].get());
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, arguments[i].get());
+                            } else {
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                                            static_cast<uint64_t>(classNameIndex),
+                                                            1u, arguments[i].get());
+                            }
                             autoBoxed = true;
                         }
                 }
@@ -1293,12 +1326,20 @@ namespace vm::compiler::visitors
         // 1. Compile the argument expression (pushes it onto stack)
         argument->accept(ctx.visitor);
 
-        // 2. Emit NEW_OBJECT for the Box class
+        // 2. Emit NEW_OBJECT or NEW_VALUE_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(expectedType);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                     static_cast<uint64_t>(classNameIndex),
-                                     1u,  // 1 constructor argument
-                                     argument);
+        auto boxClassDef = ctx.environment->findClass(expectedType);
+        bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+        if (boxIsValue) {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, argument);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, argument);
+        } else {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, argument);
+        }
 
         return true;  // Auto-boxing was applied
     }

@@ -203,13 +203,21 @@ namespace vm::compiler::visitors
                         (elementType == "Bool" && valueType == value::ValueType::BOOL) ||
                         (elementType == "String" && valueType == value::ValueType::STRING))
                     {
-                        // Auto-box: compile value, then wrap in NEW_OBJECT
+                        // Auto-box: compile value, then wrap in NEW_OBJECT or NEW_VALUE_OBJECT
                         node->getValue()->accept(ctx.visitor);
                         size_t classNameIndex = ctx.program.getConstantPool().addString(elementType);
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                                     static_cast<uint64_t>(classNameIndex),
-                                                     1u,  // 1 constructor argument
-                                                     node->getValue());
+                        auto boxClassDef = ctx.environment->findClass(elementType);
+                        bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+                        if (boxIsValue) {
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                                         static_cast<uint64_t>(classNameIndex),
+                                                         1u, node->getValue());
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, node->getValue());
+                        } else {
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                                         static_cast<uint64_t>(classNameIndex),
+                                                         1u, node->getValue());
+                        }
                         autoBoxed = true;
                     }
                 }

@@ -33,6 +33,8 @@ namespace vm::runtime
 
         // Object creation
         void handleNewObject(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleNewValueObject(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleObjectToValue(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Field access
         void handleGetField(const bytecode::BytecodeProgram::Instruction& instr);

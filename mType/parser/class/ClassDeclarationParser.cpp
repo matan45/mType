@@ -51,6 +51,14 @@ namespace parser
             tokenStream.advance(); // consume 'final'
         }
 
+        // Check for optional 'value' keyword
+        bool isValueClass = false;
+        if (tokenStream.check(TokenType::VALUE))
+        {
+            isValueClass = true;
+            tokenStream.advance(); // consume 'value'
+        }
+
         // Validate that abstract and final are mutually exclusive
         if (isAbstract && isFinal)
         {
@@ -58,6 +66,21 @@ namespace parser
                 "Class cannot be both abstract and final. Abstract classes are meant to be extended, "
                 "while final classes cannot be extended.",
                 tokenStream.current().location);
+        }
+
+        // Validate that value and abstract are mutually exclusive
+        if (isValueClass && isAbstract)
+        {
+            throw ParseException(
+                "Class cannot be both value and abstract. Value classes have copy semantics "
+                "and cannot participate in inheritance hierarchies.",
+                tokenStream.current().location);
+        }
+
+        // Value classes are implicitly final
+        if (isValueClass)
+        {
+            isFinal = true;
         }
 
         tokenStream.expect(TokenType::CLASS);
@@ -93,6 +116,15 @@ namespace parser
 
         // Parse extends clause if present (must come before implements)
         std::string parentClassName = parseExtendsClause();
+
+        // Validate that value classes cannot use extends
+        if (isValueClass && !parentClassName.empty())
+        {
+            throw ParseException(
+                "Value class '" + className + "' cannot extend another class. "
+                "Value classes do not participate in inheritance hierarchies.",
+                tokenStream.current().location);
+        }
 
         // Validate that parent is not an interface (if extends clause present)
         if (!parentClassName.empty())
@@ -152,6 +184,7 @@ namespace parser
                                                      implementedInterfaces, classNameLocation);
         classNode->setFinal(isFinal);
         classNode->setAbstract(isAbstract);
+        classNode->setValueClass(isValueClass);
         classNode->setVisibility(visibility);
 
         return classNode;

@@ -99,6 +99,9 @@ namespace vm::compiler::registration
         // Set abstract modifier
         classDef->setAbstract(classNode->isAbstract());
 
+        // Set value class modifier
+        classDef->setValueClass(classNode->isValueClass());
+
         // Copy annotations from AST to runtime definition
         for (const auto& annotation : classNode->getAnnotations()) {
             classDef->addAnnotation(annotation);
@@ -579,6 +582,7 @@ namespace vm::compiler::registration
         metadata.parentClassName = classNode->hasParentClass() ? classNode->getParentClassName() : "";
         metadata.isAbstract = classNode->isAbstract();
         metadata.isFinal = classNode->isFinal();
+        metadata.isValueClass = classNode->isValueClass();
 
         // Extract implemented interfaces
         const auto& interfaces = classNode->getImplementedInterfaces();

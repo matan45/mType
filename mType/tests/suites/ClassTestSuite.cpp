@@ -487,6 +487,24 @@ namespace tests::testSuite
                         errorPath + "privateStaticMethodInheritance.mt",
                         TestType::ERROR_EXPECTED);
 
+        // === VALUE CLASS TESTS ===
+        // These tests verify value class functionality
+
+        addOutputVerificationTest("Value Class Basic",
+                        passPath + "valueClassBasic.mt");
+        addOutputVerificationTest("Value Class Methods",
+                        passPath + "valueClassMethods.mt");
+        addOutputVerificationTest("Value Class Copy Semantics",
+                        passPath + "valueClassCopySemantics.mt");
+        addOutputVerificationTest("Value Class Structural Equality",
+                        passPath + "valueClassEquality.mt");
+        addOutputVerificationTest("Value Class Implements Interface",
+                        passPath + "valueClassImplements.mt");
+        addOutputVerificationTest("Value Class Nested",
+                        passPath + "valueClassNested.mt");
+        addOutputVerificationTest("Value Class Boxing Primitives",
+                        passPath + "valueClassBoxing.mt");
+
         // === NESTED TYPE VALIDATION TESTS ===
         // These tests verify that nested classes and interfaces are properly rejected
 
@@ -530,6 +548,16 @@ namespace tests::testSuite
         // === TYPE OPERATIONS ERROR TESTS ===
         addTestFromFile("Type Invalid Cast",
                         errorPath + "typeInvalidCast.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === VALUE CLASS ERROR TESTS ===
+        // These tests verify that value class constraints are enforced
+
+        addTestFromFile("Value Abstract Conflict Error",
+                        errorPath + "value_abstract_conflict.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Value Class Extends Error",
+                        errorPath + "value_extends_error.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

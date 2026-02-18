@@ -2,6 +2,7 @@
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/ArrayBoundsChecker.hpp"
 #include "../../../value/arrays/ArrayFactory.hpp"
+#include "../../../value/ValueObject.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include <algorithm>
 
@@ -104,6 +105,14 @@ namespace vm::runtime
         // Get element using unchecked access (bounds already verified)
         // PERFORMANCE: Eliminates redundant bounds check in array->get()
         value::Value element = array->getUnchecked(static_cast<size_t>(index));
+
+        // Deep copy ValueObjects when retrieving from arrays (value semantics)
+        // This ensures list.get(0).x = 5 doesn't modify the value inside the collection
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(element)) {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(element);
+            element = value::Value(valueObj->deepCopy());
+        }
+
         context.stackManager->push(element);
     }
 

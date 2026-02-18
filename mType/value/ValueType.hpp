@@ -20,6 +20,7 @@ namespace value
     class FlatMultiArray;
     class SparseMultiArray;
     class PromiseValue;
+    class ValueObject;
 }
 
 namespace mType::value::arrays
@@ -39,6 +40,7 @@ namespace value
         STRING,
         VOID,
         OBJECT,
+        VALUE_OBJECT,
         ARRAY,
         LAMBDA,
         NULL_TYPE
@@ -47,6 +49,7 @@ namespace value
     // Runtime value that can hold different types
     using Value = std::variant<int64_t, float, bool, std::string, InternedString, std::monostate,
                                std::shared_ptr<runtimeTypes::klass::ObjectInstance>,
+                               std::shared_ptr<ValueObject>,
                                std::shared_ptr<NativeArray>,
                                std::shared_ptr<FlatMultiArray>,
                                std::shared_ptr<SparseMultiArray>,

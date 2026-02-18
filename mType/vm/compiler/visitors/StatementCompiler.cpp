@@ -973,12 +973,20 @@ namespace vm::compiler::visitors
         // 1. Compile the value expression (pushes it onto stack)
         valueNode->accept(ctx.visitor);
 
-        // 2. Emit NEW_OBJECT for the Box class
+        // 2. Emit NEW_OBJECT or NEW_VALUE_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(targetClassName);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                     static_cast<uint64_t>(classNameIndex),
-                                     1u,  // 1 constructor argument
-                                     valueNode);
+        auto boxClassDef = ctx.environment->findClass(targetClassName);
+        bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+        if (boxIsValue) {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, valueNode);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, valueNode);
+        } else {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, valueNode);
+        }
 
         return true;  // Auto-boxing was applied
     }
