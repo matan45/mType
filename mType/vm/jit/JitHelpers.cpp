@@ -453,7 +453,7 @@ namespace vm::jit
 
             if (ctx->vm)
             {
-                ctx->returnValue = ctx->vm->invokeMethod(instance, methodName, args);
+                ctx->returnValue = ctx->vm->callMethodFromJit(instance, methodName, args);
                 ctx->hasReturnValue = true;
                 return;
             }
@@ -477,7 +477,7 @@ namespace vm::jit
 
             if (ctx->vm)
             {
-                ctx->returnValue = ctx->vm->invokeMethod(tempInstance, methodName, args);
+                ctx->returnValue = ctx->vm->callMethodFromJit(tempInstance, methodName, args);
                 ctx->hasReturnValue = true;
                 return;
             }

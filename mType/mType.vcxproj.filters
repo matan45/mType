@@ -5863,6 +5863,18 @@
     <None Include="tests\testFiles\class\pass\valueClassImplements.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\valueClassJitFieldAccess.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassJitFieldAccess.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassJitPerformance.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassJitPerformance.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\valueClassMethods.expected">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
@@ -10294,16 +10306,37 @@
     <None Include="tests\testFiles\modifiers\pass\publicStaticMembers.mt">
       <Filter>tests\testFiles\modifiers\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\error\nullReturnToNonNullable_error.mt">
+      <Filter>tests\testFiles\nullSafety\error</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\error\nullToNonNullable_error.mt">
       <Filter>tests\testFiles\nullSafety\error</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\error\nullablePrimitiveType_error.mt">
       <Filter>tests\testFiles\nullSafety\error</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\pass\jitNullCheckElimination.expected">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\jitNullCheckElimination.mt">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableFunctionParams.expected">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableFunctionParams.mt">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\pass\nullableTypeBasic.expected">
       <Filter>tests\testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\nullableTypeBasic.mt">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableValueObject.expected">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableValueObject.mt">
       <Filter>tests\testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\smartCastBasic.expected">

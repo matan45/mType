@@ -321,7 +321,7 @@ namespace vm::compiler::visitors
             {
                 if (actualType != expectedType)
                 {
-                    // Special case: null can be returned for object types
+                    // Special case: null can be returned for object types (nullable check done above)
                     if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue)))
                     {
                         // Special case: int can be returned for float
@@ -1001,6 +1001,12 @@ namespace vm::compiler::visitors
                                            const std::vector<std::string>& validGenericParams)
     {
         std::string baseTypeName = typeName;
+
+        // Strip nullable suffix '?'
+        if (!baseTypeName.empty() && baseTypeName.back() == '?')
+        {
+            baseTypeName.pop_back();
+        }
 
         // Handle array types: int[], T[], Item[][], etc.
         // Strip all array brackets to get the element type

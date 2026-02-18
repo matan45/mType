@@ -48,7 +48,11 @@ A modern, statically-typed programming language with a bytecode virtual machine,
   - Type constraints: `class Box<T extends Comparable>`
   - Nested generics: `List<Map<String, Int>>`
 - **Type Casting**: Safe downcasting with runtime validation
-- **Nullable Types**: Explicit null handling
+- **Null Safety**: Non-nullable by default, explicit `?` suffix for nullable types
+  - Non-nullable: `string name = "hello"` (cannot be null)
+  - Nullable: `string? name = null` (explicitly allows null)
+  - Smart casts: Automatic narrowing after null checks
+  - Compile-time enforcement: Assigning `null` to non-nullable types is a compile error
 - **Runtime Type Checking**: `isClassOf` operator
 
 ### Functional Programming
@@ -646,6 +650,62 @@ Value classes are:
 
 The built-in primitive wrappers (`Int`, `Float`, `Bool`, `String`) are value classes, making generic collections significantly more memory-efficient.
 
+### Null Safety
+
+```mtype
+class Box {
+    public int value;
+
+    public constructor(int v) {
+        this.value = v;
+    }
+}
+
+// Nullable parameters and return types
+function findBox(Box?[] boxes, int target): Box? {
+    for (int i = 0; i < boxes.length; i++) {
+        if (boxes[i] != null) {
+            // Smart cast: boxes[i] is treated as non-null Box here
+            if (boxes[i].value == target) {
+                return boxes[i];
+            }
+        }
+    }
+    return null;  // Valid — return type is Box?
+}
+
+function main(): void {
+    // Non-nullable by default — cannot assign null
+    Box box = new Box(42);
+
+    // Nullable types use the ? suffix
+    Box? nullable = null;
+    Box? alsoNullable = new Box(10);
+
+    // Smart cast: after a null check, the type is narrowed
+    if (nullable != null) {
+        // 'nullable' is treated as non-null Box here
+        print(nullable.value);
+    }
+
+    // Works with value classes too
+    // value class Point { ... }
+    // Point? optionalPoint = null;
+
+    // Compile-time error: cannot assign null to non-nullable type
+    // Box invalid = null;  // ERROR!
+}
+```
+
+Null safety features:
+- **Non-nullable by default**: All types reject `null` unless marked with `?`
+- **Nullable types**: Append `?` to any type — `int?`, `string?`, `MyClass?`
+- **Function signatures**: Parameters (`Box? param`) and return types (`function find(): Box?`) support nullable
+- **Value classes**: Value types like `Point?` follow the same nullable rules
+- **Smart casts**: After an `if (x != null)` check, the compiler narrows the type automatically
+- **Compile-time errors**: Assigning `null` to a non-nullable variable is caught at compile time
+- **JIT optimized**: Non-nullable receivers skip runtime null checks for field access and method calls
+
 ## 📊 Current Status (v0.2.0)
 
 ### Completed
@@ -668,6 +728,7 @@ The built-in primitive wrappers (`Int`, `Float`, `Bool`, `String`) are value cla
 - ✅ Language Server Protocol (LSP) - Universal editor support (Vim, Emacs, Sublime, etc.)
 - ✅ JIT Compilation (x86-64 via asmjit, profile-guided, OSR, inline caching)
 - ✅ Value Types (value classes with copy semantics, structural equality, lightweight runtime)
+- ✅ Null Safety (non-nullable by default, `?` suffix, smart casts, compile-time enforcement)
 - ✅ Project System (`.mtproj` with glob patterns, library builds, auto-discovery)
 
 ### In Progress
@@ -739,6 +800,7 @@ Comprehensive test suites covering:
 - ✅ Imports (selective, wildcard, circular detection)
 - ✅ Async/Await (promises, event loop)
 - ✅ String Pooling (interning, deduplication)
+- ✅ Null Safety (nullable types, smart casts, compile-time checks)
 - ✅ Collections (List, HashMap, Stack, Queue)
 
 ## 🤝 Contributing

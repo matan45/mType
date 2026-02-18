@@ -207,6 +207,11 @@ namespace vm::runtime
         // JIT helper: execute a function call from JIT code via interpreter
         value::Value callFunctionFromJit(const std::string& funcName, const std::vector<value::Value>& args);
 
+        // JIT helper: execute a method call from JIT code via interpreter (avoids re-entrant interpretLoop)
+        value::Value callMethodFromJit(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                       const std::string& methodName,
+                                       const std::vector<value::Value>& args);
+
         // Reset VM state
         void reset();
 

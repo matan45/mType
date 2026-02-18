@@ -504,6 +504,10 @@ namespace tests::testSuite
                         passPath + "valueClassNested.mt");
         addOutputVerificationTest("Value Class Boxing Primitives",
                         passPath + "valueClassBoxing.mt");
+        addOutputVerificationTest("Value Class JIT Performance",
+                        passPath + "valueClassJitPerformance.mt");
+        addOutputVerificationTest("Value Class JIT Field Access",
+                        passPath + "valueClassJitFieldAccess.mt");
 
         // === NESTED TYPE VALIDATION TESTS ===
         // These tests verify that nested classes and interfaces are properly rejected

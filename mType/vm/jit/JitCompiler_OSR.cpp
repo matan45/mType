@@ -115,6 +115,7 @@ namespace vm::jit
                 {
                     case OpCode::PUSH_STRING: case OpCode::GET_FIELD:
                     case OpCode::SET_FIELD:   case OpCode::NEW_OBJECT:
+                    case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
                     case OpCode::CALL_METHOD: case OpCode::CALL_STATIC:
                     case OpCode::NEW_ARRAY:   case OpCode::ARRAY_GET:
                     case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:

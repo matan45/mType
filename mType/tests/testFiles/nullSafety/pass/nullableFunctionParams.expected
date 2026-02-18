@@ -1,0 +1,8 @@
+Box(42)
+null
+found: true
+found value: 10
+notFound: true
+first=1, second=2
+first=1, second=null
+Nullable function params tests passed!
