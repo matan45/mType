@@ -1830,6 +1830,9 @@
     <ClInclude Include="vm\compiler\types\GenericPatternAnalyzer.hpp">
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\types\NullNarrowingTracker.hpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\types\TypeInferenceEngine.hpp">
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
@@ -2997,6 +3000,9 @@
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\types\GenericPatternAnalyzer.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\NullNarrowingTracker.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\types\TypeInferenceEngine.cpp">
@@ -5212,6 +5218,12 @@
     <None Include="tests\testFiles\class\error\undefinedClass.mt">
       <Filter>tests\testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\value_abstract_conflict.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\value_extends_error.mt">
+      <Filter>tests\testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\abstract_async_method.expected">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
@@ -5804,6 +5816,48 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\uninitializedSlotEdgeCases.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassBasic.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassBasic.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassBoxing.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassBoxing.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassCopySemantics.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassCopySemantics.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassEquality.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassEquality.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassImplements.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassImplements.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassMethods.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassMethods.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassNested.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\valueClassNested.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\voidVsNullReturns.expected">

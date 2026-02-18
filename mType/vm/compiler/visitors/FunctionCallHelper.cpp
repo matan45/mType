@@ -671,9 +671,11 @@ namespace vm::compiler::visitors
 
                 size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
                 // Call method on 'this' with source location
+                // 'this' is always non-null, so set the nonnull flag
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
                                              static_cast<uint64_t>(nameIndex),
                                              static_cast<uint64_t>(arguments.size()), node);
+                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
             }
         }
         else

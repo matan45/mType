@@ -894,8 +894,9 @@ namespace optimizer::passes
                 node->getLocation()
             );
 
-            // Preserve visibility modifier
+            // Preserve visibility and nullable modifiers
             newAssignment->setVisibility(node->getVisibility());
+            newAssignment->setNullableType(node->isNullableType());
 
             return newAssignment;
         }

@@ -25,12 +25,15 @@ namespace vm::runtime
 
         value::Value objectValue = context.stackManager->pop();
 
-        // Null check
-        if (std::holds_alternative<std::nullptr_t>(objectValue))
+        // Null check (skip if compiler guarantees non-null receiver)
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
-            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
-                "Cannot access field '" + fieldName + "' on null object");
+            if (std::holds_alternative<std::nullptr_t>(objectValue))
+            {
+                const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                    "Cannot access field '" + fieldName + "' on null object");
+            }
         }
 
         // Must be an object
@@ -115,11 +118,14 @@ namespace vm::runtime
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
-        // Null check
-        if (std::holds_alternative<std::nullptr_t>(objectValue))
+        // Null check (skip if compiler guarantees non-null receiver)
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
-                "Cannot set field '" + fieldName + "' on null object");
+            if (std::holds_alternative<std::nullptr_t>(objectValue))
+            {
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                    "Cannot set field '" + fieldName + "' on null object");
+            }
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))

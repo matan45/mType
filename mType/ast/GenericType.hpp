@@ -22,6 +22,8 @@ namespace ast
         std::variant<value::ValueType, std::string> baseType;
         // Type arguments for parameterized types (e.g., Array<T> has [T])
         std::vector<std::shared_ptr<GenericType>> typeArguments;
+        // Whether this type is nullable (T? syntax)
+        bool nullable = false;
 
     public:
         /**
@@ -64,7 +66,7 @@ namespace ast
          * Copy constructor
          */
         GenericType(const GenericType& other)
-            : baseType(other.baseType)
+            : baseType(other.baseType), nullable(other.nullable)
         {
             for (const auto& arg : other.typeArguments)
             {
@@ -80,6 +82,7 @@ namespace ast
             if (this != &other)
             {
                 baseType = other.baseType;
+                nullable = other.nullable;
                 typeArguments.clear();
                 for (const auto& arg : other.typeArguments)
                 {
@@ -105,6 +108,24 @@ namespace ast
         bool isParameterized() const
         {
             return !typeArguments.empty();
+        }
+
+        /**
+         * Checks if this type is nullable (declared with ? suffix)
+         * @return true if nullable, false if non-nullable
+         */
+        bool isNullable() const
+        {
+            return nullable;
+        }
+
+        /**
+         * Sets the nullable flag for this type
+         * @param isNullable Whether this type is nullable
+         */
+        void setNullable(bool isNullable)
+        {
+            nullable = isNullable;
         }
 
         /**

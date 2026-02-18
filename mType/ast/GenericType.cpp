@@ -59,6 +59,7 @@ namespace ast
             // Check if the element type is also an array (for multi-dimensional arrays)
             std::string elementTypeStr = typeArguments[0]->toString();
             oss << elementTypeStr << "[]";
+            if (nullable) oss << "?";
             return oss.str();
         }
 
@@ -75,6 +76,8 @@ namespace ast
             oss << ">";
         }
 
+        if (nullable) oss << "?";
+
         return oss.str();
     }
 
@@ -82,6 +85,12 @@ namespace ast
     {
         // Check if base types match
         if (baseType != other.baseType)
+        {
+            return false;
+        }
+
+        // Check nullable match
+        if (nullable != other.nullable)
         {
             return false;
         }
@@ -166,6 +175,8 @@ namespace ast
             substitutedArgs.push_back(arg->substituteInternal(substitutions, context));
         }
 
-        return std::make_shared<GenericType>(getConcreteType(), substitutedArgs);
+        auto result = std::make_shared<GenericType>(getConcreteType(), substitutedArgs);
+        result->setNullable(nullable);
+        return result;
     }
 }

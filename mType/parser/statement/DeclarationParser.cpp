@@ -57,6 +57,7 @@ namespace parser::statement
         }
         ValueType type = typeInfo.baseType;
         std::string className = typeInfo.className;
+        bool isNullableType = typeInfo.isNullable;
 
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
@@ -127,6 +128,7 @@ namespace parser::statement
         auto assignmentNode = std::make_unique<AssignmentNode>(varName, std::move(value), type, className,
                                                                modifiers.isFinal, modifiers.isStatic, varLocation);
         assignmentNode->setVisibility(visibility);
+        assignmentNode->setNullableType(isNullableType);
         return assignmentNode;
     }
 

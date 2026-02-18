@@ -521,6 +521,7 @@ namespace optimizer::passes
             );
 
             newAssignment->setVisibility(node->getVisibility());
+            newAssignment->setNullableType(node->isNullableType());
             return newAssignment;
         }
 

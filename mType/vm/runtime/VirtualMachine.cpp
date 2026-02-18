@@ -1061,6 +1061,8 @@ namespace vm::runtime
             break;
         case OpCode::JUMP_BACK: controlFlowExecutor->handleJumpBack(instr);
             break;
+        case OpCode::JUMP_IF_NULL: controlFlowExecutor->handleJumpIfNull(instr);
+            break;
         case OpCode::RETURN: controlFlowExecutor->handleReturn();
             break;
         case OpCode::RETURN_VALUE: controlFlowExecutor->handleReturnValue();

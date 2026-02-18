@@ -25,10 +25,14 @@ namespace vm::bytecode
          * Instruction structure: opcode + operands
          * PERFORMANCE: Includes inline cache for method calls
          */
+        // Instruction flags for runtime optimization
+        static constexpr uint8_t INSTR_FLAG_NONNULL_RECEIVER = 0x01;
+
         struct Instruction
         {
             OpCode opcode;
             std::vector<uint64_t> operands;
+            uint8_t flags = 0; // Optimization flags (e.g., INSTR_FLAG_NONNULL_RECEIVER)
 
             // PERFORMANCE: Inline cache for method calls - avoids repeated hash lookups
             // Cached after first resolution, used on subsequent calls
@@ -208,6 +212,7 @@ namespace vm::bytecode
 
         size_t getCurrentOffset() const;
         void patchJump(size_t instructionIndex, uint64_t targetOffset);
+        void setLastInstructionFlags(uint8_t flags);
 
         const Instruction& getInstruction(size_t offset) const;
         const std::vector<Instruction>& getInstructions() const;

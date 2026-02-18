@@ -24,6 +24,7 @@ namespace vm::runtime
         void handleJumpIfFalseOrPop(const bytecode::BytecodeProgram::Instruction& instr);
         void handleJumpIfTrueOrPop(const bytecode::BytecodeProgram::Instruction& instr);
         void handleJumpBack(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleJumpIfNull(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Return operations
         void handleReturn();

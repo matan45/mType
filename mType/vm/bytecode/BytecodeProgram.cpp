@@ -86,6 +86,12 @@ namespace vm::bytecode
         }
     }
 
+    void BytecodeProgram::setLastInstructionFlags(uint8_t flags) {
+        if (!instructions.empty()) {
+            instructions.back().flags = flags;
+        }
+    }
+
     const BytecodeProgram::Instruction& BytecodeProgram::getInstruction(size_t offset) const {
         return instructions.at(offset);
     }
@@ -449,6 +455,11 @@ namespace vm::bytecode
                 oss << " " << instr.operands[j];
             }
 
+            // Show instruction flags
+            if (instr.flags & INSTR_FLAG_NONNULL_RECEIVER) {
+                oss << " [nonnull]";
+            }
+
             // Add source location if available
             auto* loc = getSourceLocation(i);
             if (loc) {
@@ -466,7 +477,7 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
         // Write version
-        uint32_t version = 2;  // Version 2: 64-bit integers and operands
+        uint32_t version = 3;  // Version 3: instruction flags for null check elimination
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
         // Write entry point
@@ -509,12 +520,12 @@ namespace vm::bytecode
         // Read version
         uint32_t version;
         in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version == 1) {
+        if (version < 3) {
             throw std::runtime_error(
-                "Bytecode file uses version 1 (32-bit integers). "
+                "Bytecode file uses an outdated format (version " + std::to_string(version) + "). "
                 "Please recompile from source using the current compiler.");
         }
-        if (version != 2) {
+        if (version != 3) {
             throw std::runtime_error("Unsupported bytecode version: " + std::to_string(version));
         }
 
@@ -606,6 +617,7 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&count), sizeof(count));
         for (const auto& instr : instructions) {
             out.write(reinterpret_cast<const char*>(&instr.opcode), sizeof(instr.opcode));
+            out.write(reinterpret_cast<const char*>(&instr.flags), sizeof(instr.flags));
             size_t opCount = instr.operands.size();
             out.write(reinterpret_cast<const char*>(&opCount), sizeof(opCount));
             if (opCount > 0) {
@@ -622,6 +634,8 @@ namespace vm::bytecode
         for (size_t i = 0; i < count; ++i) {
             in.read(reinterpret_cast<char*>(&instructions[i].opcode),
                    sizeof(instructions[i].opcode));
+            in.read(reinterpret_cast<char*>(&instructions[i].flags),
+                   sizeof(instructions[i].flags));
             size_t opCount;
             in.read(reinterpret_cast<char*>(&opCount), sizeof(opCount));
             if (opCount > 0) {

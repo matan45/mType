@@ -69,9 +69,11 @@ namespace vm::runtime
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
         value::Value objectValue = context.stackManager->pop();
 
-        if (std::holds_alternative<std::nullptr_t>(objectValue)) {
-            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
-                "Cannot access field '" + fieldName + "' on null object");
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER)) {
+            if (std::holds_alternative<std::nullptr_t>(objectValue)) {
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                    "Cannot access field '" + fieldName + "' on null object");
+            }
         }
 
         // Handle ValueObject (value types)
@@ -128,9 +130,11 @@ namespace vm::runtime
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
-        if (std::holds_alternative<std::nullptr_t>(objectValue)) {
-            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
-                "Cannot set field '" + fieldName + "' on null object");
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER)) {
+            if (std::holds_alternative<std::nullptr_t>(objectValue)) {
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                    "Cannot set field '" + fieldName + "' on null object");
+            }
         }
 
         // Handle ValueObject (value types) — deep copy before mutation for value semantics
@@ -583,12 +587,14 @@ namespace vm::runtime
         // Prepare arguments from stack
         std::vector<value::Value> args = prepareMethodCallArguments(argCount);
 
-        // Pop object and check for null
+        // Pop object and check for null (skip if compiler guarantees non-null)
         value::Value objectValue = context.stackManager->pop();
 
-        if (std::holds_alternative<std::nullptr_t>(objectValue)) {
-            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
-                "Cannot call method '" + methodName + "' on null object");
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER)) {
+            if (std::holds_alternative<std::nullptr_t>(objectValue)) {
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                    "Cannot call method '" + methodName + "' on null object");
+            }
         }
 
         // Handle lambda invocation
@@ -747,9 +753,11 @@ namespace vm::runtime
         // Pop the iterable collection from the stack
         value::Value collectionValue = context.stackManager->pop();
 
-        if (std::holds_alternative<std::nullptr_t>(collectionValue)) {
-            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
-                "Cannot get iterator from null object");
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER)) {
+            if (std::holds_alternative<std::nullptr_t>(collectionValue)) {
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                    "Cannot get iterator from null object");
+            }
         }
 
         // Check if it's an array - create an ArrayIteratorHelper for it
@@ -804,9 +812,11 @@ namespace vm::runtime
         // Peek at the iterator on the stack (don't pop it, we need it for next())
         value::Value iteratorValue = context.stackManager->peek();
 
-        if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
-            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
-                "Cannot call hasNext() on null iterator");
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER)) {
+            if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                    "Cannot call hasNext() on null iterator");
+            }
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
@@ -830,9 +840,11 @@ namespace vm::runtime
         // Peek at the iterator on the stack
         value::Value iteratorValue = context.stackManager->peek();
 
-        if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
-            utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
-                "Cannot call next() on null iterator");
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER)) {
+            if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                    "Cannot call next() on null iterator");
+            }
         }
 
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {

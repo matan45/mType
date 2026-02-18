@@ -367,6 +367,18 @@ namespace vm::compiler::visitors
         value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
         bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
 
+        // Look up nullable status of the existing variable
+        bool existingIsNullable = true; // default to nullable for backward compat
+        std::string varName = node->getVariableName();
+        if (ctx.functionFrameManager.isInFunction())
+        {
+            existingIsNullable = ctx.variableTracker.getLocalNullableByName(varName);
+        }
+        else if (ctx.globalRegistry.exists(varName))
+        {
+            existingIsNullable = ctx.globalRegistry.isNullable(varName);
+        }
+
         // Only validate if we have actual type information
         if (!valueClassName.empty() || valueType != value::ValueType::OBJECT)
         {
@@ -376,7 +388,8 @@ namespace vm::compiler::visitors
 
             // Validate that the assigned value is compatible with the variable's type
             ctx.typeValidator.validateAssignment(value::ValueType::OBJECT, resolvedExistingClassName,
-                                                 valueType, resolvedValueClassName, isNullValue, node->getLocation());
+                                                 valueType, resolvedValueClassName, isNullValue, node->getLocation(),
+                                                 existingIsNullable);
         }
     }
 
@@ -440,7 +453,7 @@ namespace vm::compiler::visitors
                 }
             }
 
-            ctx.variableTracker.declareLocal(name, varType, node->getClassName());
+            ctx.variableTracker.declareLocal(name, varType, node->getClassName(), node->isNullableType());
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
             // STORE_LOCAL will consume the value from the stack - no DUP needed
@@ -464,7 +477,7 @@ namespace vm::compiler::visitors
         }
 
         int scopeDepth = ctx.variableTracker.getCurrentScopeDepth();
-        ctx.globalRegistry.registerGlobal(name, varType, node->getClassName(), scopeDepth);
+        ctx.globalRegistry.registerGlobal(name, varType, node->getClassName(), scopeDepth, node->isNullableType());
 
         // Register global variable metadata for debugger
         std::string typeName = node->getClassName().empty() ? "auto" : node->getClassName();
@@ -653,7 +666,7 @@ namespace vm::compiler::visitors
                 }
             }
 
-            ctx.variableTracker.declareLocal(name, varType, node->getClassName());
+            ctx.variableTracker.declareLocal(name, varType, node->getClassName(), node->isNullableType());
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
             // STORE_LOCAL will consume the value from the stack - no DUP needed
@@ -767,6 +780,18 @@ namespace vm::compiler::visitors
                     value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
                     bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
 
+                    // Look up nullable status of the existing variable
+                    bool existingIsNullable = true; // default nullable for backward compat
+                    std::string varName = node->getVariableName();
+                    if (ctx.functionFrameManager.isInFunction())
+                    {
+                        existingIsNullable = ctx.variableTracker.getLocalNullableByName(varName);
+                    }
+                    else if (ctx.globalRegistry.exists(varName))
+                    {
+                        existingIsNullable = ctx.globalRegistry.isNullable(varName);
+                    }
+
                     // Only validate if we have actual type information
                     if (!valueClassName.empty() || valueType != value::ValueType::OBJECT)
                     {
@@ -776,7 +801,8 @@ namespace vm::compiler::visitors
 
                         // Validate that the assigned value is compatible with the variable's type
                         ctx.typeValidator.validateAssignment(value::ValueType::OBJECT, resolvedExistingClassName,
-                                                             valueType, resolvedValueClassName, isNullValue, node->getLocation());
+                                                             valueType, resolvedValueClassName, isNullValue, node->getLocation(),
+                                                             existingIsNullable);
                     }
                 }
             }
@@ -802,7 +828,8 @@ namespace vm::compiler::visitors
                 if (!canAutoBox)
                 {
                     ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
-                                                         valueClassName, isNullValue, node->getLocation());
+                                                         valueClassName, isNullValue, node->getLocation(),
+                                                         node->isNullableType());
                 }
 
                 // Check for auto-unboxing (Box type to primitive)

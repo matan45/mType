@@ -22,6 +22,7 @@ namespace parser
     {
         ValueType baseType;
         std::string className; // For custom classes
+        bool isNullable = false; // Whether the type is nullable (T? syntax)
 
         // No collection-specific fields needed anymore
 

@@ -194,7 +194,30 @@ namespace parser
                 currentType = std::make_shared<ast::GenericType>("Array", typeArgs);
             }
 
-            return currentType;
+            baseType = currentType;
+        }
+
+        // Check for nullable type suffix '?'
+        if (stream.check(TokenType::QUESTION))
+        {
+            // Validate: primitive types cannot be nullable
+            if (!baseType->isGenericParameter() && !baseType->isParameterized())
+            {
+                ValueType vt = baseType->getConcreteType();
+                if (vt == ValueType::INT || vt == ValueType::FLOAT ||
+                    vt == ValueType::BOOL || vt == ValueType::STRING)
+                {
+                    throw ParseException(
+                        "Primitive types cannot be nullable. Use boxed type instead",
+                        stream.location());
+                }
+                if (vt == ValueType::VOID)
+                {
+                    throw ParseException("void cannot be nullable", stream.location());
+                }
+            }
+            stream.advance(); // consume '?'
+            baseType->setNullable(true);
         }
 
         return baseType;
@@ -338,11 +361,13 @@ namespace parser
 
     std::shared_ptr<ast::GenericType> TypeParser::convertTypeInfoToGenericType(const TypeInfo& typeInfo)
     {
+        std::shared_ptr<ast::GenericType> result;
+
         // Handle basic types
         if (typeInfo.baseType != ValueType::OBJECT)
         {
             // Simple built-in types (int, float, bool, string, void)
-            return std::make_shared<ast::GenericType>(typeInfo.baseType);
+            result = std::make_shared<ast::GenericType>(typeInfo.baseType);
         }
         else
         {
@@ -351,18 +376,26 @@ namespace parser
             {
                 // For now, treat as regular object type
                 // Later we can enhance this to detect generic type parameters
-                return std::make_shared<ast::GenericType>(typeInfo.className);
+                result = std::make_shared<ast::GenericType>(typeInfo.className);
             }
             else
             {
                 // Generic object type
-                return std::make_shared<ast::GenericType>(ValueType::OBJECT);
+                result = std::make_shared<ast::GenericType>(ValueType::OBJECT);
             }
         }
+
+        if (result && typeInfo.isNullable)
+        {
+            result->setNullable(true);
+        }
+        return result;
     }
 
     TypeInfo TypeParser::convertGenericTypeToTypeInfo(const std::shared_ptr<ast::GenericType>& genericType)
     {
+        bool isNullableType = genericType->isNullable();
+
         // Handle generic type parameters (T, K, V, etc.)
         if (genericType->isGenericParameter())
         {
@@ -383,7 +416,9 @@ namespace parser
                     // so we just need to add one [] for this level
                     std::string arrayTypeName = elementTypeInfo.toString() + "[]";
 
-                    return TypeInfo(ValueType::OBJECT, arrayTypeName);
+                    TypeInfo result(ValueType::OBJECT, arrayTypeName);
+                    result.isNullable = isNullableType;
+                    return result;
                 }
             }
 
@@ -401,11 +436,15 @@ namespace parser
                 }
 
                 fullTypeName += ">";
-                return TypeInfo(ValueType::OBJECT, fullTypeName);
+                TypeInfo result(ValueType::OBJECT, fullTypeName);
+                result.isNullable = isNullableType;
+                return result;
             }
 
             // Simple generic parameter or class type
-            return TypeInfo(ValueType::OBJECT, typeName);
+            TypeInfo result(ValueType::OBJECT, typeName);
+            result.isNullable = isNullableType;
+            return result;
         }
 
         // Handle concrete types
@@ -414,7 +453,9 @@ namespace parser
         // Handle non-object types (int, float, bool, string, void)
         if (baseType != ValueType::OBJECT)
         {
-            return TypeInfo(baseType);
+            TypeInfo result(baseType);
+            result.isNullable = isNullableType;
+            return result;
         }
 
         // Handle object types with type arguments (shouldn't happen for OBJECT base type, but handle for completeness)
@@ -432,11 +473,15 @@ namespace parser
             }
 
             fullTypeName += ">";
-            return TypeInfo(ValueType::OBJECT, fullTypeName);
+            TypeInfo result(ValueType::OBJECT, fullTypeName);
+            result.isNullable = isNullableType;
+            return result;
         }
 
         // Simple object type without generic parameters
-        return TypeInfo(ValueType::OBJECT, genericType->getBaseTypeName());
+        TypeInfo result(ValueType::OBJECT, genericType->getBaseTypeName());
+        result.isNullable = isNullableType;
+        return result;
     }
 
     // ============== UnifiedType Support Implementation ==============
@@ -456,6 +501,9 @@ namespace parser
             return nullptr;
         }
 
+        bool isNullableType = genericType->isNullable();
+        types::UnifiedTypePtr result;
+
         // Handle generic type parameters (T, K, V, etc.)
         if (genericType->isGenericParameter())
         {
@@ -468,7 +516,8 @@ namespace parser
                 if (!typeArgs.empty())
                 {
                     auto elementType = convertGenericTypeToUnifiedType(typeArgs[0]);
-                    return types::UnifiedType::arrayOf(elementType);
+                    result = types::UnifiedType::arrayOf(elementType);
+                    return isNullableType ? result->makeNullable() : result;
                 }
             }
 
@@ -480,11 +529,13 @@ namespace parser
                 {
                     typeArgs.push_back(convertGenericTypeToUnifiedType(arg));
                 }
-                return types::UnifiedType::classType(name, std::move(typeArgs));
+                result = types::UnifiedType::classType(name, std::move(typeArgs));
+                return isNullableType ? result->makeNullable() : result;
             }
 
             // Simple generic parameter (T, E, etc.)
-            return types::UnifiedType::genericParam(name);
+            result = types::UnifiedType::genericParam(name);
+            return isNullableType ? result->makeNullable() : result;
         }
 
         // Handle concrete types
@@ -493,19 +544,19 @@ namespace parser
         switch (baseType)
         {
             case ValueType::INT:
-                return types::UnifiedType::primitive(ValueType::INT);
+                result = types::UnifiedType::primitive(ValueType::INT); break;
             case ValueType::FLOAT:
-                return types::UnifiedType::primitive(ValueType::FLOAT);
+                result = types::UnifiedType::primitive(ValueType::FLOAT); break;
             case ValueType::BOOL:
-                return types::UnifiedType::primitive(ValueType::BOOL);
+                result = types::UnifiedType::primitive(ValueType::BOOL); break;
             case ValueType::STRING:
-                return types::UnifiedType::primitive(ValueType::STRING);
+                result = types::UnifiedType::primitive(ValueType::STRING); break;
             case ValueType::VOID:
-                return types::UnifiedType::voidType();
+                result = types::UnifiedType::voidType(); break;
             case ValueType::NULL_TYPE:
-                return types::UnifiedType::nullType();
+                result = types::UnifiedType::nullType(); break;
             case ValueType::LAMBDA:
-                return types::UnifiedType::lambdaType();
+                result = types::UnifiedType::lambdaType(); break;
             case ValueType::ARRAY:
             {
                 // Array type with element type
@@ -515,11 +566,13 @@ namespace parser
                     if (!typeArgs.empty())
                     {
                         auto elementType = convertGenericTypeToUnifiedType(typeArgs[0]);
-                        return types::UnifiedType::arrayOf(elementType);
+                        result = types::UnifiedType::arrayOf(elementType);
+                        return isNullableType ? result->makeNullable() : result;
                     }
                 }
                 // Untyped array
-                return types::UnifiedType::arrayOf(types::UnifiedType::classType("Object"));
+                result = types::UnifiedType::arrayOf(types::UnifiedType::classType("Object"));
+                return isNullableType ? result->makeNullable() : result;
             }
             case ValueType::OBJECT:
             default:
@@ -534,12 +587,16 @@ namespace parser
                     {
                         typeArgs.push_back(convertGenericTypeToUnifiedType(arg));
                     }
-                    return types::UnifiedType::classType(className, std::move(typeArgs));
+                    result = types::UnifiedType::classType(className, std::move(typeArgs));
+                    return isNullableType ? result->makeNullable() : result;
                 }
 
-                return types::UnifiedType::classType(className);
+                result = types::UnifiedType::classType(className);
+                return isNullableType ? result->makeNullable() : result;
             }
         }
+
+        return isNullableType ? result->makeNullable() : result;
     }
 
     std::shared_ptr<ast::GenericType> TypeParser::convertUnifiedTypeToGenericType(
@@ -550,22 +607,30 @@ namespace parser
             return nullptr;
         }
 
+        bool isNullableType = unifiedType->isNullable();
+        std::shared_ptr<ast::GenericType> result;
+
         switch (unifiedType->getKind())
         {
             case types::TypeKind::Primitive:
-                return std::make_shared<ast::GenericType>(unifiedType->toValueType());
+                result = std::make_shared<ast::GenericType>(unifiedType->toValueType());
+                break;
 
             case types::TypeKind::Void:
-                return std::make_shared<ast::GenericType>(ValueType::VOID);
+                result = std::make_shared<ast::GenericType>(ValueType::VOID);
+                break;
 
             case types::TypeKind::Null:
-                return std::make_shared<ast::GenericType>(ValueType::NULL_TYPE);
+                result = std::make_shared<ast::GenericType>(ValueType::NULL_TYPE);
+                break;
 
             case types::TypeKind::Lambda:
-                return std::make_shared<ast::GenericType>(ValueType::LAMBDA);
+                result = std::make_shared<ast::GenericType>(ValueType::LAMBDA);
+                break;
 
             case types::TypeKind::GenericParameter:
-                return std::make_shared<ast::GenericType>(unifiedType->getName());
+                result = std::make_shared<ast::GenericType>(unifiedType->getName());
+                break;
 
             case types::TypeKind::Array:
             {
@@ -573,9 +638,13 @@ namespace parser
                 {
                     auto elementType = convertUnifiedTypeToGenericType(unifiedType->getTypeArguments()[0]);
                     std::vector<std::shared_ptr<ast::GenericType>> args = {elementType};
-                    return std::make_shared<ast::GenericType>("Array", args);
+                    result = std::make_shared<ast::GenericType>("Array", args);
                 }
-                return std::make_shared<ast::GenericType>(ValueType::ARRAY);
+                else
+                {
+                    result = std::make_shared<ast::GenericType>(ValueType::ARRAY);
+                }
+                break;
             }
 
             case types::TypeKind::Class:
@@ -589,43 +658,66 @@ namespace parser
                     {
                         args.push_back(convertUnifiedTypeToGenericType(arg));
                     }
-                    return std::make_shared<ast::GenericType>(name, args);
+                    result = std::make_shared<ast::GenericType>(name, args);
                 }
-                return std::make_shared<ast::GenericType>(name);
+                else
+                {
+                    result = std::make_shared<ast::GenericType>(name);
+                }
+                break;
             }
 
             default:
-                return std::make_shared<ast::GenericType>(ValueType::OBJECT);
+                result = std::make_shared<ast::GenericType>(ValueType::OBJECT);
+                break;
         }
+
+        if (result && isNullableType)
+        {
+            result->setNullable(true);
+        }
+        return result;
     }
 
     types::UnifiedTypePtr TypeParser::convertTypeInfoToUnifiedType(const TypeInfo& typeInfo)
     {
+        types::UnifiedTypePtr result;
+
         switch (typeInfo.baseType)
         {
             case ValueType::INT:
-                return types::UnifiedType::primitive(ValueType::INT);
+                result = types::UnifiedType::primitive(ValueType::INT); break;
             case ValueType::FLOAT:
-                return types::UnifiedType::primitive(ValueType::FLOAT);
+                result = types::UnifiedType::primitive(ValueType::FLOAT); break;
             case ValueType::BOOL:
-                return types::UnifiedType::primitive(ValueType::BOOL);
+                result = types::UnifiedType::primitive(ValueType::BOOL); break;
             case ValueType::STRING:
-                return types::UnifiedType::primitive(ValueType::STRING);
+                result = types::UnifiedType::primitive(ValueType::STRING); break;
             case ValueType::VOID:
-                return types::UnifiedType::voidType();
+                result = types::UnifiedType::voidType(); break;
             case ValueType::NULL_TYPE:
-                return types::UnifiedType::nullType();
+                result = types::UnifiedType::nullType(); break;
             case ValueType::LAMBDA:
-                return types::UnifiedType::lambdaType();
+                result = types::UnifiedType::lambdaType(); break;
             case ValueType::ARRAY:
-                return types::UnifiedType::arrayOf(types::UnifiedType::classType("Object"));
+                result = types::UnifiedType::arrayOf(types::UnifiedType::classType("Object")); break;
             case ValueType::OBJECT:
             default:
                 if (!typeInfo.className.empty())
                 {
-                    return types::UnifiedType::classType(typeInfo.className);
+                    result = types::UnifiedType::classType(typeInfo.className);
                 }
-                return types::UnifiedType::classType("Object");
+                else
+                {
+                    result = types::UnifiedType::classType("Object");
+                }
+                break;
         }
+
+        if (result && typeInfo.isNullable)
+        {
+            result = result->makeNullable();
+        }
+        return result;
     }
 }

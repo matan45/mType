@@ -16,6 +16,7 @@ namespace ast::nodes::statements
         std::string className;  // Store class name for OBJECT types
         bool isFinal;
         bool isStatic;
+        bool nullableType = false; // Whether the declared type is nullable (T?)
         VisibilityModifier visibility;
 
     public:
@@ -39,6 +40,8 @@ namespace ast::nodes::statements
         void setClassName(const std::string& clsName);
         void setIsFinal(bool isFinalVar);
         void setIsStatic(bool isStaticVar);
+        void setNullableType(bool isNullable);
+        bool isNullableType() const;
         void setVisibility(VisibilityModifier vis);
 
         value::Value accept(ASTVisitor<value::Value>& visitor) override;

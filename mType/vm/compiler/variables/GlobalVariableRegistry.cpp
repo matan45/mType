@@ -3,12 +3,14 @@
 namespace vm::compiler::variables
 {
     void GlobalVariableRegistry::registerGlobal(const std::string& name, value::ValueType type,
-                                               const std::string& className, int scopeDepth)
+                                               const std::string& className, int scopeDepth,
+                                               bool isNullable)
     {
         globalVariables.insert(name);
         globalVariableTypes[name] = type;
         globalVariableClassNames[name] = className;
         globalVariableScopes[name] = scopeDepth;
+        globalVariableNullable[name] = isNullable;
     }
 
     bool GlobalVariableRegistry::exists(const std::string& name) const
@@ -61,6 +63,15 @@ namespace vm::compiler::variables
         return false;
     }
 
+    bool GlobalVariableRegistry::isNullable(const std::string& name) const
+    {
+        auto it = globalVariableNullable.find(name);
+        if (it != globalVariableNullable.end()) {
+            return it->second;
+        }
+        return false;
+    }
+
     void GlobalVariableRegistry::removeVariablesOutOfScope(int currentScopeDepth)
     {
         std::vector<std::string> toRemove;
@@ -77,6 +88,7 @@ namespace vm::compiler::variables
             globalVariableTypes.erase(name);
             globalVariableClassNames.erase(name);
             globalVariableScopes.erase(name);
+            globalVariableNullable.erase(name);
         }
     }
 
@@ -86,5 +98,6 @@ namespace vm::compiler::variables
         globalVariableTypes.clear();
         globalVariableClassNames.clear();
         globalVariableScopes.clear();
+        globalVariableNullable.clear();
     }
 }

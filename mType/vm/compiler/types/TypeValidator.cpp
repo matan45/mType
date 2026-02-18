@@ -295,12 +295,19 @@ namespace vm::compiler::types
         value::ValueType valueType,
         const std::string& valueClassName,
         bool isNullValue,
-        const ast::SourceLocation& location
+        const ast::SourceLocation& location,
+        bool isNullableTarget
     ) const
     {
-        // null can be assigned to any object type
+        // null assignment check: only allowed for nullable types
         if (isNullValue && varType == value::ValueType::OBJECT) {
-            return;
+            if (isNullableTarget) {
+                return; // OK: null → MyClass?
+            }
+            throw errors::TypeException(
+                "Cannot assign null to non-nullable type '" + varClassName + "'. "
+                "Use '" + varClassName + "?' to make it nullable.",
+                location);
         }
 
         // Special handling for array assignments

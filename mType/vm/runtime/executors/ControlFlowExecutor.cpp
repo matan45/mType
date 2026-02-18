@@ -99,6 +99,16 @@ namespace vm::runtime
         context.instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
     }
 
+    void ControlFlowExecutor::handleJumpIfNull(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("JUMP_IF_NULL requires operand");
+        }
+        value::Value val = context.stackManager->pop();
+        if (std::holds_alternative<std::nullptr_t>(val) || std::holds_alternative<std::monostate>(val)) {
+            context.instructionPointer = instr.operands[0] - 1;
+        }
+    }
+
     void ControlFlowExecutor::handleReturn() {
         if (context.callStack.empty()) {
             // Top-level return - halt execution
