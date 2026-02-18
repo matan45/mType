@@ -50,7 +50,7 @@ Vector2D v4 = v1.scale(2.0);
 print("v1 * 2: " + v4.toString());
 
 // Static method
-Vector2D v5 = Vector2D.zero();
+Vector2D v5 = Vector2D::zero();
 print("zero: " + v5.toString());
 
 // Original unchanged

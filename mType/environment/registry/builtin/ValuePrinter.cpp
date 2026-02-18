@@ -1,5 +1,6 @@
 #include "ValuePrinter.hpp"
 #include "../../../value/AsyncPromiseValue.hpp"
+#include "../../../value/ValueObject.hpp"
 
 namespace environment::registry::builtin
 {
@@ -86,6 +87,27 @@ namespace environment::registry::builtin
                         {
                             out << "[object " << v->getTypeName() << "]";
                         }
+                    }
+                }
+            }
+            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<value::ValueObject>>)
+            {
+                if (!v)
+                {
+                    out << "null";
+                }
+                else
+                {
+                    // Check if this is a primitive wrapper value class (String, Int, Bool, Float)
+                    const std::string& typeName = v->getClassName();
+                    if ((typeName == "String" || typeName == "Int" || typeName == "Bool" || typeName == "Float")
+                        && v->hasField("value"))
+                    {
+                        print(v->getFieldValue("value"), out);
+                    }
+                    else
+                    {
+                        out << "<" << typeName << ">";
                     }
                 }
             }

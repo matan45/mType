@@ -574,6 +574,10 @@ namespace vm::runtime
             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element);
             value::Value fieldValue = objInstance->getFieldValue(fieldName);
             context.stackManager->push(fieldValue);
+        } else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(element)) {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(element);
+            value::Value fieldValue = valueObj->getFieldValue(fieldName);
+            context.stackManager->push(fieldValue);
         } else {
             utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
                 context,
@@ -617,6 +621,11 @@ namespace vm::runtime
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element)) {
             auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element);
             objInstance->setField(fieldName, valueToSet);
+        } else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(element)) {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(element);
+            valueObj->setField(fieldName, valueToSet);
+            // Write back modified value object to the array (value semantics)
+            array->setUnchecked(arrayIndex, value::Value(valueObj));
         } else {
             utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
                 context,
