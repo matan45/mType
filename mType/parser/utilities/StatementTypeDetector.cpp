@@ -455,6 +455,12 @@ namespace parser::utilities
             return StatementType::DECLARATION;
         }
 
+        // Pattern: "ClassName? varName" - nullable type declaration
+        if (nextToken.type == TokenType::QUESTION)
+        {
+            return StatementType::DECLARATION;
+        }
+
         // Pattern: "Type[]" or "Type<...>" - array or generic type declaration
         if (nextToken.type == TokenType::LBRACKET || nextToken.type == TokenType::LESS)
         {

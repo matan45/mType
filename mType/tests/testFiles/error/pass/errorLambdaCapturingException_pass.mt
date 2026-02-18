@@ -9,7 +9,7 @@ interface Action {
 function main(): void {
     print("Testing lambda capturing exception object");
 
-    Exception capturedException = null;
+    Exception? capturedException = null;
 
     try {
         throw new Exception("Captured exception message");

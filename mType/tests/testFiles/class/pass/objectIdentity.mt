@@ -42,8 +42,8 @@ print("v5 == v6 (identity): " + (v5 == v6));
 print("v5.equals(v6): " + v5.equals(v6));
 
 print("\nTest 4: Null comparison");
-Value v7 = null;
-Value v8 = null;
+Value? v7 = null;
+Value? v8 = null;
 print("null == null: " + (v7 == v8));
 
 print("\nTest 5: Array of objects");

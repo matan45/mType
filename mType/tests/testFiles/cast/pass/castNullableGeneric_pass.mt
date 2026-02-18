@@ -19,7 +19,7 @@ Container<Base> nonNullContainer = nullableContainer;
 print(nonNullContainer != null);
 
 // Test with null value
-Container<Base> nullContainer = null;
+Container<Base>? nullContainer = null;
 Base result = nullContainer == null ? null : (Base)nullContainer.getValue();
 print(result == null);
 

@@ -15,7 +15,7 @@ function testTypeErrors():void {
     print("Valid object creation: " + obj.toString());
 
     // Test null handling
-    TestClass nullObj = null;
+    TestClass? nullObj = null;
     print("Null object assignment successful");
 
     if (nullObj == null) {

@@ -1,0 +1,4 @@
+Value: 42
+nullData is null as expected
+another value: 100
+Smart cast tests passed!

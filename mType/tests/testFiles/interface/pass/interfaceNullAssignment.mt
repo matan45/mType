@@ -18,7 +18,7 @@ class Circle implements Drawable {
 }
 
 // Null assignment should be allowed
-Drawable drawable = null;
+Drawable? drawable = null;
 
 if (drawable == null) {
     print("Drawable is null");

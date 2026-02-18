@@ -13,7 +13,7 @@ list.add(new Int(2));
 Stream<Int> stream = Streams::fromCollection<Int>(list);
 
 // Pass null predicate - this should cause a runtime error when filter tries to use it
-Predicate<Int> nullPredicate = null;
+Predicate<Int>? nullPredicate = null;
 Stream<Int> filtered = stream.filter(nullPredicate);
 
 // Terminal operation triggers the error

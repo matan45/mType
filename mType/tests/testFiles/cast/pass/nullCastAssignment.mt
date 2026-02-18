@@ -2,7 +2,7 @@
 class Base {}
 class Derived extends Base {}
 
-Derived d = null;
+Derived? d = null;
 Base b = (Base)d;
 print(b == null);
 

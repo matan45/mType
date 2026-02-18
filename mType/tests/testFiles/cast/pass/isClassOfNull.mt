@@ -1,7 +1,7 @@
 // Test: isClassOf with null
 class MyClass {}
 
-MyClass obj = null;
+MyClass? obj = null;
 print(obj isClassOf MyClass); // false
 
 int x = 0;

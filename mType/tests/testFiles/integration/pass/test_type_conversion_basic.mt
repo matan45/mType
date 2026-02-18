@@ -45,7 +45,7 @@ class NullTestClass {
         public constructor(int d) { this.data = d; }
     }
 
-    NullTestClass nullObj = null;
+    NullTestClass? nullObj = null;
     print("Null object created");
 
     if (nullObj == null) {

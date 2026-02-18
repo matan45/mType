@@ -104,7 +104,7 @@ print("  Failed casts: " + (string)failedCasts);
 // Test with null values
 print("");
 print("=== Null Casting Test ===");
-Vehicle nullVehicle = null;
+Vehicle? nullVehicle = null;
 
 try {
     Car nullCar = (Car)nullVehicle;

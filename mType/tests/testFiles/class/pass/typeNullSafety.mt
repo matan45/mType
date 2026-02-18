@@ -65,7 +65,7 @@ print("Has value: " + c.hasValue());
 c.safeProcess();
 
 print("\nTest 4: Type checking with null");
-Object obj = null;
+Object? obj = null;
 print("obj is null: " + (obj == null));
 obj = new DataHolder("Data");
 print("obj is not null: " + (obj != null));

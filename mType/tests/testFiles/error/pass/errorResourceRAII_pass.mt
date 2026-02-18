@@ -41,7 +41,7 @@ class ScopedResource {
 
 function testRAIISuccess(): void {
     print("Test 1: Normal execution with cleanup");
-    ScopedResource resource = null;
+    ScopedResource? resource = null;
 
     try {
         resource = new ScopedResource("data.txt");
@@ -57,7 +57,7 @@ function testRAIISuccess(): void {
 
 function testRAIIWithException(): void {
     print("Test 2: Exception during operation with cleanup");
-    ScopedResource resource = null;
+    ScopedResource? resource = null;
 
     try {
         resource = new ScopedResource("config.json");
@@ -76,11 +76,11 @@ function testRAIIWithException(): void {
 
 function testRAIINestedScopes(): void {
     print("Test 3: Nested scopes with multiple resources");
-    ScopedResource outer = null;
+    ScopedResource? outer = null;
 
     try {
         outer = new ScopedResource("outer.txt");
-        ScopedResource inner = null;
+        ScopedResource? inner = null;
 
         try {
             inner = new ScopedResource("inner.txt");

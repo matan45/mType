@@ -19,7 +19,7 @@ class TestObject {
 // Test 1: Direct null concatenation with strings
 print("Testing direct null concatenation:");
 
-TestObject nullObj = null;
+TestObject? nullObj = null;
 string result1 = "Hello " + nullObj;
 print("\"Hello \" + toString(null) = " + result1);
 
@@ -43,7 +43,7 @@ string result5 = "Value: " + (obj != null ? obj.toString() : "null");
 print("Ternary null check: " + result5);
 
 // Test 5: Multiple null objects in concatenation
-TestObject nullObj2 = null;
+TestObject? nullObj2 = null;
 string result6 = nullObj + " and " + nullObj2;
 print("Multiple nulls: " + result6);
 
@@ -61,9 +61,9 @@ print("Function chain with null: " + result7);
 
 // Test 7: Null object concatenation in loops
 print("Null concatenation in loops:");
-TestObject objects = null;
+TestObject? objects = null;
 TestObject object1 = new TestObject("first", 1);
-TestObject object2 = null;
+TestObject? object2 = null;
 TestObject object3 = new TestObject("third", 3);
 
 for (int i = 0; i < 3; i++) {
@@ -119,7 +119,7 @@ string mixedResult = "Mixed: " + number + ", " + nullObj + ", " + flag + ", " + 
 print("Mixed types with null: " + mixedResult);
 
 // Test 12: Null object concatenation error handling (should not crash)
-TestObject potentialNull = null;
+TestObject? potentialNull = null;
 string safeResult = potentialNull != null ?
                    "Object exists: " + potentialNull.toString() :
                    "Object is null: " + potentialNull;
@@ -156,7 +156,7 @@ string staticResult2 = StaticStringUtils::combineWithPrefix("PREFIX:", null);
 print("Static method with prefix and null: " + staticResult2);
 
 // Test 15: Null object concatenation in exception scenarios (edge cases)
-TestObject nullArray = null;
+TestObject? nullArray = null;
 string arrayResult = "Array: " + nullArray;
 print("Null array concatenation: " + arrayResult);
 
@@ -177,7 +177,7 @@ Container containerWithNull = new Container(null);
 string containerResult = "Container test: " + containerWithNull.describe();
 print("Container with null inner: " + containerResult);
 
-Container nullContainer = null;
+Container? nullContainer = null;
 string nullContainerResult = "Null container: " + nullContainer;
 print("Null container object: " + nullContainerResult);
 

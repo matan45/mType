@@ -117,7 +117,7 @@ function main(): void {
     print("Employee 3 company city: " + emp3.getCompanyCity());
 
     // Test null propagation in conditional chains
-    Employee emp4 = null;
+    Employee? emp4 = null;
     if (emp4 != null) {
         print("Employee 4 company: " + emp4.getCompany().getName());
     } else {

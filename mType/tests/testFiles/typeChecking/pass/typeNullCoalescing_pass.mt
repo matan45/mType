@@ -46,7 +46,7 @@ function getPortOrDefault(Configuration config): int {
 function main(): void {
     print("Testing null coalescing type checking");
 
-    Configuration config1 = null;
+    Configuration? config1 = null;
     Configuration config2 = new Configuration("example.com", 3000);
 
     // Coalesce null config to default host

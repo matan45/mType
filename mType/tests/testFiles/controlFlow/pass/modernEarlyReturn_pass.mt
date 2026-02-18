@@ -91,7 +91,7 @@ function getProductStatus(Product product): string {
 }
 
 print("Test 3: Early return in object processing");
-Product nullProduct = null;
+Product? nullProduct = null;
 print(getProductStatus(nullProduct));
 
 Product outOfStock = new Product("Item1", 50.0, 0);
@@ -242,7 +242,7 @@ function canCancelOrder(Order order): string {
 }
 
 print("Test 7: Early return in business logic");
-Order nullOrder = null;
+Order? nullOrder = null;
 print(canCancelOrder(nullOrder));
 
 Order shippedOrder = new Order(100.0, true, true);

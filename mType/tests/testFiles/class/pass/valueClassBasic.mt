@@ -39,5 +39,5 @@ Point p2 = new Point();
 print("p2: " + p2.toString());
 
 // Null value class reference
-Point p3 = null;
+Point? p3 = null;
 print("p3 is null: " + (p3 == null));

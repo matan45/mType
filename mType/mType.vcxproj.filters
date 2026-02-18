@@ -355,6 +355,15 @@
     <Filter Include="tests\testFiles\modifiers\pass">
       <UniqueIdentifier>{31B45012-1DDA-1A79-0620-A044F2E43F45}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\nullSafety">
+      <UniqueIdentifier>{D0E25867-BCF2-0438-25AC-695611DBF3D0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\nullSafety\error">
+      <UniqueIdentifier>{29565273-15A7-3DB5-3E0B-2C772ABBD01E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\nullSafety\pass">
+      <UniqueIdentifier>{D6BAF8D4-429E-0715-4BA1-3551B703CE65}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\overloading">
       <UniqueIdentifier>{635ABDDA-CF67-EBC0-584E-E7ABC45AB777}</UniqueIdentifier>
     </Filter>
@@ -1623,6 +1632,9 @@
     <ClInclude Include="tests\suites\ModifiersTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\NullSafetyTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\OverloadingTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
@@ -2856,6 +2868,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ModifiersTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\NullSafetyTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\OverloadingTestSuite.cpp">
@@ -10278,6 +10293,24 @@
     </None>
     <None Include="tests\testFiles\modifiers\pass\publicStaticMembers.mt">
       <Filter>tests\testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\nullToNonNullable_error.mt">
+      <Filter>tests\testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\nullablePrimitiveType_error.mt">
+      <Filter>tests\testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableTypeBasic.expected">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableTypeBasic.mt">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\smartCastBasic.expected">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\smartCastBasic.mt">
+      <Filter>tests\testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\error\ambiguousCall.mt">
       <Filter>tests\testFiles\overloading\error</Filter>

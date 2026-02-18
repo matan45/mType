@@ -18,7 +18,7 @@ class Derived extends Base {
 
 // Cast in arithmetic expression with null handling
 Value v1 = new Value(10);
-Value v2 = null;
+Value? v2 = null;
 Value v3 = new Value(5);
 
 int sum = ((v1 != null) ? (Value)v1 : new Value(0)).data +
@@ -28,7 +28,7 @@ print(sum);
 
 // Cast in boolean expression
 Base b1 = new Derived(100);
-Base b2 = null;
+Base? b2 = null;
 
 bool result1 = (b1 != null) && ((Derived)(Base)b1).value > 50;
 bool result2 = (b2 != null) && ((Derived)(Base)b2).value > 50;

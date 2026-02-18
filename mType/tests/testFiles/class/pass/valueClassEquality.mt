@@ -38,6 +38,6 @@ print("p1 == p3: " + (p1 == p3));
 print("p1 != p3: " + (p1 != p3));
 
 // Null comparisons
-Pair p4 = null;
+Pair? p4 = null;
 print("p4 == null: " + (p4 == null));
 print("p1 == null: " + (p1 == null));

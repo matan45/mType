@@ -43,7 +43,7 @@ print("Complex modification chain Z: " + z.value);
 
 // Test reassignment with null propagation
 DataContainer n1 = new DataContainer("N1");
-DataContainer n2 = null;
+DataContainer? n2 = null;
 DataContainer n3 = new DataContainer("N3");
 
 n1 = n2;  // n1 becomes null

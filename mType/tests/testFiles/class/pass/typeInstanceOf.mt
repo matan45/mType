@@ -44,5 +44,5 @@ print("u instanceof Derived: " + (u isClassOf Derived));
 print("u instanceof Unrelated: " + (u isClassOf Unrelated));
 
 print("\nTest 5: Null check");
-Base nullRef = null;
+Base? nullRef = null;
 print("null instanceof Base: " + (nullRef isClassOf Base));

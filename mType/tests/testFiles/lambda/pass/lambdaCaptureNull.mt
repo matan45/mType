@@ -23,7 +23,7 @@ function main(): void {
     print("=== Lambda Capture Null Test ===");
 
     // Test 1: Capture explicitly null variable
-    Object nullObj = null;
+    Object? nullObj = null;
     Supplier getNullObj = () -> nullObj;
     Object result1 = getNullObj.get();
     if (result1 == null) {
@@ -33,7 +33,7 @@ function main(): void {
     }
 
     // Test 2: Capture null and verify it stays null
-    Object anotherNull = null;
+    Object? anotherNull = null;
     Supplier getAnother = () -> anotherNull;
     if (getAnother.get() == null) {
         print("Test 2 PASS: Null capture persists");
@@ -61,7 +61,7 @@ function main(): void {
     }
 
     // Test 5: Multiple lambdas capturing same null
-    Object sharedNull = null;
+    Object? sharedNull = null;
     Supplier lambda1 = () -> sharedNull;
     Supplier lambda2 = () -> sharedNull;
     if (lambda1.get() == null && lambda2.get() == null) {

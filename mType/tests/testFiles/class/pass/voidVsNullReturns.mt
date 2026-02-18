@@ -92,8 +92,8 @@ function main(): void {
 
     // Test 7: Null equality checks
     print("Test 7: Null equality");
-    Object a = null;
-    Object b = null;
+    Object? a = null;
+    Object? b = null;
     Object c = new Object();
     if (a == b && a == null && c != null && a != c) {
         print("Test 7 PASS: Null equality works correctly");

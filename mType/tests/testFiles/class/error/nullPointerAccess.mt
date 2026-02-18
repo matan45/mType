@@ -6,7 +6,7 @@ class TestClass {
     }
 }
 
-TestClass obj = null;
+TestClass? obj = null;
 print(obj); // Should print null
 
 // This should throw an error

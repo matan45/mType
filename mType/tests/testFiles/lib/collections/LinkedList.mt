@@ -281,7 +281,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
         }
 
         Node<T> current = this.head;
-        Node<T> temp = null;
+        Node<T>? temp = null;
 
         while (current != null) {
             temp = current.prev;

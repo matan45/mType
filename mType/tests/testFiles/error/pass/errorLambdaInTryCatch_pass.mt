@@ -84,7 +84,7 @@ function main(): void {
     }
 
     // Lambda defined in try block, used in catch
-    Exception capturedException = null;
+    Exception? capturedException = null;
 
     try {
         throw new Exception("Test exception for lambda");

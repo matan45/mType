@@ -13,7 +13,7 @@ list.add(new Int(10));
 Stream<Int> stream = Streams::fromCollection<Int>(list);
 
 // Pass null mapper - this should cause error when map tries to apply it
-Function<Int, Int> nullMapper = null;
+Function<Int, Int>? nullMapper = null;
 Stream<Int> mapped = stream.map<Int>(nullMapper);
 
 // Terminal operation triggers the error

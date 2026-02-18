@@ -29,7 +29,7 @@ function async testPromiseReassignment(): Promise<Int> {
 // Test 2: Null Promise
 function async testNullPromise(): Promise<Int> {
     print("--- Test 2: Null Promise ---");
-    Promise<Int> p = null;
+    Promise<Int>? p = null;
     print("Assigned null to Promise variable: success");
 
     // Note: awaiting null would cause an error, so we skip it
