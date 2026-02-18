@@ -109,15 +109,18 @@ namespace vm::jit
                 cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
                 Gp idx = cc.new_gp64();
                 cc.mov(idx, static_cast<int64_t>(fieldNameIndex));
+                Gp flagsReg = cc.new_gp64();
+                cc.mov(flagsReg, static_cast<int64_t>(instr.flags));
                 InvokeNode* inv;
                 cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_get_field_ic),
                           FuncSignature::build<void, value::Value*, const value::Value*,
-                              JitContext*, size_t, uint32_t>());
+                              JitContext*, size_t, uint32_t, uint8_t>());
                 inv->set_arg(0, dest);
                 inv->set_arg(1, objAddr);
                 inv->set_arg(2, s.ctxPtr);
                 inv->set_arg(3, ipReg);
                 inv->set_arg(4, idx);
+                inv->set_arg(5, flagsReg);
                 popType(s);
                 s.slotTypes.push_back(SlotType::BOXED);
                 return true;
@@ -148,18 +151,21 @@ namespace vm::jit
                 cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
                 Gp idx = cc.new_gp64();
                 cc.mov(idx, static_cast<int64_t>(fieldNameIndex));
+                Gp flagsReg = cc.new_gp64();
+                cc.mov(flagsReg, static_cast<int64_t>(instr.flags));
 
                 InvokeNode* inv;
                 cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_set_field_ic),
                           FuncSignature::build<void, value::Value*, const value::Value*,
                               const value::Value*,
-                              JitContext*, size_t, uint32_t>());
+                              JitContext*, size_t, uint32_t, uint8_t>());
                 inv->set_arg(0, dest);
                 inv->set_arg(1, objAddr);
                 inv->set_arg(2, newValAddr);
                 inv->set_arg(3, s.ctxPtr);
                 inv->set_arg(4, ipReg);
                 inv->set_arg(5, idx);
+                inv->set_arg(6, flagsReg);
 
                 if (isBoxedSlotType(valType))
                 {
@@ -415,6 +421,60 @@ namespace vm::jit
 
                 s.slotTypes.push_back(SlotType::OBJECT);
                 s.stackDepth++;
+                return true;
+            }
+
+            case OpCode::NEW_VALUE_OBJECT:
+            {
+                // Value object construction uses the same mechanism as regular objects.
+                // The constructor needs an ObjectInstance for 'this'.
+                // After the constructor, OBJECT_TO_VALUE converts to ValueObject.
+                uint32_t classIndex = static_cast<uint32_t>(instr.operands[0]);
+                size_t argCount = instr.operands[1];
+
+                if (argCount > JitContext::MAX_CALL_ARGS)
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
+
+                emitBoxCallArgs(s, argCount);
+                emitPopAndDestroyArgs(s, argCount);
+
+                Gp dest = cc.new_gp64();
+                cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
+                Gp ciReg = cc.new_gp64();
+                cc.mov(ciReg, static_cast<int64_t>(classIndex));
+                Gp acReg = cc.new_gp64();
+                cc.mov(acReg, static_cast<int64_t>(argCount));
+
+                InvokeNode* inv;
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_new_object),
+                          FuncSignature::build<void, value::Value*, JitContext*,
+                              uint32_t, size_t>());
+                inv->set_arg(0, dest);
+                inv->set_arg(1, s.ctxPtr);
+                inv->set_arg(2, ciReg);
+                inv->set_arg(3, acReg);
+
+                s.slotTypes.push_back(SlotType::OBJECT);
+                s.stackDepth++;
+                return true;
+            }
+
+            case OpCode::OBJECT_TO_VALUE:
+            {
+                // Convert ObjectInstance on stack top to lightweight ValueObject
+                Gp addr = cc.new_gp64();
+                cc.lea(addr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+
+                InvokeNode* inv;
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_object_to_value),
+                          FuncSignature::build<void, value::Value*>());
+                inv->set_arg(0, addr);
+
+                popType(s);
+                s.slotTypes.push_back(SlotType::VALUE_OBJECT);
                 return true;
             }
 

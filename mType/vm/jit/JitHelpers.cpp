@@ -14,6 +14,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
+#include "../../value/ValueObject.hpp"
 #include "../../value/StringPool.hpp"
 #include "../../types/TypeConversionUtils.hpp"
 #include <vector>
@@ -303,35 +304,78 @@ namespace vm::jit
 
     void jit_get_field(value::Value* dest, const value::Value* object,
                         const vm::bytecode::BytecodeProgram* prog,
-                        uint32_t fieldNameIndex)
+                        uint32_t fieldNameIndex, uint8_t flags)
     {
-        if (std::holds_alternative<std::nullptr_t>(*object) ||
-            std::holds_alternative<std::monostate>(*object))
+        if (!(flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            throw errors::NullPointerException("Cannot access field on null");
+            if (std::holds_alternative<std::nullptr_t>(*object) ||
+                std::holds_alternative<std::monostate>(*object))
+            {
+                throw errors::NullPointerException("Cannot access field on null");
+            }
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
-        const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
-        value::Value fieldValue = instance->getFieldValue(fieldName);
-        *dest = fieldValue;
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object))
+        {
+            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
+            const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
+            *dest = instance->getFieldValue(fieldName);
+            return;
+        }
+
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(*object))
+        {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(*object);
+            auto classDef = valueObj->getClassDefinition();
+            const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
+            size_t fieldIndex = classDef->getFieldIndex(fieldName);
+            if (fieldIndex != SIZE_MAX && fieldIndex < valueObj->getFieldCount())
+            {
+                *dest = valueObj->getFieldByIndex(fieldIndex);
+                return;
+            }
+            *dest = valueObj->getFieldValue(fieldName);
+            return;
+        }
+
+        throw errors::RuntimeException("JIT: GET_FIELD on non-object value");
     }
 
     void jit_set_field(value::Value* destValue, const value::Value* object,
                         const value::Value* newValue,
                         const vm::bytecode::BytecodeProgram* prog,
-                        uint32_t fieldNameIndex)
+                        uint32_t fieldNameIndex, uint8_t flags)
     {
-        if (std::holds_alternative<std::nullptr_t>(*object) ||
-            std::holds_alternative<std::monostate>(*object))
+        if (!(flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            throw errors::NullPointerException("Cannot set field on null");
+            if (std::holds_alternative<std::nullptr_t>(*object) ||
+                std::holds_alternative<std::monostate>(*object))
+            {
+                throw errors::NullPointerException("Cannot set field on null");
+            }
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
-        const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
-        instance->setField(fieldName, *newValue);
-        *destValue = *newValue;
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object))
+        {
+            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
+            const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
+            instance->setField(fieldName, *newValue);
+            *destValue = *newValue;
+            return;
+        }
+
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(*object))
+        {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(*object);
+            auto copy = valueObj->deepCopy();
+            const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
+            copy->setField(fieldName, *newValue);
+            *const_cast<value::Value*>(object) = copy;
+            *destValue = *newValue;
+            return;
+        }
+
+        throw errors::RuntimeException("JIT: SET_FIELD on non-object value");
     }
 
     // --- Phase 4C: Array operations ---
@@ -396,21 +440,44 @@ namespace vm::jit
         // Object is in callArgs[0], args in callArgs[1..argCount]
         value::Value& objectValue = ctx->callArgs[0];
 
+        // Collect method arguments (skip callArgs[0] which is the object)
+        std::vector<value::Value> args;
+        for (size_t i = 1; i <= argCount; i++)
+        {
+            args.push_back(ctx->callArgs[i]);
+        }
+
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
         {
             auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
 
-            // Collect method arguments (skip callArgs[0] which is the object)
-            std::vector<value::Value> args;
-            for (size_t i = 1; i <= argCount; i++)
-            {
-                args.push_back(ctx->callArgs[i]);
-            }
-
-            // Delegate to VM's invokeMethod which handles method resolution
             if (ctx->vm)
             {
                 ctx->returnValue = ctx->vm->invokeMethod(instance, methodName, args);
+                ctx->hasReturnValue = true;
+                return;
+            }
+        }
+
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue))
+        {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+            auto classDef = valueObj->getClassDefinition();
+
+            // Create temporary ObjectInstance for method dispatch (same as VM does)
+            auto tempInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+            const auto& fieldIndexMap = classDef->getFieldIndexMap();
+            for (const auto& [name, index] : fieldIndexMap)
+            {
+                if (index < valueObj->getFieldCount())
+                {
+                    tempInstance->setField(name, valueObj->getFieldByIndex(index));
+                }
+            }
+
+            if (ctx->vm)
+            {
+                ctx->returnValue = ctx->vm->invokeMethod(tempInstance, methodName, args);
                 ctx->hasReturnValue = true;
                 return;
             }
@@ -442,6 +509,18 @@ namespace vm::jit
         {
             auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*val);
             auto classDef = instance->getClassDefinition();
+            while (classDef)
+            {
+                if (classDef->getName() == typeName) return 1;
+                classDef = classDef->getParentClass();
+            }
+        }
+
+        // ValueObject check with hierarchy
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(*val))
+        {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(*val);
+            auto classDef = valueObj->getClassDefinition();
             while (classDef)
             {
                 if (classDef->getName() == typeName) return 1;
@@ -499,6 +578,35 @@ namespace vm::jit
         }
 
         throw errors::RuntimeException("JIT: cannot create object '" + className + "'");
+    }
+
+    // --- Value object conversion ---
+
+    void jit_object_to_value(value::Value* val)
+    {
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*val))
+        {
+            return; // Already a ValueObject or not an object
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*val);
+        auto classDef = instance->getClassDefinition();
+        auto valueObj = std::make_shared<value::ValueObject>(classDef);
+
+        // Copy fields using index map
+        const auto& fieldIndexMap = classDef->getFieldIndexMap();
+        for (const auto& [name, index] : fieldIndexMap)
+        {
+            valueObj->setFieldByIndex(index, instance->getFieldValue(name));
+        }
+
+        // Copy generic type bindings
+        for (const auto& [param, type] : instance->getGenericTypeBindings())
+        {
+            valueObj->setGenericTypeBinding(param, type);
+        }
+
+        *val = valueObj;
     }
 
     // --- Phase 5: OSR helpers ---
@@ -580,14 +688,34 @@ namespace vm::jit
 
     void jit_get_field_ic(value::Value* dest, const value::Value* object,
                           JitContext* ctx, size_t bytecodeOffset,
-                          uint32_t fieldNameIndex)
+                          uint32_t fieldNameIndex, uint8_t flags)
     {
         using namespace vm::jit::ic;
 
-        if (std::holds_alternative<std::nullptr_t>(*object) ||
-            std::holds_alternative<std::monostate>(*object))
+        if (!(flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            throw errors::NullPointerException("Cannot access field on null");
+            if (std::holds_alternative<std::nullptr_t>(*object) ||
+                std::holds_alternative<std::monostate>(*object))
+            {
+                throw errors::NullPointerException("Cannot access field on null");
+            }
+        }
+
+        // Handle ValueObject (already uses O(1) indexed fields, no IC needed)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(*object))
+        {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(*object);
+            auto classDef = valueObj->getClassDefinition();
+            const std::string& fieldName =
+                ctx->program->getConstantPool().getString(fieldNameIndex);
+            size_t fieldIndex = classDef->getFieldIndex(fieldName);
+            if (fieldIndex != SIZE_MAX && fieldIndex < valueObj->getFieldCount())
+            {
+                *dest = valueObj->getFieldByIndex(fieldIndex);
+                return;
+            }
+            *dest = valueObj->getFieldValue(fieldName);
+            return;
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
@@ -656,14 +784,30 @@ namespace vm::jit
     void jit_set_field_ic(value::Value* destValue, const value::Value* object,
                           const value::Value* newValue,
                           JitContext* ctx, size_t bytecodeOffset,
-                          uint32_t fieldNameIndex)
+                          uint32_t fieldNameIndex, uint8_t flags)
     {
         using namespace vm::jit::ic;
 
-        if (std::holds_alternative<std::nullptr_t>(*object) ||
-            std::holds_alternative<std::monostate>(*object))
+        if (!(flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            throw errors::NullPointerException("Cannot set field on null");
+            if (std::holds_alternative<std::nullptr_t>(*object) ||
+                std::holds_alternative<std::monostate>(*object))
+            {
+                throw errors::NullPointerException("Cannot set field on null");
+            }
+        }
+
+        // Handle ValueObject — deep copy for value semantics
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(*object))
+        {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(*object);
+            auto copy = valueObj->deepCopy();
+            const std::string& fieldName =
+                ctx->program->getConstantPool().getString(fieldNameIndex);
+            copy->setField(fieldName, *newValue);
+            *const_cast<value::Value*>(object) = copy;
+            *destValue = *newValue;
+            return;
         }
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);

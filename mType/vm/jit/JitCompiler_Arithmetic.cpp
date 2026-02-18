@@ -89,6 +89,9 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::INSTANCEOF),
             static_cast<uint8_t>(OpCode::CAST),
 
+            static_cast<uint8_t>(OpCode::NEW_VALUE_OBJECT),
+            static_cast<uint8_t>(OpCode::OBJECT_TO_VALUE),
+
             static_cast<uint8_t>(OpCode::LINE),
             static_cast<uint8_t>(OpCode::SOURCE_FILE),
             static_cast<uint8_t>(OpCode::NOP),

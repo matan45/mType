@@ -95,13 +95,13 @@ namespace vm::jit
     // Get field value from object, store in dest
     void jit_get_field(value::Value* dest, const value::Value* object,
                         const vm::bytecode::BytecodeProgram* prog,
-                        uint32_t fieldNameIndex);
+                        uint32_t fieldNameIndex, uint8_t flags = 0);
 
     // Set field on object, copy newValue to destValue (for assignment chaining)
     void jit_set_field(value::Value* destValue, const value::Value* object,
                         const value::Value* newValue,
                         const vm::bytecode::BytecodeProgram* prog,
-                        uint32_t fieldNameIndex);
+                        uint32_t fieldNameIndex, uint8_t flags = 0);
 
     // --- Phase 4C: Array operations ---
 
@@ -145,6 +145,9 @@ namespace vm::jit
     void jit_new_object(value::Value* dest, JitContext* ctx,
                          uint32_t classIndex, size_t argCount);
 
+    // Convert ObjectInstance on stack to lightweight ValueObject
+    void jit_object_to_value(value::Value* val);
+
     // --- Phase 5: OSR helpers ---
 
     // Write a local Value to the OSR output buffer
@@ -160,12 +163,12 @@ namespace vm::jit
 
     void jit_get_field_ic(value::Value* dest, const value::Value* object,
                           JitContext* ctx, size_t bytecodeOffset,
-                          uint32_t fieldNameIndex);
+                          uint32_t fieldNameIndex, uint8_t flags = 0);
 
     void jit_set_field_ic(value::Value* destValue, const value::Value* object,
                           const value::Value* newValue,
                           JitContext* ctx, size_t bytecodeOffset,
-                          uint32_t fieldNameIndex);
+                          uint32_t fieldNameIndex, uint8_t flags = 0);
 
     // --- Phase 7: Typed array access ---
 
