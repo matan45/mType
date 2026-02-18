@@ -200,6 +200,13 @@ namespace vm::runtime
             }
             throwCastError("Cannot cast object to int");
         }
+        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj && obj->getClassName() == "Int") {
+                return val;
+            }
+            throwCastError("Cannot cast value object to int");
+        }
         else {
             throwCastError("Cannot cast to int from this type");
         }
@@ -218,6 +225,13 @@ namespace vm::runtime
             } catch (...) {
                 throwCastError("Cannot cast string to float: " + std::get<std::string>(val));
             }
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj && obj->getClassName() == "Float") {
+                return val;
+            }
+            throwCastError("Cannot cast value object to float");
         }
         else {
             throwCastError("Cannot cast to float from this type");
@@ -247,6 +261,13 @@ namespace vm::runtime
             const value::InternedString& str = std::get<value::InternedString>(val);
             // Non-empty strings are true
             return str.length() > 0;
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj && obj->getClassName() == "Bool") {
+                return val;
+            }
+            throwCastError("Cannot cast value object to bool");
         }
         else {
             throwCastError("Cannot cast to bool from this type");
@@ -360,6 +381,29 @@ namespace vm::runtime
         // Handle null values
         if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
             return val; // null remains null for object casts
+        }
+
+        // Handle ValueObject (value classes)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (!obj) {
+                throwCastError("Cannot cast null to " + targetTypeName);
+            }
+            auto classDef = obj->getClassDefinition();
+            std::string className = classDef->getName();
+
+            TypeComponents classComp = extractTypeComponents(className);
+            TypeComponents targetComp = extractTypeComponents(targetTypeName);
+
+            bool canCast = checkExactMatch(className, targetTypeName, classComp, targetComp) ||
+                           checkInterfaceMatch(classDef, targetTypeName);
+
+            if (canCast) {
+                return val;
+            } else {
+                throwIncompatibleCastError(className, targetTypeName);
+                return val;
+            }
         }
 
         // Handle non-object types
