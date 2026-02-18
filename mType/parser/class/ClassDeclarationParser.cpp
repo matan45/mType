@@ -188,7 +188,6 @@ namespace parser
         classNode->setAbstract(isAbstract);
         classNode->setValueClass(isValueClass);
         classNode->setVisibility(visibility);
-
         return classNode;
     }
 
