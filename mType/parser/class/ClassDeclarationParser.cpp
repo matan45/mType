@@ -51,9 +51,11 @@ namespace parser
             tokenStream.advance(); // consume 'final'
         }
 
-        // Check for optional 'value' keyword
+        // Check for optional 'value' contextual keyword (parsed as IDENTIFIER)
         bool isValueClass = false;
-        if (tokenStream.check(TokenType::VALUE))
+        if (tokenStream.current().type == TokenType::IDENTIFIER &&
+            tokenStream.current().stringValue.getString() == "value" &&
+            tokenStream.peek().type == TokenType::CLASS)
         {
             isValueClass = true;
             tokenStream.advance(); // consume 'value'

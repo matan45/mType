@@ -102,8 +102,7 @@ namespace lexer
         {"try", TokenType::TRY},
         {"catch", TokenType::CATCH},
         {"throw", TokenType::THROW},
-        {"finally", TokenType::FINALLY},
-        {"value", TokenType::VALUE}
+        {"finally", TokenType::FINALLY}
     };
 
     Lexer::Lexer(const std::string& filePath, std::unique_ptr<FileReader> reader)

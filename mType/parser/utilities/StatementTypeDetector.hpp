@@ -38,6 +38,9 @@ namespace parser::utilities
 
         static StatementType analyzeIdentifierStatement(const TokenStream& stream);
 
+        // Check if a token is the contextual 'value' keyword (IDENTIFIER with string "value")
+        static bool isValueKeyword(const Token& token) noexcept;
+
         // Helper methods for detectStatementType refactoring
         static StatementType analyzeAccessModifier(const TokenStream& stream);
         static StatementType analyzeFinalKeyword(const TokenStream& stream);

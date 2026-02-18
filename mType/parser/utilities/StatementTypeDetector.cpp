@@ -2,6 +2,12 @@
 
 namespace parser::utilities
 {
+    bool StatementTypeDetector::isValueKeyword(const Token& token) noexcept
+    {
+        return token.type == TokenType::IDENTIFIER &&
+               token.stringValue.getString() == "value";
+    }
+
     StatementType StatementTypeDetector::analyzeAccessModifier(const TokenStream& stream)
     {
         Token next = stream.peek();
@@ -17,14 +23,16 @@ namespace parser::utilities
         {
             return StatementType::FUNCTION;
         }
-        // Check if next is 'value' keyword: public value class ...
-        else if (next.type == TokenType::VALUE)
+        // Check if next is 'value' contextual keyword: public value class ...
+        else if (isValueKeyword(next))
         {
             Token afterValue = stream.peekAhead(2);
             if (afterValue.type == TokenType::CLASS)
             {
                 return StatementType::CLASS;
             }
+            // 'value' used as identifier (e.g., public int value), fall through to DECLARATION
+            return StatementType::DECLARATION;
         }
         // PHASE 4 FIX: Check if next is another modifier (final/abstract) that might precede class/interface
         else if (next.type == TokenType::FINAL || next.type == TokenType::ABSTRACT)
@@ -44,7 +52,7 @@ namespace parser::utilities
                 return StatementType::FUNCTION;
             }
             // Check for: public final value class ... or public abstract value class ...
-            if (afterModifier.type == TokenType::VALUE)
+            if (isValueKeyword(afterModifier))
             {
                 Token afterValue = stream.peekAhead(3);
                 if (afterValue.type == TokenType::CLASS)
@@ -75,7 +83,7 @@ namespace parser::utilities
             return StatementType::INTERFACE;
         }
         // final value class ...
-        else if (next.type == TokenType::VALUE)
+        else if (isValueKeyword(next))
         {
             Token afterValue = stream.peekAhead(2);
             if (afterValue.type == TokenType::CLASS)
@@ -102,7 +110,7 @@ namespace parser::utilities
             return StatementType::FUNCTION;
         }
         // abstract value class ... (will be rejected by parser, but route to CLASS for proper error)
-        else if (next.type == TokenType::VALUE)
+        else if (isValueKeyword(next))
         {
             Token afterValue = stream.peekAhead(2);
             if (afterValue.type == TokenType::CLASS)
@@ -169,7 +177,8 @@ namespace parser::utilities
         }
 
         // Now check what comes after the annotation(s)
-        TokenType afterAnnotations = getTokenAt(lookAheadIndex).type;
+        Token afterAnnotationsToken = getTokenAt(lookAheadIndex);
+        TokenType afterAnnotations = afterAnnotationsToken.type;
 
         // Annotations can precede: classes, interfaces, functions, or methods
         if (afterAnnotations == TokenType::CLASS)
@@ -207,8 +216,8 @@ namespace parser::utilities
                 return StatementType::DECLARATION;
             }
         }
-        // Annotations with value: @Annotation value class ...
-        else if (afterAnnotations == TokenType::VALUE)
+        // Annotations with value contextual keyword: @Annotation value class ...
+        else if (isValueKeyword(afterAnnotationsToken))
         {
             lookAheadIndex++; // Skip 'value'
             TokenType afterValue = getTokenAt(lookAheadIndex).type;
@@ -221,7 +230,8 @@ namespace parser::utilities
         else if (afterAnnotations == TokenType::FINAL || afterAnnotations == TokenType::ABSTRACT)
         {
             lookAheadIndex++; // Skip modifier
-            TokenType afterModifier = getTokenAt(lookAheadIndex).type;
+            Token afterModifierToken = getTokenAt(lookAheadIndex);
+            TokenType afterModifier = afterModifierToken.type;
             if (afterModifier == TokenType::CLASS)
             {
                 return StatementType::CLASS;
@@ -235,7 +245,7 @@ namespace parser::utilities
                 return StatementType::FUNCTION;
             }
             // final/abstract followed by value class
-            if (afterModifier == TokenType::VALUE)
+            if (isValueKeyword(afterModifierToken))
             {
                 lookAheadIndex++;
                 if (getTokenAt(lookAheadIndex).type == TokenType::CLASS)
@@ -310,14 +320,6 @@ namespace parser::utilities
                     return result;
             }
             break;
-        case TokenType::VALUE:
-            {
-                // value class ...
-                Token next = stream.peek();
-                if (next.type == TokenType::CLASS)
-                    return StatementType::CLASS;
-            }
-            break;
         case TokenType::FINAL:
             {
                 StatementType result = analyzeFinalKeyword(stream);
@@ -340,7 +342,16 @@ namespace parser::utilities
             }
             break;
         case TokenType::IDENTIFIER:
-            return analyzeIdentifierStatement(stream);
+            {
+                // Check for 'value' contextual keyword: value class ...
+                if (isValueKeyword(current))
+                {
+                    Token next = stream.peek();
+                    if (next.type == TokenType::CLASS)
+                        return StatementType::CLASS;
+                }
+                return analyzeIdentifierStatement(stream);
+            }
         default:
             break;
         }
