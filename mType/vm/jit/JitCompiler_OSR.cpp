@@ -157,7 +157,7 @@ namespace vm::jit
             for (size_t i = 0; i < localCount; ++i)
             {
                 if (capturedSlots.find(i) == capturedSlots.end())
-                    cc.mov(Mem(frame.localsBase, static_cast<int32_t>(i * 8)), 0);
+                    cc.mov(qword_ptr(frame.localsBase, static_cast<int32_t>(i * 8)), 0);
             }
         }
     }
@@ -230,9 +230,9 @@ namespace vm::jit
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
             emitLocalsWriteBack(es);
             size_t exitTarget = (target == 0) ? resumeOffset : target;
-            es.cc.mov(Mem(es.ctxPtr, offsetof(JitContext, osrExitOffset)),
+            es.cc.mov(qword_ptr(es.ctxPtr, offsetof(JitContext, osrExitOffset)),
                       static_cast<int64_t>(exitTarget));
-            es.cc.mov(Mem(es.ctxPtr, offsetof(JitContext, osrExited)), 1);
+            es.cc.mov(byte_ptr(es.ctxPtr, offsetof(JitContext, osrExited)), 1);
             emitCleanup(es);
             es.cc.ret();
         };
@@ -243,7 +243,7 @@ namespace vm::jit
             return false;
 
         emitCleanup(s);
-        cc.mov(Mem(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
+        cc.mov(byte_ptr(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
         return true;
     }
 

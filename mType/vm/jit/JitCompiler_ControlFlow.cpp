@@ -375,7 +375,7 @@ namespace vm::jit
                 else
                 {
                     emitCleanup(s);
-                    cc.mov(Mem(s.ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
+                    cc.mov(byte_ptr(s.ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
                     cc.ret();
                 }
                 return true;

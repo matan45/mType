@@ -148,7 +148,7 @@ namespace vm::jit
                 return true;
             }
             case OpCode::PUSH_NULL:
-                cc.mov(Mem(s.stackBase, s.stackDepth * 8), 0);
+                cc.mov(qword_ptr(s.stackBase, s.stackDepth * 8), 0);
                 s.slotTypes.push_back(SlotType::INT);
                 s.stackDepth++;
                 return true;

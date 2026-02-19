@@ -3,7 +3,6 @@
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"
 #include <asmjit/x86.h>
-#include <cstring>
 
 namespace vm::jit
 {
@@ -392,10 +391,14 @@ namespace vm::jit
 
             const auto& instr = program.getInstruction(ip);
             s.currentIP = ip;
-            if (emitCoreOps(s, instr)) continue;
-            if (emitArithmeticOps(s, instr)) continue;
-            if (emitControlFlowOps(s, instr, nullptr)) continue;
-            emitObjectOps(s, instr);
+            bool handled = false;
+            if (emitCoreOps(s, instr)) { handled = true; }
+            else if (emitArithmeticOps(s, instr)) { handled = true; }
+            else if (emitControlFlowOps(s, instr, nullptr)) { handled = true; }
+            else { emitObjectOps(s, instr); handled = true; }
+
+            if (s.compileFailed)
+                break;
         }
     }
 
@@ -410,7 +413,7 @@ namespace vm::jit
         if (!frame.usesBoxedTypes)
         {
             for (size_t i = funcMeta.parameterCount; i < funcMeta.localCount; ++i)
-                cc.mov(Mem(frame.localsBase, static_cast<int32_t>(i * 8)), 0);
+                cc.mov(qword_ptr(frame.localsBase, static_cast<int32_t>(i * 8)), 0);
         }
 
         size_t startOffset = funcMeta.startOffset;
@@ -428,7 +431,7 @@ namespace vm::jit
             return false;
 
         emitCleanup(s);
-        cc.mov(Mem(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
+        cc.mov(byte_ptr(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
         return true;
     }
 
@@ -440,7 +443,12 @@ namespace vm::jit
             return true;
 
         const auto* funcMeta = program.getFunction(functionName);
-        if (!funcMeta || !canCompile(*funcMeta, program))
+        if (!funcMeta)
+        {
+            bailoutCount++;
+            return false;
+        }
+        if (!canCompile(*funcMeta, program))
         {
             bailoutCount++;
             return false;
