@@ -1,0 +1,12 @@
+counter: 1325
+square(7): 49
+clamp(5,10,50): 10
+clamp(30,10,50): 30
+clamp(99,10,50): 50
+Rex barks
+Whiskers meows
+dog isClassOf Dog: true
+dog isClassOf Cat: false
+dog isClassOf Animal: true
+cast ok: Rex barks
+acc.count: 19900

@@ -1,0 +1,9 @@
+floatSum: 6
+floatProduct: 10
+floatDivide: 2.5
+floatSubtract: 7
+modulo 10%3: 1
+modulo 7%2: 1
+negate 42: -42
+negate -7: 7
+mixedArith(100): 94.8126

@@ -1,0 +1,6 @@
+=== JIT Benchmark ===
+Fibonacci(50) x10000: 12586269025
+MatrixSum(500): 31249875000
+CallHeavy(100000): 333328333350000
+Collatz max steps (2..5000): 237
+=== Benchmark complete ===
