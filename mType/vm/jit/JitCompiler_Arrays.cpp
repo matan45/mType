@@ -154,14 +154,18 @@ namespace vm::jit
         ptrInv->set_ret(0, dataPtr);
 
         Gp result = cc.new_gp64();
-        Label slowPath = cc.newLabel();
-        Label done = cc.newLabel();
+        Label slowPath = cc.new_label();
+        Label done = cc.new_label();
 
         cc.test(dataPtr, dataPtr);
         cc.jz(slowPath);
 
-        // Fast path: direct memory read — dataPtr[idx]
-        cc.mov(result, Mem(dataPtr, idx, 3));
+        // Fast path: direct memory read — dataPtr[idx * 8]
+        Gp addr = cc.new_gp64();
+        cc.mov(addr, idx);
+        cc.shl(addr, 3);
+        cc.add(addr, dataPtr);
+        cc.mov(result, Mem(addr, 0));
         cc.jmp(done);
 
         // Slow path: heterogeneous array fallback
@@ -207,14 +211,18 @@ namespace vm::jit
         Gp dataPtr = cc.new_gp64();
         ptrInv->set_ret(0, dataPtr);
 
-        Label slowPath = cc.newLabel();
-        Label done = cc.newLabel();
+        Label slowPath = cc.new_label();
+        Label done = cc.new_label();
 
         cc.test(dataPtr, dataPtr);
         cc.jz(slowPath);
 
-        // Fast path: direct memory write — dataPtr[idx] = val
-        cc.mov(Mem(dataPtr, idx, 3), val);
+        // Fast path: direct memory write — dataPtr[idx * 8] = val
+        Gp addr = cc.new_gp64();
+        cc.mov(addr, idx);
+        cc.shl(addr, 3);
+        cc.add(addr, dataPtr);
+        cc.mov(Mem(addr, 0), val);
         cc.jmp(done);
 
         // Slow path: heterogeneous array fallback
