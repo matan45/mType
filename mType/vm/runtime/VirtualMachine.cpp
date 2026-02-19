@@ -1692,9 +1692,7 @@ namespace vm::runtime
                 bool justBecameHot = jitProfiler->recordEntry(funcName);
                 if (justBecameHot && jitCompiler && jitCodeCache)
                 {
-                    std::cout << "[JIT] Compiling hot function: " << funcName << std::endl;
                     jitCompiler->compile(funcName, *program, *jitCodeCache);
-                    std::cout << "[JIT] Compiled: " << funcName << " cached=" << jitCodeCache->contains(funcName) << std::endl;
                 }
             }
             break;
