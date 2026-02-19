@@ -1,0 +1,5 @@
+red: rgb(255, 0, 0)
+blue: rgb(0, 0, 255)
+red equals red2: true
+red equals blue: false
+red hashCode: 245055

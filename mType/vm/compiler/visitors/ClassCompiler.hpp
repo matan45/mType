@@ -61,5 +61,8 @@ namespace vm::compiler::visitors
 
         // Helper method for auto-boxing method arguments
         bool tryAutoBoxArgument(ast::ASTNode* argument, const std::string& expectedType);
+
+        // Check if receiver expression is known to be non-nullable
+        bool isReceiverNonNullable(ast::ASTNode* receiverNode);
     };
 }

@@ -71,6 +71,9 @@ namespace runtimeTypes::klass
 
         // NEW: Abstract modifier for abstract classes
         bool abstractClass;
+
+        // NEW: Value class modifier for value types (copy semantics, lightweight)
+        bool valueClass;
         std::unordered_set<std::string> abstractMethods; // Track which methods are abstract
 
         // NEW: Annotations for this class
@@ -78,14 +81,14 @@ namespace runtimeTypes::klass
 
     public:
         explicit ClassDefinition(const std::string& n)
-            : Definition(n), isGenericClass(false), finalClass(false), abstractClass(false)
+            : Definition(n), isGenericClass(false), finalClass(false), abstractClass(false), valueClass(false)
         {
         }
 
         // NEW: Constructor with generic parameters
         explicit ClassDefinition(const std::string& n, const std::vector<ast::GenericTypeParameter>& generics)
             : Definition(n), genericParameters(generics), isGenericClass(!generics.empty()), finalClass(false),
-              abstractClass(false)
+              abstractClass(false), valueClass(false)
         {
         }
 
@@ -324,6 +327,10 @@ namespace runtimeTypes::klass
         bool isAbstract() const { return abstractClass; }
         void setAbstract(bool isAbstract) { abstractClass = isAbstract; }
 
+        // NEW: Value class modifier methods
+        bool isValueClass() const { return valueClass; }
+        void setValueClass(bool isValue) { valueClass = isValue; }
+
         // Abstract method management
         void addAbstractMethod(const std::string& methodName) { abstractMethods.insert(methodName); }
         void removeAbstractMethod(const std::string& methodName) { abstractMethods.erase(methodName); }
@@ -349,11 +356,12 @@ namespace runtimeTypes::klass
         std::shared_ptr<ast::nodes::annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
 
         // Reflection support: get modifier flags as bitmask
-        // FINAL=16, ABSTRACT=32
+        // FINAL=16, ABSTRACT=32, VALUE=64
         int getModifierFlags() const {
             int flags = 0;
             if (finalClass) flags |= 16;
             if (abstractClass) flags |= 32;
+            if (valueClass) flags |= 64;
             return flags;
         }
 

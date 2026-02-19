@@ -1,0 +1,12 @@
+p1 is null: true
+p2: (3, 4)
+p3: (1, 2)
+p2 x: 3
+p2 y: 4
+(10, 20)
+no point
+found: (5, 6)
+missing is null: true
+p1 after assign: (7, 8)
+p1 after null: true
+Nullable value object tests passed!

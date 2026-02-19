@@ -1,5 +1,6 @@
 #include "ComparisonExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ValueObject.hpp"
 #include <iostream>
 
 namespace vm::runtime
@@ -18,6 +19,15 @@ namespace vm::runtime
                 return obj->getFieldValue("value");
             }
         }
+        // Auto-unbox value object boxed types (when boxing classes become value classes)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            const std::string& typeName = obj->getClassName();
+            if (typeName == "Int" || typeName == "Float" ||
+                typeName == "Bool" || typeName == "String") {
+                return obj->getFieldValue("value");
+            }
+        }
         return val;
     }
 
@@ -31,6 +41,15 @@ namespace vm::runtime
 
         if (leftIsNull || rightIsNull) {
             context.stackManager->push(leftIsNull && rightIsNull);
+            return;
+        }
+
+        // Handle ValueObject structural equality
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(left) &&
+            std::holds_alternative<std::shared_ptr<value::ValueObject>>(right)) {
+            auto leftObj = std::get<std::shared_ptr<value::ValueObject>>(left);
+            auto rightObj = std::get<std::shared_ptr<value::ValueObject>>(right);
+            context.stackManager->push(leftObj->equals(*rightObj));
             return;
         }
 
@@ -56,6 +75,15 @@ namespace vm::runtime
         if (leftIsNull || rightIsNull) {
             // Not equal if one is null and the other isn't
             context.stackManager->push(!(leftIsNull && rightIsNull));
+            return;
+        }
+
+        // Handle ValueObject structural inequality
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(left) &&
+            std::holds_alternative<std::shared_ptr<value::ValueObject>>(right)) {
+            auto leftObj = std::get<std::shared_ptr<value::ValueObject>>(left);
+            auto rightObj = std::get<std::shared_ptr<value::ValueObject>>(right);
+            context.stackManager->push(!leftObj->equals(*rightObj));
             return;
         }
 

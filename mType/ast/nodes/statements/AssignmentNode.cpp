@@ -75,6 +75,16 @@ namespace ast::nodes::statements
         isStatic = isStaticVar;
     }
 
+    void AssignmentNode::setNullableType(bool isNullable)
+    {
+        nullableType = isNullable;
+    }
+
+    bool AssignmentNode::isNullableType() const
+    {
+        return nullableType;
+    }
+
     void AssignmentNode::setVisibility(VisibilityModifier vis)
     {
         visibility = vis;
@@ -94,6 +104,7 @@ namespace ast::nodes::statements
         );
 
         clonedAssignment->setVisibility(visibility);
+        clonedAssignment->setNullableType(nullableType);
 
         return clonedAssignment;
     }

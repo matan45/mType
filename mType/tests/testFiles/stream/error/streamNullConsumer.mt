@@ -13,5 +13,5 @@ list.add(new Int(200));
 Stream<Int> stream = Streams::fromCollection<Int>(list);
 
 // Pass null consumer - this should cause error
-Consumer<Int> nullConsumer = null;
+Consumer<Int>? nullConsumer = null;
 stream.forEach(nullConsumer);

@@ -33,9 +33,9 @@ class ResourceHandle {
 
 function testNestedAcquisitionSuccess(): void {
     print("Test 1: Successful nested acquisition and release");
-    ResourceHandle r1 = null;
-    ResourceHandle r2 = null;
-    ResourceHandle r3 = null;
+    ResourceHandle? r1 = null;
+    ResourceHandle? r2 = null;
+    ResourceHandle? r3 = null;
 
     try {
         r1 = new ResourceHandle("Lock_A", 1);
@@ -70,9 +70,9 @@ function testNestedAcquisitionSuccess(): void {
 
 function testNestedAcquisitionWithException(): void {
     print("Test 2: Exception during nested acquisition");
-    ResourceHandle r1 = null;
-    ResourceHandle r2 = null;
-    ResourceHandle r3 = null;
+    ResourceHandle? r1 = null;
+    ResourceHandle? r2 = null;
+    ResourceHandle? r3 = null;
 
     try {
         r1 = new ResourceHandle("Database", 1);
@@ -114,9 +114,9 @@ function testNestedAcquisitionWithException(): void {
 
 function testPartialAcquisitionFailure(): void {
     print("Test 3: Failure during middle acquisition");
-    ResourceHandle r1 = null;
-    ResourceHandle r2 = null;
-    ResourceHandle r3 = null;
+    ResourceHandle? r1 = null;
+    ResourceHandle? r2 = null;
+    ResourceHandle? r3 = null;
 
     try {
         r1 = new ResourceHandle("Resource_1", 1);
@@ -152,11 +152,11 @@ function testPartialAcquisitionFailure(): void {
 
 function testDeepNesting(): void {
     print("Test 4: Deep nesting with exception");
-    ResourceHandle r1 = null;
-    ResourceHandle r2 = null;
-    ResourceHandle r3 = null;
-    ResourceHandle r4 = null;
-    ResourceHandle r5 = null;
+    ResourceHandle? r1 = null;
+    ResourceHandle? r2 = null;
+    ResourceHandle? r3 = null;
+    ResourceHandle? r4 = null;
+    ResourceHandle? r5 = null;
 
     try {
         r1 = new ResourceHandle("L1", 1);

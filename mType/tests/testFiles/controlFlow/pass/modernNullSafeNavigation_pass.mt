@@ -43,7 +43,7 @@ class Company {
 
 // Test 1: Simple null-safe property access
 print("Test 1: Simple null-safe property access");
-Person p1 = null;
+Person? p1 = null;
 string name1 = p1 != null ? p1.name : "Unknown";
 print(name1);
 
@@ -61,7 +61,7 @@ Person p4 = new Person("Charlie", null);
 string city2 = p4 != null ? (p4.address != null ? p4.address.city : "No city") : "No person";
 print(city2);
 
-Person p5 = null;
+Person? p5 = null;
 string city3 = p5 != null ? (p5.address != null ? p5.address.city : "No city") : "No person";
 print(city3);
 
@@ -88,7 +88,7 @@ string ceoCity3 = company3 != null ?
                     company3.ceo.address.city : "No address") : "No CEO") : "No company";
 print(ceoCity3);
 
-Company company4 = null;
+Company? company4 = null;
 string ceoCity4 = company4 != null ?
                   (company4.ceo != null ?
                    (company4.ceo.address != null ?
@@ -105,7 +105,7 @@ Person p7 = new Person("Eve", null);
 string addressStr2 = p7 != null ? p7.getAddressString() : "No person";
 print(addressStr2);
 
-Person p8 = null;
+Person? p8 = null;
 string addressStr3 = p8 != null ? p8.getAddressString() : "No person";
 print(addressStr3);
 
@@ -126,11 +126,11 @@ print(funcCeoName2);
 // Test 6: Null-safe navigation in loops
 print("Test 6: Null-safe navigation in loops");
 Person p9 = new Person("Loop1", new Address("First", "City1"));
-Person p10 = null;
+Person? p10 = null;
 Person p11 = new Person("Loop3", null);
 
 for (int i = 0; i < 3; i++) {
-    Person current = null;
+    Person? current = null;
     if (i == 0) {
         current = p9;
     } else if (i == 1) {
@@ -154,7 +154,7 @@ print(extractedCity);
 // Test 8: Multiple null-safe navigations in one expression
 print("Test 8: Multiple null-safe navigations");
 Person left = new Person("Left", new Address("Left St", "LeftCity"));
-Person right = null;
+Person? right = null;
 
 string combined = (left != null ? (left.address != null ? left.address.city : "N/A") : "N/A") +
                   " and " +
@@ -170,7 +170,7 @@ if (conditionalPerson != null && conditionalPerson.address != null) {
     print("No address available");
 }
 
-Person conditionalNull = null;
+Person? conditionalNull = null;
 if (conditionalNull != null && conditionalNull.address != null) {
     print("Has address: " + conditionalNull.address.city);
 } else {
@@ -180,7 +180,7 @@ if (conditionalNull != null && conditionalNull.address != null) {
 // Test 10: Null-safe navigation returning complex values
 print("Test 10: Null-safe navigation with defaults");
 Person defaultPerson = new Person("Default", new Address("Default St", "DefaultCity"));
-Person maybePerson = null;
+Person? maybePerson = null;
 
 Person selected = maybePerson != null ? maybePerson : defaultPerson;
 string finalCity = selected.address != null ? selected.address.city : "FallbackCity";

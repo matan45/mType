@@ -1,7 +1,7 @@
 // Test: Null cast in conditional
 class MyClass {}
 
-MyClass obj = null;
+MyClass? obj = null;
 if ((MyClass)obj == null) {
     print("Cast preserves null");
 }

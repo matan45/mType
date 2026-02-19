@@ -27,9 +27,9 @@ class Resource {
 }
 
 function testMultipleCleanupFailures(): void {
-    Resource r1 = null;
-    Resource r2 = null;
-    Resource r3 = null;
+    Resource? r1 = null;
+    Resource? r2 = null;
+    Resource? r3 = null;
 
     try {
         r1 = new Resource("Connection1", false);

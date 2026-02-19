@@ -1,6 +1,6 @@
 // Test: Private constructor with factory pattern
 class Singleton {
-    private static Singleton instance = null;
+    private static Singleton? instance = null;
     public int value;
 
     private constructor() {

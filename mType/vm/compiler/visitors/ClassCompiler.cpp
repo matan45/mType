@@ -269,20 +269,45 @@ namespace vm::compiler::visitors
             if (needsAutoBoxing)
             {
                 size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
-                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                           static_cast<uint64_t>(classNameIndex),
-                                           1u,  // 1 constructor argument (the primitive value)
-                                           arguments[i].get());
+                auto boxClassDef = ctx.environment->findClass(boxClassName);
+                bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+                if (boxIsValue) {
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                               static_cast<uint64_t>(classNameIndex),
+                                               1u, arguments[i].get());
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, arguments[i].get());
+                } else {
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                               static_cast<uint64_t>(classNameIndex),
+                                               1u, arguments[i].get());
+                }
             }
         }
 
         // Store the FULL class name including generics (e.g., "Box<Int>")
         size_t classNameIndex = ctx.program.getConstantPool().addString(fullClassName);
 
-        // Emit NEW_OBJECT instruction with full class name and argument count
-        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                         static_cast<uint64_t>(classNameIndex),
-                         static_cast<uint64_t>(arguments.size()), node);
+        // Check if the target class is a value class
+        std::string baseClassName = fullClassName;
+        size_t genStart = fullClassName.find('<');
+        if (genStart != std::string::npos) {
+            baseClassName = fullClassName.substr(0, genStart);
+        }
+        auto classDef = ctx.environment->findClass(baseClassName);
+        bool isValueClass = classDef && classDef->isValueClass();
+
+        if (isValueClass) {
+            // Emit NEW_VALUE_OBJECT + OBJECT_TO_VALUE for value classes
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                             static_cast<uint64_t>(classNameIndex),
+                             static_cast<uint64_t>(arguments.size()), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, node);
+        } else {
+            // Emit NEW_OBJECT instruction with full class name and argument count
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                             static_cast<uint64_t>(classNameIndex),
+                             static_cast<uint64_t>(arguments.size()), node);
+        }
     }
 
     value::Value ClassCompiler::compileNew(ast::NewNode* node)
@@ -415,11 +440,17 @@ namespace vm::compiler::visitors
             {
                 // Regular instance field access: object.fieldName
                 // First, compile the object expression
-                node->getObject()->accept(ctx.visitor); // Will need delegation
+                ast::ASTNode* receiverNode = node->getObject();
+                bool nonNullReceiver = isReceiverNonNullable(receiverNode);
+                receiverNode->accept(ctx.visitor); // Will need delegation
 
                 // Regular field access - emit GET_FIELD instruction
                 size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
+                if (nonNullReceiver)
+                {
+                    ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+                }
             }
         }
 
@@ -453,7 +484,9 @@ namespace vm::compiler::visitors
         {
             // Regular member assignment: object.field = value
             // Compile the object expression
-            node->getObject()->accept(ctx.visitor); // Will need delegation
+            ast::ASTNode* receiverNode = node->getObject();
+            bool nonNullReceiver = isReceiverNonNullable(receiverNode);
+            receiverNode->accept(ctx.visitor); // Will need delegation
 
             // Compile the value to assign
             node->getValue()->accept(ctx.visitor); // Will need delegation
@@ -461,6 +494,10 @@ namespace vm::compiler::visitors
             // Emit SET_FIELD instruction (object and value are on stack)
             size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
+            if (nonNullReceiver)
+            {
+                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+            }
         }
 
         return std::monostate{};
@@ -890,6 +927,7 @@ namespace vm::compiler::visitors
             }
 
             // First, compile the object expression
+            bool nonNullReceiver = isReceiverNonNullable(node->getObject());
             node->getObject()->accept(ctx.visitor); // Will need delegation
 
             // Push all arguments onto stack with auto-boxing if needed
@@ -1007,13 +1045,21 @@ namespace vm::compiler::visitors
 
                         if (needsBoxing)
                         {
-                            // Auto-box: compile value, then emit NEW_OBJECT
+                            // Auto-box: compile value, then emit NEW_OBJECT or NEW_VALUE_OBJECT
                             arguments[i]->accept(ctx.visitor);
                             size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
-                            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                                        static_cast<uint64_t>(classNameIndex),
-                                                        1u, // 1 constructor argument
-                                                        arguments[i].get());
+                            auto boxClassDef = ctx.environment->findClass(boxClassName);
+                            bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+                            if (boxIsValue) {
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                                            static_cast<uint64_t>(classNameIndex),
+                                                            1u, arguments[i].get());
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, arguments[i].get());
+                            } else {
+                                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                                            static_cast<uint64_t>(classNameIndex),
+                                                            1u, arguments[i].get());
+                            }
                             autoBoxed = true;
                         }
                 }
@@ -1050,6 +1096,10 @@ namespace vm::compiler::visitors
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
                                  static_cast<uint64_t>(methodNameIndex),
                                  static_cast<uint64_t>(arguments.size()), node);
+                if (nonNullReceiver)
+                {
+                    ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+                }
             }
         }
 
@@ -1293,13 +1343,62 @@ namespace vm::compiler::visitors
         // 1. Compile the argument expression (pushes it onto stack)
         argument->accept(ctx.visitor);
 
-        // 2. Emit NEW_OBJECT for the Box class
+        // 2. Emit NEW_OBJECT or NEW_VALUE_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(expectedType);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                     static_cast<uint64_t>(classNameIndex),
-                                     1u,  // 1 constructor argument
-                                     argument);
+        auto boxClassDef = ctx.environment->findClass(expectedType);
+        bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+        if (boxIsValue) {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, argument);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, argument);
+        } else {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, argument);
+        }
 
         return true;  // Auto-boxing was applied
+    }
+
+    bool ClassCompiler::isReceiverNonNullable(ast::ASTNode* receiverNode)
+    {
+        // Check if receiver is a simple variable reference
+        if (auto* varNode = dynamic_cast<ast::VariableNode*>(receiverNode))
+        {
+            const std::string& varName = varNode->getName();
+
+            // 'this' is always non-null
+            if (varName == "this")
+            {
+                return true;
+            }
+
+            // Check if null-narrowed via smart cast
+            if (ctx.nullNarrowing.isNarrowedNonNull(varName))
+            {
+                return true;
+            }
+
+            // Check local variable nullability
+            if (ctx.variableTracker.existsInFunction(varName))
+            {
+                return !ctx.variableTracker.getLocalNullableByName(varName);
+            }
+
+            // Check global variable nullability
+            if (ctx.globalRegistry.exists(varName))
+            {
+                return !ctx.globalRegistry.isNullable(varName);
+            }
+        }
+
+        // NewNode always produces non-null
+        if (dynamic_cast<ast::NewNode*>(receiverNode))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

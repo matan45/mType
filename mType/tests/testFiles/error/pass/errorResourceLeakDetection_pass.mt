@@ -115,8 +115,8 @@ function testExceptionNoLeak(): void {
     print("Test 4: No leak with finally block");
     ResourceTracker::reset();
 
-    TrackedResource r1 = null;
-    TrackedResource r2 = null;
+    TrackedResource? r1 = null;
+    TrackedResource? r2 = null;
 
     try {
         r1 = new TrackedResource("SafeResource1");
@@ -164,12 +164,12 @@ function testNestedLeakTracking(): void {
     print("Test 6: Nested scope leak tracking");
     ResourceTracker::reset();
 
-    TrackedResource outer = null;
+    TrackedResource? outer = null;
 
     try {
         outer = new TrackedResource("OuterResource");
-        TrackedResource inner1 = null;
-        TrackedResource inner2 = null;
+        TrackedResource? inner1 = null;
+        TrackedResource? inner2 = null;
 
         try {
             inner1 = new TrackedResource("InnerResource1");

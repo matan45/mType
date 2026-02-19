@@ -12,6 +12,7 @@
 #include "../types/TypeValidator.hpp"
 #include "../../../types/TypeSubstitutionService.hpp"
 #include "../types/ExpectedTypeContext.hpp"
+#include "../types/NullNarrowingTracker.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../ast/ASTVisitor.hpp"
 #include "../../../value/ValueType.hpp"
@@ -67,6 +68,9 @@ namespace vm::compiler::visitors
 
         // Expected type context stack for bidirectional type checking
         std::vector<types::ExpectedTypeContext> expectedTypeContextStack;
+
+        // Null narrowing tracker for smart casts
+        types::NullNarrowingTracker nullNarrowing;
 
         // PHASE 3: Cache for resolved generic function call return types
         // Maps FunctionCallNode* -> resolved className (e.g., "Int" instead of "T")

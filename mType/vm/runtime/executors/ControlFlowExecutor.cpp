@@ -1,6 +1,7 @@
 #include "ControlFlowExecutor.hpp"
 #include "../../../value/PromiseValue.hpp"
 #include "../../../value/AsyncPromiseValue.hpp"
+#include "../../../value/ValueObject.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../jit/OSRManager.hpp"
@@ -98,6 +99,16 @@ namespace vm::runtime
         context.instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
     }
 
+    void ControlFlowExecutor::handleJumpIfNull(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("JUMP_IF_NULL requires operand");
+        }
+        value::Value val = context.stackManager->pop();
+        if (std::holds_alternative<std::nullptr_t>(val) || std::holds_alternative<std::monostate>(val)) {
+            context.instructionPointer = instr.operands[0] - 1;
+        }
+    }
+
     void ControlFlowExecutor::handleReturn() {
         if (context.callStack.empty()) {
             // Top-level return - halt execution
@@ -164,6 +175,16 @@ namespace vm::runtime
             auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
             if (obj && obj->getClassDefinition()->getName() == "Bool") {
                 // Extract the primitive boolean value from the Bool object
+                value::Value valueField = obj->getFieldValue("value");
+                if (std::holds_alternative<bool>(valueField)) {
+                    return std::get<bool>(valueField);
+                }
+            }
+        }
+        // Check if it's a Bool value object (when Bool becomes a value class)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj && obj->getClassName() == "Bool") {
                 value::Value valueField = obj->getFieldValue("value");
                 if (std::holds_alternative<bool>(valueField)) {
                     return std::get<bool>(valueField);

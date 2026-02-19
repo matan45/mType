@@ -20,6 +20,7 @@ namespace vm::compiler::variables
             value::ValueType type = value::ValueType::VOID;
             std::string className;  // For OBJECT types (interfaces/classes)
             bool isCaptured = false;  // True if captured by a lambda
+            bool isNullable = false;  // True if type is nullable (T?)
         };
 
         VariableTracker();
@@ -29,7 +30,7 @@ namespace vm::compiler::variables
         size_t resolveLocal(const std::string& name, size_t startSlot) const;
 
         // Variable declaration
-        void declareLocal(const std::string& name, value::ValueType type, const std::string& className = "");
+        void declareLocal(const std::string& name, value::ValueType type, const std::string& className = "", bool isNullable = false);
 
         // Scope management
         void beginScope();
@@ -57,6 +58,9 @@ namespace vm::compiler::variables
 
         // Get class name for a local variable by name
         std::string getLocalClassNameByName(const std::string& name) const;
+
+        // Get nullable status for a local variable by name
+        bool getLocalNullableByName(const std::string& name) const;
 
         // Mark a variable as captured by a lambda
         void markVariableAsCaptured(size_t slot);

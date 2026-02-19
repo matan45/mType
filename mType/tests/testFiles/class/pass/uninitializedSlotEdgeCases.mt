@@ -76,9 +76,9 @@ function main(): void {
 
     // Test 4: Multiple variables, some null some not
     print("Test 4: Mixed null and non-null captures");
-    Object obj1 = null;
+    Object? obj1 = null;
     Object obj2 = new Object();
-    Object obj3 = null;
+    Object? obj3 = null;
 
     ObjSupplier getObj1 = () -> obj1;
     ObjSupplier getObj2 = () -> obj2;

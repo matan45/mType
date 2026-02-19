@@ -1,0 +1,5 @@
+sum: 200
+counter: 200
+last result: null
+c2: 200
+JIT null check elimination tests passed!

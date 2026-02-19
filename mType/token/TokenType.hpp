@@ -63,6 +63,7 @@ namespace token
         CATCH, // catch keyword for exception handling
         THROW, // throw keyword for exception handling
         FINALLY, // finally keyword for exception handling
+        VALUE, // value keyword for value classes
         END // End of input
     };
 }

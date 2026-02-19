@@ -4,7 +4,7 @@ namespace ast::nodes::classes
 {
     // Backward compatibility constructor
     ClassNode::ClassNode(const std::string& name, const SourceLocation& loc)
-        : ASTNode(loc), className(name), finalClass(false), abstractClass(false), visibility(VisibilityModifier::PUBLIC)
+        : ASTNode(loc), className(name), finalClass(false), abstractClass(false), valueClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -13,7 +13,7 @@ namespace ast::nodes::classes
                          const std::vector<std::string>& interfaces,
                          const SourceLocation& loc)
         : ASTNode(loc), className(name), genericParameters(generics), implementedInterfaces(interfaces),
-          finalClass(false), abstractClass(false), visibility(VisibilityModifier::PUBLIC)
+          finalClass(false), abstractClass(false), valueClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -24,7 +24,7 @@ namespace ast::nodes::classes
                          const SourceLocation& loc)
         : ASTNode(loc), className(name), genericParameters(generics),
           parentClassName(parentClass), implementedInterfaces(interfaces), finalClass(false), abstractClass(false),
-          visibility(VisibilityModifier::PUBLIC)
+          valueClass(false), visibility(VisibilityModifier::PUBLIC)
     {
     }
 
@@ -164,6 +164,16 @@ namespace ast::nodes::classes
         abstractClass = isAbstract;
     }
 
+    bool ClassNode::isValueClass() const
+    {
+        return valueClass;
+    }
+
+    void ClassNode::setValueClass(bool isValue)
+    {
+        valueClass = isValue;
+    }
+
     VisibilityModifier ClassNode::getVisibility() const
     {
         return visibility;
@@ -254,6 +264,7 @@ namespace ast::nodes::classes
         // Set other attributes
         clonedClass->setFinal(finalClass);
         clonedClass->setAbstract(abstractClass);
+        clonedClass->setValueClass(valueClass);
         clonedClass->setVisibility(visibility);
 
         // Clone annotations

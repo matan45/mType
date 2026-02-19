@@ -21,6 +21,7 @@ namespace ast::nodes::classes
         std::vector<std::string> implementedInterfaces; // NEW
         bool finalClass; // NEW: Final modifier to prevent inheritance
         bool abstractClass; // NEW: Abstract modifier for abstract classes
+        bool valueClass; // NEW: Value class modifier for value types (copy semantics, lightweight)
         VisibilityModifier visibility; // NEW: Top-level visibility for imports
         std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations; // NEW: Annotations for this class
     public:
@@ -79,6 +80,10 @@ namespace ast::nodes::classes
         // NEW: Abstract modifier methods
         bool isAbstract() const;
         void setAbstract(bool isAbstract);
+
+        // NEW: Value class modifier methods
+        bool isValueClass() const;
+        void setValueClass(bool isValue);
 
         // NEW: Visibility modifier methods (for import/export system)
         VisibilityModifier getVisibility() const;

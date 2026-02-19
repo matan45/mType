@@ -29,7 +29,8 @@ namespace vm::compiler::types
             value::ValueType valueType,
             const std::string& valueClassName,
             bool isNullValue,
-            const ast::SourceLocation& location
+            const ast::SourceLocation& location,
+            bool isNullableTarget = true
         ) const;
 
         // Binary operation validation

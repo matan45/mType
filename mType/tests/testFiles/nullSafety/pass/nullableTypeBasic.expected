@@ -1,0 +1,7 @@
+nullable1 is null: true
+nullable2 is null: false
+nullable2 value: 42
+nonNull value: 10
+nullable2 after null: true
+nullable1 after assign: 99
+All nullable type tests passed!

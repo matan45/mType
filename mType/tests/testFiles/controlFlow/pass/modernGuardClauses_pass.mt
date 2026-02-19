@@ -87,7 +87,7 @@ function validateUser(User user): ValidationResult {
 }
 
 print("Test 3: Guard clauses with object validation");
-User nullUser = null;
+User? nullUser = null;
 ValidationResult result1 = validateUser(nullUser);
 print(result1.message);
 
@@ -330,7 +330,7 @@ function withdraw(Account account, int amount): string {
 }
 
 print("Test 10: Guard clauses in account operations");
-Account nullAccount = null;
+Account? nullAccount = null;
 print(withdraw(nullAccount, 50));
 
 Account account1 = new Account(100);

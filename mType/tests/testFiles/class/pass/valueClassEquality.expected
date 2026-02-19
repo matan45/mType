@@ -1,0 +1,9 @@
+p1: (1, 2)
+p2: (1, 2)
+p1 == p2: true
+p1 != p2: false
+p3: (3, 4)
+p1 == p3: false
+p1 != p3: true
+p4 == null: true
+p1 == null: false

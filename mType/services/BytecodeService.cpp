@@ -300,6 +300,11 @@ namespace services
             }
             classDef->setImplementedInterfaces(classMeta.implementedInterfaces);
 
+            // Restore class modifier flags
+            classDef->setAbstract(classMeta.isAbstract);
+            classDef->setFinal(classMeta.isFinal);
+            classDef->setValueClass(classMeta.isValueClass);
+
             // Restore annotations from bytecode metadata
             for (const auto& annotData : classMeta.annotations)
             {

@@ -4,6 +4,9 @@
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
+#include "../../../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../../../ast/nodes/expressions/NullNode.hpp"
+#include "../../../token/TokenType.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -37,10 +40,47 @@ namespace vm::compiler::visitors
         // Jump to else/end if condition is false
         size_t elseJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
+        // Analyze condition for null narrowing (smart casts)
+        // Detect patterns: x != null (narrow in then-branch) or x == null (narrow in else-branch)
+        std::string narrowVarName;
+        bool narrowInThen = false;
+        bool narrowInElse = false;
+        if (auto* binExpr = dynamic_cast<ast::nodes::expressions::BinaryExpNode*>(node->getCondition()))
+        {
+            auto* left = binExpr->getLeft();
+            auto* right = binExpr->getRight();
+            token::TokenType op = binExpr->getOperator();
+
+            bool leftIsNull = dynamic_cast<ast::NullNode*>(left) != nullptr;
+            bool rightIsNull = dynamic_cast<ast::NullNode*>(right) != nullptr;
+            auto* leftVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(left);
+            auto* rightVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(right);
+
+            if (op == token::TokenType::NOT_EQUALS)
+            {
+                if (rightIsNull && leftVar) { narrowVarName = leftVar->getName(); narrowInThen = true; }
+                else if (leftIsNull && rightVar) { narrowVarName = rightVar->getName(); narrowInThen = true; }
+            }
+            else if (op == token::TokenType::EQUALS)
+            {
+                if (rightIsNull && leftVar) { narrowVarName = leftVar->getName(); narrowInElse = true; }
+                else if (leftIsNull && rightVar) { narrowVarName = rightVar->getName(); narrowInElse = true; }
+            }
+        }
+
         // Compile then branch with its own scope
         // This ensures variables declared in the if block don't leak out
         ctx.variableTracker.beginScope();
+        if (narrowInThen && !narrowVarName.empty())
+        {
+            ctx.nullNarrowing.enterScope();
+            ctx.nullNarrowing.narrowToNonNull(narrowVarName);
+        }
         node->getThenStatement()->accept(ctx.visitor);  // Will need delegation
+        if (narrowInThen && !narrowVarName.empty())
+        {
+            ctx.nullNarrowing.exitScope();
+        }
         ctx.variableTracker.endScope();
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
@@ -53,7 +93,16 @@ namespace vm::compiler::visitors
 
             // Compile else branch with its own scope
             ctx.variableTracker.beginScope();
+            if (narrowInElse && !narrowVarName.empty())
+            {
+                ctx.nullNarrowing.enterScope();
+                ctx.nullNarrowing.narrowToNonNull(narrowVarName);
+            }
             node->getElseStatement()->accept(ctx.visitor);  // Will need delegation
+            if (narrowInElse && !narrowVarName.empty())
+            {
+                ctx.nullNarrowing.exitScope();
+            }
             ctx.variableTracker.endScope();
             ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
@@ -431,6 +480,29 @@ namespace vm::compiler::visitors
             // Collection is already on the stack from node->getCollection()->accept()
             // Call GET_ITERATOR to get the iterator object
             ctx.emitter.emitWithLocation(bytecode::OpCode::GET_ITERATOR, node);
+
+            // Set non-null flag if collection is a known non-nullable variable
+            if (auto* collectionVar = dynamic_cast<ast::VariableNode*>(node->getCollection()))
+            {
+                const std::string& collVarName = collectionVar->getName();
+                bool collNonNull = false;
+                if (ctx.nullNarrowing.isNarrowedNonNull(collVarName))
+                {
+                    collNonNull = true;
+                }
+                else if (ctx.variableTracker.existsInFunction(collVarName))
+                {
+                    collNonNull = !ctx.variableTracker.getLocalNullableByName(collVarName);
+                }
+                else if (ctx.globalRegistry.exists(collVarName))
+                {
+                    collNonNull = !ctx.globalRegistry.isNullable(collVarName);
+                }
+                if (collNonNull)
+                {
+                    ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+                }
+            }
 
             // Store iterator in local variable
             ctx.variableTracker.declareLocal("__foreach_iterator__", value::ValueType::OBJECT, "");

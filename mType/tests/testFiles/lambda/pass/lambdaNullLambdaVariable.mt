@@ -13,7 +13,7 @@ func = null;
 print("After null assignment: " + (func == null ? "null" : "not null"));
 
 // Null check before invocation
-Function maybeNull = null;
+Function? maybeNull = null;
 
 if (maybeNull == null) {
     print("Lambda is null, creating new one");

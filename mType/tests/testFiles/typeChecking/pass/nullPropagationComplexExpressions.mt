@@ -25,7 +25,7 @@ class TestData {
 
 // Test 1: Null propagation in arithmetic expressions
 print("Test 1: Null propagation in arithmetic expressions");
-TestData nullData = null;
+TestData? nullData = null;
 TestData validData = new TestData(42, "valid");
 
 // Safe arithmetic with null checks
@@ -88,11 +88,11 @@ print("Safe name 2: " + safeName2);              // "null"
 // Test 4: Null propagation in loops
 print("Test 4: Null propagation in loops");
 TestData item1 = new TestData(10, "first");
-TestData item2 = null;
+TestData? item2 = null;
 TestData item3 = new TestData(30, "third");
 
 for (int i = 0; i < 3; i++) {
-    TestData current = null;
+    TestData? current = null;
     
     if (i == 0) current = item1;
     else if (i == 1) current = item2;

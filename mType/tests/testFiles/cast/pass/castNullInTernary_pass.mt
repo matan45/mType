@@ -25,7 +25,7 @@ class Cat extends Animal {
 
 // Simple ternary with nullable cast
 Animal a1 = new Dog("Rex", 5);
-Animal a2 = null;
+Animal? a2 = null;
 
 Dog dog1 = a1 != null ? (Dog)(Animal)a1 : null;
 Dog dog2 = a2 != null ? (Dog)(Animal)a2 : null;
@@ -45,7 +45,7 @@ print(resultDog != null);
 print(resultDog != null ? resultDog.age : 0);
 
 // Ternary with multiple nullable casts
-Animal nullAnimal = null;
+Animal? nullAnimal = null;
 string result = nullAnimal != null ? ((Animal)nullAnimal).name : "No animal";
 print(result);
 

@@ -16,7 +16,7 @@ A modern, statically-typed programming language with a bytecode virtual machine,
 - **Bytecode VM + JIT Compilation**: Stack-based VM with asmjit-powered x86-64 JIT compiler
 - **Advanced Type System**: Full generic support with type constraints and inference
 - **Modern Features**: Async/await, lambdas, closures, and functional programming
-- **Object-Oriented**: Classes, interfaces, inheritance, and polymorphism
+- **Object-Oriented**: Classes, interfaces, inheritance, polymorphism, and value types
 - **Performance Optimized**: SIMD-accelerated operations, string pooling, and AST optimizations
 - **Full IDE Support**: VS Code extension with IntelliSense, debugging, and formatting
 - **Standard Library**: Rich collection framework (List, HashMap, Stack, Queue, etc.)
@@ -33,6 +33,7 @@ A modern, statically-typed programming language with a bytecode virtual machine,
 
 ### Object-Oriented Programming
 - **Classes**: Full class support with constructors and inheritance
+- **Value Classes**: Lightweight value types with copy semantics and structural equality
 - **Interfaces**: Multiple interface implementation and inheritance
 - **Access Modifiers**: `public`, `private`, `protected`
 - **Abstract Classes**: Abstract classes and methods
@@ -47,7 +48,11 @@ A modern, statically-typed programming language with a bytecode virtual machine,
   - Type constraints: `class Box<T extends Comparable>`
   - Nested generics: `List<Map<String, Int>>`
 - **Type Casting**: Safe downcasting with runtime validation
-- **Nullable Types**: Explicit null handling
+- **Null Safety**: Non-nullable by default, explicit `?` suffix for nullable types
+  - Non-nullable: `string name = "hello"` (cannot be null)
+  - Nullable: `string? name = null` (explicitly allows null)
+  - Smart casts: Automatic narrowing after null checks
+  - Compile-time enforcement: Assigning `null` to non-nullable types is a compile error
 - **Runtime Type Checking**: `isClassOf` operator
 
 ### Functional Programming
@@ -70,7 +75,7 @@ A modern, statically-typed programming language with a bytecode virtual machine,
   - `Queue<T>`: FIFO queue
   - `HashMap<K,V>`: Hash-based map
   - `HashSet<T>`: Hash-based set
-- **Primitive Wrappers**: `Int`, `Float`, `String`, `Bool`
+- **Primitive Wrappers**: `Int`, `Float`, `String`, `Bool` (value classes with minimal overhead)
 - **Exception Types**: `Exception`, `RuntimeException`, `NullPointerException`, `IndexOutOfBoundsException`
 - **Built-in Functions**: `print()`, `typeof()`, `hashCode()`, array operations
 
@@ -241,6 +246,12 @@ Hardware-accelerated array operations (3-8× faster for arrays ≥16 elements):
 - **Operations**: Addition, subtraction, multiplication, scalar operations
 - **Reductions**: Sum, min, max, average
 - **Runtime Detection**: Automatic CPU feature detection
+
+### Value Object Optimization
+- **Lightweight Runtime**: Value classes use indexed `vector<Value>` fields (~48-80 bytes) instead of hash-map-based `ObjectInstance` (~230+ bytes)
+- **No GC Registration**: Value objects use reference counting via `shared_ptr`, avoiding GC overhead
+- **Copy Semantics**: Deep copy on assignment prevents shared-state bugs
+- **Structural Equality**: Field-by-field comparison without custom `equals()` methods
 
 ### Structure-of-Arrays (SoA) Optimization
 - **95% Memory Reduction**: For large object arrays
@@ -594,6 +605,107 @@ function main(): void {
 }
 ```
 
+### Value Classes
+
+```mtype
+// Value classes have copy semantics and structural equality
+value class Point {
+    private int x;
+    private int y;
+
+    public constructor(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public function getX(): int { return this.x; }
+    public function getY(): int { return this.y; }
+
+    public function add(Point other): Point {
+        return new Point(this.x + other.x, this.y + other.y);
+    }
+
+    public function toString(): string {
+        return "(" + this.x + ", " + this.y + ")";
+    }
+}
+
+function main(): void {
+    Point p1 = new Point(1, 2);
+    Point p2 = p1;           // Deep copy (not a reference)
+    Point p3 = new Point(1, 2);
+
+    print(p1 == p3);         // true (structural equality)
+    print(p1.add(p2).toString()); // (2, 4)
+}
+```
+
+Value classes are:
+- **Lightweight**: ~48-80 bytes per instance vs ~230+ bytes for regular objects
+- **Copy-on-assign**: Assignment creates an independent copy
+- **Structurally equal**: `==` compares field values, not references
+- **Implicitly final**: Cannot be extended or inherit from other classes
+- **Interface-compatible**: Can implement interfaces
+- **Generic-compatible**: Work seamlessly in `List<Point>`, `HashMap<String, Point>`, etc.
+
+The built-in primitive wrappers (`Int`, `Float`, `Bool`, `String`) are value classes, making generic collections significantly more memory-efficient.
+
+### Null Safety
+
+```mtype
+class Box {
+    public int value;
+
+    public constructor(int v) {
+        this.value = v;
+    }
+}
+
+// Nullable parameters and return types
+function findBox(Box?[] boxes, int target): Box? {
+    for (int i = 0; i < boxes.length; i++) {
+        if (boxes[i] != null) {
+            // Smart cast: boxes[i] is treated as non-null Box here
+            if (boxes[i].value == target) {
+                return boxes[i];
+            }
+        }
+    }
+    return null;  // Valid — return type is Box?
+}
+
+function main(): void {
+    // Non-nullable by default — cannot assign null
+    Box box = new Box(42);
+
+    // Nullable types use the ? suffix
+    Box? nullable = null;
+    Box? alsoNullable = new Box(10);
+
+    // Smart cast: after a null check, the type is narrowed
+    if (nullable != null) {
+        // 'nullable' is treated as non-null Box here
+        print(nullable.value);
+    }
+
+    // Works with value classes too
+    // value class Point { ... }
+    // Point? optionalPoint = null;
+
+    // Compile-time error: cannot assign null to non-nullable type
+    // Box invalid = null;  // ERROR!
+}
+```
+
+Null safety features:
+- **Non-nullable by default**: All types reject `null` unless marked with `?`
+- **Nullable types**: Append `?` to any type — `int?`, `string?`, `MyClass?`
+- **Function signatures**: Parameters (`Box? param`) and return types (`function find(): Box?`) support nullable
+- **Value classes**: Value types like `Point?` follow the same nullable rules
+- **Smart casts**: After an `if (x != null)` check, the compiler narrows the type automatically
+- **Compile-time errors**: Assigning `null` to a non-nullable variable is caught at compile time
+- **JIT optimized**: Non-nullable receivers skip runtime null checks for field access and method calls
+
 ## 📊 Current Status (v0.2.0)
 
 ### Completed
@@ -615,6 +727,8 @@ function main(): void {
 - ✅ SIMD Acceleration (SSE2, AVX2, NEON)
 - ✅ Language Server Protocol (LSP) - Universal editor support (Vim, Emacs, Sublime, etc.)
 - ✅ JIT Compilation (x86-64 via asmjit, profile-guided, OSR, inline caching)
+- ✅ Value Types (value classes with copy semantics, structural equality, lightweight runtime)
+- ✅ Null Safety (non-nullable by default, `?` suffix, smart casts, compile-time enforcement)
 - ✅ Project System (`.mtproj` with glob patterns, library builds, auto-discovery)
 
 ### In Progress
@@ -676,7 +790,7 @@ mType --test --verbose
 
 Comprehensive test suites covering:
 - ✅ Arrays (single, multi-dimensional, jagged, SIMD)
-- ✅ Classes (inheritance, constructors, polymorphism)
+- ✅ Classes (inheritance, constructors, polymorphism, value classes)
 - ✅ Interfaces (single, multiple, inheritance)
 - ✅ Generics (classes, methods, constraints)
 - ✅ Lambdas (expression, block, closures)
@@ -686,6 +800,7 @@ Comprehensive test suites covering:
 - ✅ Imports (selective, wildcard, circular detection)
 - ✅ Async/Await (promises, event loop)
 - ✅ String Pooling (interning, deduplication)
+- ✅ Null Safety (nullable types, smart casts, compile-time checks)
 - ✅ Collections (List, HashMap, Stack, Queue)
 
 ## 🤝 Contributing
@@ -736,4 +851,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**mType v0.2.0** - A modern programming language with bytecode VM, generics, async/await, and comprehensive tooling.
+**mType v0.2.0** - A modern programming language with bytecode VM, value types, generics, async/await, and comprehensive tooling.

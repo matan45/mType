@@ -56,7 +56,7 @@ function main(): void {
     }
 
     // Safe null check before chaining
-    Person person3 = null;
+    Person? person3 = null;
     if (person3 != null) {
         if (person3.getAddress() != null) {
             print("Person3 city: " + person3.getAddress().getCity());

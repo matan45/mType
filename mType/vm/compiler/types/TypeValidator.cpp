@@ -190,26 +190,39 @@ namespace vm::compiler::types
     void TypeValidator::validateObjectTypeAssignment(const std::string& varClassName, const std::string& valueClassName,
                                                      const ast::SourceLocation& location) const
     {
+        // Strip nullable suffix for compatibility check:
+        // Non-nullable T is always assignable to nullable T?
+        std::string varClass = varClassName;
+        std::string valueClass = valueClassName;
+        if (!varClass.empty() && varClass.back() == '?')
+            varClass.pop_back();
+        if (!valueClass.empty() && valueClass.back() == '?')
+            valueClass.pop_back();
+
+        // If base types match after stripping nullable, assignment is valid
+        if (varClass == valueClass)
+            return;
+
         // Skip validation for generic array types
-        if ((varClassName == "Array" || varClassName.find("Array<") == 0) &&
-            valueClassName.find("[]") != std::string::npos) {
+        if ((varClass == "Array" || varClass.find("Array<") == 0) &&
+            valueClass.find("[]") != std::string::npos) {
             return;
         }
 
         // Check Promise type special handling
-        if (validatePromiseTypeAssignment(varClassName, valueClassName)) {
+        if (validatePromiseTypeAssignment(varClass, valueClass)) {
             return;
         }
 
         // Array covariance check: arrays must have EXACT element type match
         // (cannot assign Dog[] to Animal[] even though Dog extends Animal)
-        bool varIsArray = (varClassName.find("[]") != std::string::npos);
-        bool valueIsArray = (valueClassName.find("[]") != std::string::npos);
+        bool varIsArray = (varClass.find("[]") != std::string::npos);
+        bool valueIsArray = (valueClass.find("[]") != std::string::npos);
 
         if (varIsArray && valueIsArray) {
             // Extract element types from both arrays (e.g., "Animal" from "Animal[]")
-            std::string varElementType = varClassName.substr(0, varClassName.find("[]"));
-            std::string valueElementType = valueClassName.substr(0, valueClassName.find("[]"));
+            std::string varElementType = varClass.substr(0, varClass.find("[]"));
+            std::string valueElementType = valueClass.substr(0, valueClass.find("[]"));
 
             // Require exact match for array element types (no inheritance/polymorphism)
             if (varElementType != valueElementType) {
@@ -223,8 +236,8 @@ namespace vm::compiler::types
         }
 
         // Normalize both types for array comparison
-        std::string normalizedVarClass = normalizeArrayType(varClassName);
-        std::string normalizedValueClass = normalizeArrayType(valueClassName);
+        std::string normalizedVarClass = normalizeArrayType(varClass);
+        std::string normalizedValueClass = normalizeArrayType(valueClass);
 
         // Extract base class names (remove generic parameters)
         std::string baseVarClass = stripGenericParameters(normalizedVarClass);
@@ -295,12 +308,19 @@ namespace vm::compiler::types
         value::ValueType valueType,
         const std::string& valueClassName,
         bool isNullValue,
-        const ast::SourceLocation& location
+        const ast::SourceLocation& location,
+        bool isNullableTarget
     ) const
     {
-        // null can be assigned to any object type
+        // null assignment check: only allowed for nullable types
         if (isNullValue && varType == value::ValueType::OBJECT) {
-            return;
+            if (isNullableTarget) {
+                return; // OK: null → MyClass?
+            }
+            throw errors::TypeException(
+                "Cannot assign null to non-nullable type '" + varClassName + "'. "
+                "Use '" + varClassName + "?' to make it nullable.",
+                location);
         }
 
         // Special handling for array assignments

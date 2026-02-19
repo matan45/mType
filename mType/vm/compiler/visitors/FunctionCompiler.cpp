@@ -321,7 +321,7 @@ namespace vm::compiler::visitors
             {
                 if (actualType != expectedType)
                 {
-                    // Special case: null can be returned for object types
+                    // Special case: null can be returned for object types (nullable check done above)
                     if (!(expectedType == value::ValueType::OBJECT && dynamic_cast<ast::NullNode*>(returnValue)))
                     {
                         // Special case: int can be returned for float
@@ -1002,6 +1002,12 @@ namespace vm::compiler::visitors
     {
         std::string baseTypeName = typeName;
 
+        // Strip nullable suffix '?'
+        if (!baseTypeName.empty() && baseTypeName.back() == '?')
+        {
+            baseTypeName.pop_back();
+        }
+
         // Handle array types: int[], T[], Item[][], etc.
         // Strip all array brackets to get the element type
         size_t bracketPos = baseTypeName.find('[');
@@ -1102,12 +1108,20 @@ namespace vm::compiler::visitors
         // 1. Compile the literal value (pushes it onto stack)
         literalToBox->accept(ctx.visitor);
 
-        // 2. Emit NEW_OBJECT for the Box class
+        // 2. Emit NEW_OBJECT or NEW_VALUE_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(expectedReturnType);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                     static_cast<uint64_t>(classNameIndex),
-                                     1u, // 1 constructor argument
-                                     literalToBox);
+        auto boxClassDef = ctx.environment->findClass(expectedReturnType);
+        bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+        if (boxIsValue) {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, literalToBox);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, literalToBox);
+        } else {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                         static_cast<uint64_t>(classNameIndex),
+                                         1u, literalToBox);
+        }
 
         return true; // Auto-boxing was applied
     }

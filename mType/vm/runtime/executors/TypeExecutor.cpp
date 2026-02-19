@@ -1,6 +1,7 @@
 #include "TypeExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../value/StringPool.hpp"
+#include "../../../value/ValueObject.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/UserException.hpp"
 #include <sstream>
@@ -134,6 +135,38 @@ namespace vm::runtime
                 return false; // null is not instance of any type
             }
         }
+        // ValueObject type check (value classes)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj) {
+                auto classDef = obj->getClassDefinition();
+                std::string className = classDef->getName();
+                std::string baseClassName = ::types::TypeConversionUtils::extractBaseTypeName(className);
+                std::string baseTargetName = ::types::TypeConversionUtils::extractBaseTypeName(targetTypeName);
+
+                bool result = (className == targetTypeName) || (baseClassName == baseTargetName);
+
+                // Check implemented interfaces
+                if (!result) {
+                    const auto& interfaces = classDef->getImplementedInterfaces();
+                    for (const auto& iface : interfaces) {
+                        std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
+                        if (iface == targetTypeName || baseIfaceName == baseTargetName) {
+                            result = true;
+                            break;
+                        }
+                        std::unordered_set<std::string> visited;
+                        if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+                            result = true;
+                            break;
+                        }
+                    }
+                }
+
+                return result;
+            }
+            return false;
+        }
         else if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
             return false; // null is not instance of any type
         }
@@ -167,6 +200,13 @@ namespace vm::runtime
             }
             throwCastError("Cannot cast object to int");
         }
+        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj && obj->getClassName() == "Int") {
+                return val;
+            }
+            throwCastError("Cannot cast value object to int");
+        }
         else {
             throwCastError("Cannot cast to int from this type");
         }
@@ -185,6 +225,13 @@ namespace vm::runtime
             } catch (...) {
                 throwCastError("Cannot cast string to float: " + std::get<std::string>(val));
             }
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj && obj->getClassName() == "Float") {
+                return val;
+            }
+            throwCastError("Cannot cast value object to float");
         }
         else {
             throwCastError("Cannot cast to float from this type");
@@ -214,6 +261,13 @@ namespace vm::runtime
             const value::InternedString& str = std::get<value::InternedString>(val);
             // Non-empty strings are true
             return str.length() > 0;
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj && obj->getClassName() == "Bool") {
+                return val;
+            }
+            throwCastError("Cannot cast value object to bool");
         }
         else {
             throwCastError("Cannot cast to bool from this type");
@@ -329,6 +383,29 @@ namespace vm::runtime
             return val; // null remains null for object casts
         }
 
+        // Handle ValueObject (value classes)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (!obj) {
+                throwCastError("Cannot cast null to " + targetTypeName);
+            }
+            auto classDef = obj->getClassDefinition();
+            std::string className = classDef->getName();
+
+            TypeComponents classComp = extractTypeComponents(className);
+            TypeComponents targetComp = extractTypeComponents(targetTypeName);
+
+            bool canCast = checkExactMatch(className, targetTypeName, classComp, targetComp) ||
+                           checkInterfaceMatch(classDef, targetTypeName);
+
+            if (canCast) {
+                return val;
+            } else {
+                throwIncompatibleCastError(className, targetTypeName);
+                return val;
+            }
+        }
+
         // Handle non-object types
         if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
             throwCastError("Cannot cast primitive type to " + targetTypeName);
@@ -440,6 +517,13 @@ namespace vm::runtime
         }
         if (std::holds_alternative<std::monostate>(val)) {
             return "null";
+        }
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj && obj->hasField("value") && obj->getFieldCount() == 1) {
+                return valueToString(obj->getFieldValue("value"));
+            }
+            return obj ? "<" + obj->getClassName() + ">" : "null";
         }
         return "<object>";
     }

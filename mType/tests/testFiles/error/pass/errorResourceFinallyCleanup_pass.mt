@@ -26,7 +26,7 @@ class CleanupResource {
 
 function testFinallyWithoutException(): void {
     print("Test 1: Finally executes without exception");
-    CleanupResource resource = null;
+    CleanupResource? resource = null;
 
     try {
         resource = new CleanupResource("NormalResource");
@@ -41,7 +41,7 @@ function testFinallyWithoutException(): void {
 
 function testFinallyWithException(): void {
     print("Test 2: Finally executes with exception");
-    CleanupResource resource = null;
+    CleanupResource? resource = null;
 
     try {
         resource = new CleanupResource("ExceptionResource");
@@ -60,7 +60,7 @@ function testFinallyWithException(): void {
 
 function testFinallyWithReturn(): void {
     print("Test 3: Finally executes before return");
-    CleanupResource resource = null;
+    CleanupResource? resource = null;
 
     try {
         resource = new CleanupResource("ReturnResource");
@@ -76,9 +76,9 @@ function testFinallyWithReturn(): void {
 
 function testMultipleFinally(): void {
     print("Test 4: Multiple nested finally blocks");
-    CleanupResource r1 = null;
-    CleanupResource r2 = null;
-    CleanupResource r3 = null;
+    CleanupResource? r1 = null;
+    CleanupResource? r2 = null;
+    CleanupResource? r3 = null;
 
     try {
         r1 = new CleanupResource("Outer");
@@ -118,7 +118,7 @@ function testMultipleFinally(): void {
 
 function testFinallyWithCatchAndThrow(): void {
     print("Test 5: Finally with catch that rethrows");
-    CleanupResource resource = null;
+    CleanupResource? resource = null;
 
     try {
         try {
@@ -140,10 +140,10 @@ function testFinallyWithCatchAndThrow(): void {
 
 function testFinallyMultipleResources(): void {
     print("Test 6: Finally cleaning up multiple resources");
-    CleanupResource r1 = null;
-    CleanupResource r2 = null;
-    CleanupResource r3 = null;
-    CleanupResource r4 = null;
+    CleanupResource? r1 = null;
+    CleanupResource? r2 = null;
+    CleanupResource? r3 = null;
+    CleanupResource? r4 = null;
 
     try {
         r1 = new CleanupResource("Res1");
@@ -175,7 +175,7 @@ function testFinallyMultipleResources(): void {
 
 function testFinallyWithoutCatch(): void {
     print("Test 7: Finally without catch block");
-    CleanupResource resource = null;
+    CleanupResource? resource = null;
 
     try {
         try {
@@ -195,8 +195,8 @@ function testFinallyWithoutCatch(): void {
 
 function testFinallyExecutionOrder(): void {
     print("Test 8: Finally execution order verification");
-    CleanupResource r1 = null;
-    CleanupResource r2 = null;
+    CleanupResource? r1 = null;
+    CleanupResource? r2 = null;
 
     try {
         r1 = new CleanupResource("First");

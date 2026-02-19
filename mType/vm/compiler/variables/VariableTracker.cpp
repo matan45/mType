@@ -20,7 +20,7 @@ namespace vm::compiler::variables
         return SIZE_MAX;  // Not found
     }
 
-    void VariableTracker::declareLocal(const std::string& name, value::ValueType type, const std::string& className)
+    void VariableTracker::declareLocal(const std::string& name, value::ValueType type, const std::string& className, bool isNullable)
     {
         LocalVariable local;
         local.name = name;
@@ -28,6 +28,7 @@ namespace vm::compiler::variables
         local.scopeDepth = currentScopeDepth;
         local.type = type;
         local.className = className;
+        local.isNullable = isNullable;
         locals.push_back(local);
     }
 
@@ -138,6 +139,16 @@ namespace vm::compiler::variables
             }
         }
         return "";  // Not found
+    }
+
+    bool VariableTracker::getLocalNullableByName(const std::string& name) const
+    {
+        for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
+            if (it->name == name) {
+                return it->isNullable;
+            }
+        }
+        return false;
     }
 
     void VariableTracker::markVariableAsCaptured(size_t slot)

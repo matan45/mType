@@ -1,0 +1,7 @@
+c1: Counter(10)
+c2: Counter(10)
+After c2 increment:
+c1: Counter(10)
+c2: Counter(11)
+c1 count: 10
+c2 count: 11

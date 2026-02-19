@@ -23,6 +23,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
+#include "../../value/ValueObject.hpp"
 #include "../../value/StringPool.hpp"
 #include "../../value/PromiseValue.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
@@ -171,6 +172,159 @@ namespace vm::runtime
                 }
                 throw;
             }
+        }
+
+        // Get return value (if any)
+        value::Value result = std::monostate{};
+        if (stackManager->size() > savedStackSize)
+        {
+            result = stackManager->pop();
+        }
+
+        // Clean up stack to original size
+        while (stackManager->size() > savedStackSize)
+        {
+            stackManager->pop();
+        }
+
+        // Restore instruction pointer
+        instructionPointer = savedIP;
+
+        return result;
+    }
+
+    value::Value VirtualMachine::callMethodFromJit(
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+        const std::string& methodName,
+        const std::vector<value::Value>& args)
+    {
+        if (!program || !instance)
+        {
+            throw errors::RuntimeException("JIT method fallback: invalid state");
+        }
+
+        auto classDef = instance->getClassDefinition();
+        size_t argCount = args.size();
+
+        // Extract simple method name (strip class prefix and signature if present)
+        std::string simpleMethodName = methodName;
+        std::string signaturePart;
+        size_t colonPos = methodName.find("::");
+        if (colonPos != std::string::npos)
+        {
+            simpleMethodName = methodName.substr(colonPos + 2);
+        }
+        size_t slashPos = simpleMethodName.find('/');
+        if (slashPos != std::string::npos)
+        {
+            signaturePart = simpleMethodName.substr(slashPos);
+            simpleMethodName = simpleMethodName.substr(0, slashPos);
+        }
+
+        // Find method in hierarchy
+        auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
+        if (!method)
+        {
+            throw errors::RuntimeException("Instance method not found: " + simpleMethodName +
+                " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
+        }
+
+        // Find defining class and type signature
+        std::string definingClassName = classDef->getName();
+        std::string typeSignature;
+        auto currentClass = classDef;
+        while (currentClass)
+        {
+            auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
+            if (localMethod)
+            {
+                definingClassName = currentClass->getName();
+                typeSignature = localMethod->getTypeSignature();
+                break;
+            }
+            currentClass = currentClass->getParentClass();
+        }
+
+        // Build qualified name
+        std::string qualifiedName = typeSignature.empty()
+            ? definingClassName + "::" + simpleMethodName
+            : definingClassName + "::" + simpleMethodName + "/" + typeSignature;
+        auto* funcMetadata = program->getFunction(qualifiedName);
+        if (!funcMetadata)
+        {
+            throw errors::RuntimeException("Method '" + qualifiedName +
+                "' has no bytecode.");
+        }
+
+        // Save current interpreter state (lightweight — no full callStack copy)
+        size_t savedIP = instructionPointer;
+        size_t savedCallStackDepth = callStack.size();
+        size_t savedStackSize = stackManager->size();
+
+        // Push 'this' as first local (slot 0)
+        stackManager->push(instance);
+
+        // Push method arguments
+        for (const auto& arg : args)
+        {
+            stackManager->push(arg);
+        }
+
+        // Initialize remaining locals to monostate
+        size_t pushedSlots = 1 + argCount;
+        if (funcMetadata->localCount > pushedSlots)
+        {
+            size_t additionalLocals = funcMetadata->localCount - pushedSlots;
+            for (size_t i = 0; i < additionalLocals; ++i)
+            {
+                stackManager->push(std::monostate{});
+            }
+        }
+
+        // Create call frame
+        CallFrame frame;
+        frame.returnAddress = savedIP;
+        frame.frameBase = savedStackSize;
+        frame.localBase = savedStackSize;
+        frame.functionName = qualifiedName;
+        frame.thisInstance = instance;
+        frame.definingClassName = definingClassName;
+        callStack.push_back(frame);
+
+        // Jump to method start
+        instructionPointer = funcMetadata->startOffset;
+
+        // Run interpreter until this call frame is popped
+        // Use post-increment to match interpretLoop pattern (executors set IP = target - 1)
+        while (callStack.size() > savedCallStackDepth)
+        {
+            if (instructionPointer >= program->getInstructionCount())
+            {
+                break;
+            }
+
+            const auto& instr = program->getInstruction(instructionPointer);
+
+            try
+            {
+                executeInstruction(instr);
+            }
+            catch (...)
+            {
+                // Restore state on exception
+                while (callStack.size() > savedCallStackDepth)
+                {
+                    callStack.pop_back();
+                }
+                instructionPointer = savedIP;
+                while (stackManager->size() > savedStackSize)
+                {
+                    stackManager->pop();
+                }
+                throw;
+            }
+
+            instructionPointer++;
         }
 
         // Get return value (if any)
@@ -1060,6 +1214,8 @@ namespace vm::runtime
             break;
         case OpCode::JUMP_BACK: controlFlowExecutor->handleJumpBack(instr);
             break;
+        case OpCode::JUMP_IF_NULL: controlFlowExecutor->handleJumpIfNull(instr);
+            break;
         case OpCode::RETURN: controlFlowExecutor->handleReturn();
             break;
         case OpCode::RETURN_VALUE: controlFlowExecutor->handleReturnValue();
@@ -1126,6 +1282,10 @@ namespace vm::runtime
 
         // Objects - delegated to ObjectExecutor
         case OpCode::NEW_OBJECT: objectExecutor->handleNewObject(instr);
+            break;
+        case OpCode::NEW_VALUE_OBJECT: objectExecutor->handleNewValueObject(instr);
+            break;
+        case OpCode::OBJECT_TO_VALUE: objectExecutor->handleObjectToValue(instr);
             break;
         case OpCode::GET_FIELD:
             if (icEnabled && inlineCacheExecutor)
@@ -1658,6 +1818,19 @@ namespace vm::runtime
                     // Recursively convert the field value to string
                     return valueToString(fieldValue);
                 }
+            }
+        }
+        // Handle ValueObject (value types)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val))
+        {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj)
+            {
+                // For primitive wrapper value objects, extract "value" field
+                if (obj->hasField("value") && obj->getFieldCount() == 1) {
+                    return valueToString(obj->getFieldValue("value"));
+                }
+                return "<" + obj->getClassName() + ">";
             }
         }
         return "<object>";

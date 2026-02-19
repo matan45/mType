@@ -11,6 +11,7 @@
 
 namespace vm::jit
 {
+    class JitCodeCache;
     enum class CmpOp { EQ, NE, LT, GT, LE, GE };
 
     struct JitEmissionState
@@ -40,7 +41,6 @@ namespace vm::jit
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
     };
 
-    // Shared emission helpers
     void emitBox(JitEmissionState& s, asmjit::x86::Gp destAddr,
                  int stackOff, SlotType type);
     void emitUnbox(JitEmissionState& s, asmjit::x86::Gp srcAddr,
@@ -52,7 +52,6 @@ namespace vm::jit
                           SlotType lType, SlotType rType);
     void emitCmp(JitEmissionState& s, CmpOp kind);
 
-    // Category emitters — each returns true if the opcode was handled
     bool emitCoreOps(JitEmissionState& s,
                      const bytecode::BytecodeProgram::Instruction& instr);
 
@@ -70,11 +69,29 @@ namespace vm::jit
     bool emitObjectOps(JitEmissionState& s,
                        const bytecode::BytecodeProgram::Instruction& instr);
 
-    // Shared helpers for call-type opcodes
+    void emitValueDestroy(JitEmissionState& s, int slotOffset);
+    void emitReturnValueCopyBoxed(JitEmissionState& s);
+    asmjit::x86::Gp emitGetBoxedValueAddr(JitEmissionState& s, int stackIdx, SlotType valType);
+
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount,
                          size_t destStartSlot = 0);
     void emitPopAndDestroyArgs(JitEmissionState& s, size_t argCount);
 
-    // OSR-specific
     void emitLocalsWriteBack(JitEmissionState& s);
+
+    bool scanOpcodesForBoxedTypes(const bytecode::BytecodeProgram& program,
+                                  size_t startOffset, size_t endOffset);
+
+    std::unordered_map<size_t, asmjit::Label> createJumpLabels(
+        asmjit::x86::Compiler& cc, const bytecode::BytecodeProgram& program,
+        size_t startOffset, size_t endOffset,
+        size_t rangeStart = 0, size_t rangeEnd = SIZE_MAX);
+
+    void emitMemoryInit(asmjit::x86::Compiler& cc,
+                        asmjit::x86::Gp localsBase, size_t localCount,
+                        asmjit::x86::Gp boxedBase, size_t boxedCount);
+
+    bool finalizeAndStore(asmjit::x86::Compiler& cc, asmjit::CodeHolder& code,
+                          JitCodeCache& codeCache, const std::string& key,
+                          size_t& compileCount, size_t& bailoutCount);
 }

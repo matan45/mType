@@ -2,6 +2,7 @@
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../value/StringPool.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ValueObject.hpp"
 #include <sstream>
 
 namespace vm::runtime
@@ -152,10 +153,26 @@ namespace vm::runtime
                 unboxedLeft = obj->getFieldValue("value");
             }
         }
+        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(left)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(left);
+            const std::string& typeName = obj->getClassName();
+            if (typeName == "Int" || typeName == "Float" ||
+                typeName == "Bool" || typeName == "String") {
+                unboxedLeft = obj->getFieldValue("value");
+            }
+        }
 
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right)) {
             auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right);
             std::string typeName = obj->getTypeName();
+            if (typeName == "Int" || typeName == "Float" ||
+                typeName == "Bool" || typeName == "String") {
+                unboxedRight = obj->getFieldValue("value");
+            }
+        }
+        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(right)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(right);
+            const std::string& typeName = obj->getClassName();
             if (typeName == "Int" || typeName == "Float" ||
                 typeName == "Bool" || typeName == "String") {
                 unboxedRight = obj->getFieldValue("value");
@@ -207,7 +224,9 @@ namespace vm::runtime
             (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
              std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right) ||
              std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left) ||
-             std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right))) {
+             std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right) ||
+             std::holds_alternative<std::shared_ptr<value::ValueObject>>(left) ||
+             std::holds_alternative<std::shared_ptr<value::ValueObject>>(right))) {
 
             // Convert both operands to string using valueToString
             std::string leftStr = valueToString(left);
@@ -290,6 +309,17 @@ namespace vm::runtime
                     // Recursively convert the field value to string
                     return valueToString(fieldValue);
                 }
+            }
+        }
+        // Handle ValueObject (value types)
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
+            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj) {
+                // For primitive wrapper value objects, extract "value" field
+                if (obj->hasField("value") && obj->getFieldCount() == 1) {
+                    return valueToString(obj->getFieldValue("value"));
+                }
+                return "<" + obj->getClassName() + ">";
             }
         }
         return "<object>";

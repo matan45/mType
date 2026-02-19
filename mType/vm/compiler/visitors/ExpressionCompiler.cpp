@@ -615,13 +615,21 @@ namespace vm::compiler::visitors
         // 1. Compile left operand (receiver object), auto-boxing if needed
         if (leftNeedsBoxing)
         {
-            // Auto-box the left operand: compile literal then wrap in NEW_OBJECT
+            // Auto-box the left operand: compile literal then wrap
             left->accept(ctx.visitor);
             size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                         static_cast<uint64_t>(classNameIndex),
-                                         1u,  // 1 constructor argument
-                                         left);
+            auto boxClassDef = ctx.environment->findClass(leftClassName);
+            bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
+            if (boxIsValue) {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                             static_cast<uint64_t>(classNameIndex),
+                                             1u, left);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, left);
+            } else {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                             static_cast<uint64_t>(classNameIndex),
+                                             1u, left);
+            }
         }
         else
         {
@@ -648,13 +656,21 @@ namespace vm::compiler::visitors
 
         if (rightNeedsBoxing)
         {
-            // Auto-box the right operand: compile it then wrap in NEW_OBJECT
+            // Auto-box the right operand: compile it then wrap
             right->accept(ctx.visitor);
             size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
-                                         static_cast<uint64_t>(classNameIndex),
-                                         1u,  // 1 constructor argument
-                                         right);
+            auto boxClassDefR = ctx.environment->findClass(leftClassName);
+            bool boxIsValueR = boxClassDefR && boxClassDefR->isValueClass();
+            if (boxIsValueR) {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
+                                             static_cast<uint64_t>(classNameIndex),
+                                             1u, right);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, right);
+            } else {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+                                             static_cast<uint64_t>(classNameIndex),
+                                             1u, right);
+            }
         }
         else
         {

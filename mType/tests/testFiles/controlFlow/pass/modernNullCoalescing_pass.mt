@@ -17,7 +17,7 @@ class Person {
 
 // Test 1: Simple null coalescing with objects
 print("Test 1: Simple null coalescing");
-Person p1 = null;
+Person? p1 = null;
 Person defaultPerson = new Person("Default", 0);
 Person result1 = p1 != null ? p1 : defaultPerson;
 print(result1.toString());
@@ -29,8 +29,8 @@ print(result2.toString());
 
 // Test 3: Chained null coalescing (multiple fallbacks)
 print("Test 2: Chained null coalescing");
-Person primary = null;
-Person secondary = null;
+Person? primary = null;
+Person? secondary = null;
 Person tertiary = new Person("Tertiary", 25);
 Person fallback = new Person("Fallback", 99);
 Person result3 = primary != null ? primary : (secondary != null ? secondary : (tertiary != null ? tertiary : fallback));
@@ -61,7 +61,7 @@ print(strResult2);
 
 // Test 6: Null coalescing in assignments
 print("Test 5: Null coalescing in variable assignment");
-Person temp = null;
+Person? temp = null;
 Person assigned = temp != null ? temp : new Person("Assigned", 33);
 print(assigned.toString());
 
@@ -79,7 +79,7 @@ class Container {
 }
 
 print("Test 6: Nested null coalescing");
-Container c1 = null;
+Container? c1 = null;
 Container c2 = new Container(null);
 Container c3 = new Container(new Person("Nested", 28));
 Person safeDefault = new Person("Safe", 100);
@@ -103,7 +103,7 @@ class Counter {
 }
 
 print("Test 7: Null coalescing with wrapped values");
-Counter cnt1 = null;
+Counter? cnt1 = null;
 Counter cnt2 = new Counter(42);
 int defaultValue = -1;
 
@@ -115,14 +115,14 @@ print(countResult2);
 
 // Test 9: Null coalescing in conditional statements
 print("Test 8: Null coalescing in conditionals");
-Person checkPerson = null;
+Person? checkPerson = null;
 if ((checkPerson != null ? checkPerson : defaultPerson).age > 0) {
     print("Person exists with positive age");
 }
 
 // Test 10: Multiple null coalescing in single expression
 print("Test 9: Multiple null coalescing operations");
-Person first = null;
+Person? first = null;
 Person second = new Person("Second", 20);
 Person third = new Person("Third", 30);
 

@@ -1,0 +1,6 @@
+toString: (5, 10)
+accumulated: (200, 400)
+total: 139300
+last point: (199, 200)
+last picked: (30, 40)
+Value class JIT performance tests passed!

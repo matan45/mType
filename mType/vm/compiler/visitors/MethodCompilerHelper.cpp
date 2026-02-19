@@ -162,6 +162,12 @@ namespace vm::compiler::visitors
     {
         std::string baseTypeName = typeName;
 
+        // Strip nullable suffix '?'
+        if (!baseTypeName.empty() && baseTypeName.back() == '?')
+        {
+            baseTypeName.pop_back();
+        }
+
         // Handle array types: int[], Item[][], etc.
         // Strip all array brackets to get the element type
         size_t bracketPos = baseTypeName.find('[');

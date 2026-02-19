@@ -850,6 +850,7 @@ namespace optimizer::passes
             // Preserve other attributes
             newClass->setFinal(node->isFinal());
             newClass->setAbstract(node->isAbstract());
+            newClass->setValueClass(node->isValueClass());
             newClass->setVisibility(node->getVisibility());
 
             // Copy all annotations (e.g., @Script, @Override, @Throws)
@@ -893,8 +894,9 @@ namespace optimizer::passes
                 node->getLocation()
             );
 
-            // Preserve visibility modifier
+            // Preserve visibility and nullable modifiers
             newAssignment->setVisibility(node->getVisibility());
+            newAssignment->setNullableType(node->isNullableType());
 
             return newAssignment;
         }
