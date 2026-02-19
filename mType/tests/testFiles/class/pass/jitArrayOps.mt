@@ -1,5 +1,4 @@
-// JIT Test: Array operations (currently runs in interpreter due to JIT array bug)
-// TODO: Add JIT warmup once array get/set/length JIT codegen is fixed
+// JIT Test: Array creation, get, set, length in hot loops
 
 function sumArray(int[] arr): int {
     int sum = 0;
