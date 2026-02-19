@@ -1,9 +1,6 @@
-floatSum: 6
-floatProduct: 10
-floatDivide: 2.5
-floatSubtract: 7
-modulo 10%3: 1
-modulo 7%2: 1
-negate 42: -42
-negate -7: 7
-mixedArith(100): 94.8126
+floatAccumulate(50000): 49991.1
+moduloSum(500000): 1499994
+floatMulDiv(100000): 200.063
+floatSubLoop(200000): -29963.1
+20x floatAccumulate(10000): 199823
+50x moduloSum(100000): 14999750

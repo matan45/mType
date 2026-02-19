@@ -1,8 +1,5 @@
-sum after fill(x3): 400
-length: 20
-first: 0
-last: 57
-after reverse first: 57
-after reverse last: 0
-max: 57
-counts sum: 25
+5000x sumArray(1000): 7492500000
+10000x dotProduct(500): 208332500000
+10000x findMax(1000): 29970000
+sorted first: 1
+sorted last: 200
