@@ -92,6 +92,38 @@ namespace vm::jit
         }
     }
 
+    void emitEnsureUnboxed(JitEmissionState& s, int stackIdx,
+                           SlotType type, SlotType targetType)
+    {
+        if (!s.usesBoxedTypes || !isBoxedSlotType(type)) return;
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        Gp addr = cc.new_gp64();
+        cc.lea(addr, Mem(s.boxedBase, static_cast<int32_t>(stackIdx * valueSize)));
+        emitUnbox(s, addr, stackIdx, targetType);
+    }
+
+    void emitBoxOrCopy(JitEmissionState& s, Gp destAddr,
+                       int stackOff, SlotType type)
+    {
+        if (s.usesBoxedTypes && isBoxedSlotType(type))
+        {
+            auto& cc = s.cc;
+            constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+            Gp srcAddr = cc.new_gp64();
+            cc.lea(srcAddr, Mem(s.boxedBase, static_cast<int32_t>(stackOff * valueSize)));
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
+                      FuncSignature::build<void, value::Value*, const value::Value*>());
+            inv->set_arg(0, destAddr);
+            inv->set_arg(1, srcAddr);
+        }
+        else
+        {
+            emitBox(s, destAddr, stackOff, type);
+        }
+    }
+
     SlotType popType(JitEmissionState& s)
     {
         if (s.slotTypes.empty()) return SlotType::INT;
@@ -137,12 +169,12 @@ namespace vm::jit
 
         Gp leftAddr = cc.new_gp64();
         cc.lea(leftAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)));
-        emitBox(s, leftAddr, s.stackDepth - 1, lType);
+        emitBoxOrCopy(s, leftAddr, s.stackDepth - 1, lType);
 
         Gp rightAddr = cc.new_gp64();
         cc.lea(rightAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)
                               + static_cast<int32_t>(valueSize)));
-        emitBox(s, rightAddr, s.stackDepth, rType);
+        emitBoxOrCopy(s, rightAddr, s.stackDepth, rType);
 
         Gp resultAddr = cc.new_gp64();
         cc.lea(resultAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)
@@ -173,52 +205,56 @@ namespace vm::jit
 
         if (isBoxedSlotType(lType) || isBoxedSlotType(rType))
         {
-            if (kind != CmpOp::EQ && kind != CmpOp::NE)
+            bool bothBoxed = isBoxedSlotType(lType) && isBoxedSlotType(rType);
+            bool mixedWithPrimitive = !bothBoxed;
+
+            if (mixedWithPrimitive)
             {
-                s.compileFailed = true;
-                return;
+                SlotType target = !isBoxedSlotType(lType) ? lType : rType;
+                if (target == SlotType::BOOL) target = SlotType::INT;
+                emitEnsureUnboxed(s, s.stackDepth - 1, lType,
+                    target == SlotType::FLOAT ? SlotType::FLOAT : SlotType::INT);
+                emitEnsureUnboxed(s, s.stackDepth, rType,
+                    target == SlotType::FLOAT ? SlotType::FLOAT : SlotType::INT);
+                lType = target;
+                rType = target;
             }
-
-            constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-
-            Gp leftAddr = cc.new_gp64();
-            if (isBoxedSlotType(lType))
+            else
             {
+                if (kind != CmpOp::EQ && kind != CmpOp::NE)
+                {
+                    s.compileFailed = true;
+                    return;
+                }
+
+                constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+                Gp leftAddr = cc.new_gp64();
                 cc.lea(leftAddr, Mem(s.boxedBase,
                     static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
-            }
-            else
-            {
-                cc.lea(leftAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)));
-                emitBox(s, leftAddr, s.stackDepth - 1, lType);
-            }
 
-            Gp rightAddr = cc.new_gp64();
-            if (isBoxedSlotType(rType))
-            {
+                Gp rightAddr = cc.new_gp64();
                 cc.lea(rightAddr, Mem(s.boxedBase,
                     static_cast<int32_t>(s.stackDepth * valueSize)));
-            }
-            else
-            {
-                cc.lea(rightAddr, Mem(s.ctxPtr,
-                    offsetof(JitContext, callArgs)
-                    + static_cast<int32_t>(valueSize)));
-                emitBox(s, rightAddr, s.stackDepth, rType);
-            }
 
-            InvokeNode* inv;
-            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_values_equal),
-                      FuncSignature::build<int64_t, const value::Value*,
-                                           const value::Value*>());
-            inv->set_arg(0, leftAddr);
-            inv->set_arg(1, rightAddr);
-            inv->set_ret(0, result);
+                InvokeNode* inv;
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_values_equal),
+                          FuncSignature::build<int64_t, const value::Value*,
+                                               const value::Value*>());
+                inv->set_arg(0, leftAddr);
+                inv->set_arg(1, rightAddr);
+                inv->set_ret(0, result);
 
-            if (kind == CmpOp::NE)
-                cc.xor_(result, 1);
+                if (kind == CmpOp::NE)
+                    cc.xor_(result, 1);
+
+                cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
+                s.slotTypes.push_back(SlotType::BOOL);
+                return;
+            }
         }
-        else if (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
+
+        if (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
         {
             Vec right = cc.new_xmm();
             Vec left = cc.new_xmm();

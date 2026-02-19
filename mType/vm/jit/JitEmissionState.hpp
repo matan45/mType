@@ -45,6 +45,10 @@ namespace vm::jit
                  int stackOff, SlotType type);
     void emitUnbox(JitEmissionState& s, asmjit::x86::Gp srcAddr,
                    int stackOff, SlotType type);
+    void emitEnsureUnboxed(JitEmissionState& s, int stackIdx,
+                           SlotType type, SlotType targetType);
+    void emitBoxOrCopy(JitEmissionState& s, asmjit::x86::Gp destAddr,
+                       int stackOff, SlotType type);
     SlotType popType(JitEmissionState& s);
     SlotType topType(const JitEmissionState& s);
     void emitCleanup(JitEmissionState& s);

@@ -15,7 +15,10 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         s.stackDepth--;
-        popType(s); popType(s);
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
         switch (instr.opcode)
         {
             case OpCode::ADD_INT:
@@ -52,7 +55,10 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         s.stackDepth--;
-        popType(s); popType(s);
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
         Gp right = cc.new_gp64();
         cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
         cc.test(right, right);
@@ -123,7 +129,10 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         s.stackDepth--;
-        popType(s); popType(s);
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::FLOAT);
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::FLOAT);
         Vec right = cc.new_xmm();
         Vec left = cc.new_xmm();
         cc.movss(right, Mem(s.stackBase, s.stackDepth * 8));
@@ -143,6 +152,10 @@ namespace vm::jit
         auto& cc = s.cc;
         SlotType rType = popType(s), lType = popType(s);
         s.stackDepth--;
+
+        if (isBoxedSlotType(lType)) { emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT); lType = SlotType::INT; }
+        if (isBoxedSlotType(rType)) { emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT); rType = SlotType::INT; }
+
         if (lType == SlotType::INT && rType == SlotType::INT)
         {
             if (instr.opcode == OpCode::MUL)
@@ -194,6 +207,10 @@ namespace vm::jit
         auto& cc = s.cc;
         SlotType rType = popType(s), lType = popType(s);
         s.stackDepth--;
+
+        if (isBoxedSlotType(lType)) { emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT); lType = SlotType::INT; }
+        if (isBoxedSlotType(rType)) { emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT); rType = SlotType::INT; }
+
         if (lType == SlotType::INT && rType == SlotType::INT)
         {
             Gp right = cc.new_gp64();
@@ -265,7 +282,10 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         s.stackDepth--;
-        popType(s); popType(s);
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
         Gp right = cc.new_gp64();
         Gp left = cc.new_gp64();
         cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
