@@ -97,5 +97,26 @@ namespace vm::jit
             new (dest) value::Value(std::monostate{});
         }
 
+        int64_t jit_values_equal(const value::Value* left, const value::Value* right)
+        {
+            auto isNull = [](const value::Value& v) {
+                return std::holds_alternative<std::monostate>(v) ||
+                       std::holds_alternative<nullptr_t>(v);
+            };
+
+            if (isNull(*left) && isNull(*right)) return 1;
+            if (isNull(*left) || isNull(*right)) return 0;
+            if (left->index() != right->index()) return 0;
+
+            if (std::holds_alternative<int64_t>(*left))
+                return std::get<int64_t>(*left) == std::get<int64_t>(*right) ? 1 : 0;
+            if (std::holds_alternative<float>(*left))
+                return std::get<float>(*left) == std::get<float>(*right) ? 1 : 0;
+            if (std::holds_alternative<bool>(*left))
+                return std::get<bool>(*left) == std::get<bool>(*right) ? 1 : 0;
+
+            return 0;
+        }
+
     } // extern "C"
 }

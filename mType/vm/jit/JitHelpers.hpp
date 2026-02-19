@@ -32,6 +32,7 @@ namespace vm::jit
         void jit_locals_init(value::Value* base, size_t count);
         void jit_locals_cleanup(value::Value* base, size_t count);
         void jit_value_destroy(value::Value* dest);
+        int64_t jit_values_equal(const value::Value* left, const value::Value* right);
     }
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount);

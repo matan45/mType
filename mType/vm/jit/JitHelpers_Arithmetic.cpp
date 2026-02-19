@@ -81,6 +81,8 @@ namespace vm::jit
         nestedCtx.environment = ctx->environment;
         nestedCtx.vm = ctx->vm;
         nestedCtx.jitCodeCache = ctx->jitCodeCache;
+        nestedCtx.icTable = ctx->icTable;
+        nestedCtx.callingClassName = ctx->callingClassName;
 
         jitFn(&nestedCtx);
 

@@ -171,7 +171,54 @@ namespace vm::jit
         Gp result = cc.new_gp64();
         cc.xor_(result, result);
 
-        if (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
+        if (isBoxedSlotType(lType) || isBoxedSlotType(rType))
+        {
+            if (kind != CmpOp::EQ && kind != CmpOp::NE)
+            {
+                s.compileFailed = true;
+                return;
+            }
+
+            constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+            Gp leftAddr = cc.new_gp64();
+            if (isBoxedSlotType(lType))
+            {
+                cc.lea(leftAddr, Mem(s.boxedBase,
+                    static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+            }
+            else
+            {
+                cc.lea(leftAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)));
+                emitBox(s, leftAddr, s.stackDepth - 1, lType);
+            }
+
+            Gp rightAddr = cc.new_gp64();
+            if (isBoxedSlotType(rType))
+            {
+                cc.lea(rightAddr, Mem(s.boxedBase,
+                    static_cast<int32_t>(s.stackDepth * valueSize)));
+            }
+            else
+            {
+                cc.lea(rightAddr, Mem(s.ctxPtr,
+                    offsetof(JitContext, callArgs)
+                    + static_cast<int32_t>(valueSize)));
+                emitBox(s, rightAddr, s.stackDepth, rType);
+            }
+
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_values_equal),
+                      FuncSignature::build<int64_t, const value::Value*,
+                                           const value::Value*>());
+            inv->set_arg(0, leftAddr);
+            inv->set_arg(1, rightAddr);
+            inv->set_ret(0, result);
+
+            if (kind == CmpOp::NE)
+                cc.xor_(result, 1);
+        }
+        else if (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
         {
             Vec right = cc.new_xmm();
             Vec left = cc.new_xmm();

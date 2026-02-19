@@ -514,8 +514,28 @@ namespace vm::runtime
             stats.functionCalls++;
 
             // Execute constructor
+            // Use direct execution loop instead of interpretLoop() to avoid
+            // recreating executors (which would invalidate the outer ExecutionContext)
             instructionPointer = ctorMetadata->startOffset;
-            interpretLoop();
+            if (controlFlowExecutor)
+            {
+                size_t targetDepth = savedCallStack.size();
+                while (callStack.size() > targetDepth)
+                {
+                    if (instructionPointer >= program->getInstructionCount())
+                        break;
+                    const auto& instr = program->getInstruction(instructionPointer);
+                    executeInstruction(instr);
+                    instructionPointer++;
+                }
+                // Clean up stack to original position
+                while (stackManager->size() > frameBase)
+                    stackManager->pop();
+            }
+            else
+            {
+                interpretLoop();
+            }
 
             // Restore state
             instructionPointer = savedIP;
@@ -618,9 +638,29 @@ namespace vm::runtime
             pushCallFrame(frame);
             stats.functionCalls++;
 
-            // Execute method
+            // Execute method (direct loop to avoid recreating executors)
             instructionPointer = funcMetadata->startOffset;
-            value::Value result = interpretLoop();
+            value::Value result = std::monostate{};
+            if (controlFlowExecutor)
+            {
+                size_t targetDepth = savedCallStack.size();
+                while (callStack.size() > targetDepth)
+                {
+                    if (instructionPointer >= program->getInstructionCount())
+                        break;
+                    const auto& instr = program->getInstruction(instructionPointer);
+                    executeInstruction(instr);
+                    instructionPointer++;
+                }
+                if (stackManager->size() > frameBase)
+                    result = stackManager->pop();
+                while (stackManager->size() > frameBase)
+                    stackManager->pop();
+            }
+            else
+            {
+                result = interpretLoop();
+            }
 
             // Restore state
             instructionPointer = savedIP;
@@ -709,9 +749,29 @@ namespace vm::runtime
             pushCallFrame(frame);
             stats.functionCalls++;
 
-            // Execute method
+            // Execute method (direct loop to avoid recreating executors)
             instructionPointer = funcMetadata->startOffset;
-            value::Value result = interpretLoop();
+            value::Value result = std::monostate{};
+            if (controlFlowExecutor)
+            {
+                size_t targetDepth = savedCallStack.size();
+                while (callStack.size() > targetDepth)
+                {
+                    if (instructionPointer >= program->getInstructionCount())
+                        break;
+                    const auto& instr = program->getInstruction(instructionPointer);
+                    executeInstruction(instr);
+                    instructionPointer++;
+                }
+                if (stackManager->size() > frameBase)
+                    result = stackManager->pop();
+                while (stackManager->size() > frameBase)
+                    stackManager->pop();
+            }
+            else
+            {
+                result = interpretLoop();
+            }
 
             // Restore state
             instructionPointer = savedIP;
@@ -1632,8 +1692,9 @@ namespace vm::runtime
                 bool justBecameHot = jitProfiler->recordEntry(funcName);
                 if (justBecameHot && jitCompiler && jitCodeCache)
                 {
-                    // Attempt to compile the hot function
+                    std::cout << "[JIT] Compiling hot function: " << funcName << std::endl;
                     jitCompiler->compile(funcName, *program, *jitCodeCache);
+                    std::cout << "[JIT] Compiled: " << funcName << " cached=" << jitCodeCache->contains(funcName) << std::endl;
                 }
             }
             break;
