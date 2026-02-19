@@ -37,6 +37,7 @@
 #include "../jit/JitCompiler.hpp"
 #include "../jit/JitContext.hpp"
 #include "../jit/OSRManager.hpp"
+#include "../jit/LoopProfiler.hpp"
 #include "../jit/ic/InlineCacheTable.hpp"
 #include "../jit/ic/TypeFeedbackCollector.hpp"
 #include "executors/InlineCacheExecutor.hpp"
@@ -1921,6 +1922,64 @@ namespace vm::runtime
     const ExecutionStats& VirtualMachine::getStats() const
     {
         return stats;
+    }
+
+    void VirtualMachine::printJitStats() const
+    {
+        std::cout << "\n=== JIT Statistics ===\n";
+
+        if (!jitEnabled)
+        {
+            std::cout << "  JIT disabled\n";
+            std::cout << "======================\n";
+            return;
+        }
+
+        // Function profiling
+        std::cout << "Function Profiling:\n";
+        if (jitProfiler)
+        {
+            std::cout << "  Hot threshold:          " << jitProfiler->getHotThreshold() << " calls\n";
+            const auto& hotFuncs = jitProfiler->getHotFunctions();
+            std::cout << "  Hot functions:          " << hotFuncs.size() << "\n";
+            for (const auto& name : hotFuncs)
+            {
+                uint32_t calls = jitProfiler->getInvocationCount(name);
+                bool compiled = jitCodeCache && jitCodeCache->contains(name);
+                std::cout << "    - " << name << " (" << calls << " calls)"
+                          << (compiled ? " [compiled]" : " [bailout]") << "\n";
+            }
+        }
+
+        // Compilation stats
+        std::cout << "Compilation:\n";
+        if (jitCompiler)
+        {
+            std::cout << "  Successful compiles:    " << jitCompiler->getCompileCount() << "\n";
+            std::cout << "  Bailouts:               " << jitCompiler->getBailoutCount() << "\n";
+        }
+        if (jitCodeCache)
+            std::cout << "  Cached functions:       " << jitCodeCache->size() << "\n";
+
+        // Loop OSR stats
+        std::cout << "Loop OSR:\n";
+        if (osrManager)
+        {
+            const auto& loopProfiler = osrManager->getLoopProfiler();
+            const auto& profiles = loopProfiler.getProfiles();
+            size_t compiled = 0, failed = 0;
+            for (const auto& [id, profile] : profiles)
+            {
+                if (profile.osrCompiled) compiled++;
+                if (profile.osrFailed) failed++;
+            }
+            std::cout << "  OSR threshold:          " << loopProfiler.getOsrThreshold() << " iterations\n";
+            std::cout << "  Loops profiled:         " << profiles.size() << "\n";
+            std::cout << "  OSR compiled:           " << compiled << "\n";
+            std::cout << "  OSR failed:             " << failed << "\n";
+        }
+
+        std::cout << "======================\n";
     }
 
     std::vector<std::string> VirtualMachine::getStackTrace() const

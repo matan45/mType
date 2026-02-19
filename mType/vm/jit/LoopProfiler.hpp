@@ -49,6 +49,8 @@ namespace vm::jit
         uint32_t getOsrThreshold() const { return osrThreshold; }
         void setOsrThreshold(uint32_t threshold) { osrThreshold = threshold; }
 
+        const std::unordered_map<LoopId, LoopProfile, LoopIdHash>& getProfiles() const { return profiles; }
+
         void reset();
 
     private:
