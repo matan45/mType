@@ -1794,11 +1794,11 @@ namespace vm::runtime
         {
             return std::to_string(std::get<int64_t>(val));
         }
-        if (std::holds_alternative<float>(val))
+        if (std::holds_alternative<double>(val))
         {
             // Format float to match interpreter behavior (remove trailing zeros)
             std::ostringstream oss;
-            oss << std::get<float>(val);
+            oss << std::get<double>(val);
             return oss.str();
         }
         if (std::holds_alternative<bool>(val))
@@ -1923,22 +1923,22 @@ namespace vm::runtime
         }
 
         // Float operations
-        if ((std::holds_alternative<float>(left) || std::holds_alternative<int64_t>(left)) &&
-            (std::holds_alternative<float>(right) || std::holds_alternative<int64_t>(right)))
+        if ((std::holds_alternative<double>(left) || std::holds_alternative<int64_t>(left)) &&
+            (std::holds_alternative<double>(right) || std::holds_alternative<int64_t>(right)))
         {
-            float l = std::holds_alternative<float>(left)
-                          ? std::get<float>(left)
-                          : static_cast<float>(std::get<int64_t>(left));
-            float r = std::holds_alternative<float>(right)
-                          ? std::get<float>(right)
-                          : static_cast<float>(std::get<int64_t>(right));
+            double l = std::holds_alternative<double>(left)
+                          ? std::get<double>(left)
+                          : static_cast<double>(std::get<int64_t>(left));
+            double r = std::holds_alternative<double>(right)
+                          ? std::get<double>(right)
+                          : static_cast<double>(std::get<int64_t>(right));
             switch (op)
             {
             case OpCode::ADD: return l + r;
             case OpCode::SUB: return l - r;
             case OpCode::MUL: return l * r;
             case OpCode::DIV:
-                if (r == 0.0f) throw errors::RuntimeException("Division by zero");
+                if (r == 0.0) throw errors::RuntimeException("Division by zero");
                 return l / r;
             default: break;
             }

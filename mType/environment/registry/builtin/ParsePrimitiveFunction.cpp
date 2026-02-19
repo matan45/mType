@@ -24,7 +24,7 @@ namespace environment::registry::builtin
             {
                 return std::to_string(value);
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
+            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, double>)
             {
                 std::string str = std::to_string(value);
                 str.erase(str.find_last_not_of('0') + 1, std::string::npos);

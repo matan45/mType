@@ -28,7 +28,7 @@ namespace vm::jit::codegen
             // Unbox float, then box into Value-sized local
             InvokeNode* unbox;
             cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_float),
-                      FuncSignature::build<float, const value::Value*>());
+                      FuncSignature::build<double, const value::Value*>());
             unbox->set_arg(0, srcAddr);
             Vec val = cc.new_xmm();
             unbox->set_ret(0, val);
@@ -37,7 +37,7 @@ namespace vm::jit::codegen
             cc.lea(destAddr, Mem(info.localsBase, static_cast<int32_t>(slot * info.localStride)));
             InvokeNode* box;
             cc.invoke(Out(box), reinterpret_cast<uint64_t>(jit_box_float),
-                      FuncSignature::build<void, value::Value*, float>());
+                      FuncSignature::build<void, value::Value*, double>());
             box->set_arg(0, destAddr);
             box->set_arg(1, val);
         }
@@ -74,11 +74,11 @@ namespace vm::jit::codegen
         {
             InvokeNode* unbox;
             cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_float),
-                      FuncSignature::build<float, const value::Value*>());
+                      FuncSignature::build<double, const value::Value*>());
             unbox->set_arg(0, srcAddr);
             Vec val = cc.new_xmm();
             unbox->set_ret(0, val);
-            cc.movss(Mem(info.localsBase, static_cast<int32_t>(slot * 8)), val);
+            cc.movsd(Mem(info.localsBase, static_cast<int32_t>(slot * 8)), val);
         }
         else
         {

@@ -64,44 +64,44 @@ namespace mType::value::simd
 
     // ========== FLOAT OPERATIONS ==========
 
-    void SIMDOperations::addFloat(const float* a, const float* b, float* result, size_t size)
+    void SIMDOperations::addFloat(const double* a, const double* b, double* result, size_t size)
     {
-        addImpl<FloatPolicy, float>(a, b, result, size);
+        addImpl<FloatPolicy, double>(a, b, result, size);
     }
 
-    void SIMDOperations::addScalarFloat(const float* a, float scalar, float* result, size_t size)
+    void SIMDOperations::addScalarFloat(const double* a, double scalar, double* result, size_t size)
     {
-        addScalarImpl<FloatPolicy, float>(a, scalar, result, size);
+        addScalarImpl<FloatPolicy, double>(a, scalar, result, size);
     }
 
-    void SIMDOperations::subtractFloat(const float* a, const float* b, float* result, size_t size)
+    void SIMDOperations::subtractFloat(const double* a, const double* b, double* result, size_t size)
     {
-        subtractImpl<FloatPolicy, float>(a, b, result, size);
+        subtractImpl<FloatPolicy, double>(a, b, result, size);
     }
 
-    void SIMDOperations::multiplyFloat(const float* a, const float* b, float* result, size_t size)
+    void SIMDOperations::multiplyFloat(const double* a, const double* b, double* result, size_t size)
     {
-        multiplyImpl<FloatPolicy, float>(a, b, result, size);
+        multiplyImpl<FloatPolicy, double>(a, b, result, size);
     }
 
-    void SIMDOperations::multiplyScalarFloat(const float* a, float scalar, float* result, size_t size)
+    void SIMDOperations::multiplyScalarFloat(const double* a, double scalar, double* result, size_t size)
     {
-        multiplyScalarImpl<FloatPolicy, float>(a, scalar, result, size);
+        multiplyScalarImpl<FloatPolicy, double>(a, scalar, result, size);
     }
 
-    float SIMDOperations::sumFloat(const float* data, size_t size)
+    double SIMDOperations::sumFloat(const double* data, size_t size)
     {
-        return sumImpl<FloatPolicy, float>(data, size);
+        return sumImpl<FloatPolicy, double>(data, size);
     }
 
-    float SIMDOperations::minFloat(const float* data, size_t size)
+    double SIMDOperations::minFloat(const double* data, size_t size)
     {
-        return minImpl<FloatPolicy, float>(data, size);
+        return minImpl<FloatPolicy, double>(data, size);
     }
 
-    float SIMDOperations::maxFloat(const float* data, size_t size)
+    double SIMDOperations::maxFloat(const double* data, size_t size)
     {
-        return maxImpl<FloatPolicy, float>(data, size);
+        return maxImpl<FloatPolicy, double>(data, size);
     }
 
 } // namespace mType::value::simd

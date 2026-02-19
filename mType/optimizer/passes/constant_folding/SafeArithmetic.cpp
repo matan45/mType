@@ -121,20 +121,20 @@ std::optional<int64_t> SafeArithmetic::safeNegate(int64_t value) {
 
 // ==================== Float Validation ====================
 
-bool SafeArithmetic::isFiniteFloat(float value) {
+bool SafeArithmetic::isFiniteFloat(double value) {
     // std::isfinite returns true if value is neither NaN nor Infinity
     return std::isfinite(value);
 }
 
 // ==================== Float Safe Operations (Conservative Mode) ====================
 
-std::optional<float> SafeArithmetic::safeAdd(float a, float b) {
+std::optional<double> SafeArithmetic::safeAdd(double a, double b) {
     // Conservative mode: reject NaN or Infinity inputs
     if (!isFiniteFloat(a) || !isFiniteFloat(b)) {
         return std::nullopt;
     }
 
-    float result = a + b;
+    double result = a + b;
 
     // Conservative mode: reject NaN or Infinity results
     if (!isFiniteFloat(result)) {
@@ -144,12 +144,12 @@ std::optional<float> SafeArithmetic::safeAdd(float a, float b) {
     return result;
 }
 
-std::optional<float> SafeArithmetic::safeSubtract(float a, float b) {
+std::optional<double> SafeArithmetic::safeSubtract(double a, double b) {
     if (!isFiniteFloat(a) || !isFiniteFloat(b)) {
         return std::nullopt;
     }
 
-    float result = a - b;
+    double result = a - b;
 
     if (!isFiniteFloat(result)) {
         return std::nullopt;
@@ -158,12 +158,12 @@ std::optional<float> SafeArithmetic::safeSubtract(float a, float b) {
     return result;
 }
 
-std::optional<float> SafeArithmetic::safeMultiply(float a, float b) {
+std::optional<double> SafeArithmetic::safeMultiply(double a, double b) {
     if (!isFiniteFloat(a) || !isFiniteFloat(b)) {
         return std::nullopt;
     }
 
-    float result = a * b;
+    double result = a * b;
 
     if (!isFiniteFloat(result)) {
         return std::nullopt;
@@ -172,17 +172,17 @@ std::optional<float> SafeArithmetic::safeMultiply(float a, float b) {
     return result;
 }
 
-std::optional<float> SafeArithmetic::safeDivide(float dividend, float divisor) {
+std::optional<double> SafeArithmetic::safeDivide(double dividend, double divisor) {
     if (!isFiniteFloat(dividend) || !isFiniteFloat(divisor)) {
         return std::nullopt;
     }
 
     // Check for division by zero (exact zero or near-zero)
-    if (divisor == 0.0f || std::abs(divisor) < std::numeric_limits<float>::epsilon()) {
+    if (divisor == 0.0 || std::abs(divisor) < std::numeric_limits<double>::epsilon()) {
         return std::nullopt;
     }
 
-    float result = dividend / divisor;
+    double result = dividend / divisor;
 
     if (!isFiniteFloat(result)) {
         return std::nullopt;
@@ -191,12 +191,12 @@ std::optional<float> SafeArithmetic::safeDivide(float dividend, float divisor) {
     return result;
 }
 
-std::optional<float> SafeArithmetic::safeNegate(float value) {
+std::optional<double> SafeArithmetic::safeNegate(double value) {
     if (!isFiniteFloat(value)) {
         return std::nullopt;
     }
 
-    // Negation of finite float is always safe
+    // Negation of finite double is always safe
     return -value;
 }
 

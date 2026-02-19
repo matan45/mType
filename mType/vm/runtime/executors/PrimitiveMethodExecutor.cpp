@@ -25,15 +25,15 @@ int64_t PrimitiveMethodExecutor::unboxInt(const std::shared_ptr<runtimeTypes::kl
     return std::get<int64_t>(fieldValue);
 }
 
-float PrimitiveMethodExecutor::unboxFloat(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj) {
+double PrimitiveMethodExecutor::unboxFloat(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj) {
     if (!obj) {
         throw errors::RuntimeException("Cannot unbox null Float object");
     }
     value::Value fieldValue = obj->getFieldValue("value");
-    if (!std::holds_alternative<float>(fieldValue)) {
+    if (!std::holds_alternative<double>(fieldValue)) {
         throw errors::RuntimeException("Float object 'value' field is not a float");
     }
-    return std::get<float>(fieldValue);
+    return std::get<double>(fieldValue);
 }
 
 int64_t PrimitiveMethodExecutor::unboxIntFromValue(const value::Value& val) {
@@ -55,7 +55,7 @@ int64_t PrimitiveMethodExecutor::unboxIntFromValue(const value::Value& val) {
     throw errors::RuntimeException("Cannot unbox Int: unexpected value type");
 }
 
-float PrimitiveMethodExecutor::unboxFloatFromValue(const value::Value& val) {
+double PrimitiveMethodExecutor::unboxFloatFromValue(const value::Value& val) {
     if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
         return unboxFloat(std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val));
     }
@@ -63,13 +63,13 @@ float PrimitiveMethodExecutor::unboxFloatFromValue(const value::Value& val) {
         auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
         if (!obj) throw errors::RuntimeException("Cannot unbox null Float value object");
         value::Value fieldValue = obj->getFieldValue("value");
-        if (!std::holds_alternative<float>(fieldValue)) {
+        if (!std::holds_alternative<double>(fieldValue)) {
             throw errors::RuntimeException("Float value object 'value' field is not a float");
         }
-        return std::get<float>(fieldValue);
+        return std::get<double>(fieldValue);
     }
-    if (std::holds_alternative<float>(val)) {
-        return std::get<float>(val);
+    if (std::holds_alternative<double>(val)) {
+        return std::get<double>(val);
     }
     throw errors::RuntimeException("Cannot unbox Float: unexpected value type");
 }
@@ -84,7 +84,7 @@ value::Value PrimitiveMethodExecutor::boxIntValue(int64_t val) {
     return value::Value(boxInt(val));
 }
 
-value::Value PrimitiveMethodExecutor::boxFloatValue(float val) {
+value::Value PrimitiveMethodExecutor::boxFloatValue(double val) {
     auto floatClass = getFloatClass();
     if (floatClass->isValueClass()) {
         auto valueObj = std::make_shared<value::ValueObject>(floatClass);
@@ -106,7 +106,7 @@ std::shared_ptr<runtimeTypes::klass::ObjectInstance> PrimitiveMethodExecutor::bo
     return instance;
 }
 
-std::shared_ptr<runtimeTypes::klass::ObjectInstance> PrimitiveMethodExecutor::boxFloat(float value) {
+std::shared_ptr<runtimeTypes::klass::ObjectInstance> PrimitiveMethodExecutor::boxFloat(double value) {
     auto floatClass = getFloatClass();
     auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(
         floatClass, std::unordered_map<std::string, std::string>{});
@@ -249,74 +249,74 @@ void PrimitiveMethodExecutor::handleInvokeIntCompare() {
 
 void PrimitiveMethodExecutor::handleInvokeFloatAdd() {
     value::Value argValue = context.stackManager->pop();
-    float arg = unboxFloatFromValue(argValue);
+    double arg = unboxFloatFromValue(argValue);
 
     value::Value receiverValue = context.stackManager->pop();
-    float receiver = unboxFloatFromValue(receiverValue);
+    double receiver = unboxFloatFromValue(receiverValue);
 
-    float result = receiver + arg;
+    double result = receiver + arg;
     context.stackManager->push(boxFloatValue(result));
 }
 
 void PrimitiveMethodExecutor::handleInvokeFloatSub() {
     value::Value argValue = context.stackManager->pop();
-    float arg = unboxFloatFromValue(argValue);
+    double arg = unboxFloatFromValue(argValue);
 
     value::Value receiverValue = context.stackManager->pop();
-    float receiver = unboxFloatFromValue(receiverValue);
+    double receiver = unboxFloatFromValue(receiverValue);
 
-    float result = receiver - arg;
+    double result = receiver - arg;
     context.stackManager->push(boxFloatValue(result));
 }
 
 void PrimitiveMethodExecutor::handleInvokeFloatMul() {
     value::Value argValue = context.stackManager->pop();
-    float arg = unboxFloatFromValue(argValue);
+    double arg = unboxFloatFromValue(argValue);
 
     value::Value receiverValue = context.stackManager->pop();
-    float receiver = unboxFloatFromValue(receiverValue);
+    double receiver = unboxFloatFromValue(receiverValue);
 
-    float result = receiver * arg;
+    double result = receiver * arg;
     context.stackManager->push(boxFloatValue(result));
 }
 
 void PrimitiveMethodExecutor::handleInvokeFloatDiv() {
     value::Value argValue = context.stackManager->pop();
-    float arg = unboxFloatFromValue(argValue);
+    double arg = unboxFloatFromValue(argValue);
 
-    if (arg == 0.0f) {
+    if (arg == 0.0) {
         utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero in Float.divide()");
     }
 
     value::Value receiverValue = context.stackManager->pop();
-    float receiver = unboxFloatFromValue(receiverValue);
+    double receiver = unboxFloatFromValue(receiverValue);
 
-    float result = receiver / arg;
+    double result = receiver / arg;
     context.stackManager->push(boxFloatValue(result));
 }
 
 void PrimitiveMethodExecutor::handleInvokeFloatNeg() {
     value::Value receiverValue = context.stackManager->pop();
-    float receiver = unboxFloatFromValue(receiverValue);
+    double receiver = unboxFloatFromValue(receiverValue);
 
-    float result = -receiver;
+    double result = -receiver;
     context.stackManager->push(boxFloatValue(result));
 }
 
 void PrimitiveMethodExecutor::handleInvokeFloatAbs() {
     value::Value receiverValue = context.stackManager->pop();
-    float receiver = unboxFloatFromValue(receiverValue);
+    double receiver = unboxFloatFromValue(receiverValue);
 
-    float result = (receiver < 0.0f) ? -receiver : receiver;
+    double result = (receiver < 0.0) ? -receiver : receiver;
     context.stackManager->push(boxFloatValue(result));
 }
 
 void PrimitiveMethodExecutor::handleInvokeFloatEquals() {
     value::Value argValue = context.stackManager->pop();
-    float arg = unboxFloatFromValue(argValue);
+    double arg = unboxFloatFromValue(argValue);
 
     value::Value receiverValue = context.stackManager->pop();
-    float receiver = unboxFloatFromValue(receiverValue);
+    double receiver = unboxFloatFromValue(receiverValue);
 
     bool result = (receiver == arg);
     context.stackManager->push(result);
@@ -324,10 +324,10 @@ void PrimitiveMethodExecutor::handleInvokeFloatEquals() {
 
 void PrimitiveMethodExecutor::handleInvokeFloatCompare() {
     value::Value argValue = context.stackManager->pop();
-    float arg = unboxFloatFromValue(argValue);
+    double arg = unboxFloatFromValue(argValue);
 
     value::Value receiverValue = context.stackManager->pop();
-    float receiver = unboxFloatFromValue(receiverValue);
+    double receiver = unboxFloatFromValue(receiverValue);
 
     int64_t result = (receiver < arg) ? -1 : (receiver > arg) ? 1 : 0;
     context.stackManager->push(result);

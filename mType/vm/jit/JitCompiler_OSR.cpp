@@ -18,10 +18,10 @@ namespace vm::jit
         if (lt == SlotType::FLOAT)
         {
             Vec val = cc.new_xmm();
-            cc.movss(val, Mem(localsBase, static_cast<int32_t>(slot * 8)));
+            cc.movsd(val, Mem(localsBase, static_cast<int32_t>(slot * 8)));
             InvokeNode* inv;
             cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_float),
-                      FuncSignature::build<void, value::Value*, float>());
+                      FuncSignature::build<void, value::Value*, double>());
             inv->set_arg(0, destAddr);
             inv->set_arg(1, val);
         }

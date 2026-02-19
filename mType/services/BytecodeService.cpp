@@ -373,7 +373,7 @@ namespace services
                     defaultValue = 0;
                     break;
                 case value::ValueType::FLOAT:
-                    defaultValue = 0.0f;
+                    defaultValue = 0.0;
                     break;
                 case value::ValueType::STRING:
                     defaultValue = std::string("");

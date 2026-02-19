@@ -145,13 +145,35 @@ namespace vm::jit
         Gp arrAddr = cc.new_gp64();
         cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
 
-        InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_array_get_int),
-                  FuncSignature::build<int64_t, const value::Value*, int64_t>());
-        inv->set_arg(0, arrAddr);
-        inv->set_arg(1, idx);
+        // Level 2: get raw int64_t* data pointer for inline access
+        InvokeNode* ptrInv;
+        cc.invoke(Out(ptrInv), reinterpret_cast<uint64_t>(jit_array_get_raw_int_ptr),
+                  FuncSignature::build<int64_t*, const value::Value*>());
+        ptrInv->set_arg(0, arrAddr);
+        Gp dataPtr = cc.new_gp64();
+        ptrInv->set_ret(0, dataPtr);
+
         Gp result = cc.new_gp64();
-        inv->set_ret(0, result);
+        Label slowPath = cc.newLabel();
+        Label done = cc.newLabel();
+
+        cc.test(dataPtr, dataPtr);
+        cc.jz(slowPath);
+
+        // Fast path: direct memory read — dataPtr[idx]
+        cc.mov(result, Mem(dataPtr, idx, 3));
+        cc.jmp(done);
+
+        // Slow path: heterogeneous array fallback
+        cc.bind(slowPath);
+        InvokeNode* slowInv;
+        cc.invoke(Out(slowInv), reinterpret_cast<uint64_t>(jit_array_get_int),
+                  FuncSignature::build<int64_t, const value::Value*, int64_t>());
+        slowInv->set_arg(0, arrAddr);
+        slowInv->set_arg(1, idx);
+        slowInv->set_ret(0, result);
+
+        cc.bind(done);
 
         emitValueDestroy(s, s.stackDepth - 2);
 
@@ -177,12 +199,34 @@ namespace vm::jit
         Gp arrAddr = cc.new_gp64();
         cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 3) * valueSize)));
 
-        InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_array_set_int),
+        // Level 2: get raw int64_t* data pointer for inline access
+        InvokeNode* ptrInv;
+        cc.invoke(Out(ptrInv), reinterpret_cast<uint64_t>(jit_array_get_raw_int_ptr),
+                  FuncSignature::build<int64_t*, const value::Value*>());
+        ptrInv->set_arg(0, arrAddr);
+        Gp dataPtr = cc.new_gp64();
+        ptrInv->set_ret(0, dataPtr);
+
+        Label slowPath = cc.newLabel();
+        Label done = cc.newLabel();
+
+        cc.test(dataPtr, dataPtr);
+        cc.jz(slowPath);
+
+        // Fast path: direct memory write — dataPtr[idx] = val
+        cc.mov(Mem(dataPtr, idx, 3), val);
+        cc.jmp(done);
+
+        // Slow path: heterogeneous array fallback
+        cc.bind(slowPath);
+        InvokeNode* slowInv;
+        cc.invoke(Out(slowInv), reinterpret_cast<uint64_t>(jit_array_set_int),
                   FuncSignature::build<void, const value::Value*, int64_t, int64_t>());
-        inv->set_arg(0, arrAddr);
-        inv->set_arg(1, idx);
-        inv->set_arg(2, val);
+        slowInv->set_arg(0, arrAddr);
+        slowInv->set_arg(1, idx);
+        slowInv->set_arg(2, val);
+
+        cc.bind(done);
 
         emitValueDestroy(s, s.stackDepth - 3);
 

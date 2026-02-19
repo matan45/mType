@@ -368,7 +368,7 @@ namespace vm::runtime
                     needsBoxing = true;
                     boxClassName = "Int";
                 }
-                else if (expectedType == "Float" && (std::holds_alternative<float>(argValue) || std::holds_alternative<int64_t>(argValue))) {
+                else if (expectedType == "Float" && (std::holds_alternative<double>(argValue) || std::holds_alternative<int64_t>(argValue))) {
                     needsBoxing = true;
                     boxClassName = "Float";
                 }

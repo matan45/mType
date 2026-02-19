@@ -61,7 +61,7 @@ namespace runtimeTypes::klass
                 value::ValueType argType;
                 if (std::holds_alternative<int64_t>(arg)) {
                     argType = value::ValueType::INT;
-                } else if (std::holds_alternative<float>(arg)) {
+                } else if (std::holds_alternative<double>(arg)) {
                     argType = value::ValueType::FLOAT;
                 } else if (std::holds_alternative<bool>(arg)) {
                     argType = value::ValueType::BOOL;

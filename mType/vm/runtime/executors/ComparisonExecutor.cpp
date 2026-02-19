@@ -100,8 +100,8 @@ namespace vm::runtime
 
         if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
             context.stackManager->push(std::get<int64_t>(unboxedLeft) < std::get<int64_t>(unboxedRight));
-        } else if (std::holds_alternative<float>(unboxedLeft) && std::holds_alternative<float>(unboxedRight)) {
-            context.stackManager->push(std::get<float>(unboxedLeft) < std::get<float>(unboxedRight));
+        } else if (std::holds_alternative<double>(unboxedLeft) && std::holds_alternative<double>(unboxedRight)) {
+            context.stackManager->push(std::get<double>(unboxedLeft) < std::get<double>(unboxedRight));
         } else {
             throw errors::RuntimeException("LT requires numeric operands");
         }
@@ -117,8 +117,8 @@ namespace vm::runtime
 
         if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
             context.stackManager->push(std::get<int64_t>(unboxedLeft) > std::get<int64_t>(unboxedRight));
-        } else if (std::holds_alternative<float>(unboxedLeft) && std::holds_alternative<float>(unboxedRight)) {
-            context.stackManager->push(std::get<float>(unboxedLeft) > std::get<float>(unboxedRight));
+        } else if (std::holds_alternative<double>(unboxedLeft) && std::holds_alternative<double>(unboxedRight)) {
+            context.stackManager->push(std::get<double>(unboxedLeft) > std::get<double>(unboxedRight));
         } else {
             throw errors::RuntimeException("GT requires numeric operands");
         }
@@ -134,8 +134,8 @@ namespace vm::runtime
 
         if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
             context.stackManager->push(std::get<int64_t>(unboxedLeft) <= std::get<int64_t>(unboxedRight));
-        } else if (std::holds_alternative<float>(unboxedLeft) && std::holds_alternative<float>(unboxedRight)) {
-            context.stackManager->push(std::get<float>(unboxedLeft) <= std::get<float>(unboxedRight));
+        } else if (std::holds_alternative<double>(unboxedLeft) && std::holds_alternative<double>(unboxedRight)) {
+            context.stackManager->push(std::get<double>(unboxedLeft) <= std::get<double>(unboxedRight));
         } else {
             throw errors::RuntimeException("LE requires numeric operands");
         }
@@ -151,8 +151,8 @@ namespace vm::runtime
 
         if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
             context.stackManager->push(std::get<int64_t>(unboxedLeft) >= std::get<int64_t>(unboxedRight));
-        } else if (std::holds_alternative<float>(unboxedLeft) && std::holds_alternative<float>(unboxedRight)) {
-            context.stackManager->push(std::get<float>(unboxedLeft) >= std::get<float>(unboxedRight));
+        } else if (std::holds_alternative<double>(unboxedLeft) && std::holds_alternative<double>(unboxedRight)) {
+            context.stackManager->push(std::get<double>(unboxedLeft) >= std::get<double>(unboxedRight));
         } else {
             throw errors::RuntimeException("GE requires numeric operands");
         }

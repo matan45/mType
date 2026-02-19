@@ -116,8 +116,8 @@ private:
     );
 
     static std::optional<Value> evaluateFloatArithmetic(
-        float left,
-        float right,
+        double left,
+        double right,
         TokenType op
     );
 
@@ -130,7 +130,7 @@ private:
     // ==================== Comparison Helpers ====================
 
     static std::optional<Value> compareIntegers(int64_t left, int64_t right, TokenType op);
-    static std::optional<Value> compareFloats(float left, float right, TokenType op);
+    static std::optional<Value> compareFloats(double left, double right, TokenType op);
     static std::optional<Value> compareBools(bool left, bool right, TokenType op);
     static std::optional<Value> compareStrings(
         const std::string& left,

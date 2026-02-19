@@ -195,7 +195,7 @@ namespace vm::runtime
                             initialValue = static_cast<int64_t>(0);
                             break;
                         case value::ValueType::FLOAT:
-                            initialValue = 0.0f;
+                            initialValue = 0.0;
                             break;
                         case value::ValueType::BOOL:
                             initialValue = false;

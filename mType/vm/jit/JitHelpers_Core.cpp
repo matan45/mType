@@ -36,20 +36,20 @@ namespace vm::jit
             gc::GC::maybeCollect();
         }
 
-        float jit_unbox_float(const value::Value* val)
+        double jit_unbox_float(const value::Value* val)
         {
-            if (std::holds_alternative<float>(*val))
+            if (std::holds_alternative<double>(*val))
             {
-                return std::get<float>(*val);
+                return std::get<double>(*val);
             }
             if (std::holds_alternative<int64_t>(*val))
             {
-                return static_cast<float>(std::get<int64_t>(*val));
+                return static_cast<double>(std::get<int64_t>(*val));
             }
-            return 0.0f;
+            return 0.0;
         }
 
-        void jit_set_return_float(JitContext* ctx, float val)
+        void jit_set_return_float(JitContext* ctx, double val)
         {
             ctx->returnValue = val;
             ctx->hasReturnValue = true;
@@ -60,7 +60,7 @@ namespace vm::jit
             *dest = val;
         }
 
-        void jit_box_float(value::Value* dest, float val)
+        void jit_box_float(value::Value* dest, double val)
         {
             *dest = val;
         }
@@ -110,8 +110,8 @@ namespace vm::jit
 
             if (std::holds_alternative<int64_t>(*left))
                 return std::get<int64_t>(*left) == std::get<int64_t>(*right) ? 1 : 0;
-            if (std::holds_alternative<float>(*left))
-                return std::get<float>(*left) == std::get<float>(*right) ? 1 : 0;
+            if (std::holds_alternative<double>(*left))
+                return std::get<double>(*left) == std::get<double>(*right) ? 1 : 0;
             if (std::holds_alternative<bool>(*left))
                 return std::get<bool>(*left) == std::get<bool>(*right) ? 1 : 0;
 

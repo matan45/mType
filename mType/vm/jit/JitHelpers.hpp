@@ -21,11 +21,11 @@ namespace vm::jit
         void jit_set_return_bool(JitContext* ctx, int64_t val);
         void jit_gc_safepoint();
 
-        float jit_unbox_float(const value::Value* val);
-        void jit_set_return_float(JitContext* ctx, float val);
+        double jit_unbox_float(const value::Value* val);
+        void jit_set_return_float(JitContext* ctx, double val);
 
         void jit_box_int(value::Value* dest, int64_t val);
-        void jit_box_float(value::Value* dest, float val);
+        void jit_box_float(value::Value* dest, double val);
         void jit_box_bool(value::Value* dest, int64_t val);
         void jit_box_null(value::Value* dest);
 
@@ -92,6 +92,7 @@ namespace vm::jit
     int64_t jit_array_get_int(const value::Value* array, int64_t index);
     void jit_array_set_int(const value::Value* array, int64_t index,
                            int64_t val);
+    int64_t* jit_array_get_raw_int_ptr(const value::Value* array);
 
     void jit_array_get_field(value::Value* dest, const value::Value* array,
                              int64_t index,

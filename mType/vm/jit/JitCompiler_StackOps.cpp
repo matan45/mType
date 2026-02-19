@@ -127,9 +127,8 @@ namespace vm::jit
                 if (instr.operands[0] >= s.program.getConstantPool().floats.size())
                 { s.compileFailed = true; return true; }
                 double dval = s.program.getConstantPool().getFloat(instr.operands[0]);
-                float fval = static_cast<float>(dval);
-                uint32_t bits;
-                std::memcpy(&bits, &fval, sizeof(bits));
+                uint64_t bits;
+                std::memcpy(&bits, &dval, sizeof(bits));
                 Gp tmp = cc.new_gp64();
                 cc.mov(tmp, static_cast<int64_t>(bits));
                 cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);

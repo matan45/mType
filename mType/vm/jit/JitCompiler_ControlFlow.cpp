@@ -35,11 +35,11 @@ namespace vm::jit
             {
                 InvokeNode* inv;
                 cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_unbox_float),
-                          FuncSignature::build<float, const value::Value*>());
+                          FuncSignature::build<double, const value::Value*>());
                 inv->set_arg(0, localAddr);
                 Vec val = cc.new_xmm();
                 inv->set_ret(0, val);
-                cc.movss(Mem(s.stackBase, s.stackDepth * 8), val);
+                cc.movsd(Mem(s.stackBase, s.stackDepth * 8), val);
             }
             else
             {
@@ -87,10 +87,10 @@ namespace vm::jit
             if (tt == SlotType::FLOAT)
             {
                 Vec val = cc.new_xmm();
-                cc.movss(val, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+                cc.movsd(val, Mem(s.stackBase, (s.stackDepth - 1) * 8));
                 InvokeNode* inv;
                 cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_float),
-                          FuncSignature::build<void, value::Value*, float>());
+                          FuncSignature::build<void, value::Value*, double>());
                 inv->set_arg(0, destAddr);
                 inv->set_arg(1, val);
             }
@@ -135,10 +135,10 @@ namespace vm::jit
         else if (retType == SlotType::FLOAT)
         {
             Vec retVal = cc.new_xmm();
-            cc.movss(retVal, Mem(s.stackBase, s.stackDepth * 8));
+            cc.movsd(retVal, Mem(s.stackBase, s.stackDepth * 8));
             InvokeNode* inv;
             cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_set_return_float),
-                      FuncSignature::build<void, JitContext*, float>());
+                      FuncSignature::build<void, JitContext*, double>());
             inv->set_arg(0, s.ctxPtr);
             inv->set_arg(1, retVal);
         }

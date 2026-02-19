@@ -33,17 +33,17 @@ namespace vm::jit
             }
         }
 
-        bool leftIsNumeric = std::holds_alternative<float>(*left) || std::holds_alternative<int64_t>(*left);
-        bool rightIsNumeric = std::holds_alternative<float>(*right) || std::holds_alternative<int64_t>(*right);
+        bool leftIsNumeric = std::holds_alternative<double>(*left) || std::holds_alternative<int64_t>(*left);
+        bool rightIsNumeric = std::holds_alternative<double>(*right) || std::holds_alternative<int64_t>(*right);
 
         if (leftIsNumeric && rightIsNumeric)
         {
-            float l = std::holds_alternative<float>(*left)
-                ? std::get<float>(*left)
-                : static_cast<float>(std::get<int64_t>(*left));
-            float r = std::holds_alternative<float>(*right)
-                ? std::get<float>(*right)
-                : static_cast<float>(std::get<int64_t>(*right));
+            double l = std::holds_alternative<double>(*left)
+                ? std::get<double>(*left)
+                : static_cast<double>(std::get<int64_t>(*left));
+            double r = std::holds_alternative<double>(*right)
+                ? std::get<double>(*right)
+                : static_cast<double>(std::get<int64_t>(*right));
 
             switch (op)
             {
@@ -51,7 +51,7 @@ namespace vm::jit
                 case '-': *result = l - r; return;
                 case '*': *result = l * r; return;
                 case '/':
-                    if (r == 0.0f) throw errors::RuntimeException("Division by zero");
+                    if (r == 0.0) throw errors::RuntimeException("Division by zero");
                     *result = l / r; return;
                 case '%':
                     throw errors::RuntimeException("Modulo not supported for float");

@@ -72,19 +72,19 @@ private:
      * @return The primitive int64_t value from the 'value' field
      */
     int64_t unboxInt(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
-    float unboxFloat(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+    double unboxFloat(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
 
     // Value-based unbox: handles both ObjectInstance and ValueObject
     int64_t unboxIntFromValue(const value::Value& val);
-    float unboxFloatFromValue(const value::Value& val);
+    double unboxFloatFromValue(const value::Value& val);
 
     // Box that returns appropriate type (ValueObject if value class, ObjectInstance otherwise)
     value::Value boxIntValue(int64_t val);
-    value::Value boxFloatValue(float val);
+    value::Value boxFloatValue(double val);
 
     // Legacy box methods (always return ObjectInstance)
     std::shared_ptr<runtimeTypes::klass::ObjectInstance> boxInt(int64_t value);
-    std::shared_ptr<runtimeTypes::klass::ObjectInstance> boxFloat(float value);
+    std::shared_ptr<runtimeTypes::klass::ObjectInstance> boxFloat(double value);
 
     /**
      * Get the class definition for Int (cached for performance)

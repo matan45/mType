@@ -18,7 +18,7 @@ namespace lexer
     public:
         // Type-specific token creation
         static Token createIntegerToken(int64_t value, const errors::SourceLocation& location);
-        static Token createFloatToken(float value, const errors::SourceLocation& location);
+        static Token createFloatToken(double value, const errors::SourceLocation& location);
         static Token createStringToken(std::string_view value, const errors::SourceLocation& location);
         static Token createIdentifierToken(std::string_view identifier, const errors::SourceLocation& location);
         static Token createKeywordToken(TokenType keywordType, std::string_view keyword,

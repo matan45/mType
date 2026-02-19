@@ -29,9 +29,9 @@ namespace environment::registry::builtin
                 std::hash<int64_t> hasher;
                 return static_cast<int64_t>(hasher(value) & 0x7FFFFFFF);
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
+            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, double>)
             {
-                std::hash<float> hasher;
+                std::hash<double> hasher;
                 return static_cast<int>(hasher(value) & 0x7FFFFFFF);
             }
             else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, bool>)

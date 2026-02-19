@@ -647,7 +647,7 @@ namespace vm::runtime
                 defaultValue = 0;
                 break;
             case value::ValueType::FLOAT:
-                defaultValue = 0.0f;
+                defaultValue = 0.0;
                 break;
             case value::ValueType::BOOL:
                 defaultValue = false;

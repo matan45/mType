@@ -135,13 +135,13 @@ namespace vm::jit
         emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::FLOAT);
         Vec right = cc.new_xmm();
         Vec left = cc.new_xmm();
-        cc.movss(right, Mem(s.stackBase, s.stackDepth * 8));
-        cc.movss(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-        if (instr.opcode == OpCode::ADD_FLOAT) cc.addss(left, right);
-        else if (instr.opcode == OpCode::SUB_FLOAT) cc.subss(left, right);
-        else if (instr.opcode == OpCode::MUL_FLOAT) cc.mulss(left, right);
-        else cc.divss(left, right);
-        cc.movss(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
+        cc.movsd(right, Mem(s.stackBase, s.stackDepth * 8));
+        cc.movsd(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+        if (instr.opcode == OpCode::ADD_FLOAT) cc.addsd(left, right);
+        else if (instr.opcode == OpCode::SUB_FLOAT) cc.subsd(left, right);
+        else if (instr.opcode == OpCode::MUL_FLOAT) cc.mulsd(left, right);
+        else cc.divsd(left, right);
+        cc.movsd(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
         s.slotTypes.push_back(SlotType::FLOAT);
         return true;
     }
@@ -182,12 +182,12 @@ namespace vm::jit
         {
             Vec right = cc.new_xmm();
             Vec left = cc.new_xmm();
-            cc.movss(right, Mem(s.stackBase, s.stackDepth * 8));
-            cc.movss(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-            if (instr.opcode == OpCode::ADD) cc.addss(left, right);
-            else if (instr.opcode == OpCode::SUB) cc.subss(left, right);
-            else cc.mulss(left, right);
-            cc.movss(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
+            cc.movsd(right, Mem(s.stackBase, s.stackDepth * 8));
+            cc.movsd(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+            if (instr.opcode == OpCode::ADD) cc.addsd(left, right);
+            else if (instr.opcode == OpCode::SUB) cc.subsd(left, right);
+            else cc.mulsd(left, right);
+            cc.movsd(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
             s.slotTypes.push_back(SlotType::FLOAT);
         }
         else
@@ -238,19 +238,19 @@ namespace vm::jit
         {
             Vec right = cc.new_xmm();
             Vec left = cc.new_xmm();
-            cc.movss(right, Mem(s.stackBase, s.stackDepth * 8));
-            cc.movss(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+            cc.movsd(right, Mem(s.stackBase, s.stackDepth * 8));
+            cc.movsd(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
             Vec zero = cc.new_xmm();
-            cc.xorps(zero, zero);
-            cc.ucomiss(right, zero);
+            cc.xorpd(zero, zero);
+            cc.ucomisd(right, zero);
             Label nz = cc.new_label();
             cc.jne(nz);
             InvokeNode* dz;
             cc.invoke(Out(dz), (uint64_t)jit_throw_div_by_zero,
                       FuncSignature::build<void>());
             cc.bind(nz);
-            cc.divss(left, right);
-            cc.movss(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
+            cc.divsd(left, right);
+            cc.movsd(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
             s.slotTypes.push_back(SlotType::FLOAT);
         }
         else

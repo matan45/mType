@@ -63,7 +63,7 @@ namespace vm::runtime
             return std::holds_alternative<int64_t>(val);
         }
         if (targetTypeName == "Float" || targetTypeName == "float") {
-            return std::holds_alternative<float>(val);
+            return std::holds_alternative<double>(val);
         }
         if (targetTypeName == "Bool" || targetTypeName == "bool") {
             return std::holds_alternative<bool>(val);
@@ -179,8 +179,8 @@ namespace vm::runtime
         if (std::holds_alternative<int64_t>(val)) {
             return val; // Already int
         }
-        else if (std::holds_alternative<float>(val)) {
-            return static_cast<int64_t>(std::get<float>(val));
+        else if (std::holds_alternative<double>(val)) {
+            return static_cast<int64_t>(std::get<double>(val));
         }
         else if (std::holds_alternative<bool>(val)) {
             return std::get<bool>(val) ? static_cast<int64_t>(1) : static_cast<int64_t>(0);
@@ -213,15 +213,15 @@ namespace vm::runtime
     }
 
     value::Value TypeExecutor::castToFloat(const value::Value& val) {
-        if (std::holds_alternative<float>(val)) {
+        if (std::holds_alternative<double>(val)) {
             return val; // Already float
         }
         else if (std::holds_alternative<int64_t>(val)) {
-            return static_cast<float>(std::get<int64_t>(val));
+            return static_cast<double>(std::get<int64_t>(val));
         }
         else if (std::holds_alternative<std::string>(val)) {
             try {
-                return std::stof(std::get<std::string>(val));
+                return std::stod(std::get<std::string>(val));
             } catch (...) {
                 throwCastError("Cannot cast string to float: " + std::get<std::string>(val));
             }
@@ -249,8 +249,8 @@ namespace vm::runtime
         else if (std::holds_alternative<int64_t>(val)) {
             return std::get<int64_t>(val) != 0;
         }
-        else if (std::holds_alternative<float>(val)) {
-            return std::get<float>(val) != 0.0;
+        else if (std::holds_alternative<double>(val)) {
+            return std::get<double>(val) != 0.0;
         }
         else if (std::holds_alternative<std::string>(val)) {
             const std::string& str = std::get<std::string>(val);
@@ -498,9 +498,9 @@ namespace vm::runtime
         if (std::holds_alternative<int64_t>(val)) {
             return std::to_string(std::get<int64_t>(val));
         }
-        if (std::holds_alternative<float>(val)) {
+        if (std::holds_alternative<double>(val)) {
             std::ostringstream oss;
-            oss << std::get<float>(val);
+            oss << std::get<double>(val);
             return oss.str();
         }
         if (std::holds_alternative<bool>(val)) {
