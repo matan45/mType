@@ -3092,13 +3092,31 @@
     <ClCompile Include="vm\jit\JitCompiler_Core.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_EmitHelpers.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_OSR.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_Objects.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
-    <ClCompile Include="vm\jit\JitHelpers.cpp">
+    <ClCompile Include="vm\jit\JitCompiler_StackOps.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_Arithmetic.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_Arrays.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_Core.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_OSR.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_Objects.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitProfiler.cpp">
@@ -10305,9 +10323,6 @@
     </None>
     <None Include="tests\testFiles\modifiers\pass\publicStaticMembers.mt">
       <Filter>tests\testFiles\modifiers\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\nullSafety\error\nullReturnToNonNullable_error.mt">
-      <Filter>tests\testFiles\nullSafety\error</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\error\nullToNonNullable_error.mt">
       <Filter>tests\testFiles\nullSafety\error</Filter>

@@ -5,6 +5,7 @@
 #include "OSRState.hpp"
 #include "JitCodeCache.hpp"
 #include "JitCompiler.hpp"
+#include "JitContext.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../runtime/context/ExecutionContext.hpp"
 
@@ -60,6 +61,35 @@ namespace vm::jit
         void writeBackState(const OSRResult& result,
                            const OSRState& state,
                            vm::runtime::ExecutionContext& context);
+
+        // Find LOOP_START and LOOP_END boundaries around a jump-back offset
+        bool findLoopBoundaries(size_t jumpBackOffset,
+                               const bytecode::BytecodeProgram& program,
+                               size_t& loopStartOffset,
+                               size_t& loopEndOffset);
+
+        // Capture local variables from the interpreter stack into OSRState
+        void captureLocals(OSRState& state,
+                          size_t localBase,
+                          size_t localCount,
+                          vm::runtime::ExecutionContext& context);
+
+        // Build JitContext for OSR loop execution
+        void buildOSRContext(JitContext& jitCtx,
+                            const OSRState& state,
+                            const bytecode::BytecodeProgram& program,
+                            vm::runtime::ExecutionContext& context,
+                            vm::runtime::VirtualMachine& vm,
+                            JitCodeCache& codeCache,
+                            value::Value* inputLocals,
+                            value::Value* outputLocals);
+
+        // Compile a loop via JIT and cache the result
+        bool compileAndCacheLoop(OSRState& state,
+                                size_t jumpBackOffset,
+                                const bytecode::BytecodeProgram& program,
+                                JitCompiler& compiler,
+                                JitCodeCache& codeCache);
 
         // Infer SlotType from a runtime Value
         static SlotType inferSlotType(const value::Value& val);

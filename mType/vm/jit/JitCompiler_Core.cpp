@@ -13,12 +13,6 @@ namespace vm::jit
 
     JitCompiler::JitCompiler() {}
 
-    static std::string getKnownNativeReturnType(const std::string& name)
-    {
-        if (name == "print" || name == "println") return "void";
-        return "";
-    }
-
     bool JitCompiler::canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
                                   const bytecode::BytecodeProgram& program) const
     {
@@ -48,8 +42,6 @@ namespace vm::jit
         }
         return true;
     }
-
-    // ===== Shared emission helpers =====
 
     void emitBox(JitEmissionState& s, Gp destAddr, int stackOff, SlotType type)
     {
@@ -216,93 +208,145 @@ namespace vm::jit
         s.slotTypes.push_back(SlotType::BOOL);
     }
 
-    // ===== compile() =====
-
-    bool JitCompiler::compile(const std::string& functionName,
-                               const bytecode::BytecodeProgram& program,
-                               JitCodeCache& codeCache)
+    static void emitUnboxParamBoxedMode(Compiler& cc, Gp localsBase,
+                                         Gp argAddr, SlotType paramType,
+                                         size_t localStride, size_t slot)
     {
-        if (codeCache.contains(functionName))
-            return true;
-
-        const auto* funcMeta = program.getFunction(functionName);
-        if (!funcMeta || !canCompile(*funcMeta, program))
+        Gp destAddr = cc.new_gp64();
+        cc.lea(destAddr, Mem(localsBase, static_cast<int32_t>(slot * localStride)));
+        if (paramType == SlotType::FLOAT)
         {
-            bailoutCount++;
-            return false;
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_unbox_float),
+                      FuncSignature::build<float, const value::Value*>());
+            inv->set_arg(0, argAddr);
+            Vec val = cc.new_xmm();
+            inv->set_ret(0, val);
+            InvokeNode* boxInv;
+            cc.invoke(Out(boxInv), reinterpret_cast<uint64_t>(jit_box_float),
+                      FuncSignature::build<void, value::Value*, float>());
+            boxInv->set_arg(0, destAddr);
+            boxInv->set_arg(1, val);
         }
-
-        CodeHolder code;
-        code.init(codeCache.getRuntime().environment());
-        Compiler cc(&code);
-
-        FuncNode* func = cc.add_func(FuncSignature::build<void, JitContext*>());
-        Gp ctxPtr = cc.new_gp64("ctx");
-        func->set_arg(0, ctxPtr);
-
-        size_t localCount = funcMeta->localCount;
-        if (localCount == 0) localCount = 1;
-        constexpr size_t MAX_LOCAL_COUNT = 1024;
-        if (localCount > MAX_LOCAL_COUNT)
+        else
         {
-            bailoutCount++;
-            return false;
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_unbox_int),
+                      FuncSignature::build<int64_t, const value::Value*>());
+            inv->set_arg(0, argAddr);
+            Gp val = cc.new_gp64();
+            inv->set_ret(0, val);
+            uint64_t boxFn = (paramType == SlotType::BOOL)
+                ? reinterpret_cast<uint64_t>(jit_box_bool)
+                : reinterpret_cast<uint64_t>(jit_box_int);
+            InvokeNode* boxInv;
+            cc.invoke(Out(boxInv), boxFn,
+                      FuncSignature::build<void, value::Value*, int64_t>());
+            boxInv->set_arg(0, destAddr);
+            boxInv->set_arg(1, val);
         }
+    }
+
+    static void emitUnboxParamRawMode(Compiler& cc, Gp localsBase,
+                                       Gp argAddr, SlotType paramType, size_t slot)
+    {
+        if (paramType == SlotType::FLOAT)
+        {
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_unbox_float),
+                      FuncSignature::build<float, const value::Value*>());
+            inv->set_arg(0, argAddr);
+            Vec val = cc.new_xmm();
+            inv->set_ret(0, val);
+            cc.movss(Mem(localsBase, static_cast<int32_t>(slot * 8)), val);
+        }
+        else
+        {
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_unbox_int),
+                      FuncSignature::build<int64_t, const value::Value*>());
+            inv->set_arg(0, argAddr);
+            Gp val = cc.new_gp64();
+            inv->set_ret(0, val);
+            cc.mov(Mem(localsBase, static_cast<int32_t>(slot * 8)), val);
+        }
+    }
+
+    static void emitArgumentUnboxing(Compiler& cc, Gp ctxPtr, Gp localsBase,
+                                      const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
+                                      bool usesBoxedTypes, size_t localStride,
+                                      std::unordered_map<size_t, SlotType>& localTypes)
+    {
+        constexpr size_t valueSize = sizeof(value::Value);
+        Gp argsPtr = cc.new_gp64("argsPtr");
+        cc.mov(argsPtr, Mem(ctxPtr, offsetof(JitContext, args)));
+
+        for (size_t i = 0; i < funcMeta.parameterCount; ++i)
+        {
+            SlotType paramType = SlotType::INT;
+            if (i < funcMeta.parameterTypes.size())
+            {
+                const std::string& t = funcMeta.parameterTypes[i];
+                if (t == "float") paramType = SlotType::FLOAT;
+                else if (t == "bool") paramType = SlotType::BOOL;
+                else if (t != "int") paramType = SlotType::BOXED;
+            }
+            localTypes[i] = paramType;
+
+            Gp argAddr = cc.new_gp64();
+            cc.lea(argAddr, Mem(argsPtr, static_cast<int32_t>(i * valueSize)));
+
+            if (isBoxedSlotType(paramType))
+            {
+                Gp destAddr = cc.new_gp64();
+                cc.lea(destAddr, Mem(localsBase, static_cast<int32_t>(i * localStride)));
+                InvokeNode* inv;
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
+                          FuncSignature::build<void, value::Value*, const value::Value*>());
+                inv->set_arg(0, destAddr);
+                inv->set_arg(1, argAddr);
+            }
+            else if (usesBoxedTypes)
+            {
+                emitUnboxParamBoxedMode(cc, localsBase, argAddr, paramType, localStride, i);
+            }
+            else
+            {
+                emitUnboxParamRawMode(cc, localsBase, argAddr, paramType, i);
+            }
+        }
+    }
+
+    struct CompilationFrame
+    {
+        Gp localsBase;
+        Gp stackBase;
+        Gp boxedBase;
+        Gp progPtr;
+        bool usesBoxedTypes;
+        size_t localCount;
+        size_t localStride;
+        std::unordered_map<size_t, SlotType> localTypes;
+    };
+
+    static CompilationFrame setupCompilationFrame(
+        Compiler& cc, const bytecode::BytecodeProgram& program,
+        const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
+        size_t localCount)
+    {
         constexpr size_t MAX_OP_STACK = 64;
         constexpr size_t valueSize = sizeof(value::Value);
 
-        // Pre-scan: determine if function uses boxed types
-        bool usesBoxedTypes = false;
+        size_t scanEnd = funcMeta.startOffset + funcMeta.instructionCount;
+        bool usesBoxedTypes = scanOpcodesForBoxedTypes(program, funcMeta.startOffset, scanEnd);
+        if (!usesBoxedTypes)
         {
-            size_t scanEnd = funcMeta->startOffset + funcMeta->instructionCount;
-            for (size_t ip = funcMeta->startOffset; ip < scanEnd; ++ip)
+            for (const auto& t : funcMeta.parameterTypes)
             {
-                const auto& si = program.getInstruction(ip);
-                switch (si.opcode)
+                if (t != "int" && t != "float" && t != "bool")
                 {
-                    case OpCode::PUSH_STRING: case OpCode::GET_FIELD:
-                    case OpCode::SET_FIELD:   case OpCode::NEW_OBJECT:
-                    case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
-                    case OpCode::CALL_METHOD: case OpCode::CALL_STATIC:
-                    case OpCode::NEW_ARRAY:   case OpCode::ARRAY_GET:
-                    case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:
-                    case OpCode::INSTANCEOF:  case OpCode::CAST:
-                        usesBoxedTypes = true;
-                        break;
-                    default: break;
-                }
-                if (usesBoxedTypes) break;
-            }
-            if (!usesBoxedTypes)
-            {
-                for (size_t ip = funcMeta->startOffset; ip < scanEnd; ++ip)
-                {
-                    const auto& si = program.getInstruction(ip);
-                    if (si.opcode == OpCode::CALL && si.operands.size() >= 2)
-                    {
-                        uint32_t fnIdx = static_cast<uint32_t>(si.operands[0]);
-                        if (fnIdx >= program.getConstantPool().strings.size())
-                            continue;
-                        const std::string& fn = program.getConstantPool().getString(fnIdx);
-                        const auto* cm = program.getFunction(fn);
-                        if (cm && cm->returnType != "int" && cm->returnType != "float" &&
-                            cm->returnType != "bool" && cm->returnType != "void")
-                        {
-                            usesBoxedTypes = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            if (!usesBoxedTypes)
-            {
-                for (const auto& t : funcMeta->parameterTypes)
-                {
-                    if (t != "int" && t != "float" && t != "bool")
-                    {
-                        usesBoxedTypes = true;
-                        break;
-                    }
+                    usesBoxedTypes = true;
+                    break;
                 }
             }
         }
@@ -326,167 +370,25 @@ namespace vm::jit
 
         Gp progPtr = cc.new_gp64("progPtr");
         if (usesBoxedTypes)
-        {
             cc.mov(progPtr, reinterpret_cast<uint64_t>(&program));
-        }
+
+        if (usesBoxedTypes)
+            emitMemoryInit(cc, localsBase, localCount, boxedBase, MAX_OP_STACK);
 
         std::unordered_map<size_t, SlotType> localTypes;
+        return {localsBase, stackBase, boxedBase, progPtr,
+                usesBoxedTypes, localCount, localStride, std::move(localTypes)};
+    }
 
-        // Initialize locals and boxed stacks
-        if (usesBoxedTypes)
-        {
-            Gp initBase = cc.new_gp64();
-            cc.mov(initBase, localsBase);
-            Gp initCount = cc.new_gp64();
-            cc.mov(initCount, static_cast<int64_t>(localCount));
-            InvokeNode* initLocals;
-            cc.invoke(Out(initLocals), reinterpret_cast<uint64_t>(jit_locals_init),
-                      FuncSignature::build<void, value::Value*, size_t>());
-            initLocals->set_arg(0, initBase);
-            initLocals->set_arg(1, initCount);
-
-            Gp bsBase = cc.new_gp64();
-            cc.mov(bsBase, boxedBase);
-            Gp bsCount = cc.new_gp64();
-            cc.mov(bsCount, static_cast<int64_t>(MAX_OP_STACK));
-            InvokeNode* initBoxed;
-            cc.invoke(Out(initBoxed), reinterpret_cast<uint64_t>(jit_locals_init),
-                      FuncSignature::build<void, value::Value*, size_t>());
-            initBoxed->set_arg(0, bsBase);
-            initBoxed->set_arg(1, bsCount);
-        }
-
-        // Unbox arguments with type awareness
-        {
-            Gp argsPtr = cc.new_gp64("argsPtr");
-            cc.mov(argsPtr, Mem(ctxPtr, offsetof(JitContext, args)));
-
-            for (size_t i = 0; i < funcMeta->parameterCount; ++i)
-            {
-                SlotType paramType = SlotType::INT;
-                if (i < funcMeta->parameterTypes.size())
-                {
-                    const std::string& t = funcMeta->parameterTypes[i];
-                    if (t == "float") paramType = SlotType::FLOAT;
-                    else if (t == "bool") paramType = SlotType::BOOL;
-                    else if (t != "int") paramType = SlotType::BOXED;
-                }
-                localTypes[i] = paramType;
-
-                Gp argAddr = cc.new_gp64();
-                cc.lea(argAddr, Mem(argsPtr, static_cast<int32_t>(i * valueSize)));
-
-                if (isBoxedSlotType(paramType))
-                {
-                    Gp destAddr = cc.new_gp64();
-                    cc.lea(destAddr, Mem(localsBase, static_cast<int32_t>(i * localStride)));
-                    InvokeNode* inv;
-                    cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
-                              FuncSignature::build<void, value::Value*, const value::Value*>());
-                    inv->set_arg(0, destAddr);
-                    inv->set_arg(1, argAddr);
-                }
-                else if (usesBoxedTypes)
-                {
-                    if (paramType == SlotType::FLOAT)
-                    {
-                        InvokeNode* inv;
-                        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_unbox_float),
-                                  FuncSignature::build<float, const value::Value*>());
-                        inv->set_arg(0, argAddr);
-                        Vec val = cc.new_xmm();
-                        inv->set_ret(0, val);
-                        Gp destAddr = cc.new_gp64();
-                        cc.lea(destAddr, Mem(localsBase, static_cast<int32_t>(i * localStride)));
-                        InvokeNode* boxInv;
-                        cc.invoke(Out(boxInv), reinterpret_cast<uint64_t>(jit_box_float),
-                                  FuncSignature::build<void, value::Value*, float>());
-                        boxInv->set_arg(0, destAddr);
-                        boxInv->set_arg(1, val);
-                    }
-                    else
-                    {
-                        InvokeNode* inv;
-                        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_unbox_int),
-                                  FuncSignature::build<int64_t, const value::Value*>());
-                        inv->set_arg(0, argAddr);
-                        Gp val = cc.new_gp64();
-                        inv->set_ret(0, val);
-                        Gp destAddr = cc.new_gp64();
-                        cc.lea(destAddr, Mem(localsBase, static_cast<int32_t>(i * localStride)));
-                        uint64_t boxFn = (paramType == SlotType::BOOL)
-                            ? reinterpret_cast<uint64_t>(jit_box_bool)
-                            : reinterpret_cast<uint64_t>(jit_box_int);
-                        InvokeNode* boxInv;
-                        cc.invoke(Out(boxInv), boxFn,
-                                  FuncSignature::build<void, value::Value*, int64_t>());
-                        boxInv->set_arg(0, destAddr);
-                        boxInv->set_arg(1, val);
-                    }
-                }
-                else
-                {
-                    if (paramType == SlotType::FLOAT)
-                    {
-                        InvokeNode* inv;
-                        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_unbox_float),
-                                  FuncSignature::build<float, const value::Value*>());
-                        inv->set_arg(0, argAddr);
-                        Vec val = cc.new_xmm();
-                        inv->set_ret(0, val);
-                        cc.movss(Mem(localsBase, static_cast<int32_t>(i * 8)), val);
-                    }
-                    else
-                    {
-                        InvokeNode* inv;
-                        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_unbox_int),
-                                  FuncSignature::build<int64_t, const value::Value*>());
-                        inv->set_arg(0, argAddr);
-                        Gp val = cc.new_gp64();
-                        inv->set_ret(0, val);
-                        cc.mov(Mem(localsBase, static_cast<int32_t>(i * 8)), val);
-                    }
-                }
-            }
-        }
-
-        // Zero-init non-parameter locals
-        if (!usesBoxedTypes)
-        {
-            for (size_t i = funcMeta->parameterCount; i < funcMeta->localCount; ++i)
-                cc.mov(Mem(localsBase, static_cast<int32_t>(i * 8)), 0);
-        }
-
-        // Create jump target labels
-        size_t startOffset = funcMeta->startOffset;
-        size_t instrCount = funcMeta->instructionCount;
-        std::unordered_map<size_t, Label> labels;
-
-        for (size_t ip = startOffset; ip < startOffset + instrCount; ++ip)
-        {
-            const auto& instr = program.getInstruction(ip);
-            if (instr.opcode == OpCode::JUMP || instr.opcode == OpCode::JUMP_IF_FALSE ||
-                instr.opcode == OpCode::JUMP_IF_TRUE || instr.opcode == OpCode::JUMP_BACK)
-            {
-                if (!instr.operands.empty())
-                {
-                    size_t target = instr.operands[0];
-                    if (labels.find(target) == labels.end())
-                        labels[target] = cc.new_label();
-                }
-            }
-        }
-
-        // Build emission state and run main codegen loop
-        JitEmissionState s{cc, ctxPtr, localsBase, stackBase, boxedBase, progPtr,
-                           usesBoxedTypes, localCount, localStride,
-                           0, {}, localTypes, false, 0, labels, program};
-
+    static void emitCodegenLoop(JitEmissionState& s,
+                                size_t startOffset, size_t instrCount,
+                                const bytecode::BytecodeProgram& program)
+    {
         for (size_t ip = startOffset; ip < startOffset + instrCount && !s.compileFailed; ++ip)
         {
             auto labelIt = s.labels.find(ip);
             if (labelIt != s.labels.end())
-                cc.bind(labelIt->second);
+                s.cc.bind(labelIt->second);
 
             const auto& instr = program.getInstruction(ip);
             s.currentIP = ip;
@@ -495,34 +397,82 @@ namespace vm::jit
             if (emitControlFlowOps(s, instr, nullptr)) continue;
             emitObjectOps(s, instr);
         }
+    }
+
+    static bool emitFunctionBody(Compiler& cc, Gp ctxPtr,
+                                   const bytecode::BytecodeProgram& program,
+                                   const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
+                                   CompilationFrame& frame)
+    {
+        emitArgumentUnboxing(cc, ctxPtr, frame.localsBase, funcMeta,
+                             frame.usesBoxedTypes, frame.localStride, frame.localTypes);
+
+        if (!frame.usesBoxedTypes)
+        {
+            for (size_t i = funcMeta.parameterCount; i < funcMeta.localCount; ++i)
+                cc.mov(Mem(frame.localsBase, static_cast<int32_t>(i * 8)), 0);
+        }
+
+        size_t startOffset = funcMeta.startOffset;
+        size_t instrCount = funcMeta.instructionCount;
+        auto labels = createJumpLabels(cc, program, startOffset, startOffset + instrCount);
+
+        JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
+                           frame.boxedBase, frame.progPtr,
+                           frame.usesBoxedTypes, frame.localCount, frame.localStride,
+                           0, {}, frame.localTypes, false, 0, labels, program};
+
+        emitCodegenLoop(s, startOffset, instrCount, program);
 
         if (s.compileFailed)
-        {
-            bailoutCount++;
             return false;
-        }
 
         emitCleanup(s);
         cc.mov(Mem(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
-        cc.end_func();
-
-        Error err = cc.finalize();
-        if (err != Error::kOk)
-        {
-            bailoutCount++;
-            return false;
-        }
-
-        JitFunction fn = nullptr;
-        err = codeCache.getRuntime().add(&fn, &code);
-        if (err != Error::kOk)
-        {
-            bailoutCount++;
-            return false;
-        }
-
-        codeCache.store(functionName, fn);
-        compileCount++;
         return true;
+    }
+
+    bool JitCompiler::compile(const std::string& functionName,
+                               const bytecode::BytecodeProgram& program,
+                               JitCodeCache& codeCache)
+    {
+        if (codeCache.contains(functionName))
+            return true;
+
+        const auto* funcMeta = program.getFunction(functionName);
+        if (!funcMeta || !canCompile(*funcMeta, program))
+        {
+            bailoutCount++;
+            return false;
+        }
+
+        size_t localCount = funcMeta->localCount;
+        if (localCount == 0) localCount = 1;
+        constexpr size_t MAX_LOCAL_COUNT = 1024;
+        if (localCount > MAX_LOCAL_COUNT)
+        {
+            bailoutCount++;
+            return false;
+        }
+
+        CodeHolder code;
+        code.init(codeCache.getRuntime().environment());
+        Compiler cc(&code);
+
+        FuncNode* func = cc.add_func(FuncSignature::build<void, JitContext*>());
+        Gp ctxPtr = cc.new_gp64("ctx");
+        func->set_arg(0, ctxPtr);
+
+        auto frame = setupCompilationFrame(cc, program, *funcMeta, localCount);
+
+        if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame))
+        {
+            bailoutCount++;
+            return false;
+        }
+
+        cc.end_func();
+        return finalizeAndStore(cc, code, codeCache, functionName,
+                               compileCount, bailoutCount);
     }
 }
