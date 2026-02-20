@@ -63,31 +63,31 @@ public:
      * @brief Safely add two floats (conservative mode - no NaN/Infinity)
      * @return Result if safe, std::nullopt if operands or result are NaN/Infinity
      */
-    static std::optional<float> safeAdd(float a, float b);
+    static std::optional<double> safeAdd(double a, double b);
 
     /**
      * @brief Safely subtract two floats (conservative mode)
      * @return Result if safe, std::nullopt if operands or result are NaN/Infinity
      */
-    static std::optional<float> safeSubtract(float a, float b);
+    static std::optional<double> safeSubtract(double a, double b);
 
     /**
      * @brief Safely multiply two floats (conservative mode)
      * @return Result if safe, std::nullopt if operands or result are NaN/Infinity
      */
-    static std::optional<float> safeMultiply(float a, float b);
+    static std::optional<double> safeMultiply(double a, double b);
 
     /**
      * @brief Safely divide two floats (conservative mode)
      * @return Result if safe, std::nullopt if division by zero or result is NaN/Infinity
      */
-    static std::optional<float> safeDivide(float dividend, float divisor);
+    static std::optional<double> safeDivide(double dividend, double divisor);
 
     /**
      * @brief Safely negate a float (conservative mode)
      * @return Result if safe, std::nullopt if operand is NaN/Infinity
      */
-    static std::optional<float> safeNegate(float value);
+    static std::optional<double> safeNegate(double value);
 
     // ==================== Validation Helpers ====================
 
@@ -109,7 +109,7 @@ public:
     /**
      * @brief Check if float value is finite (not NaN or Infinity)
      */
-    static bool isFiniteFloat(float value);
+    static bool isFiniteFloat(double value);
 };
 
 } // namespace constant_folding

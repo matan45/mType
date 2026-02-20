@@ -62,6 +62,18 @@ namespace vm::jit
         inv->set_arg(1, arrAddr);
         inv->set_arg(2, indexVal);
 
+        // Mirror the boxed result to stackBase so ADD_INT and other
+        // primitive ops can read it from the unboxed stack.
+        Gp unboxAddr = cc.new_gp64();
+        cc.lea(unboxAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
+        InvokeNode* unbox;
+        cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        unbox->set_arg(0, unboxAddr);
+        Gp unboxed = cc.new_gp64();
+        unbox->set_ret(0, unboxed);
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 2) * 8), unboxed);
+
         s.stackDepth--;
         s.slotTypes.push_back(SlotType::BOXED);
         return true;
@@ -133,13 +145,60 @@ namespace vm::jit
         Gp arrAddr = cc.new_gp64();
         cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
 
-        InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_array_get_int),
-                  FuncSignature::build<int64_t, const value::Value*, int64_t>());
-        inv->set_arg(0, arrAddr);
-        inv->set_arg(1, idx);
+        // Bounds check: fetch array length, unsigned compare catches negative + overflow
+        InvokeNode* lenInv;
+        cc.invoke(Out(lenInv), reinterpret_cast<uint64_t>(jit_array_length),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        lenInv->set_arg(0, arrAddr);
+        Gp arrLen = cc.new_gp64();
+        lenInv->set_ret(0, arrLen);
+
+        Label boundsOk = cc.new_label();
+        cc.cmp(idx, arrLen);
+        cc.jb(boundsOk);
+
+        // Out of bounds: throw with index and size
+        InvokeNode* oobInv;
+        cc.invoke(Out(oobInv), reinterpret_cast<uint64_t>(jit_throw_array_oob),
+                  FuncSignature::build<void, int64_t, int64_t>());
+        oobInv->set_arg(0, idx);
+        oobInv->set_arg(1, arrLen);
+
+        cc.bind(boundsOk);
+
+        // Level 2: get raw int64_t* data pointer for inline access
+        InvokeNode* ptrInv;
+        cc.invoke(Out(ptrInv), reinterpret_cast<uint64_t>(jit_array_get_raw_int_ptr),
+                  FuncSignature::build<int64_t*, const value::Value*>());
+        ptrInv->set_arg(0, arrAddr);
+        Gp dataPtr = cc.new_gp64();
+        ptrInv->set_ret(0, dataPtr);
+
         Gp result = cc.new_gp64();
-        inv->set_ret(0, result);
+        Label slowPath = cc.new_label();
+        Label done = cc.new_label();
+
+        cc.test(dataPtr, dataPtr);
+        cc.jz(slowPath);
+
+        // Fast path: direct memory read — dataPtr[idx * 8]
+        Gp addr = cc.new_gp64();
+        cc.mov(addr, idx);
+        cc.shl(addr, 3);
+        cc.add(addr, dataPtr);
+        cc.mov(result, Mem(addr, 0));
+        cc.jmp(done);
+
+        // Slow path: heterogeneous array fallback
+        cc.bind(slowPath);
+        InvokeNode* slowInv;
+        cc.invoke(Out(slowInv), reinterpret_cast<uint64_t>(jit_array_get_int),
+                  FuncSignature::build<int64_t, const value::Value*, int64_t>());
+        slowInv->set_arg(0, arrAddr);
+        slowInv->set_arg(1, idx);
+        slowInv->set_ret(0, result);
+
+        cc.bind(done);
 
         emitValueDestroy(s, s.stackDepth - 2);
 
@@ -165,12 +224,59 @@ namespace vm::jit
         Gp arrAddr = cc.new_gp64();
         cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 3) * valueSize)));
 
-        InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_array_set_int),
+        // Bounds check: fetch array length, unsigned compare catches negative + overflow
+        InvokeNode* lenInv;
+        cc.invoke(Out(lenInv), reinterpret_cast<uint64_t>(jit_array_length),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        lenInv->set_arg(0, arrAddr);
+        Gp arrLen = cc.new_gp64();
+        lenInv->set_ret(0, arrLen);
+
+        Label boundsOk = cc.new_label();
+        cc.cmp(idx, arrLen);
+        cc.jb(boundsOk);
+
+        // Out of bounds: throw with index and size
+        InvokeNode* oobInv;
+        cc.invoke(Out(oobInv), reinterpret_cast<uint64_t>(jit_throw_array_oob),
+                  FuncSignature::build<void, int64_t, int64_t>());
+        oobInv->set_arg(0, idx);
+        oobInv->set_arg(1, arrLen);
+
+        cc.bind(boundsOk);
+
+        // Level 2: get raw int64_t* data pointer for inline access
+        InvokeNode* ptrInv;
+        cc.invoke(Out(ptrInv), reinterpret_cast<uint64_t>(jit_array_get_raw_int_ptr),
+                  FuncSignature::build<int64_t*, const value::Value*>());
+        ptrInv->set_arg(0, arrAddr);
+        Gp dataPtr = cc.new_gp64();
+        ptrInv->set_ret(0, dataPtr);
+
+        Label slowPath = cc.new_label();
+        Label done = cc.new_label();
+
+        cc.test(dataPtr, dataPtr);
+        cc.jz(slowPath);
+
+        // Fast path: direct memory write — dataPtr[idx * 8] = val
+        Gp addr = cc.new_gp64();
+        cc.mov(addr, idx);
+        cc.shl(addr, 3);
+        cc.add(addr, dataPtr);
+        cc.mov(Mem(addr, 0), val);
+        cc.jmp(done);
+
+        // Slow path: heterogeneous array fallback
+        cc.bind(slowPath);
+        InvokeNode* slowInv;
+        cc.invoke(Out(slowInv), reinterpret_cast<uint64_t>(jit_array_set_int),
                   FuncSignature::build<void, const value::Value*, int64_t, int64_t>());
-        inv->set_arg(0, arrAddr);
-        inv->set_arg(1, idx);
-        inv->set_arg(2, val);
+        slowInv->set_arg(0, arrAddr);
+        slowInv->set_arg(1, idx);
+        slowInv->set_arg(2, val);
+
+        cc.bind(done);
 
         emitValueDestroy(s, s.stackDepth - 3);
 

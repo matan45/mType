@@ -76,7 +76,7 @@ namespace value
         static Value getDefaultValueForType(ValueType type) {
             switch (type) {
                 case ValueType::INT: return static_cast<int64_t>(0);
-                case ValueType::FLOAT: return 0.0f;
+                case ValueType::FLOAT: return 0.0;
                 case ValueType::BOOL: return false;
                 case ValueType::STRING: return std::string("");
                 case ValueType::OBJECT: return nullptr;  // null for objects
@@ -170,9 +170,9 @@ namespace value
 
                 case StorageMode::SIMD_FLOAT: {
                     auto floatArray = std::make_shared<mType::value::arrays::FloatArray>(size);
-                    // Initialize with default value (0.0f)
+                    // Initialize with default value (0.0)
                     for (size_t i = 0; i < size; ++i) {
-                        floatArray->set(i, Value(0.0f));
+                        floatArray->set(i, Value(0.0));
                     }
                     storage = floatArray;
                     break;
@@ -314,7 +314,7 @@ namespace value
                     break;
 
                 case 2: // SIMD_FLOAT
-                    if (std::holds_alternative<float>(value)) {
+                    if (std::holds_alternative<double>(value)) {
                         std::get<2>(storage)->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();
@@ -385,6 +385,39 @@ namespace value
         void setElementType(ValueType elemType, const std::string& elemTypeName = "") {
             elementType = elemType;
             elementTypeName = elemTypeName;
+        }
+
+        // ── Level 1: Direct primitive access (no Value construction) ──
+
+        int64_t getIntDirect(size_t index) const {
+            if (storage.index() == 1) {
+                return std::get<1>(storage)->getDirect(index);
+            }
+            return std::get<int64_t>(std::get<0>(storage)[index]);
+        }
+
+        void setIntDirect(size_t index, int64_t val) {
+            if (storage.index() == 1) {
+                std::get<1>(storage)->setDirect(index, val);
+            } else {
+                std::get<0>(storage)[index] = val;
+            }
+        }
+
+        // ── Level 2: Raw data pointer for JIT inline access ──
+
+        int64_t* getRawIntData() {
+            if (storage.index() == 1) {
+                return std::get<1>(storage)->data();
+            }
+            return nullptr;
+        }
+
+        const int64_t* getRawIntData() const {
+            if (storage.index() == 1) {
+                return std::get<1>(storage)->data();
+            }
+            return nullptr;
         }
 
         // SIMD support queries

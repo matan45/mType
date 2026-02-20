@@ -12,19 +12,19 @@ namespace environment::registry::builtin
             throw errors::ArgumentException("atan2 expects exactly 2 arguments (y, x)");
         }
 
-        float y = 0.0f;
-        float x = 0.0f;
+        double y = 0.0;
+        double x = 0.0;
 
         // Extract y value
         std::visit([&y](const auto& value)
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
+            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, double>)
             {
                 y = value;
             }
             else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int64_t>)
             {
-                y = static_cast<float>(value);
+                y = static_cast<double>(value);
             }
             else
             {
@@ -35,13 +35,13 @@ namespace environment::registry::builtin
         // Extract x value
         std::visit([&x](const auto& value)
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
+            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, double>)
             {
                 x = value;
             }
             else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int64_t>)
             {
-                x = static_cast<float>(value);
+                x = static_cast<double>(value);
             }
             else
             {

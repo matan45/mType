@@ -103,7 +103,7 @@ namespace parser::expression
 
     std::unique_ptr<ASTNode> LiteralParser::parseFloatLiteral()
     {
-        float value = tokenStream.current().floatValue;
+        double value = tokenStream.current().floatValue;
         auto floatLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<FloatNode>(value, floatLocation);

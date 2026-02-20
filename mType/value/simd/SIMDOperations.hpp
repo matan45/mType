@@ -83,45 +83,45 @@ namespace mType::value::simd
         /**
          * @brief SIMD-accelerated float array addition: result[i] = a[i] + b[i]
          */
-        static void addFloat(const float* a, const float* b, float* result, size_t size);
+        static void addFloat(const double* a, const double* b, double* result, size_t size);
 
         /**
          * @brief SIMD-accelerated float scalar addition: result[i] = a[i] + scalar
          */
-        static void addScalarFloat(const float* a, float scalar, float* result, size_t size);
+        static void addScalarFloat(const double* a, double scalar, double* result, size_t size);
 
         /**
          * @brief SIMD-accelerated float array subtraction: result[i] = a[i] - b[i]
          */
-        static void subtractFloat(const float* a, const float* b, float* result, size_t size);
+        static void subtractFloat(const double* a, const double* b, double* result, size_t size);
 
         /**
          * @brief SIMD-accelerated float array multiplication: result[i] = a[i] * b[i]
          */
-        static void multiplyFloat(const float* a, const float* b, float* result, size_t size);
+        static void multiplyFloat(const double* a, const double* b, double* result, size_t size);
 
         /**
          * @brief SIMD-accelerated float scalar multiplication: result[i] = a[i] * scalar
          */
-        static void multiplyScalarFloat(const float* a, float scalar, float* result, size_t size);
+        static void multiplyScalarFloat(const double* a, double scalar, double* result, size_t size);
 
         /**
          * @brief SIMD-accelerated float sum reduction
          * @return Sum of all elements
          */
-        static float sumFloat(const float* data, size_t size);
+        static double sumFloat(const double* data, size_t size);
 
         /**
          * @brief SIMD-accelerated float minimum
          * @return Minimum element
          */
-        static float minFloat(const float* data, size_t size);
+        static double minFloat(const double* data, size_t size);
 
         /**
          * @brief SIMD-accelerated float maximum
          * @return Maximum element
          */
-        static float maxFloat(const float* data, size_t size);
+        static double maxFloat(const double* data, size_t size);
     };
 
 } // namespace mType::value::simd

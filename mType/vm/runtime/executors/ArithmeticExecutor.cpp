@@ -45,8 +45,8 @@ namespace vm::runtime
         value::Value val = context.stackManager->pop();
         if (std::holds_alternative<int64_t>(val)) {
             context.stackManager->push(-std::get<int64_t>(val));
-        } else if (std::holds_alternative<float>(val)) {
-            context.stackManager->push(-std::get<float>(val));
+        } else if (std::holds_alternative<double>(val)) {
+            context.stackManager->push(-std::get<double>(val));
         } else {
             throw errors::RuntimeException("NEG requires numeric value");
         }
@@ -56,8 +56,8 @@ namespace vm::runtime
         value::Value val = context.stackManager->pop();
         if (std::holds_alternative<int64_t>(val)) {
             context.stackManager->push(std::get<int64_t>(val) + 1);
-        } else if (std::holds_alternative<float>(val)) {
-            context.stackManager->push(std::get<float>(val) + 1.0f);
+        } else if (std::holds_alternative<double>(val)) {
+            context.stackManager->push(std::get<double>(val) + 1.0);
         } else {
             throw errors::RuntimeException("INC requires numeric value");
         }
@@ -67,8 +67,8 @@ namespace vm::runtime
         value::Value val = context.stackManager->pop();
         if (std::holds_alternative<int64_t>(val)) {
             context.stackManager->push(std::get<int64_t>(val) - 1);
-        } else if (std::holds_alternative<float>(val)) {
-            context.stackManager->push(std::get<float>(val) - 1.0f);
+        } else if (std::holds_alternative<double>(val)) {
+            context.stackManager->push(std::get<double>(val) - 1.0);
         } else {
             throw errors::RuntimeException("DEC requires numeric value");
         }
@@ -202,16 +202,16 @@ namespace vm::runtime
         }
 
         // Float operations
-        if ((std::holds_alternative<float>(unboxedLeft) || std::holds_alternative<int64_t>(unboxedLeft)) &&
-            (std::holds_alternative<float>(unboxedRight) || std::holds_alternative<int64_t>(unboxedRight))) {
-            float l = std::holds_alternative<float>(unboxedLeft) ? std::get<float>(unboxedLeft) : static_cast<float>(std::get<int64_t>(unboxedLeft));
-            float r = std::holds_alternative<float>(unboxedRight) ? std::get<float>(unboxedRight) : static_cast<float>(std::get<int64_t>(unboxedRight));
+        if ((std::holds_alternative<double>(unboxedLeft) || std::holds_alternative<int64_t>(unboxedLeft)) &&
+            (std::holds_alternative<double>(unboxedRight) || std::holds_alternative<int64_t>(unboxedRight))) {
+            double l = std::holds_alternative<double>(unboxedLeft) ? std::get<double>(unboxedLeft) : static_cast<double>(std::get<int64_t>(unboxedLeft));
+            double r = std::holds_alternative<double>(unboxedRight) ? std::get<double>(unboxedRight) : static_cast<double>(std::get<int64_t>(unboxedRight));
             switch (op) {
                 case OpCode::ADD: return l + r;
                 case OpCode::SUB: return l - r;
                 case OpCode::MUL: return l * r;
                 case OpCode::DIV:
-                    if (r == 0.0f) {
+                    if (r == 0.0) {
                         utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
                     }
                     return l / r;
@@ -245,10 +245,10 @@ namespace vm::runtime
         if (std::holds_alternative<int64_t>(val)) {
             return std::to_string(std::get<int64_t>(val));
         }
-        if (std::holds_alternative<float>(val)) {
+        if (std::holds_alternative<double>(val)) {
             // Format float to match interpreter behavior (remove trailing zeros)
             std::ostringstream oss;
-            oss << std::get<float>(val);
+            oss << std::get<double>(val);
             return oss.str();
         }
         if (std::holds_alternative<bool>(val)) {

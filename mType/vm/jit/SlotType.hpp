@@ -10,7 +10,7 @@ namespace vm::jit
     enum class SlotType : uint8_t
     {
         INT,    // int64_t in GP register
-        FLOAT,  // float in XMM register (stored as 32-bit in 8-byte slot)
+        FLOAT,  // double in XMM register (64-bit)
         BOOL,   // bool stored as int64_t (0 or 1)
         STRING,       // InternedString in boxed stack
         OBJECT,       // shared_ptr<ObjectInstance> in boxed stack

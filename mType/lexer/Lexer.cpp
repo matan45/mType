@@ -129,7 +129,7 @@ namespace lexer
         if (lookAhead < input.length() && input[lookAhead] == '.' &&
             lookAhead + 1 < input.length() && std::isdigit(input[lookAhead + 1]))
         {
-            float value = parseFloat();
+            double value = parseFloat();
             return TokenFactory::createFloatToken(value, location);
         }
         else
@@ -234,7 +234,7 @@ namespace lexer
     }
 
 
-    float Lexer::parseFloat()
+    double Lexer::parseFloat()
     {
         size_t start = pos;
         while (pos < input.length() && (std::isdigit(input[pos]) || input[pos] == '.'))
@@ -244,11 +244,11 @@ namespace lexer
         std::string_view floatView(input.data() + start, pos - start);
         try
         {
-            return std::stof(std::string(floatView)); // std::stof requires std::string
+            return std::stod(std::string(floatView)); // std::stod requires std::string
         }
         catch (const std::out_of_range&)
         {
-            // Float literal is too large to fit in a float
+            // Float literal is too large to fit in a double
             throw errors::ParseException(
                 "Float literal '" + std::string(floatView) + "' is out of range for type 'float'",
                 locationTracker->getCurrentLocation());

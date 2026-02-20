@@ -25,7 +25,7 @@ namespace environment::registry::builtin
             {
                 out << v;
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, float>)
+            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, double>)
             {
                 out << v;
             }

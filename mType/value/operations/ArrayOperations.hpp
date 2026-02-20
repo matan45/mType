@@ -129,7 +129,7 @@ namespace value::operations
 
         // Helper to extract scalar value
         static bool extractInt(const Value& val, int64_t& out);
-        static bool extractFloat(const Value& val, float& out);
+        static bool extractFloat(const Value& val, double& out);
         static bool extractBool(const Value& val, bool& out);
 
         // Template helper for binary operations (add, subtract, multiply)

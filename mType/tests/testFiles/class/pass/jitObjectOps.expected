@@ -1,0 +1,10 @@
+10000x accumulate(100): 49500000
+5000x clampLoop(1000): 1874025000
+sumSquares(1000): 332833500
+counter after 10000 adds: 49995000
+Rex barks
+Whiskers meows
+dog isClassOf Dog: true
+dog isClassOf Cat: false
+dog isClassOf Animal: true
+cast ok: Rex barks

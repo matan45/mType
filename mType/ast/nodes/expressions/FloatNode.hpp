@@ -6,13 +6,13 @@ namespace ast::nodes::expressions
     class FloatNode : public ASTNode
     {
     private:
-        float value;
+        double value;
 
     public:
-        explicit FloatNode(float val, const SourceLocation& loc = SourceLocation());
+        explicit FloatNode(double val, const SourceLocation& loc = SourceLocation());
 
-        float getValue() const;
-        void setValue(float val);
+        double getValue() const;
+        void setValue(double val);
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

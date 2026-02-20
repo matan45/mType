@@ -169,9 +169,9 @@ namespace debugger {
         if (std::holds_alternative<int64_t>(val)) {
             return std::to_string(std::get<int64_t>(val));
         }
-        if (std::holds_alternative<float>(val)) {
+        if (std::holds_alternative<double>(val)) {
             std::stringstream ss;
-            ss << std::fixed << std::setprecision(2) << std::get<float>(val);
+            ss << std::fixed << std::setprecision(2) << std::get<double>(val);
             return ss.str();
         }
         if (std::holds_alternative<std::string>(val)) {
@@ -252,7 +252,7 @@ namespace debugger {
         if (std::holds_alternative<int64_t>(val)) {
             return "int";
         }
-        if (std::holds_alternative<float>(val)) {
+        if (std::holds_alternative<double>(val)) {
             return "float";
         }
         if (std::holds_alternative<std::string>(val)) {

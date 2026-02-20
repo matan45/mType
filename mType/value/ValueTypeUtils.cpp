@@ -34,7 +34,7 @@ namespace value {
         return std::visit([](const auto& v) -> ValueType {
             if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int64_t>) {
                 return ValueType::INT;
-            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, float>) {
+            } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, double>) {
                 return ValueType::FLOAT;
             } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, bool>) {
                 return ValueType::BOOL;

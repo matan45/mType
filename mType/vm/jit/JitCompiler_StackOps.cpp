@@ -127,9 +127,8 @@ namespace vm::jit
                 if (instr.operands[0] >= s.program.getConstantPool().floats.size())
                 { s.compileFailed = true; return true; }
                 double dval = s.program.getConstantPool().getFloat(instr.operands[0]);
-                float fval = static_cast<float>(dval);
-                uint32_t bits;
-                std::memcpy(&bits, &fval, sizeof(bits));
+                uint64_t bits;
+                std::memcpy(&bits, &dval, sizeof(bits));
                 Gp tmp = cc.new_gp64();
                 cc.mov(tmp, static_cast<int64_t>(bits));
                 cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
@@ -148,8 +147,22 @@ namespace vm::jit
                 return true;
             }
             case OpCode::PUSH_NULL:
-                cc.mov(Mem(s.stackBase, s.stackDepth * 8), 0);
-                s.slotTypes.push_back(SlotType::INT);
+                if (s.usesBoxedTypes)
+                {
+                    constexpr size_t vs = JitEmissionState::VALUE_SIZE;
+                    Gp addr = cc.new_gp64();
+                    cc.lea(addr, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * vs)));
+                    InvokeNode* inv;
+                    cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_null),
+                              FuncSignature::build<void, value::Value*>());
+                    inv->set_arg(0, addr);
+                    s.slotTypes.push_back(SlotType::BOXED);
+                }
+                else
+                {
+                    cc.mov(qword_ptr(s.stackBase, s.stackDepth * 8), 0);
+                    s.slotTypes.push_back(SlotType::INT);
+                }
                 s.stackDepth++;
                 return true;
             default: return false;

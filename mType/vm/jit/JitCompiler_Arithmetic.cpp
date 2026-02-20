@@ -15,7 +15,10 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         s.stackDepth--;
-        popType(s); popType(s);
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
         switch (instr.opcode)
         {
             case OpCode::ADD_INT:
@@ -52,7 +55,10 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         s.stackDepth--;
-        popType(s); popType(s);
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
         Gp right = cc.new_gp64();
         cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
         cc.test(right, right);
@@ -123,16 +129,19 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         s.stackDepth--;
-        popType(s); popType(s);
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::FLOAT);
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::FLOAT);
         Vec right = cc.new_xmm();
         Vec left = cc.new_xmm();
-        cc.movss(right, Mem(s.stackBase, s.stackDepth * 8));
-        cc.movss(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-        if (instr.opcode == OpCode::ADD_FLOAT) cc.addss(left, right);
-        else if (instr.opcode == OpCode::SUB_FLOAT) cc.subss(left, right);
-        else if (instr.opcode == OpCode::MUL_FLOAT) cc.mulss(left, right);
-        else cc.divss(left, right);
-        cc.movss(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
+        cc.movsd(right, Mem(s.stackBase, s.stackDepth * 8));
+        cc.movsd(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+        if (instr.opcode == OpCode::ADD_FLOAT) cc.addsd(left, right);
+        else if (instr.opcode == OpCode::SUB_FLOAT) cc.subsd(left, right);
+        else if (instr.opcode == OpCode::MUL_FLOAT) cc.mulsd(left, right);
+        else cc.divsd(left, right);
+        cc.movsd(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
         s.slotTypes.push_back(SlotType::FLOAT);
         return true;
     }
@@ -143,6 +152,10 @@ namespace vm::jit
         auto& cc = s.cc;
         SlotType rType = popType(s), lType = popType(s);
         s.stackDepth--;
+
+        if (isBoxedSlotType(lType)) { emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT); lType = SlotType::INT; }
+        if (isBoxedSlotType(rType)) { emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT); rType = SlotType::INT; }
+
         if (lType == SlotType::INT && rType == SlotType::INT)
         {
             if (instr.opcode == OpCode::MUL)
@@ -169,12 +182,12 @@ namespace vm::jit
         {
             Vec right = cc.new_xmm();
             Vec left = cc.new_xmm();
-            cc.movss(right, Mem(s.stackBase, s.stackDepth * 8));
-            cc.movss(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-            if (instr.opcode == OpCode::ADD) cc.addss(left, right);
-            else if (instr.opcode == OpCode::SUB) cc.subss(left, right);
-            else cc.mulss(left, right);
-            cc.movss(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
+            cc.movsd(right, Mem(s.stackBase, s.stackDepth * 8));
+            cc.movsd(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+            if (instr.opcode == OpCode::ADD) cc.addsd(left, right);
+            else if (instr.opcode == OpCode::SUB) cc.subsd(left, right);
+            else cc.mulsd(left, right);
+            cc.movsd(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
             s.slotTypes.push_back(SlotType::FLOAT);
         }
         else
@@ -194,6 +207,10 @@ namespace vm::jit
         auto& cc = s.cc;
         SlotType rType = popType(s), lType = popType(s);
         s.stackDepth--;
+
+        if (isBoxedSlotType(lType)) { emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT); lType = SlotType::INT; }
+        if (isBoxedSlotType(rType)) { emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT); rType = SlotType::INT; }
+
         if (lType == SlotType::INT && rType == SlotType::INT)
         {
             Gp right = cc.new_gp64();
@@ -221,19 +238,19 @@ namespace vm::jit
         {
             Vec right = cc.new_xmm();
             Vec left = cc.new_xmm();
-            cc.movss(right, Mem(s.stackBase, s.stackDepth * 8));
-            cc.movss(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+            cc.movsd(right, Mem(s.stackBase, s.stackDepth * 8));
+            cc.movsd(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
             Vec zero = cc.new_xmm();
-            cc.xorps(zero, zero);
-            cc.ucomiss(right, zero);
+            cc.xorpd(zero, zero);
+            cc.ucomisd(right, zero);
             Label nz = cc.new_label();
             cc.jne(nz);
             InvokeNode* dz;
             cc.invoke(Out(dz), (uint64_t)jit_throw_div_by_zero,
                       FuncSignature::build<void>());
             cc.bind(nz);
-            cc.divss(left, right);
-            cc.movss(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
+            cc.divsd(left, right);
+            cc.movsd(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
             s.slotTypes.push_back(SlotType::FLOAT);
         }
         else
@@ -265,7 +282,10 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         s.stackDepth--;
-        popType(s); popType(s);
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
         Gp right = cc.new_gp64();
         Gp left = cc.new_gp64();
         cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));

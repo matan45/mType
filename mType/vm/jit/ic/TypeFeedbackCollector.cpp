@@ -10,7 +10,7 @@ namespace vm::jit::ic
     ObservedType TypeFeedbackCollector::classifyValue(const value::Value& val)
     {
         if (std::holds_alternative<int64_t>(val)) return ObservedType::INT;
-        if (std::holds_alternative<float>(val)) return ObservedType::FLOAT;
+        if (std::holds_alternative<double>(val)) return ObservedType::FLOAT;
         if (std::holds_alternative<bool>(val)) return ObservedType::INT; // bool treated as int for specialization
         if (std::holds_alternative<std::string>(val)) return ObservedType::STRING;
         if (std::holds_alternative<value::InternedString>(val)) return ObservedType::STRING;

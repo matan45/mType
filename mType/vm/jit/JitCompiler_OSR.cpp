@@ -18,10 +18,10 @@ namespace vm::jit
         if (lt == SlotType::FLOAT)
         {
             Vec val = cc.new_xmm();
-            cc.movss(val, Mem(localsBase, static_cast<int32_t>(slot * 8)));
+            cc.movsd(val, Mem(localsBase, static_cast<int32_t>(slot * 8)));
             InvokeNode* inv;
             cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_float),
-                      FuncSignature::build<void, value::Value*, float>());
+                      FuncSignature::build<void, value::Value*, double>());
             inv->set_arg(0, destAddr);
             inv->set_arg(1, val);
         }
@@ -157,7 +157,7 @@ namespace vm::jit
             for (size_t i = 0; i < localCount; ++i)
             {
                 if (capturedSlots.find(i) == capturedSlots.end())
-                    cc.mov(Mem(frame.localsBase, static_cast<int32_t>(i * 8)), 0);
+                    cc.mov(qword_ptr(frame.localsBase, static_cast<int32_t>(i * 8)), 0);
             }
         }
     }
@@ -230,9 +230,9 @@ namespace vm::jit
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
             emitLocalsWriteBack(es);
             size_t exitTarget = (target == 0) ? resumeOffset : target;
-            es.cc.mov(Mem(es.ctxPtr, offsetof(JitContext, osrExitOffset)),
+            es.cc.mov(qword_ptr(es.ctxPtr, offsetof(JitContext, osrExitOffset)),
                       static_cast<int64_t>(exitTarget));
-            es.cc.mov(Mem(es.ctxPtr, offsetof(JitContext, osrExited)), 1);
+            es.cc.mov(byte_ptr(es.ctxPtr, offsetof(JitContext, osrExited)), 1);
             emitCleanup(es);
             es.cc.ret();
         };
@@ -243,7 +243,7 @@ namespace vm::jit
             return false;
 
         emitCleanup(s);
-        cc.mov(Mem(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
+        cc.mov(byte_ptr(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
         return true;
     }
 

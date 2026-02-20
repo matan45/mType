@@ -508,6 +508,14 @@ namespace tests::testSuite
                         passPath + "valueClassJitPerformance.mt");
         addOutputVerificationTest("Value Class JIT Field Access",
                         passPath + "valueClassJitFieldAccess.mt");
+        addOutputVerificationTest("JIT Benchmark",
+                        passPath + "jitBenchmark.mt");
+        addOutputVerificationTest("JIT Float Arithmetic",
+                        passPath + "jitFloatArithmetic.mt");
+        addOutputVerificationTest("JIT Array Operations",
+                        passPath + "jitArrayOps.mt");
+        addOutputVerificationTest("JIT Object Operations",
+                        passPath + "jitObjectOps.mt");
 
         // === NESTED TYPE VALIDATION TESTS ===
         // These tests verify that nested classes and interfaces are properly rejected

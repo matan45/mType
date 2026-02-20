@@ -27,14 +27,14 @@ namespace value::operations
         return false;
     }
 
-    bool ArrayOperations::extractFloat(const Value& val, float& out)
+    bool ArrayOperations::extractFloat(const Value& val, double& out)
     {
-        if (std::holds_alternative<float>(val)) {
-            out = std::get<float>(val);
+        if (std::holds_alternative<double>(val)) {
+            out = std::get<double>(val);
             return true;
         }
         if (std::holds_alternative<int64_t>(val)) {
-            out = static_cast<float>(std::get<int64_t>(val));
+            out = static_cast<double>(std::get<int64_t>(val));
             return true;
         }
         return false;
@@ -102,8 +102,8 @@ namespace value::operations
 
             if (std::holds_alternative<int64_t>(val1) && std::holds_alternative<int64_t>(val2)) {
                 result->set(i, Value(scalarOp(std::get<int64_t>(val1), std::get<int64_t>(val2))));
-            } else if (std::holds_alternative<float>(val1) && std::holds_alternative<float>(val2)) {
-                result->set(i, Value(scalarOp(std::get<float>(val1), std::get<float>(val2))));
+            } else if (std::holds_alternative<double>(val1) && std::holds_alternative<double>(val2)) {
+                result->set(i, Value(scalarOp(std::get<double>(val1), std::get<double>(val2))));
             }
         }
         return result;
@@ -145,7 +145,7 @@ namespace value::operations
 
         // SIMD path for float arrays
         if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
-            float scalarVal;
+            double scalarVal;
             if (!extractFloat(scalar, scalarVal)) {
                 throw errors::RuntimeException(
                     std::string("Scalar must be numeric for float array in ") + operationName);
@@ -167,8 +167,8 @@ namespace value::operations
             Value val = array->get(i);
             if (std::holds_alternative<int64_t>(val) && std::holds_alternative<int64_t>(scalar)) {
                 result->set(i, Value(scalarOp(std::get<int64_t>(val), std::get<int64_t>(scalar))));
-            } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(scalar)) {
-                result->set(i, Value(scalarOp(std::get<float>(val), std::get<float>(scalar))));
+            } else if (std::holds_alternative<double>(val) && std::holds_alternative<double>(scalar)) {
+                result->set(i, Value(scalarOp(std::get<double>(val), std::get<double>(scalar))));
             }
         }
         return result;
@@ -203,7 +203,7 @@ namespace value::operations
         // SIMD path for float arrays
         if (elemType == ValueType::FLOAT && array->getSIMDFloatData()) {
             auto data = array->getSIMDFloatData();
-            float result = floatSimdOp(data->data(), array->size());
+            double result = floatSimdOp(data->data(), array->size());
             return Value(result);
         }
 
@@ -288,19 +288,19 @@ namespace value::operations
             mType::value::simd::SIMDOperations::sumFloat,
             [](const std::shared_ptr<NativeArray>& arr) -> Value {
                 int64_t intSum = 0;
-                float floatSum = 0.0f;
+                double floatSum = 0.0;
                 bool isFloat = false;
 
                 for (size_t i = 0; i < arr->size(); ++i) {
                     Value val = arr->get(i);
                     if (std::holds_alternative<int64_t>(val)) {
                         intSum += std::get<int64_t>(val);
-                    } else if (std::holds_alternative<float>(val)) {
-                        floatSum += std::get<float>(val);
+                    } else if (std::holds_alternative<double>(val)) {
+                        floatSum += std::get<double>(val);
                         isFloat = true;
                     }
                 }
-                return isFloat ? Value(floatSum + static_cast<float>(intSum)) : Value(intSum);
+                return isFloat ? Value(floatSum + static_cast<double>(intSum)) : Value(intSum);
             },
             "sum",
             true  // allowEmpty
@@ -319,8 +319,8 @@ namespace value::operations
                     Value val = arr->get(i);
                     if (std::holds_alternative<int64_t>(val) && std::holds_alternative<int64_t>(minVal)) {
                         if (std::get<int64_t>(val) < std::get<int64_t>(minVal)) minVal = val;
-                    } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(minVal)) {
-                        if (std::get<float>(val) < std::get<float>(minVal)) minVal = val;
+                    } else if (std::holds_alternative<double>(val) && std::holds_alternative<double>(minVal)) {
+                        if (std::get<double>(val) < std::get<double>(minVal)) minVal = val;
                     }
                 }
                 return minVal;
@@ -342,8 +342,8 @@ namespace value::operations
                     Value val = arr->get(i);
                     if (std::holds_alternative<int64_t>(val) && std::holds_alternative<int64_t>(maxVal)) {
                         if (std::get<int64_t>(val) > std::get<int64_t>(maxVal)) maxVal = val;
-                    } else if (std::holds_alternative<float>(val) && std::holds_alternative<float>(maxVal)) {
-                        if (std::get<float>(val) > std::get<float>(maxVal)) maxVal = val;
+                    } else if (std::holds_alternative<double>(val) && std::holds_alternative<double>(maxVal)) {
+                        if (std::get<double>(val) > std::get<double>(maxVal)) maxVal = val;
                     }
                 }
                 return maxVal;
@@ -363,12 +363,12 @@ namespace value::operations
         size_t count = array->size();
 
         if (std::holds_alternative<int64_t>(total)) {
-            return Value(static_cast<float>(std::get<int64_t>(total)) / static_cast<float>(count));
-        } else if (std::holds_alternative<float>(total)) {
-            return Value(std::get<float>(total) / count);
+            return Value(static_cast<double>(std::get<int64_t>(total)) / static_cast<double>(count));
+        } else if (std::holds_alternative<double>(total)) {
+            return Value(std::get<double>(total) / count);
         }
 
-        return Value(0.0f);
+        return Value(0.0);
     }
 
     // ========== Utility Operations ==========

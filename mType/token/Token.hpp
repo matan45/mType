@@ -9,7 +9,7 @@ namespace token
     struct Token
     {
         TokenType type;
-        float floatValue;
+        double floatValue;
         int64_t intValue;
         value::InternedString stringValue;
         errors::SourceLocation location;

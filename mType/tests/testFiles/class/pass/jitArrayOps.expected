@@ -1,0 +1,5 @@
+5000x sumArray(1000): 7492500000
+10000x dotProduct(500): 208332500000
+10000x findMax(1000): 29970000
+sorted first: 1
+sorted last: 200

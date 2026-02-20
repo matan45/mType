@@ -296,64 +296,58 @@ namespace mType::value::simd
 
 #if defined(MTYPE_SIMD_AVX2)
     /**
-     * @brief AVX2 policy for 32-bit floats (256-bit vectors, 8 elements)
+     * @brief AVX2 policy for 64-bit doubles (256-bit vectors, 4 elements)
      */
     struct AVX2FloatPolicy
     {
-        using VectorType = __m256;
-        static constexpr size_t WIDTH = 8;
+        using VectorType = __m256d;
+        static constexpr size_t WIDTH = 4;
         static constexpr const char* NAME = "AVX2";
 
         // Load/Store
-        static inline VectorType load(const float* ptr) { return _mm256_loadu_ps(ptr); }
-        static inline void store(float* ptr, VectorType v) { _mm256_storeu_ps(ptr, v); }
+        static inline VectorType load(const double* ptr) { return _mm256_loadu_pd(ptr); }
+        static inline void store(double* ptr, VectorType v) { _mm256_storeu_pd(ptr, v); }
 
         // Arithmetic
-        static inline VectorType add(VectorType a, VectorType b) { return _mm256_add_ps(a, b); }
-        static inline VectorType subtract(VectorType a, VectorType b) { return _mm256_sub_ps(a, b); }
-        static inline VectorType multiply(VectorType a, VectorType b) { return _mm256_mul_ps(a, b); }
-        static inline VectorType set1(float value) { return _mm256_set1_ps(value); }
+        static inline VectorType add(VectorType a, VectorType b) { return _mm256_add_pd(a, b); }
+        static inline VectorType subtract(VectorType a, VectorType b) { return _mm256_sub_pd(a, b); }
+        static inline VectorType multiply(VectorType a, VectorType b) { return _mm256_mul_pd(a, b); }
+        static inline VectorType set1(double value) { return _mm256_set1_pd(value); }
 
         // Reductions
-        static inline VectorType min(VectorType a, VectorType b) { return _mm256_min_ps(a, b); }
-        static inline VectorType max(VectorType a, VectorType b) { return _mm256_max_ps(a, b); }
-        static inline VectorType zero() { return _mm256_setzero_ps(); }
+        static inline VectorType min(VectorType a, VectorType b) { return _mm256_min_pd(a, b); }
+        static inline VectorType max(VectorType a, VectorType b) { return _mm256_max_pd(a, b); }
+        static inline VectorType zero() { return _mm256_setzero_pd(); }
 
         // Horizontal reductions
-        static inline float horizontal_sum(VectorType v)
+        static inline double horizontal_sum(VectorType v)
         {
-            __m128 vLow = _mm256_castps256_ps128(v);
-            __m128 vHigh = _mm256_extractf128_ps(v, 1);
-            __m128 vSum = _mm_add_ps(vLow, vHigh);
-            __m128 vShuf = _mm_shuffle_ps(vSum, vSum, _MM_SHUFFLE(1, 0, 3, 2));
-            vSum = _mm_add_ps(vSum, vShuf);
-            vShuf = _mm_shuffle_ps(vSum, vSum, _MM_SHUFFLE(2, 3, 0, 1));
-            vSum = _mm_add_ps(vSum, vShuf);
-            return _mm_cvtss_f32(vSum);
+            __m128d vLow = _mm256_castpd256_pd128(v);
+            __m128d vHigh = _mm256_extractf128_pd(v, 1);
+            __m128d vSum = _mm_add_pd(vLow, vHigh);
+            __m128d vShuf = _mm_shuffle_pd(vSum, vSum, 1);
+            vSum = _mm_add_pd(vSum, vShuf);
+            return _mm_cvtsd_f64(vSum);
         }
 
-        static inline float horizontal_min(VectorType v)
+        static inline double horizontal_min(VectorType v)
         {
-            __m128 vLow = _mm256_castps256_ps128(v);
-            __m128 vHigh = _mm256_extractf128_ps(v, 1);
-            __m128 vMin = _mm_min_ps(vLow, vHigh);
-            __m128 vShuf = _mm_shuffle_ps(vMin, vMin, _MM_SHUFFLE(1, 0, 3, 2));
-            vMin = _mm_min_ps(vMin, vShuf);
-            vShuf = _mm_shuffle_ps(vMin, vMin, _MM_SHUFFLE(2, 3, 0, 1));
-            vMin = _mm_min_ps(vMin, vShuf);
-            return _mm_cvtss_f32(vMin);
+            __m128d vLow = _mm256_castpd256_pd128(v);
+            __m128d vHigh = _mm256_extractf128_pd(v, 1);
+            __m128d vMin = _mm_min_pd(vLow, vHigh);
+            __m128d vShuf = _mm_shuffle_pd(vMin, vMin, 1);
+            vMin = _mm_min_pd(vMin, vShuf);
+            return _mm_cvtsd_f64(vMin);
         }
 
-        static inline float horizontal_max(VectorType v)
+        static inline double horizontal_max(VectorType v)
         {
-            __m128 vLow = _mm256_castps256_ps128(v);
-            __m128 vHigh = _mm256_extractf128_ps(v, 1);
-            __m128 vMax = _mm_max_ps(vLow, vHigh);
-            __m128 vShuf = _mm_shuffle_ps(vMax, vMax, _MM_SHUFFLE(1, 0, 3, 2));
-            vMax = _mm_max_ps(vMax, vShuf);
-            vShuf = _mm_shuffle_ps(vMax, vMax, _MM_SHUFFLE(2, 3, 0, 1));
-            vMax = _mm_max_ps(vMax, vShuf);
-            return _mm_cvtss_f32(vMax);
+            __m128d vLow = _mm256_castpd256_pd128(v);
+            __m128d vHigh = _mm256_extractf128_pd(v, 1);
+            __m128d vMax = _mm_max_pd(vLow, vHigh);
+            __m128d vShuf = _mm_shuffle_pd(vMax, vMax, 1);
+            vMax = _mm_max_pd(vMax, vShuf);
+            return _mm_cvtsd_f64(vMax);
         }
     };
 
@@ -361,55 +355,49 @@ namespace mType::value::simd
 
 #elif defined(MTYPE_SIMD_SSE2)
     /**
-     * @brief SSE2 policy for 32-bit floats (128-bit vectors, 4 elements)
+     * @brief SSE2 policy for 64-bit doubles (128-bit vectors, 2 elements)
      */
     struct SSE2FloatPolicy
     {
-        using VectorType = __m128;
-        static constexpr size_t WIDTH = 4;
+        using VectorType = __m128d;
+        static constexpr size_t WIDTH = 2;
         static constexpr const char* NAME = "SSE2";
 
         // Load/Store
-        static inline VectorType load(const float* ptr) { return _mm_loadu_ps(ptr); }
-        static inline void store(float* ptr, VectorType v) { _mm_storeu_ps(ptr, v); }
+        static inline VectorType load(const double* ptr) { return _mm_loadu_pd(ptr); }
+        static inline void store(double* ptr, VectorType v) { _mm_storeu_pd(ptr, v); }
 
         // Arithmetic
-        static inline VectorType add(VectorType a, VectorType b) { return _mm_add_ps(a, b); }
-        static inline VectorType subtract(VectorType a, VectorType b) { return _mm_sub_ps(a, b); }
-        static inline VectorType multiply(VectorType a, VectorType b) { return _mm_mul_ps(a, b); }
-        static inline VectorType set1(float value) { return _mm_set1_ps(value); }
+        static inline VectorType add(VectorType a, VectorType b) { return _mm_add_pd(a, b); }
+        static inline VectorType subtract(VectorType a, VectorType b) { return _mm_sub_pd(a, b); }
+        static inline VectorType multiply(VectorType a, VectorType b) { return _mm_mul_pd(a, b); }
+        static inline VectorType set1(double value) { return _mm_set1_pd(value); }
 
         // Reductions
-        static inline VectorType min(VectorType a, VectorType b) { return _mm_min_ps(a, b); }
-        static inline VectorType max(VectorType a, VectorType b) { return _mm_max_ps(a, b); }
-        static inline VectorType zero() { return _mm_setzero_ps(); }
+        static inline VectorType min(VectorType a, VectorType b) { return _mm_min_pd(a, b); }
+        static inline VectorType max(VectorType a, VectorType b) { return _mm_max_pd(a, b); }
+        static inline VectorType zero() { return _mm_setzero_pd(); }
 
         // Horizontal reductions
-        static inline float horizontal_sum(VectorType v)
+        static inline double horizontal_sum(VectorType v)
         {
-            __m128 vShuf = _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 0, 3, 2));
-            v = _mm_add_ps(v, vShuf);
-            vShuf = _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 3, 0, 1));
-            v = _mm_add_ps(v, vShuf);
-            return _mm_cvtss_f32(v);
+            __m128d vShuf = _mm_shuffle_pd(v, v, 1);
+            v = _mm_add_pd(v, vShuf);
+            return _mm_cvtsd_f64(v);
         }
 
-        static inline float horizontal_min(VectorType v)
+        static inline double horizontal_min(VectorType v)
         {
-            __m128 vShuf = _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 0, 3, 2));
-            v = _mm_min_ps(v, vShuf);
-            vShuf = _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 3, 0, 1));
-            v = _mm_min_ps(v, vShuf);
-            return _mm_cvtss_f32(v);
+            __m128d vShuf = _mm_shuffle_pd(v, v, 1);
+            v = _mm_min_pd(v, vShuf);
+            return _mm_cvtsd_f64(v);
         }
 
-        static inline float horizontal_max(VectorType v)
+        static inline double horizontal_max(VectorType v)
         {
-            __m128 vShuf = _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 0, 3, 2));
-            v = _mm_max_ps(v, vShuf);
-            vShuf = _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 3, 0, 1));
-            v = _mm_max_ps(v, vShuf);
-            return _mm_cvtss_f32(v);
+            __m128d vShuf = _mm_shuffle_pd(v, v, 1);
+            v = _mm_max_pd(v, vShuf);
+            return _mm_cvtsd_f64(v);
         }
     };
 
@@ -417,62 +405,62 @@ namespace mType::value::simd
 
 #elif defined(MTYPE_SIMD_NEON)
     /**
-     * @brief NEON policy for 32-bit floats (128-bit vectors, 4 elements)
+     * @brief NEON policy for 64-bit doubles (128-bit vectors, 2 elements)
      */
     struct NEONFloatPolicy
     {
-        using VectorType = float32x4_t;
-        static constexpr size_t WIDTH = 4;
+        using VectorType = float64x2_t;
+        static constexpr size_t WIDTH = 2;
         static constexpr const char* NAME = "NEON";
 
         // Load/Store
-        static inline VectorType load(const float* ptr) { return vld1q_f32(ptr); }
-        static inline void store(float* ptr, VectorType v) { vst1q_f32(ptr, v); }
+        static inline VectorType load(const double* ptr) { return vld1q_f64(ptr); }
+        static inline void store(double* ptr, VectorType v) { vst1q_f64(ptr, v); }
 
         // Arithmetic
-        static inline VectorType add(VectorType a, VectorType b) { return vaddq_f32(a, b); }
-        static inline VectorType subtract(VectorType a, VectorType b) { return vsubq_f32(a, b); }
-        static inline VectorType multiply(VectorType a, VectorType b) { return vmulq_f32(a, b); }
-        static inline VectorType set1(float value) { return vdupq_n_f32(value); }
+        static inline VectorType add(VectorType a, VectorType b) { return vaddq_f64(a, b); }
+        static inline VectorType subtract(VectorType a, VectorType b) { return vsubq_f64(a, b); }
+        static inline VectorType multiply(VectorType a, VectorType b) { return vmulq_f64(a, b); }
+        static inline VectorType set1(double value) { return vdupq_n_f64(value); }
 
         // Reductions
-        static inline VectorType min(VectorType a, VectorType b) { return vminq_f32(a, b); }
-        static inline VectorType max(VectorType a, VectorType b) { return vmaxq_f32(a, b); }
-        static inline VectorType zero() { return vdupq_n_f32(0.0f); }
+        static inline VectorType min(VectorType a, VectorType b) { return vminq_f64(a, b); }
+        static inline VectorType max(VectorType a, VectorType b) { return vmaxq_f64(a, b); }
+        static inline VectorType zero() { return vdupq_n_f64(0.0); }
 
         // Horizontal reductions
-        static inline float horizontal_sum(VectorType v) { return vaddvq_f32(v); }
-        static inline float horizontal_min(VectorType v) { return vminvq_f32(v); }
-        static inline float horizontal_max(VectorType v) { return vmaxvq_f32(v); }
+        static inline double horizontal_sum(VectorType v) { return vaddvq_f64(v); }
+        static inline double horizontal_min(VectorType v) { return vminvq_f64(v); }
+        static inline double horizontal_max(VectorType v) { return vmaxvq_f64(v); }
     };
 
     using FloatPolicy = NEONFloatPolicy;
 
 #else
     /**
-     * @brief Scalar fallback policy for floats (no SIMD)
+     * @brief Scalar fallback policy for doubles (no SIMD)
      */
     struct ScalarFloatPolicy
     {
-        using VectorType = float;
+        using VectorType = double;
         static constexpr size_t WIDTH = 1;
         static constexpr const char* NAME = "Scalar";
 
-        static inline VectorType load(const float* ptr) { return *ptr; }
-        static inline void store(float* ptr, VectorType v) { *ptr = v; }
+        static inline VectorType load(const double* ptr) { return *ptr; }
+        static inline void store(double* ptr, VectorType v) { *ptr = v; }
 
         static inline VectorType add(VectorType a, VectorType b) { return a + b; }
         static inline VectorType subtract(VectorType a, VectorType b) { return a - b; }
         static inline VectorType multiply(VectorType a, VectorType b) { return a * b; }
-        static inline VectorType set1(float value) { return value; }
+        static inline VectorType set1(double value) { return value; }
 
         static inline VectorType min(VectorType a, VectorType b) { return std::min(a, b); }
         static inline VectorType max(VectorType a, VectorType b) { return std::max(a, b); }
-        static inline VectorType zero() { return 0.0f; }
+        static inline VectorType zero() { return 0.0; }
 
-        static inline float horizontal_sum(VectorType v) { return v; }
-        static inline float horizontal_min(VectorType v) { return v; }
-        static inline float horizontal_max(VectorType v) { return v; }
+        static inline double horizontal_sum(VectorType v) { return v; }
+        static inline double horizontal_min(VectorType v) { return v; }
+        static inline double horizontal_max(VectorType v) { return v; }
     };
 
     using FloatPolicy = ScalarFloatPolicy;

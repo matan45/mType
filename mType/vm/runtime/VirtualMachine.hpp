@@ -198,6 +198,7 @@ namespace vm::runtime
         vm::jit::JitProfiler* getJitProfiler() const { return jitProfiler.get(); }
         vm::jit::JitCompiler* getJitCompiler() const { return jitCompiler.get(); }
         vm::jit::OSRManager* getOSRManager() const { return osrManager.get(); }
+        void printJitStats() const;
         vm::jit::ic::InlineCacheTable* getInlineCacheTable() const { return inlineCacheTable.get(); }
 
         // Phase 6: Inline caching control

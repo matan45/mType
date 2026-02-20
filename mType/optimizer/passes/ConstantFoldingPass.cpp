@@ -83,9 +83,9 @@ namespace optimizer::passes
         {
             return std::make_unique<ast::nodes::expressions::IntegerNode>(std::get<int64_t>(value), loc);
         }
-        if (std::holds_alternative<float>(value))
+        if (std::holds_alternative<double>(value))
         {
-            return std::make_unique<ast::nodes::expressions::FloatNode>(std::get<float>(value), loc);
+            return std::make_unique<ast::nodes::expressions::FloatNode>(std::get<double>(value), loc);
         }
         if (std::holds_alternative<bool>(value))
         {

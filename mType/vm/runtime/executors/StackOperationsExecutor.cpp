@@ -20,7 +20,7 @@ namespace vm::runtime
             throw errors::RuntimeException("PUSH_FLOAT requires operand");
         }
         double value = context.program->getConstantPool().getFloat(instr.operands[0]);
-        context.stackManager->push(static_cast<float>(value));
+        context.stackManager->push(value);
     }
 
     void StackOperationsExecutor::handlePushString(const bytecode::BytecodeProgram::Instruction& instr) {

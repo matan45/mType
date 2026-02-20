@@ -14,13 +14,13 @@ namespace environment::registry::builtin
 
         return std::visit([](const auto& value) -> Value
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, float>)
+            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, double>)
             {
                 return std::sqrt(value);
             }
             else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int64_t>)
             {
-                return std::sqrt(static_cast<float>(value));
+                return std::sqrt(static_cast<double>(value));
             }
             else
             {

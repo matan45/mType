@@ -21,17 +21,18 @@ namespace vm::jit
         void jit_set_return_bool(JitContext* ctx, int64_t val);
         void jit_gc_safepoint();
 
-        float jit_unbox_float(const value::Value* val);
-        void jit_set_return_float(JitContext* ctx, float val);
+        double jit_unbox_float(const value::Value* val);
+        void jit_set_return_float(JitContext* ctx, double val);
 
         void jit_box_int(value::Value* dest, int64_t val);
-        void jit_box_float(value::Value* dest, float val);
+        void jit_box_float(value::Value* dest, double val);
         void jit_box_bool(value::Value* dest, int64_t val);
         void jit_box_null(value::Value* dest);
 
         void jit_locals_init(value::Value* base, size_t count);
         void jit_locals_cleanup(value::Value* base, size_t count);
         void jit_value_destroy(value::Value* dest);
+        int64_t jit_values_equal(const value::Value* left, const value::Value* right);
     }
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount);
@@ -43,6 +44,7 @@ namespace vm::jit
     void jit_generic_mod(value::Value* result, const value::Value* left, const value::Value* right);
 
     void jit_throw_div_by_zero();
+    void jit_throw_array_oob(int64_t index, int64_t size);
 
     void jit_value_copy(value::Value* dest, const value::Value* src);
     void jit_set_return_boxed(JitContext* ctx, const value::Value* val);
@@ -91,6 +93,7 @@ namespace vm::jit
     int64_t jit_array_get_int(const value::Value* array, int64_t index);
     void jit_array_set_int(const value::Value* array, int64_t index,
                            int64_t val);
+    int64_t* jit_array_get_raw_int_ptr(const value::Value* array);
 
     void jit_array_get_field(value::Value* dest, const value::Value* array,
                              int64_t index,

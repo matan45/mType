@@ -201,7 +201,7 @@ namespace vm::runtime
             {
                 typeSignature += "int";
             }
-            else if (std::holds_alternative<float>(arg))
+            else if (std::holds_alternative<double>(arg))
             {
                 typeSignature += "float";
             }
@@ -382,7 +382,7 @@ namespace vm::runtime
                 if (obj->getTypeName() == "Float")
                 {
                     value::Value unboxedValue = obj->getFieldValue("value");
-                    if (std::holds_alternative<float>(unboxedValue))
+                    if (std::holds_alternative<double>(unboxedValue))
                     {
                         arg = unboxedValue;
                     }
@@ -429,7 +429,7 @@ namespace vm::runtime
                 }
                 continue;
             }
-            else if (paramType == "Float" && std::holds_alternative<float>(arg))
+            else if (paramType == "Float" && std::holds_alternative<double>(arg))
             {
                 // Auto-box float to Float
                 auto floatClass = context.environment->findClass("Float");

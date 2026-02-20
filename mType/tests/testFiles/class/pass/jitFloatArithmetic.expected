@@ -1,0 +1,6 @@
+floatAccumulate(50000): 49988.6
+moduloSum(500000): 1499994
+floatMulDiv(100000): 200
+floatSubLoop(200000): -30000
+20x floatAccumulate(10000): 199804
+50x moduloSum(100000): 14999750

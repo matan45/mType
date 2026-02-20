@@ -2,17 +2,17 @@
 
 namespace ast::nodes::expressions
 {
-    FloatNode::FloatNode(float val, const SourceLocation& loc)
+    FloatNode::FloatNode(double val, const SourceLocation& loc)
         : ASTNode(loc), value(val)
     {
     }
 
-    float FloatNode::getValue() const
+    double FloatNode::getValue() const
     {
         return value;
     }
 
-    void FloatNode::setValue(float val)
+    void FloatNode::setValue(double val)
     {
         value = val;
     }

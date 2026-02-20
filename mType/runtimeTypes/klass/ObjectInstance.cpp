@@ -270,7 +270,7 @@ namespace runtimeTypes::klass
             std::visit([&hash](const auto& v) {
                 if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int64_t>) {
                     hash += std::to_string(v);
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, float>) {
+                } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, double>) {
                     hash += std::to_string(v);
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, bool>) {
                     hash += v ? "true" : "false";
@@ -306,7 +306,7 @@ namespace runtimeTypes::klass
                     if (!thisV || !otherV) return false;
                     return thisV->contentEquals(*otherV);
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, int64_t> ||
-                                   std::is_same_v<std::decay_t<decltype(thisV)>, float> ||
+                                   std::is_same_v<std::decay_t<decltype(thisV)>, double> ||
                                    std::is_same_v<std::decay_t<decltype(thisV)>, bool> ||
                                    std::is_same_v<std::decay_t<decltype(thisV)>, std::string>) {
                     return thisV == otherV;

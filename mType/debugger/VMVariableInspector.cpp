@@ -674,9 +674,9 @@ namespace debugger
             {
                 return std::to_string(std::get<int64_t>(val));
             }
-            else if (std::holds_alternative<float>(val))
+            else if (std::holds_alternative<double>(val))
             {
-                return std::to_string(std::get<float>(val));
+                return std::to_string(std::get<double>(val));
             }
             else if (std::holds_alternative<bool>(val))
             {
@@ -783,7 +783,7 @@ namespace debugger
             {
                 return "Int";
             }
-            else if (std::holds_alternative<float>(val))
+            else if (std::holds_alternative<double>(val))
             {
                 return "Float";
             }

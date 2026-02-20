@@ -37,6 +37,7 @@
 #include "../jit/JitCompiler.hpp"
 #include "../jit/JitContext.hpp"
 #include "../jit/OSRManager.hpp"
+#include "../jit/LoopProfiler.hpp"
 #include "../jit/ic/InlineCacheTable.hpp"
 #include "../jit/ic/TypeFeedbackCollector.hpp"
 #include "executors/InlineCacheExecutor.hpp"
@@ -513,8 +514,28 @@ namespace vm::runtime
             stats.functionCalls++;
 
             // Execute constructor
+            // Use direct execution loop instead of interpretLoop() to avoid
+            // recreating executors (which would invalidate the outer ExecutionContext)
             instructionPointer = ctorMetadata->startOffset;
-            interpretLoop();
+            if (controlFlowExecutor)
+            {
+                size_t targetDepth = savedCallStack.size();
+                while (callStack.size() > targetDepth)
+                {
+                    if (instructionPointer >= program->getInstructionCount())
+                        break;
+                    const auto& instr = program->getInstruction(instructionPointer);
+                    executeInstruction(instr);
+                    instructionPointer++;
+                }
+                // Clean up stack to original position
+                while (stackManager->size() > frameBase)
+                    stackManager->pop();
+            }
+            else
+            {
+                interpretLoop();
+            }
 
             // Restore state
             instructionPointer = savedIP;
@@ -617,9 +638,29 @@ namespace vm::runtime
             pushCallFrame(frame);
             stats.functionCalls++;
 
-            // Execute method
+            // Execute method (direct loop to avoid recreating executors)
             instructionPointer = funcMetadata->startOffset;
-            value::Value result = interpretLoop();
+            value::Value result = std::monostate{};
+            if (controlFlowExecutor)
+            {
+                size_t targetDepth = savedCallStack.size();
+                while (callStack.size() > targetDepth)
+                {
+                    if (instructionPointer >= program->getInstructionCount())
+                        break;
+                    const auto& instr = program->getInstruction(instructionPointer);
+                    executeInstruction(instr);
+                    instructionPointer++;
+                }
+                if (stackManager->size() > frameBase)
+                    result = stackManager->pop();
+                while (stackManager->size() > frameBase)
+                    stackManager->pop();
+            }
+            else
+            {
+                result = interpretLoop();
+            }
 
             // Restore state
             instructionPointer = savedIP;
@@ -708,9 +749,29 @@ namespace vm::runtime
             pushCallFrame(frame);
             stats.functionCalls++;
 
-            // Execute method
+            // Execute method (direct loop to avoid recreating executors)
             instructionPointer = funcMetadata->startOffset;
-            value::Value result = interpretLoop();
+            value::Value result = std::monostate{};
+            if (controlFlowExecutor)
+            {
+                size_t targetDepth = savedCallStack.size();
+                while (callStack.size() > targetDepth)
+                {
+                    if (instructionPointer >= program->getInstructionCount())
+                        break;
+                    const auto& instr = program->getInstruction(instructionPointer);
+                    executeInstruction(instr);
+                    instructionPointer++;
+                }
+                if (stackManager->size() > frameBase)
+                    result = stackManager->pop();
+                while (stackManager->size() > frameBase)
+                    stackManager->pop();
+            }
+            else
+            {
+                result = interpretLoop();
+            }
 
             // Restore state
             instructionPointer = savedIP;
@@ -1631,7 +1692,6 @@ namespace vm::runtime
                 bool justBecameHot = jitProfiler->recordEntry(funcName);
                 if (justBecameHot && jitCompiler && jitCodeCache)
                 {
-                    // Attempt to compile the hot function
                     jitCompiler->compile(funcName, *program, *jitCodeCache);
                 }
             }
@@ -1734,11 +1794,11 @@ namespace vm::runtime
         {
             return std::to_string(std::get<int64_t>(val));
         }
-        if (std::holds_alternative<float>(val))
+        if (std::holds_alternative<double>(val))
         {
             // Format float to match interpreter behavior (remove trailing zeros)
             std::ostringstream oss;
-            oss << std::get<float>(val);
+            oss << std::get<double>(val);
             return oss.str();
         }
         if (std::holds_alternative<bool>(val))
@@ -1863,22 +1923,22 @@ namespace vm::runtime
         }
 
         // Float operations
-        if ((std::holds_alternative<float>(left) || std::holds_alternative<int64_t>(left)) &&
-            (std::holds_alternative<float>(right) || std::holds_alternative<int64_t>(right)))
+        if ((std::holds_alternative<double>(left) || std::holds_alternative<int64_t>(left)) &&
+            (std::holds_alternative<double>(right) || std::holds_alternative<int64_t>(right)))
         {
-            float l = std::holds_alternative<float>(left)
-                          ? std::get<float>(left)
-                          : static_cast<float>(std::get<int64_t>(left));
-            float r = std::holds_alternative<float>(right)
-                          ? std::get<float>(right)
-                          : static_cast<float>(std::get<int64_t>(right));
+            double l = std::holds_alternative<double>(left)
+                          ? std::get<double>(left)
+                          : static_cast<double>(std::get<int64_t>(left));
+            double r = std::holds_alternative<double>(right)
+                          ? std::get<double>(right)
+                          : static_cast<double>(std::get<int64_t>(right));
             switch (op)
             {
             case OpCode::ADD: return l + r;
             case OpCode::SUB: return l - r;
             case OpCode::MUL: return l * r;
             case OpCode::DIV:
-                if (r == 0.0f) throw errors::RuntimeException("Division by zero");
+                if (r == 0.0) throw errors::RuntimeException("Division by zero");
                 return l / r;
             default: break;
             }
@@ -1921,6 +1981,64 @@ namespace vm::runtime
     const ExecutionStats& VirtualMachine::getStats() const
     {
         return stats;
+    }
+
+    void VirtualMachine::printJitStats() const
+    {
+        std::cout << "\n=== JIT Statistics ===\n";
+
+        if (!jitEnabled)
+        {
+            std::cout << "  JIT disabled\n";
+            std::cout << "======================\n";
+            return;
+        }
+
+        // Function profiling
+        std::cout << "Function Profiling:\n";
+        if (jitProfiler)
+        {
+            std::cout << "  Hot threshold:          " << jitProfiler->getHotThreshold() << " calls\n";
+            const auto& hotFuncs = jitProfiler->getHotFunctions();
+            std::cout << "  Hot functions:          " << hotFuncs.size() << "\n";
+            for (const auto& name : hotFuncs)
+            {
+                uint32_t calls = jitProfiler->getInvocationCount(name);
+                bool compiled = jitCodeCache && jitCodeCache->contains(name);
+                std::cout << "    - " << name << " (" << calls << " calls)"
+                          << (compiled ? " [compiled]" : " [bailout]") << "\n";
+            }
+        }
+
+        // Compilation stats
+        std::cout << "Compilation:\n";
+        if (jitCompiler)
+        {
+            std::cout << "  Successful compiles:    " << jitCompiler->getCompileCount() << "\n";
+            std::cout << "  Bailouts:               " << jitCompiler->getBailoutCount() << "\n";
+        }
+        if (jitCodeCache)
+            std::cout << "  Cached functions:       " << jitCodeCache->size() << "\n";
+
+        // Loop OSR stats
+        std::cout << "Loop OSR:\n";
+        if (osrManager)
+        {
+            const auto& loopProfiler = osrManager->getLoopProfiler();
+            const auto& profiles = loopProfiler.getProfiles();
+            size_t compiled = 0, failed = 0;
+            for (const auto& [id, profile] : profiles)
+            {
+                if (profile.osrCompiled) compiled++;
+                if (profile.osrFailed) failed++;
+            }
+            std::cout << "  OSR threshold:          " << loopProfiler.getOsrThreshold() << " iterations\n";
+            std::cout << "  Loops profiled:         " << profiles.size() << "\n";
+            std::cout << "  OSR compiled:           " << compiled << "\n";
+            std::cout << "  OSR failed:             " << failed << "\n";
+        }
+
+        std::cout << "======================\n";
     }
 
     std::vector<std::string> VirtualMachine::getStackTrace() const

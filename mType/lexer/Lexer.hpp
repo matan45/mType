@@ -78,7 +78,7 @@ namespace lexer
     private:
         // Core parsing methods
         Token parseNumber();
-        float parseFloat();
+        double parseFloat();
         int64_t parseInteger();
         std::string_view parseIdentifier();
         std::string parseStringLiteral();

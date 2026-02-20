@@ -74,7 +74,7 @@ namespace vm::jit
         if (typeName == "Int" || typeName == "int")
             return std::holds_alternative<int64_t>(*val) ? 1 : 0;
         if (typeName == "Float" || typeName == "float")
-            return std::holds_alternative<float>(*val) ? 1 : 0;
+            return std::holds_alternative<double>(*val) ? 1 : 0;
         if (typeName == "Bool" || typeName == "bool")
             return std::holds_alternative<bool>(*val) ? 1 : 0;
         if (typeName == "String" || typeName == "string")
@@ -116,17 +116,17 @@ namespace vm::jit
         {
             if (std::holds_alternative<int64_t>(*src))
                 { *dest = *src; return; }
-            if (std::holds_alternative<float>(*src))
-                { *dest = static_cast<int64_t>(std::get<float>(*src)); return; }
+            if (std::holds_alternative<double>(*src))
+                { *dest = static_cast<int64_t>(std::get<double>(*src)); return; }
             if (std::holds_alternative<bool>(*src))
                 { *dest = std::get<bool>(*src) ? static_cast<int64_t>(1) : static_cast<int64_t>(0); return; }
         }
         else if (targetType == "Float" || targetType == "float")
         {
-            if (std::holds_alternative<float>(*src))
+            if (std::holds_alternative<double>(*src))
                 { *dest = *src; return; }
             if (std::holds_alternative<int64_t>(*src))
-                { *dest = static_cast<float>(std::get<int64_t>(*src)); return; }
+                { *dest = static_cast<double>(std::get<int64_t>(*src)); return; }
         }
         else if (targetType == "Bool" || targetType == "bool")
         {

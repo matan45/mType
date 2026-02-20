@@ -329,7 +329,7 @@ namespace vm::jit
     SlotType OSRManager::inferSlotType(const value::Value& val)
     {
         if (std::holds_alternative<int64_t>(val)) return SlotType::INT;
-        if (std::holds_alternative<float>(val)) return SlotType::FLOAT;
+        if (std::holds_alternative<double>(val)) return SlotType::FLOAT;
         if (std::holds_alternative<bool>(val)) return SlotType::BOOL;
         if (std::holds_alternative<std::string>(val)) return SlotType::STRING;
         if (std::holds_alternative<value::InternedString>(val)) return SlotType::STRING;
