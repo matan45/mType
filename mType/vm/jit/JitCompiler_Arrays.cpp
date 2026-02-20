@@ -145,6 +145,27 @@ namespace vm::jit
         Gp arrAddr = cc.new_gp64();
         cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
 
+        // Bounds check: fetch array length, unsigned compare catches negative + overflow
+        InvokeNode* lenInv;
+        cc.invoke(Out(lenInv), reinterpret_cast<uint64_t>(jit_array_length),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        lenInv->set_arg(0, arrAddr);
+        Gp arrLen = cc.new_gp64();
+        lenInv->set_ret(0, arrLen);
+
+        Label boundsOk = cc.new_label();
+        cc.cmp(idx, arrLen);
+        cc.jb(boundsOk);
+
+        // Out of bounds: throw with index and size
+        InvokeNode* oobInv;
+        cc.invoke(Out(oobInv), reinterpret_cast<uint64_t>(jit_throw_array_oob),
+                  FuncSignature::build<void, int64_t, int64_t>());
+        oobInv->set_arg(0, idx);
+        oobInv->set_arg(1, arrLen);
+
+        cc.bind(boundsOk);
+
         // Level 2: get raw int64_t* data pointer for inline access
         InvokeNode* ptrInv;
         cc.invoke(Out(ptrInv), reinterpret_cast<uint64_t>(jit_array_get_raw_int_ptr),
@@ -202,6 +223,27 @@ namespace vm::jit
         cc.mov(idx, Mem(s.stackBase, (s.stackDepth - 2) * 8));
         Gp arrAddr = cc.new_gp64();
         cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 3) * valueSize)));
+
+        // Bounds check: fetch array length, unsigned compare catches negative + overflow
+        InvokeNode* lenInv;
+        cc.invoke(Out(lenInv), reinterpret_cast<uint64_t>(jit_array_length),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        lenInv->set_arg(0, arrAddr);
+        Gp arrLen = cc.new_gp64();
+        lenInv->set_ret(0, arrLen);
+
+        Label boundsOk = cc.new_label();
+        cc.cmp(idx, arrLen);
+        cc.jb(boundsOk);
+
+        // Out of bounds: throw with index and size
+        InvokeNode* oobInv;
+        cc.invoke(Out(oobInv), reinterpret_cast<uint64_t>(jit_throw_array_oob),
+                  FuncSignature::build<void, int64_t, int64_t>());
+        oobInv->set_arg(0, idx);
+        oobInv->set_arg(1, arrLen);
+
+        cc.bind(boundsOk);
 
         // Level 2: get raw int64_t* data pointer for inline access
         InvokeNode* ptrInv;

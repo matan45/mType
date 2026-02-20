@@ -44,6 +44,7 @@ namespace vm::jit
     void jit_generic_mod(value::Value* result, const value::Value* left, const value::Value* right);
 
     void jit_throw_div_by_zero();
+    void jit_throw_array_oob(int64_t index, int64_t size);
 
     void jit_value_copy(value::Value* dest, const value::Value* src);
     void jit_set_return_boxed(JitContext* ctx, const value::Value* val);
