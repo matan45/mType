@@ -9,6 +9,27 @@
 #include "../errors/RuntimeException.hpp"
 #include <stdexcept>
 
+namespace
+{
+    template<typename T>
+    T safeGet(const value::Value& val, const std::string& context)
+    {
+        if (!std::holds_alternative<T>(val))
+            throw errors::RuntimeException("Unexpected value type while " + context);
+        return std::get<T>(val);
+    }
+
+    void checkReservedFieldName(const std::string& fieldName, const std::string& className)
+    {
+        if (fieldName.size() >= 2 && fieldName[0] == '_' && fieldName[1] == '_')
+        {
+            throw errors::RuntimeException(
+                "Cannot serialize class '" + className + "': field '" + fieldName
+                + "' conflicts with reserved JSON metadata prefix '__'");
+        }
+    }
+}
+
 namespace json
 {
     JsonSerializer::JsonSerializer(std::shared_ptr<environment::Environment> env,
@@ -98,6 +119,7 @@ namespace json
         const auto& fieldValues = obj->getAllFieldValues();
         for (const auto& [name, fieldVal] : fieldValues)
         {
+            checkReservedFieldName(name, obj->getTypeName());
             jsonObj->setProperty(name, serializeValue(fieldVal));
         }
 
@@ -134,6 +156,7 @@ namespace json
             const auto& fields = classDef->getInstanceFields();
             for (const auto& [name, fieldDef] : fields)
             {
+                checkReservedFieldName(name, classDef->getClassName());
                 value::Value fieldVal = obj->getFieldValue(name);
                 jsonObj->setProperty(name, serializeValue(fieldVal));
             }
@@ -257,8 +280,10 @@ namespace json
         if (countIt == fields.end() || dataIt == fields.end())
             return jsonArr;
 
-        int64_t count = std::get<int64_t>(countIt->second);
-        auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataIt->second);
+        int64_t count = safeGet<int64_t>(countIt->second,
+            "serializing list collection: '" + countField + "' is not an int");
+        auto arr = safeGet<std::shared_ptr<value::NativeArray>>(dataIt->second,
+            "serializing list collection: '" + dataField + "' is not an array");
         if (!arr) return jsonArr;
 
         for (int64_t i = 0; i < count; ++i)
@@ -278,8 +303,10 @@ namespace json
         if (topIt == fields.end() || dataIt == fields.end())
             return jsonArr;
 
-        int64_t top = std::get<int64_t>(topIt->second);
-        auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataIt->second);
+        int64_t top = safeGet<int64_t>(topIt->second,
+            "serializing Stack: 'top' is not an int");
+        auto arr = safeGet<std::shared_ptr<value::NativeArray>>(dataIt->second,
+            "serializing Stack: 'data' is not an array");
         if (!arr || top < 0) return jsonArr;
 
         for (int64_t i = 0; i <= top; ++i)
@@ -302,10 +329,14 @@ namespace json
             capIt == fields.end() || dataIt == fields.end())
             return jsonArr;
 
-        int64_t front = std::get<int64_t>(frontIt->second);
-        int64_t count = std::get<int64_t>(countIt->second);
-        int64_t capacity = std::get<int64_t>(capIt->second);
-        auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataIt->second);
+        int64_t front = safeGet<int64_t>(frontIt->second,
+            "serializing ArrayQueue: 'front' is not an int");
+        int64_t count = safeGet<int64_t>(countIt->second,
+            "serializing ArrayQueue: 'count' is not an int");
+        int64_t capacity = safeGet<int64_t>(capIt->second,
+            "serializing ArrayQueue: 'capacity' is not an int");
+        auto arr = safeGet<std::shared_ptr<value::NativeArray>>(dataIt->second,
+            "serializing ArrayQueue: 'data' is not an array");
         if (!arr) return jsonArr;
 
         for (int64_t i = 0; i < count; ++i)
@@ -331,7 +362,8 @@ namespace json
             std::holds_alternative<std::monostate>(headIt->second))
             return jsonArr;
 
-        auto node = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(headIt->second);
+        auto node = safeGet<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(headIt->second,
+            "serializing LinkedList: 'head' is not an ObjectInstance");
         while (node)
         {
             const auto& nodeFields = node->getAllFieldValues();
@@ -365,22 +397,29 @@ namespace json
             keysIt == fields.end() || valsIt == fields.end())
             return jsonArr;
 
-        int64_t capacity = std::get<int64_t>(capIt->second);
-        auto bucketSizes = std::get<std::shared_ptr<value::NativeArray>>(sizesIt->second);
+        int64_t capacity = safeGet<int64_t>(capIt->second,
+            "serializing HashMap: 'capacity' is not an int");
+        auto bucketSizes = safeGet<std::shared_ptr<value::NativeArray>>(sizesIt->second,
+            "serializing HashMap: 'bucketSizes' is not an array");
         // 2D bucket arrays are jagged NativeArrays (NativeArray of NativeArrays)
-        auto keyBuckets = std::get<std::shared_ptr<value::NativeArray>>(keysIt->second);
-        auto valBuckets = std::get<std::shared_ptr<value::NativeArray>>(valsIt->second);
+        auto keyBuckets = safeGet<std::shared_ptr<value::NativeArray>>(keysIt->second,
+            "serializing HashMap: 'keyBuckets' is not an array");
+        auto valBuckets = safeGet<std::shared_ptr<value::NativeArray>>(valsIt->second,
+            "serializing HashMap: 'valueBuckets' is not an array");
         if (!bucketSizes || !keyBuckets || !valBuckets) return jsonArr;
 
         for (int64_t b = 0; b < capacity; ++b)
         {
-            int64_t bSize = std::get<int64_t>(bucketSizes->get(static_cast<size_t>(b)));
+            int64_t bSize = safeGet<int64_t>(bucketSizes->get(static_cast<size_t>(b)),
+                "serializing HashMap: bucketSizes element is not an int");
             if (bSize <= 0) continue;
 
-            auto keyRow = std::get<std::shared_ptr<value::NativeArray>>(
-                keyBuckets->get(static_cast<size_t>(b)));
-            auto valRow = std::get<std::shared_ptr<value::NativeArray>>(
-                valBuckets->get(static_cast<size_t>(b)));
+            auto keyRow = safeGet<std::shared_ptr<value::NativeArray>>(
+                keyBuckets->get(static_cast<size_t>(b)),
+                "serializing HashMap: keyBuckets row is not an array");
+            auto valRow = safeGet<std::shared_ptr<value::NativeArray>>(
+                valBuckets->get(static_cast<size_t>(b)),
+                "serializing HashMap: valueBuckets row is not an array");
             if (!keyRow || !valRow) continue;
 
             for (int64_t j = 0; j < bSize; ++j)
@@ -407,19 +446,24 @@ namespace json
         if (capIt == fields.end() || sizesIt == fields.end() || bucketsIt == fields.end())
             return jsonArr;
 
-        int64_t capacity = std::get<int64_t>(capIt->second);
-        auto bucketSizes = std::get<std::shared_ptr<value::NativeArray>>(sizesIt->second);
+        int64_t capacity = safeGet<int64_t>(capIt->second,
+            "serializing HashSet: 'capacity' is not an int");
+        auto bucketSizes = safeGet<std::shared_ptr<value::NativeArray>>(sizesIt->second,
+            "serializing HashSet: 'bucketSizes' is not an array");
         // 2D bucket array is a jagged NativeArray (NativeArray of NativeArrays)
-        auto buckets = std::get<std::shared_ptr<value::NativeArray>>(bucketsIt->second);
+        auto buckets = safeGet<std::shared_ptr<value::NativeArray>>(bucketsIt->second,
+            "serializing HashSet: 'buckets' is not an array");
         if (!bucketSizes || !buckets) return jsonArr;
 
         for (int64_t b = 0; b < capacity; ++b)
         {
-            int64_t bSize = std::get<int64_t>(bucketSizes->get(static_cast<size_t>(b)));
+            int64_t bSize = safeGet<int64_t>(bucketSizes->get(static_cast<size_t>(b)),
+                "serializing HashSet: bucketSizes element is not an int");
             if (bSize <= 0) continue;
 
-            auto row = std::get<std::shared_ptr<value::NativeArray>>(
-                buckets->get(static_cast<size_t>(b)));
+            auto row = safeGet<std::shared_ptr<value::NativeArray>>(
+                buckets->get(static_cast<size_t>(b)),
+                "serializing HashSet: buckets row is not an array");
             if (!row) continue;
 
             for (int64_t j = 0; j < bSize; ++j)

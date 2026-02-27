@@ -11,6 +11,17 @@
 #include <stdexcept>
 #include <functional>
 
+namespace
+{
+    template<typename T>
+    T safeGet(const value::Value& val, const std::string& context)
+    {
+        if (!std::holds_alternative<T>(val))
+            throw errors::RuntimeException("Unexpected value type while " + context);
+        return std::get<T>(val);
+    }
+}
+
 namespace json
 {
     JsonDeserializer::JsonDeserializer(std::shared_ptr<environment::Environment> env)
@@ -439,6 +450,9 @@ namespace json
         return instance;
     }
 
+    // Mirrors the native hashCode() built-in (environment/registry/builtin/HashCodeFunction.cpp).
+    // Uses std::hash<T> masked with 0x7FFFFFFF, matching the runtime exactly.
+    // WARNING: if HashCodeFunction.cpp changes, this must be updated to match.
     int64_t JsonDeserializer::computeHashCode(const value::Value& val)
     {
         return std::visit([](const auto& v) -> int64_t
@@ -508,9 +522,10 @@ namespace json
         }, val);
     }
 
+    // Mirrors HashMap.getBucketIndex() from lib/collections/HashMap.mt (line ~210).
+    // WARNING: if HashMap.mt's getBucketIndex() changes, this must be updated to match.
     int64_t JsonDeserializer::computeBucketIndex(int64_t hash, int64_t capacity)
     {
-        // Match mType HashMap.getBucketIndex() exactly
         if (hash < 0) { hash = -hash; if (hash < 0) hash += 1; }
         hash = hash * 1610612741;
         hash = hash + (hash / capacity);
@@ -592,12 +607,15 @@ namespace json
             int64_t hash = computeHashCode(key);
             int64_t bucket = computeBucketIndex(hash, capacity);
 
-            int64_t bSize = std::get<int64_t>(bucketSizes->get(static_cast<size_t>(bucket)));
+            int64_t bSize = safeGet<int64_t>(bucketSizes->get(static_cast<size_t>(bucket)),
+                "deserializing HashMap: bucketSizes element is not an int");
 
-            auto keyRow = std::get<std::shared_ptr<value::NativeArray>>(
-                keyBuckets->get(static_cast<size_t>(bucket)));
-            auto valRow = std::get<std::shared_ptr<value::NativeArray>>(
-                valBuckets->get(static_cast<size_t>(bucket)));
+            auto keyRow = safeGet<std::shared_ptr<value::NativeArray>>(
+                keyBuckets->get(static_cast<size_t>(bucket)),
+                "deserializing HashMap: keyBuckets row is not an array");
+            auto valRow = safeGet<std::shared_ptr<value::NativeArray>>(
+                valBuckets->get(static_cast<size_t>(bucket)),
+                "deserializing HashMap: valueBuckets row is not an array");
 
             // Resize bucket row if needed
             if (bSize >= static_cast<int64_t>(keyRow->size()))
@@ -691,10 +709,12 @@ namespace json
             int64_t hash = computeHashCode(elem);
             int64_t bucket = computeBucketIndex(hash, capacity);
 
-            int64_t bSize = std::get<int64_t>(bucketSizes->get(static_cast<size_t>(bucket)));
+            int64_t bSize = safeGet<int64_t>(bucketSizes->get(static_cast<size_t>(bucket)),
+                "deserializing HashSet: bucketSizes element is not an int");
 
-            auto row = std::get<std::shared_ptr<value::NativeArray>>(
-                buckets->get(static_cast<size_t>(bucket)));
+            auto row = safeGet<std::shared_ptr<value::NativeArray>>(
+                buckets->get(static_cast<size_t>(bucket)),
+                "deserializing HashSet: buckets row is not an array");
 
             // Resize bucket row if needed
             if (bSize >= static_cast<int64_t>(row->size()))

@@ -8,7 +8,7 @@ class Json {
         return __json_serializeWithOptions(obj, includeStatic, prettyPrint);
     }
 
-    public static function deserialize(string jsonString): string {
+    public static function <T> deserialize(string jsonString): T {
         return __json_deserialize(jsonString);
     }
 
