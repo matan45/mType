@@ -52,6 +52,9 @@
     <Filter Include="gc">
       <UniqueIdentifier>{EF775900-DB03-880B-44B2-880B305D880B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="json">
+      <UniqueIdentifier>{9F27997C-8B5E-9A0D-344B-80102061160F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="lexer">
       <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
     </Filter>
@@ -301,6 +304,15 @@
     <Filter Include="tests\testFiles\iterator\pass">
       <UniqueIdentifier>{59E58B2F-C5FD-7259-8EAA-02F3FA8107F3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tests\testFiles\json">
+      <UniqueIdentifier>{63558D73-4FE4-163D-F802-2B38E47027E3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\json\error">
+      <UniqueIdentifier>{FC2A4579-E83A-F149-51F4-55683D23E0E2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\json\pass">
+      <UniqueIdentifier>{49C1AAE4-B583-DE6E-FE33-6DFB6A35B74C}</UniqueIdentifier>
+    </Filter>
     <Filter Include="tests\testFiles\lambda">
       <UniqueIdentifier>{CA939B8F-B68D-C4E1-9FFA-5AF28B932A4E}</UniqueIdentifier>
     </Filter>
@@ -330,6 +342,9 @@
     </Filter>
     <Filter Include="tests\testFiles\lib\iterators">
       <UniqueIdentifier>{EC41020A-585A-E933-2107-79CD8DDE7DCD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\testFiles\lib\json">
+      <UniqueIdentifier>{4999612F-35BE-B0AF-5E09-963F4A8DAFCD}</UniqueIdentifier>
     </Filter>
     <Filter Include="tests\testFiles\lib\math">
       <UniqueIdentifier>{79F2622F-6517-B2AF-8E62-973F7AE6B0CD}</UniqueIdentifier>
@@ -1314,6 +1329,24 @@
     <ClInclude Include="gc\WriteBarrier.hpp">
       <Filter>gc</Filter>
     </ClInclude>
+    <ClInclude Include="json\FileWriteNative.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonDeserializer.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonNatives.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonParser.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonSerializer.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonValue.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
     <ClInclude Include="lexer\BracketBalancer.hpp">
       <Filter>lexer</Filter>
     </ClInclude>
@@ -1624,6 +1657,9 @@
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\IteratorTestSuite.hpp">
+      <Filter>tests\suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\JsonTestSuite.hpp">
       <Filter>tests\suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\LambdaTestSuite.hpp">
@@ -2564,6 +2600,24 @@
     <ClCompile Include="gc\WriteBarrier.cpp">
       <Filter>gc</Filter>
     </ClCompile>
+    <ClCompile Include="json\FileWriteNative.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonDeserializer.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonNatives.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonParser.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonSerializer.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonValue.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
     <ClCompile Include="lexer\BracketBalancer.cpp">
       <Filter>lexer</Filter>
     </ClCompile>
@@ -2862,6 +2916,9 @@
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\IteratorTestSuite.cpp">
+      <Filter>tests\suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\JsonTestSuite.cpp">
       <Filter>tests\suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\LambdaTestSuite.cpp">
@@ -5537,6 +5594,30 @@
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\genericInheritance.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\jitArrayOps.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\jitArrayOps.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\jitBenchmark.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\jitBenchmark.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\jitFloatArithmetic.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\jitFloatArithmetic.mt">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\jitObjectOps.expected">
+      <Filter>tests\testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\jitObjectOps.mt">
       <Filter>tests\testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\loopScopingPass.expected">
@@ -9499,6 +9580,42 @@
     <None Include="tests\testFiles\iterator\pass\iteratorLinkedList.mt">
       <Filter>tests\testFiles\iterator\pass</Filter>
     </None>
+    <None Include="tests\testFiles\json\error\invalidJson.mt">
+      <Filter>tests\testFiles\json\error</Filter>
+    </None>
+    <None Include="tests\testFiles\json\error\unknownClass.mt">
+      <Filter>tests\testFiles\json\error</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\deserializeArray.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\deserializeNested.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\deserializeObject.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\roundTrip.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\serializeArray.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\serializeGenerics.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\serializeNested.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\serializeObject.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\serializePrimitives.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\serializeStatic.mt">
+      <Filter>tests\testFiles\json\pass</Filter>
+    </None>
     <None Include="tests\testFiles\lambda\error\breakInLambdaError.mt">
       <Filter>tests\testFiles\lambda\error</Filter>
     </None>
@@ -10095,6 +10212,9 @@
     </None>
     <None Include="tests\testFiles\lib\iterators\StreamFlatMappingIterator.mt">
       <Filter>tests\testFiles\lib\iterators</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\json\Json.mt">
+      <Filter>tests\testFiles\lib\json</Filter>
     </None>
     <None Include="tests\testFiles\lib\math\Matrix3f.mt">
       <Filter>tests\testFiles\lib\math</Filter>

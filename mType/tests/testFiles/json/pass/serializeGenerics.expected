@@ -1,0 +1,21 @@
+{
+    "__type": "Box",
+    "__generics": {
+        "T": "String"
+    },
+    "value": {
+        "__type": "String",
+        "value": "Hello World"
+    }
+}
+{
+    "__type": "Box",
+    "__generics": {
+        "T": "Int"
+    },
+    "value": {
+        "__type": "Int",
+        "value": 42
+    }
+}
+Test passed

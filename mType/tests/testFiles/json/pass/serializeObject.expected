@@ -1,0 +1,8 @@
+{
+    "__type": "Person",
+    "name": "Alice",
+    "age": 30
+}
+Alice
+30
+Test passed

@@ -1,6 +1,7 @@
 #include "EnvironmentBuilder.hpp"
 #include "../runtimeTypes/global/ArrayOperationsNative.hpp"
 #include "../reflection/ReflectionNatives.hpp"
+#include "../json/JsonNatives.hpp"
 
 namespace environment
 {
@@ -73,6 +74,9 @@ namespace environment
 
         // Register reflection native functions
         reflection::ReflectionNatives::registerAll(environment);
+
+        // Register JSON serialization native functions
+        json::JsonNatives::registerAll(environment);
 
         return environment;
     }

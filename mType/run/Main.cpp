@@ -22,6 +22,7 @@
 #include "../tests/suites/ReflectionTestSuite.hpp"
 #include "../tests/suites/GCTestSuite.hpp"
 #include "../tests/suites/NullSafetyTestSuite.hpp"
+#include "../tests/suites/JsonTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../parser/Parser.hpp"
@@ -149,6 +150,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<NullSafetyTestSuite>();
     }
+    else if (suiteName == "json")
+    {
+        return std::make_unique<JsonTestSuite>();
+    }
     return nullptr;
 }
 
@@ -178,6 +183,7 @@ void printAvailableTestSuites()
     std::cout << "  reflection   - Reflection API Test Suite\n";
     std::cout << "  gc           - Garbage Collection Test Suite\n";
     std::cout << "  null-safety  - Null Safety Test Suite\n";
+    std::cout << "  json         - JSON Serialization/Deserialization Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
 }
 
@@ -414,6 +420,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
     suites.push_back(std::make_unique<ReflectionTestSuite>());
     suites.push_back(std::make_unique<GCTestSuite>());
     suites.push_back(std::make_unique<NullSafetyTestSuite>());
+    suites.push_back(std::make_unique<JsonTestSuite>());
 
     for (auto& suite : suites)
     {

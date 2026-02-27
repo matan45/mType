@@ -1,0 +1,13 @@
+{
+    "__type": "Container",
+    "numbers": [
+        10,
+        20,
+        30
+    ],
+    "names": [
+        "Alice",
+        "Bob"
+    ]
+}
+Test passed
