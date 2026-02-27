@@ -1,0 +1,26 @@
+{
+    "__type": "Stack",
+    "__collection": "list",
+    "__generics": {
+        "T": "Int"
+    },
+    "elements": [
+        {
+            "__type": "Int",
+            "value": 1
+        },
+        {
+            "__type": "Int",
+            "value": 2
+        },
+        {
+            "__type": "Int",
+            "value": 3
+        }
+    ]
+}
+3
+3
+2
+1
+Test passed

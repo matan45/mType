@@ -5,6 +5,7 @@
 #include "../../services/ScriptInterpreter.hpp"
 #include "../../vm/runtime/VirtualMachine.hpp"
 #include "../../reflection/ReflectionNatives.hpp"
+#include "../../json/JsonNatives.hpp"
 #include "../../gc/GC.hpp"
 #include <fstream>
 #include <sstream>
@@ -37,6 +38,7 @@ namespace tests::testFramework
 
         // Clear reflection handle registry to prevent stale handles between tests
         reflection::ReflectionNatives::cleanup();
+        json::JsonNatives::cleanup();
 
         // Reset GC state to prevent cross-test contamination
         gc::GC::reset();

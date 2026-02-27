@@ -1,0 +1,20 @@
+{
+    "__type": "Profile",
+    "address": null,
+    "age": 25,
+    "name": "Alice"
+}
+Alice
+25
+null
+{
+    "__type": "Profile",
+    "address": {
+        "__type": "Address",
+        "city": "Springfield",
+        "street": "123 Main St"
+    },
+    "age": 30,
+    "name": "Bob"
+}
+Test passed

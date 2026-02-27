@@ -1,0 +1,15 @@
+{
+    "__type": "Shape",
+    "name": "Triangle",
+    "origin": {
+        "__type": "Point",
+        "x": 10,
+        "y": 20
+    },
+    "sides": 3
+}
+Triangle
+3
+10
+20
+Test passed

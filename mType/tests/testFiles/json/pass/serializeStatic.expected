@@ -1,0 +1,13 @@
+{
+    "__type": "Config",
+    "name": "production"
+}
+{
+    "__type": "Config",
+    "__static": {
+        "endpoint": "https://api.example.com",
+        "maxRetries": 5
+    },
+    "name": "production"
+}
+Test passed

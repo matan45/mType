@@ -1,0 +1,14 @@
+{
+    "__type": "Employee",
+    "address": {
+        "__type": "Address",
+        "city": "Springfield",
+        "street": "123 Main St"
+    },
+    "age": 30,
+    "name": "Alice"
+}
+Alice
+123 Main St
+Springfield
+Test passed

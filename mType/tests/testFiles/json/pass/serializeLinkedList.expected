@@ -1,0 +1,26 @@
+{
+    "__type": "LinkedList",
+    "__collection": "list",
+    "__generics": {
+        "T": "Int"
+    },
+    "elements": [
+        {
+            "__type": "Int",
+            "value": 100
+        },
+        {
+            "__type": "Int",
+            "value": 200
+        },
+        {
+            "__type": "Int",
+            "value": 300
+        }
+    ]
+}
+3
+100
+200
+300
+Test passed

@@ -1,0 +1,26 @@
+{
+    "__type": "ArrayQueue",
+    "__collection": "list",
+    "__generics": {
+        "T": "Int"
+    },
+    "elements": [
+        {
+            "__type": "Int",
+            "value": 10
+        },
+        {
+            "__type": "Int",
+            "value": 20
+        },
+        {
+            "__type": "Int",
+            "value": 30
+        }
+    ]
+}
+3
+10
+20
+30
+Test passed
