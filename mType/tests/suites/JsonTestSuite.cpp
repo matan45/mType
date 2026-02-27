@@ -41,6 +41,23 @@ namespace tests::testSuite
         addOutputVerificationTest("File I/O",
                         passPath + "fileIO.mt");
 
+        // === COLLECTION TESTS ===
+
+        addOutputVerificationTest("Serialize ArrayList",
+                        passPath + "serializeArrayList.mt");
+        addOutputVerificationTest("Serialize LinkedList",
+                        passPath + "serializeLinkedList.mt");
+        addOutputVerificationTest("Serialize Stack",
+                        passPath + "serializeStack.mt");
+        addOutputVerificationTest("Serialize ArrayQueue",
+                        passPath + "serializeQueue.mt");
+        addTestFromFile("Serialize HashMap",
+                        passPath + "serializeHashMap.mt",
+                        TestType::NORMAL);
+        addTestFromFile("Serialize HashSet",
+                        passPath + "serializeHashSet.mt",
+                        TestType::NORMAL);
+
         // === FORMAT TEST ===
 
         addOutputVerificationTest("Format JSON",

@@ -54,6 +54,17 @@ namespace json
             const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field);
         static std::string valueTypeToString(value::ValueType type);
 
+        // Collection deserialization
+        value::Value deserializeCollection(const std::shared_ptr<JsonValue>& json,
+                                            const std::string& className);
+        value::Value deserializeListCollection(const std::shared_ptr<JsonValue>& json,
+                                                const std::string& className);
+        value::Value deserializeLinkedListCollection(const std::shared_ptr<JsonValue>& json);
+        value::Value deserializeHashMapCollection(const std::shared_ptr<JsonValue>& json);
+        value::Value deserializeHashSetCollection(const std::shared_ptr<JsonValue>& json);
+        int64_t computeHashCode(const value::Value& val);
+        int64_t computeBucketIndex(int64_t hash, int64_t capacity);
+
         struct DepthGuard
         {
             JsonDeserializer& deserializer;

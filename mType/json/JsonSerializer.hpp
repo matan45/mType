@@ -44,6 +44,24 @@ namespace json
             const std::unordered_map<std::string, std::string>& bindings,
             std::shared_ptr<JsonValue>& jsonObj);
 
+        // Collection serialization
+        static bool isCollectionType(const std::string& typeName);
+        std::shared_ptr<JsonValue> serializeCollection(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+        std::shared_ptr<JsonValue> serializeListCollection(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj,
+            const std::string& countField, const std::string& dataField);
+        std::shared_ptr<JsonValue> serializeStackCollection(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+        std::shared_ptr<JsonValue> serializeQueueCollection(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+        std::shared_ptr<JsonValue> serializeLinkedList(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+        std::shared_ptr<JsonValue> serializeHashMap(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+        std::shared_ptr<JsonValue> serializeHashSet(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+
         struct DepthGuard
         {
             JsonSerializer& serializer;

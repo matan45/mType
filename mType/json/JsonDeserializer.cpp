@@ -5,9 +5,11 @@
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/ValueObject.hpp"
+#include "../value/StringPool.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../ast/GenericType.hpp"
 #include <stdexcept>
+#include <functional>
 
 namespace json
 {
@@ -49,7 +51,7 @@ namespace json
             case JsonType::FLOAT:
                 return json->asFloat();
             case JsonType::STRING:
-                return json->asString();
+                return value::StringPool::getInstance().intern(json->asString());
             case JsonType::ARRAY:
                 return deserializeArray(json);
             case JsonType::OBJECT:
@@ -81,6 +83,10 @@ namespace json
     {
         DepthGuard guard(*this);
 
+        // Collection types get special handling
+        if (json->hasProperty("__collection"))
+            return deserializeCollection(json, className);
+
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
@@ -108,6 +114,18 @@ namespace json
         // Restore static fields if present
         if (json->hasProperty("__static"))
             populateStaticFields(classDef, json->getProperty("__static"));
+
+        // Value classes need ValueObject, not ObjectInstance
+        if (classDef->isValueClass())
+        {
+            auto valueObj = std::make_shared<value::ValueObject>(classDef);
+            const auto& fieldIndexMap = classDef->getFieldIndexMap();
+            for (const auto& [name, index] : fieldIndexMap)
+                valueObj->setFieldByIndex(index, instance->getFieldValue(name));
+            for (const auto& [param, type] : instance->getGenericTypeBindings())
+                valueObj->setGenericTypeBinding(param, type);
+            return valueObj;
+        }
 
         return instance;
     }
@@ -221,7 +239,7 @@ namespace json
         if (targetType == "bool" || targetType == "Bool")
             return json->isBool() ? json->asBool() : fromJsonValue(json);
         if (targetType == "string" || targetType == "String")
-            return json->isString() ? value::Value(json->asString()) : fromJsonValue(json);
+            return json->isString() ? value::Value(value::StringPool::getInstance().intern(json->asString())) : fromJsonValue(json);
 
         // Array types (e.g., "int[]", "Person[]")
         if (targetType.size() > 2 && targetType.substr(targetType.size() - 2) == "[]")
@@ -265,6 +283,440 @@ namespace json
             case value::ValueType::ARRAY:  return "Array";
             default: return "Object";
         }
+    }
+
+    // === Collection Deserialization ===
+
+    value::Value JsonDeserializer::deserializeCollection(
+        const std::shared_ptr<JsonValue>& json, const std::string& className)
+    {
+        std::string collType = json->getProperty("__collection")->asString();
+
+        if (collType == "list")
+            return deserializeListCollection(json, className);
+        if (collType == "map")
+            return deserializeHashMapCollection(json);
+        if (collType == "set")
+            return deserializeHashSetCollection(json);
+
+        throw errors::RuntimeException(
+            "Unknown collection type '" + collType + "' during JSON deserialization");
+    }
+
+    value::Value JsonDeserializer::deserializeListCollection(
+        const std::shared_ptr<JsonValue>& json, const std::string& className)
+    {
+        auto classDef = environment->findClass(className);
+        if (!classDef)
+            throw errors::RuntimeException("Unknown class '" + className + "' during JSON deserialization");
+
+        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+
+        if (json->hasProperty("__generics"))
+            applyGenericBindings(instance, json->getProperty("__generics"));
+
+        if (!json->hasProperty("elements"))
+            return instance;
+
+        const auto& elements = json->getProperty("elements")->asArray();
+        int64_t count = static_cast<int64_t>(elements.size());
+
+        // Resolve element type from generic binding
+        std::string elemType;
+        const auto& bindings = instance->getGenericTypeBindings();
+        auto tIt = bindings.find("T");
+        if (tIt != bindings.end())
+            elemType = tIt->second;
+
+        // Build data array
+        auto dataArr = std::make_shared<value::NativeArray>(elements.size());
+        for (size_t i = 0; i < elements.size(); ++i)
+        {
+            value::Value elem = elemType.empty()
+                ? fromJsonValue(elements[i])
+                : convertToFieldType(elements[i], elemType);
+            dataArr->set(i, elem);
+        }
+
+        if (className == "ArrayList")
+        {
+            instance->setField("data", dataArr);
+            instance->setField("count", count);
+            instance->setField("capacity", count);
+        }
+        else if (className == "Stack")
+        {
+            instance->setField("data", dataArr);
+            instance->setField("top", count - 1);
+            instance->setField("capacity", count);
+        }
+        else if (className == "ArrayQueue")
+        {
+            instance->setField("data", dataArr);
+            instance->setField("front", int64_t(0));
+            instance->setField("rear", count);
+            instance->setField("count", count);
+            instance->setField("capacity", count);
+        }
+        else if (className == "LinkedList")
+        {
+            return deserializeLinkedListCollection(json);
+        }
+
+        return instance;
+    }
+
+    value::Value JsonDeserializer::deserializeLinkedListCollection(
+        const std::shared_ptr<JsonValue>& json)
+    {
+        auto classDef = environment->findClass("LinkedList");
+        if (!classDef)
+            throw errors::RuntimeException("Unknown class 'LinkedList' during JSON deserialization");
+
+        auto nodeDef = environment->findClass("Node");
+        if (!nodeDef)
+            throw errors::RuntimeException("Unknown class 'Node' during JSON deserialization");
+
+        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+
+        if (json->hasProperty("__generics"))
+            applyGenericBindings(instance, json->getProperty("__generics"));
+
+        if (!json->hasProperty("elements"))
+        {
+            instance->setField("head", nullptr);
+            instance->setField("tail", nullptr);
+            instance->setField("count", int64_t(0));
+            return instance;
+        }
+
+        const auto& elements = json->getProperty("elements")->asArray();
+        if (elements.empty())
+        {
+            instance->setField("head", nullptr);
+            instance->setField("tail", nullptr);
+            instance->setField("count", int64_t(0));
+            return instance;
+        }
+
+        std::string elemType;
+        const auto& bindings = instance->getGenericTypeBindings();
+        auto tIt = bindings.find("T");
+        if (tIt != bindings.end())
+            elemType = tIt->second;
+
+        // Build node chain
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> headNode;
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> prevNode;
+
+        for (size_t i = 0; i < elements.size(); ++i)
+        {
+            auto node = std::make_shared<runtimeTypes::klass::ObjectInstance>(nodeDef);
+            if (!elemType.empty())
+                node->setGenericTypeBinding("T", elemType);
+
+            value::Value elemVal = elemType.empty()
+                ? fromJsonValue(elements[i])
+                : convertToFieldType(elements[i], elemType);
+
+            node->setField("data", elemVal);
+            node->setField("next", nullptr);
+            node->setField("prev", prevNode ? value::Value(prevNode) : value::Value(nullptr));
+
+            if (prevNode)
+                prevNode->setField("next", value::Value(node));
+
+            if (i == 0)
+                headNode = node;
+
+            prevNode = node;
+        }
+
+        instance->setField("head", value::Value(headNode));
+        instance->setField("tail", value::Value(prevNode));
+        instance->setField("count", static_cast<int64_t>(elements.size()));
+
+        return instance;
+    }
+
+    int64_t JsonDeserializer::computeHashCode(const value::Value& val)
+    {
+        return std::visit([](const auto& v) -> int64_t
+        {
+            using T = std::decay_t<decltype(v)>;
+
+            if constexpr (std::is_same_v<T, int64_t>)
+                return static_cast<int64_t>(std::hash<int64_t>{}(v) & 0x7FFFFFFF);
+            else if constexpr (std::is_same_v<T, double>)
+                return static_cast<int64_t>(std::hash<double>{}(v) & 0x7FFFFFFF);
+            else if constexpr (std::is_same_v<T, bool>)
+                return v ? 1231 : 1237;
+            else if constexpr (std::is_same_v<T, std::string>)
+                return static_cast<int64_t>(std::hash<std::string>{}(v) & 0x7FFFFFFF);
+            else if constexpr (std::is_same_v<T, value::InternedString>)
+                return static_cast<int64_t>(std::hash<std::string>{}(v.getString()) & 0x7FFFFFFF);
+            else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
+            {
+                // Wrapper types: extract primitive value field
+                if (!v) return 0;
+                const auto& fields = v->getAllFieldValues();
+                auto valIt = fields.find("value");
+                if (valIt == fields.end()) return 0;
+
+                // Recurse on the inner value
+                return std::visit([](const auto& inner) -> int64_t
+                {
+                    using U = std::decay_t<decltype(inner)>;
+                    if constexpr (std::is_same_v<U, int64_t>)
+                        return static_cast<int64_t>(std::hash<int64_t>{}(inner) & 0x7FFFFFFF);
+                    else if constexpr (std::is_same_v<U, double>)
+                        return static_cast<int64_t>(std::hash<double>{}(inner) & 0x7FFFFFFF);
+                    else if constexpr (std::is_same_v<U, bool>)
+                        return inner ? 1231 : 1237;
+                    else if constexpr (std::is_same_v<U, std::string>)
+                        return static_cast<int64_t>(std::hash<std::string>{}(inner) & 0x7FFFFFFF);
+                    else if constexpr (std::is_same_v<U, value::InternedString>)
+                        return static_cast<int64_t>(std::hash<std::string>{}(inner.getString()) & 0x7FFFFFFF);
+                    else
+                        return 0;
+                }, valIt->second);
+            }
+            else if constexpr (std::is_same_v<T, std::shared_ptr<value::ValueObject>>)
+            {
+                // Value types: extract primitive value field
+                if (!v) return 0;
+                value::Value inner = v->getFieldValue("value");
+                return std::visit([](const auto& iv) -> int64_t
+                {
+                    using U = std::decay_t<decltype(iv)>;
+                    if constexpr (std::is_same_v<U, int64_t>)
+                        return static_cast<int64_t>(std::hash<int64_t>{}(iv) & 0x7FFFFFFF);
+                    else if constexpr (std::is_same_v<U, double>)
+                        return static_cast<int64_t>(std::hash<double>{}(iv) & 0x7FFFFFFF);
+                    else if constexpr (std::is_same_v<U, bool>)
+                        return iv ? 1231 : 1237;
+                    else if constexpr (std::is_same_v<U, std::string>)
+                        return static_cast<int64_t>(std::hash<std::string>{}(iv) & 0x7FFFFFFF);
+                    else if constexpr (std::is_same_v<U, value::InternedString>)
+                        return static_cast<int64_t>(std::hash<std::string>{}(iv.getString()) & 0x7FFFFFFF);
+                    else
+                        return 0;
+                }, inner);
+            }
+            else
+                return 0;
+        }, val);
+    }
+
+    int64_t JsonDeserializer::computeBucketIndex(int64_t hash, int64_t capacity)
+    {
+        // Match mType HashMap.getBucketIndex() exactly
+        if (hash < 0) { hash = -hash; if (hash < 0) hash += 1; }
+        hash = hash * 1610612741;
+        hash = hash + (hash / capacity);
+        if (hash < 0) hash = -hash;
+        return hash % capacity;
+    }
+
+    value::Value JsonDeserializer::deserializeHashMapCollection(
+        const std::shared_ptr<JsonValue>& json)
+    {
+        auto classDef = environment->findClass("HashMap");
+        if (!classDef)
+            throw errors::RuntimeException("Unknown class 'HashMap' during JSON deserialization");
+
+        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+
+        if (json->hasProperty("__generics"))
+            applyGenericBindings(instance, json->getProperty("__generics"));
+
+        std::string keyType, valType;
+        const auto& bindings = instance->getGenericTypeBindings();
+        auto kIt = bindings.find("K");
+        auto vIt = bindings.find("V");
+        if (kIt != bindings.end()) keyType = kIt->second;
+        if (vIt != bindings.end()) valType = vIt->second;
+
+        if (!json->hasProperty("entries"))
+        {
+            // Empty map with default jagged NativeArray structure
+            int64_t capacity = 16;
+            int64_t bucketWidth = 4;
+            auto keyBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            auto valBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
+            {
+                keyBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+                valBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+                bucketSizes->set(i, int64_t(0));
+            }
+
+            instance->setField("keyBuckets", keyBuckets);
+            instance->setField("valueBuckets", valBuckets);
+            instance->setField("bucketSizes", bucketSizes);
+            instance->setField("capacity", capacity);
+            instance->setField("count", int64_t(0));
+            return instance;
+        }
+
+        const auto& entries = json->getProperty("entries")->asArray();
+        int64_t count = static_cast<int64_t>(entries.size());
+
+        // Choose capacity to avoid triggering resize (count > capacity * 3/4)
+        int64_t capacity = 16;
+        while (count > capacity * 3 / 4) capacity *= 2;
+
+        int64_t bucketWidth = 4;
+        // Create jagged NativeArray structure (NativeArray of NativeArrays) to match VM runtime
+        auto keyBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto valBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
+        {
+            keyBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+            valBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+            bucketSizes->set(i, int64_t(0));
+        }
+
+        for (size_t i = 0; i < entries.size(); ++i)
+        {
+            auto entry = entries[i];
+            value::Value key = keyType.empty()
+                ? fromJsonValue(entry->getProperty("key"))
+                : convertToFieldType(entry->getProperty("key"), keyType);
+            value::Value val = valType.empty()
+                ? fromJsonValue(entry->getProperty("value"))
+                : convertToFieldType(entry->getProperty("value"), valType);
+
+            int64_t hash = computeHashCode(key);
+            int64_t bucket = computeBucketIndex(hash, capacity);
+
+            int64_t bSize = std::get<int64_t>(bucketSizes->get(static_cast<size_t>(bucket)));
+
+            auto keyRow = std::get<std::shared_ptr<value::NativeArray>>(
+                keyBuckets->get(static_cast<size_t>(bucket)));
+            auto valRow = std::get<std::shared_ptr<value::NativeArray>>(
+                valBuckets->get(static_cast<size_t>(bucket)));
+
+            // Resize bucket row if needed
+            if (bSize >= static_cast<int64_t>(keyRow->size()))
+            {
+                size_t newSize = keyRow->size() * 2;
+                auto newKeyRow = std::make_shared<value::NativeArray>(newSize);
+                auto newValRow = std::make_shared<value::NativeArray>(newSize);
+                for (size_t k = 0; k < keyRow->size(); ++k)
+                {
+                    newKeyRow->set(k, keyRow->get(k));
+                    newValRow->set(k, valRow->get(k));
+                }
+                keyBuckets->set(static_cast<size_t>(bucket), newKeyRow);
+                valBuckets->set(static_cast<size_t>(bucket), newValRow);
+                keyRow = newKeyRow;
+                valRow = newValRow;
+            }
+
+            keyRow->set(static_cast<size_t>(bSize), key);
+            valRow->set(static_cast<size_t>(bSize), val);
+            bucketSizes->set(static_cast<size_t>(bucket), bSize + 1);
+        }
+
+        instance->setField("keyBuckets", keyBuckets);
+        instance->setField("valueBuckets", valBuckets);
+        instance->setField("bucketSizes", bucketSizes);
+        instance->setField("capacity", capacity);
+        instance->setField("count", count);
+
+        return instance;
+    }
+
+    value::Value JsonDeserializer::deserializeHashSetCollection(
+        const std::shared_ptr<JsonValue>& json)
+    {
+        auto classDef = environment->findClass("HashSet");
+        if (!classDef)
+            throw errors::RuntimeException("Unknown class 'HashSet' during JSON deserialization");
+
+        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+
+        if (json->hasProperty("__generics"))
+            applyGenericBindings(instance, json->getProperty("__generics"));
+
+        std::string elemType;
+        const auto& bindings = instance->getGenericTypeBindings();
+        auto tIt = bindings.find("T");
+        if (tIt != bindings.end()) elemType = tIt->second;
+
+        if (!json->hasProperty("elements"))
+        {
+            int64_t capacity = 16;
+            int64_t bucketWidth = 4;
+            auto buckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
+            {
+                buckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+                bucketSizes->set(i, int64_t(0));
+            }
+
+            instance->setField("buckets", buckets);
+            instance->setField("bucketSizes", bucketSizes);
+            instance->setField("capacity", capacity);
+            instance->setField("count", int64_t(0));
+            return instance;
+        }
+
+        const auto& elements = json->getProperty("elements")->asArray();
+        int64_t count = static_cast<int64_t>(elements.size());
+
+        int64_t capacity = 16;
+        while (count > capacity * 3 / 4) capacity *= 2;
+
+        int64_t bucketWidth = 4;
+        // Create jagged NativeArray structure to match VM runtime
+        auto buckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
+        {
+            buckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+            bucketSizes->set(i, int64_t(0));
+        }
+
+        for (size_t i = 0; i < elements.size(); ++i)
+        {
+            value::Value elem = elemType.empty()
+                ? fromJsonValue(elements[i])
+                : convertToFieldType(elements[i], elemType);
+
+            int64_t hash = computeHashCode(elem);
+            int64_t bucket = computeBucketIndex(hash, capacity);
+
+            int64_t bSize = std::get<int64_t>(bucketSizes->get(static_cast<size_t>(bucket)));
+
+            auto row = std::get<std::shared_ptr<value::NativeArray>>(
+                buckets->get(static_cast<size_t>(bucket)));
+
+            // Resize bucket row if needed
+            if (bSize >= static_cast<int64_t>(row->size()))
+            {
+                size_t newSize = row->size() * 2;
+                auto newRow = std::make_shared<value::NativeArray>(newSize);
+                for (size_t k = 0; k < row->size(); ++k)
+                    newRow->set(k, row->get(k));
+                buckets->set(static_cast<size_t>(bucket), newRow);
+                row = newRow;
+            }
+
+            row->set(static_cast<size_t>(bSize), elem);
+            bucketSizes->set(static_cast<size_t>(bucket), bSize + 1);
+        }
+
+        instance->setField("buckets", buckets);
+        instance->setField("bucketSizes", bucketSizes);
+        instance->setField("capacity", capacity);
+        instance->setField("count", count);
+
+        return instance;
     }
 
     // DepthGuard

@@ -82,6 +82,10 @@ namespace json
         }
         CycleGuard cycleGuard(visitedObjects, ptr);
 
+        // Collection types get special handling
+        if (isCollectionType(obj->getTypeName()))
+            return serializeCollection(obj);
+
         auto jsonObj = JsonValue::object();
         jsonObj->setProperty("__type", JsonValue::string(obj->getTypeName()));
 
@@ -184,6 +188,245 @@ namespace json
             genJson->setProperty(param, JsonValue::string(type));
         }
         jsonObj->setProperty("__generics", std::move(genJson));
+    }
+
+    // === Collection Serialization ===
+
+    bool JsonSerializer::isCollectionType(const std::string& typeName)
+    {
+        return typeName == "ArrayList" || typeName == "HashMap" ||
+               typeName == "HashSet" || typeName == "LinkedList" ||
+               typeName == "Stack" || typeName == "ArrayQueue";
+    }
+
+    std::shared_ptr<JsonValue> JsonSerializer::serializeCollection(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj)
+    {
+        const std::string& typeName = obj->getTypeName();
+
+        auto jsonObj = JsonValue::object();
+        jsonObj->setProperty("__type", JsonValue::string(typeName));
+
+        const auto& bindings = obj->getGenericTypeBindings();
+        if (!bindings.empty())
+            addGenericBindings(bindings, jsonObj);
+
+        if (typeName == "ArrayList")
+        {
+            jsonObj->setProperty("__collection", JsonValue::string("list"));
+            jsonObj->setProperty("elements", serializeListCollection(obj, "count", "data"));
+        }
+        else if (typeName == "Stack")
+        {
+            jsonObj->setProperty("__collection", JsonValue::string("list"));
+            jsonObj->setProperty("elements", serializeStackCollection(obj));
+        }
+        else if (typeName == "ArrayQueue")
+        {
+            jsonObj->setProperty("__collection", JsonValue::string("list"));
+            jsonObj->setProperty("elements", serializeQueueCollection(obj));
+        }
+        else if (typeName == "LinkedList")
+        {
+            jsonObj->setProperty("__collection", JsonValue::string("list"));
+            jsonObj->setProperty("elements", serializeLinkedList(obj));
+        }
+        else if (typeName == "HashMap")
+        {
+            jsonObj->setProperty("__collection", JsonValue::string("map"));
+            jsonObj->setProperty("entries", serializeHashMap(obj));
+        }
+        else if (typeName == "HashSet")
+        {
+            jsonObj->setProperty("__collection", JsonValue::string("set"));
+            jsonObj->setProperty("elements", serializeHashSet(obj));
+        }
+
+        return jsonObj;
+    }
+
+    std::shared_ptr<JsonValue> JsonSerializer::serializeListCollection(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj,
+        const std::string& countField, const std::string& dataField)
+    {
+        auto jsonArr = JsonValue::array();
+
+        const auto& fields = obj->getAllFieldValues();
+        auto countIt = fields.find(countField);
+        auto dataIt = fields.find(dataField);
+        if (countIt == fields.end() || dataIt == fields.end())
+            return jsonArr;
+
+        int64_t count = std::get<int64_t>(countIt->second);
+        auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataIt->second);
+        if (!arr) return jsonArr;
+
+        for (int64_t i = 0; i < count; ++i)
+            jsonArr->addToArray(serializeValue(arr->get(static_cast<size_t>(i))));
+
+        return jsonArr;
+    }
+
+    std::shared_ptr<JsonValue> JsonSerializer::serializeStackCollection(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj)
+    {
+        auto jsonArr = JsonValue::array();
+
+        const auto& fields = obj->getAllFieldValues();
+        auto topIt = fields.find("top");
+        auto dataIt = fields.find("data");
+        if (topIt == fields.end() || dataIt == fields.end())
+            return jsonArr;
+
+        int64_t top = std::get<int64_t>(topIt->second);
+        auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataIt->second);
+        if (!arr || top < 0) return jsonArr;
+
+        for (int64_t i = 0; i <= top; ++i)
+            jsonArr->addToArray(serializeValue(arr->get(static_cast<size_t>(i))));
+
+        return jsonArr;
+    }
+
+    std::shared_ptr<JsonValue> JsonSerializer::serializeQueueCollection(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj)
+    {
+        auto jsonArr = JsonValue::array();
+
+        const auto& fields = obj->getAllFieldValues();
+        auto frontIt = fields.find("front");
+        auto countIt = fields.find("count");
+        auto capIt = fields.find("capacity");
+        auto dataIt = fields.find("data");
+        if (frontIt == fields.end() || countIt == fields.end() ||
+            capIt == fields.end() || dataIt == fields.end())
+            return jsonArr;
+
+        int64_t front = std::get<int64_t>(frontIt->second);
+        int64_t count = std::get<int64_t>(countIt->second);
+        int64_t capacity = std::get<int64_t>(capIt->second);
+        auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataIt->second);
+        if (!arr) return jsonArr;
+
+        for (int64_t i = 0; i < count; ++i)
+        {
+            int64_t index = (front + i) % capacity;
+            jsonArr->addToArray(serializeValue(arr->get(static_cast<size_t>(index))));
+        }
+
+        return jsonArr;
+    }
+
+    std::shared_ptr<JsonValue> JsonSerializer::serializeLinkedList(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj)
+    {
+        auto jsonArr = JsonValue::array();
+
+        const auto& fields = obj->getAllFieldValues();
+        auto headIt = fields.find("head");
+        if (headIt == fields.end()) return jsonArr;
+
+        // head could be null
+        if (std::holds_alternative<nullptr_t>(headIt->second) ||
+            std::holds_alternative<std::monostate>(headIt->second))
+            return jsonArr;
+
+        auto node = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(headIt->second);
+        while (node)
+        {
+            const auto& nodeFields = node->getAllFieldValues();
+            auto dataIt = nodeFields.find("data");
+            if (dataIt != nodeFields.end())
+                jsonArr->addToArray(serializeValue(dataIt->second));
+
+            auto nextIt = nodeFields.find("next");
+            if (nextIt == nodeFields.end()) break;
+
+            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(nextIt->second))
+                node = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(nextIt->second);
+            else
+                break;
+        }
+
+        return jsonArr;
+    }
+
+    std::shared_ptr<JsonValue> JsonSerializer::serializeHashMap(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj)
+    {
+        auto jsonArr = JsonValue::array();
+
+        const auto& fields = obj->getAllFieldValues();
+        auto capIt = fields.find("capacity");
+        auto sizesIt = fields.find("bucketSizes");
+        auto keysIt = fields.find("keyBuckets");
+        auto valsIt = fields.find("valueBuckets");
+        if (capIt == fields.end() || sizesIt == fields.end() ||
+            keysIt == fields.end() || valsIt == fields.end())
+            return jsonArr;
+
+        int64_t capacity = std::get<int64_t>(capIt->second);
+        auto bucketSizes = std::get<std::shared_ptr<value::NativeArray>>(sizesIt->second);
+        // 2D bucket arrays are jagged NativeArrays (NativeArray of NativeArrays)
+        auto keyBuckets = std::get<std::shared_ptr<value::NativeArray>>(keysIt->second);
+        auto valBuckets = std::get<std::shared_ptr<value::NativeArray>>(valsIt->second);
+        if (!bucketSizes || !keyBuckets || !valBuckets) return jsonArr;
+
+        for (int64_t b = 0; b < capacity; ++b)
+        {
+            int64_t bSize = std::get<int64_t>(bucketSizes->get(static_cast<size_t>(b)));
+            if (bSize <= 0) continue;
+
+            auto keyRow = std::get<std::shared_ptr<value::NativeArray>>(
+                keyBuckets->get(static_cast<size_t>(b)));
+            auto valRow = std::get<std::shared_ptr<value::NativeArray>>(
+                valBuckets->get(static_cast<size_t>(b)));
+            if (!keyRow || !valRow) continue;
+
+            for (int64_t j = 0; j < bSize; ++j)
+            {
+                auto entry = JsonValue::object();
+                entry->setProperty("key", serializeValue(keyRow->get(static_cast<size_t>(j))));
+                entry->setProperty("value", serializeValue(valRow->get(static_cast<size_t>(j))));
+                jsonArr->addToArray(std::move(entry));
+            }
+        }
+
+        return jsonArr;
+    }
+
+    std::shared_ptr<JsonValue> JsonSerializer::serializeHashSet(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj)
+    {
+        auto jsonArr = JsonValue::array();
+
+        const auto& fields = obj->getAllFieldValues();
+        auto capIt = fields.find("capacity");
+        auto sizesIt = fields.find("bucketSizes");
+        auto bucketsIt = fields.find("buckets");
+        if (capIt == fields.end() || sizesIt == fields.end() || bucketsIt == fields.end())
+            return jsonArr;
+
+        int64_t capacity = std::get<int64_t>(capIt->second);
+        auto bucketSizes = std::get<std::shared_ptr<value::NativeArray>>(sizesIt->second);
+        // 2D bucket array is a jagged NativeArray (NativeArray of NativeArrays)
+        auto buckets = std::get<std::shared_ptr<value::NativeArray>>(bucketsIt->second);
+        if (!bucketSizes || !buckets) return jsonArr;
+
+        for (int64_t b = 0; b < capacity; ++b)
+        {
+            int64_t bSize = std::get<int64_t>(bucketSizes->get(static_cast<size_t>(b)));
+            if (bSize <= 0) continue;
+
+            auto row = std::get<std::shared_ptr<value::NativeArray>>(
+                buckets->get(static_cast<size_t>(b)));
+            if (!row) continue;
+
+            for (int64_t j = 0; j < bSize; ++j)
+                jsonArr->addToArray(serializeValue(row->get(static_cast<size_t>(j))));
+        }
+
+        return jsonArr;
     }
 
     // DepthGuard implementation
