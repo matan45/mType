@@ -1,0 +1,10 @@
+{
+    "__type": "Dog",
+    "age": 5,
+    "breed": "Labrador",
+    "name": "Rex"
+}
+Rex
+5
+Labrador
+Test passed

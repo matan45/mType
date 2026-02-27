@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <unordered_map>
+#include <map>
 #include <memory>
 #include <variant>
 #include <stdexcept>
@@ -22,7 +22,7 @@ namespace json
     class JsonValue
     {
     public:
-        using JsonObject = std::unordered_map<std::string, std::shared_ptr<JsonValue>>;
+        using JsonObject = std::map<std::string, std::shared_ptr<JsonValue>>;
         using JsonArray = std::vector<std::shared_ptr<JsonValue>>;
 
     private:

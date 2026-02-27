@@ -4,10 +4,10 @@
 }
 {
     "__type": "Config",
-    "name": "production",
     "__static": {
-        "maxRetries": 5,
-        "endpoint": "https://api.example.com"
-    }
+        "endpoint": "https://api.example.com",
+        "maxRetries": 5
+    },
+    "name": "production"
 }
 Test passed

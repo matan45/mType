@@ -1,8 +1,8 @@
 {
     "__type": "SimpleData",
-    "number": 42,
     "decimal": 3.1400000000000001,
     "flag": true,
+    "number": 42,
     "text": "hello"
 }
 Test passed

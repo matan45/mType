@@ -59,20 +59,8 @@ namespace json
         }
     }
 
-    value::Value JsonDeserializer::fromJsonValueTyped(
-        const std::shared_ptr<JsonValue>& json,
-        const std::string& expectedType)
-    {
-        if (!json || json->isNull())
-            return nullptr;
-
-        return convertToFieldType(json, expectedType);
-    }
-
     value::Value JsonDeserializer::deserializeObject(const std::shared_ptr<JsonValue>& json)
     {
-        DepthGuard guard(*this);
-
         if (!json->hasProperty("__type"))
         {
             throw errors::RuntimeException(
@@ -282,13 +270,13 @@ namespace json
     // DepthGuard
     JsonDeserializer::DepthGuard::DepthGuard(JsonDeserializer& d) : deserializer(d)
     {
-        deserializer.currentDepth++;
-        if (deserializer.currentDepth > MAX_DEPTH)
+        if (deserializer.currentDepth >= MAX_DEPTH)
         {
             throw errors::RuntimeException(
                 "Maximum deserialization depth (" + std::to_string(MAX_DEPTH)
                 + ") exceeded.");
         }
+        deserializer.currentDepth++;
     }
 
     JsonDeserializer::DepthGuard::~DepthGuard()

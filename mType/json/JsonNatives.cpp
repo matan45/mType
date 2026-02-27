@@ -20,7 +20,7 @@ namespace json
         registry->registerNativeFunction("__json_serializeWithOptions", __json_serializeWithOptions);
         registry->registerNativeFunction("__json_deserialize", __json_deserialize);
         registry->registerNativeFunction("__json_deserializeAs", __json_deserializeAs);
-        registry->registerNativeFunction("__json_parse", __json_parse);
+        registry->registerNativeFunction("__json_format", __json_format);
         registry->registerNativeFunction("__json_stringify", __json_stringify);
         registry->registerNativeFunction("__json_readFile", __json_readFile);
         registry->registerNativeFunction("__json_writeFile", __json_writeFile);
@@ -80,10 +80,10 @@ namespace json
 
     // ========== JSON String Operations ==========
 
-    value::Value JsonNatives::__json_parse(const std::vector<value::Value>& args)
+    value::Value JsonNatives::__json_format(const std::vector<value::Value>& args)
     {
-        validateArgCount(args, 1, "__json_parse");
-        const std::string& jsonStr = extractString(args[0], "__json_parse");
+        validateArgCount(args, 1, "__json_format");
+        const std::string& jsonStr = extractString(args[0], "__json_format");
 
         auto parsed = JsonParser::parse(jsonStr);
         return parsed->toJsonString(true);
@@ -136,8 +136,8 @@ namespace json
         }
     }
 
-    const std::string& JsonNatives::extractString(const value::Value& arg,
-                                                   const std::string& funcName)
+    std::string JsonNatives::extractString(const value::Value& arg,
+                                           const std::string& funcName)
     {
         if (std::holds_alternative<std::string>(arg))
             return std::get<std::string>(arg);

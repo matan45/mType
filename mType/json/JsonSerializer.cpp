@@ -80,7 +80,7 @@ namespace json
             throw errors::RuntimeException("Circular reference detected while serializing object of type '"
                                             + obj->getTypeName() + "'");
         }
-        visitedObjects.insert(ptr);
+        CycleGuard cycleGuard(visitedObjects, ptr);
 
         auto jsonObj = JsonValue::object();
         jsonObj->setProperty("__type", JsonValue::string(obj->getTypeName()));
@@ -105,7 +105,6 @@ namespace json
                 addStaticFields(classDef, jsonObj);
         }
 
-        visitedObjects.erase(ptr);
         return jsonObj;
     }
 
@@ -190,17 +189,28 @@ namespace json
     // DepthGuard implementation
     JsonSerializer::DepthGuard::DepthGuard(JsonSerializer& s) : serializer(s)
     {
-        serializer.currentDepth++;
-        if (serializer.currentDepth > serializer.options.maxDepth)
+        if (serializer.currentDepth >= serializer.options.maxDepth)
         {
             throw errors::RuntimeException(
                 "Maximum serialization depth (" + std::to_string(serializer.options.maxDepth)
                 + ") exceeded. Possible circular reference or deeply nested structure.");
         }
+        serializer.currentDepth++;
     }
 
     JsonSerializer::DepthGuard::~DepthGuard()
     {
         serializer.currentDepth--;
+    }
+
+    JsonSerializer::CycleGuard::CycleGuard(std::unordered_set<const void*>& visited, const void* p)
+        : visited(visited), ptr(p)
+    {
+        visited.insert(ptr);
+    }
+
+    JsonSerializer::CycleGuard::~CycleGuard()
+    {
+        visited.erase(ptr);
     }
 }

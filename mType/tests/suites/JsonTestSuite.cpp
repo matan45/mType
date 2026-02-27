@@ -29,11 +29,22 @@ namespace tests::testSuite
                         passPath + "deserializeNested.mt");
         addOutputVerificationTest("Deserialize Arrays",
                         passPath + "deserializeArray.mt");
+        addOutputVerificationTest("Null Fields",
+                        passPath + "nullFields.mt");
+        addOutputVerificationTest("Subclass Deserialization",
+                        passPath + "subclass.mt");
 
         // === ROUNDTRIP TESTS ===
 
         addOutputVerificationTest("Roundtrip",
                         passPath + "roundTrip.mt");
+        addOutputVerificationTest("File I/O",
+                        passPath + "fileIO.mt");
+
+        // === FORMAT TEST ===
+
+        addOutputVerificationTest("Format JSON",
+                        passPath + "format.mt");
 
         // === ERROR TESTS ===
 
@@ -42,6 +53,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Unknown Class",
                         errorPath + "unknownClass.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Empty JSON",
+                        errorPath + "emptyJson.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

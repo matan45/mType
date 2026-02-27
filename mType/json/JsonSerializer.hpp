@@ -50,5 +50,13 @@ namespace json
             explicit DepthGuard(JsonSerializer& s);
             ~DepthGuard();
         };
+
+        struct CycleGuard
+        {
+            std::unordered_set<const void*>& visited;
+            const void* ptr;
+            CycleGuard(std::unordered_set<const void*>& visited, const void* ptr);
+            ~CycleGuard();
+        };
     };
 }

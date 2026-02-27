@@ -21,8 +21,6 @@ namespace json
         static constexpr int MAX_DEPTH = 64;
 
         value::Value fromJsonValue(const std::shared_ptr<JsonValue>& json);
-        value::Value fromJsonValueTyped(const std::shared_ptr<JsonValue>& json,
-                                         const std::string& expectedType);
 
         value::Value deserializeObject(const std::shared_ptr<JsonValue>& json);
         value::Value deserializeObjectAs(const std::shared_ptr<JsonValue>& json,

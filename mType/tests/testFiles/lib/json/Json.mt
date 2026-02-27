@@ -39,7 +39,7 @@ class Json {
         __json_writeFile(filePath, json);
     }
 
-    public static function parse(string jsonString): string {
-        return __json_parse(jsonString);
+    public static function format(string jsonString): string {
+        return __json_format(jsonString);
     }
 }

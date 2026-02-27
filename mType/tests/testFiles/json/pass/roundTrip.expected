@@ -1,12 +1,12 @@
 {
     "__type": "Shape",
     "name": "Triangle",
-    "sides": 3,
     "origin": {
         "__type": "Point",
         "x": 10,
         "y": 20
-    }
+    },
+    "sides": 3
 }
 Triangle
 3

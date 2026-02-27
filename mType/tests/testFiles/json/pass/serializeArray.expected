@@ -1,13 +1,13 @@
 {
     "__type": "Container",
+    "names": [
+        "Alice",
+        "Bob"
+    ],
     "numbers": [
         10,
         20,
         30
-    ],
-    "names": [
-        "Alice",
-        "Bob"
     ]
 }
 Test passed

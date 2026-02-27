@@ -34,6 +34,7 @@
 #include "../debugger/DebugContext.hpp"
 #include "../debugger/DebugHookHelper.hpp"
 #include "../reflection/ReflectionNatives.hpp"
+#include "../json/JsonNatives.hpp"
 #include "../debugger/DebugProtocol.hpp"
 #include "../project/ProjectConfigParser.hpp"
 #include "../project/ProjectBuilder.hpp"
@@ -211,6 +212,7 @@ void runSpecificTestSuite(const std::string& suiteName,
 
     // Cleanup reflection static state to avoid static destruction order issues
     reflection::ReflectionNatives::cleanup();
+    json::JsonNatives::cleanup();
 }
 
 // Helper function to convert string type name to ValueType
@@ -431,6 +433,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
 
     // Cleanup reflection static state to avoid static destruction order issues
     reflection::ReflectionNatives::cleanup();
+    json::JsonNatives::cleanup();
 
     // Print final summary
     std::cout << "\n" << std::string(80, '=') << std::endl;
@@ -1105,6 +1108,7 @@ int main(int argc, char* argv[])
         std::cerr << e.what() << std::endl;
         gc::GC::shutdown(); // Clean up GC before exit
         reflection::ReflectionNatives::cleanup();
+        json::JsonNatives::cleanup();
         return 1;
     }
 
@@ -1113,6 +1117,7 @@ int main(int argc, char* argv[])
 
     // Cleanup reflection static state to avoid static destruction order issues
     reflection::ReflectionNatives::cleanup();
+    json::JsonNatives::cleanup();
 
     return 0;
 }

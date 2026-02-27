@@ -1,8 +1,10 @@
 {
-    "__type": "Person",
     "age": 30,
     "name": "Alice"
 }
-Alice
-30
+[
+    1,
+    2,
+    3
+]
 Test passed
