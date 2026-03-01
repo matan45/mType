@@ -89,7 +89,8 @@ namespace vm::jit
                                 size_t jumpBackOffset,
                                 const bytecode::BytecodeProgram& program,
                                 JitCompiler& compiler,
-                                JitCodeCache& codeCache);
+                                JitCodeCache& codeCache,
+                                ic::TypeFeedbackCollector* typeFeedback = nullptr);
 
         // Infer SlotType from a runtime Value
         static SlotType inferSlotType(const value::Value& val);

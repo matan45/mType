@@ -61,16 +61,32 @@ namespace types
             return false;
         }
 
-        // Get the object's reified type
+        // Check the object's own reified type
         UnifiedTypePtr objectType = getReifiedType(obj);
-        if (!objectType)
+        if (objectType && isTypeCompatible(objectType, type))
         {
-            // Object not registered - fall back to class name check
-            // This handles objects created before reification was enabled
-            return false;
+            return true;
         }
 
-        return isTypeCompatible(objectType, type);
+        // Walk the inheritance chain: check if any ancestor's reified type matches
+        // This handles cases like StringBox extends Box<String> where
+        // isInstance(stringBoxObj, Box<String>) should return true
+        auto classDef = obj->getClassDefinition();
+        if (classDef)
+        {
+            auto parentDef = classDef->getParentClass();
+            while (parentDef)
+            {
+                UnifiedTypePtr parentReified = parentDef->getReifiedType();
+                if (parentReified && isTypeCompatible(parentReified, type))
+                {
+                    return true;
+                }
+                parentDef = parentDef->getParentClass();
+            }
+        }
+
+        return false;
     }
 
     UnifiedTypePtr ReifiedTypeRegistry::getReifiedType(
@@ -112,10 +128,20 @@ namespace types
 
         const void* key = obj.get();
 
-        std::lock_guard<std::mutex> lock(objectRegistryMutex);
-        objectTypes[key] = std::make_pair(
-            std::weak_ptr<runtimeTypes::klass::ObjectInstance>(obj),
-            internedType);
+        {
+            std::lock_guard<std::mutex> lock(objectRegistryMutex);
+            objectTypes[key] = std::make_pair(
+                std::weak_ptr<runtimeTypes::klass::ObjectInstance>(obj),
+                internedType);
+            registrationsSinceCleanup++;
+        }
+
+        // Periodically clean up orphaned registrations to prevent unbounded growth
+        if (registrationsSinceCleanup >= CLEANUP_THRESHOLD)
+        {
+            registrationsSinceCleanup = 0;
+            cleanupOrphanedRegistrations();
+        }
     }
 
     void ReifiedTypeRegistry::unregisterObject(

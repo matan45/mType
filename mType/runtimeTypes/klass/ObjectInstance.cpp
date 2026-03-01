@@ -142,20 +142,21 @@ namespace runtimeTypes::klass
 
     const Value& ObjectInstance::getFieldByIndex(size_t index) const
     {
+        static const Value nullValue = std::monostate{};
+        if (index >= fieldVector.size()) return nullValue;
         return fieldVector[index];
     }
 
     void ObjectInstance::setFieldByIndex(size_t index, const Value& value)
     {
+        if (index >= fieldVector.size()) return;
+
         // GC: Write barrier
         void* newPtr = gc::extractPointer(value);
-        if (index < fieldVector.size())
+        void* oldPtr = gc::extractPointer(fieldVector[index]);
+        if (oldPtr != nullptr && oldPtr != newPtr)
         {
-            void* oldPtr = gc::extractPointer(fieldVector[index]);
-            if (oldPtr != nullptr && oldPtr != newPtr)
-            {
-                gc::GC::onRefCountDecrement(oldPtr);
-            }
+            gc::GC::onRefCountDecrement(oldPtr);
         }
         if (newPtr != nullptr && gcRegistered)
         {
@@ -249,8 +250,20 @@ namespace runtimeTypes::klass
 
     std::string ObjectInstance::getContentHash() const
     {
+        return getContentHashImpl(0);
+    }
+
+    std::string ObjectInstance::getContentHashImpl(int depth) const
+    {
+        static constexpr int MAX_HASH_DEPTH = 10;
+
         std::string hash = classDefinition->getName() + ":";
-        
+
+        if (depth >= MAX_HASH_DEPTH) {
+            hash += "<circular>";
+            return hash;
+        }
+
         // Get all instance fields in sorted order for consistent hashing
         const auto& fields = classDefinition->getInstanceFields();
         std::vector<std::string> fieldNames;
@@ -260,14 +273,14 @@ namespace runtimeTypes::klass
             }
         }
         std::sort(fieldNames.begin(), fieldNames.end());
-        
+
         // Build hash from field values
         for (const std::string& fieldName : fieldNames) {
             Value fieldValue = getFieldValue(fieldName);
             hash += fieldName + "=";
-            
+
             // Convert field value to string
-            std::visit([&hash](const auto& v) {
+            std::visit([&hash, depth](const auto& v) {
                 if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int64_t>) {
                     hash += std::to_string(v);
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, double>) {
@@ -281,30 +294,29 @@ namespace runtimeTypes::klass
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::monostate>) {
                     hash += "void";
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
-                    // Recursive content hashing for nested objects
-                    hash += v ? v->getContentHash() : "null_obj";
+                    // Depth-limited recursive content hashing
+                    hash += v ? v->getContentHashImpl(depth + 1) : "null_obj";
                 } else {
                     // For collections and other complex types, use reference-based hashing
-                    // This is acceptable since deep content comparison for collections would be expensive
                     hash += "ref_" + std::to_string(reinterpret_cast<uintptr_t>(&v));
                 }
             }, fieldValue);
             hash += ";";
         }
-        
+
         return hash;
     }
 
-    bool ObjectInstance::compareFieldValues(const Value& thisValue, const Value& otherValue)
+    bool ObjectInstance::compareFieldValues(const Value& thisValue, const Value& otherValue, int depth)
     {
-        return std::visit([](const auto& thisV, const auto& otherV) -> bool {
+        return std::visit([depth](const auto& thisV, const auto& otherV) -> bool {
             // Same types comparison
             if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, std::decay_t<decltype(otherV)>>) {
                 if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
-                    // Recursive content comparison for nested objects
+                    // Depth-limited recursive content comparison
                     if (!thisV && !otherV) return true;
                     if (!thisV || !otherV) return false;
-                    return thisV->contentEquals(*otherV);
+                    return thisV->contentEqualsImpl(*otherV, depth + 1);
                 } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, int64_t> ||
                                    std::is_same_v<std::decay_t<decltype(thisV)>, double> ||
                                    std::is_same_v<std::decay_t<decltype(thisV)>, bool> ||
@@ -315,7 +327,6 @@ namespace runtimeTypes::klass
                     return true;  // Both null or void
                 } else {
                     // For collections and other complex types, use pointer comparison
-                    // This is acceptable since full deep comparison would be expensive
                     return &thisV == &otherV;
                 }
             }
@@ -326,6 +337,13 @@ namespace runtimeTypes::klass
 
     bool ObjectInstance::contentEquals(const ObjectInstance& other) const
     {
+        return contentEqualsImpl(other, 0);
+    }
+
+    bool ObjectInstance::contentEqualsImpl(const ObjectInstance& other, int depth) const
+    {
+        static constexpr int MAX_EQUALS_DEPTH = 10;
+
         // First check class compatibility
         if (!classDefinition || !other.classDefinition) {
             return false;
@@ -333,10 +351,15 @@ namespace runtimeTypes::klass
         if (classDefinition->getName() != other.classDefinition->getName()) {
             return false;
         }
-        
+
+        // Prevent infinite recursion on circular references
+        if (depth >= MAX_EQUALS_DEPTH) {
+            return true;  // Assume equal at max depth
+        }
+
         // Get all instance fields for comparison
         const auto& fields = classDefinition->getInstanceFields();
-        
+
         // Compare all instance field values
         for (const auto& pair : fields) {
             if (!pair.second->isStatic()) {  // Only instance fields
@@ -344,12 +367,12 @@ namespace runtimeTypes::klass
                 Value thisValue = getFieldValue(fieldName);
                 Value otherValue = other.getFieldValue(fieldName);
 
-                if (!compareFieldValues(thisValue, otherValue)) {
+                if (!compareFieldValues(thisValue, otherValue, depth)) {
                     return false;
                 }
             }
         }
-        
+
         return true;  // All fields match
     }
 

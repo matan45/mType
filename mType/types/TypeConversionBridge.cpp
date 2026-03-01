@@ -94,63 +94,6 @@ namespace types
         }
     }
 
-    std::shared_ptr<ast::GenericType> TypeConversionBridge::toGenericType(
-        const UnifiedTypePtr& unifiedType)
-    {
-        if (!unifiedType)
-        {
-            return nullptr;
-        }
-
-        switch (unifiedType->getKind())
-        {
-            case TypeKind::Primitive:
-                return std::make_shared<ast::GenericType>(unifiedType->toValueType());
-
-            case TypeKind::Void:
-                return std::make_shared<ast::GenericType>(value::ValueType::VOID);
-
-            case TypeKind::Null:
-                return std::make_shared<ast::GenericType>(value::ValueType::NULL_TYPE);
-
-            case TypeKind::Lambda:
-                return std::make_shared<ast::GenericType>(value::ValueType::LAMBDA);
-
-            case TypeKind::GenericParameter:
-                return std::make_shared<ast::GenericType>(unifiedType->getName());
-
-            case TypeKind::Array:
-            {
-                if (!unifiedType->getTypeArguments().empty())
-                {
-                    auto elementType = toGenericType(unifiedType->getTypeArguments()[0]);
-                    std::vector<std::shared_ptr<ast::GenericType>> args = {elementType};
-                    return std::make_shared<ast::GenericType>("Array", args);
-                }
-                return std::make_shared<ast::GenericType>(value::ValueType::ARRAY);
-            }
-
-            case TypeKind::Class:
-            case TypeKind::Interface:
-            {
-                std::string name = unifiedType->getName();
-                if (unifiedType->isParameterized())
-                {
-                    std::vector<std::shared_ptr<ast::GenericType>> args;
-                    for (const auto& arg : unifiedType->getTypeArguments())
-                    {
-                        args.push_back(toGenericType(arg));
-                    }
-                    return std::make_shared<ast::GenericType>(name, args);
-                }
-                return std::make_shared<ast::GenericType>(name);
-            }
-
-            default:
-                return std::make_shared<ast::GenericType>(value::ValueType::OBJECT);
-        }
-    }
-
     std::vector<TypeConstraint> TypeConversionBridge::convertConstraints(
         const ast::GenericTypeParameter& param)
     {

@@ -10,7 +10,7 @@
 #include "../../../errors/InheritanceException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
-#include "../../../ast/GenericType.hpp"
+#include "../../../types/TypeConversionBridge.hpp"
 #include <stdexcept>
 #include <algorithm>
 
@@ -109,23 +109,23 @@ namespace vm::compiler::registration
                 runtimeTypes::klass::MethodSignature signature;
                 signature.name = functionNode->getName();
 
-                // Handle return type
+                // Handle return type — convert AST GenericType to UnifiedType at the boundary
                 if (functionNode->getGenericReturnType()) {
-                    signature.returnType = functionNode->getGenericReturnType();
+                    signature.returnType = ::types::TypeConversionBridge::toUnifiedType(
+                        functionNode->getGenericReturnType());
                 } else {
-                    signature.returnType = std::make_shared<ast::GenericType>(
-                        ::types::TypeConversionUtils::getTypeDisplayName(functionNode->getReturnType())
-                    );
+                    signature.returnType = ::types::UnifiedType::classType(
+                        ::types::TypeConversionUtils::getTypeDisplayName(functionNode->getReturnType()));
                 }
 
-                // Handle parameters
+                // Handle parameters — convert AST GenericType to UnifiedType at the boundary
                 const auto& genericParamPairs = functionNode->getGenericParameters();
                 for (const auto& [paramName, paramType] : genericParamPairs) {
                     if (paramType) {
-                        signature.parameters.emplace_back(paramName, paramType);
+                        signature.parameters.emplace_back(paramName,
+                            ::types::TypeConversionBridge::toUnifiedType(paramType));
                     } else {
-                        // Fallback if paramType is null (shouldn't happen in well-formed code)
-                        signature.parameters.emplace_back(paramName, std::make_shared<ast::GenericType>(value::ValueType::VOID));
+                        signature.parameters.emplace_back(paramName, ::types::UnifiedType::voidType());
                     }
                 }
 
@@ -239,10 +239,10 @@ namespace vm::compiler::registration
                     signature.returnType->toString(), typeSubstitutions);
                 std::string methodReturnType;
 
-                // Use generic return type if available, otherwise fall back to basic ValueType
-                if (method->getGenericReturnType()) {
+                // Use unified return type if available, otherwise fall back to basic ValueType
+                if (method->getUnifiedReturnType()) {
                     // Use toString() to include generic type arguments (e.g., "BinaryNode<T>" not just "BinaryNode")
-                    methodReturnType = method->getGenericReturnType()->toString();
+                    methodReturnType = method->getUnifiedReturnType()->toString();
                 } else {
                     methodReturnType = ::types::TypeConversionUtils::getTypeDisplayName(method->getReturnType());
                 }
@@ -280,14 +280,14 @@ namespace vm::compiler::registration
                 }
 
                 // Validate parameter types with generic resolution
-                const auto& methodGenericParams = method->getGenericParameters();
+                const auto& methodUnifiedParams = method->getUnifiedParameters();
                 for (size_t i = 0; i < signature.parameters.size(); ++i) {
                     std::string methodParamType;
 
-                    // Use generic parameter type if available, otherwise fall back to basic ValueType
-                    if (i < methodGenericParams.size() && methodGenericParams[i].second) {
+                    // Use unified parameter type if available, otherwise fall back to basic ValueType
+                    if (i < methodUnifiedParams.size() && methodUnifiedParams[i].second) {
                         // Use toString() to include generic type arguments (e.g., "BinaryNode<T>" not just "BinaryNode")
-                        methodParamType = methodGenericParams[i].second->toString();
+                        methodParamType = methodUnifiedParams[i].second->toString();
                     } else {
                         // Access method parameter at offset position (skip 'this' for instance methods)
                         methodParamType = ::types::TypeConversionUtils::getTypeDisplayName(methodParams[i + paramOffset].second);

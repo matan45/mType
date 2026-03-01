@@ -95,6 +95,12 @@ namespace vm::jit
                            int64_t val);
     int64_t* jit_array_get_raw_int_ptr(const value::Value* array);
 
+    struct JitArrayInfo {
+        int64_t* data;     // raw int pointer (nullptr if heterogeneous)
+        int64_t  length;   // element count
+    };
+    void jit_array_extract_info(const value::Value* array, JitArrayInfo* out);
+
     void jit_array_get_field(value::Value* dest, const value::Value* array,
                              int64_t index,
                              const vm::bytecode::BytecodeProgram* prog,

@@ -600,10 +600,6 @@ namespace vm::compiler::visitors
         std::vector<variables::VariableTracker::LocalVariable> capturedVars;
         const auto& currentLocals = ctx.variableTracker.getLocals();
 
-        // Determine if we're compiling a lambda inside another lambda
-        bool isNestedLambda = ctx.functionFrameManager.isInFunction() &&
-            ctx.functionFrameManager.currentFrame().isLambda;
-
         // Capture strategy: capture all variables from the current function frame
         size_t currentFrameStart = ctx.functionFrameManager.isInFunction()
                                        ? ctx.functionFrameManager.currentFrame().localStartSlot

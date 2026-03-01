@@ -306,12 +306,7 @@ namespace vm::runtime::utils
             callStack.pop_back();
             cleanupStack(frame.frameBase);
 
-            // Now check the caller's (new top of stack) exception table
-            if (callStack.empty()) {
-                // No more callers to check
-                break;
-            }
-
+            // Get caller's exception table (returns global table when callStack is empty)
             const bytecode::ExceptionTable* frameTable = getExceptionTable();
 
             // Look for handler at the call site in the caller's exception table

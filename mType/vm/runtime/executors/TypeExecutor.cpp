@@ -192,6 +192,14 @@ namespace vm::runtime
                 throwCastError("Cannot cast string to int: " + std::get<std::string>(val));
             }
         }
+        else if (std::holds_alternative<value::InternedString>(val)) {
+            const std::string& str = std::get<value::InternedString>(val).getString();
+            try {
+                return std::stoll(str);
+            } catch (...) {
+                throwCastError("Cannot cast string to int: " + str);
+            }
+        }
         else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
             auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
             if (obj && obj->getClassDefinition()->getName() == "Int") {
@@ -224,6 +232,14 @@ namespace vm::runtime
                 return std::stod(std::get<std::string>(val));
             } catch (...) {
                 throwCastError("Cannot cast string to float: " + std::get<std::string>(val));
+            }
+        }
+        else if (std::holds_alternative<value::InternedString>(val)) {
+            const std::string& str = std::get<value::InternedString>(val).getString();
+            try {
+                return std::stod(str);
+            } catch (...) {
+                throwCastError("Cannot cast string to float: " + str);
             }
         }
         else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {

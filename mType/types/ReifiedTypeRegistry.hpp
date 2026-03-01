@@ -173,5 +173,9 @@ namespace types
         bool isTypeCompatible(
             const UnifiedTypePtr& objectType,
             const UnifiedTypePtr& expectedType) const;
+
+        // Threshold for automatic orphan cleanup during registration
+        static constexpr size_t CLEANUP_THRESHOLD = 1000;
+        size_t registrationsSinceCleanup = 0;
     };
 }

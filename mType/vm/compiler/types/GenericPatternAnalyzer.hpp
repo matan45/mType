@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
+#include "../../../types/TypeSubstitutionService.hpp"
 
 namespace vm::compiler::types
 {
@@ -94,7 +95,12 @@ namespace vm::compiler::types
             const std::unordered_set<std::string>& declaredTypeParams
         );
 
+        static constexpr int MAX_EXTRACT_DEPTH = 50;
+
     private:
+        // Reusable service for type string parsing (avoids per-call construction)
+        ::types::TypeSubstitutionService substitutionService;
+
         /**
          * Recursive helper for pattern matching
          * Handles nested generic structures

@@ -10,6 +10,203 @@
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include <stdexcept>
 #include <iostream>
+
+namespace
+{
+    using OpCode = vm::bytecode::OpCode;
+    using Instruction = vm::bytecode::BytecodeProgram::Instruction;
+    using FunctionMetadata = vm::bytecode::BytecodeProgram::FunctionMetadata;
+
+    void inlineTrivialSetters(vm::bytecode::BytecodeProgram& program)
+    {
+        const auto& functions = program.getFunctions();
+        const auto& classes = program.getClasses();
+
+        // Phase 1: Detect trivial setter methods
+        // Pattern: LOAD_LOCAL 0, LOAD_LOCAL 1, SET_FIELD X, PUSH_NULL, RETURN_VALUE
+        std::unordered_map<std::string, uint64_t> trivialSetters;
+
+        for (const auto& [name, meta] : functions)
+        {
+            if (name.find("::") == std::string::npos) continue;
+            if (meta.parameterCount != 2) continue;
+            if (meta.returnType != "void") continue;
+            if (meta.instructionCount != 5) continue;
+            // Safety: ensure function doesn't extend beyond instruction vector
+            if (meta.startOffset + 4 >= program.getInstructionCount()) continue;
+
+            const auto& i0 = program.getInstruction(meta.startOffset);
+            const auto& i1 = program.getInstruction(meta.startOffset + 1);
+            const auto& i2 = program.getInstruction(meta.startOffset + 2);
+            const auto& i3 = program.getInstruction(meta.startOffset + 3);
+            const auto& i4 = program.getInstruction(meta.startOffset + 4);
+
+            if (i0.opcode == OpCode::LOAD_LOCAL && !i0.operands.empty() && i0.operands[0] == 0 &&
+                i1.opcode == OpCode::LOAD_LOCAL && !i1.operands.empty() && i1.operands[0] == 1 &&
+                i2.opcode == OpCode::SET_FIELD && !i2.operands.empty() &&
+                i3.opcode == OpCode::PUSH_NULL &&
+                i4.opcode == OpCode::RETURN_VALUE)
+            {
+                trivialSetters[name] = i2.operands[0];
+            }
+        }
+
+        if (trivialSetters.empty()) return;
+
+        // Phase 2: Override safety check
+        // Build map of class -> parent, and class -> method names
+        std::unordered_map<std::string, std::string> classParent;
+        std::unordered_map<std::string, std::unordered_set<std::string>> classMethods;
+
+        for (const auto& cls : classes)
+        {
+            classParent[cls.name] = cls.parentClassName;
+            for (const auto& method : cls.instanceMethods)
+            {
+                classMethods[cls.name].insert(method.name);
+            }
+        }
+
+        // For each trivial setter, check if any subclass overrides it
+        std::unordered_set<std::string> unsafeSetters;
+        for (const auto& [qualifiedName, fieldIdx] : trivialSetters)
+        {
+            size_t colonPos = qualifiedName.find("::");
+            std::string className = qualifiedName.substr(0, colonPos);
+            std::string methodName = qualifiedName.substr(colonPos + 2);
+
+            // Check all classes to see if any is a subclass that overrides this method
+            for (const auto& cls : classes)
+            {
+                if (cls.name == className) continue;
+
+                // Walk up the parent chain to check if cls inherits from className
+                std::string parent = cls.parentClassName;
+                bool isSubclass = false;
+                while (!parent.empty())
+                {
+                    if (parent == className)
+                    {
+                        isSubclass = true;
+                        break;
+                    }
+                    auto it = classParent.find(parent);
+                    if (it == classParent.end()) break;
+                    parent = it->second;
+                }
+
+                if (isSubclass && classMethods[cls.name].count(methodName))
+                {
+                    unsafeSetters.insert(qualifiedName);
+                    break;
+                }
+            }
+        }
+
+        for (const auto& name : unsafeSetters)
+        {
+            trivialSetters.erase(name);
+        }
+
+        if (trivialSetters.empty()) return;
+
+        // Phase 3: Rewrite CALL_METHOD → INLINE_SET_FIELD
+        for (size_t ip = 0; ip < program.getInstructionCount(); ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            if (instr.opcode != OpCode::CALL_METHOD) continue;
+            if (instr.operands.size() < 2) continue;
+
+            const std::string& methodName =
+                program.getConstantPool().getString(instr.operands[0]);
+            auto it = trivialSetters.find(methodName);
+            if (it == trivialSetters.end()) continue;
+
+            auto& mutableInstr = program.getMutableInstruction(ip);
+            mutableInstr.opcode = OpCode::INLINE_SET_FIELD;
+            mutableInstr.operands = { it->second };
+        }
+    }
+    void fuseLocalArrayOps(vm::bytecode::BytecodeProgram& program)
+    {
+        const auto& functions = program.getFunctions();
+        size_t totalInstructions = program.getInstructionCount();
+
+        for (const auto& [name, meta] : functions)
+        {
+            size_t start = meta.startOffset;
+            size_t end = start + meta.instructionCount;
+            // Safety: cap end to actual instruction count (peephole may have removed instructions)
+            if (end > totalInstructions)
+                end = totalInstructions;
+
+            for (size_t ip = start; ip < end; ++ip)
+            {
+                const auto& instr = program.getInstruction(ip);
+
+                // Pattern 1: LOAD_LOCAL X, ARRAY_LENGTH → ARRAY_LENGTH_LOCAL X
+                if (instr.opcode == OpCode::LOAD_LOCAL && ip + 1 < end)
+                {
+                    const auto& next = program.getInstruction(ip + 1);
+                    if (next.opcode == OpCode::ARRAY_LENGTH)
+                    {
+                        uint64_t localIdx = instr.operands[0];
+                        auto& mLoad = program.getMutableInstruction(ip);
+                        mLoad.opcode = OpCode::NOP;
+                        mLoad.operands.clear();
+                        auto& mLen = program.getMutableInstruction(ip + 1);
+                        mLen.opcode = OpCode::ARRAY_LENGTH_LOCAL;
+                        mLen.operands = { localIdx };
+                        ip++; // skip the rewritten instruction
+                        continue;
+                    }
+                }
+
+                // Pattern 2: LOAD_LOCAL X, LOAD_LOCAL Y, ARRAY_GET_INT
+                //           → LOAD_LOCAL Y, ARRAY_GET_INT_LOCAL X
+                if (instr.opcode == OpCode::LOAD_LOCAL && ip + 2 < end)
+                {
+                    const auto& next1 = program.getInstruction(ip + 1);
+                    const auto& next2 = program.getInstruction(ip + 2);
+                    if (next1.opcode == OpCode::LOAD_LOCAL &&
+                        next2.opcode == OpCode::ARRAY_GET_INT)
+                    {
+                        uint64_t arrLocal = instr.operands[0];
+                        auto& mLoad = program.getMutableInstruction(ip);
+                        mLoad.opcode = OpCode::NOP;
+                        mLoad.operands.clear();
+                        auto& mGet = program.getMutableInstruction(ip + 2);
+                        mGet.opcode = OpCode::ARRAY_GET_INT_LOCAL;
+                        mGet.operands = { arrLocal };
+                        ip += 2;
+                        continue;
+                    }
+                }
+
+                // Pattern 3: LOAD_LOCAL X, LOAD_LOCAL Y, <value>, ARRAY_SET_INT
+                //           → LOAD_LOCAL Y, <value>, ARRAY_SET_INT_LOCAL X
+                if (instr.opcode == OpCode::LOAD_LOCAL && ip + 3 < end)
+                {
+                    const auto& next1 = program.getInstruction(ip + 1);
+                    const auto& next3 = program.getInstruction(ip + 3);
+                    if (next1.opcode == OpCode::LOAD_LOCAL &&
+                        next3.opcode == OpCode::ARRAY_SET_INT)
+                    {
+                        uint64_t arrLocal = instr.operands[0];
+                        auto& mLoad = program.getMutableInstruction(ip);
+                        mLoad.opcode = OpCode::NOP;
+                        mLoad.operands.clear();
+                        auto& mSet = program.getMutableInstruction(ip + 3);
+                        mSet.opcode = OpCode::ARRAY_SET_INT_LOCAL;
+                        mSet.operands = { arrLocal };
+                        ip += 3;
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+}
 namespace vm::compiler
 {
     BytecodeCompiler::BytecodeCompiler(std::shared_ptr<environment::Environment> env,
@@ -130,6 +327,12 @@ namespace vm::compiler
                 std::cerr << "Continuing with unoptimized bytecode..." << std::endl;
             }
         }
+
+        // TRIVIAL SETTER INLINING PASS
+        inlineTrivialSetters(program);
+
+        // FUSED LOCAL-ARRAY OPERATIONS PASS
+        fuseLocalArrayOps(program);
 
         return std::move(program);
     }

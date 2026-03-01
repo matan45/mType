@@ -85,9 +85,10 @@ namespace gc
 
         void recordDeallocation()
         {
-            if (currentTrackedObjects > 0)
+            size_t current = currentTrackedObjects.load();
+            while (current > 0 && !currentTrackedObjects.compare_exchange_weak(current, current - 1))
             {
-                currentTrackedObjects--;
+                // CAS loop to safely decrement without underflow
             }
         }
 

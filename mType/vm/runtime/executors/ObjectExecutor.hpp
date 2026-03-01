@@ -39,6 +39,7 @@ namespace vm::runtime
         // Field access
         void handleGetField(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSetField(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleInlineSetField(const bytecode::BytecodeProgram::Instruction& instr);
         void handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr);
 

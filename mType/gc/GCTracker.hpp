@@ -48,6 +48,14 @@ namespace gc
      *
      * Tracks all heap-allocated objects that can participate in reference cycles.
      * Uses a header map for metadata storage with minimal per-object overhead.
+     *
+     * THREADING MODEL:
+     * The GC runs synchronously on the VM execution thread. The mutex protects
+     * against concurrent allocations (e.g., during object creation while GC is
+     * iterating), but callers of getHeader() must be aware that the returned
+     * pointer is only valid while no other thread modifies the tracker's maps
+     * (e.g., via unregisterObject or cleanupDeadObjects). This is safe because
+     * cycle detection and collection run on the same thread that triggers them.
      */
     class GCTracker
     {

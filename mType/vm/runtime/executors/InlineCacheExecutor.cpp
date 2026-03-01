@@ -190,6 +190,56 @@ namespace vm::runtime
         }
     }
 
+    void InlineCacheExecutor::handleInlineSetFieldIC(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        using namespace vm::jit::ic;
+
+        FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
+
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        value::Value newValue = context.stackManager->pop();
+        value::Value objectValue = context.stackManager->pop();
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto* classDef = instance->getClassDefinition().get();
+
+        // IC fast path
+        if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
+        {
+            const FieldICEntry* entry = cache.lookup(classDef);
+            if (entry && entry->fieldIndex != SIZE_MAX)
+            {
+                if (!instance->hasFieldVector())
+                {
+                    instance->ensureFieldVector();
+                }
+                instance->setFieldByIndex(entry->fieldIndex, newValue);
+                return;
+            }
+        }
+
+        // IC miss — no access validation needed (trusted from inlined setter)
+        instance->setField(fieldName, newValue);
+
+        // Populate IC
+        if (cache.state != ICState::MEGAMORPHIC)
+        {
+            auto fieldDef = instance->getField(fieldName);
+            if (fieldDef && !fieldDef->isStatic())
+            {
+                size_t fieldIndex = classDef->getFieldIndex(fieldName);
+                if (fieldIndex != SIZE_MAX)
+                {
+                    if (!instance->hasFieldVector())
+                    {
+                        instance->ensureFieldVector();
+                    }
+                    cache.addEntry(classDef, fieldIndex);
+                }
+            }
+        }
+    }
+
     void InlineCacheExecutor::handleCallMethodIC(const bytecode::BytecodeProgram::Instruction& instr)
     {
         using namespace vm::jit::ic;

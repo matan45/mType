@@ -1,0 +1,12 @@
+intAdd(123456, 789012): 912468
+intMul(12345, 6789): 83810205
+intSub(1000000, 999999): 1
+preciseDiv(1.0, 3.0): 0.333333
+preciseDiv(22.0, 7.0): 3.14286
+preciseAdd(0.1, 0.2): 0.3
+computePi(1000): 3.14059
+computePi(10000): 3.14149
+geometricSeries(0.5, 50): 2
+mixedCompute(100): 5.17738
+10000x intAdd(1,1): 20000
+10000x preciseDiv(1.0,3.0): 3333.33

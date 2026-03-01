@@ -7,7 +7,7 @@
 #include "../../value/ParameterType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../../ast/AccessModifier.hpp"
-#include "../../ast/GenericType.hpp"
+#include "../../types/UnifiedType.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../Definition.hpp"
 
@@ -29,8 +29,8 @@ namespace runtimeTypes::klass
         mutable std::vector<std::pair<std::string, ValueType>> cachedParameters;
         mutable bool parametersCacheValid = false;
 
-        // NEW: Generic parameter type information for precise type handling
-        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> genericParameters;
+        // Unified type parameter information for precise type handling
+        std::vector<std::pair<std::string, ::types::UnifiedTypePtr>> unifiedParameters;
 
       public:
        // Legacy constructor with ParameterType (preserves class/interface information)
@@ -38,15 +38,15 @@ namespace runtimeTypes::klass
                              std::shared_ptr<ASTNode> b,
                              ast::AccessModifier modifier = ast::AccessModifier::PUBLIC)
             : Definition("constructor"), parametersWithTypes(params), body(b),
-              initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier), genericParameters() {}
+              initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier), unifiedParameters() {}
 
-       // NEW: Constructor with generic parameter type information
+       // Constructor with unified type parameter information
        explicit ConstructorDefinition(const std::vector<std::pair<std::string, ParameterType>>& params,
                              std::shared_ptr<ASTNode> b,
-                             const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams,
+                             const std::vector<std::pair<std::string, ::types::UnifiedTypePtr>>& uParams,
                              ast::AccessModifier modifier = ast::AccessModifier::PUBLIC)
             : Definition("constructor"), parametersWithTypes(params), body(b),
-              initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier), genericParameters(genParams) {}
+              initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier), unifiedParameters(uParams) {}
 
         bool matchesArgCount(size_t argCount) const;
 
@@ -83,14 +83,14 @@ namespace runtimeTypes::klass
         ast::AccessModifier getAccessModifier() const { return accessModifier; }
         void setAccessModifier(ast::AccessModifier modifier) { accessModifier = modifier; }
 
-        // NEW: Generic parameter type information getters and setters
-        const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& getGenericParameters() const {
-            return genericParameters;
+        // Unified type parameter information getters and setters
+        const std::vector<std::pair<std::string, ::types::UnifiedTypePtr>>& getUnifiedParameters() const {
+            return unifiedParameters;
         }
-        void setGenericParameters(const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams) {
-            genericParameters = genParams;
+        void setUnifiedParameters(const std::vector<std::pair<std::string, ::types::UnifiedTypePtr>>& uParams) {
+            unifiedParameters = uParams;
         }
-        bool hasGenericParameters() const { return !genericParameters.empty(); }
+        bool hasUnifiedParameters() const { return !unifiedParameters.empty(); }
 
         // Reflection support: get modifier flags as bitmask
         // PUBLIC=1, PRIVATE=2, PROTECTED=4

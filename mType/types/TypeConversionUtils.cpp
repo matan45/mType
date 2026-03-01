@@ -7,11 +7,11 @@ namespace types {
 
     // Private helper function implementations
     value::ValueType TypeConversionUtils::handleGenericParameter(
-        std::shared_ptr<ast::GenericType> genericType,
+        const UnifiedTypePtr& type,
         const std::unordered_map<std::string, std::string>& substitutionMap,
         TypeRegistry& registry) {
 
-        std::string typeName = genericType->getGenericName();
+        std::string typeName = type->getName();
 
         auto it = substitutionMap.find(typeName);
         if (it != substitutionMap.end()) {
@@ -39,13 +39,13 @@ namespace types {
     }
 
     value::ValueType TypeConversionUtils::handleConcreteType(
-        std::shared_ptr<ast::GenericType> genericType,
+        const UnifiedTypePtr& type,
         TypeRegistry& registry) {
 
         try {
-            return genericType->getConcreteType();
+            return type->toValueType();
         } catch (...) {
-            std::string typeName = genericType->getBaseTypeName();
+            std::string typeName = type->getName();
 
             if (!registry.hasType(typeName)) {
                 auto suggestions = getTypeSuggestions(typeName);
@@ -61,10 +61,10 @@ namespace types {
     }
 
     value::ValueType TypeConversionUtils::handleParameterizedType(
-        std::shared_ptr<ast::GenericType> genericType,
+        const UnifiedTypePtr& type,
         TypeRegistry& registry) {
 
-        std::string baseTypeName = genericType->getBaseTypeName();
+        std::string baseTypeName = type->getName();
 
         if (baseTypeName == "Array" || registry.isArrayType(baseTypeName)) {
             return value::ValueType::ARRAY;
@@ -72,7 +72,7 @@ namespace types {
 
         if (registry.isCollectionType(baseTypeName)) {
             // Validate type arguments
-            auto typeArgs = genericType->getTypeArguments();
+            const auto& typeArgs = type->getTypeArguments();
             std::vector<std::string> typeArgStrings;
             typeArgStrings.reserve(typeArgs.size());
             for (const auto& arg : typeArgs) {
@@ -92,31 +92,29 @@ namespace types {
 
     // Public API implementation
     value::ValueType TypeConversionUtils::convertWithContext(
-        std::shared_ptr<ast::GenericType> genericType,
+        const UnifiedTypePtr& type,
         const std::unordered_map<std::string, std::string>& substitutionMap,
         const TypeConversionContext& context) {
 
-        if (!genericType) {
-            throw errors::TypeConversionException("Cannot convert null generic type", "null", "unknown");
+        if (!type) {
+            throw errors::TypeConversionException("Cannot convert null type", "null", "unknown");
         }
 
         auto& registry = getGlobalTypeRegistry();
 
         try {
             // Handle generic parameters with substitution
-            if (genericType->isGenericParameter()) {
-                return handleGenericParameter(genericType, substitutionMap, registry);
-            }
-
-            // Handle concrete types
-            if (!genericType->isGenericParameter()) {
-                return handleConcreteType(genericType, registry);
+            if (type->isGenericParameter()) {
+                return handleGenericParameter(type, substitutionMap, registry);
             }
 
             // Handle parameterized types
-            if (genericType->isParameterized()) {
-                return handleParameterizedType(genericType, registry);
+            if (type->isParameterized()) {
+                return handleParameterizedType(type, registry);
             }
+
+            // Handle concrete types
+            return handleConcreteType(type, registry);
 
             return value::ValueType::OBJECT;
 

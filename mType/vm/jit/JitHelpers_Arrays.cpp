@@ -77,6 +77,15 @@ namespace vm::jit
         return arr->getRawIntData();
     }
 
+    void jit_array_extract_info(const value::Value* array, JitArrayInfo* out)
+    {
+        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+            throw errors::RuntimeException("ARRAY_EXTRACT_INFO on non-array value");
+        const auto& arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        out->data = arr->getRawIntData();
+        out->length = static_cast<int64_t>(arr->size());
+    }
+
     void jit_array_get_field(value::Value* dest, const value::Value* array,
                              int64_t index,
                              const vm::bytecode::BytecodeProgram* prog,

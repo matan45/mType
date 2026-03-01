@@ -18,17 +18,13 @@ namespace types
     class TypeConversionBridge
     {
     public:
-        // ============== GenericType <-> UnifiedType ==============
+        // ============== GenericType -> UnifiedType ==============
 
         /**
          * Convert ast::GenericType to types::UnifiedType.
+         * Used at the AST-to-runtime boundary (ClassRegistrar, InterfaceRegistrar).
          */
         static UnifiedTypePtr toUnifiedType(const std::shared_ptr<ast::GenericType>& genericType);
-
-        /**
-         * Convert types::UnifiedType to ast::GenericType.
-         */
-        static std::shared_ptr<ast::GenericType> toGenericType(const UnifiedTypePtr& unifiedType);
 
         // ============== GenericTypeParameter Constraint Conversion ==============
 

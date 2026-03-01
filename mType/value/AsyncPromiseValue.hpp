@@ -103,7 +103,7 @@ namespace value
          * @param val The value to resolve with
          * @throws std::runtime_error if promise is already settled
          */
-        void resolve(const Value& val);
+        void resolve(const Value& val) override;
 
         /**
          * @brief Reject promise and notify error handlers
@@ -114,7 +114,7 @@ namespace value
          * @param error Error message describing the rejection
          * @throws std::runtime_error if promise is already settled
          */
-        void reject(const std::string& error);
+        void reject(const std::string& error) override;
 
         /**
          * @brief Reject promise with exception object and notify error handlers
@@ -127,7 +127,7 @@ namespace value
          * @param error Error message describing the rejection
          * @throws std::runtime_error if promise is already settled
          */
-        void rejectWithException(const Value& exceptionVal, const std::string& typeName, const std::string& error);
+        void rejectWithException(const Value& exceptionVal, const std::string& typeName, const std::string& error) override;
 
         /**
          * @brief Chain another promise to this one

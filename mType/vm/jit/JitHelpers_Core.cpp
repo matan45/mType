@@ -114,6 +114,10 @@ namespace vm::jit
                 return std::get<double>(*left) == std::get<double>(*right) ? 1 : 0;
             if (std::holds_alternative<bool>(*left))
                 return std::get<bool>(*left) == std::get<bool>(*right) ? 1 : 0;
+            if (std::holds_alternative<std::string>(*left))
+                return std::get<std::string>(*left) == std::get<std::string>(*right) ? 1 : 0;
+            if (std::holds_alternative<value::InternedString>(*left))
+                return std::get<value::InternedString>(*left) == std::get<value::InternedString>(*right) ? 1 : 0;
 
             return 0;
         }

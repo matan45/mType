@@ -109,11 +109,32 @@ namespace gc
     void visitLambdaReferences(void* object, std::function<void(void*)> callback);
 
     /**
-     * @brief Reference visitor for NativeArray
+     * @brief Reference visitor for NativeArray (1D arrays)
      *
-     * Visits all GC-managed references held by an array.
+     * Visits all GC-managed references held by a NativeArray.
      */
-    void visitArrayReferences(void* object, std::function<void(void*)> callback);
+    void visitNativeArrayReferences(void* object, std::function<void(void*)> callback);
+
+    /**
+     * @brief Reference visitor for FlatMultiArray (multi-dimensional)
+     *
+     * Visits all GC-managed references held by a FlatMultiArray.
+     */
+    void visitFlatMultiArrayReferences(void* object, std::function<void(void*)> callback);
+
+    /**
+     * @brief Reference visitor for SparseMultiArray (multi-dimensional sparse)
+     *
+     * Visits all GC-managed references held by a SparseMultiArray.
+     */
+    void visitSparseMultiArrayReferences(void* object, std::function<void(void*)> callback);
+
+    /**
+     * @brief Reference visitor for PromiseValue
+     *
+     * Visits all GC-managed references held by a PromiseValue.
+     */
+    void visitPromiseReferences(void* object, std::function<void(void*)> callback);
 
     /**
      * @brief Combined reference visitor

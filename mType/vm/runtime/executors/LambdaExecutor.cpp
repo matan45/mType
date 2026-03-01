@@ -1,6 +1,7 @@
 #include "LambdaExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ValueObject.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
@@ -91,19 +92,18 @@ namespace vm::runtime
             lambda->capturedSlots.push_back(varSlot);
 
             // Register captured variable in current SharedStackFrame WITH NAME for reference semantics
-            // Only register if the value is meaningful (not null or monostate)
-            // This prevents uninitialized locals from polluting the sharedFrame
+            // Always register the name-to-slot mapping so setLocalByName works for mutations
             size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
             size_t stackPos = frameBase + varSlot;
 
+            std::string capturedName = lambda->capturedNames[i];
             if (stackPos < context.stackManager->size()) {
                 value::Value val = (*context.stackManager)[stackPos];
-                // Skip registering monostate values - they represent uninitialized slots
-                // These will be properly accessed from the stack when they get actual values
-                if (!std::holds_alternative<std::monostate>(val)) {
-                    std::string capturedName = lambda->capturedNames[i];  // Get the name
-                    sharedFrame->setLocal(capturedName, varSlot, val);  // Register with NAME for setLocalByName to work
-                }
+                sharedFrame->setLocal(capturedName, varSlot, val);
+            } else {
+                // Variable slot not yet on the stack — register with monostate
+                // so the name-to-slot mapping exists for later setLocalByName calls
+                sharedFrame->setLocal(capturedName, varSlot, std::monostate{});
             }
         }
 
@@ -194,10 +194,58 @@ namespace vm::runtime
             }
         }
 
+        // Get lambda metadata for parameter type information and local slot count
+        auto* lambdaMetadata = context.program->getFunction(lambda->functionName);
+
+        // Auto-box primitive arguments if lambda expects boxed types
+        // (mirrors ObjectExecutor::invokeLambdaMethod behavior)
+        if (lambdaMetadata) {
+            size_t stackBase = context.callStack.back().localBase;
+            for (size_t i = 0; i < args.size(); ++i) {
+                if (i >= lambdaMetadata->parameterTypes.size()) break;
+                std::string expectedType = lambdaMetadata->parameterTypes[i];
+                value::Value& argValue = (*context.stackManager)[stackBase + i];
+
+                bool needsBoxing = false;
+                std::string boxClassName;
+
+                if (expectedType == "Int" && std::holds_alternative<int64_t>(argValue)) {
+                    needsBoxing = true; boxClassName = "Int";
+                } else if (expectedType == "Float" && (std::holds_alternative<double>(argValue) || std::holds_alternative<int64_t>(argValue))) {
+                    needsBoxing = true; boxClassName = "Float";
+                } else if (expectedType == "Bool" && std::holds_alternative<bool>(argValue)) {
+                    needsBoxing = true; boxClassName = "Bool";
+                } else if (expectedType == "String" && std::holds_alternative<std::string>(argValue)) {
+                    needsBoxing = true; boxClassName = "String";
+                }
+
+                if (needsBoxing) {
+                    auto classDef = context.environment->findClass(boxClassName);
+                    if (classDef) {
+                        if (classDef->isValueClass()) {
+                            auto valueObj = std::make_shared<value::ValueObject>(classDef);
+                            valueObj->setField("value", argValue);
+                            argValue = value::Value(valueObj);
+                        } else {
+                            std::unordered_map<std::string, std::string> emptyBindings;
+                            auto boxedInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, emptyBindings);
+                            boxedInstance->setField("value", argValue);
+                            argValue = value::Value(boxedInstance);
+                        }
+                        // Also update SharedStackFrame
+                        if (i < lambda->parameterNames.size() && !lambda->parameterNames[i].empty()) {
+                            newSharedFrame->setLocal(lambda->parameterNames[i], i, argValue);
+                        }
+                    }
+                }
+            }
+        }
+
         // Push captured variables onto stack (they become local variables after the parameters)
         // Read current values from shared frame (reference capture semantics)
         // IMPORTANT: Do NOT register them in the new SharedStackFrame - they should be accessed
         // through the parent chain to ensure we always read the latest values
+        size_t capturedCount = 0;
         if (lambda->capturedFrame) {
             for (size_t i = 0; i < lambda->capturedSlots.size(); ++i) {
                 size_t slot = lambda->capturedSlots[i];
@@ -207,6 +255,18 @@ namespace vm::runtime
                 value::Value capturedValue = lambda->capturedFrame->getLocal(slot);
 
                 context.stackManager->push(capturedValue);
+                capturedCount++;
+            }
+        }
+
+        // Reserve additional local variable slots if needed (for local variables like return value temporaries)
+        if (lambdaMetadata) {
+            size_t pushedSlots = args.size() + capturedCount;
+            if (lambdaMetadata->localCount > pushedSlots) {
+                size_t additionalLocals = lambdaMetadata->localCount - pushedSlots;
+                for (size_t i = 0; i < additionalLocals; ++i) {
+                    context.stackManager->push(std::monostate{});  // Sentinel for uninitialized slot
+                }
             }
         }
 

@@ -76,6 +76,12 @@ namespace vm::runtime
             gc::GC::initialize();
         }
 
+        // Wire up root collector so GC can scan VM stack and call frames
+        if (auto* coordinator = gc::GC::get())
+        {
+            coordinator->setRootCollector([this]() { return collectGCRoots(); });
+        }
+
         // Note: Executors will be initialized in execute() when program is available
         // because ExecutionContext requires a valid program pointer
     }
@@ -145,6 +151,7 @@ namespace vm::runtime
         instructionPointer = funcMeta->startOffset;
 
         // Run interpreter until this call frame is popped
+        // Use post-increment to match interpretLoop pattern (executors set IP = target - 1)
         while (callStack.size() > savedCallStackDepth)
         {
             if (instructionPointer >= program->getInstructionCount())
@@ -153,7 +160,6 @@ namespace vm::runtime
             }
 
             const auto& instr = program->getInstruction(instructionPointer);
-            instructionPointer++;
 
             try
             {
@@ -173,6 +179,8 @@ namespace vm::runtime
                 }
                 throw;
             }
+
+            instructionPointer++;
         }
 
         // Get return value (if any)
@@ -933,6 +941,18 @@ namespace vm::runtime
 
         while (instructionPointer < program->getInstructionCount())
         {
+            // Check for pending rejection from an awaited promise
+            // This is set by the catch_ callback when a suspended task resumes after rejection
+            if (pendingAwaitRejection.has_value())
+            {
+                auto rejection = std::move(pendingAwaitRejection.value());
+                pendingAwaitRejection.reset();
+                throw errors::UserException(
+                    rejection.exceptionValue,
+                    rejection.exceptionTypeName.empty() ? "RuntimeException" : rejection.exceptionTypeName
+                );
+            }
+
             // GC: Periodic collection check
             if (++instructionsSinceGC >= gc::config::GC_CHECK_INTERVAL)
             {
@@ -1360,6 +1380,12 @@ namespace vm::runtime
             else
                 objectExecutor->handleSetField(instr);
             break;
+        case OpCode::INLINE_SET_FIELD:
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleInlineSetFieldIC(instr);
+            else
+                objectExecutor->handleInlineSetField(instr);
+            break;
         case OpCode::GET_STATIC: objectExecutor->handleGetStatic(instr);
             break;
         case OpCode::SET_STATIC: objectExecutor->handleSetStatic(instr);
@@ -1446,6 +1472,12 @@ namespace vm::runtime
         case OpCode::ARRAY_GET_FIELD: arrayExecutor->handleArrayGetField(instr);
             break;
         case OpCode::ARRAY_SET_FIELD: arrayExecutor->handleArraySetField(instr);
+            break;
+        case OpCode::ARRAY_GET_INT_LOCAL: arrayExecutor->handleArrayGetIntLocal(instr);
+            break;
+        case OpCode::ARRAY_SET_INT_LOCAL: arrayExecutor->handleArraySetIntLocal(instr);
+            break;
+        case OpCode::ARRAY_LENGTH_LOCAL: arrayExecutor->handleArrayLengthLocal(instr);
             break;
 
         // Type operations - delegated to TypeExecutor
@@ -1597,6 +1629,26 @@ namespace vm::runtime
                             // If VM destroyed, silently ignore - task can't be resumed anyway
                         });
 
+                        // Register rejection callback so rejected promises don't leak tasks
+                        asyncPromise->catch_([weakVM, taskId, promise](std::string error)
+                        {
+                            if (auto vm = weakVM.lock())
+                            {
+                                // Store rejection info so the VM throws on resume
+                                vm->pendingAwaitRejection = PendingAwaitRejection{
+                                    promise->getExceptionValue(),
+                                    promise->getExceptionTypeName(),
+                                    error
+                                };
+
+                                // Resume the task — the VM will throw on the next iteration
+                                if (vm->eventLoop)
+                                {
+                                    vm->eventLoop->resumeTask(taskId, value::Value(std::monostate{}));
+                                }
+                            }
+                        });
+
                         // Save VM state before suspending
                         // IMPORTANT: Increment IP to point to the next instruction after AWAIT
                         // The main loop checks suspendedByAwait flag and skips its own increment
@@ -1636,11 +1688,8 @@ namespace vm::runtime
             }
 
         case OpCode::PROMISE_RESOLVE:
-            {
-                // Reserved for future asynchronous execution model
-                throw errors::RuntimeException("PROMISE_RESOLVE opcode is not yet implemented");
-                break;
-            }
+            // Reserved for future use — no emitter generates this opcode
+            break;
 
         // Debug opcodes
         case OpCode::BREAKPOINT:
@@ -1692,7 +1741,7 @@ namespace vm::runtime
                 bool justBecameHot = jitProfiler->recordEntry(funcName);
                 if (justBecameHot && jitCompiler && jitCodeCache)
                 {
-                    jitCompiler->compile(funcName, *program, *jitCodeCache);
+                    jitCompiler->compile(funcName, *program, *jitCodeCache, typeFeedbackCollector.get());
                 }
             }
             break;

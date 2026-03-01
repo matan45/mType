@@ -190,7 +190,11 @@ namespace vm::jit
         {
             auto labelIt = s.labels.find(ip);
             if (labelIt != s.labels.end())
+            {
                 s.cc.bind(labelIt->second);
+                if (s.backEdgeTargets.find(ip) == s.backEdgeTargets.end())
+                    s.arrayInfoCache.clear();
+            }
 
             const auto& instr = program.getInstruction(ip);
             s.currentIP = ip;
@@ -213,19 +217,22 @@ namespace vm::jit
                              const OSRFrame& frame,
                              const std::vector<LocalSlotInfo>& localSlotInfos,
                              size_t localCount,
-                             size_t loopStartOffset, size_t loopEndOffset)
+                             size_t loopStartOffset, size_t loopEndOffset,
+                             ic::TypeFeedbackCollector* typeFeedback)
     {
         std::unordered_map<size_t, SlotType> localTypes;
         emitOSRPrologue(cc, frame, ctxPtr, localSlotInfos, localCount, localTypes);
 
         auto labels = createJumpLabels(cc, program, loopStartOffset, loopEndOffset + 1,
                                        loopStartOffset, loopEndOffset);
+        auto backEdges = collectBackEdgeTargets(program, loopStartOffset, loopEndOffset + 1);
         size_t resumeOffset = loopEndOffset + 1;
 
         JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
                            frame.boxedBase, frame.progPtr,
                            frame.usesBoxedTypes, localCount, frame.localStride,
-                           0, {}, localTypes, false, 0, labels, program};
+                           0, {}, localTypes, false, 0, labels, program,
+                           typeFeedback, {}, backEdges};
 
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
             emitLocalsWriteBack(es);
@@ -253,7 +260,8 @@ namespace vm::jit
                                       const std::vector<LocalSlotInfo>& localSlotInfos,
                                       size_t localCount,
                                       const bytecode::BytecodeProgram& program,
-                                      JitCodeCache& codeCache)
+                                      JitCodeCache& codeCache,
+                                      ic::TypeFeedbackCollector* typeFeedback)
     {
         std::string osrKey = "osr@" + std::to_string(jumpBackOffset);
         if (codeCache.contains(osrKey))
@@ -285,7 +293,7 @@ namespace vm::jit
                                    loopStartOffset, loopEndOffset, ctxPtr);
 
         if (!emitOSRBody(cc, ctxPtr, program, frame, localSlotInfos,
-                         localCount, loopStartOffset, loopEndOffset))
+                         localCount, loopStartOffset, loopEndOffset, typeFeedback))
         {
             bailoutCount++;
             return false;

@@ -224,10 +224,21 @@ namespace vm::compiler::visitors
 
                     // Validate return type - handle both expression and block lambdas
                     // Skip validation for generic type parameters (T, R, etc.) - those are validated at runtime
-                    if (methodSig.returnType && !methodSig.returnType->isGenericParameter())
+                    // For async interface methods returning Promise<T>, the lambda body
+                    // returns T directly (runtime wraps it). Unwrap for comparison.
+                    auto effectiveReturnType = methodSig.returnType;
+                    if (effectiveReturnType && effectiveReturnType->getName() == "Promise"
+                        && effectiveReturnType->isParameterized()) {
+                        const auto& typeArgs = effectiveReturnType->getTypeArguments();
+                        if (!typeArgs.empty()) {
+                            effectiveReturnType = typeArgs[0];
+                        }
+                    }
+
+                    if (effectiveReturnType && !effectiveReturnType->isGenericParameter())
                     {
                         auto* body = lambdaNode->getBody();
-                        std::string expectedTypeStr = methodSig.returnType->toString();
+                        std::string expectedTypeStr = effectiveReturnType->toString();
 
                         if (lambdaNode->isExpressionLambda())
                         {

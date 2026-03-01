@@ -1,5 +1,4 @@
 #include "GenericPatternAnalyzer.hpp"
-#include "../../../types/TypeSubstitutionService.hpp"
 #include "../../../errors/TypeException.hpp"
 #include <algorithm>
 
@@ -14,19 +13,25 @@ namespace vm::compiler::types
         return declaredTypeParams.find(typeName) != declaredTypeParams.end();
     }
 
-    std::unordered_set<std::string> GenericPatternAnalyzer::extractUsedTypeParameters(
+    static std::unordered_set<std::string> extractUsedTypeParametersImpl(
         const std::string& typeExpression,
-        const std::unordered_set<std::string>& declaredTypeParams
-    )
+        const std::unordered_set<std::string>& declaredTypeParams,
+        int depth)
     {
         std::unordered_set<std::string> usedParams;
+
+        // Guard against pathological nesting depth
+        if (depth >= GenericPatternAnalyzer::MAX_EXTRACT_DEPTH)
+        {
+            return usedParams;
+        }
 
         // PHASE 2 FIX: Only return type parameters that are NESTED inside generic types
         // Direct type parameters (e.g., "T" in function<T> foo(T x)) should return empty set
         // Nested type parameters (e.g., "T" in function<T> foo(Box<T> x)) should return {"T"}
 
         // Check if the whole expression is a direct type parameter
-        if (isTypeParameter(typeExpression, declaredTypeParams))
+        if (GenericPatternAnalyzer::isTypeParameter(typeExpression, declaredTypeParams))
         {
             // Direct type parameter - return empty set (not nested)
             return usedParams;
@@ -40,7 +45,7 @@ namespace vm::compiler::types
         for (const auto& arg : typeArgs)
         {
             // Check if this arg is a type parameter or contains one
-            if (isTypeParameter(arg, declaredTypeParams))
+            if (GenericPatternAnalyzer::isTypeParameter(arg, declaredTypeParams))
             {
                 // Found a nested type parameter!
                 usedParams.insert(arg);
@@ -48,12 +53,20 @@ namespace vm::compiler::types
             else
             {
                 // Recursively search deeper
-                auto nestedParams = extractUsedTypeParameters(arg, declaredTypeParams);
+                auto nestedParams = extractUsedTypeParametersImpl(arg, declaredTypeParams, depth + 1);
                 usedParams.insert(nestedParams.begin(), nestedParams.end());
             }
         }
 
         return usedParams;
+    }
+
+    std::unordered_set<std::string> GenericPatternAnalyzer::extractUsedTypeParameters(
+        const std::string& typeExpression,
+        const std::unordered_set<std::string>& declaredTypeParams
+    )
+    {
+        return extractUsedTypeParametersImpl(typeExpression, declaredTypeParams, 0);
     }
 
     std::vector<TypeBinding> GenericPatternAnalyzer::matchPattern(
@@ -104,12 +117,11 @@ namespace vm::compiler::types
         }
 
         // Base case 2: Both are non-generic types (exact match required)
-        ::types::TypeSubstitutionService service;
-        std::string patternBase = service.extractBaseTypeName(patternTrimmed);
-        std::string concreteBase = service.extractBaseTypeName(concreteTrimmed);
+        std::string patternBase = substitutionService.extractBaseTypeName(patternTrimmed);
+        std::string concreteBase = substitutionService.extractBaseTypeName(concreteTrimmed);
 
-        std::vector<std::string> patternArgs = service.extractTypeArguments(patternTrimmed);
-        std::vector<std::string> concreteArgs = service.extractTypeArguments(concreteTrimmed);
+        std::vector<std::string> patternArgs = substitutionService.extractTypeArguments(patternTrimmed);
+        std::vector<std::string> concreteArgs = substitutionService.extractTypeArguments(concreteTrimmed);
 
         // Base type names must match
         if (patternBase != concreteBase)

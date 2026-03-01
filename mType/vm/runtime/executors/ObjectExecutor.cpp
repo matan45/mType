@@ -174,10 +174,19 @@ namespace vm::runtime
         }
 
         if (fieldDef->isFinal()) {
-            // Allow initialization of final fields (when not yet initialized)
-            if (fieldDef->isInitialized()) {
-                utils::ErrorLocationHelper::throwRuntimeError(context,
-                    "Cannot assign to final field '" + fieldName + "'");
+            if (fieldDef->isStatic()) {
+                // Static final: use the shared FieldDefinition flag
+                if (fieldDef->isInitialized()) {
+                    utils::ErrorLocationHelper::throwRuntimeError(context,
+                        "Cannot assign to final field '" + fieldName + "'");
+                }
+            } else {
+                // Instance final: check if this specific instance already has a value set
+                const auto& instanceFields = instance->getAllFieldValues();
+                if (instanceFields.find(fieldName) != instanceFields.end()) {
+                    utils::ErrorLocationHelper::throwRuntimeError(context,
+                        "Cannot assign to final field '" + fieldName + "'");
+                }
             }
         }
 
@@ -196,6 +205,15 @@ namespace vm::runtime
         // Push the value back onto the stack for chained assignments
         // This allows expressions like: obj1.field = obj2.field = value
         context.stackManager->push(newValue);
+    }
+
+    void ObjectExecutor::handleInlineSetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        value::Value newValue = context.stackManager->pop();
+        value::Value objectValue = context.stackManager->pop();
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        instance->setField(fieldName, newValue);
     }
 
     void ObjectExecutor::handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr) {

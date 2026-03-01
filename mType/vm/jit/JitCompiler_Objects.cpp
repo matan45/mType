@@ -42,12 +42,14 @@ namespace vm::jit
 
     void emitPopAndDestroyArgs(JitEmissionState& s, size_t argCount)
     {
+        // popType pops from top-to-bottom, so match with top-to-bottom indices
         for (size_t i = 0; i < argCount; ++i)
         {
             SlotType at = popType(s);
             if (s.usesBoxedTypes && isBoxedSlotType(at))
             {
-                int idx = s.stackDepth - static_cast<int>(argCount) + static_cast<int>(i);
+                // i=0 is the topmost arg (at stackDepth-1), i=1 is next, etc.
+                int idx = s.stackDepth - 1 - static_cast<int>(i);
                 emitValueDestroy(s, idx);
             }
         }

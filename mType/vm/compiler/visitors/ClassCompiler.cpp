@@ -974,14 +974,14 @@ namespace vm::compiler::visitors
                         hasExpectedType = true;
                     }
                 }
-                else if (methodDef && !methodDef->getGenericParameters().empty())
+                else if (methodDef && !methodDef->getUnifiedParameters().empty())
                 {
                     // Fallback to method definition from ClassDefinition
-                    const auto& genericParams = methodDef->getGenericParameters();
-                    // genericParameters already exclude 'this' for instance methods
-                    if (i < genericParams.size())
+                    const auto& uParams = methodDef->getUnifiedParameters();
+                    // unifiedParameters already exclude 'this' for instance methods
+                    if (i < uParams.size())
                     {
-                        expectedType = genericParams[i].second->toString();
+                        expectedType = uParams[i].second ? uParams[i].second->toString() : "void";
                         hasExpectedType = true;
                     }
                 }

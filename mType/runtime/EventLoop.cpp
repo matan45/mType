@@ -89,24 +89,32 @@ namespace runtime {
     }
 
     void EventLoop::resumeTask(size_t taskId, value::Value resolvedValue) {
-        std::lock_guard<std::mutex> lock(queueMutex);
+        std::function<void(value::Value)> callback;
 
-        auto it = suspendedTasks.find(taskId);
-        if (it == suspendedTasks.end()) {
-            return;
+        {
+            std::lock_guard<std::mutex> lock(queueMutex);
+
+            auto it = suspendedTasks.find(taskId);
+            if (it == suspendedTasks.end()) {
+                return;
+            }
+
+            auto task = it->second;
+            task->state = TaskState::PENDING;
+            task->waitingOn = nullptr;
+
+            // Add back to ready queue
+            readyQueue.push_back(task);
+            suspendedTasks.erase(it);
+
+            // Capture callback to execute outside the lock
+            callback = task->resumeCallback;
         }
 
-        auto task = it->second;
-        task->state = TaskState::PENDING;
-        task->waitingOn = nullptr;
-
-        // Add back to ready queue
-        readyQueue.push_back(task);
-        suspendedTasks.erase(it);
-
-        // If task has a resume callback, invoke it
-        if (task->resumeCallback) {
-            task->resumeCallback(resolvedValue);
+        // Execute callback outside queueMutex to prevent lock inversion
+        // (resolve path holds callbackMutex -> calls resumeTask -> would acquire queueMutex)
+        if (callback) {
+            callback(resolvedValue);
         }
     }
 
@@ -144,20 +152,21 @@ namespace runtime {
         running = true;
         shouldStop = false;
 
-        // Safety timeout to prevent infinite loops during debugging
+        // Safety limits to prevent runaway event loops.
+        // These are intentionally conservative for the current MVP scope.
         auto startTime = std::chrono::steady_clock::now();
-        const int MAX_ITERATIONS = 10000;
+        constexpr int MAX_ITERATIONS = 10000;
+        constexpr int MAX_SECONDS = 10;
         int iterations = 0;
 
         while (!shouldStop && tick()) {
             iterations++;
 
-            // Check for timeout (10 seconds) or max iterations
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::steady_clock::now() - startTime
             ).count();
 
-            if (elapsed > 10 || iterations > MAX_ITERATIONS) {
+            if (elapsed > MAX_SECONDS || iterations > MAX_ITERATIONS) {
                 break;
             }
         }
@@ -201,6 +210,9 @@ namespace runtime {
 
         // Execute the task
         executeTask(task);
+
+        // Clean up completed/failed tasks that are no longer in any queue
+        cleanupCompletedTasks();
 
         return true; // More work might be available
     }
@@ -264,24 +276,35 @@ namespace runtime {
     void EventLoop::checkCompletedPromises() {
         std::lock_guard<std::mutex> lock(queueMutex);
 
-        // Check all suspended tasks
+        // Check all suspended tasks for settled (fulfilled or rejected) promises
         std::vector<size_t> toResume;
 
         for (const auto& [taskId, task] : suspendedTasks) {
-            if (task->waitingOn && task->waitingOn->isFulfilled()) {
+            if (task->waitingOn && (task->waitingOn->isFulfilled() || task->waitingOn->isRejected())) {
                 toResume.push_back(taskId);
             }
         }
 
-        // Resume tasks whose promises are fulfilled
+        // Resume tasks whose promises are settled
         for (size_t taskId : toResume) {
             auto task = suspendedTasks[taskId];
-            value::Value resolvedValue = task->waitingOn->getValue();
 
-            task->state = TaskState::PENDING;
+            if (task->waitingOn->isRejected()) {
+                // Mark task as failed — the VM's pendingAwaitRejection mechanism
+                // handles proper error propagation for tasks resumed via callbacks.
+                // This path catches tasks waiting on plain PromiseValue (no callbacks).
+                task->state = TaskState::FAILED;
+                task->errorMessage = task->waitingOn->getError();
+
+                if (task->resultPromise) {
+                    task->resultPromise->reject(task->errorMessage);
+                }
+            } else {
+                task->state = TaskState::PENDING;
+                readyQueue.push_back(task);
+            }
+
             task->waitingOn = nullptr;
-
-            readyQueue.push_back(task);
             suspendedTasks.erase(taskId);
         }
     }
@@ -353,6 +376,24 @@ namespace runtime {
             return it->second;
         }
         return nullptr;
+    }
+
+    void EventLoop::cleanupCompletedTasks() {
+        std::lock_guard<std::mutex> lock(queueMutex);
+
+        std::vector<size_t> toRemove;
+        for (const auto& [taskId, task] : allTasks) {
+            if (task->state == TaskState::COMPLETED || task->state == TaskState::FAILED) {
+                // Only remove if not in any active queue
+                if (suspendedTasks.find(taskId) == suspendedTasks.end()) {
+                    toRemove.push_back(taskId);
+                }
+            }
+        }
+
+        for (size_t taskId : toRemove) {
+            allTasks.erase(taskId);
+        }
     }
 
 } // namespace runtime

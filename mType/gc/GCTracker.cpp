@@ -10,8 +10,9 @@ namespace gc
 
     void GCTracker::destroyInstance()
     {
-        // No-op: Meyer's Singleton is destroyed automatically at program exit
-        // This method is kept for API compatibility but does nothing
+        // Meyer's Singleton lifetime is managed by the runtime, but we clear
+        // all tracked state so GC::shutdown() leaves a clean slate.
+        getInstance().reset();
     }
 
     void GCTracker::unregisterObject(void* rawPtr)

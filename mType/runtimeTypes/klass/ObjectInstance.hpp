@@ -22,7 +22,11 @@ namespace runtimeTypes::klass
         mutable std::unordered_map<std::string, std::shared_ptr<MethodDefinition>> methodCache;
 
         // Helper method for field value comparison
-        static bool compareFieldValues(const Value& thisValue, const Value& otherValue);
+        static bool compareFieldValues(const Value& thisValue, const Value& otherValue, int depth = 0);
+
+        // Depth-limited helpers to prevent infinite recursion on circular references
+        std::string getContentHashImpl(int depth) const;
+        bool contentEqualsImpl(const ObjectInstance& other, int depth) const;
 
         // GC: Flag to track if this instance is registered with GC
         bool gcRegistered = false;

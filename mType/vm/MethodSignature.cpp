@@ -15,12 +15,12 @@ namespace vm {
         std::string name = method->getName();
         std::vector<std::string> paramTypes;
 
-        // Use genericParameters which does NOT include 'this' for instance methods
-        const auto& genericParams = method->getGenericParameters();
-        paramTypes.reserve(genericParams.size());
+        // Use unifiedParameters which does NOT include 'this' for instance methods
+        const auto& uParams = method->getUnifiedParameters();
+        paramTypes.reserve(uParams.size());
 
-        for (const auto& param : genericParams) {
-            paramTypes.push_back(param.second->toString());
+        for (const auto& param : uParams) {
+            paramTypes.push_back(param.second ? param.second->toString() : "void");
         }
 
         return MethodSignature(name, paramTypes);

@@ -65,11 +65,14 @@ namespace vm::jit
             switch (si.opcode)
             {
                 case OpCode::PUSH_STRING: case OpCode::GET_FIELD:
-                case OpCode::SET_FIELD:   case OpCode::NEW_OBJECT:
+                case OpCode::SET_FIELD:   case OpCode::INLINE_SET_FIELD:
+                case OpCode::NEW_OBJECT:
                 case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
                 case OpCode::CALL_METHOD: case OpCode::CALL_STATIC:
                 case OpCode::NEW_ARRAY:   case OpCode::ARRAY_GET:
                 case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:
+                case OpCode::ARRAY_GET_INT_LOCAL: case OpCode::ARRAY_SET_INT_LOCAL:
+                case OpCode::ARRAY_LENGTH_LOCAL:
                 case OpCode::INSTANCEOF:  case OpCode::CAST:
                     return true;
                 default: break;
@@ -119,6 +122,22 @@ namespace vm::jit
             }
         }
         return labels;
+    }
+
+    std::unordered_set<size_t> collectBackEdgeTargets(
+        const bytecode::BytecodeProgram& program,
+        size_t startOffset, size_t endOffset)
+    {
+        std::unordered_set<size_t> targets;
+        for (size_t ip = startOffset; ip < endOffset; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            if (instr.opcode == OpCode::JUMP_BACK && !instr.operands.empty())
+            {
+                targets.insert(instr.operands[0]);
+            }
+        }
+        return targets;
     }
 
     void emitMemoryInit(Compiler& cc,

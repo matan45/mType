@@ -198,12 +198,12 @@ namespace vm::compiler::overload
             for (const auto& overload : overloads)
             {
                 size_t genericParamCount = overload->getGenericTypeParameters().size();
-                const auto& genericParams = overload->getGenericParameters();
+                const auto& uParams = overload->getUnifiedParameters();
 
-                // Check parameter types using GenericType to see if they contain unresolved generics
+                // Check parameter types using UnifiedType to see if they contain unresolved generics
                 bool hasUnresolvedGenerics = false;
-                for (const auto& [paramName, genericType] : genericParams) {
-                    std::string typeStr = genericType->toString();
+                for (const auto& [paramName, uType] : uParams) {
+                    std::string typeStr = uType ? uType->toString() : "void";
 
                     // Check if this type contains unresolved generic parameters (like T, K, V)
                     // Look for patterns like "T", "Box<T>", "List<K>", etc.
@@ -267,13 +267,13 @@ namespace vm::compiler::overload
             // Use genericParameters to preserve full type signatures (e.g., UnaryFunction<T>)
             // Skip 'this' parameter for instance methods (genericParameters doesn't include it)
             const auto& method = filteredOverloads[0];
-            const auto& genericParams = method->getGenericParameters();
+            const auto& uParams = method->getUnifiedParameters();
 
-            // Build type signature using GenericType::toString() to preserve generics
+            // Build type signature using UnifiedType::toString() to preserve generics
             std::vector<std::string> typeNames;
-            typeNames.reserve(genericParams.size());
-            for (const auto& [paramName, genericType] : genericParams) {
-                typeNames.push_back(genericType->toString());
+            typeNames.reserve(uParams.size());
+            for (const auto& [paramName, uType] : uParams) {
+                typeNames.push_back(uType ? uType->toString() : "void");
             }
 
             std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignatureFromNames(typeNames);
@@ -352,15 +352,15 @@ namespace vm::compiler::overload
         }
 
         // Successfully resolved
-        // Use genericParameters to preserve full type signatures (e.g., UnaryFunction<T>)
-        // Skip 'this' parameter for instance methods (genericParameters doesn't include it)
-        const auto& genericParams = result.selectedOverload->getGenericParameters();
+        // Use unifiedParameters to preserve full type signatures (e.g., UnaryFunction<T>)
+        // Skip 'this' parameter for instance methods (unifiedParameters doesn't include it)
+        const auto& uParams = result.selectedOverload->getUnifiedParameters();
 
-        // Build type signature using GenericType::toString() to preserve generics
+        // Build type signature using UnifiedType::toString() to preserve generics
         std::vector<std::string> typeNames;
-        typeNames.reserve(genericParams.size());
-        for (const auto& [paramName, genericType] : genericParams) {
-            std::string typeName = genericType->toString();
+        typeNames.reserve(uParams.size());
+        for (const auto& [paramName, uType] : uParams) {
+            std::string typeName = uType ? uType->toString() : "void";
             typeNames.push_back(typeName);
         }
 
@@ -404,13 +404,13 @@ namespace vm::compiler::overload
             // Only one overload - return mangled name with $static suffix
             // Use genericParameters to preserve full type signatures (e.g., UnaryFunction<T>)
             const auto& method = overloads[0];
-            const auto& genericParams = method->getGenericParameters();
+            const auto& uParams = method->getUnifiedParameters();
 
-            // Build type signature using GenericType::toString() to preserve generics
+            // Build type signature using UnifiedType::toString() to preserve generics
             std::vector<std::string> typeNames;
-            typeNames.reserve(genericParams.size());
-            for (const auto& [paramName, genericType] : genericParams) {
-                typeNames.push_back(genericType->toString());
+            typeNames.reserve(uParams.size());
+            for (const auto& [paramName, uType] : uParams) {
+                typeNames.push_back(uType ? uType->toString() : "void");
             }
 
             std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignatureFromNames(typeNames);
@@ -492,14 +492,14 @@ namespace vm::compiler::overload
         }
 
         // Successfully resolved - add $static suffix for static methods
-        // Use genericParameters to preserve full type signatures (e.g., UnaryFunction<T>)
-        const auto& genericParams = result.selectedOverload->getGenericParameters();
+        // Use unifiedParameters to preserve full type signatures (e.g., UnaryFunction<T>)
+        const auto& uParams = result.selectedOverload->getUnifiedParameters();
 
-        // Build type signature using GenericType::toString() to preserve generics
+        // Build type signature using UnifiedType::toString() to preserve generics
         std::vector<std::string> typeNames;
-        typeNames.reserve(genericParams.size());
-        for (const auto& [paramName, genericType] : genericParams) {
-            typeNames.push_back(genericType->toString());
+        typeNames.reserve(uParams.size());
+        for (const auto& [paramName, uType] : uParams) {
+            typeNames.push_back(uType ? uType->toString() : "void");
         }
 
         std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignatureFromNames(typeNames);

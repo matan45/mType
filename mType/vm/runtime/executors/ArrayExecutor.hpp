@@ -32,6 +32,11 @@ namespace vm::runtime
         void handleArrayGetField(const bytecode::BytecodeProgram::Instruction& instr);
         void handleArraySetField(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // Fused local-array operations (read array from local, skip stack copy)
+        void handleArrayGetIntLocal(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleArraySetIntLocal(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleArrayLengthLocal(const bytecode::BytecodeProgram::Instruction& instr);
+
     private:
         ExecutionContext& context;
 

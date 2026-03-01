@@ -32,11 +32,15 @@ namespace services
             // VM is owned by shared_ptr which supports enable_shared_from_this
             eventLoop->setTaskVM(mainTaskId, vm);
 
+            // Hold a reference to the main task BEFORE run(), because
+            // cleanupCompletedTasks() inside run() removes failed/completed tasks
+            // from allTasks, which would make getTask() return nullptr after run().
+            auto mainTask = eventLoop->getTask(mainTaskId);
+
             // Run event loop until all tasks complete
             eventLoop->run();
 
             // Check if main task failed and re-throw error
-            auto mainTask = eventLoop->getTask(mainTaskId);
             if (mainTask && mainTask->state == ::runtime::TaskState::FAILED)
             {
                 throw std::runtime_error(mainTask->errorMessage);

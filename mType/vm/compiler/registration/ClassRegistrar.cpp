@@ -233,11 +233,19 @@ namespace vm::compiler::registration
                 // Set source location for error reporting
                 methodDef->setSourceLocation(methodNode->getLocation());
 
-                // Set generic type information for proper interface validation
+                // Set unified type information for proper interface validation
                 if (methodNode->getGenericReturnType()) {
-                    methodDef->setGenericReturnType(methodNode->getGenericReturnType());
+                    methodDef->setUnifiedReturnType(
+                        ::types::TypeConversionBridge::toUnifiedType(methodNode->getGenericReturnType()));
                 }
-                methodDef->setGenericParameters(methodNode->getGenericParameters());
+                {
+                    std::vector<std::pair<std::string, ::types::UnifiedTypePtr>> convertedParams;
+                    for (const auto& [pName, genType] : methodNode->getGenericParameters()) {
+                        convertedParams.emplace_back(pName,
+                            ::types::TypeConversionBridge::toUnifiedType(genType));
+                    }
+                    methodDef->setUnifiedParameters(convertedParams);
+                }
                 methodDef->setGenericTypeParameters(methodNode->getGenericTypeParameters());
 
                 // Set abstract flag
@@ -335,7 +343,7 @@ namespace vm::compiler::registration
                 auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
                     fieldNode->getName(),
                     fieldNode->getType(),
-                    fieldNode->getGenericType(),  // Pass generic type information (e.g., int[], Array<T>)
+                    ::types::TypeConversionBridge::toUnifiedType(fieldNode->getGenericType()),
                     defaultValue,
                     fieldNode->getIsStatic(),
                     fieldNode->getIsFinal(),
@@ -655,12 +663,13 @@ namespace vm::compiler::registration
             methodMeta.isAbstract = method->isAbstract();
             methodMeta.startOffset = 0;  // Will be set during bytecode generation if needed
 
-            // Extract parameter types and names
+            // Extract parameter types and names (from AST MethodNode)
             const auto& genericParams = method->getGenericParameters();
-            for (const auto& [paramName, genericType] : genericParams) {
+            for (const auto& [paramName, genType] : genericParams) {
                 value::ValueType vType = value::ValueType::VOID;
-                if (genericType) {
-                    vType = genericType->isGenericParameter() ? value::ValueType::OBJECT : genericType->getConcreteType();
+                if (genType) {
+                    auto uType = ::types::TypeConversionBridge::toUnifiedType(genType);
+                    vType = uType->isGenericParameter() ? value::ValueType::OBJECT : uType->toValueType();
                 }
                 methodMeta.parameterTypes.push_back(::types::TypeConversionUtils::getTypeDisplayName(vType));
                 methodMeta.parameterNames.push_back(paramName);

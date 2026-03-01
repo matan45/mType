@@ -2,6 +2,9 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../vm/runtime/context/ExecutionContext.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/FlatMultiArray.hpp"
+#include "../value/SparseMultiArray.hpp"
+#include "../value/PromiseValue.hpp"
 
 namespace gc
 {
@@ -63,7 +66,7 @@ namespace gc
         }
     }
 
-    void visitArrayReferences(void* object, std::function<void(void*)> callback)
+    void visitNativeArrayReferences(void* object, std::function<void(void*)> callback)
     {
         if (!object) return;
 
@@ -89,6 +92,71 @@ namespace gc
         }
     }
 
+    void visitFlatMultiArrayReferences(void* object, std::function<void(void*)> callback)
+    {
+        if (!object) return;
+
+        auto* array = static_cast<value::FlatMultiArray*>(object);
+
+        size_t sz = array->totalSize();
+        for (size_t i = 0; i < sz; ++i)
+        {
+            value::Value val = array->get(i);
+            void* ptr = extractPointer(val);
+            if (ptr)
+            {
+                callback(ptr);
+            }
+        }
+    }
+
+    void visitSparseMultiArrayReferences(void* object, std::function<void(void*)> callback)
+    {
+        if (!object) return;
+
+        auto* array = static_cast<value::SparseMultiArray*>(object);
+
+        size_t sz = array->totalSize();
+        for (size_t i = 0; i < sz; ++i)
+        {
+            value::Value val = array->get(i);
+            void* ptr = extractPointer(val);
+            if (ptr)
+            {
+                callback(ptr);
+            }
+        }
+    }
+
+    void visitPromiseReferences(void* object, std::function<void(void*)> callback)
+    {
+        if (!object) return;
+
+        auto* promise = static_cast<value::PromiseValue*>(object);
+
+        // Visit resolved value if fulfilled
+        if (promise->isFulfilled())
+        {
+            value::Value val = promise->getValue();
+            void* ptr = extractPointer(val);
+            if (ptr)
+            {
+                callback(ptr);
+            }
+        }
+
+        // Visit exception value if rejected
+        if (promise->isRejected())
+        {
+            value::Value exVal = promise->getExceptionValue();
+            void* ptr = extractPointer(exVal);
+            if (ptr)
+            {
+                callback(ptr);
+            }
+        }
+    }
+
     void visitReferences(void* object, config::GCObjectType type, std::function<void(void*)> callback)
     {
         switch (type)
@@ -102,14 +170,19 @@ namespace gc
                 break;
 
             case config::GCObjectType::NATIVE_ARRAY:
+                visitNativeArrayReferences(object, callback);
+                break;
+
             case config::GCObjectType::FLAT_MULTI_ARRAY:
+                visitFlatMultiArrayReferences(object, callback);
+                break;
+
             case config::GCObjectType::SPARSE_MULTI_ARRAY:
-                visitArrayReferences(object, callback);
+                visitSparseMultiArrayReferences(object, callback);
                 break;
 
             case config::GCObjectType::PROMISE_VALUE:
-                // PromiseValue may hold a result value - visit it
-                // TODO: Implement if PromiseValue can hold object references
+                visitPromiseReferences(object, callback);
                 break;
 
             default:
@@ -143,26 +216,44 @@ namespace gc
             }
 
             case config::GCObjectType::NATIVE_ARRAY:
-            case config::GCObjectType::FLAT_MULTI_ARRAY:
-            case config::GCObjectType::SPARSE_MULTI_ARRAY:
             {
                 auto* array = static_cast<value::NativeArray*>(object);
-                // Only clear if array can contain object references
                 if (array->getElementType() == value::ValueType::OBJECT ||
                     array->getElementType() == value::ValueType::VOID)
                 {
                     size_t sz = array->size();
                     for (size_t i = 0; i < sz; ++i)
                     {
-                        array->set(i, nullptr);  // Set to null to release shared_ptr
+                        array->set(i, value::Value{std::monostate{}});
                     }
                 }
                 break;
             }
 
-            case config::GCObjectType::PROMISE_VALUE:
-                // TODO: Clear promise result if it can hold object references
+            case config::GCObjectType::FLAT_MULTI_ARRAY:
+            {
+                auto* array = static_cast<value::FlatMultiArray*>(object);
+                size_t sz = array->totalSize();
+                for (size_t i = 0; i < sz; ++i)
+                {
+                    array->set(i, std::monostate{});
+                }
                 break;
+            }
+
+            case config::GCObjectType::SPARSE_MULTI_ARRAY:
+            {
+                auto* array = static_cast<value::SparseMultiArray*>(object);
+                array->reset();
+                break;
+            }
+
+            case config::GCObjectType::PROMISE_VALUE:
+            {
+                auto* promise = static_cast<value::PromiseValue*>(object);
+                promise->clearForGC();
+                break;
+            }
 
             default:
                 break;
