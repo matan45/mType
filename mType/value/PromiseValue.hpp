@@ -98,7 +98,7 @@ namespace value
          * @brief Resolve the promise with a value
          * @throws std::runtime_error if promise is already settled (fulfilled or rejected)
          */
-        void resolve(const Value& val)
+        virtual void resolve(const Value& val)
         {
             {
                 std::lock_guard<std::mutex> lock(promiseMutex);
@@ -117,10 +117,10 @@ namespace value
         }
 
         /**
-         * @brief Reject the promise with an error (future use)
+         * @brief Reject the promise with an error
          * @throws std::runtime_error if promise is already settled (fulfilled or rejected)
          */
-        void reject(const std::string& error)
+        virtual void reject(const std::string& error)
         {
             {
                 std::lock_guard<std::mutex> lock(promiseMutex);
@@ -145,7 +145,7 @@ namespace value
          * @param error The error message
          * @throws std::runtime_error if promise is already settled (fulfilled or rejected)
          */
-        void rejectWithException(const Value& exceptionVal, const std::string& typeName, const std::string& error)
+        virtual void rejectWithException(const Value& exceptionVal, const std::string& typeName, const std::string& error)
         {
             {
                 std::lock_guard<std::mutex> lock(promiseMutex);

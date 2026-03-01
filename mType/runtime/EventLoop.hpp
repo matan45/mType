@@ -226,6 +226,7 @@ namespace runtime {
         void checkCompletedPromises();
         void moveReadyDelayedTasks();
         std::shared_ptr<Task> selectNextTask();
+        void cleanupCompletedTasks();
 
         // Queue of callbacks from background threads
         std::deque<std::function<void()>> pendingCallbacks;

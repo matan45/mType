@@ -110,9 +110,10 @@ namespace vm::runtime
                 stackTrace << "  at <unknown location>\n";
             }
 
-            // Add call stack frames
-            for (const auto& frame : context.callStack)
+            // Add call stack frames (reverse order: innermost caller first)
+            for (auto it = context.callStack.rbegin(); it != context.callStack.rend(); ++it)
             {
+                const auto& frame = *it;
                 // The returnAddress points to the instruction AFTER the call
                 // We need to look at the CALL instruction itself (one before)
                 size_t callSite = frame.returnAddress > 0 ? frame.returnAddress - 1 : frame.returnAddress;

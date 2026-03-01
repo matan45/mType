@@ -92,6 +92,14 @@ namespace vm::runtime
         std::optional<VMState> savedState;  // For async resumption
         bool suspendedByAwait;  // Flag to indicate suspension by AWAIT instruction
 
+        // Pending rejection from an awaited promise (set by catch_ callback, thrown on resume)
+        struct PendingAwaitRejection {
+            value::Value exceptionValue;
+            std::string exceptionTypeName;
+            std::string errorMessage;
+        };
+        std::optional<PendingAwaitRejection> pendingAwaitRejection;
+
         // Execution statistics
         ExecutionStats stats;
         std::chrono::steady_clock::time_point executionStart;

@@ -939,6 +939,18 @@ namespace vm::runtime
 
         while (instructionPointer < program->getInstructionCount())
         {
+            // Check for pending rejection from an awaited promise
+            // This is set by the catch_ callback when a suspended task resumes after rejection
+            if (pendingAwaitRejection.has_value())
+            {
+                auto rejection = std::move(pendingAwaitRejection.value());
+                pendingAwaitRejection.reset();
+                throw errors::UserException(
+                    rejection.exceptionValue,
+                    rejection.exceptionTypeName.empty() ? "RuntimeException" : rejection.exceptionTypeName
+                );
+            }
+
             // GC: Periodic collection check
             if (++instructionsSinceGC >= gc::config::GC_CHECK_INTERVAL)
             {
@@ -1603,6 +1615,26 @@ namespace vm::runtime
                             // If VM destroyed, silently ignore - task can't be resumed anyway
                         });
 
+                        // Register rejection callback so rejected promises don't leak tasks
+                        asyncPromise->catch_([weakVM, taskId, promise](std::string error)
+                        {
+                            if (auto vm = weakVM.lock())
+                            {
+                                // Store rejection info so the VM throws on resume
+                                vm->pendingAwaitRejection = PendingAwaitRejection{
+                                    promise->getExceptionValue(),
+                                    promise->getExceptionTypeName(),
+                                    error
+                                };
+
+                                // Resume the task — the VM will throw on the next iteration
+                                if (vm->eventLoop)
+                                {
+                                    vm->eventLoop->resumeTask(taskId, value::Value(std::monostate{}));
+                                }
+                            }
+                        });
+
                         // Save VM state before suspending
                         // IMPORTANT: Increment IP to point to the next instruction after AWAIT
                         // The main loop checks suspendedByAwait flag and skips its own increment
@@ -1642,11 +1674,8 @@ namespace vm::runtime
             }
 
         case OpCode::PROMISE_RESOLVE:
-            {
-                // Reserved for future asynchronous execution model
-                throw errors::RuntimeException("PROMISE_RESOLVE opcode is not yet implemented");
-                break;
-            }
+            // Reserved for future use — no emitter generates this opcode
+            break;
 
         // Debug opcodes
         case OpCode::BREAKPOINT:
