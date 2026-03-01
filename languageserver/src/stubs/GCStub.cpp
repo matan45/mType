@@ -111,7 +111,19 @@ namespace gc
         // No-op for LSP
     }
 
-    void visitArrayReferences(void* object, std::function<void(void*)> callback) {
+    void visitNativeArrayReferences(void* object, std::function<void(void*)> callback) {
+        // No-op for LSP
+    }
+
+    void visitFlatMultiArrayReferences(void* object, std::function<void(void*)> callback) {
+        // No-op for LSP
+    }
+
+    void visitSparseMultiArrayReferences(void* object, std::function<void(void*)> callback) {
+        // No-op for LSP
+    }
+
+    void visitPromiseReferences(void* object, std::function<void(void*)> callback) {
         // No-op for LSP
     }
 

@@ -47,7 +47,6 @@ namespace gc
 
         // Callbacks for VM integration
         RootCollector rootCollector;
-        ReferenceVisitor referenceVisitor;
 
     public:
         GCCoordinator();

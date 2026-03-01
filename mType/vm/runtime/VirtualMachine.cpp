@@ -76,6 +76,12 @@ namespace vm::runtime
             gc::GC::initialize();
         }
 
+        // Wire up root collector so GC can scan VM stack and call frames
+        if (auto* coordinator = gc::GC::get())
+        {
+            coordinator->setRootCollector([this]() { return collectGCRoots(); });
+        }
+
         // Note: Executors will be initialized in execute() when program is available
         // because ExecutionContext requires a valid program pointer
     }

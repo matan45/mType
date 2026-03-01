@@ -75,7 +75,8 @@ namespace gc
 
     private:
         // Bacon algorithm phases
-        void markRoots();
+        // markRoots returns any unprocessed suspects (on abort) for re-insertion
+        std::vector<void*> markRoots(const std::vector<void*>& suspectList);
         void scanRoots();
         void collectRoots();
 

@@ -31,11 +31,19 @@ namespace gc
 
         resetState();
 
+        // Extract suspects before processing
+        auto suspectList = suspects.extractSuspects();
+
         // Phase 1: Mark potential cycle roots
-        markRoots();
+        auto unprocessed = markRoots(suspectList);
 
         if (shouldAbort())
         {
+            // Re-insert unprocessed suspects so they aren't lost
+            for (void* obj : unprocessed)
+            {
+                suspects.addSuspect(obj);
+            }
             result.completed = false;
             result.duration = std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::steady_clock::now() - startTime);
@@ -114,15 +122,24 @@ namespace gc
         return result;
     }
 
-    void CycleDetector::markRoots()
+    std::vector<void*> CycleDetector::markRoots(const std::vector<void*>& suspectList)
     {
-        // Get suspects and mark them as potential cycle roots
-        auto suspectList = suspects.extractSuspects();
+        std::vector<void*> unprocessed;
+        size_t i = 0;
 
-        for (void* obj : suspectList)
+        for (; i < suspectList.size(); ++i)
         {
-            if (shouldAbort()) return;
+            if (shouldAbort())
+            {
+                // Collect remaining unprocessed suspects
+                for (size_t j = i; j < suspectList.size(); ++j)
+                {
+                    unprocessed.push_back(suspectList[j]);
+                }
+                return unprocessed;
+            }
 
+            void* obj = suspectList[i];
             GCObjectHeader* header = tracker.getHeader(obj);
             if (!header) continue;
 
@@ -147,6 +164,8 @@ namespace gc
                 scanBlack(obj);
             }
         }
+
+        return unprocessed;
     }
 
     void CycleDetector::scanRoots()

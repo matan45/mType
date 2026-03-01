@@ -24,8 +24,7 @@ namespace gc
 
     void GCCoordinator::setReferenceVisitor(ReferenceVisitor visitor)
     {
-        referenceVisitor = visitor;  // Copy first
-        detector->setReferenceVisitor(std::move(visitor));  // Then move to detector
+        detector->setReferenceVisitor(std::move(visitor));
     }
 
     void GCCoordinator::onDeallocation(void* object)
