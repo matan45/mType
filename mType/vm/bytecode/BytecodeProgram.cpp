@@ -96,6 +96,10 @@ namespace vm::bytecode
         return instructions.at(offset);
     }
 
+    BytecodeProgram::Instruction& BytecodeProgram::getMutableInstruction(size_t offset) {
+        return instructions.at(offset);
+    }
+
     const std::vector<BytecodeProgram::Instruction>& BytecodeProgram::getInstructions() const {
         return instructions;
     }

@@ -84,10 +84,12 @@ namespace vm::optimization
                opcode == OpCode::STORE_UPVALUE ||
                opcode == OpCode::SET_FIELD ||
                opcode == OpCode::SET_FIELD_FAST ||
+               opcode == OpCode::INLINE_SET_FIELD ||
                opcode == OpCode::SET_STATIC ||
                opcode == OpCode::SUPER_SET_FIELD ||
                opcode == OpCode::ARRAY_SET ||
                opcode == OpCode::ARRAY_SET_INT ||
+               opcode == OpCode::ARRAY_SET_INT_LOCAL ||
                opcode == OpCode::ARRAY_SET_FIELD ||
                opcode == OpCode::CALL ||
                opcode == OpCode::CALL_METHOD ||

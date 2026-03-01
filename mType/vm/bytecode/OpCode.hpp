@@ -102,6 +102,7 @@ namespace vm::bytecode
         SET_FIELD,          // Set object field (operand: field name index)
         GET_FIELD_FAST,     // Get field with cached offset
         SET_FIELD_FAST,     // Set field with cached offset
+        INLINE_SET_FIELD,   // Inlined trivial setter (operand: field name index, no push-back)
         GET_STATIC,         // Get static field (operand: class+field index)
         SET_STATIC,         // Set static field (operand: class+field index)
         CALL_METHOD,        // Call instance method (operand: method name + arg count)
@@ -134,6 +135,11 @@ namespace vm::bytecode
         // SoA Field Access Optimization (avoids object materialization)
         ARRAY_GET_FIELD,    // Get array[index].field (generic, SoA-optimized)
         ARRAY_SET_FIELD,    // Set array[index].field = value (generic, SoA-optimized)
+
+        // Fused local-array operations (eliminates array copy/destroy overhead)
+        ARRAY_GET_INT_LOCAL,  // arr from local, pop index, push value (operand: local index)
+        ARRAY_SET_INT_LOCAL,  // arr from local, pop index+value (operand: local index)
+        ARRAY_LENGTH_LOCAL,   // arr from local, push length (operand: local index)
 
         // === Lambda Operations (95-99) ===
         LAMBDA,             // Create lambda value
@@ -303,6 +309,7 @@ namespace vm::bytecode
             case OpCode::SET_FIELD: return "SET_FIELD";
             case OpCode::GET_FIELD_FAST: return "GET_FIELD_FAST";
             case OpCode::SET_FIELD_FAST: return "SET_FIELD_FAST";
+            case OpCode::INLINE_SET_FIELD: return "INLINE_SET_FIELD";
             case OpCode::GET_STATIC: return "GET_STATIC";
             case OpCode::SET_STATIC: return "SET_STATIC";
             case OpCode::CALL_METHOD: return "CALL_METHOD";
@@ -331,6 +338,9 @@ namespace vm::bytecode
             case OpCode::ARRAY_LITERAL: return "ARRAY_LITERAL";
             case OpCode::ARRAY_GET_FIELD: return "ARRAY_GET_FIELD";
             case OpCode::ARRAY_SET_FIELD: return "ARRAY_SET_FIELD";
+            case OpCode::ARRAY_GET_INT_LOCAL: return "ARRAY_GET_INT_LOCAL";
+            case OpCode::ARRAY_SET_INT_LOCAL: return "ARRAY_SET_INT_LOCAL";
+            case OpCode::ARRAY_LENGTH_LOCAL: return "ARRAY_LENGTH_LOCAL";
 
             case OpCode::LAMBDA: return "LAMBDA";
             case OpCode::LAMBDA_INVOKE: return "LAMBDA_INVOKE";

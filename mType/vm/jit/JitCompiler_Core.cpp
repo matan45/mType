@@ -470,7 +470,11 @@ namespace vm::jit
         {
             auto labelIt = s.labels.find(ip);
             if (labelIt != s.labels.end())
+            {
                 s.cc.bind(labelIt->second);
+                if (s.backEdgeTargets.find(ip) == s.backEdgeTargets.end())
+                    s.arrayInfoCache.clear();
+            }
 
             const auto& instr = program.getInstruction(ip);
             s.currentIP = ip;
@@ -503,12 +507,13 @@ namespace vm::jit
         size_t startOffset = funcMeta.startOffset;
         size_t instrCount = funcMeta.instructionCount;
         auto labels = createJumpLabels(cc, program, startOffset, startOffset + instrCount);
+        auto backEdges = collectBackEdgeTargets(program, startOffset, startOffset + instrCount);
 
         JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
                            frame.boxedBase, frame.progPtr,
                            frame.usesBoxedTypes, frame.localCount, frame.localStride,
                            0, {}, frame.localTypes, false, 0, labels, program,
-                           typeFeedback};
+                           typeFeedback, {}, backEdges};
 
         emitCodegenLoop(s, startOffset, instrCount, program);
 

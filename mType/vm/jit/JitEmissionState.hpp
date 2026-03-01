@@ -7,6 +7,7 @@
 #include <asmjit/x86.h>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <functional>
 
 namespace vm::jit
@@ -39,6 +40,13 @@ namespace vm::jit
         const bytecode::BytecodeProgram& program;
 
         ic::TypeFeedbackCollector* typeFeedback = nullptr;
+
+        struct CachedArrayInfo {
+            asmjit::x86::Gp dataPtr;
+            asmjit::x86::Gp length;
+        };
+        std::unordered_map<int, CachedArrayInfo> arrayInfoCache;
+        std::unordered_set<size_t> backEdgeTargets;
 
         static constexpr size_t MAX_OP_STACK = 64;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
@@ -93,6 +101,10 @@ namespace vm::jit
         asmjit::x86::Compiler& cc, const bytecode::BytecodeProgram& program,
         size_t startOffset, size_t endOffset,
         size_t rangeStart = 0, size_t rangeEnd = SIZE_MAX);
+
+    std::unordered_set<size_t> collectBackEdgeTargets(
+        const bytecode::BytecodeProgram& program,
+        size_t startOffset, size_t endOffset);
 
     void emitMemoryInit(asmjit::x86::Compiler& cc,
                         asmjit::x86::Gp localsBase, size_t localCount,

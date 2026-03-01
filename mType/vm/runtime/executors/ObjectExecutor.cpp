@@ -207,6 +207,15 @@ namespace vm::runtime
         context.stackManager->push(newValue);
     }
 
+    void ObjectExecutor::handleInlineSetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        value::Value newValue = context.stackManager->pop();
+        value::Value objectValue = context.stackManager->pop();
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        instance->setField(fieldName, newValue);
+    }
+
     void ObjectExecutor::handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "GET_STATIC requires operand");

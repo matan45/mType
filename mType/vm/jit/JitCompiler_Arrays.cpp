@@ -110,25 +110,55 @@ namespace vm::jit
         return true;
     }
 
+    // Extract array info (dataPtr + length) for a given boxed stack slot.
+    // Uses the cache if available, otherwise calls jit_array_extract_info once.
+    static void emitExtractArrayInfo(JitEmissionState& s, int arrSlot,
+                                      Gp arrAddr, Gp& dataPtr, Gp& arrLen)
+    {
+        auto& cc = s.cc;
+        auto cacheIt = s.arrayInfoCache.find(arrSlot);
+        if (cacheIt != s.arrayInfoCache.end())
+        {
+            dataPtr = cacheIt->second.dataPtr;
+            arrLen = cacheIt->second.length;
+            return;
+        }
+
+        Mem infoMem = cc.new_stack(16, 8);
+        Gp infoAddr = cc.new_gp64();
+        cc.lea(infoAddr, infoMem);
+
+        InvokeNode* extractInv;
+        cc.invoke(Out(extractInv), reinterpret_cast<uint64_t>(jit_array_extract_info),
+                  FuncSignature::build<void, const value::Value*, JitArrayInfo*>());
+        extractInv->set_arg(0, arrAddr);
+        extractInv->set_arg(1, infoAddr);
+
+        dataPtr = cc.new_gp64();
+        cc.mov(dataPtr, Mem(infoAddr, 0));   // JitArrayInfo::data
+        arrLen = cc.new_gp64();
+        cc.mov(arrLen, Mem(infoAddr, 8));    // JitArrayInfo::length
+
+        s.arrayInfoCache[arrSlot] = {dataPtr, arrLen};
+    }
+
     static bool emitArrayLength(JitEmissionState& s)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         popType(s);
 
+        int arrSlot = s.stackDepth - 1;
         Gp arrAddr = cc.new_gp64();
-        cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+        cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>(arrSlot * valueSize)));
 
-        InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_array_length),
-                  FuncSignature::build<int64_t, const value::Value*>());
-        inv->set_arg(0, arrAddr);
-        Gp lenVal = cc.new_gp64();
-        inv->set_ret(0, lenVal);
+        // Use emitExtractArrayInfo to share cache with ARRAY_GET_INT/ARRAY_SET_INT
+        Gp dataPtr, arrLen;
+        emitExtractArrayInfo(s, arrSlot, arrAddr, dataPtr, arrLen);
 
         emitValueDestroy(s, s.stackDepth - 1);
 
-        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), lenVal);
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), arrLen);
         s.slotTypes.push_back(SlotType::INT);
         return true;
     }
@@ -142,22 +172,19 @@ namespace vm::jit
 
         Gp idx = cc.new_gp64();
         cc.mov(idx, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+        int arrSlot = s.stackDepth - 2;
         Gp arrAddr = cc.new_gp64();
-        cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
+        cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>(arrSlot * valueSize)));
 
-        // Bounds check: fetch array length, unsigned compare catches negative + overflow
-        InvokeNode* lenInv;
-        cc.invoke(Out(lenInv), reinterpret_cast<uint64_t>(jit_array_length),
-                  FuncSignature::build<int64_t, const value::Value*>());
-        lenInv->set_arg(0, arrAddr);
-        Gp arrLen = cc.new_gp64();
-        lenInv->set_ret(0, arrLen);
+        // Extract array info (cached or single combined call)
+        Gp dataPtr, arrLen;
+        emitExtractArrayInfo(s, arrSlot, arrAddr, dataPtr, arrLen);
 
+        // Bounds check: unsigned compare catches negative + overflow
         Label boundsOk = cc.new_label();
         cc.cmp(idx, arrLen);
         cc.jb(boundsOk);
 
-        // Out of bounds: throw with index and size
         InvokeNode* oobInv;
         cc.invoke(Out(oobInv), reinterpret_cast<uint64_t>(jit_throw_array_oob),
                   FuncSignature::build<void, int64_t, int64_t>());
@@ -165,14 +192,6 @@ namespace vm::jit
         oobInv->set_arg(1, arrLen);
 
         cc.bind(boundsOk);
-
-        // Level 2: get raw int64_t* data pointer for inline access
-        InvokeNode* ptrInv;
-        cc.invoke(Out(ptrInv), reinterpret_cast<uint64_t>(jit_array_get_raw_int_ptr),
-                  FuncSignature::build<int64_t*, const value::Value*>());
-        ptrInv->set_arg(0, arrAddr);
-        Gp dataPtr = cc.new_gp64();
-        ptrInv->set_ret(0, dataPtr);
 
         Gp result = cc.new_gp64();
         Label slowPath = cc.new_label();
@@ -221,22 +240,19 @@ namespace vm::jit
         cc.mov(val, Mem(s.stackBase, (s.stackDepth - 1) * 8));
         Gp idx = cc.new_gp64();
         cc.mov(idx, Mem(s.stackBase, (s.stackDepth - 2) * 8));
+        int arrSlot = s.stackDepth - 3;
         Gp arrAddr = cc.new_gp64();
-        cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 3) * valueSize)));
+        cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>(arrSlot * valueSize)));
 
-        // Bounds check: fetch array length, unsigned compare catches negative + overflow
-        InvokeNode* lenInv;
-        cc.invoke(Out(lenInv), reinterpret_cast<uint64_t>(jit_array_length),
-                  FuncSignature::build<int64_t, const value::Value*>());
-        lenInv->set_arg(0, arrAddr);
-        Gp arrLen = cc.new_gp64();
-        lenInv->set_ret(0, arrLen);
+        // Extract array info (cached or single combined call)
+        Gp dataPtr, arrLen;
+        emitExtractArrayInfo(s, arrSlot, arrAddr, dataPtr, arrLen);
 
+        // Bounds check: unsigned compare catches negative + overflow
         Label boundsOk = cc.new_label();
         cc.cmp(idx, arrLen);
         cc.jb(boundsOk);
 
-        // Out of bounds: throw with index and size
         InvokeNode* oobInv;
         cc.invoke(Out(oobInv), reinterpret_cast<uint64_t>(jit_throw_array_oob),
                   FuncSignature::build<void, int64_t, int64_t>());
@@ -244,14 +260,6 @@ namespace vm::jit
         oobInv->set_arg(1, arrLen);
 
         cc.bind(boundsOk);
-
-        // Level 2: get raw int64_t* data pointer for inline access
-        InvokeNode* ptrInv;
-        cc.invoke(Out(ptrInv), reinterpret_cast<uint64_t>(jit_array_get_raw_int_ptr),
-                  FuncSignature::build<int64_t*, const value::Value*>());
-        ptrInv->set_arg(0, arrAddr);
-        Gp dataPtr = cc.new_gp64();
-        ptrInv->set_ret(0, dataPtr);
 
         Label slowPath = cc.new_label();
         Label done = cc.new_label();
@@ -360,6 +368,155 @@ namespace vm::jit
         return true;
     }
 
+    // ── Fused local-array emitters (no copy/destroy overhead) ──────────
+
+    static bool emitArrayLengthLocal(JitEmissionState& s,
+                                     const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        auto& cc = s.cc;
+        size_t localSlot = instr.operands[0];
+
+        // Read array directly from locals — no jit_value_copy
+        Gp arrAddr = cc.new_gp64();
+        cc.lea(arrAddr, Mem(s.localsBase, static_cast<int32_t>(localSlot * s.localStride)));
+
+        Gp dataPtr, arrLen;
+        emitExtractArrayInfo(s, static_cast<int>(localSlot + 10000), arrAddr, dataPtr, arrLen);
+
+        // No emitValueDestroy — array stays in locals
+        cc.mov(Mem(s.stackBase, s.stackDepth * 8), arrLen);
+        s.slotTypes.push_back(SlotType::INT);
+        s.stackDepth++;
+        return true;
+    }
+
+    static bool emitArrayGetIntLocal(JitEmissionState& s,
+                                     const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        auto& cc = s.cc;
+        size_t localSlot = instr.operands[0];
+        popType(s); // pop index type
+
+        Gp idx = cc.new_gp64();
+        cc.mov(idx, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+
+        // Read array directly from locals — no jit_value_copy
+        Gp arrAddr = cc.new_gp64();
+        cc.lea(arrAddr, Mem(s.localsBase, static_cast<int32_t>(localSlot * s.localStride)));
+
+        Gp dataPtr, arrLen;
+        emitExtractArrayInfo(s, static_cast<int>(localSlot + 10000), arrAddr, dataPtr, arrLen);
+
+        // Bounds check
+        Label boundsOk = cc.new_label();
+        cc.cmp(idx, arrLen);
+        cc.jb(boundsOk);
+
+        InvokeNode* oobInv;
+        cc.invoke(Out(oobInv), reinterpret_cast<uint64_t>(jit_throw_array_oob),
+                  FuncSignature::build<void, int64_t, int64_t>());
+        oobInv->set_arg(0, idx);
+        oobInv->set_arg(1, arrLen);
+
+        cc.bind(boundsOk);
+
+        Gp result = cc.new_gp64();
+        Label slowPath = cc.new_label();
+        Label done = cc.new_label();
+
+        cc.test(dataPtr, dataPtr);
+        cc.jz(slowPath);
+
+        // Fast path: direct memory read
+        Gp addr = cc.new_gp64();
+        cc.mov(addr, idx);
+        cc.shl(addr, 3);
+        cc.add(addr, dataPtr);
+        cc.mov(result, Mem(addr, 0));
+        cc.jmp(done);
+
+        // Slow path: heterogeneous array fallback
+        cc.bind(slowPath);
+        InvokeNode* slowInv;
+        cc.invoke(Out(slowInv), reinterpret_cast<uint64_t>(jit_array_get_int),
+                  FuncSignature::build<int64_t, const value::Value*, int64_t>());
+        slowInv->set_arg(0, arrAddr);
+        slowInv->set_arg(1, idx);
+        slowInv->set_ret(0, result);
+
+        cc.bind(done);
+
+        // No emitValueDestroy — array stays in locals
+        s.stackDepth--;
+        cc.mov(Mem(s.stackBase, s.stackDepth * 8), result);
+        s.slotTypes.push_back(SlotType::INT);
+        s.stackDepth++;
+        return true;
+    }
+
+    static bool emitArraySetIntLocal(JitEmissionState& s,
+                                     const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        auto& cc = s.cc;
+        size_t localSlot = instr.operands[0];
+        popType(s); // pop value type
+        popType(s); // pop index type
+
+        Gp val = cc.new_gp64();
+        cc.mov(val, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+        Gp idx = cc.new_gp64();
+        cc.mov(idx, Mem(s.stackBase, (s.stackDepth - 2) * 8));
+
+        // Read array directly from locals — no jit_value_copy
+        Gp arrAddr = cc.new_gp64();
+        cc.lea(arrAddr, Mem(s.localsBase, static_cast<int32_t>(localSlot * s.localStride)));
+
+        Gp dataPtr, arrLen;
+        emitExtractArrayInfo(s, static_cast<int>(localSlot + 10000), arrAddr, dataPtr, arrLen);
+
+        // Bounds check
+        Label boundsOk = cc.new_label();
+        cc.cmp(idx, arrLen);
+        cc.jb(boundsOk);
+
+        InvokeNode* oobInv;
+        cc.invoke(Out(oobInv), reinterpret_cast<uint64_t>(jit_throw_array_oob),
+                  FuncSignature::build<void, int64_t, int64_t>());
+        oobInv->set_arg(0, idx);
+        oobInv->set_arg(1, arrLen);
+
+        cc.bind(boundsOk);
+
+        Label slowPath = cc.new_label();
+        Label done = cc.new_label();
+
+        cc.test(dataPtr, dataPtr);
+        cc.jz(slowPath);
+
+        // Fast path: direct memory write
+        Gp addr = cc.new_gp64();
+        cc.mov(addr, idx);
+        cc.shl(addr, 3);
+        cc.add(addr, dataPtr);
+        cc.mov(Mem(addr, 0), val);
+        cc.jmp(done);
+
+        // Slow path: heterogeneous array fallback
+        cc.bind(slowPath);
+        InvokeNode* slowInv;
+        cc.invoke(Out(slowInv), reinterpret_cast<uint64_t>(jit_array_set_int),
+                  FuncSignature::build<void, const value::Value*, int64_t, int64_t>());
+        slowInv->set_arg(0, arrAddr);
+        slowInv->set_arg(1, idx);
+        slowInv->set_arg(2, val);
+
+        cc.bind(done);
+
+        // No emitValueDestroy — array stays in locals
+        s.stackDepth -= 2;
+        return true;
+    }
+
     // ── Group dispatchers ───────────────────────────────────────────────
 
     static bool emitBasicArrayOps(JitEmissionState& s,
@@ -380,11 +537,14 @@ namespace vm::jit
     {
         switch (instr.opcode)
         {
-            case OpCode::ARRAY_GET_INT:   return emitArrayGetInt(s);
-            case OpCode::ARRAY_SET_INT:   return emitArraySetInt(s);
-            case OpCode::ARRAY_GET_FIELD: return emitArrayGetField(s, instr);
-            case OpCode::ARRAY_SET_FIELD: return emitArraySetField(s, instr);
-            default:                      return false;
+            case OpCode::ARRAY_GET_INT:       return emitArrayGetInt(s);
+            case OpCode::ARRAY_SET_INT:       return emitArraySetInt(s);
+            case OpCode::ARRAY_GET_FIELD:     return emitArrayGetField(s, instr);
+            case OpCode::ARRAY_SET_FIELD:     return emitArraySetField(s, instr);
+            case OpCode::ARRAY_GET_INT_LOCAL: return emitArrayGetIntLocal(s, instr);
+            case OpCode::ARRAY_SET_INT_LOCAL: return emitArraySetIntLocal(s, instr);
+            case OpCode::ARRAY_LENGTH_LOCAL:  return emitArrayLengthLocal(s, instr);
+            default:                          return false;
         }
     }
 

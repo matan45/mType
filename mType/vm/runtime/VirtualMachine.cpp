@@ -1380,6 +1380,12 @@ namespace vm::runtime
             else
                 objectExecutor->handleSetField(instr);
             break;
+        case OpCode::INLINE_SET_FIELD:
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleInlineSetFieldIC(instr);
+            else
+                objectExecutor->handleInlineSetField(instr);
+            break;
         case OpCode::GET_STATIC: objectExecutor->handleGetStatic(instr);
             break;
         case OpCode::SET_STATIC: objectExecutor->handleSetStatic(instr);
@@ -1466,6 +1472,12 @@ namespace vm::runtime
         case OpCode::ARRAY_GET_FIELD: arrayExecutor->handleArrayGetField(instr);
             break;
         case OpCode::ARRAY_SET_FIELD: arrayExecutor->handleArraySetField(instr);
+            break;
+        case OpCode::ARRAY_GET_INT_LOCAL: arrayExecutor->handleArrayGetIntLocal(instr);
+            break;
+        case OpCode::ARRAY_SET_INT_LOCAL: arrayExecutor->handleArraySetIntLocal(instr);
+            break;
+        case OpCode::ARRAY_LENGTH_LOCAL: arrayExecutor->handleArrayLengthLocal(instr);
             break;
 
         // Type operations - delegated to TypeExecutor

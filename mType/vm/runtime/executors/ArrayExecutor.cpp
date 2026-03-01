@@ -671,4 +671,45 @@ namespace vm::runtime
         auto& pool = value::ArrayPool::getInstance();
         return pool.acquireAdaptive(dimensions, defaultValue);
     }
+
+    void ArrayExecutor::handleArrayGetIntLocal(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        size_t localSlot = instr.operands[0];
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        const value::Value& arrayVal = (*context.stackManager)[frameBase + localSlot];
+
+        value::Value indexVal = context.stackManager->pop();
+        int64_t index = std::get<int64_t>(indexVal);
+
+        const auto& array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        context.stackManager->push(array->getIntDirect(static_cast<size_t>(index)));
+    }
+
+    void ArrayExecutor::handleArraySetIntLocal(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        size_t localSlot = instr.operands[0];
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        const value::Value& arrayVal = (*context.stackManager)[frameBase + localSlot];
+
+        value::Value valToSet = context.stackManager->pop();
+        value::Value indexVal = context.stackManager->pop();
+        int64_t index = std::get<int64_t>(indexVal);
+        int64_t val = std::get<int64_t>(valToSet);
+
+        const auto& array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        array->setIntDirect(static_cast<size_t>(index), val);
+    }
+
+    void ArrayExecutor::handleArrayLengthLocal(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        size_t localSlot = instr.operands[0];
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        const value::Value& arrayVal = (*context.stackManager)[frameBase + localSlot];
+
+        const auto& array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        context.stackManager->push(static_cast<int64_t>(array->size()));
+    }
 }

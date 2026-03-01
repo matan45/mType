@@ -215,6 +215,7 @@ namespace vm::bytecode
         void setLastInstructionFlags(uint8_t flags);
 
         const Instruction& getInstruction(size_t offset) const;
+        Instruction& getMutableInstruction(size_t offset);
         const std::vector<Instruction>& getInstructions() const;
         size_t getInstructionCount() const;
 
