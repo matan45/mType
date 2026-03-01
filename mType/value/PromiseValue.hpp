@@ -207,6 +207,17 @@ namespace value
         }
 
         /**
+         * @brief Clear held values for GC cycle breaking
+         * Resets value and exceptionValue to monostate to release object references.
+         */
+        void clearForGC()
+        {
+            std::lock_guard<std::mutex> lock(promiseMutex);
+            value = std::monostate{};
+            exceptionValue = std::monostate{};
+        }
+
+        /**
          * @brief Efficiently wait for promise to be fulfilled or rejected
          *
          * Blocks the calling thread until the promise is settled (fulfilled or rejected).

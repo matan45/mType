@@ -80,11 +80,10 @@ namespace runtimeTypes::klass
         // Map lambda parameters to interface method parameters
         auto methodParams = mapLambdaParameters(lambda, samMethod);
 
-        // Convert raw lambda pointer to shared_ptr for memory safety
-        auto lambdaSharedPtr = std::shared_ptr<ast::nodes::expressions::LambdaNode>(lambda, [](ast::nodes::expressions::LambdaNode* ptr){
-            // Custom deleter that does nothing - lambda lifetime is managed by AST
-            (void)ptr; // Silence unused parameter warning
-        });
+        // Non-owning shared_ptr: the LambdaNode is owned by the AST (parser's unique_ptr).
+        // No-op deleter prevents double-free. Receivers store this as weak_ptr,
+        // so they safely detect when the AST is destroyed via weak_ptr::expired().
+        auto lambdaSharedPtr = std::shared_ptr<ast::nodes::expressions::LambdaNode>(lambda, [](ast::nodes::expressions::LambdaNode*){});
 
         // Create lambda invocation node
         auto lambdaInvocationNode = createLambdaInvocationNode(lambdaSharedPtr, samMethod, methodParams);

@@ -152,20 +152,21 @@ namespace runtime {
         running = true;
         shouldStop = false;
 
-        // Safety timeout to prevent infinite loops during debugging
+        // Safety limits to prevent runaway event loops.
+        // These are intentionally conservative for the current MVP scope.
         auto startTime = std::chrono::steady_clock::now();
-        const int MAX_ITERATIONS = 10000;
+        constexpr int MAX_ITERATIONS = 10000;
+        constexpr int MAX_SECONDS = 10;
         int iterations = 0;
 
         while (!shouldStop && tick()) {
             iterations++;
 
-            // Check for timeout (10 seconds) or max iterations
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::steady_clock::now() - startTime
             ).count();
 
-            if (elapsed > 10 || iterations > MAX_ITERATIONS) {
+            if (elapsed > MAX_SECONDS || iterations > MAX_ITERATIONS) {
                 break;
             }
         }

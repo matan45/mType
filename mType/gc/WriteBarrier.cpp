@@ -224,7 +224,7 @@ namespace gc
                     size_t sz = array->size();
                     for (size_t i = 0; i < sz; ++i)
                     {
-                        array->set(i, nullptr);
+                        array->set(i, value::Value{std::monostate{}});
                     }
                 }
                 break;
@@ -251,11 +251,7 @@ namespace gc
             case config::GCObjectType::PROMISE_VALUE:
             {
                 auto* promise = static_cast<value::PromiseValue*>(object);
-                // Resolve with null to clear any held object references
-                // Only if still pending; if already settled, the values are
-                // what we need to clear but PromiseValue doesn't expose setters.
-                // The shared_ptr controlling this object will handle final cleanup.
-                (void)promise;
+                promise->clearForGC();
                 break;
             }
 

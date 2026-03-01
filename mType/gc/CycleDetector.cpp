@@ -259,6 +259,7 @@ namespace gc
                     header->color = config::ObjectColor::WHITE;
 
                     forEachReference(current, [&workStack](void* child) {
+                        if (!child) return;
                         workStack.push(child);
                     });
                 }
@@ -328,6 +329,7 @@ namespace gc
                 header->cycleCount++;
 
                 forEachReference(current, [&workStack](void* child) {
+                    if (!child) return;
                     workStack.push(child);
                 });
 

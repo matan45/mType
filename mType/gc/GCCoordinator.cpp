@@ -103,43 +103,39 @@ namespace gc
             return;  // Another collection already in progress
         }
 
-        try
+        // RAII guard ensures flag is always reset, even during stack unwinding
+        struct CollectionGuard {
+            std::atomic<bool>& flag;
+            CollectionGuard(std::atomic<bool>& f) : flag(f) {}
+            ~CollectionGuard() { flag = false; }
+        } guard(collectionInProgress);
+
+        // Collect roots from VM
+        std::vector<void*> roots;
+        if (rootCollector)
         {
-            // Collect roots from VM
-            std::vector<void*> roots;
-            if (rootCollector)
-            {
-                roots = rootCollector();
-            }
-            detector->setExternalRoots(roots);
-
-            // Run cycle detection
-            auto result = detector->collectCycles(
-                std::chrono::milliseconds(config::MAX_CYCLE_DETECTION_TIME_MS)
-            );
-
-            // Record statistics
-            stats.recordCollection(
-                result.cyclesFound,
-                result.objectsCollected,
-                static_cast<size_t>(result.duration.count()),
-                result.completed
-            );
-
-            // Reset allocation count
-            GCTracker::getInstance().resetAllocationCount();
-
-            // Cleanup dead objects (shared_ptr expired)
-            GCTracker::getInstance().cleanupDeadObjects();
+            roots = rootCollector();
         }
-        catch (...)
-        {
-            // Ensure flag is reset even on exception
-            collectionInProgress = false;
-            throw;
-        }
+        detector->setExternalRoots(roots);
 
-        collectionInProgress = false;
+        // Run cycle detection
+        auto result = detector->collectCycles(
+            std::chrono::milliseconds(config::MAX_CYCLE_DETECTION_TIME_MS)
+        );
+
+        // Record statistics
+        stats.recordCollection(
+            result.cyclesFound,
+            result.objectsCollected,
+            static_cast<size_t>(result.duration.count()),
+            result.completed
+        );
+
+        // Reset allocation count
+        GCTracker::getInstance().resetAllocationCount();
+
+        // Cleanup dead objects (shared_ptr expired)
+        GCTracker::getInstance().cleanupDeadObjects();
     }
 
     void GCCoordinator::reset()

@@ -15,6 +15,12 @@ namespace vm::jit
                                       const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
+        // Validate opcode before mutating state
+        if (instr.opcode != OpCode::ADD_INT &&
+            instr.opcode != OpCode::SUB_INT &&
+            instr.opcode != OpCode::MUL_INT)
+            return false;
+
         s.stackDepth--;
         SlotType rType = popType(s);
         SlotType lType = popType(s);
@@ -46,7 +52,7 @@ namespace vm::jit
                 cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
                 break;
             }
-            default: return false;
+            default: break;
         }
         s.slotTypes.push_back(SlotType::INT);
         return true;
@@ -129,6 +135,13 @@ namespace vm::jit
                                    const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
+        // Validate opcode before mutating state
+        if (instr.opcode != OpCode::ADD_FLOAT &&
+            instr.opcode != OpCode::SUB_FLOAT &&
+            instr.opcode != OpCode::MUL_FLOAT &&
+            instr.opcode != OpCode::DIV_FLOAT)
+            return false;
+
         s.stackDepth--;
         SlotType rType = popType(s);
         SlotType lType = popType(s);
