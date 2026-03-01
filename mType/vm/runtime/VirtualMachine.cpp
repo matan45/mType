@@ -151,6 +151,7 @@ namespace vm::runtime
         instructionPointer = funcMeta->startOffset;
 
         // Run interpreter until this call frame is popped
+        // Use post-increment to match interpretLoop pattern (executors set IP = target - 1)
         while (callStack.size() > savedCallStackDepth)
         {
             if (instructionPointer >= program->getInstructionCount())
@@ -159,7 +160,6 @@ namespace vm::runtime
             }
 
             const auto& instr = program->getInstruction(instructionPointer);
-            instructionPointer++;
 
             try
             {
@@ -179,6 +179,8 @@ namespace vm::runtime
                 }
                 throw;
             }
+
+            instructionPointer++;
         }
 
         // Get return value (if any)
@@ -1727,7 +1729,7 @@ namespace vm::runtime
                 bool justBecameHot = jitProfiler->recordEntry(funcName);
                 if (justBecameHot && jitCompiler && jitCodeCache)
                 {
-                    jitCompiler->compile(funcName, *program, *jitCodeCache);
+                    jitCompiler->compile(funcName, *program, *jitCodeCache, typeFeedbackCollector.get());
                 }
             }
             break;

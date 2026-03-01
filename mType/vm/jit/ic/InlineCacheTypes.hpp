@@ -48,6 +48,12 @@ namespace vm::jit::ic
 
         bool addEntry(const runtimeTypes::klass::ClassDefinition* shape, size_t fieldIndex)
         {
+            // Check for duplicate — shape already cached
+            if (lookup(shape) != nullptr)
+            {
+                return true;  // Already present, no-op
+            }
+
             if (entryCount >= IC_MAX_POLYMORPHIC_ENTRIES)
             {
                 state = ICState::MEGAMORPHIC;
@@ -100,6 +106,12 @@ namespace vm::jit::ic
 
         bool addEntry(const MethodICEntry& entry)
         {
+            // Check for duplicate — shape already cached
+            if (lookup(entry.shape) != nullptr)
+            {
+                return true;  // Already present, no-op
+            }
+
             if (entryCount >= IC_MAX_POLYMORPHIC_ENTRIES)
             {
                 state = ICState::MEGAMORPHIC;

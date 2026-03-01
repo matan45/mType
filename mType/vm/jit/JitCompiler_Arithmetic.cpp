@@ -1,6 +1,7 @@
 #include "JitCompiler.hpp"
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
+#include "ic/TypeFeedbackCollector.hpp"
 #include "../bytecode/OpCode.hpp"
 #include <asmjit/x86.h>
 
@@ -153,8 +154,19 @@ namespace vm::jit
         SlotType rType = popType(s), lType = popType(s);
         s.stackDepth--;
 
-        if (isBoxedSlotType(lType)) { emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT); lType = SlotType::INT; }
-        if (isBoxedSlotType(rType)) { emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT); rType = SlotType::INT; }
+        // Determine unbox target: if either operand is FLOAT, unbox as FLOAT
+        SlotType unboxTarget = (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
+            ? SlotType::FLOAT : SlotType::INT;
+        // Use type feedback to specialize when both operands are boxed
+        if (unboxTarget == SlotType::INT && isBoxedSlotType(lType) && isBoxedSlotType(rType)
+            && s.typeFeedback && s.typeFeedback->shouldSpecialize(s.currentIP))
+        {
+            auto [lt, rt] = s.typeFeedback->getDominantTypes(s.currentIP);
+            if (lt == ic::ObservedType::FLOAT || rt == ic::ObservedType::FLOAT)
+                unboxTarget = SlotType::FLOAT;
+        }
+        if (isBoxedSlotType(lType)) { emitEnsureUnboxed(s, s.stackDepth - 1, lType, unboxTarget); lType = unboxTarget; }
+        if (isBoxedSlotType(rType)) { emitEnsureUnboxed(s, s.stackDepth, rType, unboxTarget); rType = unboxTarget; }
 
         if (lType == SlotType::INT && rType == SlotType::INT)
         {
@@ -208,8 +220,19 @@ namespace vm::jit
         SlotType rType = popType(s), lType = popType(s);
         s.stackDepth--;
 
-        if (isBoxedSlotType(lType)) { emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT); lType = SlotType::INT; }
-        if (isBoxedSlotType(rType)) { emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT); rType = SlotType::INT; }
+        // Determine unbox target: if either operand is FLOAT, unbox as FLOAT
+        SlotType unboxTarget = (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
+            ? SlotType::FLOAT : SlotType::INT;
+        // Use type feedback to specialize when both operands are boxed
+        if (unboxTarget == SlotType::INT && isBoxedSlotType(lType) && isBoxedSlotType(rType)
+            && s.typeFeedback && s.typeFeedback->shouldSpecialize(s.currentIP))
+        {
+            auto [lt, rt] = s.typeFeedback->getDominantTypes(s.currentIP);
+            if (lt == ic::ObservedType::FLOAT || rt == ic::ObservedType::FLOAT)
+                unboxTarget = SlotType::FLOAT;
+        }
+        if (isBoxedSlotType(lType)) { emitEnsureUnboxed(s, s.stackDepth - 1, lType, unboxTarget); lType = unboxTarget; }
+        if (isBoxedSlotType(rType)) { emitEnsureUnboxed(s, s.stackDepth, rType, unboxTarget); rType = unboxTarget; }
 
         if (lType == SlotType::INT && rType == SlotType::INT)
         {
@@ -244,7 +267,8 @@ namespace vm::jit
             cc.xorpd(zero, zero);
             cc.ucomisd(right, zero);
             Label nz = cc.new_label();
-            cc.jne(nz);
+            cc.jp(nz);   // Jump if NaN (parity flag set by ucomisd on unordered comparison)
+            cc.jne(nz);  // Jump if non-zero
             InvokeNode* dz;
             cc.invoke(Out(dz), (uint64_t)jit_throw_div_by_zero,
                       FuncSignature::build<void>());

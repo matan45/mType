@@ -35,6 +35,8 @@ namespace value
 
     const Value& ValueObject::getFieldByIndex(size_t index) const
     {
+        static const Value nullValue = nullptr_t{};
+        if (index >= fields.size()) return nullValue;
         return fields[index];
     }
 

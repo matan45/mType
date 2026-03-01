@@ -488,7 +488,8 @@ namespace vm::jit
     static bool emitFunctionBody(Compiler& cc, Gp ctxPtr,
                                    const bytecode::BytecodeProgram& program,
                                    const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
-                                   CompilationFrame& frame)
+                                   CompilationFrame& frame,
+                                   ic::TypeFeedbackCollector* typeFeedback)
     {
         emitArgumentUnboxing(cc, ctxPtr, frame.localsBase, funcMeta,
                              frame.usesBoxedTypes, frame.localStride, frame.localTypes);
@@ -506,7 +507,8 @@ namespace vm::jit
         JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
                            frame.boxedBase, frame.progPtr,
                            frame.usesBoxedTypes, frame.localCount, frame.localStride,
-                           0, {}, frame.localTypes, false, 0, labels, program};
+                           0, {}, frame.localTypes, false, 0, labels, program,
+                           typeFeedback};
 
         emitCodegenLoop(s, startOffset, instrCount, program);
 
@@ -520,7 +522,8 @@ namespace vm::jit
 
     bool JitCompiler::compile(const std::string& functionName,
                                const bytecode::BytecodeProgram& program,
-                               JitCodeCache& codeCache)
+                               JitCodeCache& codeCache,
+                               ic::TypeFeedbackCollector* typeFeedback)
     {
         if (codeCache.contains(functionName))
             return true;
@@ -556,7 +559,7 @@ namespace vm::jit
 
         auto frame = setupCompilationFrame(cc, program, *funcMeta, localCount);
 
-        if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame))
+        if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame, typeFeedback))
         {
             bailoutCount++;
             return false;

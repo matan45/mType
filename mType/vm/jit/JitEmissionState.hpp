@@ -12,6 +12,7 @@
 namespace vm::jit
 {
     class JitCodeCache;
+    namespace ic { class TypeFeedbackCollector; }
     enum class CmpOp { EQ, NE, LT, GT, LE, GE };
 
     struct JitEmissionState
@@ -36,6 +37,8 @@ namespace vm::jit
         std::unordered_map<size_t, asmjit::Label> labels;
 
         const bytecode::BytecodeProgram& program;
+
+        ic::TypeFeedbackCollector* typeFeedback = nullptr;
 
         static constexpr size_t MAX_OP_STACK = 64;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);

@@ -58,9 +58,10 @@ namespace runtimeTypes::klass {
 
         /**
      * Check if this is a functional interface (SAM - Single Abstract Method)
+     * Must have exactly one method total (including inherited methods)
      */
         bool isFunctionalInterface() const {
-            return methodSignatures.size() == 1;
+            return methodSignatures.size() == 1 && extendsInterfaces.empty();
         }
     
         /**

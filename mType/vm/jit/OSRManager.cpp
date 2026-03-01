@@ -17,7 +17,8 @@ namespace vm::jit
                                           size_t jumpBackOffset,
                                           const bytecode::BytecodeProgram& program,
                                           JitCompiler& compiler,
-                                          JitCodeCache& codeCache)
+                                          JitCodeCache& codeCache,
+                                          ic::TypeFeedbackCollector* typeFeedback)
     {
         std::string osrKey = "osr@" + std::to_string(jumpBackOffset);
         bool compiled = compiler.compileLoopOSR(
@@ -27,7 +28,8 @@ namespace vm::jit
             state.locals,
             state.localCount,
             program,
-            codeCache);
+            codeCache,
+            typeFeedback);
 
         if (!compiled)
         {
@@ -79,7 +81,8 @@ namespace vm::jit
             return false;
         }
 
-        if (!compileAndCacheLoop(state, jumpBackOffset, program, compiler, codeCache))
+        if (!compileAndCacheLoop(state, jumpBackOffset, program, compiler, codeCache,
+                                 vm.getTypeFeedbackCollector()))
         {
             loopProfiler.markFailed(loopId);
             return false;

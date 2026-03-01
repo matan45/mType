@@ -7,6 +7,7 @@
 #include "JitContext.hpp"
 #include "SlotType.hpp"
 #include "OSRState.hpp"
+namespace vm::jit::ic { class TypeFeedbackCollector; }
 #include "../bytecode/BytecodeProgram.hpp"
 #include <asmjit/x86.h>
 
@@ -19,7 +20,8 @@ namespace vm::jit
 
         bool compile(const std::string& functionName,
                      const bytecode::BytecodeProgram& program,
-                     JitCodeCache& codeCache);
+                     JitCodeCache& codeCache,
+                     ic::TypeFeedbackCollector* typeFeedback = nullptr);
 
         size_t getCompileCount() const { return compileCount; }
         size_t getBailoutCount() const { return bailoutCount; }
@@ -30,7 +32,8 @@ namespace vm::jit
                             const std::vector<LocalSlotInfo>& localSlotInfos,
                             size_t localCount,
                             const bytecode::BytecodeProgram& program,
-                            JitCodeCache& codeCache);
+                            JitCodeCache& codeCache,
+                            ic::TypeFeedbackCollector* typeFeedback = nullptr);
 
     private:
         bool canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,

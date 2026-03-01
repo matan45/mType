@@ -208,6 +208,7 @@ namespace vm::runtime
         vm::jit::OSRManager* getOSRManager() const { return osrManager.get(); }
         void printJitStats() const;
         vm::jit::ic::InlineCacheTable* getInlineCacheTable() const { return inlineCacheTable.get(); }
+        vm::jit::ic::TypeFeedbackCollector* getTypeFeedbackCollector() const { return typeFeedbackCollector.get(); }
 
         // Phase 6: Inline caching control
         void setICEnabled(bool enabled);
