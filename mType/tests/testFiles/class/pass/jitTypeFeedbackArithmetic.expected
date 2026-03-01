@@ -1,0 +1,10 @@
+floatSum(3.14, 2.86): 6
+floatProduct(2.5, 4.0): 10
+floatDifference(10.5, 3.25): 7.25
+floatDivision(15.0, 4.0): 3.75
+floatAccumulateLoop(1000): 149.994
+mixedArithmetic(100): 12375
+floatDivLoop(100): 10
+chainedFloatOps(100.0, 500): 58.5017
+1000x floatSum(0.001, 0.001): 2
+100x compounding floatProduct(1.0, 1.001): 1.10512
