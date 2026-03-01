@@ -1,7 +1,7 @@
 #pragma once
 #include "../../value/ValueType.hpp"
 #include "../../ast/AccessModifier.hpp"
-#include "../../ast/GenericType.hpp"
+#include "../../types/UnifiedType.hpp"
 #include "../Definition.hpp"
 #include <memory>
 
@@ -19,8 +19,8 @@ namespace runtimeTypes::klass
         bool isInitializedField; // Track if final field has been initialized
         ast::AccessModifier accessModifier;
 
-        // NEW: Generic type information for precise type handling
-        std::shared_ptr<ast::GenericType> genericType;
+        // Type information for precise type handling (UnifiedType)
+        ::types::UnifiedTypePtr unifiedType;
 
     public:
         // Legacy constructor for backward compatibility
@@ -29,19 +29,19 @@ namespace runtimeTypes::klass
                         ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), type(t), value(v),
               isStaticField(stat), isFinalField(fin), isInitializedField(false), accessModifier(modifier),
-              genericType(nullptr)
+              unifiedType(nullptr)
         {
         }
 
-        // NEW: Constructor with generic type information
+        // Constructor with unified type information
         explicit FieldDefinition(const std::string& n, ValueType t,
-                        std::shared_ptr<ast::GenericType> genType,
+                        ::types::UnifiedTypePtr uType,
                         const Value& v = {},
                         bool stat = false, bool fin = false,
                         ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), type(t), value(v),
               isStaticField(stat), isFinalField(fin), isInitializedField(false), accessModifier(modifier),
-              genericType(genType)
+              unifiedType(std::move(uType))
         {
         }
 
@@ -67,10 +67,10 @@ namespace runtimeTypes::klass
         ast::AccessModifier getAccessModifier() const { return accessModifier; }
         void setAccessModifier(ast::AccessModifier modifier) { accessModifier = modifier; }
 
-        // NEW: Generic type information getters and setters
-        std::shared_ptr<ast::GenericType> getGenericType() const { return genericType; }
-        void setGenericType(std::shared_ptr<ast::GenericType> genType) { genericType = genType; }
-        bool hasGenericType() const { return genericType != nullptr; }
+        // Unified type information getters and setters
+        ::types::UnifiedTypePtr getUnifiedType() const { return unifiedType; }
+        void setUnifiedType(::types::UnifiedTypePtr type) { unifiedType = std::move(type); }
+        bool hasUnifiedType() const { return unifiedType != nullptr; }
 
         // Reflection support: get modifier flags as bitmask
         // PUBLIC=1, PRIVATE=2, PROTECTED=4, STATIC=8, FINAL=16

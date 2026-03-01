@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "../Definition.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
-#include "../../ast/GenericType.hpp"
+#include "../../types/UnifiedType.hpp"
 #include "../../value/ValueType.hpp"
 #include <vector>
 #include <memory>
@@ -21,8 +21,8 @@ namespace runtimeTypes::klass {
     // Method signature for interface methods
     struct MethodSignature {
         std::string name;
-        std::shared_ptr<ast::GenericType> returnType;
-        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> parameters;
+        ::types::UnifiedTypePtr returnType;
+        std::vector<std::pair<std::string, ::types::UnifiedTypePtr>> parameters;
         std::vector<ast::GenericTypeParameter> genericParameters;
     };
     
@@ -128,8 +128,8 @@ namespace runtimeTypes::klass {
         void setFinal(bool isFinal) { finalInterface = isFinal; }
 
     private:
-        // Helper method to convert GenericType to ValueType
-        value::ValueType convertGenericTypeToValueType(std::shared_ptr<ast::GenericType> genericType) const;
+        // Helper method to convert UnifiedType to ValueType
+        value::ValueType convertUnifiedTypeToValueType(const ::types::UnifiedTypePtr& type) const;
 
         // Helper methods for createLambdaImplementation
         std::string createAnonymousClassName(ast::nodes::expressions::LambdaNode* lambda) const;

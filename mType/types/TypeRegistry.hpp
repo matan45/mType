@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../value/ValueType.hpp"
-#include "../ast/GenericType.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/TypeResolutionException.hpp"
 #include <string>

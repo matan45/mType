@@ -143,9 +143,9 @@ namespace vm::compiler::types
                         return value::ValueType::ARRAY;
                     }
 
-                    // Check if the field type is an array by checking the generic type
-                    if (field->hasGenericType()) {
-                        std::string fieldTypeName = field->getGenericType()->toString();
+                    // Check if the field type is an array by checking the unified type
+                    if (field->hasUnifiedType()) {
+                        std::string fieldTypeName = field->getUnifiedType()->toString();
                         if (!fieldTypeName.empty() &&
                             (fieldTypeName.find("[]") != std::string::npos || fieldTypeName.find("Array<") == 0)) {
                             return value::ValueType::ARRAY;
@@ -163,8 +163,8 @@ namespace vm::compiler::types
                     }
 
                     // Check if the return type is an array
-                    if (method->getGenericReturnType()) {
-                        std::string returnTypeName = method->getGenericReturnType()->toString();
+                    if (method->getUnifiedReturnType()) {
+                        std::string returnTypeName = method->getUnifiedReturnType()->toString();
                         if (!returnTypeName.empty() &&
                             (returnTypeName.find("[]") != std::string::npos || returnTypeName.find("Array<") == 0)) {
                             return value::ValueType::ARRAY;
@@ -683,9 +683,9 @@ namespace vm::compiler::types
                         // Check if field is accessible (protected or public, not private)
                         auto accessMod = parentField->getAccessModifier();
                         if (accessMod != ast::AccessModifier::PRIVATE) {
-                            auto genericType = parentField->getGenericType();
-                            if (genericType) {
-                                return genericType->toString();
+                            auto uType = parentField->getUnifiedType();
+                            if (uType) {
+                                return uType->toString();
                             }
                         }
                     }
@@ -797,8 +797,8 @@ namespace vm::compiler::types
                 // Check if it's a field
                 auto field = classDef->getField(memberName);
                 if (field) {
-                    if (field->hasGenericType()) {
-                        std::string fieldTypeName = field->getGenericType()->toString();
+                    if (field->hasUnifiedType()) {
+                        std::string fieldTypeName = field->getUnifiedType()->toString();
                         // Don't return primitive type names as class names
                         if (fieldTypeName != "int" && fieldTypeName != "float" &&
                             fieldTypeName != "string" && fieldTypeName != "bool" &&
@@ -811,8 +811,8 @@ namespace vm::compiler::types
                 // Check if it's a method
                 auto method = classDef->getMethod(memberName);
                 if (method) {
-                    if (method->getGenericReturnType()) {
-                        std::string returnTypeName = method->getGenericReturnType()->toString();
+                    if (method->getUnifiedReturnType()) {
+                        std::string returnTypeName = method->getUnifiedReturnType()->toString();
                         // Don't return primitive type names as class names
                         if (returnTypeName != "int" && returnTypeName != "float" &&
                             returnTypeName != "string" && returnTypeName != "bool" &&

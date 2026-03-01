@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../value/ValueType.hpp"
-#include "../ast/GenericType.hpp"
+#include "UnifiedType.hpp"
 #include "TypeRegistry.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/TypeConversionException.hpp"
@@ -33,7 +33,7 @@ namespace types {
          * Convert generic type to ValueType with comprehensive error handling
          */
         static value::ValueType convertWithContext(
-            std::shared_ptr<ast::GenericType> genericType,
+            const UnifiedTypePtr& type,
             const std::unordered_map<std::string, std::string>& substitutionMap,
             const TypeConversionContext& context = TypeConversionContext());
 
@@ -95,7 +95,7 @@ namespace types {
          * Handle conversion of generic type parameters
          */
         static value::ValueType handleGenericParameter(
-            std::shared_ptr<ast::GenericType> genericType,
+            const UnifiedTypePtr& type,
             const std::unordered_map<std::string, std::string>& substitutionMap,
             TypeRegistry& registry);
 
@@ -103,14 +103,14 @@ namespace types {
          * Handle conversion of concrete types
          */
         static value::ValueType handleConcreteType(
-            std::shared_ptr<ast::GenericType> genericType,
+            const UnifiedTypePtr& type,
             TypeRegistry& registry);
 
         /**
          * Handle conversion of parameterized types
          */
         static value::ValueType handleParameterizedType(
-            std::shared_ptr<ast::GenericType> genericType,
+            const UnifiedTypePtr& type,
             TypeRegistry& registry);
 
         /**

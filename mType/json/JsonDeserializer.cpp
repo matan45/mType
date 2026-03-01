@@ -7,7 +7,7 @@
 #include "../value/ValueObject.hpp"
 #include "../value/StringPool.hpp"
 #include "../errors/RuntimeException.hpp"
-#include "../ast/GenericType.hpp"
+#include "../types/UnifiedType.hpp"
 #include <stdexcept>
 #include <functional>
 
@@ -217,18 +217,18 @@ namespace json
         const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
         const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance)
     {
-        auto genType = field->getGenericType();
-        if (genType)
+        auto uType = field->getUnifiedType();
+        if (uType)
         {
             // If it's a generic parameter (T, E, etc.), resolve via instance bindings
-            if (genType->isGenericParameter())
+            if (uType->isGenericParameter())
             {
-                std::string paramName = genType->getGenericName();
+                std::string paramName = uType->getName();
                 std::string resolved = instance->resolveGenericType(paramName);
                 if (!resolved.empty() && resolved != paramName)
                     return resolved;
             }
-            return genType->getBaseTypeName();
+            return uType->getName();
         }
 
         // Fallback: use ValueType
@@ -276,9 +276,9 @@ namespace json
     std::string JsonDeserializer::resolveFieldTypeFromDef(
         const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field)
     {
-        auto genType = field->getGenericType();
-        if (genType)
-            return genType->getBaseTypeName();
+        auto uType = field->getUnifiedType();
+        if (uType)
+            return uType->getName();
         return valueTypeToString(field->getType());
     }
 

@@ -7,7 +7,7 @@
 #include "../../value/ParameterType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../../ast/AccessModifier.hpp"
-#include "../../ast/GenericType.hpp"
+#include "../../types/UnifiedType.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../../errors/SourceLocation.hpp"
@@ -45,11 +45,11 @@ namespace runtimeTypes::klass
         // Store lambda node for deferred LambdaValue creation with smart pointer for memory safety
         std::weak_ptr<ast::nodes::expressions::LambdaNode> lambdaNode;
 
-        // NEW: Generic type information for runtime type resolution
-        std::shared_ptr<ast::GenericType> genericReturnType;
-        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> genericParameters;
+        // Unified type information for runtime type resolution
+        ::types::UnifiedTypePtr unifiedReturnType;
+        std::vector<std::pair<std::string, ::types::UnifiedTypePtr>> unifiedParameters;
         std::vector<ast::GenericTypeParameter> genericTypeParameters;
-        // NEW: Store generic type parameter declarations (<T>, <K,V>)
+        // Store generic type parameter declarations (<T>, <K,V>)
         std::unordered_map<std::string, std::string> typeSubstitutionMap; // For instantiated generic methods
 
         bool isAsync;  // NEW: Flag to indicate async method
@@ -70,7 +70,7 @@ namespace runtimeTypes::klass
         void validateGenericInvariants() const;
         void validateParameterCounts(size_t paramCount, size_t genParamCount) const;
         void validateSubstitutionMap() const;
-        void validateGenericTypeRecursive(const std::shared_ptr<ast::GenericType>& type, const std::string& context) const;
+        void validateGenericTypeRecursive(const ::types::UnifiedTypePtr& type, const std::string& context) const;
 
     public:
         // Legacy constructor for backward compatibility with ValueType
@@ -80,7 +80,7 @@ namespace runtimeTypes::klass
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
-              lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr), genericParameters(),
+              lambdaImplementation(nullptr), lambdaNode(), unifiedReturnType(nullptr), unifiedParameters(),
               typeSubstitutionMap(), isAsync(false), abstractMethod(false), finalMethod(false)
         {
         }
@@ -91,46 +91,46 @@ namespace runtimeTypes::klass
                                   std::shared_ptr<ASTNode> b, bool s,
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
-              accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(nullptr),
-              genericParameters(), typeSubstitutionMap(), isAsync(false), abstractMethod(false), finalMethod(false)
+              accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), unifiedReturnType(nullptr),
+              unifiedParameters(), typeSubstitutionMap(), isAsync(false), abstractMethod(false), finalMethod(false)
         {
         }
 
-        // NEW: Constructor with generic type information (ValueType legacy)
+        // Constructor with unified type information (ValueType legacy)
         explicit MethodDefinition(const std::string& n, ValueType rt,
                                   const std::vector<std::pair<std::string, ValueType>>& params,
                                   std::shared_ptr<ASTNode> b, bool s,
-                                  std::shared_ptr<ast::GenericType> genRetType,
-                                  const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>&
-                                  genParams,
+                                  ::types::UnifiedTypePtr uRetType,
+                                  const std::vector<std::pair<std::string, ::types::UnifiedTypePtr>>&
+                                  uParams,
                                   const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                                   const std::unordered_map<std::string, std::string>& substitutions = {},
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
-              lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType), genericParameters(genParams),
+              lambdaImplementation(nullptr), lambdaNode(), unifiedReturnType(std::move(uRetType)), unifiedParameters(uParams),
               genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false), abstractMethod(false), finalMethod(false)
         {
-            validateParameterCounts(params.size(), genParams.size());
+            validateParameterCounts(params.size(), uParams.size());
             validateGenericInvariants();
         }
 
-        // NEW: Constructor with generic type information (ParameterType)
+        // Constructor with unified type information (ParameterType)
         explicit MethodDefinition(const std::string& n, ValueType rt,
                                   const std::vector<std::pair<std::string, ParameterType>>& params,
                                   std::shared_ptr<ASTNode> b, bool s,
-                                  std::shared_ptr<ast::GenericType> genRetType,
-                                  const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>&
-                                  genParams,
+                                  ::types::UnifiedTypePtr uRetType,
+                                  const std::vector<std::pair<std::string, ::types::UnifiedTypePtr>>&
+                                  uParams,
                                   const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                                   const std::unordered_map<std::string, std::string>& substitutions = {},
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
             : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
-              accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), genericReturnType(genRetType),
-              genericParameters(genParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions),
+              accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), unifiedReturnType(std::move(uRetType)),
+              unifiedParameters(uParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions),
               isAsync(false), abstractMethod(false), finalMethod(false)
         {
-            validateParameterCounts(params.size(), genParams.size());
+            validateParameterCounts(params.size(), uParams.size());
             validateGenericInvariants();
         }
 
@@ -164,19 +164,19 @@ namespace runtimeTypes::klass
         ast::AccessModifier getAccessModifier() const { return accessModifier; }
         void setAccessModifier(ast::AccessModifier modifier) { accessModifier = modifier; }
 
-        // NEW: Generic type information getters and setters
-        std::shared_ptr<ast::GenericType> getGenericReturnType() const { return genericReturnType; }
-        void setGenericReturnType(std::shared_ptr<ast::GenericType> genRetType) { genericReturnType = genRetType; }
+        // Unified type information getters and setters
+        ::types::UnifiedTypePtr getUnifiedReturnType() const { return unifiedReturnType; }
+        void setUnifiedReturnType(::types::UnifiedTypePtr type) { unifiedReturnType = std::move(type); }
 
-        const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& getGenericParameters() const
+        const std::vector<std::pair<std::string, ::types::UnifiedTypePtr>>& getUnifiedParameters() const
         {
-            return genericParameters;
+            return unifiedParameters;
         }
 
-        void setGenericParameters(
-            const std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>& genParams)
+        void setUnifiedParameters(
+            const std::vector<std::pair<std::string, ::types::UnifiedTypePtr>>& uParams)
         {
-            genericParameters = genParams;
+            unifiedParameters = uParams;
         }
 
         const std::vector<ast::GenericTypeParameter>& getGenericTypeParameters() const { return genericTypeParameters; }
@@ -230,7 +230,7 @@ namespace runtimeTypes::klass
         ValueType resolveParameterType(size_t paramIndex) const;
         ValueType resolveParameterType(const std::string& paramName) const;
         ValueType resolveReturnType() const;
-        bool isGeneric() const { return genericReturnType != nullptr || !genericParameters.empty(); }
+        bool isGeneric() const { return unifiedReturnType != nullptr || !unifiedParameters.empty(); }
 
         // NEW: Async support
         bool getIsAsync() const { return isAsync; }

@@ -23,8 +23,8 @@ namespace runtimeTypes::klass
             const auto& lambdaParam = lambdaParams[i];
             const auto& interfaceParam = interfaceParams[i];
 
-            // Convert GenericType to ValueType
-            value::ValueType paramType = convertGenericTypeToValueType(interfaceParam.second);
+            // Convert UnifiedType to ValueType
+            value::ValueType paramType = convertUnifiedTypeToValueType(interfaceParam.second);
             methodParams.emplace_back(lambdaParam.name, paramType);
         }
 
@@ -36,7 +36,7 @@ namespace runtimeTypes::klass
         const MethodSignature* samMethod,
         const std::vector<std::pair<std::string, value::ValueType>>& methodParams) const
     {
-        value::ValueType returnType = convertGenericTypeToValueType(samMethod->returnType);
+        value::ValueType returnType = convertUnifiedTypeToValueType(samMethod->returnType);
 
         std::vector<value::ValueType> paramTypes;
         for (const auto& [paramName, paramType] : methodParams) {
@@ -90,7 +90,7 @@ namespace runtimeTypes::klass
         auto lambdaInvocationNode = createLambdaInvocationNode(lambdaSharedPtr, samMethod, methodParams);
 
         // Create method definition that wraps the lambda
-        value::ValueType returnType = convertGenericTypeToValueType(samMethod->returnType);
+        value::ValueType returnType = convertUnifiedTypeToValueType(samMethod->returnType);
         auto methodDef = std::make_shared<MethodDefinition>(
             samMethod->name,
             returnType,
@@ -113,57 +113,11 @@ namespace runtimeTypes::klass
         return classDefinition;
     }
 
-    value::ValueType InterfaceDefinition::convertGenericTypeToValueType(std::shared_ptr<ast::GenericType> genericType) const
+    value::ValueType InterfaceDefinition::convertUnifiedTypeToValueType(const ::types::UnifiedTypePtr& type) const
     {
-        if (!genericType) {
+        if (!type) {
             return value::ValueType::VOID;
         }
-
-        std::string typeName = genericType->getBaseTypeName();
-
-        // Handle generic type parameters (e.g., T, K, V)
-        if (genericType->isGenericParameter()) {
-            // For generic parameters, we need to resolve them at runtime
-            // For now, we'll treat them as objects since we can't resolve them at this point
-            // A more sophisticated implementation would track generic type bindings
-            return value::ValueType::OBJECT;
-        }
-
-        // Handle parameterized generic types (e.g., List<T>, Map<K,V>)
-        if (genericType->isParameterized()) {
-            const auto& genericParams = genericType->getTypeArguments();
-
-            // Handle common collection types
-            if (typeName == "List" || typeName == "Array") {
-                return value::ValueType::ARRAY;
-            } else if (typeName == "Map" || typeName == "HashMap") {
-                return value::ValueType::OBJECT; // Maps are complex objects
-            } else if (typeName == "Set" || typeName == "HashSet") {
-                return value::ValueType::OBJECT; // Sets are complex objects
-            } else {
-                // Other parameterized types default to object
-                return value::ValueType::OBJECT;
-            }
-        }
-
-        // Convert primitive type names to ValueType
-        if (typeName == "int" || typeName == "Int" || typeName == "Integer") {
-            return value::ValueType::INT;
-        } else if (typeName == "float" || typeName == "Float" || typeName == "Double" || typeName == "double") {
-            return value::ValueType::FLOAT;
-        } else if (typeName == "bool" || typeName == "Bool" || typeName == "Boolean" || typeName == "boolean") {
-            return value::ValueType::BOOL;
-        } else if (typeName == "string" || typeName == "String") {
-            return value::ValueType::STRING;
-        } else if (typeName == "void" || typeName == "Void") {
-            return value::ValueType::VOID;
-        } else if (typeName == "Object" || typeName == "object") {
-            return value::ValueType::OBJECT;
-        } else if (typeName == "Function" || typeName == "function" || typeName == "Lambda" || typeName == "lambda") {
-            return value::ValueType::LAMBDA;
-        } else {
-            // For custom classes and complex types, default to object
-            return value::ValueType::OBJECT;
-        }
+        return type->toValueType();
     }
 }

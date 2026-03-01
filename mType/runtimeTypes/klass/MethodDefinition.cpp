@@ -16,23 +16,23 @@ namespace runtimeTypes::klass
         // Precondition assertion for debug builds
         assert(paramIndex < parameters.size() && "paramIndex must be within parameters bounds");
 
-        // Check if we have generic parameter information for this parameter
-        if (paramIndex < genericParameters.size())
+        // Check if we have unified type parameter information for this parameter
+        if (paramIndex < unifiedParameters.size())
         {
-            auto genericParam = genericParameters[paramIndex].second;
-            if (genericParam)
+            const auto& uParam = unifiedParameters[paramIndex].second;
+            if (uParam)
             {
-                if (genericParam->isGenericParameter())
+                if (uParam->isGenericParameter())
                 {
                     // This is a direct generic type parameter (T, K, V) - resolve it
-                    std::string typeParamName = genericParam->getGenericName();
+                    std::string typeParamName = uParam->getName();
                     auto it = typeSubstitutionMap.find(typeParamName);
                     if (it != typeSubstitutionMap.end())
                     {
                         return parser::TypeParser::stringToValueType(it->second);
                     }
                 }
-                else if (genericParam->isParameterized())
+                else if (uParam->isParameterized())
                 {
                     // This is a generic collection/object type (e.g., Set<T>, List<U>) - keep as OBJECT
                     return ValueType::OBJECT;
@@ -146,9 +146,9 @@ namespace runtimeTypes::klass
         }
 
         // If we have generic information and a substitution map, resolve the return type
-        if (isGeneric() && genericReturnType && genericReturnType->isGenericParameter())
+        if (isGeneric() && unifiedReturnType && unifiedReturnType->isGenericParameter())
         {
-            std::string typeName = genericReturnType->getGenericName();
+            std::string typeName = unifiedReturnType->getName();
             auto it = typeSubstitutionMap.find(typeName);
             if (it != typeSubstitutionMap.end())
             {
@@ -272,7 +272,7 @@ namespace runtimeTypes::klass
         }
     }
 
-    void MethodDefinition::validateGenericTypeRecursive(const std::shared_ptr<ast::GenericType>& type, const std::string& context) const
+    void MethodDefinition::validateGenericTypeRecursive(const ::types::UnifiedTypePtr& type, const std::string& context) const
     {
         if (!type)
         {
@@ -290,10 +290,10 @@ namespace runtimeTypes::klass
                 validateGenericTypeRecursive(typeArgs[i], contextStr.str());
             }
         }
-        // If it's a string-based type (could be generic parameter OR class name)
+        // If it's a generic parameter (could be T, K, V, etc.)
         else if (type->isGenericParameter())
         {
-            std::string typeName = type->getGenericName();
+            std::string typeName = type->getName();
 
             // Check if this is actually a generic type parameter (T, E, K, V)
             // vs a class name (String, HashSet, etc.)
@@ -339,19 +339,19 @@ namespace runtimeTypes::klass
         // Validate type substitution map
         validateSubstitutionMap();
 
-        // If we have generic parameters, ensure consistency
-        if (!genericParameters.empty())
+        // If we have unified parameters, ensure consistency
+        if (!unifiedParameters.empty())
         {
-            // Check that all generic parameters have valid types
-            for (size_t i = 0; i < genericParameters.size(); ++i)
+            // Check that all unified parameters have valid types
+            for (size_t i = 0; i < unifiedParameters.size(); ++i)
             {
-                const auto& [paramName, genType] = genericParameters[i];
+                const auto& [paramName, uType] = unifiedParameters[i];
 
-                if (!genType)
+                if (!uType)
                 {
                     std::stringstream ss;
-                    ss << "MethodDefinition '" << getName() << "': Generic parameter at index " << i
-                       << " ('" << paramName << "') has null generic type pointer.";
+                    ss << "MethodDefinition '" << getName() << "': Unified parameter at index " << i
+                       << " ('" << paramName << "') has null type pointer.";
                     throw std::invalid_argument(ss.str());
                 }
             }
@@ -361,11 +361,11 @@ namespace runtimeTypes::klass
         // This can happen when generic methods are instantiated at runtime
         // The substitution map is created dynamically based on usage
 
-        // Validate generic return type if present
+        // Validate unified return type if present
         // Only validate if we have formal generic type parameter declarations
-        if (genericReturnType && !genericTypeParameters.empty())
+        if (unifiedReturnType && !genericTypeParameters.empty())
         {
-            validateGenericTypeRecursive(genericReturnType, "return type");
+            validateGenericTypeRecursive(unifiedReturnType, "return type");
         }
     }
 
