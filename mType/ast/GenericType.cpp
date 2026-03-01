@@ -83,10 +83,21 @@ namespace ast
 
     bool GenericType::equals(const GenericType& other) const
     {
-        // Check if base types match
+        // Check if base types match — handle cross-variant comparison
+        // e.g., GenericType("int") should equal GenericType(ValueType::INT)
         if (baseType != other.baseType)
         {
-            return false;
+            // If both hold the same variant alternative, they're different
+            if (baseType.index() == other.baseType.index())
+            {
+                return false;
+            }
+
+            // Cross-variant: compare via normalized base type name
+            if (getBaseTypeName() != other.getBaseTypeName())
+            {
+                return false;
+            }
         }
 
         // Check nullable match
@@ -120,7 +131,7 @@ namespace ast
         circularDependency::CircularDependencyConfig config;
         config.maxGenericDepth = 50; // Configurable depth limit
         config.enableEarlyDetection = true; // Enable pattern detection
-        config.enablePerformanceMetrics = true; // Track performance
+        config.enablePerformanceMetrics = false; // Only enable for profiling
 
         SubstitutionContext context(config);
         context.currentLocation = "generic type substitution";
@@ -144,22 +155,16 @@ namespace ast
                 // Enter substitution step with cycle detection
                 context.enterSubstitution(paramName);
 
-                try
+                // RAII guard ensures exitSubstitution is called on all exit paths
+                struct SubstitutionGuard
                 {
-                    // Recursively substitute the replacement type
-                    auto result = it->second->substituteInternal(substitutions, context);
+                    SubstitutionContext& ctx;
+                    const std::string& name;
+                    SubstitutionGuard(SubstitutionContext& c, const std::string& n) : ctx(c), name(n) {}
+                    ~SubstitutionGuard() { ctx.exitSubstitution(name); }
+                } guard(context, paramName);
 
-                    // Exit substitution step
-                    context.exitSubstitution(paramName);
-
-                    return result;
-                }
-                catch (...)
-                {
-                    // Ensure we clean up context even on exception
-                    context.exitSubstitution(paramName);
-                    throw;
-                }
+                return it->second->substituteInternal(substitutions, context);
             }
 
             // No substitution found, return copy of this parameter
