@@ -45,6 +45,11 @@ namespace gc
 
         GCStats stats;
 
+        // Adaptive backoff: when collections find nothing, back off exponentially
+        size_t consecutiveEmptyCollections = 0;
+        size_t currentAllocationThreshold = config::ALLOCATION_THRESHOLD;
+        size_t currentSuspectThreshold = config::SUSPECT_THRESHOLD;
+
         // Callbacks for VM integration
         RootCollector rootCollector;
 

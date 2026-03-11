@@ -371,8 +371,23 @@ namespace parser
         }
         else
         {
-            // Compound member assignment - not fully implemented yet
-            throw ParseException("Compound assignment to member not yet supported", location);
+            // Compound member assignment: obj.field += expr --> obj.field = obj.field + expr
+            TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
+
+            auto readNode = std::make_unique<MemberAccessNode>(
+                memberAccessNode->getObjectShared(),
+                memberAccessNode->getMemberName(),
+                memberAccessNode->getIsStaticAccess(),
+                location);
+
+            auto expandedRight = std::make_unique<BinaryExpNode>(
+                std::move(readNode), binaryOp, std::move(rightExpr), location);
+
+            return std::make_unique<MemberAssignmentNode>(
+                memberAccessNode->getObjectShared(),
+                memberAccessNode->getMemberName(),
+                std::move(expandedRight),
+                location);
         }
     }
 
@@ -391,8 +406,19 @@ namespace parser
         }
         else
         {
-            // Compound super member assignment - not fully implemented yet
-            throw ParseException("Compound assignment to super member not yet supported", location);
+            // Compound super member assignment: super.field += expr --> super.field = super.field + expr
+            TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
+
+            auto readNode = std::make_unique<SuperMemberAccessNode>(
+                superMemberAccessNode->getMemberName(), location);
+
+            auto expandedRight = std::make_unique<BinaryExpNode>(
+                std::move(readNode), binaryOp, std::move(rightExpr), location);
+
+            return std::make_unique<SuperMemberAssignmentNode>(
+                superMemberAccessNode->getMemberName(),
+                std::move(expandedRight),
+                location);
         }
     }
 
@@ -412,8 +438,24 @@ namespace parser
         }
         else
         {
-            // Compound index assignment - not fully implemented yet
-            throw ParseException("Compound assignment to index not yet supported", location);
+            // Compound index assignment: arr[i] += expr --> arr[i] = arr[i] + expr
+            TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
+
+            // Clone collection and index before transferring ownership
+            auto collectionClone = indexAccessNode->getCollection()->clone();
+            auto indexClone = indexAccessNode->getIndex()->clone();
+
+            auto readNode = std::make_unique<IndexAccessNode>(
+                std::move(collectionClone), std::move(indexClone), location);
+
+            auto expandedRight = std::make_unique<BinaryExpNode>(
+                std::move(readNode), binaryOp, std::move(rightExpr), location);
+
+            return std::make_unique<IndexAssignmentNode>(
+                indexAccessNode->transferCollectionOwnership(),
+                indexAccessNode->transferIndexOwnership(),
+                std::move(expandedRight),
+                location);
         }
     }
 

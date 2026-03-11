@@ -3,6 +3,7 @@
 #include "../../../value/AsyncPromiseValue.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../jit/OSRManager.hpp"
 #include "../VirtualMachine.hpp"
@@ -115,6 +116,11 @@ namespace vm::runtime
             context.instructionPointer = context.program->getInstructionCount();
         } else {
             CallFrame frame = context.callStack.back();
+
+            // Notify profiler of function exit BEFORE popping the call stack
+            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled()) {
+                vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
+            }
 
             // Notify debugger of function exit BEFORE popping the call stack
             if (debugger::DebugHookHelper::isDebuggingEnabled()) {

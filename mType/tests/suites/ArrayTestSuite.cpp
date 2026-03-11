@@ -54,6 +54,9 @@ namespace tests::testSuite
         addOutputVerificationTest("N-Dimensional Arrays",
                                   passPath + "nDimensionalArrays.mt");
 
+        addOutputVerificationTest("Compound Index Assignment",
+                                  passPath + "compoundIndexAssignment.mt");
+
         // Phase 6: SIMD and SoA Optimization Tests
         addOutputVerificationTest("SIMD Primitive Arrays (int/float/bool) - 1D, 2D, 3D",
                                   passPath + "simdPrimitiveArrays.mt");

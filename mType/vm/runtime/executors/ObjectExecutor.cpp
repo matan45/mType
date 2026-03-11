@@ -9,6 +9,7 @@
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
+#include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/NativeArray.hpp"
 #include "../../../value/ValueObject.hpp"
 #include <algorithm>
@@ -340,6 +341,11 @@ namespace vm::runtime
 
         context.pushCallFrame(frame);
 
+        // Notify profiler of lambda entry
+        if (vm::profiler::ProfilerHookHelper::isProfilingEnabled()) {
+            vm::profiler::ProfilerHookHelper::onFunctionEntry(frame.functionName);
+        }
+
         // Notify debugger of lambda entry
         if (debugger::DebugHookHelper::isDebuggingEnabled()) {
             auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
@@ -565,6 +571,11 @@ namespace vm::runtime
 
         context.pushCallFrame(frame);
         context.stats.functionCalls++;
+
+        // Notify profiler of method entry
+        if (vm::profiler::ProfilerHookHelper::isProfilingEnabled()) {
+            vm::profiler::ProfilerHookHelper::onFunctionEntry(qualifiedName);
+        }
 
         // Notify debugger of method entry
         if (debugger::DebugHookHelper::isDebuggingEnabled()) {

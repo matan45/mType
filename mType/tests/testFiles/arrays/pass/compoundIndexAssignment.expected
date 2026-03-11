@@ -1,0 +1,16 @@
+nums[0] after +=: 15
+nums[1] after -=: 13
+nums[2] after *=: 15
+nums[3] after /=: 5
+nums[4] after %=: 2
+floats[0] after +=: 4
+floats[1] after -=: 6.5
+floats[2] after *=: 10
+strs[0] after +=: Hello World
+strs[1] after +=: foobar
+arr[idx] after +=: 250
+counters[0]: 10
+counters[1]: 20
+counters[2]: 30
+counters[3]: 40
+vals[0] after chain: 70

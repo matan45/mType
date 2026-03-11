@@ -30,6 +30,8 @@
 #include "../../runtime/EventLoop.hpp"
 #include "../../debugger/DebugContext.hpp"
 #include "../../debugger/DebugHookHelper.hpp"
+#include "../profiler/ProfilerHookHelper.hpp"
+#include "../profiler/ProfilerContext.hpp"
 #include "../../constants/ExecutionMode.hpp"
 #include "../../gc/GC.hpp"
 #include "../jit/JitProfiler.hpp"
@@ -939,6 +941,10 @@ namespace vm::runtime
         // GC: Counter for periodic collection checks
         size_t instructionsSinceGC = 0;
 
+        // Cache profiler full mode flag for hot loop
+        bool profilerFull = vm::profiler::ProfilerHookHelper::isProfilingEnabled()
+                            && vm::profiler::ProfilerContext::getInstance().isFullMode();
+
         while (instructionPointer < program->getInstructionCount())
         {
             // Check for pending rejection from an awaited promise
@@ -1001,6 +1007,12 @@ namespace vm::runtime
                         debugger::DebugHookHelper::waitForResume();
                     }
                 }
+            }
+
+            // Profiler: count opcode execution (full mode only)
+            if (profilerFull)
+            {
+                vm::profiler::ProfilerHookHelper::onOpcodeExecuted(static_cast<uint8_t>(instr.opcode));
             }
 
             try

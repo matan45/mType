@@ -221,36 +221,42 @@ namespace vm::jit
             }
             else
             {
-                if (kind != CmpOp::EQ && kind != CmpOp::NE)
+                if (kind == CmpOp::EQ || kind == CmpOp::NE)
                 {
-                    s.compileFailed = true;
+                    constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+                    Gp leftAddr = cc.new_gp64();
+                    cc.lea(leftAddr, Mem(s.boxedBase,
+                        static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+
+                    Gp rightAddr = cc.new_gp64();
+                    cc.lea(rightAddr, Mem(s.boxedBase,
+                        static_cast<int32_t>(s.stackDepth * valueSize)));
+
+                    InvokeNode* inv;
+                    cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_values_equal),
+                              FuncSignature::build<int64_t, const value::Value*,
+                                                   const value::Value*>());
+                    inv->set_arg(0, leftAddr);
+                    inv->set_arg(1, rightAddr);
+                    inv->set_ret(0, result);
+
+                    if (kind == CmpOp::NE)
+                        cc.xor_(result, 1);
+
+                    cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
+                    s.slotTypes.push_back(SlotType::BOOL);
                     return;
                 }
-
-                constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-
-                Gp leftAddr = cc.new_gp64();
-                cc.lea(leftAddr, Mem(s.boxedBase,
-                    static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
-
-                Gp rightAddr = cc.new_gp64();
-                cc.lea(rightAddr, Mem(s.boxedBase,
-                    static_cast<int32_t>(s.stackDepth * valueSize)));
-
-                InvokeNode* inv;
-                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_values_equal),
-                          FuncSignature::build<int64_t, const value::Value*,
-                                               const value::Value*>());
-                inv->set_arg(0, leftAddr);
-                inv->set_arg(1, rightAddr);
-                inv->set_ret(0, result);
-
-                if (kind == CmpOp::NE)
-                    cc.xor_(result, 1);
-
-                cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
-                s.slotTypes.push_back(SlotType::BOOL);
-                return;
+                else
+                {
+                    // Ordering comparisons (LT, GT, LE, GE) on both-boxed values:
+                    // unbox both sides to INT and fall through to the integer comparison path
+                    emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
+                    emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
+                    lType = SlotType::INT;
+                    rType = SlotType::INT;
+                }
             }
         }
 

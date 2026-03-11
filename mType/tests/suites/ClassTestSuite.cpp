@@ -39,6 +39,8 @@ namespace tests::testSuite
                         passPath + "chainedMemberAccess.mt");
         addOutputVerificationTest("Member Assignment",
                         passPath + "memberAssignment.mt");
+        addOutputVerificationTest("Compound Member Assignment",
+                        passPath + "compoundMemberAssignment.mt");
         addOutputVerificationTest("Object Creation",
                         passPath + "objectCreation.mt");
         addOutputVerificationTest("Null Handling",

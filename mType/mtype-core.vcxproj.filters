@@ -1,0 +1,480 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="environment">
+      <UniqueIdentifier>{3AC24330-A677-BC25-2F6C-B6FC9B20B329}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="environment\manager">
+      <UniqueIdentifier>{8430FB85-F091-D893-79FF-1E46E55F0F53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="environment\registry">
+      <UniqueIdentifier>{E2D8D606-CE67-60D0-7786-74CB63F47076}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="environment\registry\builtin">
+      <UniqueIdentifier>{E8C48042-D47F-70EE-7D37-E93869D1BA7E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="errors">
+      <UniqueIdentifier>{4260C7FB-2E02-F2D1-17BD-052603FE7822}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes">
+      <UniqueIdentifier>{1E45A83C-0AA8-37E1-B32D-70979F6F0364}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes\global">
+      <UniqueIdentifier>{DEF9D4F7-4A5B-B205-D3C8-F8B73F29E9C4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimeTypes\klass">
+      <UniqueIdentifier>{EBBBCA07-D79F-8B5D-4000-86B02C0376DF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="types">
+      <UniqueIdentifier>{5A5E7610-C672-9EC1-8FF4-4121FBC79AF2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value">
+      <UniqueIdentifier>{42578D10-AE6B-B5C1-77ED-5821E3C0B1F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays">
+      <UniqueIdentifier>{C3FEC2A4-AF61-5249-58E7-8AFF44291ECC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays\base">
+      <UniqueIdentifier>{4D99B936-B9AF-B7CC-0227-43EE6E7C8854}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays\object">
+      <UniqueIdentifier>{0967E5E9-75C8-C2F7-FE35-09AA6A96F9B6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays\primitive">
+      <UniqueIdentifier>{0B1FFC12-F718-2565-E085-BB75CC1E8BD1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\arrays\string">
+      <UniqueIdentifier>{093884F4-7599-6102-FE06-A8B46A6798C1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\operations">
+      <UniqueIdentifier>{75B30D6D-61AC-2CBF-8ADE-114476360CCB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\simd">
+      <UniqueIdentifier>{DE8C03FF-CA44-454C-334C-1EA81F23E03C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="value\simd\detection">
+      <UniqueIdentifier>{CCF20A81-B881-944A-61A0-A8454D0EA5F0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="environment\Environment.hpp">
+      <Filter>environment</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\EnvironmentBuilder.hpp">
+      <Filter>environment</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\manager\Scope.hpp">
+      <Filter>environment\manager</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\manager\ScopeManager.hpp">
+      <Filter>environment\manager</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\manager\VariableManager.hpp">
+      <Filter>environment\manager</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\ClassRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\ExportRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\FunctionRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\InheritanceTracker.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\NativeRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\Registry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\AcosFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\AsinFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\Atan2Function.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\AtanFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\BuiltinFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\CosFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\HashCodeFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\IndexOfFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ParsePrimitiveFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\PrintFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\SinFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\SqrtFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\StrLengthFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\SubstringFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\TanFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ToLowerCaseFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ToUpperCaseFunction.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ValuePrinter.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
+    <ClInclude Include="errors\UserException.hpp">
+      <Filter>errors</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\Definition.hpp">
+      <Filter>runtimeTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\global\ArrayOperationsNative.hpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\global\FunctionDefinition.hpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\global\VariableDefinition.hpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\ClassDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\ConstructorDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\FieldDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\InterfaceDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\InterfaceRegistry.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\MethodDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\ObjectInstance.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\SignatureUtils.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="types\ReifiedTypeRegistry.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\TypeConstraintValidator.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\TypeConversionBridge.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\TypeConversionUtils.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\TypeRegistry.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\TypeSubstitutionService.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="types\UnifiedType.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ArrayPool.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\AsyncPromiseValue.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\CapturedVariable.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\FlatMultiArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\IMultiDimensionalArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\IntegerCache.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\InternedString.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\MultiArrayBase.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\NativeArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ParameterType.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ParameterTypeConverter.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\PromiseValue.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\SparseMultiArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\StringPool.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ValueObject.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ValueType.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ValueTypeUtils.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\ArrayFactory.hpp">
+      <Filter>value\arrays</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\base\IArray.hpp">
+      <Filter>value\arrays\base</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\object\FlatMultiObjectArray.hpp">
+      <Filter>value\arrays\object</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\object\ObjectArray.hpp">
+      <Filter>value\arrays\object</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\object\ObjectArrayBase.hpp">
+      <Filter>value\arrays\object</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\primitive\PrimitiveArray.hpp">
+      <Filter>value\arrays\primitive</Filter>
+    </ClInclude>
+    <ClInclude Include="value\arrays\string\StringArray.hpp">
+      <Filter>value\arrays\string</Filter>
+    </ClInclude>
+    <ClInclude Include="value\operations\ArrayOperations.hpp">
+      <Filter>value\operations</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\SIMDConfig.hpp">
+      <Filter>value\simd</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\SIMDOperations.hpp">
+      <Filter>value\simd</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\SIMDOperationsImpl.hpp">
+      <Filter>value\simd</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\SIMDPolicies.hpp">
+      <Filter>value\simd</Filter>
+    </ClInclude>
+    <ClInclude Include="value\simd\detection\CPUFeatures.hpp">
+      <Filter>value\simd\detection</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="environment\Environment.cpp">
+      <Filter>environment</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\EnvironmentBuilder.cpp">
+      <Filter>environment</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\manager\Scope.cpp">
+      <Filter>environment\manager</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\manager\ScopeManager.cpp">
+      <Filter>environment\manager</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\manager\VariableManager.cpp">
+      <Filter>environment\manager</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\ClassRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\ExportRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\FunctionRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\InheritanceTracker.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\NativeRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\AcosFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\AsinFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\Atan2Function.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\AtanFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\CosFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\HashCodeFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\IndexOfFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ParsePrimitiveFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\PrintFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\SinFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\SqrtFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\StrLengthFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\SubstringFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\TanFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ToLowerCaseFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ToUpperCaseFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ValuePrinter.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="errors\UserException.cpp">
+      <Filter>errors</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\Definition.cpp">
+      <Filter>runtimeTypes</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\global\ArrayOperationsNative.cpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\global\FunctionDefinition.cpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\global\VariableDefinition.cpp">
+      <Filter>runtimeTypes\global</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\ClassDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\ConstructorDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\FieldDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\InterfaceDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\InterfaceRegistry.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\MethodDefinition.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\ObjectInstance.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="runtimeTypes\klass\SignatureUtils.cpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClCompile>
+    <ClCompile Include="types\ReifiedTypeRegistry.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeConstraintValidator.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeConversionBridge.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeConversionUtils.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeRegistry.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeSubstitutionService.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\UnifiedType.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="value\AsyncPromiseValue.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\IntegerCache.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\InternedString.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\StringPool.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\ValueObject.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\ValueTypeUtils.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\arrays\ArrayFactory.cpp">
+      <Filter>value\arrays</Filter>
+    </ClCompile>
+    <ClCompile Include="value\arrays\object\FlatMultiObjectArray.cpp">
+      <Filter>value\arrays\object</Filter>
+    </ClCompile>
+    <ClCompile Include="value\arrays\object\ObjectArray.cpp">
+      <Filter>value\arrays\object</Filter>
+    </ClCompile>
+    <ClCompile Include="value\arrays\object\ObjectArrayBase.cpp">
+      <Filter>value\arrays\object</Filter>
+    </ClCompile>
+    <ClCompile Include="value\operations\ArrayOperations.cpp">
+      <Filter>value\operations</Filter>
+    </ClCompile>
+    <ClCompile Include="value\simd\SIMDOperations.cpp">
+      <Filter>value\simd</Filter>
+    </ClCompile>
+    <ClCompile Include="value\simd\detection\CPUFeatures.cpp">
+      <Filter>value\simd\detection</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

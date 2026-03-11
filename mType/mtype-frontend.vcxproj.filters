@@ -1,0 +1,390 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="lexer">
+      <UniqueIdentifier>{C5C4DA0F-31D9-02C1-FA5A-A620662EFFF1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="optimizer">
+      <UniqueIdentifier>{28F51FAF-945F-D425-DD9D-85CB4947B27A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="optimizer\base">
+      <UniqueIdentifier>{D25639DB-BE24-2DE1-A7B8-9D0793250946}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="optimizer\passes">
+      <UniqueIdentifier>{26D592AF-12CE-B101-3B00-97862758910D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="optimizer\passes\constant_folding">
+      <UniqueIdentifier>{E1A28FFD-4D11-E57C-96FA-9F7C02A8DA18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser">
+      <UniqueIdentifier>{F28D3C14-DE2F-67EA-C7EA-7A3EB32BEE3A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\class">
+      <UniqueIdentifier>{B78F1E5E-A3F2-AD02-4C78-E6B838BA7985}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\core">
+      <UniqueIdentifier>{AAC52739-167B-A02E-9F6F-9A050B249732}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\expression">
+      <UniqueIdentifier>{F14AF50D-5D61-F3A3-A6D8-7EC5122EC42B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\interface">
+      <UniqueIdentifier>{72AC3D8F-5EA5-5CE1-87D7-4166732F3CED}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\statement">
+      <UniqueIdentifier>{769D2811-6296-4763-8BC8-2CE87720276F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parser\utilities">
+      <UniqueIdentifier>{FD68964F-E961-B5A1-1294-9A26FEEB94AD}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="lexer\BracketBalancer.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\Lexer.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\SourceLocationTracker.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="lexer\TokenFactory.hpp">
+      <Filter>lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\OptimizationConfig.hpp">
+      <Filter>optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\OptimizationPassManager.hpp">
+      <Filter>optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\OptimizationResult.hpp">
+      <Filter>optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\Optimizer.hpp">
+      <Filter>optimizer</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\base\ASTTransformer.hpp">
+      <Filter>optimizer\base</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\base\OptimizationContext.hpp">
+      <Filter>optimizer\base</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\base\OptimizationPass.hpp">
+      <Filter>optimizer\base</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\ConstantFoldingPass.hpp">
+      <Filter>optimizer\passes</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\DeadCodeEliminationPass.hpp">
+      <Filter>optimizer\passes</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\constant_folding\ConstantEvaluator.hpp">
+      <Filter>optimizer\passes\constant_folding</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\constant_folding\SafeArithmetic.hpp">
+      <Filter>optimizer\passes\constant_folding</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ClassParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ExpressionParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\InterfaceParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\LambdaParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParseContext.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\Parser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParserConstants.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParserContextState.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\ParserValidator.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\StatementParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\TokenStream.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\TypeParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\TypeRegistry.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\ClassDeclarationParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\ConstructorParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\FieldParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\GenericParameterParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\MethodParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\class\ObjectCreationParser.hpp">
+      <Filter>parser\class</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\core\BaseParser.hpp">
+      <Filter>parser\core</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\core\IParser.hpp">
+      <Filter>parser\core</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\ArgumentParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\BinaryOperatorParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\CastParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\LiteralParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\PostfixOperatorParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\expression\UnaryOperatorParser.hpp">
+      <Filter>parser\expression</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\interface\InterfaceMethodSignatureParser.hpp">
+      <Filter>parser\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\AssignmentStatementParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\ControlFlowParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\DeclarationParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\ExceptionParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\FunctionParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\ImportParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\statement\LoopParser.hpp">
+      <Filter>parser\statement</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\AccessModifierParser.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\AnnotationParser.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\AsyncValidator.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\NameValidator.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\ParameterParser.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\ParserUtils.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\QualifiedNameParser.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\StatementTypeDetector.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="parser\utilities\VisibilityParser.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="lexer\BracketBalancer.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\Lexer.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\SourceLocationTracker.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer\TokenFactory.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\OptimizationConfig.cpp">
+      <Filter>optimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\OptimizationPassManager.cpp">
+      <Filter>optimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\OptimizationResult.cpp">
+      <Filter>optimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\Optimizer.cpp">
+      <Filter>optimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\base\ASTTransformer.cpp">
+      <Filter>optimizer\base</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\base\OptimizationContext.cpp">
+      <Filter>optimizer\base</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\base\OptimizationPass.cpp">
+      <Filter>optimizer\base</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\ConstantFoldingPass.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\DeadCodeEliminationPass.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\constant_folding\ConstantEvaluator.cpp">
+      <Filter>optimizer\passes\constant_folding</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\constant_folding\SafeArithmetic.cpp">
+      <Filter>optimizer\passes\constant_folding</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ClassParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ExpressionParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\InterfaceParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\LambdaParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ParseContext.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\Parser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\ParserValidator.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\StatementParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\TokenStream.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\TypeParser.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\TypeRegistry.cpp">
+      <Filter>parser</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\ClassDeclarationParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\ConstructorParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\FieldParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\GenericParameterParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\MethodParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\class\ObjectCreationParser.cpp">
+      <Filter>parser\class</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\core\BaseParser.cpp">
+      <Filter>parser\core</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\ArgumentParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\BinaryOperatorParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\CastParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\LiteralParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\PostfixOperatorParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\expression\UnaryOperatorParser.cpp">
+      <Filter>parser\expression</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\interface\InterfaceMethodSignatureParser.cpp">
+      <Filter>parser\interface</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\AssignmentStatementParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\ControlFlowParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\DeclarationParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\ExceptionParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\FunctionParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\ImportParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\statement\LoopParser.cpp">
+      <Filter>parser\statement</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\AccessModifierParser.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\AnnotationParser.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\AsyncValidator.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\NameValidator.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\ParameterParser.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\ParserUtils.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\QualifiedNameParser.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\StatementTypeDetector.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\utilities\VisibilityParser.cpp">
+      <Filter>parser\utilities</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
