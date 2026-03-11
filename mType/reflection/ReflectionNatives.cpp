@@ -4,6 +4,7 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/InternedString.hpp"
+#include "../vm/runtime/VirtualMachine.hpp"
 
 namespace reflection
 {
@@ -12,10 +13,16 @@ namespace reflection
 
     // Static member initialization
     std::shared_ptr<environment::Environment> ReflectionNatives::currentEnvironment = nullptr;
+    vm::runtime::VirtualMachine* ReflectionNatives::currentVM = nullptr;
 
     void ReflectionNatives::setEnvironment(std::shared_ptr<environment::Environment> env)
     {
         currentEnvironment = env;
+    }
+
+    void ReflectionNatives::setVM(vm::runtime::VirtualMachine* vm)
+    {
+        currentVM = vm;
     }
 
     void ReflectionNatives::registerAll(std::shared_ptr<environment::Environment> env)
@@ -904,15 +911,86 @@ namespace reflection
 
     Value ReflectionNatives::__reflect_invokeMethod(const std::vector<Value>& args)
     {
-        // TODO: Implement full method invocation via VM
-        // This requires integration with the VirtualMachine
-        throw errors::RuntimeException("Method invocation via reflection not yet implemented");
+        validateArgCount(args, 4, "__reflect_invokeMethod");
+
+        if (!currentVM)
+        {
+            throw errors::RuntimeException("VM not initialized for reflection method invocation");
+        }
+
+        auto instance = extractObject(args[0], "__reflect_invokeMethod", "instance");
+        int64_t methodHandle = extractInt(args[1], "__reflect_invokeMethod", "methodHandle");
+        bool accessible = extractBool(args[3], "__reflect_invokeMethod", "accessible");
+
+        auto& registry = ReflectionHandleRegistry::instance();
+        auto methodInfo = registry.getMethod(methodHandle);
+        if (!methodInfo.method)
+        {
+            throw errors::RuntimeException("Invalid method handle");
+        }
+
+        if (!accessible && methodInfo.method->getAccessModifier() != ast::AccessModifier::PUBLIC)
+        {
+            throw errors::RuntimeException("Cannot invoke non-public method '" + methodInfo.methodName +
+                "' without setting accessible to true");
+        }
+
+        std::vector<Value> argsVec;
+        if (std::holds_alternative<std::shared_ptr<NativeArray>>(args[2]))
+        {
+            auto argArray = std::get<std::shared_ptr<NativeArray>>(args[2]);
+            for (size_t i = 0; i < argArray->size(); ++i)
+            {
+                argsVec.push_back(argArray->get(i));
+            }
+        }
+
+        return currentVM->invokeMethod(instance, methodInfo.methodName, argsVec);
     }
 
     Value ReflectionNatives::__reflect_invokeStaticMethod(const std::vector<Value>& args)
     {
-        // TODO: Implement full static method invocation via VM
-        throw errors::RuntimeException("Static method invocation via reflection not yet implemented");
+        validateArgCount(args, 4, "__reflect_invokeStaticMethod");
+
+        if (!currentVM)
+        {
+            throw errors::RuntimeException("VM not initialized for reflection static method invocation");
+        }
+
+        int64_t classHandle = extractInt(args[0], "__reflect_invokeStaticMethod", "classHandle");
+        int64_t methodHandle = extractInt(args[1], "__reflect_invokeStaticMethod", "methodHandle");
+        bool accessible = extractBool(args[3], "__reflect_invokeStaticMethod", "accessible");
+
+        auto& registry = ReflectionHandleRegistry::instance();
+        auto classDef = registry.getClass(classHandle);
+        if (!classDef)
+        {
+            throw errors::RuntimeException("Invalid class handle");
+        }
+
+        auto methodInfo = registry.getMethod(methodHandle);
+        if (!methodInfo.method)
+        {
+            throw errors::RuntimeException("Invalid method handle");
+        }
+
+        if (!accessible && methodInfo.method->getAccessModifier() != ast::AccessModifier::PUBLIC)
+        {
+            throw errors::RuntimeException("Cannot invoke non-public static method '" + methodInfo.methodName +
+                "' without setting accessible to true");
+        }
+
+        std::vector<Value> argsVec;
+        if (std::holds_alternative<std::shared_ptr<NativeArray>>(args[2]))
+        {
+            auto argArray = std::get<std::shared_ptr<NativeArray>>(args[2]);
+            for (size_t i = 0; i < argArray->size(); ++i)
+            {
+                argsVec.push_back(argArray->get(i));
+            }
+        }
+
+        return currentVM->invokeStaticMethod(classDef->getName(), methodInfo.methodName, argsVec);
     }
 
     Value ReflectionNatives::__reflect_getMethodName(const std::vector<Value>& args)
@@ -1067,8 +1145,46 @@ namespace reflection
 
     Value ReflectionNatives::__reflect_newInstanceWithArgs(const std::vector<Value>& args)
     {
-        // TODO: Implement full constructor invocation via VM
-        throw errors::RuntimeException("Constructor invocation via reflection not yet implemented");
+        validateArgCount(args, 4, "__reflect_newInstanceWithArgs");
+
+        if (!currentVM)
+        {
+            throw errors::RuntimeException("VM not initialized for reflection constructor invocation");
+        }
+
+        int64_t classHandle = extractInt(args[0], "__reflect_newInstanceWithArgs", "classHandle");
+        int64_t ctorHandle = extractInt(args[1], "__reflect_newInstanceWithArgs", "ctorHandle");
+        bool accessible = extractBool(args[3], "__reflect_newInstanceWithArgs", "accessible");
+
+        auto& registry = ReflectionHandleRegistry::instance();
+        auto classDef = registry.getClass(classHandle);
+        if (!classDef)
+        {
+            throw errors::RuntimeException("Invalid class handle");
+        }
+
+        auto ctorInfo = registry.getConstructor(ctorHandle);
+        if (!ctorInfo.constructor)
+        {
+            throw errors::RuntimeException("Invalid constructor handle");
+        }
+
+        if (!accessible && ctorInfo.constructor->getAccessModifier() != ast::AccessModifier::PUBLIC)
+        {
+            throw errors::RuntimeException("Cannot invoke non-public constructor without setting accessible to true");
+        }
+
+        std::vector<Value> argsVec;
+        if (std::holds_alternative<std::shared_ptr<NativeArray>>(args[2]))
+        {
+            auto argArray = std::get<std::shared_ptr<NativeArray>>(args[2]);
+            for (size_t i = 0; i < argArray->size(); ++i)
+            {
+                argsVec.push_back(argArray->get(i));
+            }
+        }
+
+        return currentVM->createObject(classDef->getName(), argsVec);
     }
 
     Value ReflectionNatives::__reflect_getConstructorDeclaringClass(const std::vector<Value>& args)
@@ -1329,6 +1445,7 @@ namespace reflection
         // When program exits, this prevents the shared_ptr from trying to
         // destroy Environment objects that may depend on other static objects
         currentEnvironment.reset();
+        currentVM = nullptr;
     }
 
 } // namespace reflection

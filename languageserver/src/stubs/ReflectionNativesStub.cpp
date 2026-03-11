@@ -5,12 +5,17 @@ namespace reflection
 {
     // Static member definition
     std::shared_ptr<environment::Environment> ReflectionNatives::currentEnvironment = nullptr;
+    vm::runtime::VirtualMachine* ReflectionNatives::currentVM = nullptr;
 
     void ReflectionNatives::registerAll(std::shared_ptr<environment::Environment> env) {
         // No-op for LSP - reflection natives are not needed for language analysis
     }
 
     void ReflectionNatives::setEnvironment(std::shared_ptr<environment::Environment> env) {
+        // No-op for LSP
+    }
+
+    void ReflectionNatives::setVM(vm::runtime::VirtualMachine* vm) {
         // No-op for LSP
     }
 

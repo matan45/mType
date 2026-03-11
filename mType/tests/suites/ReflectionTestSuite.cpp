@@ -78,6 +78,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Generic Class Reflection",
                         passPath + "genericClassReflection.mt");
 
+        // === INVOCATION TESTS ===
+        // Tests for method invocation and constructor invocation via reflection
+
+        addOutputVerificationTest("Reflection Invocation",
+                        passPath + "reflectionInvocation.mt");
+
         // === ANNOTATION REFLECTION TESTS ===
         // Tests for annotation introspection
 

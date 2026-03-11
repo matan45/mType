@@ -1,0 +1,14 @@
+=== Constructor Invocation ===
+Created via reflection, value: 42
+=== Instance Method Invocation ===
+After add(8): 50
+getValue: 50
+After multiply(3): 150
+=== Static Method Invocation ===
+staticAdd(10, 20): 30
+=== Private Method Access ===
+After secretReset: 0
+getValue after reset: 0
+=== Second Constructor Invocation ===
+Second instance value: 100
+All reflection invocation tests passed
