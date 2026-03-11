@@ -55,6 +55,9 @@
     <Filter Include="testFiles\collections">
       <UniqueIdentifier>{866CFB7A-F2D8-B675-BBCC-4ED327F8D8DD}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\collections\error">
+      <UniqueIdentifier>{5FD0DEDC-CBDD-0CC3-54C4-08AEC0D0D879}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\collections\pass">
       <UniqueIdentifier>{4CC623B9-38D6-CF89-A18F-34A88DBEBE22}</UniqueIdentifier>
     </Filter>
@@ -183,6 +186,9 @@
     </Filter>
     <Filter Include="testFiles\iterator">
       <UniqueIdentifier>{512B879E-3D0F-48F4-A66F-424792723276}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\iterator\error">
+      <UniqueIdentifier>{6A3B2F00-5660-7E80-7FAB-63106B2F7D9E}</UniqueIdentifier>
     </Filter>
     <Filter Include="testFiles\iterator\pass">
       <UniqueIdentifier>{F77B3DD9-63B3-8570-6CBD-E993D873AC69}</UniqueIdentifier>
@@ -1082,6 +1088,12 @@
       <Filter>testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\collectionInteroperability.mt">
+      <Filter>testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\compoundIndexAssignment.expected">
+      <Filter>testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\compoundIndexAssignment.mt">
       <Filter>testFiles\arrays\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\floatBoxSIMD.expected">
@@ -2596,6 +2608,12 @@
     <None Include="tests\testFiles\class\pass\complexExample.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\compoundMemberAssignment.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\compoundMemberAssignment.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\conditionalScopingPass.expected">
       <Filter>testFiles\class\pass</Filter>
     </None>
@@ -3183,6 +3201,21 @@
     </None>
     <None Include="tests\testFiles\class\pass\voidVsNullReturns.mt">
       <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\arrayListGetEmptyList.mt">
+      <Filter>testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\arrayListGetNegativeIndex.mt">
+      <Filter>testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\arrayListGetOutOfBounds.mt">
+      <Filter>testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\arrayListSetNegativeIndex.mt">
+      <Filter>testFiles\collections\error</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\error\arrayListSetOutOfBounds.mt">
+      <Filter>testFiles\collections\error</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\arrayListSort.expected">
       <Filter>testFiles\collections\pass</Filter>
@@ -4517,6 +4550,24 @@
       <Filter>testFiles\gc\pass</Filter>
     </None>
     <None Include="tests\testFiles\gc\pass\forceAbort.mt">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\lambdaCycle.expected">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\lambdaCycle.mt">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\linkedListCycle.expected">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\linkedListCycle.mt">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\mixedReachability.expected">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\mixedReachability.mt">
       <Filter>testFiles\gc\pass</Filter>
     </None>
     <None Include="tests\testFiles\gc\pass\selfReference.expected">
@@ -6730,6 +6781,18 @@
     <None Include="tests\testFiles\interface\pass\multipleInterfaceImplementation.mt">
       <Filter>testFiles\interface\pass</Filter>
     </None>
+    <None Include="tests\testFiles\iterator\error\hashMapEntryIteratorEmptyPastEnd.mt">
+      <Filter>testFiles\iterator\error</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\error\hashMapEntryIteratorPastEnd.mt">
+      <Filter>testFiles\iterator\error</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\error\hashMapValueIteratorEmptyPastEnd.mt">
+      <Filter>testFiles\iterator\error</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\error\hashMapValueIteratorPastEnd.mt">
+      <Filter>testFiles\iterator\error</Filter>
+    </None>
     <None Include="tests\testFiles\iterator\pass\iteratorBasic.expected">
       <Filter>testFiles\iterator\pass</Filter>
     </None>
@@ -7961,6 +8024,12 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\modifierUtilities.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\reflectionInvocation.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\reflectionInvocation.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\staticFieldAccess.expected">
