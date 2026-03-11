@@ -7858,7 +7858,13 @@
     <None Include="tests\testFiles\overloading\error\ambiguousCall.mt">
       <Filter>testFiles\overloading\error</Filter>
     </None>
+    <None Include="tests\testFiles\overloading\error\incomparableCandidates.mt">
+      <Filter>testFiles\overloading\error</Filter>
+    </None>
     <None Include="tests\testFiles\overloading\error\noMatchingOverload.mt">
+      <Filter>testFiles\overloading\error</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\error\nullAmbiguityTwoClasses.mt">
       <Filter>testFiles\overloading\error</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\basicFunctionOverload.expected">
@@ -7885,6 +7891,18 @@
     <None Include="tests\testFiles\overloading\pass\constructorOverload.mt">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
+    <None Include="tests\testFiles\overloading\pass\constructorOverloadWidening.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\constructorOverloadWidening.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\deepInheritanceDistance.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\deepInheritanceDistance.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
     <None Include="tests\testFiles\overloading\pass\edgeCasesOverload.expected">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
@@ -7903,10 +7921,28 @@
     <None Include="tests\testFiles\overloading\pass\genericMethodOverload.mt">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
+    <None Include="tests\testFiles\overloading\pass\genericVsConcretePreference.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\genericVsConcretePreference.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
     <None Include="tests\testFiles\overloading\pass\integrationTest.expected">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\integrationTest.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\interfaceVsClassOverload.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\interfaceVsClassOverload.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\multiParamMixedConversions.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\multiParamMixedConversions.mt">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\nestedGenericsOverload.expected">
@@ -7915,10 +7951,40 @@
     <None Include="tests\testFiles\overloading\pass\nestedGenericsOverload.mt">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
+    <None Include="tests\testFiles\overloading\pass\nullWithPrimitiveOverload.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\nullWithPrimitiveOverload.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\singleWideningFallback.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\singleWideningFallback.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
     <None Include="tests\testFiles\overloading\pass\staticMethodOverload.expected">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\staticMethodOverload.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\threeWayConversionPriority.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\threeWayConversionPriority.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\wideningVsAutoBoxing.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\wideningVsAutoBoxing.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\zeroVsOneParam.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\zeroVsOneParam.mt">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\projectManifest\lib\LibUtil.mt">

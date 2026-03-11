@@ -179,7 +179,7 @@ namespace vm::optimization
         // Priority 70: Algebraic Simplification
         registerPattern(std::make_unique<patterns::AlgebraicSimplificationPattern>());
 
-        // Priority 60: Jump Threading - DISABLED: threads across function boundaries incorrectly
+        // Priority 60: Jump Threading
         registerPattern(std::make_unique<patterns::JumpThreadingPattern>());
 
         // Priority 50: Strength Reduction

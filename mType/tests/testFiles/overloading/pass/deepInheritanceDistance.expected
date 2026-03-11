@@ -1,0 +1,10 @@
+=== Deep Inheritance Distance ===
+matched A
+matched A
+matched A
+matched A
+matched B
+matched B
+matched B
+A with int: 42
+A with string: hello

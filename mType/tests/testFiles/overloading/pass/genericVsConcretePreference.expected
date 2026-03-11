@@ -1,0 +1,4 @@
+=== Generic vs Concrete Preference ===
+concrete: int, string
+half-generic: T, string
+full-generic: T, U

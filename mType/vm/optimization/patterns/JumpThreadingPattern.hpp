@@ -48,6 +48,12 @@ namespace vm::optimization::patterns
         bool isSafeToThread(const bytecode::BytecodeProgram& program,
                            size_t jumpOffset,
                            size_t newTarget) const;
+
+        /**
+         * Helper: Check if two offsets are in the same function (or both in global code)
+         */
+        static bool areInSameFunction(const bytecode::BytecodeProgram& program,
+                                       size_t offset1, size_t offset2);
     };
 
 } // namespace vm::optimization::patterns

@@ -103,6 +103,12 @@ namespace vm::optimization::patterns
             {
                 size_t nextTarget = instr.operands[0];
 
+                // Don't follow jumps across function boundaries
+                if (!areInSameFunction(program, startOffset, nextTarget))
+                {
+                    break;
+                }
+
                 // Detect cycles (avoid infinite loops)
                 if (nextTarget == currentOffset || nextTarget == startOffset)
                 {
@@ -151,6 +157,12 @@ namespace vm::optimization::patterns
             return false;
         }
 
+        // Don't thread across function boundaries
+        if (!areInSameFunction(program, jumpOffset, newTarget))
+        {
+            return false;
+        }
+
         // Don't thread JUMP_BACK if it would change the direction
         const auto& instr = program.getInstruction(jumpOffset);
         if (instr.opcode == OpCode::JUMP_BACK)
@@ -163,6 +175,31 @@ namespace vm::optimization::patterns
         }
 
         return true;
+    }
+
+    bool JumpThreadingPattern::areInSameFunction(const bytecode::BytecodeProgram& program,
+                                                  size_t offset1, size_t offset2)
+    {
+        const auto& functions = program.getFunctions();
+
+        const bytecode::BytecodeProgram::FunctionMetadata* func1 = nullptr;
+        const bytecode::BytecodeProgram::FunctionMetadata* func2 = nullptr;
+
+        for (const auto& [name, meta] : functions)
+        {
+            size_t start = meta.startOffset;
+            size_t end = start + meta.instructionCount;
+
+            if (offset1 >= start && offset1 < end) func1 = &meta;
+            if (offset2 >= start && offset2 < end) func2 = &meta;
+
+            if (func1 && func2) break;
+        }
+
+        // Both in global code, or both in the same function
+        if (!func1 && !func2) return true;
+        if (!func1 || !func2) return false;
+        return func1->startOffset == func2->startOffset;
     }
 
 } // namespace vm::optimization::patterns
