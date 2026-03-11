@@ -128,6 +128,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Import Redundant",
                         "mType/tests/testFiles/import/pass/importRedundant.mt");
 
+        // === OVERLOADED STATIC METHOD IMPORTS (4 tests) ===
+        addOutputVerificationTest("Import Overloaded Static Methods",
+                        "mType/tests/testFiles/import/pass/importOverloadedStaticMethods.mt");
+        addOutputVerificationTest("Import Overloaded Static Wildcard",
+                        "mType/tests/testFiles/import/pass/importOverloadedStaticWildcard.mt");
+        addOutputVerificationTest("Import Multi Class Overloaded Static",
+                        "mType/tests/testFiles/import/pass/importMultiClassOverloadedStatic.mt");
+        addOutputVerificationTest("Import Overloaded Static Object Param",
+                        "mType/tests/testFiles/import/pass/importOverloadedStaticObjectParam.mt");
+
         // === SPECIAL TESTS (5 tests) ===
         addOutputVerificationTest("Import Empty File",
                         "mType/tests/testFiles/import/pass/importEmptyFile.mt");

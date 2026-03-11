@@ -5731,6 +5731,12 @@
     <None Include="tests\testFiles\import\pass\importListCollection.mt">
       <Filter>testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importMultiClassOverloadedStatic.expected">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importMultiClassOverloadedStatic.mt">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importMultiplePrimitives.expected">
       <Filter>testFiles\import\pass</Filter>
     </None>
@@ -5753,6 +5759,24 @@
       <Filter>testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importObjectBase.mt">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importOverloadedStaticMethods.expected">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importOverloadedStaticMethods.mt">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importOverloadedStaticObjectParam.expected">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importOverloadedStaticObjectParam.mt">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importOverloadedStaticWildcard.expected">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importOverloadedStaticWildcard.mt">
       <Filter>testFiles\import\pass</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\importParentDirectory.expected">
@@ -5839,7 +5863,16 @@
     <None Include="tests\testFiles\import\pass\modules\GenericMethodModule.mt">
       <Filter>testFiles\import\pass\modules</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\modules\MultiClassOverloadModule.mt">
+      <Filter>testFiles\import\pass\modules</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\modules\NestedGenericsModule.mt">
+      <Filter>testFiles\import\pass\modules</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\modules\ObjectParamOverloadModule.mt">
+      <Filter>testFiles\import\pass\modules</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\modules\OverloadedStaticModule.mt">
       <Filter>testFiles\import\pass\modules</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\modules\PrivateOnlyModule.mt">
@@ -7910,6 +7943,9 @@
       <Filter>testFiles\reflection\error</Filter>
     </None>
     <None Include="tests\testFiles\reflection\error\methodNotFound.mt">
+      <Filter>testFiles\reflection\error</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\error\privateMethodAccess.mt">
       <Filter>testFiles\reflection\error</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\annotationReflection.expected">
