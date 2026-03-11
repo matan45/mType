@@ -1,0 +1,14 @@
+value after +=: 15
+value after -=: 12
+value after *=: 24
+value after /=: 6
+value after %=: 2
+ratio after +=: 4
+ratio after -=: 3.5
+ratio after *=: 7
+ratio after /=: 2
+label after +=: test_updated
+c2.value after += c.value: 102
+c3 after chain: 2
+score after super +=: 70
+score after super -=: 65

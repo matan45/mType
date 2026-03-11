@@ -1,0 +1,371 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="nodes">
+      <UniqueIdentifier>{7E1C0410-EA30-2CC1-B3B2-CF201F8628F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nodes\annotations">
+      <UniqueIdentifier>{9B554837-076C-46CD-50E3-D1EEBC381755}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nodes\classes">
+      <UniqueIdentifier>{7BC184ED-E781-0024-B0BC-49A11C3C4500}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nodes\expressions">
+      <UniqueIdentifier>{106A24CA-7C80-2260-C5F7-AD81314DF3E7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nodes\functions">
+      <UniqueIdentifier>{86AEF7D0-F239-6595-FB4A-E8896755C195}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nodes\statements">
+      <UniqueIdentifier>{B52B86AA-A124-A5FC-CA56-8A81B6AE8408}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="utils">
+      <UniqueIdentifier>{169C8510-82B0-ADC1-4B32-5121B705AAF2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ast\ASTNode.hpp" />
+    <ClInclude Include="ast\ASTVisitor.hpp" />
+    <ClInclude Include="ast\AccessModifier.hpp" />
+    <ClInclude Include="ast\GenericType.hpp" />
+    <ClInclude Include="ast\GenericTypeParameter.hpp" />
+    <ClInclude Include="ast\GenericTypeSubstitutionContext.hpp" />
+    <ClInclude Include="ast\NodeClassesDeclaration.hpp" />
+    <ClInclude Include="ast\VisibilityModifier.hpp" />
+    <ClInclude Include="ast\nodes\annotations\AnnotationNode.hpp">
+      <Filter>nodes\annotations</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\ClassNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\ConstructorNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\FieldNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\InterfaceNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\MemberAccessNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\MethodCallNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\MethodNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\NewNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperConstructorCallNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperMemberAccessNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperMemberAssignmentNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\SuperMethodCallNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\classes\ThisConstructorCallNode.hpp">
+      <Filter>nodes\classes</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\ArrayCreationNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\ArrayLiteralNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\AwaitExpression.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\BinaryExpNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\BoolNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\CastExpression.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\FloatNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\IndexAccessNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\InstanceOfExpression.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\IntegerNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\LambdaInterfaceInvocationNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\LambdaNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\NullNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\StringNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\TernaryExpNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\UnaryExpNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\expressions\VariableNode.hpp">
+      <Filter>nodes\expressions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\functions\FunctionCallNode.hpp">
+      <Filter>nodes\functions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\functions\FunctionNode.hpp">
+      <Filter>nodes\functions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\functions\ReturnNode.hpp">
+      <Filter>nodes\functions</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\AssignmentNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\BlockNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\BreakNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\CaseNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\CatchNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ContinueNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\DefaultCaseNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\DoWhileNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ForEachNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ForNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\IfNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ImportNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\IndexAssignmentNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\MemberAssignmentNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ProgramNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\SwitchNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\ThrowNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\TryNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\WhileNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\utils\ASTNodeUtils.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\utils\GenericTypeConversionUtils.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ast\ASTNode.cpp" />
+    <ClCompile Include="ast\AccessModifier.cpp" />
+    <ClCompile Include="ast\GenericType.cpp" />
+    <ClCompile Include="ast\GenericTypeParameter.cpp" />
+    <ClCompile Include="ast\GenericTypeSubstitutionContext.cpp" />
+    <ClCompile Include="ast\VisibilityModifier.cpp" />
+    <ClCompile Include="ast\nodes\annotations\AnnotationNode.cpp">
+      <Filter>nodes\annotations</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\ClassNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\ConstructorNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\FieldNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\InterfaceNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\MemberAccessNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\MethodCallNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\MethodNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\NewNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperConstructorCallNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperMemberAccessNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperMemberAssignmentNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\SuperMethodCallNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\classes\ThisConstructorCallNode.cpp">
+      <Filter>nodes\classes</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\ArrayCreationNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\ArrayLiteralNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\AwaitExpression.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\BinaryExpNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\BoolNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\CastExpression.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\FloatNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\IndexAccessNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\InstanceOfExpression.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\IntegerNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\LambdaInterfaceInvocationNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\LambdaNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\NullNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\StringNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\TernaryExpNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\UnaryExpNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\expressions\VariableNode.cpp">
+      <Filter>nodes\expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\functions\FunctionCallNode.cpp">
+      <Filter>nodes\functions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\functions\FunctionNode.cpp">
+      <Filter>nodes\functions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\functions\ReturnNode.cpp">
+      <Filter>nodes\functions</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\AssignmentNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\BlockNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\BreakNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\CaseNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\CatchNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ContinueNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\DefaultCaseNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\DoWhileNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ForEachNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ForNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\IfNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ImportNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\IndexAssignmentNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\MemberAssignmentNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ProgramNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\SwitchNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\ThrowNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\TryNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\WhileNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\utils\GenericTypeConversionUtils.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

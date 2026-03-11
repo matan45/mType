@@ -1,0 +1,243 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="debugger">
+      <UniqueIdentifier>{4A693D11-3636-981C-5F4F-86C44B7BCDAA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="gc">
+      <UniqueIdentifier>{EF775900-DB03-880B-44B2-880B305D880B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="json">
+      <UniqueIdentifier>{9F27997C-8B5E-9A0D-344B-80102061160F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="project">
+      <UniqueIdentifier>{7CC43AC3-E8A3-B95E-F1BB-44355D1A20C0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="reflection">
+      <UniqueIdentifier>{30732186-1C2B-63D3-8532-3C2F7109FEC3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="services">
+      <UniqueIdentifier>{C98C7E0E-B559-D919-DE72-C7C1CA9E0EA8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="validation">
+      <UniqueIdentifier>{10E17C64-FC98-BEB1-65A0-970D517759A2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="debugger\DebugContext.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="debugger\DebugHookHelper.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="debugger\DebugProtocol.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="debugger\DebuggerConstants.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="debugger\VMVariableInspector.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="debugger\VariableInspector.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\CycleDetector.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GC.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GCConfig.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GCCoordinator.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GCStats.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\GCTracker.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\SuspectBuffer.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="gc\WriteBarrier.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
+    <ClInclude Include="json\FileWriteNative.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonDeserializer.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonNatives.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonParser.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonSerializer.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\JsonValue.hpp">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="project\GlobMatcher.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\ProjectBuilder.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\ProjectConfig.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\ProjectConfigParser.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="reflection\ReflectionHandle.hpp">
+      <Filter>reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="reflection\ReflectionNatives.hpp">
+      <Filter>reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="services\BytecodeExecutionStrategy.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\BytecodeExecutor.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\BytecodeService.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ExecutionStrategy.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\FileReader.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ImportManager.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ImportResolver.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\NativeFunctionRegistry.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\OptimizationService.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ScriptAPI.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\ScriptInterpreter.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="validation\AnnotationValidator.hpp">
+      <Filter>validation</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="debugger\DebugContext.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\DebugHookHelper.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\DebugProtocol.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VariableInspector.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\CycleDetector.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\GC.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\GCCoordinator.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\GCTracker.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\SuspectBuffer.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="gc\WriteBarrier.cpp">
+      <Filter>gc</Filter>
+    </ClCompile>
+    <ClCompile Include="json\FileWriteNative.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonDeserializer.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonNatives.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonParser.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonSerializer.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonValue.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="project\GlobMatcher.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ProjectBuilder.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ProjectConfigParser.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\ReflectionHandle.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\ReflectionNatives.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="services\BytecodeExecutionStrategy.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\BytecodeExecutor.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\BytecodeService.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\FileReader.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ImportManager.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ImportResolver.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\NativeFunctionRegistry.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\OptimizationService.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ScriptAPI.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ScriptInterpreter.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="validation\AnnotationValidator.cpp">
+      <Filter>validation</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
