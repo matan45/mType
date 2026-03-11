@@ -1,6 +1,6 @@
 // Test compound assignment operators on array indices
 
-@Script
+
 function main(): void {
     // Test += on int array
     int[] nums = new int[5];

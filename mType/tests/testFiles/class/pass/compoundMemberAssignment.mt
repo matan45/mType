@@ -23,8 +23,7 @@ class Parent {
 class Child extends Parent {
     public int bonus;
 
-    public constructor(int s, int b) {
-        super(s);
+    public constructor(int s, int b) : super(s) {
         bonus = b;
     }
 
@@ -37,7 +36,7 @@ class Child extends Parent {
     }
 }
 
-@Script
+
 function main(): void {
     Counter c = new Counter(10, 2.5, "test");
 
