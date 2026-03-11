@@ -38,6 +38,9 @@
 #include "../debugger/DebugProtocol.hpp"
 #include "../project/ProjectConfigParser.hpp"
 #include "../project/ProjectBuilder.hpp"
+#include "../vm/profiler/ProfilerMode.hpp"
+#include "../vm/profiler/ProfilerContext.hpp"
+#include "../vm/profiler/ProfilerReport.hpp"
 
 #include <vector>
 #include <memory>
@@ -580,6 +583,9 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --gc-stats <script.mt>     - Run and print GC statistics after execution\n";
         std::cout << "  " << argv[0] << " --jit-stats <script.mt>    - Run and print JIT statistics after execution\n";
         std::cout << "  " << argv[0] << " --no-jit <script.mt>       - Disable JIT compilation (JIT is on by default)\n";
+        std::cout << "  " << argv[0] << " --profile <script.mt>      - Run with profiler (light mode: function timing)\n";
+        std::cout << "  " << argv[0] << " --profile=full <script.mt> - Run with full profiler (timing + call graph + opcodes)\n";
+        std::cout << "  " << argv[0] << " --profile-output=json      - Output profiler report as JSON\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
         std::cout << "  " << argv[0] << " --build [project.mtproj]   - Build project (compile all files to bytecode)\n";
@@ -1025,12 +1031,14 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Parse debug mode, gc-stats flag, jit flag, and filename
+    // Parse debug mode, gc-stats flag, jit flag, profiler flags, and filename
     std::string filename;
     bool debugMode = false;
     bool printGCStats = false;
     bool printJitStats = false;
     bool enableJit = true;
+    vm::profiler::ProfilerMode profileMode = vm::profiler::ProfilerMode::DISABLED;
+    vm::profiler::ProfilerOutputFormat profileOutputFormat = vm::profiler::ProfilerOutputFormat::CONSOLE;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -1051,6 +1059,18 @@ int main(int argc, char* argv[])
         else if (arg == "--no-jit")
         {
             enableJit = false;
+        }
+        else if (arg == "--profile" || arg == "--profile=light")
+        {
+            profileMode = vm::profiler::ProfilerMode::LIGHT;
+        }
+        else if (arg == "--profile=full")
+        {
+            profileMode = vm::profiler::ProfilerMode::FULL;
+        }
+        else if (arg == "--profile-output=json")
+        {
+            profileOutputFormat = vm::profiler::ProfilerOutputFormat::JSON;
         }
         else if (arg[0] != '-')
         {
@@ -1074,6 +1094,12 @@ int main(int argc, char* argv[])
 
     try
     {
+        // Initialize profiler if requested
+        if (profileMode != vm::profiler::ProfilerMode::DISABLED)
+        {
+            vm::profiler::ProfilerContext::initialize(profileMode, profileOutputFormat);
+        }
+
         ScriptInterpreter interpreter(execMode);
 
         if (enableJit)
@@ -1102,10 +1128,24 @@ int main(int argc, char* argv[])
         {
             interpreter.getVM()->printJitStats();
         }
+
+        // Generate profiler report if profiling was enabled
+        if (profileMode != vm::profiler::ProfilerMode::DISABLED)
+        {
+            auto& profilerCtx = vm::profiler::ProfilerContext::getInstance();
+            profilerCtx.finalize();
+            vm::profiler::ProfilerReport::generate(profilerCtx);
+            vm::profiler::ProfilerContext::shutdown();
+        }
     }
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
+        // Clean up profiler before exit
+        if (profileMode != vm::profiler::ProfilerMode::DISABLED)
+        {
+            vm::profiler::ProfilerContext::shutdown();
+        }
         gc::GC::shutdown(); // Clean up GC before exit
         reflection::ReflectionNatives::cleanup();
         json::JsonNatives::cleanup();
