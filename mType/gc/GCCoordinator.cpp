@@ -1,4 +1,5 @@
 #include "GCCoordinator.hpp"
+#include <algorithm>
 
 namespace gc
 {
@@ -79,14 +80,14 @@ namespace gc
 
     bool GCCoordinator::shouldCollect() const
     {
-        // Check allocation threshold
-        if (GCTracker::getInstance().getAllocationCount() >= config::ALLOCATION_THRESHOLD)
+        // Check allocation threshold (adaptive — scales with heap size and backoff)
+        if (GCTracker::getInstance().getAllocationCount() >= currentAllocationThreshold)
         {
             return true;
         }
 
-        // Check suspect buffer threshold
-        if (suspects->shouldTriggerCollection())
+        // Check suspect buffer threshold (adaptive)
+        if (suspects->size() >= currentSuspectThreshold)
         {
             return true;
         }
@@ -131,6 +132,30 @@ namespace gc
             result.completed
         );
 
+        // Adaptive backoff: if collection found nothing, increase thresholds
+        if (result.objectsCollected == 0)
+        {
+            consecutiveEmptyCollections++;
+
+            // Exponential backoff: double thresholds each time, capped at 32x base
+            size_t backoffMultiplier = static_cast<size_t>(1) << std::min(consecutiveEmptyCollections, static_cast<size_t>(5));
+
+            // Scale allocation threshold based on heap size
+            // Larger heaps need proportionally higher thresholds to avoid thrashing
+            size_t trackedObjects = GCTracker::getInstance().getTotalTrackedObjects();
+            size_t heapScale = std::max(static_cast<size_t>(1), trackedObjects / config::ALLOCATION_THRESHOLD);
+
+            currentAllocationThreshold = config::ALLOCATION_THRESHOLD * backoffMultiplier * heapScale;
+            currentSuspectThreshold = config::SUSPECT_THRESHOLD * backoffMultiplier;
+        }
+        else
+        {
+            // Collection found garbage — reset backoff to be responsive again
+            consecutiveEmptyCollections = 0;
+            currentAllocationThreshold = config::ALLOCATION_THRESHOLD;
+            currentSuspectThreshold = config::SUSPECT_THRESHOLD;
+        }
+
         // Reset allocation count
         GCTracker::getInstance().resetAllocationCount();
 
@@ -158,5 +183,10 @@ namespace gc
         // Reset flags
         collectionInProgress = false;
         enabled = true;
+
+        // Reset adaptive backoff
+        consecutiveEmptyCollections = 0;
+        currentAllocationThreshold = config::ALLOCATION_THRESHOLD;
+        currentSuspectThreshold = config::SUSPECT_THRESHOLD;
     }
 }
