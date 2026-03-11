@@ -467,14 +467,14 @@ namespace reflection
         static std::shared_ptr<environment::Environment> currentEnvironment;
 
         // VM reference for method/constructor invocation
-        static vm::runtime::VirtualMachine* currentVM;
+        static std::shared_ptr<vm::runtime::VirtualMachine> currentVM;
 
     public:
         // Set the current environment (called during initialization)
         static void setEnvironment(std::shared_ptr<environment::Environment> env);
 
         // Set the current VM (called during initialization)
-        static void setVM(vm::runtime::VirtualMachine* vm);
+        static void setVM(std::shared_ptr<vm::runtime::VirtualMachine> vm);
 
         // Cleanup static resources (call before program exit to avoid static destruction order issues)
         static void cleanup();

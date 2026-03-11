@@ -78,7 +78,7 @@ namespace services
         executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get(), scriptAPI.get());
 
         // Set VM reference for reflection method/constructor invocation
-        reflection::ReflectionNatives::setVM(vm.get());
+        reflection::ReflectionNatives::setVM(vm);
     }
 
     ScriptInterpreter::~ScriptInterpreter()

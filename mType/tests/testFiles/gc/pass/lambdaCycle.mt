@@ -31,7 +31,7 @@ function main(): void {
     Handler handler = new Handler("TestHandler");
 
     // Create a cycle: handler -> callback lambda -> captured handler
-    handler.setCallback(() -> void {
+    handler.setCallback(() -> {
         print("Callback executed for: " + handler.getName());
     });
 

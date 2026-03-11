@@ -102,5 +102,8 @@ namespace tests::testSuite
         addTestFromFile("Method Not Found Error",
                         errorPath + "methodNotFound.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Private Method Access Error",
+                        errorPath + "privateMethodAccess.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

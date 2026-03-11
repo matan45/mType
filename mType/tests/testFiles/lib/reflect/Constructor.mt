@@ -58,11 +58,6 @@ class Constructor extends AccessibleObject {
         return this._classHandle;
     }
 
-    // Get the accessible flag
-    public function getAccessible(): bool {
-        return this._accessible;
-    }
-
     // Get the native handle
     public function getNativeHandle(): int {
         return this._nativeHandle;

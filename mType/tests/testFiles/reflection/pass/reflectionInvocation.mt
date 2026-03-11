@@ -44,7 +44,7 @@ Class calcClass = Class::forName("Calculator");
 Constructor ctor = calcClass.getConstructor(1);
 int[] ctorArgs = new int[1];
 ctorArgs[0] = 42;
-Calculator calc = __reflect_newInstanceWithArgs(ctor.getClassHandle(), ctor.getNativeHandle(), ctorArgs, ctor.getAccessible());
+Calculator calc = __reflect_newInstanceWithArgs(ctor.getClassHandle(), ctor.getNativeHandle(), ctorArgs, ctor.isAccessible());
 print("Created via reflection, value: " + calc.getValue());
 
 // === Test 2: Instance method invocation ===
@@ -52,7 +52,7 @@ print("=== Instance Method Invocation ===");
 Method addMethod = calcClass.getMethod("add", 1);
 int[] addArgs = new int[1];
 addArgs[0] = 8;
-int result = __reflect_invokeMethod(calc, addMethod.getNativeHandle(), addArgs, addMethod.getAccessible());
+int result = __reflect_invokeMethod(calc, addMethod.getNativeHandle(), addArgs, addMethod.isAccessible());
 print("After add(8): " + result);
 print("getValue: " + calc.getValue());
 
@@ -60,7 +60,7 @@ print("getValue: " + calc.getValue());
 Method mulMethod = calcClass.getMethod("multiply", 1);
 int[] mulArgs = new int[1];
 mulArgs[0] = 3;
-result = __reflect_invokeMethod(calc, mulMethod.getNativeHandle(), mulArgs, mulMethod.getAccessible());
+result = __reflect_invokeMethod(calc, mulMethod.getNativeHandle(), mulArgs, mulMethod.isAccessible());
 print("After multiply(3): " + result);
 
 // === Test 4: Static method invocation ===
@@ -69,7 +69,7 @@ Method staticAdd = calcClass.getMethod("staticAdd", 2);
 int[] staticArgs = new int[2];
 staticArgs[0] = 10;
 staticArgs[1] = 20;
-result = __reflect_invokeStaticMethod(staticAdd.getClassHandle(), staticAdd.getNativeHandle(), staticArgs, staticAdd.getAccessible());
+result = __reflect_invokeStaticMethod(staticAdd.getClassHandle(), staticAdd.getNativeHandle(), staticArgs, staticAdd.isAccessible());
 print("staticAdd(10, 20): " + result);
 
 // === Test 5: Private method with accessible=true ===
@@ -77,7 +77,7 @@ print("=== Private Method Access ===");
 Method secretMethod = calcClass.getDeclaredMethod("secretReset", 0);
 secretMethod.setAccessible(true);
 int[] emptyArgs = new int[0];
-result = __reflect_invokeMethod(calc, secretMethod.getNativeHandle(), emptyArgs, secretMethod.getAccessible());
+result = __reflect_invokeMethod(calc, secretMethod.getNativeHandle(), emptyArgs, secretMethod.isAccessible());
 print("After secretReset: " + result);
 print("getValue after reset: " + calc.getValue());
 
@@ -85,7 +85,7 @@ print("getValue after reset: " + calc.getValue());
 print("=== Second Constructor Invocation ===");
 int[] ctorArgs2 = new int[1];
 ctorArgs2[0] = 100;
-Calculator calc2 = __reflect_newInstanceWithArgs(ctor.getClassHandle(), ctor.getNativeHandle(), ctorArgs2, ctor.getAccessible());
+Calculator calc2 = __reflect_newInstanceWithArgs(ctor.getClassHandle(), ctor.getNativeHandle(), ctorArgs2, ctor.isAccessible());
 print("Second instance value: " + calc2.getValue());
 
 print("All reflection invocation tests passed");

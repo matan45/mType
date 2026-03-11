@@ -13,16 +13,16 @@ namespace reflection
 
     // Static member initialization
     std::shared_ptr<environment::Environment> ReflectionNatives::currentEnvironment = nullptr;
-    vm::runtime::VirtualMachine* ReflectionNatives::currentVM = nullptr;
+    std::shared_ptr<vm::runtime::VirtualMachine> ReflectionNatives::currentVM = nullptr;
 
     void ReflectionNatives::setEnvironment(std::shared_ptr<environment::Environment> env)
     {
         currentEnvironment = env;
     }
 
-    void ReflectionNatives::setVM(vm::runtime::VirtualMachine* vm)
+    void ReflectionNatives::setVM(std::shared_ptr<vm::runtime::VirtualMachine> vm)
     {
-        currentVM = vm;
+        currentVM = std::move(vm);
     }
 
     void ReflectionNatives::registerAll(std::shared_ptr<environment::Environment> env)
@@ -944,6 +944,10 @@ namespace reflection
                 argsVec.push_back(argArray->get(i));
             }
         }
+        else if (!std::holds_alternative<std::monostate>(args[2]) && !std::holds_alternative<nullptr_t>(args[2]))
+        {
+            throw errors::RuntimeException("Expected array for arguments parameter in __reflect_invokeMethod");
+        }
 
         return currentVM->invokeMethod(instance, methodInfo.methodName, argsVec);
     }
@@ -974,6 +978,12 @@ namespace reflection
             throw errors::RuntimeException("Invalid method handle");
         }
 
+        if (methodInfo.classHandle != classHandle)
+        {
+            throw errors::RuntimeException("Method '" + methodInfo.methodName +
+                "' does not belong to class '" + classDef->getName() + "'");
+        }
+
         if (!accessible && methodInfo.method->getAccessModifier() != ast::AccessModifier::PUBLIC)
         {
             throw errors::RuntimeException("Cannot invoke non-public static method '" + methodInfo.methodName +
@@ -988,6 +998,10 @@ namespace reflection
             {
                 argsVec.push_back(argArray->get(i));
             }
+        }
+        else if (!std::holds_alternative<std::monostate>(args[2]) && !std::holds_alternative<nullptr_t>(args[2]))
+        {
+            throw errors::RuntimeException("Expected array for arguments parameter in __reflect_invokeStaticMethod");
         }
 
         return currentVM->invokeStaticMethod(classDef->getName(), methodInfo.methodName, argsVec);
@@ -1169,6 +1183,11 @@ namespace reflection
             throw errors::RuntimeException("Invalid constructor handle");
         }
 
+        if (ctorInfo.classHandle != classHandle)
+        {
+            throw errors::RuntimeException("Constructor does not belong to class '" + classDef->getName() + "'");
+        }
+
         if (!accessible && ctorInfo.constructor->getAccessModifier() != ast::AccessModifier::PUBLIC)
         {
             throw errors::RuntimeException("Cannot invoke non-public constructor without setting accessible to true");
@@ -1182,6 +1201,10 @@ namespace reflection
             {
                 argsVec.push_back(argArray->get(i));
             }
+        }
+        else if (!std::holds_alternative<std::monostate>(args[2]) && !std::holds_alternative<nullptr_t>(args[2]))
+        {
+            throw errors::RuntimeException("Expected array for arguments parameter in __reflect_newInstanceWithArgs");
         }
 
         return currentVM->createObject(classDef->getName(), argsVec);
@@ -1445,7 +1468,7 @@ namespace reflection
         // When program exits, this prevents the shared_ptr from trying to
         // destroy Environment objects that may depend on other static objects
         currentEnvironment.reset();
-        currentVM = nullptr;
+        currentVM.reset();
     }
 
 } // namespace reflection
