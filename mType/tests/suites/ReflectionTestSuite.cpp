@@ -78,6 +78,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Generic Class Reflection",
                         passPath + "genericClassReflection.mt");
 
+        // === INVOCATION TESTS ===
+        // Tests for method invocation and constructor invocation via reflection
+
+        addOutputVerificationTest("Reflection Invocation",
+                        passPath + "reflectionInvocation.mt");
+
         // === ANNOTATION REFLECTION TESTS ===
         // Tests for annotation introspection
 
@@ -95,6 +101,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Method Not Found Error",
                         errorPath + "methodNotFound.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Private Method Access Error",
+                        errorPath + "privateMethodAccess.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

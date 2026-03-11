@@ -27,5 +27,22 @@ namespace tests::testSuite
 
         addOutputVerificationTest("HashMap Value Iterator",
                                   passPath + "iteratorHashMapValues.mt");
+
+        // === ERROR TESTS ===
+        addTestFromFile("HashMap Entry Iterator Past End",
+                        errorPath + "hashMapEntryIteratorPastEnd.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("HashMap Value Iterator Past End",
+                        errorPath + "hashMapValueIteratorPastEnd.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("HashMap Entry Iterator Empty Past End",
+                        errorPath + "hashMapEntryIteratorEmptyPastEnd.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("HashMap Value Iterator Empty Past End",
+                        errorPath + "hashMapValueIteratorEmptyPastEnd.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

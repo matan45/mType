@@ -90,6 +90,11 @@ class Method extends AccessibleObject {
         return __reflect_isMethodGeneric(this._nativeHandle);
     }
 
+    // Get the class handle (for direct native invocation calls)
+    public function getClassHandle(): int {
+        return this._classHandle;
+    }
+
     // Get the native handle
     public function getNativeHandle(): int {
         return this._nativeHandle;

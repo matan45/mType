@@ -20,22 +20,21 @@ namespace tests::testSuite
 
         // === LAMBDA CAPTURE CYCLES ===
         // Tests for circular references involving lambda closures
-        // Note: These will be added when lambda capture cycle tests are created
 
-        // addOutputVerificationTest("Lambda Capture Cycle",
-        //                           passPath + "lambdaCycle.mt");
+        addOutputVerificationTest("Lambda Capture Cycle",
+                                  passPath + "lambdaCycle.mt");
 
         // === COLLECTION CYCLES ===
         // Tests for circular references in collection structures
 
-        // addOutputVerificationTest("LinkedList Cycle",
-        //                           passPath + "linkedListCycle.mt");
+        addOutputVerificationTest("LinkedList Cycle",
+                                  passPath + "linkedListCycle.mt");
 
         // === MIXED REACHABILITY ===
         // Tests with some objects reachable and some in cycles
 
-        // addOutputVerificationTest("Mixed Reachability",
-        //                           passPath + "mixedReachability.mt");
+        addOutputVerificationTest("Mixed Reachability",
+                                  passPath + "mixedReachability.mt");
 
         // === STRESS TESTS ===
         // Tests with many objects and cycles

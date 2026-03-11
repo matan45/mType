@@ -14,6 +14,7 @@
 #include "ScriptAPI.hpp"
 #include "ExecutionStrategy.hpp"
 #include "BytecodeExecutionStrategy.hpp"
+#include "../reflection/ReflectionNatives.hpp"
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
@@ -75,6 +76,9 @@ namespace services
 
         // Always create bytecode execution strategy
         executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get(), scriptAPI.get());
+
+        // Set VM reference for reflection method/constructor invocation
+        reflection::ReflectionNatives::setVM(vm);
     }
 
     ScriptInterpreter::~ScriptInterpreter()

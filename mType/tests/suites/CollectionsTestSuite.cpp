@@ -22,5 +22,26 @@ namespace tests::testSuite
 
         addOutputVerificationTest("LinkedList Sort Descending",
                                   passPath + "linkedListSortDescending.mt");
+
+        // === ERROR TESTS ===
+        addTestFromFile("ArrayList Get Out of Bounds",
+                        errorPath + "arrayListGetOutOfBounds.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("ArrayList Set Out of Bounds",
+                        errorPath + "arrayListSetOutOfBounds.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("ArrayList Get Negative Index",
+                        errorPath + "arrayListGetNegativeIndex.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("ArrayList Set Negative Index",
+                        errorPath + "arrayListSetNegativeIndex.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("ArrayList Get Empty List",
+                        errorPath + "arrayListGetEmptyList.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

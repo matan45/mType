@@ -423,6 +423,7 @@ void runAllTests(constants::ExecutionMode execMode = constants::ExecutionMode::B
     suites.push_back(std::make_unique<EnhancedForLoopTestSuite>());
     suites.push_back(std::make_unique<StreamTestSuite>());
     suites.push_back(std::make_unique<ReflectionTestSuite>());
+    suites.push_back(std::make_unique<CollectionsTestSuite>());
     suites.push_back(std::make_unique<GCTestSuite>());
     suites.push_back(std::make_unique<NullSafetyTestSuite>());
     suites.push_back(std::make_unique<JsonTestSuite>());
