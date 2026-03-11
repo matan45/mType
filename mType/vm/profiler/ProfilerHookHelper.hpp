@@ -11,7 +11,7 @@ namespace vm::profiler
     public:
         static inline bool isProfilingEnabled()
         {
-            return ProfilerContext::getInstance().isEnabled();
+            return ProfilerContext::isEnabledFast();
         }
 
         static void onFunctionEntry(const std::string& functionName);

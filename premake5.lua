@@ -214,9 +214,6 @@ project "mtype-extensions"
 
    links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-frontend", "mtype-vm" }
 
-   includedirs { "vendor/asmjit" }
-   defines { "ASMJIT_STATIC" }
-
    files {
       "mType/gc/**.hpp",
       "mType/gc/**.cpp",

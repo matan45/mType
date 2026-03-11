@@ -6,6 +6,7 @@
 #include <vector>
 #include <algorithm>
 #include <sstream>
+#include <cstdio>
 
 namespace vm::profiler
 {
@@ -250,7 +251,7 @@ namespace vm::profiler
     {
         std::string result;
         result.reserve(str.size());
-        for (char c : str)
+        for (unsigned char c : str)
         {
             switch (c)
             {
@@ -259,7 +260,19 @@ namespace vm::profiler
                 case '\n': result += "\\n"; break;
                 case '\r': result += "\\r"; break;
                 case '\t': result += "\\t"; break;
-                default: result += c; break;
+                default:
+                    if (c < 0x20)
+                    {
+                        // Escape control characters as \u00XX per JSON spec
+                        char buf[8];
+                        std::snprintf(buf, sizeof(buf), "\\u%04x", c);
+                        result += buf;
+                    }
+                    else
+                    {
+                        result += static_cast<char>(c);
+                    }
+                    break;
             }
         }
         return result;

@@ -250,12 +250,10 @@ namespace vm::jit
                 }
                 else
                 {
-                    // For ordering comparisons (LT, GT, LE, GE) on boxed values,
-                    // unbox both sides to INT and fall through to the integer comparison path
-                    emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
-                    emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
-                    lType = SlotType::INT;
-                    rType = SlotType::INT;
+                    // Ordering comparisons (LT, GT, LE, GE) on both-boxed values
+                    // cannot safely assume INT — bail to interpreter
+                    s.compileFailed = true;
+                    return;
                 }
             }
         }

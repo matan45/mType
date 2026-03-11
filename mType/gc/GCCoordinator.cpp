@@ -1,5 +1,6 @@
 #include "GCCoordinator.hpp"
 #include <algorithm>
+#include <limits>
 
 namespace gc
 {
@@ -145,7 +146,18 @@ namespace gc
             size_t trackedObjects = GCTracker::getInstance().getTotalTrackedObjects();
             size_t heapScale = std::max(static_cast<size_t>(1), trackedObjects / config::ALLOCATION_THRESHOLD);
 
-            currentAllocationThreshold = config::ALLOCATION_THRESHOLD * backoffMultiplier * heapScale;
+            // Saturating multiplication to prevent size_t overflow
+            constexpr size_t MAX_THRESHOLD = std::numeric_limits<size_t>::max() / 2;
+            size_t threshold = config::ALLOCATION_THRESHOLD;
+            if (backoffMultiplier > 0 && threshold <= MAX_THRESHOLD / backoffMultiplier)
+                threshold *= backoffMultiplier;
+            else
+                threshold = MAX_THRESHOLD;
+            if (heapScale > 0 && threshold <= MAX_THRESHOLD / heapScale)
+                threshold *= heapScale;
+            else
+                threshold = MAX_THRESHOLD;
+            currentAllocationThreshold = threshold;
             currentSuspectThreshold = config::SUSPECT_THRESHOLD * backoffMultiplier;
         }
         else

@@ -16,6 +16,9 @@ namespace vm::profiler
         static std::unique_ptr<ProfilerContext> instance;
         static std::mutex instanceMutex;
 
+        // Fast-path flag: avoids mutex/getInstance() on every profiling check
+        static bool enabledFlag;
+
         ProfilerMode mode;
         ProfilerOutputFormat outputFormat;
 
@@ -44,6 +47,9 @@ namespace vm::profiler
 
         ProfilerContext(const ProfilerContext&) = delete;
         ProfilerContext& operator=(const ProfilerContext&) = delete;
+
+        // Fast-path check — no mutex, no getInstance()
+        static bool isEnabledFast() { return enabledFlag; }
 
         // Mode queries
         ProfilerMode getMode() const { return mode; }

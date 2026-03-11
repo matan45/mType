@@ -43,7 +43,18 @@ namespace vm::runtime
             auto nativeFunc = nativeRegistry->findNativeFunction(functionName);
             if (nativeFunc)
             {
+                if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
+                {
+                    vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
+                }
+
                 value::Value result = nativeFunc(args);
+
+                if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
+                {
+                    vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
+                }
+
                 context.stackManager->push(result);
                 return;
             }

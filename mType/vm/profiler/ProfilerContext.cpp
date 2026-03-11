@@ -1,9 +1,11 @@
 #include "ProfilerContext.hpp"
+#include <iostream>
 
 namespace vm::profiler
 {
     std::unique_ptr<ProfilerContext> ProfilerContext::instance = nullptr;
     std::mutex ProfilerContext::instanceMutex;
+    bool ProfilerContext::enabledFlag = false;
 
     ProfilerContext::ProfilerContext()
         : mode(ProfilerMode::DISABLED)
@@ -32,11 +34,13 @@ namespace vm::profiler
         ctx.opcodeProfile = OpcodeProfile{};
         ctx.totalProfilingTimeNs = 0;
         ctx.profilingStartTime = std::chrono::high_resolution_clock::now();
+        enabledFlag = (mode != ProfilerMode::DISABLED);
     }
 
     void ProfilerContext::shutdown()
     {
         std::lock_guard<std::mutex> lock(instanceMutex);
+        enabledFlag = false;
         if (instance)
         {
             instance.reset();
@@ -82,9 +86,15 @@ namespace vm::profiler
             return;
         }
 
-        // Find the matching entry (should be the back)
+        // Validate that exit matches the expected entry
         TimingStackEntry entry = timingStack.back();
         timingStack.pop_back();
+
+        if (entry.functionName != functionName)
+        {
+            std::cerr << "[Profiler] Warning: mismatched function exit. Expected '"
+                      << entry.functionName << "', got '" << functionName << "'\n";
+        }
 
         auto now = std::chrono::high_resolution_clock::now();
         uint64_t elapsed = static_cast<uint64_t>(
