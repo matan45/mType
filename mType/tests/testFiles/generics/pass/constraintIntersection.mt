@@ -34,7 +34,7 @@ class Container<T extends Printable> {
     }
 
     public function print(): void {
-        print(item.toString().toString());
+        print(item.toString());
     }
 }
 
