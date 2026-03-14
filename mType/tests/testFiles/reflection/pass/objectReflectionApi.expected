@@ -1,0 +1,15 @@
+=== Constructor.newInstance ===
+Created: Alice (age 30)
+=== Field.get ===
+Name: Alice
+Age: 30
+=== Field.set ===
+Updated: Bob (age 25)
+=== Method.invoke ===
+Greet: Hello, I'm Bob
+Is adult: true
+=== Object methods via reflection ===
+toString: Bob (age 25)
+=== Superclass ===
+Superclass: Object
+All object reflection API tests passed

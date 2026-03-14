@@ -2794,6 +2794,12 @@
     <None Include="tests\testFiles\class\pass\genericInheritance.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\implicitObjectInheritance.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\implicitObjectInheritance.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\jitArrayOps.expected">
       <Filter>testFiles\class\pass</Filter>
     </None>
@@ -7480,9 +7486,6 @@
     <None Include="tests\testFiles\lib\Iterator.mt">
       <Filter>testFiles\lib</Filter>
     </None>
-    <None Include="tests\testFiles\lib\Object.mt">
-      <Filter>testFiles\lib</Filter>
-    </None>
     <None Include="tests\testFiles\lib\collections\ArrayList.mt">
       <Filter>testFiles\lib\collections</Filter>
     </None>
@@ -7856,9 +7859,6 @@
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\error\ambiguousCall.mt">
-      <Filter>testFiles\overloading\error</Filter>
-    </None>
-    <None Include="tests\testFiles\overloading\error\incomparableCandidates.mt">
       <Filter>testFiles\overloading\error</Filter>
     </None>
     <None Include="tests\testFiles\overloading\error\noMatchingOverload.mt">

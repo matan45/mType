@@ -234,6 +234,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Type Array Covariance",
                         passPath + "typeArrayCovariance.mt");
 
+        // === IMPLICIT OBJECT INHERITANCE TESTS ===
+        // Tests for implicit Object base class (all classes inherit toString, equals, hashCode)
+
+        addOutputVerificationTest("Implicit Object Inheritance",
+                        passPath + "implicitObjectInheritance.mt");
+
         // === OBJECT LIFECYCLE TESTS ===
         // Tests for object methods and lifecycle management
 

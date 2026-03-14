@@ -84,6 +84,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Reflection Invocation",
                         passPath + "reflectionInvocation.mt");
 
+        // === OBJECT-BASED REFLECTION API TESTS ===
+        // Tests for simplified reflection using Object as universal type
+
+        addOutputVerificationTest("Object Reflection API",
+                        passPath + "objectReflectionApi.mt");
+
         // === ANNOTATION REFLECTION TESTS ===
         // Tests for annotation introspection
 

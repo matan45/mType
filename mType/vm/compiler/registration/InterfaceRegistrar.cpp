@@ -168,6 +168,14 @@ namespace vm::compiler::registration
             // Parse interface name and extract generic type arguments
             auto [baseInterfaceName, typeArguments] = parseGenericInterfaceName(interfaceName);
 
+            // Object is a built-in base class, not an interface
+            if (baseInterfaceName == "Object") {
+                throw errors::TypeException(
+                    "Object is a class, not an interface. All classes implicitly inherit from Object.",
+                    classLocation
+                );
+            }
+
             // Get interface definition
             auto interfaceDef = interfaceRegistry->findInterface(baseInterfaceName);
             if (!interfaceDef) {

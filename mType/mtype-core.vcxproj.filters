@@ -114,6 +114,9 @@
     <ClInclude Include="environment\registry\builtin\IndexOfFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ObjectClassBootstrap.hpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\builtin\ParsePrimitiveFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
@@ -345,6 +348,9 @@
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\builtin\IndexOfFunction.cpp">
+      <Filter>environment\registry\builtin</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ObjectClassBootstrap.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\builtin\ParsePrimitiveFunction.cpp">

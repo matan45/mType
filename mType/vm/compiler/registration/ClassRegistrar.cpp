@@ -116,6 +116,10 @@ namespace vm::compiler::registration
 
             classDef->setParentClassName(parentClassName);
         }
+        else if (className != "Object") {
+            // Implicit Object inheritance: all classes without explicit parent inherit from Object
+            classDef->setParentClassName("Object");
+        }
 
         // Handle implemented interfaces
         const auto& interfaces = classNode->getImplementedInterfaces();
@@ -456,31 +460,56 @@ namespace vm::compiler::registration
             throw std::runtime_error("Class registry not available");
         }
 
-        // Validate abstract method implementations for classes without parents
+        // Handle classes without explicit parent in AST
         if (!classNode->hasParentClass()) {
-            auto classDef = classRegistry->findClass(className);
-            if (classDef && !classDef->isAbstract()) {
-                // Concrete classes must not have abstract methods
-                auto unimplemented = classDef->getUnimplementedAbstractMethods();
-                if (!unimplemented.empty()) {
-                    std::string methodList;
-                    for (size_t i = 0; i < unimplemented.size(); ++i) {
-                        if (i > 0) methodList += ", ";
-                        methodList += unimplemented[i];
+            if (className == "Object") {
+                // Object is the root — no parent to link, just validate
+                auto classDef = classRegistry->findClass(className);
+                if (classDef && !classDef->isAbstract()) {
+                    auto unimplemented = classDef->getUnimplementedAbstractMethods();
+                    if (!unimplemented.empty()) {
+                        std::string methodList;
+                        for (size_t i = 0; i < unimplemented.size(); ++i) {
+                            if (i > 0) methodList += ", ";
+                            methodList += unimplemented[i];
+                        }
+                        throw errors::AbstractClassException(
+                            "Concrete class '" + className + "' cannot have abstract methods: " + methodList,
+                            classNode->getLocation()
+                        );
                     }
-                    throw errors::AbstractClassException(
-                        "Concrete class '" + className + "' cannot have abstract methods: " + methodList,
-                        classNode->getLocation()
-                    );
+                }
+                return;
+            }
+
+            // Implicit Object parent — link it
+            auto classDef = classRegistry->findClass(className);
+            auto parentDef = classRegistry->findClass("Object");
+            if (classDef && parentDef) {
+                classDef->setParentClass(parentDef);
+
+                // Validate annotations (e.g., @Override now valid against Object methods)
+                ::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
+
+                // Validate method overrides against Object
+                validateMethodOverrides(classDef, parentDef, classNode);
+
+                // Validate abstract method implementations
+                if (!classDef->isAbstract()) {
+                    auto unimplemented = classDef->getUnimplementedAbstractMethods();
+                    if (!unimplemented.empty()) {
+                        std::string methodList;
+                        for (size_t i = 0; i < unimplemented.size(); ++i) {
+                            if (i > 0) methodList += ", ";
+                            methodList += unimplemented[i];
+                        }
+                        throw errors::AbstractClassException(
+                            "Concrete class '" + className + "' cannot have abstract methods: " + methodList,
+                            classNode->getLocation()
+                        );
+                    }
                 }
             }
-
-            // Validate annotations for classes without parents
-            // (e.g., @Override should fail if there's no parent)
-            if (classDef) {
-                ::validation::AnnotationValidator::validateClassAnnotations(classDef, environment);
-            }
-
             return;
         }
 

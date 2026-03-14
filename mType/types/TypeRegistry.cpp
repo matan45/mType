@@ -385,7 +385,7 @@ namespace types {
         primitiveToBoxMapping["bool"] = "Bool";
         primitiveToBoxMapping["string"] = "String";
 
-        // Register inheritance: all Box classes implement Object interface
+        // Register inheritance: all Box classes implicitly inherit from Object
         registerInheritance("Int", "Object");
         registerInheritance("Float", "Object");
         registerInheritance("Bool", "Object");

@@ -1,0 +1,8 @@
+p1 equals p2: true
+p1 equals p3: false
+p1 hashCode == p2 hashCode: true
+p1 toString not empty: true
+np toString: Origin(1, 2)
+np hashCode: 33
+circle toString: Shape:circle
+circle has hashCode: true

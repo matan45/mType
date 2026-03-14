@@ -543,6 +543,41 @@ namespace vm::runtime
         }
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
+        if (!funcMetadata && definingClassName == "Object") {
+            // Native Object method dispatch — these methods have no bytecode
+            if (simpleMethodName == "toString") {
+                std::string contentHash = instance->getContentHash();
+                std::hash<std::string> hasher;
+                int64_t hashVal = static_cast<int64_t>(hasher(contentHash) & 0x7FFFFFFF);
+                std::string result = classDef->getName() + "@" + std::to_string(hashVal);
+                context.stackManager->push(result);
+                return;
+            }
+            if (simpleMethodName == "equals") {
+                if (argCount >= 1) {
+                    const auto& otherVal = args[0];
+                    if (auto* otherPtr = std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&otherVal)) {
+                        if (*otherPtr) {
+                            context.stackManager->push(instance->contentEquals(**otherPtr));
+                        } else {
+                            context.stackManager->push(false);
+                        }
+                    } else {
+                        context.stackManager->push(false);
+                    }
+                } else {
+                    context.stackManager->push(false);
+                }
+                return;
+            }
+            if (simpleMethodName == "hashCode") {
+                std::string contentHash = instance->getContentHash();
+                std::hash<std::string> hasher;
+                int64_t hashVal = static_cast<int64_t>(hasher(contentHash) & 0x7FFFFFFF);
+                context.stackManager->push(hashVal);
+                return;
+            }
+        }
         if (!funcMetadata) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "Method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");

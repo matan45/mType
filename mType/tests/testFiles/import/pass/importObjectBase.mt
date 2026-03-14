@@ -1,7 +1,7 @@
-// Test: Import Object from lib
-import { Object } from "../../lib/Object.mt";
+// Test: Implicit Object inheritance
+// Expected: Pass - all classes automatically inherit toString, equals, hashCode from Object
 
-class MyClass implements Object<MyClass> {
+class MyClass {
     public function test(): string {
         return "Inherits from Object";
     }
