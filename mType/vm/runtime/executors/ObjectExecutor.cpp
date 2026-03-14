@@ -543,8 +543,11 @@ namespace vm::runtime
         }
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
-        if (!funcMetadata && definingClassName == "Object") {
-            // Native Object method dispatch — these methods have no bytecode
+        if (!funcMetadata && (simpleMethodName == "toString" || simpleMethodName == "equals" || simpleMethodName == "hashCode")) {
+            // Native Object method fallback — when no bytecode exists for an Object method,
+            // dispatch to native C++ implementations. This handles both direct Object method
+            // calls and cases where overload resolution selects the Object signature (e.g.,
+            // equals(null) resolving to equals(Object) when the class only has equals(SpecificType))
             if (simpleMethodName == "toString") {
                 std::string contentHash = instance->getContentHash();
                 std::hash<std::string> hasher;

@@ -458,15 +458,11 @@ namespace tests::testSuite
         addTestFromFile("Super Constructor Wrong Args Error",
                         errorPath + "superConstructorWrongArgs.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Super Field No Parent Error",
-                        errorPath + "superFieldNoParent.mt",
-                        TestType::ERROR_EXPECTED);
+        // Removed: superFieldNoParent — all classes now implicitly inherit from Object, so "no parent" is no longer possible
         addTestFromFile("Super Field Private Access Error",
                         errorPath + "superFieldPrivate.mt",
                         TestType::ERROR_EXPECTED);
-        addTestFromFile("Super Field Assign No Parent Error",
-                        errorPath + "superFieldAssignNoParent.mt",
-                        TestType::ERROR_EXPECTED);
+        // Removed: superFieldAssignNoParent — all classes now implicitly inherit from Object, so "no parent" is no longer possible
         addTestFromFile("Super Method Private Access Error",
                         errorPath + "superMethodPrivate.mt",
                         TestType::ERROR_EXPECTED);

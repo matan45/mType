@@ -30,7 +30,8 @@ namespace environment::registry::builtin
         // toString() : string — returns "ClassName@hashCode"
         {
             std::vector<std::pair<std::string, value::ParameterType>> params;
-            // 'this' parameter is added implicitly by the VM, not in the definition
+            // Include 'this' parameter to match how user-defined methods are stored
+            params.emplace_back("this", value::ParameterType::forClass("Object"));
             auto toStringMethod = std::make_shared<runtimeTypes::klass::MethodDefinition>(
                 "toString",
                 value::ValueType::STRING,
@@ -45,6 +46,7 @@ namespace environment::registry::builtin
         // equals(Object other) : bool — content-based equality
         {
             std::vector<std::pair<std::string, value::ParameterType>> params;
+            params.emplace_back("this", value::ParameterType::forClass("Object"));
             params.emplace_back("other", value::ParameterType::forClass("Object"));
             auto equalsMethod = std::make_shared<runtimeTypes::klass::MethodDefinition>(
                 "equals",
@@ -60,6 +62,7 @@ namespace environment::registry::builtin
         // hashCode() : int — content-based hash
         {
             std::vector<std::pair<std::string, value::ParameterType>> params;
+            params.emplace_back("this", value::ParameterType::forClass("Object"));
             auto hashCodeMethod = std::make_shared<runtimeTypes::klass::MethodDefinition>(
                 "hashCode",
                 value::ValueType::INT,

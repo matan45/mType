@@ -63,7 +63,7 @@ class MapEntry<K, V> {
     /**
      * Returns a string representation of this map entry.
      */
-    public function toString(): String {
+    public function toString(): string {
         return this.key.toString() + "=" + this.value.toString();
     }
 }

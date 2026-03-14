@@ -2470,12 +2470,6 @@
     <None Include="tests\testFiles\class\error\superConstructorWrongArgs.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
-    <None Include="tests\testFiles\class\error\superFieldAssignNoParent.mt">
-      <Filter>testFiles\class\error</Filter>
-    </None>
-    <None Include="tests\testFiles\class\error\superFieldNoParent.mt">
-      <Filter>testFiles\class\error</Filter>
-    </None>
     <None Include="tests\testFiles\class\error\superFieldPrivate.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
@@ -2948,6 +2942,12 @@
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\nullHandling.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\objectAsType.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\objectAsType.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\objectAssignment.expected">
@@ -7486,6 +7486,9 @@
     <None Include="tests\testFiles\lib\Iterator.mt">
       <Filter>testFiles\lib</Filter>
     </None>
+    <None Include="tests\testFiles\lib\Object.mt">
+      <Filter>testFiles\lib</Filter>
+    </None>
     <None Include="tests\testFiles\lib\collections\ArrayList.mt">
       <Filter>testFiles\lib\collections</Filter>
     </None>
@@ -8126,6 +8129,12 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\modifierUtilities.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\objectReflectionApi.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\objectReflectionApi.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\reflectionInvocation.expected">

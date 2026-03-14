@@ -817,6 +817,27 @@ namespace vm::compiler::registration
                 //      → OK: compute(int) overrides parent, compute(string) is new overload
                 //
                 if (parentHasMethodName && !parentMethod) {
+                    // Skip invariance check for Object base class methods (toString, equals, hashCode)
+                    // These are intentionally designed to be overloadable with typed versions
+                    // e.g., equals(Int other) is a valid overload alongside equals(Object other)
+                    bool isObjectMethod = false;
+                    {
+                        auto current = parentClass;
+                        while (current) {
+                            if (current->getName() == "Object") {
+                                auto objectMethods = current->getInstanceMethods().find(methodName);
+                                if (objectMethods != current->getInstanceMethods().end()) {
+                                    isObjectMethod = true;
+                                }
+                                break;
+                            }
+                            current = current->getParentClass();
+                        }
+                    }
+                    if (isObjectMethod) {
+                        continue; // Allow typed overloads of Object methods
+                    }
+
                     // Get parent methods with this name
                     auto& parentMethodOverloads = parentMethodsIt->second;
 

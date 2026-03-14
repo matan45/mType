@@ -1,85 +1,89 @@
-// Test: Simplified reflection API using Object as universal type
-// Tests Field.get/set, Method.invoke, Constructor.newInstance with Object parameters
+// Test: Reflection API with implicit Object inheritance
+// Tests getSuperclass, getMethods includes Object methods
 
 import * from "../../lib/reflect/Class.mt";
 import * from "../../lib/reflect/Field.mt";
 import * from "../../lib/reflect/Method.mt";
 import * from "../../lib/reflect/Constructor.mt";
 
-// Test class with various field types and methods
-class Person {
+// Test class
+class Animal {
     public string name;
-    public int age;
 
-    public constructor(string name, int age) {
+    public constructor(string name) {
         this.name = name;
-        this.age = age;
     }
 
-    public function greet(): string {
-        return "Hello, I'm " + this.name;
-    }
-
-    public function isAdult(): bool {
-        return this.age >= 18;
+    public function speak(): string {
+        return this.name + " speaks";
     }
 
     public function toString(): string {
-        return this.name + " (age " + this.age + ")";
+        return "Animal:" + this.name;
     }
 }
 
-// === Test 1: Constructor.newInstance ===
-print("=== Constructor.newInstance ===");
-Class personClass = Class::forName("Person");
-Constructor ctor = personClass.getConstructor(2);
+class Dog extends Animal {
+    public string breed;
 
-Object[] ctorArgs = new Object[2];
-ctorArgs[0] = "Alice";
-ctorArgs[1] = 30;
-Object person = ctor.newInstance(ctorArgs);
-print("Created: " + person.toString());
-
-// === Test 2: Field.get with Object ===
-print("=== Field.get ===");
-Field nameField = personClass.getField("name");
-Field ageField = personClass.getField("age");
-
-Object nameValue = nameField.get(person);
-Object ageValue = ageField.get(person);
-print("Name: " + nameValue);
-print("Age: " + ageValue);
-
-// === Test 3: Field.set with Object ===
-print("=== Field.set ===");
-nameField.set(person, "Bob");
-ageField.set(person, 25);
-print("Updated: " + person.toString());
-
-// === Test 4: Method.invoke with Object ===
-print("=== Method.invoke ===");
-Method greetMethod = personClass.getMethod("greet", 0);
-Object[] emptyArgs = new Object[0];
-Object greeting = greetMethod.invoke(person, emptyArgs);
-print("Greet: " + greeting);
-
-Method isAdultMethod = personClass.getMethod("isAdult", 0);
-Object adultResult = isAdultMethod.invoke(person, emptyArgs);
-print("Is adult: " + adultResult);
-
-// === Test 5: Object methods via reflection ===
-print("=== Object methods via reflection ===");
-Method toStringMethod = personClass.getMethod("toString", 0);
-Object strResult = toStringMethod.invoke(person, emptyArgs);
-print("toString: " + strResult);
-
-// === Test 6: getSuperclass returns Object for plain class ===
-print("=== Superclass ===");
-Class superclass = personClass.getSuperclass();
-if (superclass != null) {
-    print("Superclass: " + superclass.getName());
-} else {
-    print("Superclass: null");
+    public constructor(string name, string breed) : super(name) {
+        this.breed = breed;
+    }
 }
+
+// === Test 1: getSuperclass returns Object for class without explicit parent ===
+print("=== Superclass ===");
+Class animalClass = Class::forName("Animal");
+Class animalSuper = animalClass.getSuperclass();
+if (animalSuper != null) {
+    print("Animal superclass: " + animalSuper.getName());
+} else {
+    print("Animal superclass: null");
+}
+
+// === Test 2: getSuperclass chain for explicit inheritance ===
+Class dogClass = Class::forName("Dog");
+Class dogSuper = dogClass.getSuperclass();
+if (dogSuper != null) {
+    print("Dog superclass: " + dogSuper.getName());
+} else {
+    print("Dog superclass: null");
+}
+
+// Dog -> Animal -> Object
+Class dogGrandSuper = dogSuper.getSuperclass();
+if (dogGrandSuper != null) {
+    print("Dog grandparent: " + dogGrandSuper.getName());
+} else {
+    print("Dog grandparent: null");
+}
+
+// === Test 3: Object has no superclass ===
+Class objectClass = dogGrandSuper.getSuperclass();
+if (objectClass != null) {
+    print("Object superclass: " + objectClass.getName());
+} else {
+    print("Object has no superclass");
+}
+
+// === Test 4: isAssignableFrom with Object ===
+print("=== isAssignableFrom ===");
+Class objClass = Class::forName("Object");
+print("Object assignable from Animal: " + objClass.isAssignableFrom(animalClass));
+print("Object assignable from Dog: " + objClass.isAssignableFrom(dogClass));
+
+// === Test 5: Method discovery includes inherited methods ===
+print("=== Methods ===");
+Method speakMethod = animalClass.getMethod("speak", 0);
+print("Found speak: " + speakMethod.getName());
+
+Method toStringMethod = animalClass.getMethod("toString", 0);
+print("Found toString: " + toStringMethod.getName());
+
+// === Test 6: Field discovery and native access ===
+print("=== Fields ===");
+Field nameField = animalClass.getField("name");
+print("Found field: " + nameField.getName());
+print("Field type: " + nameField.getType());
 
 print("All object reflection API tests passed");

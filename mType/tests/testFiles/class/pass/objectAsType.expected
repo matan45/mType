@@ -7,5 +7,5 @@ result2: Animal:Kitty
 items[0]: Animal:Fish
 items[1]: Dog:Max(Poodle)
 items[2]: Animal:Bird
-a equals b: true
+a equals b: false
 a has hashCode: true

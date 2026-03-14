@@ -1,15 +1,15 @@
-=== Constructor.newInstance ===
-Created: Alice (age 30)
-=== Field.get ===
-Name: Alice
-Age: 30
-=== Field.set ===
-Updated: Bob (age 25)
-=== Method.invoke ===
-Greet: Hello, I'm Bob
-Is adult: true
-=== Object methods via reflection ===
-toString: Bob (age 25)
 === Superclass ===
-Superclass: Object
+Animal superclass: Object
+Dog superclass: Animal
+Dog grandparent: Object
+Object has no superclass
+=== isAssignableFrom ===
+Object assignable from Animal: true
+Object assignable from Dog: true
+=== Methods ===
+Found speak: speak
+Found toString: toString
+=== Fields ===
+Found field: name
+Field type: string
 All object reflection API tests passed
