@@ -220,15 +220,9 @@ namespace reflection
         auto parentClass = classDef->getParentClass();
         if (!parentClass)
         {
-            // Object is the root — it has no parent
-            if (classDef->getName() == "Object")
-            {
-                return 0; // Object has no superclass
-            }
-
-            // All other classes implicitly inherit from Object
-            // Try to find the Object ClassDefinition in the registry
-            return 0; // Fallback if Object not yet linked
+            // Only Object has no parent — all other classes are linked to Object
+            // by ClassRegistrar::linkSingleClass during compilation
+            return 0;
         }
 
         int64_t parentHandle = registry.getOrCreateClassHandle(parentClass);

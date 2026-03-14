@@ -548,12 +548,14 @@ namespace vm::runtime
             // dispatch to native C++ implementations. This handles both direct Object method
             // calls and cases where overload resolution selects the Object signature (e.g.,
             // equals(null) resolving to equals(Object) when the class only has equals(SpecificType))
-            if (simpleMethodName == "toString") {
+            auto computeHashCode = [&instance]() -> int64_t {
                 std::string contentHash = instance->getContentHash();
                 std::hash<std::string> hasher;
-                int64_t hashVal = static_cast<int64_t>(hasher(contentHash) & 0x7FFFFFFF);
-                std::string result = classDef->getName() + "@" + std::to_string(hashVal);
-                context.stackManager->push(result);
+                return static_cast<int64_t>(hasher(contentHash) & 0x7FFFFFFF);
+            };
+
+            if (simpleMethodName == "toString") {
+                context.stackManager->push(classDef->getName() + "@" + std::to_string(computeHashCode()));
                 return;
             }
             if (simpleMethodName == "equals") {
@@ -574,10 +576,7 @@ namespace vm::runtime
                 return;
             }
             if (simpleMethodName == "hashCode") {
-                std::string contentHash = instance->getContentHash();
-                std::hash<std::string> hasher;
-                int64_t hashVal = static_cast<int64_t>(hasher(contentHash) & 0x7FFFFFFF);
-                context.stackManager->push(hashVal);
+                context.stackManager->push(computeHashCode());
                 return;
             }
         }

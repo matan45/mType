@@ -777,6 +777,10 @@ namespace vm::compiler::registration
         // Check each method in child class
         const auto& childMethods = childClass->getInstanceMethods();
 
+        // Cache Object class lookup for invariance checks (Object is always the root)
+        auto classRegistry = environment->getClassRegistry();
+        auto objectClassDef = classRegistry ? classRegistry->findClass("Object") : nullptr;
+
         for (const auto& [methodName, childMethodOverloads] : childMethods) {
             // Check each overload
             for (const auto& childMethod : childMethodOverloads) {
@@ -820,22 +824,11 @@ namespace vm::compiler::registration
                     // Skip invariance check for Object base class methods (toString, equals, hashCode)
                     // These are intentionally designed to be overloadable with typed versions
                     // e.g., equals(Int other) is a valid overload alongside equals(Object other)
-                    bool isObjectMethod = false;
-                    {
-                        auto current = parentClass;
-                        while (current) {
-                            if (current->getName() == "Object") {
-                                auto objectMethods = current->getInstanceMethods().find(methodName);
-                                if (objectMethods != current->getInstanceMethods().end()) {
-                                    isObjectMethod = true;
-                                }
-                                break;
-                            }
-                            current = current->getParentClass();
+                    if (objectClassDef) {
+                        auto objectMethods = objectClassDef->getInstanceMethods().find(methodName);
+                        if (objectMethods != objectClassDef->getInstanceMethods().end()) {
+                            continue; // Allow typed overloads of Object methods
                         }
-                    }
-                    if (isObjectMethod) {
-                        continue; // Allow typed overloads of Object methods
                     }
 
                     // Get parent methods with this name

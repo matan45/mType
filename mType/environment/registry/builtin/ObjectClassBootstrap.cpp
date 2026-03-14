@@ -4,15 +4,16 @@
 #include "../../../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../value/ParameterType.hpp"
 #include "../../../ast/AccessModifier.hpp"
+#include <stdexcept>
 
 namespace environment::registry::builtin
 {
-    void ObjectClassBootstrap::registerObjectClass(std::shared_ptr<environment::Environment> environment)
+    void registerObjectClass(const std::shared_ptr<environment::Environment>& environment)
     {
         auto classRegistry = environment->getClassRegistry();
         if (!classRegistry)
         {
-            return;
+            throw std::runtime_error("Cannot register Object class: ClassRegistry is not available");
         }
 
         // Don't register if Object already exists

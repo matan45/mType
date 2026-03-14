@@ -9,15 +9,13 @@ namespace environment
 namespace environment::registry::builtin
 {
     /**
-     * @brief Bootstraps the built-in Object class definition
+     * @brief Registers the built-in Object ClassDefinition
      *
-     * Registers the root Object ClassDefinition with default methods
-     * (toString, equals, hashCode) into the ClassRegistry.
-     * This must be called before any user classes are registered.
+     * Creates the root Object class with default methods
+     * (toString, equals, hashCode) in the ClassRegistry.
+     * Must be called before any user classes are registered.
+     *
+     * @throws std::runtime_error if ClassRegistry is not available
      */
-    class ObjectClassBootstrap
-    {
-    public:
-        static void registerObjectClass(std::shared_ptr<environment::Environment> environment);
-    };
+    void registerObjectClass(const std::shared_ptr<environment::Environment>& environment);
 }

@@ -71,7 +71,7 @@ namespace environment
         environment->initialize();
 
         // Register built-in Object base class (must be first — all classes implicitly inherit from Object)
-        registry::builtin::ObjectClassBootstrap::registerObjectClass(environment);
+        registry::builtin::registerObjectClass(environment);
 
         // Register SIMD-accelerated array operations
         runtimeTypes::global::ArrayOperationsNative::registerAll(environment);
