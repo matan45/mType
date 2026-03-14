@@ -543,6 +543,43 @@ namespace vm::runtime
         }
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
+        if (!funcMetadata && (simpleMethodName == "toString" || simpleMethodName == "equals" || simpleMethodName == "hashCode")) {
+            // Native Object method fallback — when no bytecode exists for an Object method,
+            // dispatch to native C++ implementations. This handles both direct Object method
+            // calls and cases where overload resolution selects the Object signature (e.g.,
+            // equals(null) resolving to equals(Object) when the class only has equals(SpecificType))
+            auto computeHashCode = [&instance]() -> int64_t {
+                std::string contentHash = instance->getContentHash();
+                std::hash<std::string> hasher;
+                return static_cast<int64_t>(hasher(contentHash) & 0x7FFFFFFF);
+            };
+
+            if (simpleMethodName == "toString") {
+                context.stackManager->push(classDef->getName() + "@" + std::to_string(computeHashCode()));
+                return;
+            }
+            if (simpleMethodName == "equals") {
+                if (argCount >= 1) {
+                    const auto& otherVal = args[0];
+                    if (auto* otherPtr = std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&otherVal)) {
+                        if (*otherPtr) {
+                            context.stackManager->push(instance->contentEquals(**otherPtr));
+                        } else {
+                            context.stackManager->push(false);
+                        }
+                    } else {
+                        context.stackManager->push(false);
+                    }
+                } else {
+                    context.stackManager->push(false);
+                }
+                return;
+            }
+            if (simpleMethodName == "hashCode") {
+                context.stackManager->push(computeHashCode());
+                return;
+            }
+        }
         if (!funcMetadata) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "Method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");

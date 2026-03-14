@@ -53,6 +53,12 @@ class Constructor extends AccessibleObject {
         return Modifier::isProtected(this.getModifiers());
     }
 
+    // Create a new instance using this constructor with arguments
+    // Returns the newly created object as Object
+    public function newInstance(Object[] args): Object {
+        return __reflect_newInstanceWithArgs(this._classHandle, this._nativeHandle, args, this._accessible);
+    }
+
     // Get the class handle (for direct native invocation calls)
     public function getClassHandle(): int {
         return this._classHandle;

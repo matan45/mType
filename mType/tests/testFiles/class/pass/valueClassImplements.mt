@@ -1,9 +1,7 @@
-// Test: Value class implementing an interface
-// Expected: Pass - value classes can implement interfaces
+// Test: Value class with Object methods
+// Expected: Pass - value classes inherit Object methods implicitly
 
-import * from "../../lib/Object.mt";
-
-value class Color implements Object<Color> {
+value class Color {
     private int r;
     private int g;
     private int b;

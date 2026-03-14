@@ -3,7 +3,7 @@ import * from "../../lib/primitives/String.mt";
 
 // Intersection type constraints (T extends A & B)
 interface Printable {
-    function toString(): String;
+    function toString(): string;
 }
 
 interface Comparable {
@@ -17,8 +17,8 @@ class Element implements Printable, Comparable {
         value = v;
     }
 
-    public function toString(): String {
-        return new String("Element: " + value);
+    public function toString(): string {
+        return "Element: " + value;
     }
 
     public function compareTo(Comparable other): Int {
@@ -34,7 +34,7 @@ class Container<T extends Printable> {
     }
 
     public function print(): void {
-        print(item.toString().toString());
+        print(item.toString());
     }
 }
 

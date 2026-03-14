@@ -2470,12 +2470,6 @@
     <None Include="tests\testFiles\class\error\superConstructorWrongArgs.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
-    <None Include="tests\testFiles\class\error\superFieldAssignNoParent.mt">
-      <Filter>testFiles\class\error</Filter>
-    </None>
-    <None Include="tests\testFiles\class\error\superFieldNoParent.mt">
-      <Filter>testFiles\class\error</Filter>
-    </None>
     <None Include="tests\testFiles\class\error\superFieldPrivate.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
@@ -2794,6 +2788,12 @@
     <None Include="tests\testFiles\class\pass\genericInheritance.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\implicitObjectInheritance.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\implicitObjectInheritance.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\jitArrayOps.expected">
       <Filter>testFiles\class\pass</Filter>
     </None>
@@ -2942,6 +2942,12 @@
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\nullHandling.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\objectAsType.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\objectAsType.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\objectAssignment.expected">
@@ -7858,9 +7864,6 @@
     <None Include="tests\testFiles\overloading\error\ambiguousCall.mt">
       <Filter>testFiles\overloading\error</Filter>
     </None>
-    <None Include="tests\testFiles\overloading\error\incomparableCandidates.mt">
-      <Filter>testFiles\overloading\error</Filter>
-    </None>
     <None Include="tests\testFiles\overloading\error\noMatchingOverload.mt">
       <Filter>testFiles\overloading\error</Filter>
     </None>
@@ -8126,6 +8129,12 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\modifierUtilities.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\objectReflectionApi.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\objectReflectionApi.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\reflectionInvocation.expected">

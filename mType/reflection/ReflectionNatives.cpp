@@ -220,7 +220,9 @@ namespace reflection
         auto parentClass = classDef->getParentClass();
         if (!parentClass)
         {
-            return 0; // No parent class
+            // Only Object has no parent — all other classes are linked to Object
+            // by ClassRegistrar::linkSingleClass during compilation
+            return 0;
         }
 
         int64_t parentHandle = registry.getOrCreateClassHandle(parentClass);

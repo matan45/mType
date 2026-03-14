@@ -1,0 +1,15 @@
+=== Superclass ===
+Animal superclass: Object
+Dog superclass: Animal
+Dog grandparent: Object
+Object has no superclass
+=== isAssignableFrom ===
+Object assignable from Animal: true
+Object assignable from Dog: true
+=== Methods ===
+Found speak: speak
+Found toString: toString
+=== Fields ===
+Found field: name
+Field type: String
+All object reflection API tests passed

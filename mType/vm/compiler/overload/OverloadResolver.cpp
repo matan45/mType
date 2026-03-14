@@ -257,6 +257,10 @@ namespace vm::compiler::overload
                     return ConversionType::INHERITANCE;
                 }
             }
+            // Untyped object (no className) is assignable to Object (the root class)
+            if (!from.isClass() && !from.isInterface() && to.isClass() && to.getClassName() == "Object") {
+                return ConversionType::INHERITANCE;
+            }
         }
 
         // Null can be assigned to any object or array

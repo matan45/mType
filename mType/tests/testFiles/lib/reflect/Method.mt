@@ -90,6 +90,12 @@ class Method extends AccessibleObject {
         return __reflect_isMethodGeneric(this._nativeHandle);
     }
 
+    // Invoke this method on an object instance with arguments
+    // Returns the method's return value as Object
+    public function invoke(Object instance, Object[] args): Object {
+        return __reflect_invokeMethod(instance, this._nativeHandle, args, this._accessible);
+    }
+
     // Get the class handle (for direct native invocation calls)
     public function getClassHandle(): int {
         return this._classHandle;

@@ -15,8 +15,8 @@ class Container<T> {
         return value;
     }
 
-    public function toString(): String {
-        return new String("Container(" + value + ")");
+    public function toString(): string {
+        return "Container(" + value + ")";
     }
 }
 

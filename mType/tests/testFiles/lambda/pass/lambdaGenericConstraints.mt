@@ -3,7 +3,7 @@ import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
 interface Printable {
-    function toString() : String;
+    function toString() : string;
 }
 
 interface Function<T, R> {
@@ -17,8 +17,8 @@ class Document implements Printable {
         this.title = t;
     }
 
-    public function toString() : String {
-        return new String("Document: " + this.title.getValue());
+    public function toString() : string {
+        return "Document: " + this.title.getValue();
     }
 }
 
@@ -29,15 +29,15 @@ class Report implements Printable {
         this.pages = p;
     }
 
-    public function toString() : String {
-        return new String("Report with " + pages + " pages");
+    public function toString() : string {
+        return "Report with " + pages + " pages";
     }
 }
 
 print("=== Generic Constraints Test ===");
 
 // Lambda accepting anything that implements Printable
-Function<Printable, String> printer = p -> new String("Printing: " + p.toString().getValue());
+Function<Printable, String> printer = p -> new String("Printing: " + p.toString());
 
 Document doc = new Document(new String("Manual"));
 Report rep = new Report(50);
@@ -47,8 +47,8 @@ print(printer.apply(rep).getValue());
 
 // Lambda with constrained type processing
 Function<Printable, Int> lengthCounter = p -> {
-    String s = p.toString();
-    return new Int(s.length());
+    string s = p.toString();
+    return new Int(strLength(s));
 };
 
 print("Doc string length: " + lengthCounter.apply(doc).getValue());

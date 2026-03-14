@@ -60,6 +60,17 @@ class Field extends AccessibleObject {
         return Modifier::isProtected(this.getModifiers());
     }
 
+    // Get field value from an object instance
+    // Returns the field value as Object (works for any type)
+    public function get(Object instance): Object {
+        return __reflect_getFieldValue(instance, this._nativeHandle, this._accessible);
+    }
+
+    // Set field value on an object instance
+    public function set(Object instance, Object value): void {
+        __reflect_setFieldValue(instance, this._nativeHandle, value, this._accessible);
+    }
+
     // Get field value as int from instance (pass instance native handle, or 0 for static)
     public function getInt(int instanceHandle): int {
         if (this.isStatic()) {

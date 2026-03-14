@@ -2,6 +2,7 @@
 #include "../runtimeTypes/global/ArrayOperationsNative.hpp"
 #include "../reflection/ReflectionNatives.hpp"
 #include "../json/JsonNatives.hpp"
+#include "registry/builtin/ObjectClassBootstrap.hpp"
 
 namespace environment
 {
@@ -68,6 +69,9 @@ namespace environment
         );
 
         environment->initialize();
+
+        // Register built-in Object base class (must be first — all classes implicitly inherit from Object)
+        registry::builtin::registerObjectClass(environment);
 
         // Register SIMD-accelerated array operations
         runtimeTypes::global::ArrayOperationsNative::registerAll(environment);
