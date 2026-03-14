@@ -11,5 +11,5 @@ Found speak: speak
 Found toString: toString
 === Fields ===
 Found field: name
-Field type: string
+Field type: String
 All object reflection API tests passed

@@ -3,7 +3,7 @@ import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
 interface Printable {
-    function toString() : String;
+    function toString() : string;
 }
 
 interface Function<T, R> {
@@ -17,8 +17,8 @@ class Document implements Printable {
         this.title = t;
     }
 
-    public function toString() : String {
-        return new String("Document: " + this.title.getValue());
+    public function toString() : string {
+        return "Document: " + this.title.getValue();
     }
 }
 
@@ -29,8 +29,8 @@ class Report implements Printable {
         this.pages = p;
     }
 
-    public function toString() : String {
-        return new String("Report with " + pages + " pages");
+    public function toString() : string {
+        return "Report with " + pages + " pages";
     }
 }
 

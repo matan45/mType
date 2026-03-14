@@ -3,7 +3,7 @@ import * from "../../lib/primitives/String.mt";
 
 // Type inference with bounded constraints
 interface Printable {
-    function toString(): String;
+    function toString(): string;
 }
 
 class Item implements Printable {
@@ -13,7 +13,7 @@ class Item implements Printable {
         name = n;
     }
 
-    public function toString(): String {
+    public function toString(): string {
         return name;
     }
 }
