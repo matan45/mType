@@ -1,0 +1,18 @@
+=== Int ===
+a equals b: true
+a equals c: false
+a toString: 42
+a hashCode nonzero: true
+=== Bool ===
+t equals t2: true
+t equals f: false
+t toString: true
+=== Float ===
+x equals y: true
+x equals z: false
+x toString: 3.140000
+=== String ===
+s1 equals s2: true
+s1 equals s3: false
+s1 toString: hello
+s1 hashCode nonzero: true
