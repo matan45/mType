@@ -6856,6 +6856,12 @@
     <None Include="tests\testFiles\interpolation\error\unterminatedString.mt">
       <Filter>testFiles\interpolation\error</Filter>
     </None>
+    <None Include="tests\testFiles\interpolation\pass\arrayInterpolation.expected">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\arrayInterpolation.mt">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\interpolation\pass\basicInterpolation.expected">
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
@@ -6896,6 +6902,12 @@
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
     <None Include="tests\testFiles\interpolation\pass\noInterpolation.mt">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\objectInterpolation.expected">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\objectInterpolation.mt">
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
     <None Include="tests\testFiles\interpolation\pass\typeConversion.expected">

@@ -23,6 +23,10 @@ namespace tests::testSuite
                                   passPath + "escapedBraces.mt");
         addOutputVerificationTest("Empty Segments",
                                   passPath + "emptySegments.mt");
+        addOutputVerificationTest("Array Interpolation",
+                                  passPath + "arrayInterpolation.mt");
+        addOutputVerificationTest("Object Interpolation",
+                                  passPath + "objectInterpolation.mt");
 
         // Error tests
         addTestFromFile("Empty Interpolation Error",

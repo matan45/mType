@@ -6,7 +6,7 @@ class Person {
         this.name = name;
     }
 
-    public string getName(): string {
+    public function getName(): string {
         return this.name;
     }
 }

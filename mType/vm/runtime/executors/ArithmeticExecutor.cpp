@@ -3,6 +3,9 @@
 #include "../../../value/StringPool.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/NativeArray.hpp"
+#include "../../../value/FlatMultiArray.hpp"
+#include "../../../value/SparseMultiArray.hpp"
 #include <sstream>
 
 namespace vm::runtime
@@ -219,14 +222,20 @@ namespace vm::runtime
             }
         }
 
-        // String concatenation (includes objects, which should call toString())
+        // String concatenation (includes objects and arrays, which should call toString())
         if (op == OpCode::ADD &&
             (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
              std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right) ||
              std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left) ||
              std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right) ||
              std::holds_alternative<std::shared_ptr<value::ValueObject>>(left) ||
-             std::holds_alternative<std::shared_ptr<value::ValueObject>>(right))) {
+             std::holds_alternative<std::shared_ptr<value::ValueObject>>(right) ||
+             std::holds_alternative<std::shared_ptr<value::NativeArray>>(left) ||
+             std::holds_alternative<std::shared_ptr<value::NativeArray>>(right) ||
+             std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(left) ||
+             std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(right) ||
+             std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(left) ||
+             std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(right))) {
 
             // Convert both operands to string using valueToString
             std::string leftStr = valueToString(left);
@@ -321,6 +330,36 @@ namespace vm::runtime
                 }
                 return "<" + obj->getClassName() + ">";
             }
+        }
+        // Handle NativeArray
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(val)) {
+            auto arr = std::get<std::shared_ptr<value::NativeArray>>(val);
+            if (arr) {
+                std::string result = "[";
+                for (size_t i = 0; i < arr->size(); ++i) {
+                    if (i > 0) result += ", ";
+                    result += valueToString(arr->get(i));
+                }
+                result += "]";
+                return result;
+            }
+            return "[]";
+        }
+        // Handle FlatMultiArray (multi-dimensional)
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(val)) {
+            auto arr = std::get<std::shared_ptr<value::FlatMultiArray>>(val);
+            if (arr) {
+                return "<array>";
+            }
+            return "[]";
+        }
+        // Handle SparseMultiArray
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(val)) {
+            auto arr = std::get<std::shared_ptr<value::SparseMultiArray>>(val);
+            if (arr) {
+                return "<array>";
+            }
+            return "[]";
         }
         return "<object>";
     }
