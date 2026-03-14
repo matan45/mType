@@ -239,6 +239,8 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Implicit Object Inheritance",
                         passPath + "implicitObjectInheritance.mt");
+        addOutputVerificationTest("Object As Type",
+                        passPath + "objectAsType.mt");
 
         // === OBJECT LIFECYCLE TESTS ===
         // Tests for object methods and lifecycle management

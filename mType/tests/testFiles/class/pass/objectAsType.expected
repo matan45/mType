@@ -1,0 +1,11 @@
+obj1: Animal:Cat
+obj2: Dog:Rex(Shepherd)
+Item: Animal:Cat
+Item: Dog:Rex(Shepherd)
+result1: Dog:Buddy(Labrador)
+result2: Animal:Kitty
+items[0]: Animal:Fish
+items[1]: Dog:Max(Poodle)
+items[2]: Animal:Bird
+a equals b: true
+a has hashCode: true
