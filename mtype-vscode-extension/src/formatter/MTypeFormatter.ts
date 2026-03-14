@@ -140,18 +140,22 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
                     inString = true;
                     stringChar = c;
                 }
-            } else if (inString && inInterpolation) {
-                if (c === '{' && prevChar !== '\\') {
+            } else if (inString && inInterpolation && prevChar !== '\\') {
+                // Track brace depth inside interpolated string
+                if (c === '{') {
+                    if (interpBraceDepth > 0 && c === char) {
+                        count++; // nested brace inside expression
+                    }
                     interpBraceDepth++;
-                } else if (c === '}' && prevChar !== '\\') {
+                } else if (c === '}') {
                     interpBraceDepth--;
+                    if (interpBraceDepth > 0 && c === char) {
+                        count++; // nested brace inside expression
+                    }
+                } else if (interpBraceDepth > 0 && c === char) {
+                    count++; // other chars inside expression
                 }
             } else if (!inString && c === char) {
-                count++;
-            }
-
-            // Count braces inside interpolation expressions
-            if (inInterpolation && interpBraceDepth > 0 && c === char) {
                 count++;
             }
         }

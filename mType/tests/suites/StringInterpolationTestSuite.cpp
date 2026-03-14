@@ -27,6 +27,14 @@ namespace tests::testSuite
                                   passPath + "arrayInterpolation.mt");
         addOutputVerificationTest("Object Interpolation",
                                   passPath + "objectInterpolation.mt");
+        addOutputVerificationTest("Whitespace Interpolation",
+                                  passPath + "whitespaceInterpolation.mt");
+        addOutputVerificationTest("Inner String Literal",
+                                  passPath + "innerStringLiteral.mt");
+        addOutputVerificationTest("STRING_BUILD Optimization",
+                                  passPath + "stringBuildOptimization.mt");
+        addOutputVerificationTest("Multi-Dimensional Array Interpolation",
+                                  passPath + "multiDimArrayInterpolation.mt");
 
         // Error tests
         addTestFromFile("Empty Interpolation Error",

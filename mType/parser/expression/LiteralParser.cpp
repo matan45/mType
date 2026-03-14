@@ -217,13 +217,18 @@ namespace parser::expression
         }
     }
 
+    // Desugars to left-deep BinaryExpNode(PLUS) chain.
+    // The compiler detects chains of 3+ segments and emits STRING_BUILD opcode
+    // for O(n) concatenation instead of O(n^2) chained ADD.
     std::unique_ptr<ASTNode> LiteralParser::parseInterpolatedStringExpression()
     {
         SourceLocation location = tokenStream.current().location;
+        bool hasConcatenation = false;
 
         // Helper to create a PLUS binary node
         auto makePlus = [&](std::unique_ptr<ASTNode> left, std::unique_ptr<ASTNode> right)
         {
+            hasConcatenation = true;
             return std::make_unique<BinaryExpNode>(
                 std::move(left), TokenType::PLUS, std::move(right), location);
         };
@@ -285,14 +290,9 @@ namespace parser::expression
                               std::make_unique<StringNode>(endText, location));
         }
 
-        // If result is just an expression (e.g. $"{x}"), wrap it in a string concatenation
-        // to ensure the result is always a string type
-        // We do this by prepending an empty string: "" + expr
-        // But only if result is not already a BinaryExpNode (meaning no concatenation happened)
-        // Actually, we should ensure string type. If the result is a single expression,
-        // concatenate with an empty string to force toString conversion.
-        if (beginText.empty() && endText.empty() &&
-            dynamic_cast<BinaryExpNode*>(result.get()) == nullptr)
+        // If result is a bare expression (e.g. $"{x}") with no string segments,
+        // prepend empty string to force toString conversion via ADD
+        if (!hasConcatenation)
         {
             result = makePlus(std::make_unique<StringNode>("", location), std::move(result));
         }

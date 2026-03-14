@@ -156,7 +156,7 @@ namespace lexer
         if (interpolationState.active && current == '}' && interpolationState.braceDepth == 0)
         {
             advance(); // consume '}'
-            return scanInterpolatedSegment(TokenType::INTERP_STRING_MIDDLE);
+            return scanInterpolatedSegment();
         }
 
         // Track nested braces inside interpolation expressions
@@ -324,6 +324,24 @@ namespace lexer
         return std::string_view(input.data() + start, pos - start);
     }
 
+    bool Lexer::processEscapeChar(char escaped, std::string& out)
+    {
+        switch (escaped)
+        {
+        case 'n': out += '\n'; return true;
+        case 't': out += '\t'; return true;
+        case 'r': out += '\r'; return true;
+        case '\\': out += '\\'; return true;
+        case '"': out += '"'; return true;
+        case '{': out += '{'; return true;
+        case '}': out += '}'; return true;
+        default:
+            out += '\\';
+            out += escaped;
+            return true;
+        }
+    }
+
     std::string Lexer::processEscapeSequences(size_t start, size_t end)
     {
         std::string result;
@@ -334,27 +352,7 @@ namespace lexer
             if (input[pos] == '\\' && pos + 1 < input.length())
             {
                 advance(); // Skip backslash
-                switch (input[pos])
-                {
-                case 'n': result += '\n';
-                    break;
-                case 't': result += '\t';
-                    break;
-                case 'r': result += '\r';
-                    break;
-                case '\\': result += '\\';
-                    break;
-                case '"': result += '"';
-                    break;
-                case '{': result += '{';
-                    break;
-                case '}': result += '}';
-                    break;
-                default:
-                    result += '\\';
-                    result += input[pos];
-                    break;
-                }
+                processEscapeChar(input[pos], result);
             }
             else
             {
@@ -582,20 +580,7 @@ namespace lexer
             if (input[pos] == '\\' && pos + 1 < input.length())
             {
                 advance(); // skip backslash
-                switch (input[pos])
-                {
-                case 'n': text += '\n'; break;
-                case 't': text += '\t'; break;
-                case 'r': text += '\r'; break;
-                case '\\': text += '\\'; break;
-                case '"': text += '"'; break;
-                case '{': text += '{'; break;
-                case '}': text += '}'; break;
-                default:
-                    text += '\\';
-                    text += input[pos];
-                    break;
-                }
+                processEscapeChar(input[pos], text);
                 advance();
                 continue;
             }
@@ -623,7 +608,7 @@ namespace lexer
                      value::StringPool::getInstance().intern(text), location};
     }
 
-    Token Lexer::scanInterpolatedSegment(TokenType beginOrMiddle)
+    Token Lexer::scanInterpolatedSegment()
     {
         errors::SourceLocation location = locationTracker->getCurrentLocation();
         std::string text;
@@ -633,20 +618,7 @@ namespace lexer
             if (input[pos] == '\\' && pos + 1 < input.length())
             {
                 advance(); // skip backslash
-                switch (input[pos])
-                {
-                case 'n': text += '\n'; break;
-                case 't': text += '\t'; break;
-                case 'r': text += '\r'; break;
-                case '\\': text += '\\'; break;
-                case '"': text += '"'; break;
-                case '{': text += '{'; break;
-                case '}': text += '}'; break;
-                default:
-                    text += '\\';
-                    text += input[pos];
-                    break;
-                }
+                processEscapeChar(input[pos], text);
                 advance();
                 continue;
             }

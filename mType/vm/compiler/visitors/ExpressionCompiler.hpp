@@ -45,5 +45,9 @@ namespace vm::compiler::visitors
                                        ast::ASTNode* left,
                                        ast::ASTNode* right,
                                        token::TokenType op);
+
+        // String interpolation optimization: flatten PLUS chains into STRING_BUILD
+        bool tryEmitStringBuild(ast::BinaryOpNode* node);
+        void flattenStringConcat(ast::ASTNode* node, std::vector<ast::ASTNode*>& segments);
     };
 }

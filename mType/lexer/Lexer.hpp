@@ -92,8 +92,9 @@ namespace lexer
         std::string_view parseIdentifier();
         std::string parseStringLiteral();
         std::string processEscapeSequences(size_t start, size_t end);
+        bool processEscapeChar(char escaped, std::string& out);
         Token parseInterpolatedString();
-        Token scanInterpolatedSegment(TokenType beginOrMiddle);
+        Token scanInterpolatedSegment();
         void skipWhitespaceAndComments();
 
         // Movement and positioning

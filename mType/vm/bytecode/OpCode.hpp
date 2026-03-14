@@ -219,8 +219,11 @@ namespace vm::bytecode
         NEW_VALUE_OBJECT,       // Create new value object (operand: class index, arg count)
         OBJECT_TO_VALUE,        // Convert ObjectInstance on stack top to ValueObject
 
-        // === Reserved for Future Use (157-255) ===
-        // 100 opcodes reserved for future extensions
+        // === String Operations (160) ===
+        STRING_BUILD,           // Build string from N segments on stack (operand: count)
+
+        // === Reserved for Future Use (161-255) ===
+        // Opcodes reserved for future extensions
     };
 
     /**
@@ -403,6 +406,8 @@ namespace vm::bytecode
 
             case OpCode::NEW_VALUE_OBJECT: return "NEW_VALUE_OBJECT";
             case OpCode::OBJECT_TO_VALUE: return "OBJECT_TO_VALUE";
+
+            case OpCode::STRING_BUILD: return "STRING_BUILD";
 
             default: return "UNKNOWN";
         }

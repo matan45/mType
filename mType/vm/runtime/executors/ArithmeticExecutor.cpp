@@ -141,6 +141,25 @@ namespace vm::runtime
         context.stackManager->push(l / r);
     }
 
+    void ArithmeticExecutor::handleStringBuild(size_t count) {
+        // Collect all segments from the stack (they are in reverse order)
+        std::vector<value::Value> segments(count);
+        for (size_t i = count; i > 0; --i) {
+            segments[i - 1] = context.stackManager->pop();
+        }
+
+        // Pre-calculate total size estimate for reservation
+        std::string result;
+        result.reserve(count * 8); // rough estimate
+
+        for (const auto& seg : segments) {
+            result += valueToString(seg);
+        }
+
+        auto& pool = value::StringPool::getInstance();
+        context.stackManager->push(pool.intern(std::move(result)));
+    }
+
     value::Value ArithmeticExecutor::performBinaryOp(const value::Value& left, const value::Value& right, bytecode::OpCode op) {
         using OpCode = bytecode::OpCode;
 
@@ -345,22 +364,62 @@ namespace vm::runtime
             }
             return "[]";
         }
-        // Handle FlatMultiArray (multi-dimensional)
         if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(val)) {
             auto arr = std::get<std::shared_ptr<value::FlatMultiArray>>(val);
             if (arr) {
-                return "<array>";
+                std::string result;
+                formatMultiArraySlice(*arr, arr->getDimensions(), 0, 0, result);
+                return result;
             }
             return "[]";
         }
-        // Handle SparseMultiArray
         if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(val)) {
             auto arr = std::get<std::shared_ptr<value::SparseMultiArray>>(val);
             if (arr) {
-                return "<array>";
+                std::string result;
+                formatMultiArraySlice(*arr, arr->getDimensions(), 0, 0, result);
+                return result;
             }
             return "[]";
         }
         return "<object>";
     }
+
+    template<typename ArrayType>
+    void ArithmeticExecutor::formatMultiArraySlice(
+        const ArrayType& arr, const std::vector<size_t>& dims,
+        size_t dimIndex, size_t offset, std::string& out) const
+    {
+        if (dimIndex >= dims.size()) {
+            return;
+        }
+
+        out += '[';
+        size_t currentDimSize = dims[dimIndex];
+
+        if (dimIndex == dims.size() - 1) {
+            // Innermost dimension: format individual elements
+            for (size_t i = 0; i < currentDimSize; ++i) {
+                if (i > 0) out += ", ";
+                out += valueToString(arr.get(offset + i));
+            }
+        } else {
+            // Calculate stride for this dimension
+            size_t stride = 1;
+            for (size_t d = dimIndex + 1; d < dims.size(); ++d) {
+                stride *= dims[d];
+            }
+            for (size_t i = 0; i < currentDimSize; ++i) {
+                if (i > 0) out += ", ";
+                formatMultiArraySlice(arr, dims, dimIndex + 1, offset + i * stride, out);
+            }
+        }
+        out += ']';
+    }
+
+    // Explicit template instantiations
+    template void ArithmeticExecutor::formatMultiArraySlice<value::FlatMultiArray>(
+        const value::FlatMultiArray&, const std::vector<size_t>&, size_t, size_t, std::string&) const;
+    template void ArithmeticExecutor::formatMultiArraySlice<value::SparseMultiArray>(
+        const value::SparseMultiArray&, const std::vector<size_t>&, size_t, size_t, std::string&) const;
 }
