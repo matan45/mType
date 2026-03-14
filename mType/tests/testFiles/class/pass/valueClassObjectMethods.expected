@@ -10,7 +10,7 @@ t toString: true
 === Float ===
 x equals y: true
 x equals z: false
-x toString: 3.140000
+x toString: 3.14
 === String ===
 s1 equals s2: true
 s1 equals s3: false
