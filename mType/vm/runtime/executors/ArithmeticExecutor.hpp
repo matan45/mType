@@ -27,6 +27,9 @@ namespace vm::runtime
         void handleInc();
         void handleDec();
 
+        // String building (pops count segments, concatenates, pushes result)
+        void handleStringBuild(size_t count);
+
         // Optimized integer operations
         void handleAddInt();
         void handleSubInt();
@@ -41,5 +44,10 @@ namespace vm::runtime
 
         // Helper to convert value to string (for string concatenation)
         std::string valueToString(const value::Value& val) const;
+
+        // Helper to format multi-dimensional array slice recursively
+        template<typename ArrayType>
+        void formatMultiArraySlice(const ArrayType& arr, const std::vector<size_t>& dims,
+                                   size_t dimIndex, size_t offset, std::string& out) const;
     };
 }

@@ -64,6 +64,9 @@ namespace token
         THROW, // throw keyword for exception handling
         FINALLY, // finally keyword for exception handling
         VALUE, // value keyword for value classes
+        INTERP_STRING_BEGIN,   // $" prefix + text up to first {
+        INTERP_STRING_MIDDLE,  // text between } and next {
+        INTERP_STRING_END,     // text from last } to closing "
         END // End of input
     };
 }

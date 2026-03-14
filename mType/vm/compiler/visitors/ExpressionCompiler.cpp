@@ -27,6 +27,12 @@ namespace vm::compiler::visitors
 
     value::Value ExpressionCompiler::compileBinaryOp(ast::BinaryOpNode* node)
     {
+        // Try STRING_BUILD optimization for interpolation chains (3+ segments)
+        if (tryEmitStringBuild(node))
+        {
+            return std::monostate{};
+        }
+
         auto leftType = ctx.typeInference.inferExpressionType(node->getLeft());
         auto rightType = ctx.typeInference.inferExpressionType(node->getRight());
         auto leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
@@ -693,5 +699,64 @@ namespace vm::compiler::visitors
         }
 
         return true;  // Operator overloading was applied
+    }
+
+    void ExpressionCompiler::flattenStringConcat(ast::ASTNode* node,
+                                                  std::vector<ast::ASTNode*>& segments)
+    {
+        auto* binNode = dynamic_cast<ast::BinaryOpNode*>(node);
+        if (binNode && binNode->getOperator() == token::TokenType::PLUS)
+        {
+            // Check if either side is a string → this is a string concat chain
+            auto leftType = ctx.typeInference.inferExpressionType(binNode->getLeft());
+            auto rightType = ctx.typeInference.inferExpressionType(binNode->getRight());
+            bool isStringConcat = (leftType == value::ValueType::STRING ||
+                                   rightType == value::ValueType::STRING);
+
+            if (isStringConcat)
+            {
+                flattenStringConcat(binNode->getLeft(), segments);
+                flattenStringConcat(binNode->getRight(), segments);
+                return;
+            }
+        }
+        segments.push_back(node);
+    }
+
+    bool ExpressionCompiler::tryEmitStringBuild(ast::BinaryOpNode* node)
+    {
+        if (node->getOperator() != token::TokenType::PLUS)
+        {
+            return false;
+        }
+
+        // Check if this is a string concatenation
+        auto leftType = ctx.typeInference.inferExpressionType(node->getLeft());
+        auto rightType = ctx.typeInference.inferExpressionType(node->getRight());
+        if (leftType != value::ValueType::STRING && rightType != value::ValueType::STRING)
+        {
+            return false;
+        }
+
+        // Flatten the concatenation chain
+        std::vector<ast::ASTNode*> segments;
+        flattenStringConcat(node, segments);
+
+        // Only use STRING_BUILD for 3+ segments (2 segments is just one ADD)
+        if (segments.size() < 3)
+        {
+            return false;
+        }
+
+        // Compile each segment and push onto stack
+        for (auto* seg : segments)
+        {
+            seg->accept(ctx.visitor);
+        }
+
+        // Emit STRING_BUILD with segment count
+        ctx.emitter.emitWithLocation(bytecode::OpCode::STRING_BUILD,
+                                     static_cast<uint64_t>(segments.size()), node);
+        return true;
     }
 }

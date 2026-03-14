@@ -1187,6 +1187,9 @@ namespace vm::runtime
             }
             arithmeticExecutor->handleAdd();
             break;
+        case OpCode::STRING_BUILD:
+            arithmeticExecutor->handleStringBuild(static_cast<size_t>(instr.operands[0]));
+            break;
         case OpCode::SUB:
             if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
                 typeFeedbackCollector->recordBinaryOp(instructionPointer,

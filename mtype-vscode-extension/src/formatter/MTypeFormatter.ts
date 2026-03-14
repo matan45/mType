@@ -115,18 +115,45 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
         let count = 0;
         let inString = false;
         let stringChar = '';
+        let inInterpolation = false;
+        let interpBraceDepth = 0;
 
         for (let i = 0; i < line.length; i++) {
             const c = line[i];
             const prevChar = i > 0 ? line[i - 1] : '';
 
+            // Handle interpolated string start: $"
+            if (!inString && c === '$' && i + 1 < line.length && line[i + 1] === '"') {
+                inString = true;
+                inInterpolation = true;
+                stringChar = '"';
+                i++; // skip the "
+                continue;
+            }
+
             if ((c === '"' || c === "'") && prevChar !== '\\') {
-                if (inString && c === stringChar) {
+                if (inString && c === stringChar && (!inInterpolation || interpBraceDepth === 0)) {
                     inString = false;
+                    inInterpolation = false;
                     stringChar = '';
                 } else if (!inString) {
                     inString = true;
                     stringChar = c;
+                }
+            } else if (inString && inInterpolation && prevChar !== '\\') {
+                // Track brace depth inside interpolated string
+                if (c === '{') {
+                    if (interpBraceDepth > 0 && c === char) {
+                        count++; // nested brace inside expression
+                    }
+                    interpBraceDepth++;
+                } else if (c === '}') {
+                    interpBraceDepth--;
+                    if (interpBraceDepth > 0 && c === char) {
+                        count++; // nested brace inside expression
+                    }
+                } else if (interpBraceDepth > 0 && c === char) {
+                    count++; // other chars inside expression
                 }
             } else if (!inString && c === char) {
                 count++;
@@ -148,21 +175,42 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
     private isInsideString(line: string, position: number): boolean {
         let inString = false;
         let stringChar = '';
+        let inInterpolation = false;
+        let interpBraceDepth = 0;
 
         for (let i = 0; i < position; i++) {
             const char = line[i];
-            if ((char === '"' || char === "'") && (i === 0 || line[i - 1] !== '\\')) {
-                if (inString && char === stringChar) {
+            const prevChar = i > 0 ? line[i - 1] : '';
+
+            // Handle interpolated string start: $"
+            if (!inString && char === '$' && i + 1 < line.length && line[i + 1] === '"') {
+                inString = true;
+                inInterpolation = true;
+                stringChar = '"';
+                i++; // skip the "
+                continue;
+            }
+
+            if ((char === '"' || char === "'") && prevChar !== '\\') {
+                if (inString && char === stringChar && (!inInterpolation || interpBraceDepth === 0)) {
                     inString = false;
+                    inInterpolation = false;
                     stringChar = '';
                 } else if (!inString) {
                     inString = true;
                     stringChar = char;
                 }
+            } else if (inString && inInterpolation) {
+                if (char === '{' && prevChar !== '\\') {
+                    interpBraceDepth++;
+                } else if (char === '}' && prevChar !== '\\') {
+                    interpBraceDepth--;
+                }
             }
         }
 
-        return inString;
+        // Inside string text but not inside an interpolation expression
+        return inString && (!inInterpolation || interpBraceDepth === 0);
     }
 
     private organizeImportLines(lines: string[]): string[] {
@@ -285,28 +333,52 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
         let inString = false;
         let stringChar = '';
         let currentString = '';
+        let inInterpolation = false;
+        let interpBraceDepth = 0;
 
         for (let i = 0; i < line.length; i++) {
             const char = line[i];
             const prevChar = i > 0 ? line[i - 1] : '';
 
+            // Handle interpolated string start: $"
+            if (!inString && char === '$' && i + 1 < line.length && line[i + 1] === '"') {
+                inString = true;
+                inInterpolation = true;
+                interpBraceDepth = 0;
+                stringChar = '"';
+                currentString = '$"';
+                i++; // skip the "
+                continue;
+            }
+
             if ((char === '"' || char === "'") && prevChar !== '\\') {
-                if (inString && char === stringChar) {
+                if (inString && char === stringChar && (!inInterpolation || interpBraceDepth === 0)) {
                     // End of string
                     currentString += char;
                     strings.push(currentString);
                     code += `__STRING_${strings.length - 1}__`;
                     currentString = '';
                     inString = false;
+                    inInterpolation = false;
                     stringChar = '';
                 } else if (!inString) {
-                    // Start of string
+                    // Start of regular string
                     inString = true;
                     stringChar = char;
                     currentString = char;
+                } else {
+                    currentString += char;
                 }
             } else if (inString) {
                 currentString += char;
+                // Track brace depth inside interpolated strings
+                if (inInterpolation) {
+                    if (char === '{' && prevChar !== '\\') {
+                        interpBraceDepth++;
+                    } else if (char === '}' && prevChar !== '\\') {
+                        interpBraceDepth--;
+                    }
+                }
             } else {
                 code += char;
             }

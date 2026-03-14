@@ -3,6 +3,9 @@
 #include "../../../value/StringPool.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/NativeArray.hpp"
+#include "../../../value/FlatMultiArray.hpp"
+#include "../../../value/SparseMultiArray.hpp"
 #include <sstream>
 
 namespace vm::runtime
@@ -138,6 +141,25 @@ namespace vm::runtime
         context.stackManager->push(l / r);
     }
 
+    void ArithmeticExecutor::handleStringBuild(size_t count) {
+        // Collect all segments from the stack (they are in reverse order)
+        std::vector<value::Value> segments(count);
+        for (size_t i = count; i > 0; --i) {
+            segments[i - 1] = context.stackManager->pop();
+        }
+
+        // Pre-calculate total size estimate for reservation
+        std::string result;
+        result.reserve(count * 8); // rough estimate
+
+        for (const auto& seg : segments) {
+            result += valueToString(seg);
+        }
+
+        auto& pool = value::StringPool::getInstance();
+        context.stackManager->push(pool.intern(std::move(result)));
+    }
+
     value::Value ArithmeticExecutor::performBinaryOp(const value::Value& left, const value::Value& right, bytecode::OpCode op) {
         using OpCode = bytecode::OpCode;
 
@@ -219,14 +241,20 @@ namespace vm::runtime
             }
         }
 
-        // String concatenation (includes objects, which should call toString())
+        // String concatenation (includes objects and arrays, which should call toString())
         if (op == OpCode::ADD &&
             (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
              std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right) ||
              std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left) ||
              std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right) ||
              std::holds_alternative<std::shared_ptr<value::ValueObject>>(left) ||
-             std::holds_alternative<std::shared_ptr<value::ValueObject>>(right))) {
+             std::holds_alternative<std::shared_ptr<value::ValueObject>>(right) ||
+             std::holds_alternative<std::shared_ptr<value::NativeArray>>(left) ||
+             std::holds_alternative<std::shared_ptr<value::NativeArray>>(right) ||
+             std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(left) ||
+             std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(right) ||
+             std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(left) ||
+             std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(right))) {
 
             // Convert both operands to string using valueToString
             std::string leftStr = valueToString(left);
@@ -322,6 +350,76 @@ namespace vm::runtime
                 return "<" + obj->getClassName() + ">";
             }
         }
+        // Handle NativeArray
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(val)) {
+            auto arr = std::get<std::shared_ptr<value::NativeArray>>(val);
+            if (arr) {
+                std::string result = "[";
+                for (size_t i = 0; i < arr->size(); ++i) {
+                    if (i > 0) result += ", ";
+                    result += valueToString(arr->get(i));
+                }
+                result += "]";
+                return result;
+            }
+            return "[]";
+        }
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(val)) {
+            auto arr = std::get<std::shared_ptr<value::FlatMultiArray>>(val);
+            if (arr) {
+                std::string result;
+                formatMultiArraySlice(*arr, arr->getDimensions(), 0, 0, result);
+                return result;
+            }
+            return "[]";
+        }
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(val)) {
+            auto arr = std::get<std::shared_ptr<value::SparseMultiArray>>(val);
+            if (arr) {
+                std::string result;
+                formatMultiArraySlice(*arr, arr->getDimensions(), 0, 0, result);
+                return result;
+            }
+            return "[]";
+        }
         return "<object>";
     }
+
+    template<typename ArrayType>
+    void ArithmeticExecutor::formatMultiArraySlice(
+        const ArrayType& arr, const std::vector<size_t>& dims,
+        size_t dimIndex, size_t offset, std::string& out) const
+    {
+        if (dimIndex >= dims.size()) {
+            return;
+        }
+
+        out += '[';
+        size_t currentDimSize = dims[dimIndex];
+
+        if (dimIndex == dims.size() - 1) {
+            // Innermost dimension: format individual elements
+            for (size_t i = 0; i < currentDimSize; ++i) {
+                if (i > 0) out += ", ";
+                out += valueToString(arr.get(offset + i));
+            }
+        } else {
+            // Calculate stride for this dimension
+            size_t stride = 1;
+            for (size_t d = dimIndex + 1; d < dims.size(); ++d) {
+                stride *= dims[d];
+            }
+            for (size_t i = 0; i < currentDimSize; ++i) {
+                if (i > 0) out += ", ";
+                formatMultiArraySlice(arr, dims, dimIndex + 1, offset + i * stride, out);
+            }
+        }
+        out += ']';
+    }
+
+    // Explicit template instantiations
+    template void ArithmeticExecutor::formatMultiArraySlice<value::FlatMultiArray>(
+        const value::FlatMultiArray&, const std::vector<size_t>&, size_t, size_t, std::string&) const;
+    template void ArithmeticExecutor::formatMultiArraySlice<value::SparseMultiArray>(
+        const value::SparseMultiArray&, const std::vector<size_t>&, size_t, size_t, std::string&) const;
 }

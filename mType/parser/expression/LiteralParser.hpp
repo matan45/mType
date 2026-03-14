@@ -28,6 +28,7 @@ namespace parser::expression
         std::unique_ptr<ASTNode> parseIdentifier();
         std::unique_ptr<ASTNode> parseParenthesizedExpression();
         std::unique_ptr<ASTNode> parseSuperExpression();
+        std::unique_ptr<ASTNode> parseInterpolatedStringExpression();
 
         bool isLiteralToken(TokenType type) const noexcept;
     };

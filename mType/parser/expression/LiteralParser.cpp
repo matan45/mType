@@ -11,6 +11,7 @@
 #include "../../ast/nodes/classes/SuperMethodCallNode.hpp"
 #include "../../ast/nodes/classes/SuperMemberAccessNode.hpp"
 #include "../../errors/ParseException.hpp"
+#include "../../ast/nodes/expressions/BinaryExpNode.hpp"
 
 namespace parser::expression
 {
@@ -60,6 +61,8 @@ namespace parser::expression
             return parseArrayLiteral();
         case TokenType::SUPER:
             return parseSuperExpression();
+        case TokenType::INTERP_STRING_BEGIN:
+            return parseInterpolatedStringExpression();
         default:
             throw ParseException("Unexpected token in primary expression", tokenStream.current().location);
         }
@@ -214,6 +217,89 @@ namespace parser::expression
         }
     }
 
+    // Desugars to left-deep BinaryExpNode(PLUS) chain.
+    // The compiler detects chains of 3+ segments and emits STRING_BUILD opcode
+    // for O(n) concatenation instead of O(n^2) chained ADD.
+    std::unique_ptr<ASTNode> LiteralParser::parseInterpolatedStringExpression()
+    {
+        SourceLocation location = tokenStream.current().location;
+        bool hasConcatenation = false;
+
+        // Helper to create a PLUS binary node
+        auto makePlus = [&](std::unique_ptr<ASTNode> left, std::unique_ptr<ASTNode> right)
+        {
+            hasConcatenation = true;
+            return std::make_unique<BinaryExpNode>(
+                std::move(left), TokenType::PLUS, std::move(right), location);
+        };
+
+        // Start with the BEGIN segment text
+        std::string beginText = tokenStream.current().stringValue.getString();
+        tokenStream.advance(); // consume INTERP_STRING_BEGIN
+
+        std::unique_ptr<ASTNode> result;
+
+        // Only create a StringNode for non-empty begin text
+        if (!beginText.empty())
+        {
+            result = std::make_unique<StringNode>(beginText, location);
+        }
+
+        // Parse the first expression
+        auto expr = context.parseExpression();
+
+        if (result)
+        {
+            result = makePlus(std::move(result), std::move(expr));
+        }
+        else
+        {
+            result = std::move(expr);
+        }
+
+        // Loop on MIDDLE segments
+        while (tokenStream.check(TokenType::INTERP_STRING_MIDDLE))
+        {
+            std::string middleText = tokenStream.current().stringValue.getString();
+            tokenStream.advance(); // consume INTERP_STRING_MIDDLE
+
+            if (!middleText.empty())
+            {
+                result = makePlus(std::move(result),
+                                  std::make_unique<StringNode>(middleText, location));
+            }
+
+            // Parse the next expression
+            expr = context.parseExpression();
+            result = makePlus(std::move(result), std::move(expr));
+        }
+
+        // Expect INTERP_STRING_END
+        if (!tokenStream.check(TokenType::INTERP_STRING_END))
+        {
+            throw ParseException("Expected end of interpolated string",
+                                 tokenStream.current().location);
+        }
+
+        std::string endText = tokenStream.current().stringValue.getString();
+        tokenStream.advance(); // consume INTERP_STRING_END
+
+        if (!endText.empty())
+        {
+            result = makePlus(std::move(result),
+                              std::make_unique<StringNode>(endText, location));
+        }
+
+        // If result is a bare expression (e.g. $"{x}") with no string segments,
+        // prepend empty string to force toString conversion via ADD
+        if (!hasConcatenation)
+        {
+            result = makePlus(std::make_unique<StringNode>("", location), std::move(result));
+        }
+
+        return result;
+    }
+
     bool LiteralParser::isLiteralToken(TokenType type) const noexcept
     {
         switch (type)
@@ -229,6 +315,7 @@ namespace parser::expression
         case TokenType::NEW:
         case TokenType::LBRACKET:
         case TokenType::SUPER:
+        case TokenType::INTERP_STRING_BEGIN:
             return true;
         default:
             return false;
