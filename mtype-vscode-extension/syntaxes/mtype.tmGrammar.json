@@ -59,6 +59,24 @@
     "strings": {
       "patterns": [
         {
+          "name": "string.interpolated.mtype",
+          "begin": "\\$\"",
+          "end": "\"",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.mtype" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.mtype" } },
+          "patterns": [
+            { "name": "constant.character.escape.mtype", "match": "\\\\." },
+            {
+              "name": "meta.interpolation.mtype",
+              "begin": "\\{",
+              "end": "\\}",
+              "beginCaptures": { "0": { "name": "punctuation.section.interpolation.begin.mtype" } },
+              "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.mtype" } },
+              "patterns": [ { "include": "$self" } ]
+            }
+          ]
+        },
+        {
           "name": "string.quoted.double.mtype",
           "begin": "\"",
           "end": "\"",

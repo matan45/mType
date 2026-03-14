@@ -253,21 +253,44 @@ export class MTypeSignatureHelpProvider implements vscode.SignatureHelpProvider 
         let inString = false;
         let stringChar = '';
 
+        let inInterpolation = false;
+        let interpBraceDepth = 0;
+
         for (let i = 0; i < textAfterParen.length; i++) {
             const char = textAfterParen[i];
+            const prevChar = i > 0 ? textAfterParen[i - 1] : '';
+
+            // Handle interpolated string start: $"
+            if (!inString && char === '$' && i + 1 < textAfterParen.length && textAfterParen[i + 1] === '"') {
+                inString = true;
+                inInterpolation = true;
+                interpBraceDepth = 0;
+                stringChar = '"';
+                i++; // skip the "
+                continue;
+            }
 
             // Handle string literals
-            if ((char === '"' || char === "'") && (i === 0 || textAfterParen[i - 1] !== '\\')) {
+            if ((char === '"' || char === "'") && prevChar !== '\\') {
                 if (!inString) {
                     inString = true;
                     stringChar = char;
-                } else if (char === stringChar) {
+                } else if (char === stringChar && (!inInterpolation || interpBraceDepth === 0)) {
                     inString = false;
+                    inInterpolation = false;
                 }
                 continue;
             }
 
             if (inString) {
+                // Track brace depth inside interpolated strings
+                if (inInterpolation) {
+                    if (char === '{' && prevChar !== '\\') {
+                        interpBraceDepth++;
+                    } else if (char === '}' && prevChar !== '\\') {
+                        interpBraceDepth--;
+                    }
+                }
                 continue;
             }
 

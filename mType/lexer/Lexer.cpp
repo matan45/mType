@@ -4,6 +4,7 @@
 #include <limits>
 #include "TokenFactory.hpp"
 #include "../errors/ParseException.hpp"
+#include "../value/StringPool.hpp"
 
 namespace lexer
 {
@@ -151,6 +152,23 @@ namespace lexer
         char current = input[pos];
         errors::SourceLocation location = locationTracker->getCurrentLocation();
 
+        // Interpolation state: when expression ends with }, resume string scanning
+        if (interpolationState.active && current == '}' && interpolationState.braceDepth == 0)
+        {
+            advance(); // consume '}'
+            return scanInterpolatedSegment(TokenType::INTERP_STRING_MIDDLE);
+        }
+
+        // Track nested braces inside interpolation expressions
+        if (interpolationState.active && current == '{')
+        {
+            interpolationState.braceDepth++;
+        }
+        if (interpolationState.active && current == '}' && interpolationState.braceDepth > 0)
+        {
+            interpolationState.braceDepth--;
+        }
+
         // Numbers
         if (std::isdigit(current))
         {
@@ -171,6 +189,12 @@ namespace lexer
             {
                 return TokenFactory::createKeywordToken(tokenType, identifier, location);
             }
+        }
+
+        // Interpolated string literals: $"..."
+        if (current == '$' && pos + 1 < input.length() && input[pos + 1] == '"')
+        {
+            return parseInterpolatedString();
         }
 
         // String literals
@@ -197,7 +221,8 @@ namespace lexer
             pos,
             locationTracker->getCurrentLine(),
             locationTracker->getCurrentColumn(),
-            bracketBalancer->copyStack()
+            bracketBalancer->copyStack(),
+            interpolationState
         };
     }
 
@@ -205,6 +230,7 @@ namespace lexer
     {
         pos = state.pos;
         locationTracker->setPosition(state.line, state.column);
+        interpolationState = state.interpState;
 
         // Restore bracket balancer stack
         bracketBalancer->clear();
@@ -319,6 +345,10 @@ namespace lexer
                 case '\\': result += '\\';
                     break;
                 case '"': result += '"';
+                    break;
+                case '{': result += '{';
+                    break;
+                case '}': result += '}';
                     break;
                 default:
                     result += '\\';
@@ -538,6 +568,112 @@ namespace lexer
         return TokenFactory::createEndToken(location);
     }
 
+
+    Token Lexer::parseInterpolatedString()
+    {
+        errors::SourceLocation location = locationTracker->getCurrentLocation();
+        advance(); // skip '$'
+        advance(); // skip '"'
+
+        // Scan text until '{' or '"'
+        std::string text;
+        while (pos < input.length() && input[pos] != '"' && input[pos] != '{')
+        {
+            if (input[pos] == '\\' && pos + 1 < input.length())
+            {
+                advance(); // skip backslash
+                switch (input[pos])
+                {
+                case 'n': text += '\n'; break;
+                case 't': text += '\t'; break;
+                case 'r': text += '\r'; break;
+                case '\\': text += '\\'; break;
+                case '"': text += '"'; break;
+                case '{': text += '{'; break;
+                case '}': text += '}'; break;
+                default:
+                    text += '\\';
+                    text += input[pos];
+                    break;
+                }
+                advance();
+                continue;
+            }
+            text += input[pos];
+            advance();
+        }
+
+        if (pos >= input.length())
+        {
+            throwError("Unterminated interpolated string literal");
+        }
+
+        if (input[pos] == '"')
+        {
+            // No interpolation found, treat as regular string
+            advance(); // skip closing '"'
+            return TokenFactory::createStringToken(text, location);
+        }
+
+        // Found '{' - emit INTERP_STRING_BEGIN
+        advance(); // skip '{'
+        interpolationState.active = true;
+        interpolationState.braceDepth = 0;
+        return Token{TokenType::INTERP_STRING_BEGIN, 0.0, 0,
+                     value::StringPool::getInstance().intern(text), location};
+    }
+
+    Token Lexer::scanInterpolatedSegment(TokenType beginOrMiddle)
+    {
+        errors::SourceLocation location = locationTracker->getCurrentLocation();
+        std::string text;
+
+        while (pos < input.length() && input[pos] != '"' && input[pos] != '{')
+        {
+            if (input[pos] == '\\' && pos + 1 < input.length())
+            {
+                advance(); // skip backslash
+                switch (input[pos])
+                {
+                case 'n': text += '\n'; break;
+                case 't': text += '\t'; break;
+                case 'r': text += '\r'; break;
+                case '\\': text += '\\'; break;
+                case '"': text += '"'; break;
+                case '{': text += '{'; break;
+                case '}': text += '}'; break;
+                default:
+                    text += '\\';
+                    text += input[pos];
+                    break;
+                }
+                advance();
+                continue;
+            }
+            text += input[pos];
+            advance();
+        }
+
+        if (pos >= input.length())
+        {
+            throwError("Unterminated interpolated string literal");
+        }
+
+        if (input[pos] == '{')
+        {
+            // More expressions to come
+            advance(); // skip '{'
+            interpolationState.braceDepth = 0;
+            return Token{TokenType::INTERP_STRING_MIDDLE, 0.0, 0,
+                         value::StringPool::getInstance().intern(text), location};
+        }
+
+        // Found closing '"'
+        advance(); // skip '"'
+        interpolationState.active = false;
+        return Token{TokenType::INTERP_STRING_END, 0.0, 0,
+                     value::StringPool::getInstance().intern(text), location};
+    }
 
     void Lexer::advanceMultiple(size_t count)
     {

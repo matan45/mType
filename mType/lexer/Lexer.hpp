@@ -26,6 +26,14 @@ namespace lexer
         std::unique_ptr<SourceLocationTracker> locationTracker;
         std::unique_ptr<BracketBalancer> bracketBalancer;
 
+        // Interpolation state tracking
+        struct InterpolationState
+        {
+            bool active = false;    // currently inside interpolated string
+            int braceDepth = 0;     // tracks nested {} inside expressions
+        };
+        InterpolationState interpolationState;
+
         // Helper struct for state save/restore during peeking operations
         struct LexerState
         {
@@ -33,6 +41,7 @@ namespace lexer
             int line;
             int column;
             std::stack<char> balanceStack;
+            InterpolationState interpState;
         };
 
         // Note: Deep lookahead implemented via position save/restore
@@ -83,6 +92,8 @@ namespace lexer
         std::string_view parseIdentifier();
         std::string parseStringLiteral();
         std::string processEscapeSequences(size_t start, size_t end);
+        Token parseInterpolatedString();
+        Token scanInterpolatedSegment(TokenType beginOrMiddle);
         void skipWhitespaceAndComments();
 
         // Movement and positioning
