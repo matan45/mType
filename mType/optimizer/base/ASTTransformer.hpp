@@ -55,6 +55,9 @@ namespace optimizer::base {
 		virtual std::unique_ptr<ast::ASTNode> visitSwitchNode(ast::SwitchNode* node);
 		virtual std::unique_ptr<ast::ASTNode> visitCaseNode(ast::CaseNode* node);
 		virtual std::unique_ptr<ast::ASTNode> visitDefaultCaseNode(ast::DefaultCaseNode* node);
+		virtual std::unique_ptr<ast::ASTNode> visitMatchNode(ast::MatchNode* node);
+		virtual std::unique_ptr<ast::ASTNode> visitMatchCaseNode(ast::MatchCaseNode* node);
+		virtual std::unique_ptr<ast::ASTNode> visitMatchDefaultNode(ast::MatchDefaultNode* node);
 		virtual std::unique_ptr<ast::ASTNode> visitAssignmentNode(ast::AssignmentNode* node);
 		virtual std::unique_ptr<ast::ASTNode> visitMemberAssignmentNode(ast::MemberAssignmentNode* node);
 		virtual std::unique_ptr<ast::ASTNode> visitIndexAssignmentNode(ast::IndexAssignmentNode* node);

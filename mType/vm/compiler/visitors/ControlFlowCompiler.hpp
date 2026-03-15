@@ -14,6 +14,9 @@
 #include "../../../ast/nodes/statements/TryNode.hpp"
 #include "../../../ast/nodes/statements/CatchNode.hpp"
 #include "../../../ast/nodes/statements/ThrowNode.hpp"
+#include "../../../ast/nodes/statements/MatchNode.hpp"
+#include "../../../ast/nodes/statements/MatchCaseNode.hpp"
+#include "../../../ast/nodes/statements/MatchDefaultNode.hpp"
 #include "../../../value/ValueType.hpp"
 #include <memory>
 
@@ -38,6 +41,7 @@ namespace vm::compiler::visitors
         value::Value compileSwitch(ast::SwitchNode* node);
         value::Value compileCase(ast::CaseNode* node);
         value::Value compileDefaultCase(ast::DefaultCaseNode* node);
+        value::Value compileMatch(ast::MatchNode* node);
         value::Value compileBreak(ast::BreakNode* node);
         value::Value compileContinue(ast::ContinueNode* node);
 

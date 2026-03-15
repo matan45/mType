@@ -373,6 +373,7 @@ namespace parser::utilities
         {
         case TokenType::IF:
         case TokenType::SWITCH:
+        case TokenType::MATCH:
         case TokenType::BREAK:
         case TokenType::CONTINUE:
         case TokenType::RETURN:

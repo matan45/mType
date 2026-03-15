@@ -173,6 +173,15 @@
     <ClInclude Include="ast\nodes\statements\IndexAssignmentNode.hpp">
       <Filter>nodes\statements</Filter>
     </ClInclude>
+    <ClInclude Include="ast\nodes\statements\MatchCaseNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\MatchDefaultNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\statements\MatchNode.hpp">
+      <Filter>nodes\statements</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\statements\MemberAssignmentNode.hpp">
       <Filter>nodes\statements</Filter>
     </ClInclude>
@@ -344,6 +353,15 @@
       <Filter>nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\IndexAssignmentNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\MatchCaseNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\MatchDefaultNode.cpp">
+      <Filter>nodes\statements</Filter>
+    </ClCompile>
+    <ClCompile Include="ast\nodes\statements\MatchNode.cpp">
       <Filter>nodes\statements</Filter>
     </ClCompile>
     <ClCompile Include="ast\nodes\statements\MemberAssignmentNode.cpp">

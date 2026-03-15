@@ -52,6 +52,22 @@ namespace tests::testSuite
         addOutputVerificationTest("Switch Edge Case Values",
                         passPath + "switchEdgeCaseValues.mt");
 
+        // Match statement (pattern matching) tests
+        addOutputVerificationTest("Match Value Pattern",
+                        passPath + "matchValuePattern_pass.mt");
+        addOutputVerificationTest("Match Type Pattern",
+                        passPath + "matchTypePattern_pass.mt");
+        addOutputVerificationTest("Match Null Pattern",
+                        passPath + "matchNullPattern_pass.mt");
+        addOutputVerificationTest("Match Default Case",
+                        passPath + "matchDefaultCase_pass.mt");
+        addOutputVerificationTest("Match Block Body",
+                        passPath + "matchBlockBody_pass.mt");
+        addOutputVerificationTest("Match Nested",
+                        passPath + "matchNested_pass.mt");
+        addOutputVerificationTest("Match Type Inheritance",
+                        passPath + "matchTypeInheritance_pass.mt");
+
         // Ternary operator tests
         addOutputVerificationTest("Ternary Operator Basic",
                         passPath + "ternaryOperatorBasic.mt");

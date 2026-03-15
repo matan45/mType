@@ -80,6 +80,9 @@ namespace vm::compiler
         value::Value visitSwitchNode(ast::SwitchNode* node) override;
         value::Value visitCaseNode(ast::CaseNode* node) override;
         value::Value visitDefaultCaseNode(ast::DefaultCaseNode* node) override;
+        value::Value visitMatchNode(ast::MatchNode* node) override;
+        value::Value visitMatchCaseNode(ast::MatchCaseNode* node) override;
+        value::Value visitMatchDefaultNode(ast::MatchDefaultNode* node) override;
 
         // Functions
         value::Value visitFunctionNode(ast::FunctionNode* node) override;

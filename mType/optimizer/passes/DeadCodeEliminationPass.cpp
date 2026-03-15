@@ -38,6 +38,9 @@
 #include "../../ast/nodes/expressions/LambdaNode.hpp"
 #include "../../ast/nodes/statements/ContinueNode.hpp"
 #include "../../ast/nodes/statements/ThrowNode.hpp"
+#include "../../ast/nodes/statements/MatchNode.hpp"
+#include "../../ast/nodes/statements/MatchCaseNode.hpp"
+#include "../../ast/nodes/statements/MatchDefaultNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../ast/nodes/classes/ClassNode.hpp"
@@ -650,6 +653,70 @@ namespace optimizer::passes
 
 
         return nullptr; // Use clone()
+    }
+
+    std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitMatchNode(MatchNode* node)
+    {
+        auto transformedExpr = transformChild(node->getExpression());
+
+        bool anyCaseTransformed = false;
+        std::vector<std::unique_ptr<ast::ASTNode>> transformedCases;
+        transformedCases.reserve(node->getCases().size());
+
+        for (const auto& caseNode : node->getCases())
+        {
+            auto transformed = transformChild(caseNode.get());
+            if (transformed)
+            {
+                anyCaseTransformed = true;
+                transformedCases.push_back(std::move(transformed));
+            }
+            else
+            {
+                transformedCases.push_back(caseNode->clone());
+            }
+        }
+
+        if (transformedExpr || anyCaseTransformed)
+        {
+            auto newMatch = std::make_unique<MatchNode>(
+                transformedExpr ? std::move(transformedExpr) : node->getExpression()->clone(),
+                node->getLocation()
+            );
+            for (auto& caseNode : transformedCases)
+            {
+                newMatch->addCase(std::move(caseNode));
+            }
+            return newMatch;
+        }
+
+        return nullptr;
+    }
+
+    std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitMatchCaseNode(MatchCaseNode* node)
+    {
+        auto transformedBody = transformChild(node->getBody());
+        if (transformedBody)
+        {
+            auto cloned = node->clone();
+            auto* matchCase = dynamic_cast<MatchCaseNode*>(cloned.get());
+            if (matchCase)
+            {
+                matchCase->setBody(std::move(transformedBody));
+            }
+            return cloned;
+        }
+        return nullptr;
+    }
+
+    std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitMatchDefaultNode(MatchDefaultNode* node)
+    {
+        auto transformedBody = transformChild(node->getBody());
+        if (transformedBody)
+        {
+            return std::make_unique<MatchDefaultNode>(std::move(transformedBody), node->getLocation());
+        }
+        return nullptr;
     }
 
     std::unique_ptr<ast::ASTNode> DeadCodeEliminationPass::DCETransformer::visitTryNode(TryNode* node)

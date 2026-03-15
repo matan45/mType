@@ -92,6 +92,7 @@ namespace lexer
         {"false", TokenType::FALSE},
         {"switch", TokenType::SWITCH},
         {"case", TokenType::CASE},
+        {"match", TokenType::MATCH},
         {"interface", TokenType::INTERFACE},
         {"implements", TokenType::IMPLEMENTS},
         {"extends", TokenType::EXTENDS},
