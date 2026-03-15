@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include "ValueType.hpp"
+#include "PrimitiveTypeTag.hpp"
 
 namespace runtimeTypes::klass
 {
@@ -34,6 +35,7 @@ namespace value
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDefinition;
         std::vector<Value> fields; // Indexed by field position (no hash map)
         std::unordered_map<std::string, std::string> genericTypeBindings; // Only for generic value classes
+        PrimitiveTypeTag primitiveTag_ = PrimitiveTypeTag::NONE;
 
     public:
         explicit ValueObject(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef);
@@ -66,6 +68,9 @@ namespace value
 
         // Structural equality
         bool equals(const ValueObject& other) const;
+
+        // Primitive type tag for fast type checking (avoids string comparisons)
+        PrimitiveTypeTag getPrimitiveTag() const { return primitiveTag_; }
 
         // Field count
         size_t getFieldCount() const;

@@ -16,6 +16,7 @@ namespace vm::runtime
 
         // Stack operations
         void push(const value::Value& value);
+        void push(value::Value&& value);
         value::Value pop();
         value::Value peek(size_t offset = 0) const;
         void popN(size_t count);

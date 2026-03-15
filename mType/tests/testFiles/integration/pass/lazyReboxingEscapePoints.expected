@@ -1,0 +1,7 @@
+toString: 50
+equals 50: true
+compareTo 30: 1
+stored: 40
+concat: 63
+float (3.5+2.0)*4.0 = 22
+float toString: 1.75

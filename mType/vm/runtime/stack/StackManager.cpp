@@ -11,9 +11,13 @@ namespace vm::runtime
         stack.push_back(value);
     }
 
+    void StackManager::push(value::Value&& value) {
+        stack.push_back(std::move(value));
+    }
+
     value::Value StackManager::pop() {
         checkStackUnderflow(1);
-        value::Value val = stack.back();
+        value::Value val = std::move(stack.back());
         stack.pop_back();
         return val;
     }

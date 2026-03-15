@@ -12,13 +12,15 @@ namespace value
             classDefinition->buildFieldIndexMap();
             size_t fieldCount = classDefinition->getIndexedFieldCount();
             fields.resize(fieldCount, nullptr_t{});
+            primitiveTag_ = classNameToPrimitiveTag(classDefinition->getClassName());
         }
     }
 
     ValueObject::ValueObject(const ValueObject& other)
         : classDefinition(other.classDefinition),
           fields(other.fields),
-          genericTypeBindings(other.genericTypeBindings)
+          genericTypeBindings(other.genericTypeBindings),
+          primitiveTag_(other.primitiveTag_)
     {
     }
 
@@ -29,6 +31,7 @@ namespace value
             classDefinition = other.classDefinition;
             fields = other.fields;
             genericTypeBindings = other.genericTypeBindings;
+            primitiveTag_ = other.primitiveTag_;
         }
         return *this;
     }

@@ -1,0 +1,7 @@
+raw+raw: 10
+20 > 15: true
+15 < 20: true
+8+3+9 = 20
+8+3 == 11: true
+8-3 compareTo 5: 0
+loop count: 5
