@@ -12,7 +12,50 @@
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/NativeArray.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/IntegerCache.hpp"
 #include <algorithm>
+
+namespace {
+    // Auto-box a raw primitive into its corresponding ValueObject at escape points
+    // This supports lazy re-boxing: INVOKE_INT_* opcodes push raw primitives,
+    // and boxing only happens when the value needs to be used as an object.
+    value::Value autoBoxPrimitive(const value::Value& val, const std::shared_ptr<environment::Environment>& env) {
+        if (std::holds_alternative<int64_t>(val)) {
+            auto classRegistry = env->getClassRegistry();
+            if (classRegistry) {
+                auto intClass = classRegistry->findClass("Int");
+                if (intClass && intClass->isValueClass()) {
+                    auto valueObj = std::make_shared<value::ValueObject>(intClass);
+                    valueObj->setFieldByIndex(0, val);
+                    return value::Value(valueObj);
+                }
+            }
+        }
+        else if (std::holds_alternative<double>(val)) {
+            auto classRegistry = env->getClassRegistry();
+            if (classRegistry) {
+                auto floatClass = classRegistry->findClass("Float");
+                if (floatClass && floatClass->isValueClass()) {
+                    auto valueObj = std::make_shared<value::ValueObject>(floatClass);
+                    valueObj->setFieldByIndex(0, val);
+                    return value::Value(valueObj);
+                }
+            }
+        }
+        else if (std::holds_alternative<bool>(val)) {
+            auto classRegistry = env->getClassRegistry();
+            if (classRegistry) {
+                auto boolClass = classRegistry->findClass("Bool");
+                if (boolClass && boolClass->isValueClass()) {
+                    auto valueObj = std::make_shared<value::ValueObject>(boolClass);
+                    valueObj->setFieldByIndex(0, val);
+                    return value::Value(valueObj);
+                }
+            }
+        }
+        return val;
+    }
+}
 namespace vm::runtime
 {
     ObjectExecutor::ObjectExecutor(ExecutionContext& ctx)
@@ -69,6 +112,13 @@ namespace vm::runtime
 
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
         value::Value objectValue = context.stackManager->pop();
+
+        // Auto-box raw primitives at escape point (lazy re-boxing support)
+        if (std::holds_alternative<int64_t>(objectValue) ||
+            std::holds_alternative<double>(objectValue) ||
+            std::holds_alternative<bool>(objectValue)) {
+            objectValue = autoBoxPrimitive(objectValue, context.environment);
+        }
 
         if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER)) {
             if (std::holds_alternative<std::nullptr_t>(objectValue)) {
@@ -655,6 +705,13 @@ namespace vm::runtime
 
         // Pop object and check for null (skip if compiler guarantees non-null)
         value::Value objectValue = context.stackManager->pop();
+
+        // Auto-box raw primitives at escape point (lazy re-boxing support)
+        if (std::holds_alternative<int64_t>(objectValue) ||
+            std::holds_alternative<double>(objectValue) ||
+            std::holds_alternative<bool>(objectValue)) {
+            objectValue = autoBoxPrimitive(objectValue, context.environment);
+        }
 
         if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER)) {
             if (std::holds_alternative<std::nullptr_t>(objectValue)) {

@@ -12,20 +12,16 @@ namespace vm::runtime
     value::Value ComparisonExecutor::unboxIfNeeded(const value::Value& val) const {
         // Auto-unbox boxed types (Int, Float, Bool, String) to primitives
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
-            std::string typeName = obj->getTypeName();
-            if (typeName == "Int" || typeName == "Float" ||
-                typeName == "Bool" || typeName == "String") {
+            auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
                 return obj->getFieldValue("value");
             }
         }
         // Auto-unbox value object boxed types (when boxing classes become value classes)
         if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
-            const std::string& typeName = obj->getClassName();
-            if (typeName == "Int" || typeName == "Float" ||
-                typeName == "Bool" || typeName == "String") {
-                return obj->getFieldValue("value");
+            auto& obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
+                return obj->getFieldByIndex(0);
             }
         }
         return val;

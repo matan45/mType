@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <string>
 #include "../../value/ValueType.hpp"
+#include "../../value/PrimitiveTypeTag.hpp"
 #include "ClassDefinition.hpp"
 #include "FieldDefinition.hpp"
 
@@ -35,6 +36,9 @@ namespace runtimeTypes::klass
         std::vector<Value> fieldVector;
         bool fieldVectorInitialized = false;
 
+        // Fast primitive type tag (avoids string comparisons in hot paths)
+        value::PrimitiveTypeTag primitiveTag_ = value::PrimitiveTypeTag::NONE;
+
     public :
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef)
             : classDefinition(classDef)
@@ -42,6 +46,7 @@ namespace runtimeTypes::klass
             // PERFORMANCE: Pre-size field map to avoid rehashing during field initialization
             if (classDef) {
                 fieldValues.reserve(classDef->getTotalFieldCount());
+                primitiveTag_ = value::classNameToPrimitiveTag(classDef->getName());
             }
         }
 
@@ -53,6 +58,7 @@ namespace runtimeTypes::klass
             // PERFORMANCE: Pre-size field map to avoid rehashing during field initialization
             if (classDef) {
                 fieldValues.reserve(classDef->getTotalFieldCount());
+                primitiveTag_ = value::classNameToPrimitiveTag(classDef->getName());
             }
         }
 
@@ -89,6 +95,9 @@ namespace runtimeTypes::klass
         const Value& getFieldByIndex(size_t index) const;
         void setFieldByIndex(size_t index, const Value& value);
         bool hasFieldVector() const { return fieldVectorInitialized; }
+
+        // Fast primitive type tag (avoids string comparisons in hot paths)
+        value::PrimitiveTypeTag getPrimitiveTag() const { return primitiveTag_; }
 
         // Generic type binding management
         void setGenericTypeBinding(const std::string& parameter, const std::string& concreteType);

@@ -168,36 +168,28 @@ namespace vm::runtime
         value::Value unboxedRight = right;
 
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left);
-            std::string typeName = obj->getTypeName();
-            if (typeName == "Int" || typeName == "Float" ||
-                typeName == "Bool" || typeName == "String") {
+            auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left);
+            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
                 unboxedLeft = obj->getFieldValue("value");
             }
         }
         else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(left)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(left);
-            const std::string& typeName = obj->getClassName();
-            if (typeName == "Int" || typeName == "Float" ||
-                typeName == "Bool" || typeName == "String") {
-                unboxedLeft = obj->getFieldValue("value");
+            auto& obj = std::get<std::shared_ptr<value::ValueObject>>(left);
+            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
+                unboxedLeft = obj->getFieldByIndex(0);
             }
         }
 
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right);
-            std::string typeName = obj->getTypeName();
-            if (typeName == "Int" || typeName == "Float" ||
-                typeName == "Bool" || typeName == "String") {
+            auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right);
+            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
                 unboxedRight = obj->getFieldValue("value");
             }
         }
         else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(right)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(right);
-            const std::string& typeName = obj->getClassName();
-            if (typeName == "Int" || typeName == "Float" ||
-                typeName == "Bool" || typeName == "String") {
-                unboxedRight = obj->getFieldValue("value");
+            auto& obj = std::get<std::shared_ptr<value::ValueObject>>(right);
+            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
+                unboxedRight = obj->getFieldByIndex(0);
             }
         }
 

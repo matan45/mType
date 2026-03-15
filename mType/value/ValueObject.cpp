@@ -12,6 +12,7 @@ namespace value
             classDefinition->buildFieldIndexMap();
             size_t fieldCount = classDefinition->getIndexedFieldCount();
             fields.resize(fieldCount, nullptr_t{});
+            primitiveTag_ = classNameToPrimitiveTag(classDefinition->getClassName());
         }
     }
 
