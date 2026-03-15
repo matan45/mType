@@ -109,6 +109,10 @@ namespace services
         value::Value callStaticMethod(const std::string& className, const std::string& methodName,
                                       const std::vector<value::Value>& args = {});
 
+        // Lambda invocation from C++
+        value::Value callLambda(const value::Value& lambda,
+                                const std::vector<value::Value>& args = {});
+
         // Static field access
         value::Value getStaticField(const std::string& className, const std::string& fieldName);
         void setStaticField(const std::string& className, const std::string& fieldName, const value::Value& value);

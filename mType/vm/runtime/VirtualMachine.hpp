@@ -163,6 +163,8 @@ namespace vm::runtime
         value::Value invokeStaticMethod(const std::string& className,
                                         const std::string& methodName,
                                         const std::vector<value::Value>& args);
+        value::Value invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
+                                  const std::vector<value::Value>& args);
 
         // C++ Interop API - Field access
         value::Value getField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,

@@ -12,6 +12,7 @@
 #include "../errors/FinalModificationException.hpp"
 #include "../errors/TypeConversionException.hpp"
 #include "../errors/ReturnException.hpp"
+#include "../errors/RuntimeException.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
 #include <iostream>
@@ -91,6 +92,24 @@ namespace services
         }
 
         throw errors::MethodNotFoundException(methodName, className);
+    }
+
+    value::Value ScriptAPI::callLambda(const value::Value& lambda,
+                                       const std::vector<value::Value>& args)
+    {
+        if (!std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(lambda))
+        {
+            throw errors::ObjectException("Cannot invoke non-lambda value", "", __FUNCTION__);
+        }
+
+        auto lambdaPtr = std::get<std::shared_ptr<vm::runtime::BytecodeLambda>>(lambda);
+
+        if (vm)
+        {
+            return vm->invokeLambda(lambdaPtr, args);
+        }
+
+        throw errors::RuntimeException("Cannot invoke lambda: VM not available");
     }
 
     value::Value ScriptAPI::getStaticField(const std::string& className, const std::string& fieldName)

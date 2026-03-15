@@ -241,6 +241,11 @@ namespace services
         return scriptAPI->callStaticMethod(className, methodName, args);
     }
 
+    Value ScriptInterpreter::callLambda(const Value& lambda, const std::vector<Value>& args)
+    {
+        return scriptAPI->callLambda(lambda, args);
+    }
+
     Value ScriptInterpreter::getStaticField(const std::string& className, const std::string& fieldName)
     {
         return scriptAPI->getStaticField(className, fieldName);

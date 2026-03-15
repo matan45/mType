@@ -6886,10 +6886,22 @@
     <None Include="tests\testFiles\interpolation\pass\expressionInterpolation.mt">
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\interpolation\pass\innerStringLiteral.expected">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\innerStringLiteral.mt">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\interpolation\pass\methodCallInterpolation.expected">
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
     <None Include="tests\testFiles\interpolation\pass\methodCallInterpolation.mt">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\multiDimArrayInterpolation.expected">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\multiDimArrayInterpolation.mt">
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
     <None Include="tests\testFiles\interpolation\pass\multipleInterpolations.expected">
@@ -6910,10 +6922,22 @@
     <None Include="tests\testFiles\interpolation\pass\objectInterpolation.mt">
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\interpolation\pass\stringBuildOptimization.expected">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\stringBuildOptimization.mt">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\interpolation\pass\typeConversion.expected">
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
     <None Include="tests\testFiles\interpolation\pass\typeConversion.mt">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\whitespaceInterpolation.expected">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\whitespaceInterpolation.mt">
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
     <None Include="tests\testFiles\iterator\error\hashMapEntryIteratorEmptyPastEnd.mt">

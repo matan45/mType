@@ -53,6 +53,10 @@ namespace services
                                      const std::string& methodName,
                                      const std::vector<value::Value>& args = {});
 
+        // Lambda invocation from C++
+        value::Value callLambda(const value::Value& lambda,
+                               const std::vector<value::Value>& args = {});
+
         // Instance field access
         value::Value getField(const value::Value& object, const std::string& fieldName);
         void setField(const value::Value& object,
