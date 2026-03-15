@@ -19,7 +19,8 @@ namespace value
     ValueObject::ValueObject(const ValueObject& other)
         : classDefinition(other.classDefinition),
           fields(other.fields),
-          genericTypeBindings(other.genericTypeBindings)
+          genericTypeBindings(other.genericTypeBindings),
+          primitiveTag_(other.primitiveTag_)
     {
     }
 
@@ -30,6 +31,7 @@ namespace value
             classDefinition = other.classDefinition;
             fields = other.fields;
             genericTypeBindings = other.genericTypeBindings;
+            primitiveTag_ = other.primitiveTag_;
         }
         return *this;
     }
