@@ -287,7 +287,7 @@ export class MTypeSemanticTokensProvider implements vscode.DocumentSemanticToken
      */
     private tokenizeKeywords(line: string, lineIndex: number, builder: vscode.SemanticTokensBuilder): void {
         const keywords = [
-            'if', 'else', 'while', 'do', 'for', 'switch', 'case', 'default', 'break', 'continue',
+            'if', 'else', 'while', 'do', 'for', 'switch', 'case', 'default', 'break', 'continue', 'match',
             'return', 'new', 'this', 'super', 'try', 'catch', 'finally', 'throw',
             'import', 'from', 'extends', 'implements', 'abstract', 'final',
             'public', 'private', 'protected', 'static', 'async', 'await'

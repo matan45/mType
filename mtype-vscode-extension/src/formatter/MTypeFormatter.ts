@@ -311,7 +311,7 @@ export class MTypeFormatter implements vscode.DocumentFormattingEditProvider {
                 .replace(/\s*}\s*/g, '}')
 
                 // Parentheses for control structures
-                .replace(/\b(if|while|for|foreach|switch)\s*\(/g, '$1 (')
+                .replace(/\b(if|while|for|foreach|switch|match)\s*\(/g, '$1 (')
 
                 // Function calls and declarations - no space before parentheses
                 .replace(/([a-zA-Z_][a-zA-Z0-9_]*)\s+\(/g, '$1(')
