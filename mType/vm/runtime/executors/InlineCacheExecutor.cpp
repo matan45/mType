@@ -2,6 +2,7 @@
 #include "ObjectExecutor.hpp"
 #include "FunctionExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
+#include "../utils/NullCheckUtils.hpp"
 #include "../validation/AccessValidator.hpp"
 
 namespace vm::runtime
@@ -28,7 +29,7 @@ namespace vm::runtime
         // Null check (skip if compiler guarantees non-null receiver)
         if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            if (std::holds_alternative<std::nullptr_t>(objectValue))
+            if (utils::isNullValue(objectValue))
             {
                 const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
                 utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
@@ -121,7 +122,7 @@ namespace vm::runtime
         // Null check (skip if compiler guarantees non-null receiver)
         if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            if (std::holds_alternative<std::nullptr_t>(objectValue))
+            if (utils::isNullValue(objectValue))
             {
                 utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
                     "Cannot set field '" + fieldName + "' on null object");

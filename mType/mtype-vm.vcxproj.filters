@@ -330,6 +330,9 @@
     <ClInclude Include="vm\runtime\utils\ExceptionHandler.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\utils\NullCheckUtils.hpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\validation\AccessValidator.hpp">
       <Filter>vm\runtime\validation</Filter>
     </ClInclude>

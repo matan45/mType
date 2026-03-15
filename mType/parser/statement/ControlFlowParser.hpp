@@ -18,11 +18,13 @@ namespace parser::statement
 
         std::unique_ptr<ASTNode> parseIfStatement();
         std::unique_ptr<ASTNode> parseSwitchStatement();
+        std::unique_ptr<ASTNode> parseMatchStatement();
         std::unique_ptr<ASTNode> parseBreakStatement();
         std::unique_ptr<ASTNode> parseContinueStatement();
         std::unique_ptr<ASTNode> parseReturnStatement();
 
     private:
         bool isControlFlowToken(TokenType type) const noexcept;
+        bool isTypePatternStart() const;
     };
 }

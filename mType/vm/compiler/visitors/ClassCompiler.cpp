@@ -8,6 +8,7 @@
 #include "../../../errors/AccessViolationException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
+#include "../../../ast/nodes/expressions/CastExpression.hpp"
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/classes/SuperMemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
@@ -1397,6 +1398,15 @@ namespace vm::compiler::visitors
         if (dynamic_cast<ast::NewNode*>(receiverNode))
         {
             return true;
+        }
+
+        // Cast to non-nullable type succeeds or throws
+        if (auto* castExpr = dynamic_cast<ast::nodes::expressions::CastExpression*>(receiverNode))
+        {
+            if (castExpr->getTargetType() && !castExpr->getTargetType()->isNullable())
+            {
+                return true;
+            }
         }
 
         return false;

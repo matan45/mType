@@ -462,6 +462,23 @@ namespace vm::compiler
         return controlFlowCompiler.compileDefaultCase(node);
     }
 
+    value::Value BytecodeCompiler::visitMatchNode(ast::MatchNode* node)
+    {
+        return controlFlowCompiler.compileMatch(node);
+    }
+
+    value::Value BytecodeCompiler::visitMatchCaseNode(ast::MatchCaseNode* node)
+    {
+        // Handled inline by compileMatch
+        return std::monostate{};
+    }
+
+    value::Value BytecodeCompiler::visitMatchDefaultNode(ast::MatchDefaultNode* node)
+    {
+        // Handled inline by compileMatch
+        return std::monostate{};
+    }
+
     value::Value BytecodeCompiler::visitFunctionNode(ast::FunctionNode* node)
     {
         return functionCompiler.compileFunction(node);

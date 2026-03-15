@@ -90,8 +90,8 @@ function runTournament(): string {
     Player player4 = new Player("Rogue");
             
             // Simulate matches with complex control flow
-            for (int match = 0; match < 2; match++) {
-                if (match == 0) {
+            for (int round = 0; round < 2; round++) {
+                if (round == 0) {
                 string result1 = simulateBattle(player1, player2);
                 string result2 = simulateBattle(player3, player4);
                     results = results + "Semi 1: " + result1 + " | Semi 2: " + result2;

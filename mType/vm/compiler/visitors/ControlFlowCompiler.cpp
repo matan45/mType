@@ -481,24 +481,24 @@ namespace vm::compiler::visitors
             // Call GET_ITERATOR to get the iterator object
             ctx.emitter.emitWithLocation(bytecode::OpCode::GET_ITERATOR, node);
 
-            // Set non-null flag if collection is a known non-nullable variable
+            // Determine if collection is a known non-nullable variable
+            bool iteratorNonNull = false;
             if (auto* collectionVar = dynamic_cast<ast::VariableNode*>(node->getCollection()))
             {
                 const std::string& collVarName = collectionVar->getName();
-                bool collNonNull = false;
                 if (ctx.nullNarrowing.isNarrowedNonNull(collVarName))
                 {
-                    collNonNull = true;
+                    iteratorNonNull = true;
                 }
                 else if (ctx.variableTracker.existsInFunction(collVarName))
                 {
-                    collNonNull = !ctx.variableTracker.getLocalNullableByName(collVarName);
+                    iteratorNonNull = !ctx.variableTracker.getLocalNullableByName(collVarName);
                 }
                 else if (ctx.globalRegistry.exists(collVarName))
                 {
-                    collNonNull = !ctx.globalRegistry.isNullable(collVarName);
+                    iteratorNonNull = !ctx.globalRegistry.isNullable(collVarName);
                 }
-                if (collNonNull)
+                if (iteratorNonNull)
                 {
                     ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
                 }
@@ -517,6 +517,10 @@ namespace vm::compiler::visitors
             size_t loopStart = ctx.program.getCurrentOffset();
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_HAS_NEXT, node);
+            if (iteratorNonNull)
+            {
+                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+            }
 
             // Jump if false (no more elements)
             size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
@@ -524,6 +528,10 @@ namespace vm::compiler::visitors
             // Get next element
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_NEXT, node);
+            if (iteratorNonNull)
+            {
+                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+            }
 
             // Store in loop variable
             ctx.variableTracker.declareLocal(varName, varType, "");
@@ -645,6 +653,119 @@ namespace vm::compiler::visitors
     value::Value ControlFlowCompiler::compileDefaultCase(ast::DefaultCaseNode* node)
     {
         // Default case nodes are handled by SwitchNode
+        return std::monostate{};
+    }
+
+    value::Value ControlFlowCompiler::compileMatch(ast::MatchNode* node)
+    {
+        using namespace ast::nodes::statements;
+
+        // 1. Compile match expression and store in a temp local
+        node->getExpression()->accept(ctx.visitor);
+
+        ctx.variableTracker.beginScope();
+        ctx.variableTracker.declareLocal("$match_val", value::ValueType::VOID);
+        ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+        size_t matchSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+        size_t relativeMatchSlot = matchSlot;
+        if (ctx.functionFrameManager.isInFunction()) {
+            relativeMatchSlot = matchSlot - ctx.functionFrameManager.currentFrame().localStartSlot;
+        }
+        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
+            static_cast<uint64_t>(relativeMatchSlot), node);
+
+        const auto& cases = node->getCases();
+        std::vector<size_t> endJumps;
+
+        for (size_t i = 0; i < cases.size(); ++i) {
+            if (auto* matchCase = dynamic_cast<MatchCaseNode*>(cases[i].get())) {
+                PatternKind kind = matchCase->getPatternKind();
+
+                if (kind == PatternKind::TYPE) {
+                    // TYPE PATTERN: case TypeName varName ->
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL,
+                        static_cast<uint64_t>(relativeMatchSlot), matchCase);
+
+                    size_t typeNameIndex = ctx.program.getConstantPool().addString(matchCase->getTypeName());
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF,
+                        static_cast<uint64_t>(typeNameIndex), matchCase);
+
+                    size_t jumpToNext = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
+
+                    // Bind the variable in a new scope
+                    ctx.variableTracker.beginScope();
+                    ctx.variableTracker.declareLocal(
+                        matchCase->getBindingName(),
+                        value::ValueType::OBJECT,
+                        matchCase->getTypeName()
+                    );
+                    ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+                    size_t bindSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+                    size_t relBindSlot = bindSlot;
+                    if (ctx.functionFrameManager.isInFunction()) {
+                        relBindSlot = bindSlot - ctx.functionFrameManager.currentFrame().localStartSlot;
+                    }
+
+                    // Load match value and store into binding variable
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL,
+                        static_cast<uint64_t>(relativeMatchSlot), matchCase);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
+                        static_cast<uint64_t>(relBindSlot), matchCase);
+
+                    // Compile body
+                    matchCase->getBody()->accept(ctx.visitor);
+
+                    ctx.variableTracker.endScope();
+
+                    endJumps.push_back(ctx.emitter.emitJump(bytecode::OpCode::JUMP));
+                    ctx.emitter.patchJump(jumpToNext);
+                }
+                else if (kind == PatternKind::VALUE) {
+                    // VALUE PATTERN: case expr ->
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL,
+                        static_cast<uint64_t>(relativeMatchSlot), matchCase);
+
+                    matchCase->getValueExpression()->accept(ctx.visitor);
+
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, matchCase);
+
+                    size_t jumpToNext = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
+
+                    matchCase->getBody()->accept(ctx.visitor);
+
+                    endJumps.push_back(ctx.emitter.emitJump(bytecode::OpCode::JUMP));
+                    ctx.emitter.patchJump(jumpToNext);
+                }
+                else if (kind == PatternKind::NULL_PATTERN) {
+                    // NULL PATTERN: case null ->
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL,
+                        static_cast<uint64_t>(relativeMatchSlot), matchCase);
+
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, matchCase);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, matchCase);
+
+                    size_t jumpToNext = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
+
+                    matchCase->getBody()->accept(ctx.visitor);
+
+                    endJumps.push_back(ctx.emitter.emitJump(bytecode::OpCode::JUMP));
+                    ctx.emitter.patchJump(jumpToNext);
+                }
+            }
+            else if (auto* defaultCase = dynamic_cast<MatchDefaultNode*>(cases[i].get())) {
+                // DEFAULT: default ->
+                defaultCase->getBody()->accept(ctx.visitor);
+                endJumps.push_back(ctx.emitter.emitJump(bytecode::OpCode::JUMP));
+            }
+        }
+
+        // Patch all end jumps
+        for (size_t jump : endJumps) {
+            ctx.emitter.patchJump(jump);
+        }
+
+        ctx.variableTracker.endScope(); // end match value scope
+
         return std::monostate{};
     }
 

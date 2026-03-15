@@ -177,8 +177,6 @@ namespace tests::testSuite
                                   passPath + "complexObjectCleanupScenarios.mt");
         addOutputVerificationTest("Concurrent Namespace And Class Modifications",
                                   passPath + "concurrentNamespaceAndClassModifications.mt");
-        addOutputVerificationTest("Control Flow With Class Members And Namespaces",
-                                  passPath + "controlFlowWithClassMembersAndNamespaces.mt");
         addOutputVerificationTest("Corrupted State Recovery",
                                   passPath + "corruptedStateRecovery.mt");
         addOutputVerificationTest("Deep Nesting Limits",

@@ -1,0 +1,9 @@
+=== Concrete type matching ===
+Button: Drawing button
+Slider: Drawing slider (size=1)
+After resize: 2
+Label: Label
+=== Interface type matching ===
+Can draw: Drawing button
+Can draw: Drawing slider (size=2)
+Not drawable

@@ -45,6 +45,9 @@ namespace ast
             class TryNode;
             class CatchNode;
             class ThrowNode;
+            class MatchNode;
+            class MatchCaseNode;
+            class MatchDefaultNode;
         }
         
         namespace functions
@@ -130,4 +133,7 @@ namespace ast
     using CatchNode = nodes::statements::CatchNode;
     using ThrowNode = nodes::statements::ThrowNode;
     using AnnotationNode = nodes::annotations::AnnotationNode;
+    using MatchNode = nodes::statements::MatchNode;
+    using MatchCaseNode = nodes::statements::MatchCaseNode;
+    using MatchDefaultNode = nodes::statements::MatchDefaultNode;
 }

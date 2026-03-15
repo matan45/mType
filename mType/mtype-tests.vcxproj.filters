@@ -3616,6 +3616,48 @@
     <None Include="tests\testFiles\controlFlow\pass\loopZeroIterations_pass.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchBlockBody_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchBlockBody_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchDefaultCase_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchDefaultCase_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchNested_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchNested_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchNullPattern_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchNullPattern_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchTypeInheritance_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchTypeInheritance_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchTypePattern_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchTypePattern_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchValuePattern_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchValuePattern_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\mixedParameterTypes.expected">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
@@ -6110,6 +6152,24 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\largeDataStructures.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\lazyReboxingChainedArithmetic.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\lazyReboxingChainedArithmetic.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\lazyReboxingEscapePoints.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\lazyReboxingEscapePoints.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\lazyReboxingMixedOperands.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\lazyReboxingMixedOperands.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\loopsWithClassCreationAndNamespaces.expected">

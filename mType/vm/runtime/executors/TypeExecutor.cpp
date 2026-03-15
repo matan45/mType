@@ -1,5 +1,6 @@
 #include "TypeExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
+#include "../utils/NullCheckUtils.hpp"
 #include "../../../value/StringPool.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
@@ -167,7 +168,7 @@ namespace vm::runtime
             }
             return false;
         }
-        else if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
+        else if (utils::isNullValue(val)) {
             return false; // null is not instance of any type
         }
         else {
@@ -395,7 +396,7 @@ namespace vm::runtime
 
     value::Value TypeExecutor::castToObject(const value::Value& val, const std::string& targetTypeName) {
         // Handle null values
-        if (std::holds_alternative<std::monostate>(val) || std::holds_alternative<nullptr_t>(val)) {
+        if (utils::isNullValue(val)) {
             return val; // null remains null for object casts
         }
 
@@ -528,10 +529,7 @@ namespace vm::runtime
         if (std::holds_alternative<value::InternedString>(val)) {
             return std::get<value::InternedString>(val).getString();
         }
-        if (std::holds_alternative<nullptr_t>(val)) {
-            return "null";
-        }
-        if (std::holds_alternative<std::monostate>(val)) {
+        if (utils::isNullValue(val)) {
             return "null";
         }
         if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {

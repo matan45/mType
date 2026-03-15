@@ -490,6 +490,25 @@ export class MTypeKeywords {
             contexts: ['function', 'block', 'global-function', 'global'],
             priority: 7
         },
+        // Match statement (pattern matching)
+        {
+            keyword: 'match',
+            detail: 'match statement',
+            documentation: 'Pattern matching with type and value patterns',
+            insertText: 'match (${1:expression}) {\n\tcase ${2:pattern} -> ${3:statement;}\n\tdefault -> ${4:statement;}\n}',
+            kind: vscode.CompletionItemKind.Keyword,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
+        {
+            keyword: 'match-type',
+            detail: 'match statement (type patterns)',
+            documentation: 'Pattern matching on object types with variable binding',
+            insertText: 'match (${1:value}) {\n\tcase ${2:TypeName} ${3:varName} -> ${4:statement;}\n\tdefault -> ${5:statement;}\n}',
+            kind: vscode.CompletionItemKind.Snippet,
+            contexts: ['function', 'block', 'global-function', 'global'],
+            priority: 7
+        },
         // Additional switch variations
         {
             keyword: 'switch-int',

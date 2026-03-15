@@ -62,6 +62,9 @@ namespace optimizer::passes {
 			std::unique_ptr<ast::ASTNode> visitSwitchNode(ast::SwitchNode* node) override;
 			std::unique_ptr<ast::ASTNode> visitCaseNode(ast::CaseNode* node) override;
 			std::unique_ptr<ast::ASTNode> visitDefaultCaseNode(ast::DefaultCaseNode* node) override;
+			std::unique_ptr<ast::ASTNode> visitMatchNode(ast::MatchNode* node) override;
+			std::unique_ptr<ast::ASTNode> visitMatchCaseNode(ast::MatchCaseNode* node) override;
+			std::unique_ptr<ast::ASTNode> visitMatchDefaultNode(ast::MatchDefaultNode* node) override;
 			std::unique_ptr<ast::ASTNode> visitTryNode(ast::TryNode* node) override;
 			std::unique_ptr<ast::ASTNode> visitCatchNode(ast::CatchNode* node) override;
 			std::unique_ptr<ast::ASTNode> visitLambdaNode(ast::LambdaNode* node) override;

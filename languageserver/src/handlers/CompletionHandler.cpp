@@ -142,7 +142,7 @@ std::vector<CompletionItem> CompletionHandler::getKeywordCompletions() const {
         "return", "new", "this", "super", "extends", "implements",
         "public", "private", "protected", "static", "final", "abstract",
         "async", "await", "try", "catch", "finally", "throw",
-        "break", "continue", "switch", "case", "default", "do",
+        "break", "continue", "switch", "case", "default", "do", "match",
         "import", "from", "null", "true", "false"
     };
 

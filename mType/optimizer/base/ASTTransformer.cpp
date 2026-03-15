@@ -176,6 +176,18 @@ namespace optimizer::base {
 		return nullptr;
 	}
 
+	std::unique_ptr<ast::ASTNode> ASTTransformer::visitMatchNode(ast::MatchNode* node) {
+		return nullptr;
+	}
+
+	std::unique_ptr<ast::ASTNode> ASTTransformer::visitMatchCaseNode(ast::MatchCaseNode* node) {
+		return nullptr;
+	}
+
+	std::unique_ptr<ast::ASTNode> ASTTransformer::visitMatchDefaultNode(ast::MatchDefaultNode* node) {
+		return nullptr;
+	}
+
 	std::unique_ptr<ast::ASTNode> ASTTransformer::visitAssignmentNode(ast::AssignmentNode* node) {
 		return nullptr;
 	}
