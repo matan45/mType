@@ -3,6 +3,7 @@
 #include "../../errors/AccessViolationException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/NullPointerException.hpp"
+#include "../runtime/utils/NullCheckUtils.hpp"
 #include "../../environment/registry/ClassRegistry.hpp"
 #include "../../environment/Environment.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
@@ -319,8 +320,7 @@ namespace vm::jit
     {
         if (!(flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            if (std::holds_alternative<std::nullptr_t>(*object) ||
-                std::holds_alternative<std::monostate>(*object))
+            if (vm::runtime::utils::isNullValue(*object))
             {
                 throw errors::NullPointerException("Cannot access field on null");
             }
@@ -420,8 +420,7 @@ namespace vm::jit
     {
         if (!(flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            if (std::holds_alternative<std::nullptr_t>(*object) ||
-                std::holds_alternative<std::monostate>(*object))
+            if (vm::runtime::utils::isNullValue(*object))
             {
                 throw errors::NullPointerException("Cannot set field on null");
             }

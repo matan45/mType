@@ -7,6 +7,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../jit/OSRManager.hpp"
 #include "../VirtualMachine.hpp"
+#include "../utils/NullCheckUtils.hpp"
 #include <iostream>
 namespace vm::runtime
 {
@@ -105,7 +106,7 @@ namespace vm::runtime
             throw errors::RuntimeException("JUMP_IF_NULL requires operand");
         }
         value::Value val = context.stackManager->pop();
-        if (std::holds_alternative<std::nullptr_t>(val) || std::holds_alternative<std::monostate>(val)) {
+        if (utils::isNullValue(val)) {
             context.instructionPointer = instr.operands[0] - 1;
         }
     }
@@ -164,39 +165,6 @@ namespace vm::runtime
     }
 
     bool ControlFlowExecutor::isTruthy(const value::Value& val) const {
-        if (std::holds_alternative<bool>(val)) {
-            return std::get<bool>(val);
-        }
-        if (std::holds_alternative<int64_t>(val)) {
-            return std::get<int64_t>(val) != 0;
-        }
-        if (std::holds_alternative<nullptr_t>(val)) {
-            return false;
-        }
-        if (std::holds_alternative<std::monostate>(val)) {
-            return false;
-        }
-        // Check if it's a Bool object (auto-boxed boolean)
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
-            if (obj && obj->getClassDefinition()->getName() == "Bool") {
-                // Extract the primitive boolean value from the Bool object
-                value::Value valueField = obj->getFieldValue("value");
-                if (std::holds_alternative<bool>(valueField)) {
-                    return std::get<bool>(valueField);
-                }
-            }
-        }
-        // Check if it's a Bool value object (when Bool becomes a value class)
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
-            if (obj && obj->getClassName() == "Bool") {
-                value::Value valueField = obj->getFieldValue("value");
-                if (std::holds_alternative<bool>(valueField)) {
-                    return std::get<bool>(valueField);
-                }
-            }
-        }
-        return true;  // Objects, strings, etc. are truthy
+        return utils::isTruthy(val);
     }
 }

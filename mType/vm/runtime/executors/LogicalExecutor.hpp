@@ -21,8 +21,5 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
-
-        // Helper method
-        bool isTruthy(const value::Value& val) const;
     };
 }

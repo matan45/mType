@@ -1,6 +1,7 @@
 #include "ComparisonExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../utils/NullCheckUtils.hpp"
 #include <iostream>
 
 namespace vm::runtime
@@ -32,8 +33,8 @@ namespace vm::runtime
         value::Value left = context.stackManager->pop();
 
         // Handle null comparisons - both std::monostate and nullptr_t represent null
-        bool leftIsNull = std::holds_alternative<std::monostate>(left) || std::holds_alternative<nullptr_t>(left);
-        bool rightIsNull = std::holds_alternative<std::monostate>(right) || std::holds_alternative<nullptr_t>(right);
+        bool leftIsNull = utils::isNullValue(left);
+        bool rightIsNull = utils::isNullValue(right);
 
         if (leftIsNull || rightIsNull) {
             context.stackManager->push(leftIsNull && rightIsNull);
@@ -65,8 +66,8 @@ namespace vm::runtime
         value::Value left = context.stackManager->pop();
 
         // Handle null comparisons - both std::monostate and nullptr_t represent null
-        bool leftIsNull = std::holds_alternative<std::monostate>(left) || std::holds_alternative<nullptr_t>(left);
-        bool rightIsNull = std::holds_alternative<std::monostate>(right) || std::holds_alternative<nullptr_t>(right);
+        bool leftIsNull = utils::isNullValue(left);
+        bool rightIsNull = utils::isNullValue(right);
 
         if (leftIsNull || rightIsNull) {
             // Not equal if one is null and the other isn't

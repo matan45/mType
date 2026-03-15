@@ -481,24 +481,24 @@ namespace vm::compiler::visitors
             // Call GET_ITERATOR to get the iterator object
             ctx.emitter.emitWithLocation(bytecode::OpCode::GET_ITERATOR, node);
 
-            // Set non-null flag if collection is a known non-nullable variable
+            // Determine if collection is a known non-nullable variable
+            bool iteratorNonNull = false;
             if (auto* collectionVar = dynamic_cast<ast::VariableNode*>(node->getCollection()))
             {
                 const std::string& collVarName = collectionVar->getName();
-                bool collNonNull = false;
                 if (ctx.nullNarrowing.isNarrowedNonNull(collVarName))
                 {
-                    collNonNull = true;
+                    iteratorNonNull = true;
                 }
                 else if (ctx.variableTracker.existsInFunction(collVarName))
                 {
-                    collNonNull = !ctx.variableTracker.getLocalNullableByName(collVarName);
+                    iteratorNonNull = !ctx.variableTracker.getLocalNullableByName(collVarName);
                 }
                 else if (ctx.globalRegistry.exists(collVarName))
                 {
-                    collNonNull = !ctx.globalRegistry.isNullable(collVarName);
+                    iteratorNonNull = !ctx.globalRegistry.isNullable(collVarName);
                 }
-                if (collNonNull)
+                if (iteratorNonNull)
                 {
                     ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
                 }
@@ -517,6 +517,10 @@ namespace vm::compiler::visitors
             size_t loopStart = ctx.program.getCurrentOffset();
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_HAS_NEXT, node);
+            if (iteratorNonNull)
+            {
+                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+            }
 
             // Jump if false (no more elements)
             size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
@@ -524,6 +528,10 @@ namespace vm::compiler::visitors
             // Get next element
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_NEXT, node);
+            if (iteratorNonNull)
+            {
+                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+            }
 
             // Store in loop variable
             ctx.variableTracker.declareLocal(varName, varType, "");
