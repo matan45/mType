@@ -21,7 +21,7 @@ namespace vm::runtime
         if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
             auto& obj = std::get<std::shared_ptr<value::ValueObject>>(val);
             if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
-                return obj->getFieldByIndex(0);
+                return obj->getFieldValue("value");
             }
         }
         return val;

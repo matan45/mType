@@ -3,6 +3,7 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/ValueObject.hpp"
 #include <variant>
+#include <cassert>
 
 namespace vm::runtime {
 
@@ -19,7 +20,10 @@ int64_t PrimitiveMethodExecutor::unboxInt(const std::shared_ptr<runtimeTypes::kl
         throw errors::RuntimeException("Cannot unbox null Int object");
     }
     // Use indexed access - "value" field is always at index 0 for primitive types
+    // See PrimitiveTypeTag.hpp for the compiler-enforced invariant
     obj->ensureFieldVector();
+    assert(obj->getClassDefinition()->getFieldIndex("value") == 0
+        && "Int class must have 'value' as first field (index 0)");
     const value::Value& fieldValue = obj->getFieldByIndex(0);
     if (!std::holds_alternative<int64_t>(fieldValue)) {
         throw errors::RuntimeException("Int object 'value' field is not an int");
@@ -32,7 +36,10 @@ double PrimitiveMethodExecutor::unboxFloat(const std::shared_ptr<runtimeTypes::k
         throw errors::RuntimeException("Cannot unbox null Float object");
     }
     // Use indexed access - "value" field is always at index 0 for primitive types
+    // See PrimitiveTypeTag.hpp for the compiler-enforced invariant
     obj->ensureFieldVector();
+    assert(obj->getClassDefinition()->getFieldIndex("value") == 0
+        && "Float class must have 'value' as first field (index 0)");
     const value::Value& fieldValue = obj->getFieldByIndex(0);
     if (!std::holds_alternative<double>(fieldValue)) {
         throw errors::RuntimeException("Float object 'value' field is not a float");
@@ -49,6 +56,8 @@ int64_t PrimitiveMethodExecutor::unboxIntFromValue(const value::Value& val) {
         auto& obj = std::get<std::shared_ptr<value::ValueObject>>(val);
         if (!obj) throw errors::RuntimeException("Cannot unbox null Int value object");
         // Use indexed access - "value" field is always at index 0
+        assert(obj->getClassDefinition()->getFieldIndex("value") == 0
+            && "Int value class must have 'value' as first field (index 0)");
         const value::Value& fieldValue = obj->getFieldByIndex(0);
         if (!std::holds_alternative<int64_t>(fieldValue)) {
             throw errors::RuntimeException("Int value object 'value' field is not an int");
@@ -70,6 +79,8 @@ double PrimitiveMethodExecutor::unboxFloatFromValue(const value::Value& val) {
         auto& obj = std::get<std::shared_ptr<value::ValueObject>>(val);
         if (!obj) throw errors::RuntimeException("Cannot unbox null Float value object");
         // Use indexed access - "value" field is always at index 0
+        assert(obj->getClassDefinition()->getFieldIndex("value") == 0
+            && "Float value class must have 'value' as first field (index 0)");
         const value::Value& fieldValue = obj->getFieldByIndex(0);
         if (!std::holds_alternative<double>(fieldValue)) {
             throw errors::RuntimeException("Float value object 'value' field is not a float");

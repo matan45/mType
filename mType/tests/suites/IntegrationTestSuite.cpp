@@ -244,6 +244,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Type System Edge Cases",
                                   passPath + "typeSystemEdgeCases.mt");
 
+        // Lazy re-boxing optimization tests
+        addOutputVerificationTest("Lazy Reboxing Chained Arithmetic",
+                                  passPath + "lazyReboxingChainedArithmetic.mt");
+        addOutputVerificationTest("Lazy Reboxing Escape Points",
+                                  passPath + "lazyReboxingEscapePoints.mt");
+        addOutputVerificationTest("Lazy Reboxing Mixed Operands",
+                                  passPath + "lazyReboxingMixedOperands.mt");
+
         // ====================================
         // COMMENTED OUT - Test files were not created
         // ====================================

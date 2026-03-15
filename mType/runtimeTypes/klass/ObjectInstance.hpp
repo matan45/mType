@@ -43,10 +43,14 @@ namespace runtimeTypes::klass
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef)
             : classDefinition(classDef)
         {
-            // PERFORMANCE: Pre-size field map to avoid rehashing during field initialization
             if (classDef) {
                 fieldValues.reserve(classDef->getTotalFieldCount());
                 primitiveTag_ = value::classNameToPrimitiveTag(classDef->getName());
+                // Eagerly initialize field vector for primitive types so
+                // unboxInt/unboxFloat avoid ensureFieldVector() on every call
+                if (primitiveTag_ != value::PrimitiveTypeTag::NONE) {
+                    ensureFieldVector();
+                }
             }
         }
 
@@ -55,10 +59,12 @@ namespace runtimeTypes::klass
                       const std::unordered_map<std::string, std::string>& typeBindings)
             : classDefinition(classDef), genericTypeBindings(typeBindings)
         {
-            // PERFORMANCE: Pre-size field map to avoid rehashing during field initialization
             if (classDef) {
                 fieldValues.reserve(classDef->getTotalFieldCount());
                 primitiveTag_ = value::classNameToPrimitiveTag(classDef->getName());
+                if (primitiveTag_ != value::PrimitiveTypeTag::NONE) {
+                    ensureFieldVector();
+                }
             }
         }
 

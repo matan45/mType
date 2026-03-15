@@ -16,44 +16,40 @@
 #include <algorithm>
 
 namespace {
-    // Auto-box a raw primitive into its corresponding ValueObject at escape points
+    // Auto-box a raw primitive into its corresponding ValueObject at escape points.
     // This supports lazy re-boxing: INVOKE_INT_* opcodes push raw primitives,
     // and boxing only happens when the value needs to be used as an object.
+    //
+    // INVARIANT: Primitive wrapper classes (Int, Float, Bool) must be registered
+    // as value classes with "value" at field index 0. See PrimitiveTypeTag.hpp.
     value::Value autoBoxPrimitive(const value::Value& val, const std::shared_ptr<environment::Environment>& env) {
+        auto classRegistry = env->getClassRegistry();
+        if (!classRegistry) {
+            throw errors::RuntimeException(
+                "Auto-boxing failed: class registry not available");
+        }
+
+        std::string className;
         if (std::holds_alternative<int64_t>(val)) {
-            auto classRegistry = env->getClassRegistry();
-            if (classRegistry) {
-                auto intClass = classRegistry->findClass("Int");
-                if (intClass && intClass->isValueClass()) {
-                    auto valueObj = std::make_shared<value::ValueObject>(intClass);
-                    valueObj->setFieldByIndex(0, val);
-                    return value::Value(valueObj);
-                }
-            }
+            className = "Int";
+        } else if (std::holds_alternative<double>(val)) {
+            className = "Float";
+        } else if (std::holds_alternative<bool>(val)) {
+            className = "Bool";
+        } else {
+            return val;
         }
-        else if (std::holds_alternative<double>(val)) {
-            auto classRegistry = env->getClassRegistry();
-            if (classRegistry) {
-                auto floatClass = classRegistry->findClass("Float");
-                if (floatClass && floatClass->isValueClass()) {
-                    auto valueObj = std::make_shared<value::ValueObject>(floatClass);
-                    valueObj->setFieldByIndex(0, val);
-                    return value::Value(valueObj);
-                }
-            }
+
+        auto classDef = classRegistry->findClass(className);
+        if (!classDef) {
+            throw errors::RuntimeException(
+                "Auto-boxing failed: " + className + " class not found — "
+                "ensure lib/primitives/" + className + ".mt is loaded");
         }
-        else if (std::holds_alternative<bool>(val)) {
-            auto classRegistry = env->getClassRegistry();
-            if (classRegistry) {
-                auto boolClass = classRegistry->findClass("Bool");
-                if (boolClass && boolClass->isValueClass()) {
-                    auto valueObj = std::make_shared<value::ValueObject>(boolClass);
-                    valueObj->setFieldByIndex(0, val);
-                    return value::Value(valueObj);
-                }
-            }
-        }
-        return val;
+
+        auto valueObj = std::make_shared<value::ValueObject>(classDef);
+        valueObj->setFieldByIndex(0, val);
+        return value::Value(valueObj);
     }
 }
 namespace vm::runtime

@@ -22,7 +22,7 @@ namespace vm::runtime
         return val;
     }
 
-    const value::Value& StackManager::peek(size_t offset) const {
+    value::Value StackManager::peek(size_t offset) const {
         checkStackUnderflow(offset + 1);
         return stack[stack.size() - 1 - offset];
     }

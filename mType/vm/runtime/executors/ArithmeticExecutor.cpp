@@ -176,7 +176,7 @@ namespace vm::runtime
         else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(left)) {
             auto& obj = std::get<std::shared_ptr<value::ValueObject>>(left);
             if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
-                unboxedLeft = obj->getFieldByIndex(0);
+                unboxedLeft = obj->getFieldValue("value");
             }
         }
 
@@ -189,7 +189,7 @@ namespace vm::runtime
         else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(right)) {
             auto& obj = std::get<std::shared_ptr<value::ValueObject>>(right);
             if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
-                unboxedRight = obj->getFieldByIndex(0);
+                unboxedRight = obj->getFieldValue("value");
             }
         }
 
