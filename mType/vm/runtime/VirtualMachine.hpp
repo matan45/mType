@@ -237,6 +237,12 @@ namespace vm::runtime
         // Instruction dispatch
         void executeInstruction(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // Extracted dispatch helpers (reduce executeInstruction size)
+        void trySpecializeArithmetic(const bytecode::BytecodeProgram::Instruction& instr,
+                                     bytecode::OpCode specializedOpcode);
+        void executeCallWithJit(const bytecode::BytecodeProgram::Instruction& instr);
+        void executeAwait();
+
         // Helper methods (will be moved to utility classes)
         bool isTruthy(const value::Value& val) const;
         std::string valueToString(const value::Value& val) const;

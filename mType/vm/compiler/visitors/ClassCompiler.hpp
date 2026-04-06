@@ -59,6 +59,10 @@ namespace vm::compiler::visitors
                                   const runtimeTypes::klass::ConstructorDefinition* constructor,
                                   const std::unordered_map<std::string, std::string>& genericTypeBindings);
 
+        // compileMethodCall helpers
+        void compileStaticMethodCall(ast::MethodCallNode* node);
+        void compileInstanceMethodCall(ast::MethodCallNode* node);
+
         // Helper method for auto-boxing method arguments
         bool tryAutoBoxArgument(ast::ASTNode* argument, const std::string& expectedType);
 

@@ -43,17 +43,11 @@ namespace vm::runtime
             auto nativeFunc = nativeRegistry->findNativeFunction(functionName);
             if (nativeFunc)
             {
-                if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
-                {
-                    vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
-                }
+                vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
 
                 value::Value result = nativeFunc(args);
 
-                if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
-                {
-                    vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
-                }
+                vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
 
                 context.stackManager->push(result);
                 return;
@@ -78,11 +72,7 @@ namespace vm::runtime
             context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
-            // Notify profiler of function entry
-            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
-            {
-                vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
-            }
+            vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
 
             // Notify debugger of function entry
             if (debugger::DebugHookHelper::isDebuggingEnabled())
@@ -302,11 +292,7 @@ namespace vm::runtime
             context.pushCallFrame(frame);
             context.stats.functionCalls++;
 
-            // Notify profiler of static method entry
-            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
-            {
-                vm::profiler::ProfilerHookHelper::onFunctionEntry(staticQualifiedName);
-            }
+            vm::profiler::ProfilerHookHelper::onFunctionEntry(staticQualifiedName);
 
             // Notify debugger of static method entry
             if (debugger::DebugHookHelper::isDebuggingEnabled())

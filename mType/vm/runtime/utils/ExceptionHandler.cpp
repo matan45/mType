@@ -136,11 +136,7 @@ namespace vm::runtime::utils
                 break;
             }
 
-            // Notify profiler before unwinding
-            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
-            {
-                vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
-            }
+            vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
 
             // Target is outside this function - unwind the call frame
             callStack.pop_back();
@@ -260,11 +256,7 @@ namespace vm::runtime::utils
             CallFrame currentFrame = callStack.back();
             callSiteIP = currentFrame.returnAddress;  // Where this function was called from
 
-            // Notify profiler before unwinding
-            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
-            {
-                vm::profiler::ProfilerHookHelper::onFunctionExit(currentFrame.functionName);
-            }
+            vm::profiler::ProfilerHookHelper::onFunctionExit(currentFrame.functionName);
 
             callStack.pop_back();
             cleanupStack(currentFrame.frameBase);
@@ -316,11 +308,7 @@ namespace vm::runtime::utils
             const CallFrame& frame = callStack.back();
             size_t frameCallSite = frame.returnAddress;
 
-            // Notify profiler before unwinding
-            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
-            {
-                vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
-            }
+            vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
 
             // Pop this frame FIRST, then check if the call site is covered by the caller's exception table
             callStack.pop_back();

@@ -118,10 +118,7 @@ namespace vm::runtime
         } else {
             CallFrame frame = context.callStack.back();
 
-            // Notify profiler of function exit BEFORE popping the call stack
-            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled()) {
-                vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
-            }
+            vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
 
             // Notify debugger of function exit BEFORE popping the call stack
             if (debugger::DebugHookHelper::isDebuggingEnabled()) {
