@@ -49,28 +49,17 @@ namespace vm::profiler
 
     void ProfilerContext::recordFunctionEntry(const std::string& functionName)
     {
-        // Record call graph edge (full mode only)
         if (mode == ProfilerMode::FULL && !timingStack.empty())
         {
-            const std::string& caller = timingStack.back().functionName;
-            std::string edgeKey = caller + "->" + functionName;
-            auto& edge = callGraphEdges[edgeKey];
-            if (edge.caller.empty())
-            {
-                edge.caller = caller;
-                edge.callee = functionName;
-            }
-            edge.callCount++;
+            recordCallGraphEntry(timingStack.back().functionName, functionName);
         }
 
-        // Push timing entry
         TimingStackEntry entry;
         entry.functionName = functionName;
         entry.entryTime = std::chrono::high_resolution_clock::now();
         entry.childTimeNs = 0;
         timingStack.push_back(std::move(entry));
 
-        // Increment call count
         auto& profile = functionProfiles[functionName];
         if (profile.functionName.empty())
         {
@@ -113,16 +102,31 @@ namespace vm::profiler
             timingStack.back().childTimeNs += elapsed;
         }
 
-        // Update call graph edge timing (full mode only)
         if (mode == ProfilerMode::FULL && !timingStack.empty())
         {
-            const std::string& caller = timingStack.back().functionName;
-            std::string edgeKey = caller + "->" + entry.functionName;
-            auto it = callGraphEdges.find(edgeKey);
-            if (it != callGraphEdges.end())
-            {
-                it->second.totalTimeNs += elapsed;
-            }
+            recordCallGraphExit(timingStack.back().functionName, entry.functionName, elapsed);
+        }
+    }
+
+    void ProfilerContext::recordCallGraphEntry(const std::string& caller, const std::string& callee)
+    {
+        std::string edgeKey = caller + "->" + callee;
+        auto& edge = callGraphEdges[edgeKey];
+        if (edge.caller.empty())
+        {
+            edge.caller = caller;
+            edge.callee = callee;
+        }
+        edge.callCount++;
+    }
+
+    void ProfilerContext::recordCallGraphExit(const std::string& caller, const std::string& callee, uint64_t elapsedNs)
+    {
+        std::string edgeKey = caller + "->" + callee;
+        auto it = callGraphEdges.find(edgeKey);
+        if (it != callGraphEdges.end())
+        {
+            it->second.totalTimeNs += elapsedNs;
         }
     }
 

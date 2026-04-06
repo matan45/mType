@@ -94,6 +94,7 @@ namespace gc
     private:
         void performCollection();
         bool shouldCollect() const;
+        void updateAdaptiveBackoff(size_t objectsCollected);
 
         GCCoordinator(const GCCoordinator&) = delete;
         GCCoordinator& operator=(const GCCoordinator&) = delete;

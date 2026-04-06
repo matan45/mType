@@ -324,6 +324,9 @@
     <ClInclude Include="vm\runtime\utils\ArrayBoundsChecker.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\utils\BoxingUtils.hpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\utils\ErrorLocationHelper.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
@@ -429,6 +432,9 @@
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ClassCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ClassMethodCallCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ControlFlowCompiler.cpp">

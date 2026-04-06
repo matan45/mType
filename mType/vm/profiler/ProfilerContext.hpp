@@ -74,5 +74,10 @@ namespace vm::profiler
 
         // Finalize timing
         void finalize();
+
+    private:
+        // Call graph helpers (full mode only)
+        void recordCallGraphEntry(const std::string& caller, const std::string& callee);
+        void recordCallGraphExit(const std::string& caller, const std::string& callee, uint64_t elapsedNs);
     };
 }

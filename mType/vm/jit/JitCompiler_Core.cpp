@@ -193,72 +193,64 @@ namespace vm::jit
         s.slotTypes.push_back(resType);
     }
 
-    void emitCmp(JitEmissionState& s, CmpOp kind)
+    // Returns true if comparison was fully handled (both-boxed EQ/NE).
+    // Returns false if types were unboxed and caller should fall through to primitive path.
+    bool emitCmpBoxed(JitEmissionState& s, CmpOp kind, Gp result,
+                      SlotType& lType, SlotType& rType)
     {
         auto& cc = s.cc;
-        s.stackDepth--;
-        SlotType rType = popType(s);
-        SlotType lType = popType(s);
+        bool bothBoxed = isBoxedSlotType(lType) && isBoxedSlotType(rType);
 
-        Gp result = cc.new_gp64();
-        cc.xor_(result, result);
-
-        if (isBoxedSlotType(lType) || isBoxedSlotType(rType))
+        if (!bothBoxed)
         {
-            bool bothBoxed = isBoxedSlotType(lType) && isBoxedSlotType(rType);
-            bool mixedWithPrimitive = !bothBoxed;
-
-            if (mixedWithPrimitive)
-            {
-                SlotType target = !isBoxedSlotType(lType) ? lType : rType;
-                if (target == SlotType::BOOL) target = SlotType::INT;
-                emitEnsureUnboxed(s, s.stackDepth - 1, lType,
-                    target == SlotType::FLOAT ? SlotType::FLOAT : SlotType::INT);
-                emitEnsureUnboxed(s, s.stackDepth, rType,
-                    target == SlotType::FLOAT ? SlotType::FLOAT : SlotType::INT);
-                lType = target;
-                rType = target;
-            }
-            else
-            {
-                if (kind == CmpOp::EQ || kind == CmpOp::NE)
-                {
-                    constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-
-                    Gp leftAddr = cc.new_gp64();
-                    cc.lea(leftAddr, Mem(s.boxedBase,
-                        static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
-
-                    Gp rightAddr = cc.new_gp64();
-                    cc.lea(rightAddr, Mem(s.boxedBase,
-                        static_cast<int32_t>(s.stackDepth * valueSize)));
-
-                    InvokeNode* inv;
-                    cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_values_equal),
-                              FuncSignature::build<int64_t, const value::Value*,
-                                                   const value::Value*>());
-                    inv->set_arg(0, leftAddr);
-                    inv->set_arg(1, rightAddr);
-                    inv->set_ret(0, result);
-
-                    if (kind == CmpOp::NE)
-                        cc.xor_(result, 1);
-
-                    cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
-                    s.slotTypes.push_back(SlotType::BOOL);
-                    return;
-                }
-                else
-                {
-                    // Ordering comparisons (LT, GT, LE, GE) on both-boxed values:
-                    // unbox both sides to INT and fall through to the integer comparison path
-                    emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
-                    emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
-                    lType = SlotType::INT;
-                    rType = SlotType::INT;
-                }
-            }
+            SlotType target = !isBoxedSlotType(lType) ? lType : rType;
+            if (target == SlotType::BOOL) target = SlotType::INT;
+            emitEnsureUnboxed(s, s.stackDepth - 1, lType,
+                target == SlotType::FLOAT ? SlotType::FLOAT : SlotType::INT);
+            emitEnsureUnboxed(s, s.stackDepth, rType,
+                target == SlotType::FLOAT ? SlotType::FLOAT : SlotType::INT);
+            lType = target;
+            rType = target;
+            return false;
         }
+
+        if (kind == CmpOp::EQ || kind == CmpOp::NE)
+        {
+            constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+            Gp leftAddr = cc.new_gp64();
+            cc.lea(leftAddr, Mem(s.boxedBase,
+                static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+
+            Gp rightAddr = cc.new_gp64();
+            cc.lea(rightAddr, Mem(s.boxedBase,
+                static_cast<int32_t>(s.stackDepth * valueSize)));
+
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_values_equal),
+                      FuncSignature::build<int64_t, const value::Value*,
+                                           const value::Value*>());
+            inv->set_arg(0, leftAddr);
+            inv->set_arg(1, rightAddr);
+            inv->set_ret(0, result);
+
+            if (kind == CmpOp::NE)
+                cc.xor_(result, 1);
+
+            return true;
+        }
+
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
+        lType = SlotType::INT;
+        rType = SlotType::INT;
+        return false;
+    }
+
+    void emitCmpPrimitive(JitEmissionState& s, CmpOp kind, Gp result,
+                          SlotType lType, SlotType rType)
+    {
+        auto& cc = s.cc;
 
         if (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
         {
@@ -292,6 +284,29 @@ namespace vm::jit
                 case CmpOp::GE: cc.setge(result.r8()); break;
             }
         }
+    }
+
+    void emitCmp(JitEmissionState& s, CmpOp kind)
+    {
+        auto& cc = s.cc;
+        s.stackDepth--;
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+
+        Gp result = cc.new_gp64();
+        cc.xor_(result, result);
+
+        if (isBoxedSlotType(lType) || isBoxedSlotType(rType))
+        {
+            if (emitCmpBoxed(s, kind, result, lType, rType))
+            {
+                cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
+                s.slotTypes.push_back(SlotType::BOOL);
+                return;
+            }
+        }
+
+        emitCmpPrimitive(s, kind, result, lType, rType);
         cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
         s.slotTypes.push_back(SlotType::BOOL);
     }

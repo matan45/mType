@@ -12,6 +12,9 @@ namespace gc
         constexpr size_t SUSPECT_THRESHOLD = 1000;          // Trigger when suspect list reaches N
         constexpr size_t MEMORY_THRESHOLD_MB = 100;         // Trigger at N MB heap usage
 
+        // Adaptive backoff
+        constexpr size_t MAX_BACKOFF_EXPONENT = 5;              // Caps backoff multiplier at 2^5 = 32x
+
         // Collection limits
         constexpr size_t MAX_CYCLE_DETECTION_TIME_MS = 50;   // Abort if taking too long
         constexpr size_t MAX_OBJECTS_PER_CYCLE = 10000;     // Limit objects processed per cycle

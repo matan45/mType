@@ -624,11 +624,7 @@ namespace vm::runtime
         context.pushCallFrame(frame);
         context.stats.functionCalls++;
 
-        // Notify profiler of constructor entry
-        if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
-        {
-            vm::profiler::ProfilerHookHelper::onFunctionEntry(constructorName);
-        }
+        vm::profiler::ProfilerHookHelper::onFunctionEntry(constructorName);
 
         // Notify debugger of constructor entry
         if (debugger::DebugHookHelper::isDebuggingEnabled()) {

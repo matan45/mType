@@ -1308,64 +1308,23 @@ namespace vm::runtime
             break;
 
         // Arithmetic - delegated to ArithmeticExecutor
-        // Phase 6: Type feedback collection + opcode rewriting
         case OpCode::ADD:
-            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
-                typeFeedbackCollector->recordBinaryOp(instructionPointer,
-                    stackManager->peek(1), stackManager->peek(0));
-                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
-                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
-                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
-                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::ADD_INT;
-                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
-                    }
-                }
-            }
+            trySpecializeArithmetic(instr, OpCode::ADD_INT);
             arithmeticExecutor->handleAdd();
             break;
         case OpCode::STRING_BUILD:
             arithmeticExecutor->handleStringBuild(static_cast<size_t>(instr.operands[0]));
             break;
         case OpCode::SUB:
-            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
-                typeFeedbackCollector->recordBinaryOp(instructionPointer,
-                    stackManager->peek(1), stackManager->peek(0));
-                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
-                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
-                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
-                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::SUB_INT;
-                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
-                    }
-                }
-            }
+            trySpecializeArithmetic(instr, OpCode::SUB_INT);
             arithmeticExecutor->handleSub();
             break;
         case OpCode::MUL:
-            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
-                typeFeedbackCollector->recordBinaryOp(instructionPointer,
-                    stackManager->peek(1), stackManager->peek(0));
-                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
-                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
-                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
-                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::MUL_INT;
-                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
-                    }
-                }
-            }
+            trySpecializeArithmetic(instr, OpCode::MUL_INT);
             arithmeticExecutor->handleMul();
             break;
         case OpCode::DIV:
-            if (icEnabled && typeFeedbackCollector && stackManager->size() >= 2) {
-                typeFeedbackCollector->recordBinaryOp(instructionPointer,
-                    stackManager->peek(1), stackManager->peek(0));
-                if (typeFeedbackCollector->shouldSpecialize(instructionPointer)) {
-                    auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
-                    if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT) {
-                        const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = bytecode::OpCode::DIV_INT;
-                        inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
-                    }
-                }
-            }
+            trySpecializeArithmetic(instr, OpCode::DIV_INT);
             arithmeticExecutor->handleDiv();
             break;
         case OpCode::MOD: arithmeticExecutor->handleMod();
@@ -1455,60 +1414,8 @@ namespace vm::runtime
 
         // Functions - with JIT dispatch
         case OpCode::CALL:
-        {
-            // Check JIT code cache before falling back to interpreter
-            if (jitEnabled && jitCodeCache)
-            {
-                std::string funcName = program->getConstantPool().getString(instr.operands[0]);
-                auto jitCode = jitCodeCache->lookup(funcName);
-                if (jitCode)
-                {
-                    size_t argCount = instr.operands[1];
-
-                    // Pop arguments from stack
-                    std::vector<value::Value> args;
-                    args.reserve(argCount);
-                    for (size_t i = 0; i < argCount; ++i)
-                    {
-                        args.push_back(stackManager->pop());
-                    }
-                    std::reverse(args.begin(), args.end());
-
-                    // Set up JIT context
-                    jit::JitContext jitCtx{};
-                    jitCtx.args = args.data();
-                    jitCtx.argCount = args.size();
-                    jitCtx.hasReturnValue = false;
-                    jitCtx.program = program;
-                    jitCtx.stackManager = stackManager.get();
-                    jitCtx.environment = environment.get();
-                    jitCtx.vm = this;
-                    jitCtx.jitCodeCache = jitCodeCache.get();
-                    jitCtx.icTable = inlineCacheTable.get();
-
-                    // Extract calling class name for access validation
-                    {
-                        size_t sepPos = funcName.find("::");
-                        if (sepPos != std::string::npos)
-                            jitCtx.callingClassName = funcName.substr(0, sepPos);
-                    }
-
-                    // Execute JIT-compiled function
-                    jitCode(&jitCtx);
-
-                    // Push return value if any
-                    if (jitCtx.hasReturnValue)
-                    {
-                        stackManager->push(jitCtx.returnValue);
-                    }
-
-                    stats.functionCalls++;
-                    break;
-                }
-            }
-            functionExecutor->handleCall(instr);
+            executeCallWithJit(instr);
             break;
-        }
         case OpCode::CALL_STATIC: functionExecutor->handleCallStatic(instr);
             break;
 
@@ -1710,133 +1617,8 @@ namespace vm::runtime
             }
 
         case OpCode::AWAIT:
-            {
-                // Pop Promise from stack and unwrap its value
-                value::Value promiseVal = stackManager->pop();
-                if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(promiseVal))
-                {
-                    throw errors::RuntimeException("await can only be used on Promise values");
-                }
-
-                auto promise = std::get<std::shared_ptr<value::PromiseValue>>(promiseVal);
-
-                // Defensive null check
-                if (!promise)
-                {
-                    throw errors::RuntimeException("Null promise in await expression");
-                }
-
-                // FAST PATH: Promise already fulfilled, continue immediately
-                if (promise->isFulfilled())
-                {
-                    // Push the unwrapped value back onto the stack
-                    stackManager->push(promise->getValue());
-                    break;
-                }
-
-                // Check if promise was rejected (contains an exception)
-                if (promise->isRejected())
-                {
-                    // Re-throw the stored exception so it can be caught by try-catch blocks
-                    // Use UserException with the original exception value and type name
-                    throw errors::UserException(
-                        promise->getExceptionValue(),
-                        promise->getExceptionTypeName()
-                    );
-                }
-
-                // SLOW PATH: Promise not yet fulfilled - cooperative multitasking
-                if (eventLoop)
-                {
-                    // Try to cast to AsyncPromiseValue for callback support
-                    auto asyncPromise = std::dynamic_pointer_cast<value::AsyncPromiseValue>(promise);
-
-                    if (asyncPromise)
-                    {
-                        // Capture the stack manager to push resolved value when task resumes
-                        auto stackMgr = this->stackManager;
-
-                        // Capture weak_ptr to VM to safely access EventLoop even if VM is destroyed
-                        // This prevents dangling pointer crashes if promise resolves after VM destruction
-                        std::weak_ptr<VirtualMachine> weakVM = weak_from_this();
-                        auto taskId = this->currentTaskId;
-
-                        // Register callback to resume this task when promise resolves
-                        // NOTE: Callback may execute later if promise is stored, so we must check VM validity
-                        asyncPromise->then([stackMgr, weakVM, taskId](value::Value resolvedValue)
-                        {
-                            // Check if VM still exists before accessing EventLoop
-                            if (auto vm = weakVM.lock())
-                            {
-                                // Push the resolved value onto the stack
-                                stackMgr->push(resolvedValue);
-
-                                // Resume the task (this will move it from suspended to ready queue)
-                                if (vm->eventLoop)
-                                {
-                                    vm->eventLoop->resumeTask(taskId, resolvedValue);
-                                }
-                            }
-                            // If VM destroyed, silently ignore - task can't be resumed anyway
-                        });
-
-                        // Register rejection callback so rejected promises don't leak tasks
-                        asyncPromise->catch_([weakVM, taskId, promise](std::string error)
-                        {
-                            if (auto vm = weakVM.lock())
-                            {
-                                // Store rejection info so the VM throws on resume
-                                vm->pendingAwaitRejection = PendingAwaitRejection{
-                                    promise->getExceptionValue(),
-                                    promise->getExceptionTypeName(),
-                                    error
-                                };
-
-                                // Resume the task — the VM will throw on the next iteration
-                                if (vm->eventLoop)
-                                {
-                                    vm->eventLoop->resumeTask(taskId, value::Value(std::monostate{}));
-                                }
-                            }
-                        });
-
-                        // Save VM state before suspending
-                        // IMPORTANT: Increment IP to point to the next instruction after AWAIT
-                        // The main loop checks suspendedByAwait flag and skips its own increment
-                        instructionPointer++;
-                        savedState = saveState();
-
-                        // Suspend current task and yield control to event loop
-                        eventLoop->suspendCurrentTask(promise);
-
-                        // Set flag to tell main loop we've suspended and already incremented IP
-                        suspendedByAwait = true;
-
-                        // Return from executeInstruction
-                        // The main loop will see the flag and break without incrementing IP
-                        return;
-                    }
-                    else
-                    {
-                        // PromiseValue without callback support - must already be fulfilled
-                        throw errors::RuntimeException(
-                            "Cannot await unfulfilled Promise without AsyncPromiseValue callback support. "
-                            "Use AsyncPromiseValue for true async/await functionality."
-                        );
-                    }
-                }
-                else
-                {
-                    // No event loop - synchronous mode (Phase 2)
-                    // Promise must already be fulfilled in synchronous mode
-                    throw errors::RuntimeException(
-                        "Promise is not fulfilled and no event loop is available. "
-                        "Initialize an EventLoop for non-blocking async/await support."
-                    );
-                }
-
-                break;
-            }
+            executeAwait();
+            break;
 
         case OpCode::PROMISE_RESOLVE:
             // Reserved for future use — no emitter generates this opcode
@@ -1904,6 +1686,150 @@ namespace vm::runtime
             throw errors::RuntimeException("Unimplemented opcode: " +
                 std::string(bytecode::getOpCodeName(instr.opcode)));
         }
+    }
+
+    void VirtualMachine::trySpecializeArithmetic(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        bytecode::OpCode specializedOpcode)
+    {
+        if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 2)
+            return;
+
+        typeFeedbackCollector->recordBinaryOp(
+            instructionPointer, stackManager->peek(1), stackManager->peek(0));
+
+        if (!typeFeedbackCollector->shouldSpecialize(instructionPointer))
+            return;
+
+        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+        if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
+        {
+            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = specializedOpcode;
+            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+        }
+    }
+
+    void VirtualMachine::executeCallWithJit(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        using OpCode = bytecode::OpCode;
+
+        if (jitEnabled && jitCodeCache)
+        {
+            std::string funcName = program->getConstantPool().getString(instr.operands[0]);
+            auto jitCode = jitCodeCache->lookup(funcName);
+            if (jitCode)
+            {
+                size_t argCount = instr.operands[1];
+
+                std::vector<value::Value> args;
+                args.reserve(argCount);
+                for (size_t i = 0; i < argCount; ++i)
+                    args.push_back(stackManager->pop());
+                std::reverse(args.begin(), args.end());
+
+                jit::JitContext jitCtx{};
+                jitCtx.args = args.data();
+                jitCtx.argCount = args.size();
+                jitCtx.hasReturnValue = false;
+                jitCtx.program = program;
+                jitCtx.stackManager = stackManager.get();
+                jitCtx.environment = environment.get();
+                jitCtx.vm = this;
+                jitCtx.jitCodeCache = jitCodeCache.get();
+                jitCtx.icTable = inlineCacheTable.get();
+
+                size_t sepPos = funcName.find("::");
+                if (sepPos != std::string::npos)
+                    jitCtx.callingClassName = funcName.substr(0, sepPos);
+
+                jitCode(&jitCtx);
+
+                if (jitCtx.hasReturnValue)
+                    stackManager->push(jitCtx.returnValue);
+
+                stats.functionCalls++;
+                return;
+            }
+        }
+        functionExecutor->handleCall(instr);
+    }
+
+    void VirtualMachine::executeAwait()
+    {
+        value::Value promiseVal = stackManager->pop();
+        if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(promiseVal))
+        {
+            throw errors::RuntimeException("await can only be used on Promise values");
+        }
+
+        auto promise = std::get<std::shared_ptr<value::PromiseValue>>(promiseVal);
+        if (!promise)
+        {
+            throw errors::RuntimeException("Null promise in await expression");
+        }
+
+        if (promise->isFulfilled())
+        {
+            stackManager->push(promise->getValue());
+            return;
+        }
+
+        if (promise->isRejected())
+        {
+            throw errors::UserException(
+                promise->getExceptionValue(),
+                promise->getExceptionTypeName()
+            );
+        }
+
+        if (!eventLoop)
+        {
+            throw errors::RuntimeException(
+                "Promise is not fulfilled and no event loop is available. "
+                "Initialize an EventLoop for non-blocking async/await support.");
+        }
+
+        auto asyncPromise = std::dynamic_pointer_cast<value::AsyncPromiseValue>(promise);
+        if (!asyncPromise)
+        {
+            throw errors::RuntimeException(
+                "Cannot await unfulfilled Promise without AsyncPromiseValue callback support. "
+                "Use AsyncPromiseValue for true async/await functionality.");
+        }
+
+        auto stackMgr = this->stackManager;
+        std::weak_ptr<VirtualMachine> weakVM = weak_from_this();
+        auto taskId = this->currentTaskId;
+
+        asyncPromise->then([stackMgr, weakVM, taskId](value::Value resolvedValue)
+        {
+            if (auto vm = weakVM.lock())
+            {
+                stackMgr->push(resolvedValue);
+                if (vm->eventLoop)
+                    vm->eventLoop->resumeTask(taskId, resolvedValue);
+            }
+        });
+
+        asyncPromise->catch_([weakVM, taskId, promise](std::string error)
+        {
+            if (auto vm = weakVM.lock())
+            {
+                vm->pendingAwaitRejection = PendingAwaitRejection{
+                    promise->getExceptionValue(),
+                    promise->getExceptionTypeName(),
+                    error
+                };
+                if (vm->eventLoop)
+                    vm->eventLoop->resumeTask(taskId, value::Value(std::monostate{}));
+            }
+        });
+
+        instructionPointer++;
+        savedState = saveState();
+        eventLoop->suspendCurrentTask(promise);
+        suspendedByAwait = true;
     }
 
     void VirtualMachine::push(const value::Value& value)

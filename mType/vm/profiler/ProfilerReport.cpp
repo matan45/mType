@@ -25,13 +25,35 @@ namespace vm::profiler
     void ProfilerReport::generateConsoleReport(const ProfilerContext& context)
     {
         double totalTimeMs = static_cast<double>(context.getTotalProfilingTimeNs()) / 1e6;
-        std::string modeStr = context.getMode() == ProfilerMode::FULL ? "full" : "light";
 
+        printConsoleHeader(context, totalTimeMs);
+        printConsoleFunctionTable(context);
+
+        if (context.getMode() == ProfilerMode::FULL)
+        {
+            printConsoleCallGraph(context);
+        }
+
+        printConsoleGCImpact(totalTimeMs);
+
+        if (context.getMode() == ProfilerMode::FULL)
+        {
+            printConsoleOpcodeCounts(context);
+        }
+
+        std::cout << "=============================\n";
+    }
+
+    void ProfilerReport::printConsoleHeader(const ProfilerContext& context, double totalTimeMs)
+    {
+        std::string modeStr = context.getMode() == ProfilerMode::FULL ? "full" : "light";
         std::cout << "\n=== mType Profiler Report ===\n";
         std::cout << "Mode: " << modeStr << " | Total time: "
                   << std::fixed << std::setprecision(2) << totalTimeMs << " ms\n";
+    }
 
-        // Sort functions by total time
+    void ProfilerReport::printConsoleFunctionTable(const ProfilerContext& context)
+    {
         const auto& profiles = context.getFunctionProfiles();
         std::vector<const FunctionProfile*> sorted;
         sorted.reserve(profiles.size());
@@ -44,126 +66,115 @@ namespace vm::profiler
             return a->totalTimeNs > b->totalTimeNs;
         });
 
-        // Top 10 functions by total time
         size_t limit = std::min(sorted.size(), static_cast<size_t>(10));
-        if (limit > 0)
+        if (limit == 0) return;
+
+        std::cout << "\n--- Top " << limit << " Functions by Total Time ---\n";
+        std::cout << std::setw(4) << "#"
+                  << "  " << std::left << std::setw(40) << "Function"
+                  << std::right << std::setw(8) << "Calls"
+                  << std::setw(14) << "Total (ms)"
+                  << std::setw(14) << "Self (ms)"
+                  << std::setw(12) << "Avg (us)" << "\n";
+
+        for (size_t i = 0; i < limit; ++i)
         {
-            std::cout << "\n--- Top " << limit << " Functions by Total Time ---\n";
-            std::cout << std::setw(4) << "#"
-                      << "  " << std::left << std::setw(40) << "Function"
-                      << std::right << std::setw(8) << "Calls"
-                      << std::setw(14) << "Total (ms)"
-                      << std::setw(14) << "Self (ms)"
-                      << std::setw(12) << "Avg (us)" << "\n";
+            const auto* p = sorted[i];
+            double totalMs = static_cast<double>(p->totalTimeNs) / 1e6;
+            double selfMs = static_cast<double>(p->selfTimeNs) / 1e6;
+            double avgUs = p->callCount > 0 ? static_cast<double>(p->totalTimeNs) / (p->callCount * 1000.0) : 0.0;
 
-            for (size_t i = 0; i < limit; ++i)
+            std::string displayName = p->functionName;
+            if (displayName.length() > 38)
             {
-                const auto* p = sorted[i];
-                double totalMs = static_cast<double>(p->totalTimeNs) / 1e6;
-                double selfMs = static_cast<double>(p->selfTimeNs) / 1e6;
-                double avgUs = p->callCount > 0 ? static_cast<double>(p->totalTimeNs) / (p->callCount * 1000.0) : 0.0;
-
-                // Truncate function name if too long
-                std::string displayName = p->functionName;
-                if (displayName.length() > 38)
-                {
-                    displayName = displayName.substr(0, 35) + "...";
-                }
-
-                std::cout << std::setw(4) << (i + 1)
-                          << "  " << std::left << std::setw(40) << displayName
-                          << std::right << std::setw(8) << p->callCount
-                          << std::setw(14) << std::fixed << std::setprecision(2) << totalMs
-                          << std::setw(14) << selfMs
-                          << std::setw(12) << avgUs << "\n";
+                displayName = displayName.substr(0, 35) + "...";
             }
-        }
 
-        // Call graph (full mode only)
-        if (context.getMode() == ProfilerMode::FULL)
+            std::cout << std::setw(4) << (i + 1)
+                      << "  " << std::left << std::setw(40) << displayName
+                      << std::right << std::setw(8) << p->callCount
+                      << std::setw(14) << std::fixed << std::setprecision(2) << totalMs
+                      << std::setw(14) << selfMs
+                      << std::setw(12) << avgUs << "\n";
+        }
+    }
+
+    void ProfilerReport::printConsoleCallGraph(const ProfilerContext& context)
+    {
+        const auto& edges = context.getCallGraphEdges();
+        if (edges.empty()) return;
+
+        std::vector<const CallGraphEdge*> sortedEdges;
+        sortedEdges.reserve(edges.size());
+        for (const auto& [key, edge] : edges)
         {
-            const auto& edges = context.getCallGraphEdges();
-            if (!edges.empty())
-            {
-                // Sort edges by call count
-                std::vector<const CallGraphEdge*> sortedEdges;
-                sortedEdges.reserve(edges.size());
-                for (const auto& [key, edge] : edges)
-                {
-                    sortedEdges.push_back(&edge);
-                }
-                std::sort(sortedEdges.begin(), sortedEdges.end(), [](const CallGraphEdge* a, const CallGraphEdge* b)
-                {
-                    return a->totalTimeNs > b->totalTimeNs;
-                });
-
-                size_t edgeLimit = std::min(sortedEdges.size(), static_cast<size_t>(10));
-                std::cout << "\n--- Call Graph (top " << edgeLimit << ") ---\n";
-
-                for (size_t i = 0; i < edgeLimit; ++i)
-                {
-                    const auto* e = sortedEdges[i];
-                    double timeMs = static_cast<double>(e->totalTimeNs) / 1e6;
-
-                    // Truncate names for display
-                    std::string caller = e->caller.length() > 25 ? e->caller.substr(0, 22) + "..." : e->caller;
-                    std::string callee = e->callee.length() > 25 ? e->callee.substr(0, 22) + "..." : e->callee;
-
-                    std::cout << "  " << caller << " -> " << callee
-                              << "  " << e->callCount << " calls  "
-                              << std::fixed << std::setprecision(2) << timeMs << " ms\n";
-                }
-            }
+            sortedEdges.push_back(&edge);
         }
+        std::sort(sortedEdges.begin(), sortedEdges.end(), [](const CallGraphEdge* a, const CallGraphEdge* b)
+        {
+            return a->totalTimeNs > b->totalTimeNs;
+        });
 
-        // GC Impact
+        size_t edgeLimit = std::min(sortedEdges.size(), static_cast<size_t>(10));
+        std::cout << "\n--- Call Graph (top " << edgeLimit << ") ---\n";
+
+        for (size_t i = 0; i < edgeLimit; ++i)
+        {
+            const auto* e = sortedEdges[i];
+            double timeMs = static_cast<double>(e->totalTimeNs) / 1e6;
+
+            std::string caller = e->caller.length() > 25 ? e->caller.substr(0, 22) + "..." : e->caller;
+            std::string callee = e->callee.length() > 25 ? e->callee.substr(0, 22) + "..." : e->callee;
+
+            std::cout << "  " << caller << " -> " << callee
+                      << "  " << e->callCount << " calls  "
+                      << std::fixed << std::setprecision(2) << timeMs << " ms\n";
+        }
+    }
+
+    void ProfilerReport::printConsoleGCImpact(double totalTimeMs)
+    {
         const auto* gcStats = gc::GC::getStats();
-        if (gcStats && gcStats->totalCollections.load() > 0)
+        if (!gcStats || gcStats->totalCollections.load() == 0) return;
+
+        double gcTimeMs = static_cast<double>(gcStats->totalCollectionTimeUs.load()) / 1000.0;
+        double gcPercent = totalTimeMs > 0 ? (gcTimeMs / totalTimeMs) * 100.0 : 0.0;
+
+        std::cout << "\n--- GC Impact ---\n";
+        std::cout << "  Collections: " << gcStats->totalCollections.load()
+                  << " | GC time: " << std::fixed << std::setprecision(2) << gcTimeMs
+                  << " ms (" << std::setprecision(1) << gcPercent << "% of execution)\n";
+    }
+
+    void ProfilerReport::printConsoleOpcodeCounts(const ProfilerContext& context)
+    {
+        const auto& opcodeProfile = context.getOpcodeProfile();
+
+        std::vector<std::pair<uint8_t, uint64_t>> opcodeCounts;
+        for (size_t i = 0; i < 256; ++i)
         {
-            double gcTimeMs = static_cast<double>(gcStats->totalCollectionTimeUs.load()) / 1000.0;
-            double gcPercent = totalTimeMs > 0 ? (gcTimeMs / totalTimeMs) * 100.0 : 0.0;
-
-            std::cout << "\n--- GC Impact ---\n";
-            std::cout << "  Collections: " << gcStats->totalCollections.load()
-                      << " | GC time: " << std::fixed << std::setprecision(2) << gcTimeMs
-                      << " ms (" << std::setprecision(1) << gcPercent << "% of execution)\n";
-        }
-
-        // Opcode counts (full mode only)
-        if (context.getMode() == ProfilerMode::FULL)
-        {
-            const auto& opcodeProfile = context.getOpcodeProfile();
-
-            // Collect non-zero opcodes
-            std::vector<std::pair<uint8_t, uint64_t>> opcodeCounts;
-            for (size_t i = 0; i < 256; ++i)
+            if (opcodeProfile.counts[i] > 0)
             {
-                if (opcodeProfile.counts[i] > 0)
-                {
-                    opcodeCounts.emplace_back(static_cast<uint8_t>(i), opcodeProfile.counts[i]);
-                }
-            }
-
-            if (!opcodeCounts.empty())
-            {
-                std::sort(opcodeCounts.begin(), opcodeCounts.end(),
-                    [](const auto& a, const auto& b) { return a.second > b.second; });
-
-                size_t opcodeLimit = std::min(opcodeCounts.size(), static_cast<size_t>(10));
-                std::cout << "\n--- Opcode Execution Counts (top " << opcodeLimit << ") ---\n";
-                std::cout << "  ";
-
-                for (size_t i = 0; i < opcodeLimit; ++i)
-                {
-                    if (i > 0) std::cout << " | ";
-                    auto opcode = static_cast<bytecode::OpCode>(opcodeCounts[i].first);
-                    std::cout << bytecode::getOpCodeName(opcode) << ": " << opcodeCounts[i].second;
-                }
-                std::cout << "\n";
+                opcodeCounts.emplace_back(static_cast<uint8_t>(i), opcodeProfile.counts[i]);
             }
         }
 
-        std::cout << "=============================\n";
+        if (opcodeCounts.empty()) return;
+
+        std::sort(opcodeCounts.begin(), opcodeCounts.end(),
+            [](const auto& a, const auto& b) { return a.second > b.second; });
+
+        size_t opcodeLimit = std::min(opcodeCounts.size(), static_cast<size_t>(10));
+        std::cout << "\n--- Opcode Execution Counts (top " << opcodeLimit << ") ---\n";
+        std::cout << "  ";
+
+        for (size_t i = 0; i < opcodeLimit; ++i)
+        {
+            if (i > 0) std::cout << " | ";
+            auto opcode = static_cast<bytecode::OpCode>(opcodeCounts[i].first);
+            std::cout << bytecode::getOpCodeName(opcode) << ": " << opcodeCounts[i].second;
+        }
+        std::cout << "\n";
     }
 
     void ProfilerReport::generateJsonReport(const ProfilerContext& context)
@@ -171,13 +182,22 @@ namespace vm::profiler
         std::ostringstream json;
         json << "{\n";
 
-        // Metadata
         double totalTimeMs = static_cast<double>(context.getTotalProfilingTimeNs()) / 1e6;
         std::string modeStr = context.getMode() == ProfilerMode::FULL ? "full" : "light";
         json << "  \"mode\": \"" << modeStr << "\",\n";
         json << "  \"totalTimeMs\": " << std::fixed << std::setprecision(4) << totalTimeMs << ",\n";
 
-        // Functions
+        emitJsonFunctions(json, context);
+        emitJsonCallGraph(json, context);
+        emitJsonGcStats(json);
+        emitJsonOpcodes(json, context);
+
+        json << "}\n";
+        std::cout << json.str();
+    }
+
+    void ProfilerReport::emitJsonFunctions(std::ostringstream& json, const ProfilerContext& context)
+    {
         json << "  \"functions\": [\n";
         const auto& profiles = context.getFunctionProfiles();
         size_t funcIdx = 0;
@@ -193,8 +213,10 @@ namespace vm::profiler
             funcIdx++;
         }
         json << "\n  ],\n";
+    }
 
-        // Call graph
+    void ProfilerReport::emitJsonCallGraph(std::ostringstream& json, const ProfilerContext& context)
+    {
         json << "  \"callGraph\": [\n";
         const auto& edges = context.getCallGraphEdges();
         size_t edgeIdx = 0;
@@ -210,8 +232,10 @@ namespace vm::profiler
             edgeIdx++;
         }
         json << "\n  ],\n";
+    }
 
-        // GC stats
+    void ProfilerReport::emitJsonGcStats(std::ostringstream& json)
+    {
         const auto* gcStats = gc::GC::getStats();
         json << "  \"gcStats\": {";
         if (gcStats)
@@ -221,8 +245,10 @@ namespace vm::profiler
             json << "\"objectsCollected\": " << gcStats->objectsCollected.load();
         }
         json << "},\n";
+    }
 
-        // Opcodes
+    void ProfilerReport::emitJsonOpcodes(std::ostringstream& json, const ProfilerContext& context)
+    {
         json << "  \"opcodes\": {";
         if (context.getMode() == ProfilerMode::FULL)
         {
@@ -240,13 +266,8 @@ namespace vm::profiler
             }
         }
         json << "}\n";
-
-        json << "}\n";
-
-        std::cout << json.str();
     }
 
-    // Declared in the header but I'll add it as a static helper
     std::string ProfilerReport::escapeJsonString(const std::string& str)
     {
         std::string result;
@@ -263,7 +284,6 @@ namespace vm::profiler
                 default:
                     if (c < 0x20)
                     {
-                        // Escape control characters as \u00XX per JSON spec
                         char buf[8];
                         std::snprintf(buf, sizeof(buf), "\\u%04x", c);
                         result += buf;
