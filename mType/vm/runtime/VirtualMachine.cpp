@@ -1017,6 +1017,48 @@ namespace vm::runtime
         fieldDef->setValue(value);
     }
 
+    void VirtualMachine::ensureExecutors()
+    {
+        // Create (or recreate) the execution context as a heap-allocated member
+        // so that executors holding a reference to it remain valid across calls.
+        executionCtx = std::make_unique<ExecutionContext>(
+            program, instructionPointer, callStack, maxCallStackSize,
+            environment, stackManager, stats, executionStart,
+            debuggingEnabled, currentSourceFile, currentSourceLine, this);
+
+        stackOpsExecutor = std::make_unique<StackOperationsExecutor>(*executionCtx);
+        comparisonExecutor = std::make_unique<ComparisonExecutor>(*executionCtx);
+        logicalExecutor = std::make_unique<LogicalExecutor>(*executionCtx);
+        arithmeticExecutor = std::make_unique<ArithmeticExecutor>(*executionCtx);
+        bitwiseExecutor = std::make_unique<BitwiseExecutor>(*executionCtx);
+        controlFlowExecutor = std::make_unique<ControlFlowExecutor>(*executionCtx);
+        if (jitEnabled && osrManager) {
+            controlFlowExecutor->setOSRManager(osrManager.get());
+        }
+        variableExecutor = std::make_unique<VariableExecutor>(*executionCtx);
+        functionExecutor = std::make_unique<FunctionExecutor>(*executionCtx);
+        typeExecutor = std::make_unique<TypeExecutor>(*executionCtx);
+        arrayExecutor = std::make_unique<ArrayExecutor>(*executionCtx);
+        objectExecutor = std::make_unique<ObjectExecutor>(*executionCtx);
+        lambdaExecutor = std::make_unique<LambdaExecutor>(*executionCtx);
+        exceptionExecutor = std::make_unique<ExceptionExecutor>(*executionCtx);
+        primitiveMethodExecutor = std::make_unique<PrimitiveMethodExecutor>(*executionCtx);
+
+        // Set function executor reference in object executor for lambda-to-interface conversion
+        objectExecutor->setFunctionExecutor(functionExecutor.get());
+
+        // Phase 6: Initialize inline cache executor
+        if (icEnabled && inlineCacheTable)
+        {
+            inlineCacheExecutor = std::make_unique<InlineCacheExecutor>(*executionCtx, *inlineCacheTable);
+            inlineCacheExecutor->setObjectExecutor(objectExecutor.get());
+            inlineCacheExecutor->setFunctionExecutor(functionExecutor.get());
+        }
+
+        // Initialize exception handler
+        exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
+    }
+
     value::Value VirtualMachine::interpretLoop()
     {
         suspendedByAwait = false; // Reset flag at start
@@ -1037,42 +1079,8 @@ namespace vm::runtime
             }
         }
 
-        // Initialize executors with fresh execution context
-        // This ensures executors always have valid references, even when called from C++ API
-        ExecutionContext context(program, instructionPointer, callStack, maxCallStackSize,
-                                 environment, stackManager, stats, executionStart,
-                                 debuggingEnabled, currentSourceFile, currentSourceLine, this);
-        stackOpsExecutor = std::make_unique<StackOperationsExecutor>(context);
-        comparisonExecutor = std::make_unique<ComparisonExecutor>(context);
-        logicalExecutor = std::make_unique<LogicalExecutor>(context);
-        arithmeticExecutor = std::make_unique<ArithmeticExecutor>(context);
-        bitwiseExecutor = std::make_unique<BitwiseExecutor>(context);
-        controlFlowExecutor = std::make_unique<ControlFlowExecutor>(context);
-        if (jitEnabled && osrManager) {
-            controlFlowExecutor->setOSRManager(osrManager.get());
-        }
-        variableExecutor = std::make_unique<VariableExecutor>(context);
-        functionExecutor = std::make_unique<FunctionExecutor>(context);
-        typeExecutor = std::make_unique<TypeExecutor>(context);
-        arrayExecutor = std::make_unique<ArrayExecutor>(context);
-        objectExecutor = std::make_unique<ObjectExecutor>(context);
-        lambdaExecutor = std::make_unique<LambdaExecutor>(context);
-        exceptionExecutor = std::make_unique<ExceptionExecutor>(context);
-        primitiveMethodExecutor = std::make_unique<PrimitiveMethodExecutor>(context);  // Phase 3
-
-        // Set function executor reference in object executor for lambda-to-interface conversion
-        objectExecutor->setFunctionExecutor(functionExecutor.get());
-
-        // Phase 6: Initialize inline cache executor
-        if (icEnabled && inlineCacheTable)
-        {
-            inlineCacheExecutor = std::make_unique<InlineCacheExecutor>(context, *inlineCacheTable);
-            inlineCacheExecutor->setObjectExecutor(objectExecutor.get());
-            inlineCacheExecutor->setFunctionExecutor(functionExecutor.get());
-        }
-
-        // Initialize exception handler
-        exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
+        // Initialize executors (creates or refreshes the execution context)
+        ensureExecutors();
 
         // GC: Counter for periodic collection checks
         size_t instructionsSinceGC = 0;

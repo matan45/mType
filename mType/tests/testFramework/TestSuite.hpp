@@ -29,6 +29,7 @@ namespace tests::testFramework
 
         void addTestFromFile(const std::string& name, const std::string& filePath, TestType type = TestType::NORMAL);
         void addOutputVerificationTest(const std::string& name, const std::string& filePath);
+        void addInteropTest(const std::string& name, const std::string& filePath);
 
         void setExecutionModeForAll(constants::ExecutionMode mode);
 

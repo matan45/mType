@@ -114,6 +114,10 @@ namespace vm::runtime
         std::unique_ptr<errors::UserException> pendingException;  // Exception waiting to be re-thrown after finally block
         size_t pendingFinallyOffset;  // Offset of the finally block that has a pending exception (SIZE_MAX if none)
 
+        // Execution context (persists across calls so executors don't hold dangling refs)
+        std::unique_ptr<ExecutionContext> executionCtx;
+        void ensureExecutors();
+
         // Specialized executors
         std::unique_ptr<StackOperationsExecutor> stackOpsExecutor;
         std::unique_ptr<ComparisonExecutor> comparisonExecutor;
@@ -176,7 +180,10 @@ namespace vm::runtime
         void setStaticField(const std::string& className, const std::string& fieldName, const value::Value& value);
 
         // Program management
-        void setProgram(const bytecode::BytecodeProgram* prog) { program = prog; }
+        void setProgram(const bytecode::BytecodeProgram* prog) {
+            program = prog;
+            if (executionCtx) { executionCtx->program = prog; }
+        }
 
         // Event loop integration (lazy initialization)
         ::runtime::EventLoop* getEventLoop() const { return eventLoop.get(); }

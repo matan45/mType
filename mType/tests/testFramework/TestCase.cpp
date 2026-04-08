@@ -3,6 +3,8 @@
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
 #include "../../services/ScriptInterpreter.hpp"
+#include "../../environment/registry/ClassRegistry.hpp"
+#include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../vm/runtime/VirtualMachine.hpp"
 #include "../../reflection/ReflectionNatives.hpp"
 #include "../../json/JsonNatives.hpp"
@@ -66,7 +68,31 @@ namespace tests::testFramework
                 ScriptInterpreter testInterpreter(executionMode);
                 // Enable JIT compilation for all tests
                 testInterpreter.getVM()->setJitEnabled(true);
-                testInterpreter.runScript(filePath);
+
+                if (type == TestType::SCRIPT_INTEROP)
+                {
+                    // C++ interop path: parse classes, create object, call onStart
+                    testInterpreter.parseAndRegisterClasses(filePath);
+
+                    auto env = testInterpreter.getEnvironment();
+                    auto classRegistry = env->getClassRegistry();
+                    auto allClassNames = classRegistry->getAllItemNames();
+
+                    for (const auto& className : allClassNames)
+                    {
+                        auto classDef = classRegistry->findClass(className);
+                        if (classDef && classDef->hasAnnotation("Script"))
+                        {
+                            std::vector<value::Value> noArgs;
+                            value::Value obj = testInterpreter.createObject(className);
+                            testInterpreter.callMethod(obj, "onStart", noArgs);
+                        }
+                    }
+                }
+                else
+                {
+                    testInterpreter.runScript(filePath);
+                }
 
                 // Restore stdout
                 std::cout.rdbuf(oldCout);
@@ -79,7 +105,7 @@ namespace tests::testFramework
                     status = TestStatus::FAILED;
                     errorMessage = "Expected error but test passed";
                 }
-                else if (type == TestType::OUTPUT_EXPECTED)
+                else if (type == TestType::OUTPUT_EXPECTED || type == TestType::SCRIPT_INTEROP)
                 {
                     // Verify output against expected file
                     if (verifyOutputAgainstExpected())
@@ -204,6 +230,8 @@ namespace tests::testFramework
             return "OUTPUT_EXPECTED";
         case TestType::PERFORMANCE:
             return "PERFORMANCE";
+        case TestType::SCRIPT_INTEROP:
+            return "SCRIPT_INTEROP";
         default:
             return "UNKNOWN";
         }

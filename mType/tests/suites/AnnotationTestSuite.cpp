@@ -27,6 +27,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Script Annotation Valid Requirements",
                                   passPath + "script_annotation_valid.mt");
 
+        // ===== @Script C++ INTEROP - PASS TESTS =====
+        // Tests createObject + callMethod path (reproduces MYT-25 regression)
+
+        addInteropTest("Script C++ Interop - createObject + callMethod",
+                       passPath + "script_callmethod_test.mt");
+
         // ===== MULTIPLE ANNOTATIONS - PASS TESTS =====
         // Tests for using multiple annotations together
 
