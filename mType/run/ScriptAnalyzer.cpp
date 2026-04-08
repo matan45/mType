@@ -34,10 +34,20 @@ void demonstrateScriptObjectUsage(const std::string& scriptFile,
 
     try
     {
-        // Step 1: Parse and register classes
-        std::cout << "Step 1: Parsing script and registering classes...\n";
+        // Step 1: Parse and register classes (or load from .mtcLib)
+        std::cout << "Step 1: Loading script classes...\n";
         ScriptInterpreter interpreter(execMode);
-        interpreter.parseAndRegisterClasses(scriptFile);
+        std::string ext = scriptFile.substr(scriptFile.find_last_of('.'));
+        if (ext == ".mtcLib" || ext == ".mtc")
+        {
+            std::cout << "  Loading compiled bytecode: " << scriptFile << "\n";
+            interpreter.loadCompiledBytecode(scriptFile);
+        }
+        else
+        {
+            std::cout << "  Parsing source: " << scriptFile << "\n";
+            interpreter.parseAndRegisterClasses(scriptFile);
+        }
         std::cout << "  Done!\n\n";
 
         // Step 2: Find @Script classes
@@ -58,50 +68,17 @@ void demonstrateScriptObjectUsage(const std::string& scriptFile,
         }
         std::cout << "\n";
 
-        // Step 3: Create and use PlayerController
-        if (std::find(scriptClasses.begin(), scriptClasses.end(), "PlayerController") != scriptClasses.end())
+        // Step 3: Create instances and call onStart on all @Script classes
+        for (const auto& className : scriptClasses)
         {
-            std::cout << "Step 3: Creating PlayerController instance...\n";
-
-            std::vector<value::Value> ctorArgs;
-            ctorArgs.push_back(value::Value(100)); // health = 100
-
-            value::Value player = interpreter.createObject("PlayerController", ctorArgs);
-            std::cout << "  PlayerController created with health=100\n\n";
-
-            std::cout << "Step 4: Calling methods on PlayerController...\n";
-
-            // Call getHealth()
+            std::cout << "Step 3: Creating " << className << " instance...\n";
             std::vector<value::Value> noArgs;
-            value::Value health = interpreter.callMethod(player, "getHealth", noArgs);
-            std::cout << "  player.getHealth() = " << std::get<int64_t>(health) << "\n";
+            value::Value obj = interpreter.createObject(className);
+            std::cout << "  " << className << " created!\n";
 
-            // Call takeDamage(30)
-            std::vector<value::Value> damageArgs;
-            damageArgs.push_back(value::Value(30));
-            interpreter.callMethod(player, "takeDamage", damageArgs);
-            std::cout << "  player.takeDamage(30) called\n";
-
-            // Call getHealth() again
-            value::Value newHealth = interpreter.callMethod(player, "getHealth", noArgs);
-            std::cout << "  player.getHealth() = " << std::get<int64_t>(newHealth) << " (after damage)\n\n";
-        }
-
-        // Step 5: Create and use GameWorld
-        if (std::find(scriptClasses.begin(), scriptClasses.end(), "GameWorld") != scriptClasses.end())
-        {
-            std::cout << "Step 5: Creating GameWorld instance...\n";
-
-            std::vector<value::Value> worldArgs;
-            worldArgs.push_back(value::Value(5)); // level = 5
-
-            value::Value world = interpreter.createObject("GameWorld", worldArgs);
-            std::cout << "  GameWorld created with level=5\n";
-
-            // Call getLevel()
-            std::vector<value::Value> noArgs;
-            value::Value level = interpreter.callMethod(world, "getLevel", noArgs);
-            std::cout << "  world.getLevel() = " << std::get<int64_t>(level) << "\n\n";
+            std::cout << "Step 4: Calling onStart() on " << className << "...\n";
+            interpreter.callMethod(obj, "onStart", noArgs);
+            std::cout << "  onStart() returned OK\n\n";
         }
 
         std::cout << std::string(80, '=') << "\n";

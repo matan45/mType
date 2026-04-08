@@ -71,6 +71,11 @@ namespace tests::testFramework
         testCases.emplace_back(name, filePath, TestType::OUTPUT_EXPECTED);
     }
 
+    void TestSuite::addInteropTest(const std::string& name, const std::string& filePath)
+    {
+        testCases.emplace_back(name, filePath, TestType::SCRIPT_INTEROP);
+    }
+
     void TestSuite::generateHtmlReport()
     {
         // Create reports directory if it doesn't exist
