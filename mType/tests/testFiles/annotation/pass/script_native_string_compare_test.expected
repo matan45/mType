@@ -1,0 +1,11 @@
+onStart called
+received: NewGameBtn
+matched NewGameBtn
+not SettingsBtn
+received: SettingsBtn
+matched SettingsBtn
+not NewGameBtn
+received: UnknownBtn
+no match: UnknownBtn
+not NewGameBtn
+not SettingsBtn

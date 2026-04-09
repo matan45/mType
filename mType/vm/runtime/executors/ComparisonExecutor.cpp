@@ -50,6 +50,16 @@ namespace vm::runtime
             return;
         }
 
+        // Handle cross-type string comparison (std::string vs InternedString)
+        if (std::holds_alternative<std::string>(left) && std::holds_alternative<value::InternedString>(right)) {
+            context.stackManager->push(std::get<value::InternedString>(right) == std::get<std::string>(left));
+            return;
+        }
+        if (std::holds_alternative<value::InternedString>(left) && std::holds_alternative<std::string>(right)) {
+            context.stackManager->push(std::get<value::InternedString>(left) == std::get<std::string>(right));
+            return;
+        }
+
         // Handle bool-to-int conversion for comparisons
         if (std::holds_alternative<bool>(left) && std::holds_alternative<int64_t>(right)) {
             context.stackManager->push(static_cast<int>(std::get<bool>(left)) == std::get<int64_t>(right));
@@ -81,6 +91,16 @@ namespace vm::runtime
             auto leftObj = std::get<std::shared_ptr<value::ValueObject>>(left);
             auto rightObj = std::get<std::shared_ptr<value::ValueObject>>(right);
             context.stackManager->push(!leftObj->equals(*rightObj));
+            return;
+        }
+
+        // Handle cross-type string comparison (std::string vs InternedString)
+        if (std::holds_alternative<std::string>(left) && std::holds_alternative<value::InternedString>(right)) {
+            context.stackManager->push(std::get<value::InternedString>(right) != std::get<std::string>(left));
+            return;
+        }
+        if (std::holds_alternative<value::InternedString>(left) && std::holds_alternative<std::string>(right)) {
+            context.stackManager->push(std::get<value::InternedString>(left) != std::get<std::string>(right));
             return;
         }
 

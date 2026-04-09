@@ -86,6 +86,23 @@ namespace tests::testFramework
                             std::vector<value::Value> noArgs;
                             value::Value obj = testInterpreter.createObject(className);
                             testInterpreter.callMethod(obj, "onStart", noArgs);
+
+                            // If the class has onInteropTest(string), call it with C++ strings
+                            // This tests native std::string vs InternedString comparison
+                            if (classDef->findMethod("onInteropTest", 1))
+                            {
+                                std::vector<value::Value> stringArgs;
+                                stringArgs.push_back(value::Value(std::string("NewGameBtn")));
+                                testInterpreter.callMethod(obj, "onInteropTest", stringArgs);
+
+                                stringArgs.clear();
+                                stringArgs.push_back(value::Value(std::string("SettingsBtn")));
+                                testInterpreter.callMethod(obj, "onInteropTest", stringArgs);
+
+                                stringArgs.clear();
+                                stringArgs.push_back(value::Value(std::string("UnknownBtn")));
+                                testInterpreter.callMethod(obj, "onInteropTest", stringArgs);
+                            }
                         }
                     }
                 }

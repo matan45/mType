@@ -1,0 +1,42 @@
+--- Parameter to literal comparison ---
+PASS: param == literal match
+PASS: param == literal second branch
+PASS: param == literal third branch
+PASS: param == literal no match
+--- Variable passed as parameter ---
+PASS: variable passed to param
+PASS: variable passed to param 2
+--- Concatenated string as parameter ---
+PASS: concatenated param match
+PASS: concatenated equals literal
+--- Function return compared to literal ---
+PASS: function return == literal
+PASS: function return as param
+--- Class field comparison ---
+PASS: class field == literal
+PASS: class field as param
+PASS: class field == literal 2
+PASS: class field != different literal
+--- Chained if-else dispatch ---
+PASS: dispatch NewGameBtn
+PASS: dispatch SettingsBtn
+PASS: dispatch BackBtn
+PASS: dispatch ExitBtn
+PASS: dispatch AudioTabBtn
+PASS: dispatch GraphicsTabBtn
+PASS: dispatch ControlsTabBtn
+PASS: dispatch unknown falls through
+--- Multiple comparisons on same variable ---
+PASS: same var != first
+PASS: same var == second
+PASS: same var != third
+--- Reassigned variable comparison ---
+PASS: before reassign
+PASS: after reassign
+PASS: old value no longer matches
+--- Similar prefix strings ---
+PASS: shorter != longer
+PASS: prefix != extended
+PASS: case difference
+PASS: lowercase != mixed case
+--- All string comparison tests completed ---

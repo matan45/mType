@@ -34,5 +34,9 @@ namespace tests::testSuite
         // Pool effectiveness measurement
         addOutputVerificationTest("String Pool Single character Stress Test",
                                   stringPoolPath + "debug_single_chars.mt");
+
+        // Parameter string comparison (entityName == "literal" pattern)
+        addOutputVerificationTest("String Compare Parameter Pattern",
+                                  stringPoolPath + "string_compare_parameter_test.mt");
     }
 }
