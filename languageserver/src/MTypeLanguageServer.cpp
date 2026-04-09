@@ -1,6 +1,7 @@
 #include "MTypeLanguageServer.hpp"
 #include <iostream>
 #include <filesystem>
+#include <sstream>
 
 namespace mtype::lsp
 {
@@ -138,6 +139,39 @@ namespace mtype::lsp
         }
     }
 
+    // URL decode helper for workspace root
+    static std::string urlDecodeStr(const std::string& str)
+    {
+        std::string result;
+        result.reserve(str.size());
+        for (size_t i = 0; i < str.size(); ++i)
+        {
+            if (str[i] == '%' && i + 2 < str.size())
+            {
+                int value;
+                std::istringstream iss(str.substr(i + 1, 2));
+                if (iss >> std::hex >> value)
+                {
+                    result += static_cast<char>(value);
+                    i += 2;
+                }
+                else
+                {
+                    result += str[i];
+                }
+            }
+            else if (str[i] == '+')
+            {
+                result += ' ';
+            }
+            else
+            {
+                result += str[i];
+            }
+        }
+        return result;
+    }
+
     void MTypeLanguageServer::handleInitialize(const json& id, const json& params)
     {
         // Extract workspace root from initialize params
@@ -152,6 +186,8 @@ namespace mtype::lsp
             if (rootUri.find(filePrefix) == 0)
             {
                 workspaceRoot = rootUri.substr(filePrefix.length());
+                // URL decode (e.g., %20 -> space)
+                workspaceRoot = urlDecodeStr(workspaceRoot);
                 // On Windows, handle /C:/path -> C:/path
                 if (workspaceRoot.length() >= 3 && workspaceRoot[0] == '/' && workspaceRoot[2] == ':')
                 {
@@ -390,6 +426,16 @@ namespace mtype::lsp
     {
         std::string error = JsonRpc::createError(id, code, message);
         JsonRpc::writeMessage(std::cout, error);
+    }
+
+    void MTypeLanguageServer::logMessage(const std::string& message)
+    {
+        json params = {
+            {"type", 4}, // 4 = Log
+            {"message", message}
+        };
+        std::string notification = JsonRpc::createNotification("window/logMessage", params);
+        JsonRpc::writeMessage(std::cout, notification);
     }
 
     void MTypeLanguageServer::publishDiagnostics(const std::string& uri, const std::vector<Diagnostic>& diagnostics)

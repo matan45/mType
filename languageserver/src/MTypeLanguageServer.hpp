@@ -44,6 +44,7 @@ private:
     void sendResponse(const json& id, const json& result);
     void sendError(const json& id, int code, const std::string& message);
     void publishDiagnostics(const std::string& uri, const std::vector<Diagnostic>& diagnostics);
+    void logMessage(const std::string& message);
 
     // Components
     std::unique_ptr<DocumentManager> documentManager_;
