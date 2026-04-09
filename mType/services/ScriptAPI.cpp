@@ -15,6 +15,8 @@
 #include "../errors/RuntimeException.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
+#include "../runtime/EventLoop.hpp"
+#include "../value/PromiseValue.hpp"
 #include <iostream>
 
 namespace services
@@ -69,6 +71,30 @@ namespace services
         // Use VM for method invocation
         if (vm)
         {
+            // Check if method is async — if so, schedule via EventLoop
+            auto classDef = instance->getClassDefinition();
+            auto method = classDef->findInstanceMethodInHierarchy(methodName, args.size());
+            if (method && method->getIsAsync())
+            {
+                auto* eventLoop = vm->ensureEventLoop();
+                auto vmShared = vm->shared_from_this();
+
+                size_t taskId = eventLoop->scheduleTask(
+                    [vmShared, inst = instance, methodName, args]() -> value::Value {
+                        return vmShared->invokeMethod(inst, methodName, args);
+                    }
+                );
+                eventLoop->setTaskVM(taskId, vmShared);
+
+                // Return the task's result promise so caller can check completion
+                auto task = eventLoop->getTask(taskId);
+                if (task && task->resultPromise)
+                {
+                    return value::Value(task->resultPromise);
+                }
+                return value::Value(std::monostate{});
+            }
+
             return vm->invokeMethod(instance, methodName, args);
         }
 
@@ -88,6 +114,28 @@ namespace services
         // Use VM for static method invocation
         if (vm)
         {
+            // Check if method is async — if so, schedule via EventLoop
+            auto method = classDef->findStaticMethod(methodName, args.size());
+            if (method && method->getIsAsync())
+            {
+                auto* eventLoop = vm->ensureEventLoop();
+                auto vmShared = vm->shared_from_this();
+
+                size_t taskId = eventLoop->scheduleTask(
+                    [vmShared, className, methodName, args]() -> value::Value {
+                        return vmShared->invokeStaticMethod(className, methodName, args);
+                    }
+                );
+                eventLoop->setTaskVM(taskId, vmShared);
+
+                auto task = eventLoop->getTask(taskId);
+                if (task && task->resultPromise)
+                {
+                    return value::Value(task->resultPromise);
+                }
+                return value::Value(std::monostate{});
+            }
+
             return vm->invokeStaticMethod(className, methodName, args);
         }
 

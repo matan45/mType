@@ -36,6 +36,9 @@ namespace tests::testSuite
         addInteropTest("Script C++ Interop - Native String Comparison",
                        passPath + "script_native_string_compare_test.mt");
 
+        addInteropTest("Script C++ Interop - Async callMethod",
+                       passPath + "script_async_callmethod_test.mt");
+
         // ===== MULTIPLE ANNOTATIONS - PASS TESTS =====
         // Tests for using multiple annotations together
 

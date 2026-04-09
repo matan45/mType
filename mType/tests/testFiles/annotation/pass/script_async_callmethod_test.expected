@@ -1,0 +1,7 @@
+onStart called
+before await: NewGameBtn
+after await: resolved-NewGameBtn
+before await: SettingsBtn
+after await: resolved-SettingsBtn
+before await: UnknownBtn
+after await: resolved-UnknownBtn

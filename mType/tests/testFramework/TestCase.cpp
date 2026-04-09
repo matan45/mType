@@ -6,6 +6,7 @@
 #include "../../environment/registry/ClassRegistry.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../vm/runtime/VirtualMachine.hpp"
+#include "../../runtime/EventLoop.hpp"
 #include "../../reflection/ReflectionNatives.hpp"
 #include "../../json/JsonNatives.hpp"
 #include "../../gc/GC.hpp"
@@ -103,6 +104,17 @@ namespace tests::testFramework
                                 stringArgs.push_back(value::Value(std::string("UnknownBtn")));
                                 testInterpreter.callMethod(obj, "onInteropTest", stringArgs);
                             }
+                        }
+                    }
+
+                    // Tick event loop to complete any async tasks scheduled by callMethod
+                    auto vmPtr = testInterpreter.getVM();
+                    if (vmPtr)
+                    {
+                        auto* eventLoop = vmPtr->getEventLoop();
+                        if (eventLoop)
+                        {
+                            while (eventLoop->tick()) {}
                         }
                     }
                 }
