@@ -12,6 +12,7 @@
 #include "../../../mType/runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../mType/runtimeTypes/global/FunctionDefinition.hpp"
 #include "../../../mType/value/ValueType.hpp"
+#include "../../../mType/types/UnifiedType.hpp"
 
 namespace mtype::lsp {
 
@@ -211,8 +212,22 @@ void SymbolRegistrationVisitor::processInterfaceNode(ast::ASTNode* node) {
                 if (functionNode) {
                     runtimeTypes::klass::MethodSignature signature;
                     signature.name = functionNode->getName();
-                    signature.returnType = functionNode->getGenericReturnType();
-                    signature.parameters = functionNode->getGenericParameters();
+
+                    // Convert GenericType to UnifiedType for LSP compatibility
+                    auto genericRetType = functionNode->getGenericReturnType();
+                    if (genericRetType) {
+                        signature.returnType = types::UnifiedType::classType(genericRetType->getBaseTypeName());
+                    }
+
+                    // Convert generic parameters to UnifiedType pairs
+                    for (const auto& [paramName, paramGenericType] : functionNode->getGenericParameters()) {
+                        types::UnifiedTypePtr paramType;
+                        if (paramGenericType) {
+                            paramType = types::UnifiedType::classType(paramGenericType->getBaseTypeName());
+                        }
+                        signature.parameters.emplace_back(paramName, paramType);
+                    }
+
                     signature.genericParameters = functionNode->getGenericTypeParameters();
 
                     interfaceDef->addMethodSignature(signature);

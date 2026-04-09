@@ -16,6 +16,10 @@ namespace mtype::lsp {
 ImportResolver::ImportResolver() {
 }
 
+void ImportResolver::setProjectConfig(std::shared_ptr<ProjectConfigProvider> config) {
+    projectConfig_ = std::move(config);
+}
+
 void ImportResolver::resolveImports(Document* doc, DocumentManager* docManager) {
     if (!doc || !doc->environment) {
         return;
@@ -30,7 +34,27 @@ void ImportResolver::resolveImports(Document* doc, DocumentManager* docManager) 
 
     // Parse each imported file
     for (const auto& relativePath : importPaths) {
-        std::string absolutePath = resolveImportPath(doc->uri, relativePath);
+        std::string absolutePath;
+
+        // Try project config resolution first (handles search paths and aliases)
+        if (projectConfig_ && projectConfig_->isLoaded()) {
+            std::string docPath = doc->uri;
+            // Remove file:/// prefix
+            if (docPath.substr(0, 8) == "file:///") {
+                docPath = urlDecode(docPath.substr(8));
+                // Windows: /C:/path -> C:/path
+                if (docPath.length() >= 3 && docPath[0] == '/' && docPath[2] == ':') {
+                    docPath = docPath.substr(1);
+                }
+            }
+            std::string baseDir = fs::path(docPath).parent_path().string();
+            absolutePath = projectConfig_->resolveImport(baseDir, relativePath);
+        }
+
+        // Fallback: resolve relative to current file
+        if (absolutePath.empty()) {
+            absolutePath = resolveImportPath(doc->uri, relativePath);
+        }
 
         if (fs::exists(absolutePath)) {
             parseImportedFile(absolutePath, doc->environment, doc->symbolLocations, visited);

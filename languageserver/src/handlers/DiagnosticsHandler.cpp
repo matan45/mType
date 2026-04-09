@@ -7,6 +7,41 @@ namespace fs = std::filesystem;
 
 namespace mtype::lsp
 {
+    // Helper function to URL decode a string
+    static std::string urlDecode(const std::string& str)
+    {
+        std::string result;
+        result.reserve(str.size());
+
+        for (size_t i = 0; i < str.size(); ++i)
+        {
+            if (str[i] == '%' && i + 2 < str.size())
+            {
+                int value;
+                std::istringstream iss(str.substr(i + 1, 2));
+                if (iss >> std::hex >> value)
+                {
+                    result += static_cast<char>(value);
+                    i += 2;
+                }
+                else
+                {
+                    result += str[i];
+                }
+            }
+            else if (str[i] == '+')
+            {
+                result += ' ';
+            }
+            else
+            {
+                result += str[i];
+            }
+        }
+
+        return result;
+    }
+
     DiagnosticsHandler::DiagnosticsHandler(DocumentManager* docMgr)
         : documentManager_(docMgr)
     {
@@ -15,6 +50,11 @@ namespace mtype::lsp
     void DiagnosticsHandler::setPublisher(DiagnosticPublisher publisher)
     {
         publisher_ = std::move(publisher);
+    }
+
+    void DiagnosticsHandler::setProjectConfig(std::shared_ptr<ProjectConfigProvider> config)
+    {
+        projectConfig_ = std::move(config);
     }
 
     void DiagnosticsHandler::publishDiagnostics(const std::string& uri)
@@ -91,6 +131,23 @@ namespace mtype::lsp
         return diagnostics;
     }
 
+    std::string DiagnosticsHandler::uriToFilePath(const std::string& uri)
+    {
+        std::string path = uri;
+        const std::string filePrefix = "file:///";
+        if (path.find(filePrefix) == 0)
+        {
+            path = path.substr(filePrefix.length());
+            path = urlDecode(path);
+            // On Windows, convert /C:/path to C:/path
+            if (path.length() >= 3 && path[0] == '/' && path[2] == ':')
+            {
+                path = path.substr(1);
+            }
+        }
+        return path;
+    }
+
     std::vector<Diagnostic> DiagnosticsHandler::validateImportPaths(const Document* doc)
     {
         std::vector<Diagnostic> diagnostics;
@@ -105,6 +162,10 @@ namespace mtype::lsp
         // Regex to match: import ... from "path"
         std::regex importRegex("import\\s+.*\\s+from\\s+\"([^\"]+)\"");
 
+        // Get the directory of the current file
+        std::string currentFilePath = uriToFilePath(doc->uri);
+        std::string currentDir = fs::path(currentFilePath).parent_path().string();
+
         while (std::getline(stream, line))
         {
             std::smatch match;
@@ -112,11 +173,21 @@ namespace mtype::lsp
             {
                 std::string importPath = match[1].str();
 
-                // Resolve relative path
-                std::string resolvedPath = resolveImportPath(doc->uri, importPath);
+                bool exists = false;
 
-                // Check if path exists
-                bool exists = fs::exists(resolvedPath);
+                // First try: resolve using project config (search paths + aliases)
+                if (projectConfig_ && projectConfig_->isLoaded())
+                {
+                    std::string resolved = projectConfig_->resolveImport(currentDir, importPath);
+                    exists = !resolved.empty();
+                }
+
+                // Fallback: resolve relative to current file directory
+                if (!exists)
+                {
+                    std::string resolvedPath = resolveImportPath(doc->uri, importPath);
+                    exists = fs::exists(resolvedPath);
+                }
 
                 if (!exists)
                 {
@@ -143,42 +214,6 @@ namespace mtype::lsp
         }
 
         return diagnostics;
-    }
-
-    // Helper function to URL decode a string
-    static std::string urlDecode(const std::string& str)
-    {
-        std::string result;
-        result.reserve(str.size());
-
-        for (size_t i = 0; i < str.size(); ++i)
-        {
-            if (str[i] == '%' && i + 2 < str.size())
-            {
-                // Convert hex to char
-                int value;
-                std::istringstream iss(str.substr(i + 1, 2));
-                if (iss >> std::hex >> value)
-                {
-                    result += static_cast<char>(value);
-                    i += 2;
-                }
-                else
-                {
-                    result += str[i];
-                }
-            }
-            else if (str[i] == '+')
-            {
-                result += ' ';
-            }
-            else
-            {
-                result += str[i];
-            }
-        }
-
-        return result;
     }
 
     std::string DiagnosticsHandler::resolveImportPath(const std::string& baseUri, const std::string& relativePath)

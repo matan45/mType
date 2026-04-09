@@ -176,11 +176,11 @@ std::vector<std::string> CodeActionHandler::getRequiredMethods(
         bool first = true;
         for (const auto& [paramName, paramType] : sig.parameters) {
             if (!first) methodBuilder << ", ";
-            methodBuilder << paramName << ": " << paramType->getBaseTypeName();
+            methodBuilder << paramName << ": " << paramType->getName();
             first = false;
         }
 
-        methodBuilder << "): " << sig.returnType->getBaseTypeName();
+        methodBuilder << "): " << sig.returnType->getName();
 
         methods.push_back(methodBuilder.str());
     }

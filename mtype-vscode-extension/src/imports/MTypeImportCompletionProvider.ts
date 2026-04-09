@@ -2,12 +2,19 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { MTypeImportResolver, ImportInfo } from './MTypeImportResolver';
+import { MTypeProjectConfig } from '../project/MTypeProjectConfig';
 
 export class MTypeImportCompletionProvider implements vscode.CompletionItemProvider {
     private importResolver: MTypeImportResolver;
+    private projectConfig: MTypeProjectConfig | null = null;
 
-    constructor(importResolver: MTypeImportResolver) {
+    constructor(importResolver: MTypeImportResolver, projectConfig?: MTypeProjectConfig | null) {
         this.importResolver = importResolver;
+        this.projectConfig = projectConfig ?? null;
+    }
+
+    setProjectConfig(config: MTypeProjectConfig | null): void {
+        this.projectConfig = config;
     }
 
     async provideCompletionItems(
@@ -239,6 +246,28 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
             // Determine the directory to search based on partial path
             const currentFileDir = path.dirname(currentFilePath);
 
+            // Offer alias completions when typing @
+            if (this.projectConfig && (partialPath === '@' || (partialPath.startsWith('@') && !partialPath.includes('/')))) {
+                const prefix = partialPath.substring(1).toLowerCase();
+                for (const [aliasName, aliasPath] of this.projectConfig.aliases) {
+                    if (aliasName.substring(1).toLowerCase().startsWith(prefix)) {
+                        const item = new vscode.CompletionItem(
+                            aliasName + '/',
+                            vscode.CompletionItemKind.Module
+                        );
+                        item.detail = `Alias → ${path.relative(this.importResolver['workspaceRoot'], aliasPath)}`;
+                        item.insertText = aliasName + '/';
+                        item.command = {
+                            command: 'editor.action.triggerSuggest',
+                            title: 'Re-trigger completions'
+                        };
+                        item.sortText = '0' + aliasName;
+                        completions.push(item);
+                    }
+                }
+                return completions;
+            }
+
             // Parse the partial path to get directory and file prefix
             const lastSlashIndex = partialPath.lastIndexOf('/');
             let searchDir: string;
@@ -253,7 +282,18 @@ export class MTypeImportCompletionProvider implements vscode.CompletionItemProvi
             filePrefix = partialPath.substring(lastSlashIndex + 1);
 
             // Resolve the directory to search
-            if (dirPart.startsWith('./')) {
+            if (dirPart.startsWith('@') && this.projectConfig) {
+                // Resolve alias-prefixed path
+                const slashIdx = dirPart.indexOf('/');
+                const aliasName = dirPart.substring(0, slashIdx);
+                const aliasTarget = this.projectConfig.aliases.get(aliasName);
+                if (aliasTarget) {
+                    const subPath = dirPart.substring(slashIdx + 1);
+                    searchDir = path.join(aliasTarget, subPath);
+                } else {
+                    return [];
+                }
+            } else if (dirPart.startsWith('./')) {
                 searchDir = path.join(currentFileDir, dirPart.substring(2));
             } else if (dirPart.startsWith('../')) {
                 searchDir = path.resolve(currentFileDir, dirPart);
@@ -360,7 +400,7 @@ export class MTypeImportedSymbolProvider {
         const lines = text.split('\n');
 
         for (const line of lines) {
-            const importMatch = line.match(/^\s*import\s+["']([^"']+)["']\s*;?/);
+            const importMatch = line.match(/^\s*import\s+(?:.*\s+from\s+)?["']([^"']+)["']\s*;?/);
             if (importMatch) {
                 const importPath = importMatch[1];
 

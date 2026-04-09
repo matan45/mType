@@ -11,6 +11,7 @@
 #include "handlers/FormattingHandler.hpp"
 #include "utils/JsonRpc.hpp"
 #include "utils/LSPTypes.hpp"
+#include "utils/ProjectConfigProvider.hpp"
 
 namespace mtype::lsp {
 
@@ -53,6 +54,7 @@ private:
     std::unique_ptr<CodeActionHandler> codeActionHandler_;
     std::unique_ptr<CodeLensHandler> codeLensHandler_;
     std::unique_ptr<FormattingHandler> formattingHandler_;
+    std::shared_ptr<ProjectConfigProvider> projectConfig_;
 
     bool shouldExit_ = false;
 };

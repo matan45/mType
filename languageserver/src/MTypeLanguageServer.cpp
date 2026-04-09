@@ -1,5 +1,6 @@
 #include "MTypeLanguageServer.hpp"
 #include <iostream>
+#include <filesystem>
 
 namespace mtype::lsp
 {
@@ -139,6 +140,39 @@ namespace mtype::lsp
 
     void MTypeLanguageServer::handleInitialize(const json& id, const json& params)
     {
+        // Extract workspace root from initialize params
+        projectConfig_ = std::make_shared<ProjectConfigProvider>();
+        std::string workspaceRoot;
+
+        if (params.contains("rootUri") && params["rootUri"].is_string())
+        {
+            std::string rootUri = params["rootUri"];
+            // Convert file:/// URI to path
+            const std::string filePrefix = "file:///";
+            if (rootUri.find(filePrefix) == 0)
+            {
+                workspaceRoot = rootUri.substr(filePrefix.length());
+                // On Windows, handle /C:/path -> C:/path
+                if (workspaceRoot.length() >= 3 && workspaceRoot[0] == '/' && workspaceRoot[2] == ':')
+                {
+                    workspaceRoot = workspaceRoot.substr(1);
+                }
+            }
+        }
+        else if (params.contains("rootPath") && params["rootPath"].is_string())
+        {
+            workspaceRoot = params["rootPath"];
+        }
+
+        if (!workspaceRoot.empty())
+        {
+            projectConfig_->loadFromWorkspace(workspaceRoot);
+        }
+
+        // Share project config with handlers
+        diagnosticsHandler_->setProjectConfig(projectConfig_);
+        documentManager_->setProjectConfig(projectConfig_);
+
         json capabilities = {
             {"textDocumentSync", 1}, // Full sync
             {
