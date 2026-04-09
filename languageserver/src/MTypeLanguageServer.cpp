@@ -1,5 +1,7 @@
 #include "MTypeLanguageServer.hpp"
+#include "utils/UriUtils.hpp"
 #include <iostream>
+#include <filesystem>
 
 namespace mtype::lsp
 {
@@ -139,6 +141,28 @@ namespace mtype::lsp
 
     void MTypeLanguageServer::handleInitialize(const json& id, const json& params)
     {
+        // Extract workspace root from initialize params
+        projectConfig_ = std::make_shared<ProjectConfigProvider>();
+        std::string workspaceRoot;
+
+        if (params.contains("rootUri") && params["rootUri"].is_string())
+        {
+            workspaceRoot = UriUtils::uriToFilePath(params["rootUri"]);
+        }
+        else if (params.contains("rootPath") && params["rootPath"].is_string())
+        {
+            workspaceRoot = params["rootPath"];
+        }
+
+        if (!workspaceRoot.empty())
+        {
+            projectConfig_->loadFromWorkspace(workspaceRoot);
+        }
+
+        // Share project config with handlers
+        diagnosticsHandler_->setProjectConfig(projectConfig_);
+        documentManager_->setProjectConfig(projectConfig_);
+
         json capabilities = {
             {"textDocumentSync", 1}, // Full sync
             {
@@ -356,6 +380,16 @@ namespace mtype::lsp
     {
         std::string error = JsonRpc::createError(id, code, message);
         JsonRpc::writeMessage(std::cout, error);
+    }
+
+    void MTypeLanguageServer::logMessage(const std::string& message)
+    {
+        json params = {
+            {"type", 4}, // 4 = Log
+            {"message", message}
+        };
+        std::string notification = JsonRpc::createNotification("window/logMessage", params);
+        JsonRpc::writeMessage(std::cout, notification);
     }
 
     void MTypeLanguageServer::publishDiagnostics(const std::string& uri, const std::vector<Diagnostic>& diagnostics)

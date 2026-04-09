@@ -7,6 +7,7 @@
 #include <memory>
 #include "../../../mType/environment/Environment.hpp"
 #include "../DocumentManager.hpp"
+#include "../utils/ProjectConfigProvider.hpp"
 
 namespace mtype::lsp {
 
@@ -19,6 +20,11 @@ struct Document;
 class ImportResolver {
 public:
     ImportResolver();
+
+    /**
+     * Set the project configuration for search path resolution
+     */
+    void setProjectConfig(std::shared_ptr<ProjectConfigProvider> config);
 
     /**
      * Parse all imports for a document and register their symbols
@@ -62,16 +68,14 @@ private:
         std::unordered_set<std::string>& visited
     );
 
-    /**
-     * URL decode a string (e.g., %3A -> :)
-     */
-    std::string urlDecode(const std::string& str);
-
     // Cache of parsed import files (path -> environment with symbols)
     std::unordered_map<std::string, std::shared_ptr<environment::Environment>> importCache_;
 
     // Cache of symbol locations from imported files (path -> symbol locations)
     std::unordered_map<std::string, std::unordered_map<std::string, SymbolLocationInfo>> symbolLocationCache_;
+
+    // Project configuration for search path resolution
+    std::shared_ptr<ProjectConfigProvider> projectConfig_;
 };
 
 } // namespace mtype::lsp

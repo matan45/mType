@@ -2,7 +2,9 @@
 
 #include <vector>
 #include <functional>
+#include <memory>
 #include "../utils/LSPTypes.hpp"
+#include "../utils/ProjectConfigProvider.hpp"
 #include "../DocumentManager.hpp"
 
 namespace mtype::lsp {
@@ -14,6 +16,7 @@ public:
     explicit DiagnosticsHandler(DocumentManager* docMgr);
 
     void setPublisher(DiagnosticPublisher publisher);
+    void setProjectConfig(std::shared_ptr<ProjectConfigProvider> config);
     void publishDiagnostics(const std::string& uri);
 
 private:
@@ -23,6 +26,7 @@ private:
 
     DocumentManager* documentManager_;
     DiagnosticPublisher publisher_;
+    std::shared_ptr<ProjectConfigProvider> projectConfig_;
 };
 
 } // namespace mtype::lsp

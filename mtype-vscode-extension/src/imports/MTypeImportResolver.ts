@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { MTypeProjectConfig } from '../project/MTypeProjectConfig';
 
 export interface ImportInfo {
     importPath: string;
@@ -25,84 +26,123 @@ export interface ParameterInfo {
 export class MTypeImportResolver {
     private importCache: Map<string, ImportInfo> = new Map();
     private workspaceRoot: string;
+    private searchPaths: string[] = [];
+    private aliases: Map<string, string> = new Map();
 
-    constructor(workspaceRoot: string) {
+    constructor(workspaceRoot: string, projectConfig?: MTypeProjectConfig | null) {
         this.workspaceRoot = workspaceRoot;
+        if (projectConfig) {
+            this.searchPaths = projectConfig.searchPaths;
+            this.aliases = projectConfig.aliases;
+        }
     }
 
     /**
-     * Resolve an import path to an absolute file path
+     * Update project configuration and clear cache
+     */
+    setProjectConfig(config: MTypeProjectConfig | null): void {
+        this.searchPaths = config?.searchPaths ?? [];
+        this.aliases = config?.aliases ?? new Map();
+        this.clearCache();
+    }
+
+    /**
+     * Expand path aliases (e.g., @core/utils.mt -> /abs/path/src/core/utils.mt)
+     */
+    private expandAlias(importPath: string): string {
+        if (!importPath.startsWith('@') || this.aliases.size === 0) {
+            return importPath;
+        }
+
+        const slashIndex = importPath.indexOf('/');
+        const aliasName = slashIndex !== -1 ? importPath.substring(0, slashIndex) : importPath;
+        const aliasTarget = this.aliases.get(aliasName);
+
+        if (!aliasTarget) {
+            return importPath;
+        }
+
+        const remainder = slashIndex !== -1 ? importPath.substring(slashIndex) : '';
+        return aliasTarget + remainder;
+    }
+
+    /**
+     * Try resolving a path against configured search paths.
+     * Matches ImportManager.cpp behavior: tries each searchPath directory.
+     */
+    private resolveViaSearchPaths(filePath: string): string | null {
+        for (const searchPath of this.searchPaths) {
+            const candidate = path.join(searchPath, filePath);
+            if (fs.existsSync(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Resolve an import path to an absolute file path.
+     * Resolution order matches the compiler's ImportManager::resolvePath:
+     * 1. Alias expansion (@prefix)
+     * 2. Relative imports (./ or ../)
+     * 3. Absolute imports (/)
+     * 4. Current file directory
+     * 5. Workspace root (base directory)
+     * 6. Search paths from .mtproj
+     * 7. Recursive fallback search
      */
     resolveImportPath(importPath: string, currentFilePath: string): string | null {
         // Remove quotes from import path
-        const cleanPath = importPath.replace(/['"]/g, '');
+        let cleanPath = importPath.replace(/['"]/g, '');
         const currentDir = path.dirname(currentFilePath);
 
         console.log('Resolving import path:', cleanPath, 'from:', currentFilePath);
 
-        // For relative imports starting with ./ or ../
+        // 1. Alias expansion
+        cleanPath = this.expandAlias(cleanPath);
+
+        // 2. For relative imports starting with ./ or ../
         if (cleanPath.startsWith('./') || cleanPath.startsWith('../')) {
             const resolvedPath = path.resolve(currentDir, cleanPath);
-            console.log('Relative path resolved to:', resolvedPath);
-
             if (fs.existsSync(resolvedPath)) {
                 return resolvedPath;
             }
             return null;
         }
 
-        // For absolute imports starting with /
+        // 3. For absolute imports starting with /
         if (cleanPath.startsWith('/')) {
             const resolvedPath = path.join(this.workspaceRoot, cleanPath.substring(1));
-            console.log('Absolute path resolved to:', resolvedPath);
-
             if (fs.existsSync(resolvedPath)) {
                 return resolvedPath;
             }
             return null;
         }
 
-        // For paths with subdirectories (contains /)
-        if (cleanPath.includes('/')) {
-            // Try relative to workspace root
-            const workspaceRelativePath = path.join(this.workspaceRoot, cleanPath);
-            console.log('Workspace relative path:', workspaceRelativePath);
+        // 4. Try relative to current file's directory
+        const currentRelativePath = path.join(currentDir, cleanPath);
+        if (fs.existsSync(currentRelativePath)) {
+            return currentRelativePath;
+        }
 
-            if (fs.existsSync(workspaceRelativePath)) {
-                return workspaceRelativePath;
+        // 5. Try relative to workspace root (base directory)
+        const workspaceRelativePath = path.join(this.workspaceRoot, cleanPath);
+        if (fs.existsSync(workspaceRelativePath)) {
+            return workspaceRelativePath;
+        }
+
+        // 6. Try each configured search path from .mtproj
+        const searchPathResult = this.resolveViaSearchPaths(cleanPath);
+        if (searchPathResult) {
+            return searchPathResult;
+        }
+
+        // 7. Recursive fallback search (only for simple filenames)
+        if (!cleanPath.includes('/')) {
+            const foundPath = this.findFileRecursively(this.workspaceRoot, cleanPath);
+            if (foundPath) {
+                return foundPath;
             }
-
-            // Try relative to current directory
-            const currentRelativePath = path.join(currentDir, cleanPath);
-            console.log('Current directory relative path:', currentRelativePath);
-
-            if (fs.existsSync(currentRelativePath)) {
-                return currentRelativePath;
-            }
-        }
-
-        // For simple filenames without path separators
-        // 1. Look in same directory first
-        const sameDirPath = path.join(currentDir, cleanPath);
-        console.log('Same directory path:', sameDirPath);
-
-        if (fs.existsSync(sameDirPath)) {
-            return sameDirPath;
-        }
-
-        // 2. Look in workspace root
-        const workspaceRootPath = path.join(this.workspaceRoot, cleanPath);
-        console.log('Workspace root path:', workspaceRootPath);
-
-        if (fs.existsSync(workspaceRootPath)) {
-            return workspaceRootPath;
-        }
-
-        // 3. Search recursively in workspace for the file
-        const foundPath = this.findFileRecursively(this.workspaceRoot, cleanPath);
-        if (foundPath) {
-            console.log('Found file recursively:', foundPath);
-            return foundPath;
         }
 
         console.log('Could not resolve import path:', cleanPath);
@@ -301,12 +341,28 @@ export class MTypeImportResolver {
                 }
             }
 
-            // 3. Recursively get files in all subdirectories from workspace root
+            // 3. Get files from configured search paths
+            for (const searchPath of this.searchPaths) {
+                if (fs.existsSync(searchPath)) {
+                    const searchPathFiles = this.getAllMTypeFiles(searchPath, currentFilePath);
+                    imports.push(...searchPathFiles);
+                }
+            }
+
+            // 4. Get alias-prefixed imports
+            for (const [aliasName, aliasPath] of this.aliases) {
+                if (fs.existsSync(aliasPath)) {
+                    const aliasFiles = this.getAllMTypeFiles(aliasPath, currentFilePath, aliasName + '/');
+                    imports.push(...aliasFiles);
+                }
+            }
+
+            // 5. Recursively get files in all subdirectories from workspace root
             const allFiles = this.getAllMTypeFiles(this.workspaceRoot, currentFilePath);
             console.log('All workspace files found:', allFiles.length);
             imports.push(...allFiles);
 
-            // 4. Get files relative to current directory (subdirectories of current dir)
+            // 6. Get files relative to current directory (subdirectories of current dir)
             const currentDirSubFiles = this.getAllMTypeFiles(currentDir, currentFilePath, './');
             console.log('Files in current directory subdirectories:', currentDirSubFiles);
             imports.push(...currentDirSubFiles);
@@ -388,7 +444,7 @@ export class MTypeImportResolver {
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            const importMatch = line.match(/^\s*import\s+["']([^"']+)["']\s*;?/);
+            const importMatch = line.match(/^\s*import\s+(?:.*\s+from\s+)?["']([^"']+)["']\s*;?/);
 
             if (importMatch) {
                 const importPath = importMatch[1];

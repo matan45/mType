@@ -46,7 +46,7 @@ namespace runtimeTypes::klass
         return classDefinition ? classDefinition->getName() : "unknown";
     }
 
-    bool ObjectInstance::compareFieldValues(const Value& thisValue, const Value& otherValue) {
+    bool ObjectInstance::compareFieldValues(const Value& thisValue, const Value& otherValue, int depth) {
         return false; // Not needed for LSP
     }
 

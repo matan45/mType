@@ -11,6 +11,7 @@
 #include "handlers/FormattingHandler.hpp"
 #include "utils/JsonRpc.hpp"
 #include "utils/LSPTypes.hpp"
+#include "utils/ProjectConfigProvider.hpp"
 
 namespace mtype::lsp {
 
@@ -43,6 +44,7 @@ private:
     void sendResponse(const json& id, const json& result);
     void sendError(const json& id, int code, const std::string& message);
     void publishDiagnostics(const std::string& uri, const std::vector<Diagnostic>& diagnostics);
+    void logMessage(const std::string& message);
 
     // Components
     std::unique_ptr<DocumentManager> documentManager_;
@@ -53,6 +55,7 @@ private:
     std::unique_ptr<CodeActionHandler> codeActionHandler_;
     std::unique_ptr<CodeLensHandler> codeLensHandler_;
     std::unique_ptr<FormattingHandler> formattingHandler_;
+    std::shared_ptr<ProjectConfigProvider> projectConfig_;
 
     bool shouldExit_ = false;
 };

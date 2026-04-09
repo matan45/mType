@@ -12,6 +12,7 @@ import { MTypeCodeActionsProvider } from './codeActions/MTypeCodeActionsProvider
 import { MTypeCodeLensProvider } from './codeLens/MTypeCodeLensProvider';
 import { MTypeSemanticTokensProvider, legend } from './semanticTokens/MTypeSemanticTokensProvider';
 import { activateLanguageServer, deactivateLanguageServer } from './languageClient';
+import { loadProjectConfig } from './project/MTypeProjectConfig';
 
 function registerCommonCommands(context: vscode.ExtensionContext): void {
     // Command to run mType file
@@ -131,7 +132,7 @@ function registerCommonCommands(context: vscode.ExtensionContext): void {
     );
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
     // Register commands that should always be available regardless of LSP mode
     registerCommonCommands(context);
 
@@ -152,13 +153,33 @@ export function activate(context: vscode.ExtensionContext) {
     // Get workspace root for import resolution
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
 
+    // Load .mtproj configuration for import search paths and aliases
+    const projectConfig = await loadProjectConfig(workspaceRoot);
+
     // Initialize import system
-    const importResolver = new MTypeImportResolver(workspaceRoot);
+    const importResolver = new MTypeImportResolver(workspaceRoot, projectConfig);
     const importedSymbolProvider = new MTypeImportedSymbolProvider(importResolver);
     const importDiagnostics = new MTypeImportDiagnostics(importResolver);
 
+    // Watch for .mtproj changes to reload config without restarting
+    const mtprojWatcher = vscode.workspace.createFileSystemWatcher('**/*.mtproj');
+    const reloadProjectConfig = async () => {
+        const newConfig = await loadProjectConfig(workspaceRoot);
+        importResolver.setProjectConfig(newConfig);
+        importCompletionProvider.setProjectConfig(newConfig);
+        for (const doc of vscode.workspace.textDocuments) {
+            if (doc.languageId === 'mtype') {
+                await importDiagnostics.updateDiagnostics(doc);
+            }
+        }
+    };
+    mtprojWatcher.onDidChange(reloadProjectConfig);
+    mtprojWatcher.onDidCreate(reloadProjectConfig);
+    mtprojWatcher.onDidDelete(reloadProjectConfig);
+    context.subscriptions.push(mtprojWatcher);
+
     // Register import completion provider (for import statements)
-    const importCompletionProvider = new MTypeImportCompletionProvider(importResolver);
+    const importCompletionProvider = new MTypeImportCompletionProvider(importResolver, projectConfig);
     const importCompletionDisposable = vscode.languages.registerCompletionItemProvider(
         'mtype',
         importCompletionProvider,

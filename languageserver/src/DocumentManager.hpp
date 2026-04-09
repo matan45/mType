@@ -18,6 +18,7 @@ namespace mtype::lsp {
 // Forward declarations
 class SymbolRegistrationVisitor;
 class ImportResolver;
+class ProjectConfigProvider;
 
 // Symbol location tracking for go-to-definition
 struct SymbolLocationInfo {
@@ -56,6 +57,8 @@ public:
     void openDocument(const std::string& uri, const std::string& content, int version);
     void updateDocument(const std::string& uri, const std::string& content, int version);
     void closeDocument(const std::string& uri);
+
+    void setProjectConfig(std::shared_ptr<ProjectConfigProvider> config);
 
     Document* getDocument(const std::string& uri);
     const Document* getDocument(const std::string& uri) const;

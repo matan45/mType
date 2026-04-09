@@ -4,6 +4,7 @@
 #include "utils/MemoryFileReader.hpp"
 #include "analysis/SymbolRegistrationVisitor.hpp"
 #include "analysis/ImportResolver.hpp"
+#include "utils/ProjectConfigProvider.hpp"
 #include <sstream>
 #include <algorithm>
 #include <regex>
@@ -22,6 +23,12 @@ DocumentManager::DocumentManager() {
 }
 
 DocumentManager::~DocumentManager() = default;
+
+void DocumentManager::setProjectConfig(std::shared_ptr<ProjectConfigProvider> config) {
+    if (importResolver_) {
+        importResolver_->setProjectConfig(std::move(config));
+    }
+}
 
 void DocumentManager::openDocument(const std::string& uri, const std::string& content, int version) {
     auto doc = std::make_unique<Document>();
