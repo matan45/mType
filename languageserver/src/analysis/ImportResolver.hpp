@@ -68,11 +68,6 @@ private:
         std::unordered_set<std::string>& visited
     );
 
-    /**
-     * URL decode a string (e.g., %3A -> :)
-     */
-    std::string urlDecode(const std::string& str);
-
     // Cache of parsed import files (path -> environment with symbols)
     std::unordered_map<std::string, std::shared_ptr<environment::Environment>> importCache_;
 

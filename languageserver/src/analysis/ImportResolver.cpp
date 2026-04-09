@@ -1,6 +1,7 @@
 #include "ImportResolver.hpp"
 #include "SymbolRegistrationVisitor.hpp"
 #include "../utils/MemoryFileReader.hpp"
+#include "../utils/UriUtils.hpp"
 #include "../../../mType/lexer/Lexer.hpp"
 #include "../../../mType/parser/Parser.hpp"
 #include "../../../mType/services/ImportManager.hpp"
@@ -18,6 +19,7 @@ ImportResolver::ImportResolver() {
 
 void ImportResolver::setProjectConfig(std::shared_ptr<ProjectConfigProvider> config) {
     projectConfig_ = std::move(config);
+    clearCache();
 }
 
 void ImportResolver::resolveImports(Document* doc, DocumentManager* docManager) {
@@ -38,15 +40,7 @@ void ImportResolver::resolveImports(Document* doc, DocumentManager* docManager) 
 
         // Try project config resolution first (handles search paths and aliases)
         if (projectConfig_ && projectConfig_->isLoaded()) {
-            std::string docPath = doc->uri;
-            // Remove file:/// prefix
-            if (docPath.substr(0, 8) == "file:///") {
-                docPath = urlDecode(docPath.substr(8));
-                // Windows: /C:/path -> C:/path
-                if (docPath.length() >= 3 && docPath[0] == '/' && docPath[2] == ':') {
-                    docPath = docPath.substr(1);
-                }
-            }
+            std::string docPath = UriUtils::uriToFilePath(doc->uri);
             std::string baseDir = fs::path(docPath).parent_path().string();
             absolutePath = projectConfig_->resolveImport(baseDir, relativePath);
         }
@@ -88,14 +82,7 @@ std::vector<std::string> ImportResolver::extractImportPaths(const std::string& c
 }
 
 std::string ImportResolver::resolveImportPath(const std::string& baseUri, const std::string& relativePath) {
-    // Remove file:/// prefix if present
-    std::string path = baseUri;
-    if (path.substr(0, 8) == "file:///") {
-        path = path.substr(8);
-    }
-
-    // URL decode (e.g., %3A -> :)
-    path = urlDecode(path);
+    std::string path = UriUtils::uriToFilePath(baseUri);
 
     // Get directory of the base file
     fs::path basePath(path);
@@ -273,31 +260,6 @@ void ImportResolver::parseImportedFile(
     } catch (const std::exception&) {
         // Silently ignore parse errors
     }
-}
-
-std::string ImportResolver::urlDecode(const std::string& str) {
-    std::string result;
-    result.reserve(str.size());
-
-    for (size_t i = 0; i < str.size(); ++i) {
-        if (str[i] == '%' && i + 2 < str.size()) {
-            // Convert hex to char
-            int value;
-            std::istringstream iss(str.substr(i + 1, 2));
-            if (iss >> std::hex >> value) {
-                result += static_cast<char>(value);
-                i += 2;
-            } else {
-                result += str[i];
-            }
-        } else if (str[i] == '+') {
-            result += ' ';
-        } else {
-            result += str[i];
-        }
-    }
-
-    return result;
 }
 
 } // namespace mtype::lsp

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <regex>
+#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -13,6 +14,7 @@ bool ProjectConfigProvider::loadFromWorkspace(const std::string& workspaceRoot)
     searchPaths_.clear();
     aliases_.clear();
     projectRoot_.clear();
+    workspaceRoot_ = workspaceRoot;
 
     std::string mtprojPath = findMtproj(workspaceRoot);
     if (mtprojPath.empty())
@@ -22,6 +24,20 @@ bool ProjectConfigProvider::loadFromWorkspace(const std::string& workspaceRoot)
 
     parseMtproj(mtprojPath);
     return loaded_;
+}
+
+bool ProjectConfigProvider::isWithinWorkspace(const std::string& candidatePath, const std::string& workspaceRoot) const
+{
+    try
+    {
+        auto canonical = fs::weakly_canonical(candidatePath).string();
+        auto root = fs::weakly_canonical(workspaceRoot).string();
+        return canonical.find(root) == 0;
+    }
+    catch (...)
+    {
+        return false;
+    }
 }
 
 std::string ProjectConfigProvider::findMtproj(const std::string& startDir) const
@@ -49,8 +65,9 @@ std::string ProjectConfigProvider::findMtproj(const std::string& startDir) const
 
         return bestPath;
     }
-    catch (...)
+    catch (const std::exception& e)
     {
+        std::cerr << "[mType LSP] Error searching for .mtproj: " << e.what() << std::endl;
         return "";
     }
 }
@@ -80,7 +97,15 @@ void ProjectConfigProvider::parseMtproj(const std::string& filePath)
             if (!relativePath.empty())
             {
                 fs::path absPath = fs::path(projectRoot_) / relativePath;
-                searchPaths_.push_back(absPath.lexically_normal().string());
+                std::string normalized = absPath.lexically_normal().string();
+                if (isWithinWorkspace(normalized, workspaceRoot_))
+                {
+                    searchPaths_.push_back(normalized);
+                }
+                else
+                {
+                    std::cerr << "[mType LSP] Ignoring search path outside workspace: " << normalized << std::endl;
+                }
             }
             ++it;
         }
@@ -96,15 +121,24 @@ void ProjectConfigProvider::parseMtproj(const std::string& filePath)
             if (!aliasName.empty() && !aliasPath.empty())
             {
                 fs::path absPath = fs::path(projectRoot_) / aliasPath;
-                aliases_[aliasName] = absPath.lexically_normal().string();
+                std::string normalized = absPath.lexically_normal().string();
+                if (isWithinWorkspace(normalized, workspaceRoot_))
+                {
+                    aliases_[aliasName] = normalized;
+                }
+                else
+                {
+                    std::cerr << "[mType LSP] Ignoring alias outside workspace: " << aliasName << " -> " << normalized << std::endl;
+                }
             }
             ++it;
         }
 
         loaded_ = true;
     }
-    catch (...)
+    catch (const std::exception& e)
     {
+        std::cerr << "[mType LSP] Error parsing .mtproj: " << e.what() << std::endl;
         loaded_ = false;
     }
 }

@@ -57,11 +57,17 @@ private:
     std::string findMtproj(const std::string& startDir) const;
 
     /**
+     * Check if a path is within the workspace root (prevents path traversal)
+     */
+    bool isWithinWorkspace(const std::string& candidatePath, const std::string& workspaceRoot) const;
+
+    /**
      * Parse the .mtproj file content
      */
     void parseMtproj(const std::string& filePath);
 
     std::string projectRoot_;
+    std::string workspaceRoot_;
     std::vector<std::string> searchPaths_;
     std::unordered_map<std::string, std::string> aliases_;
     bool loaded_ = false;

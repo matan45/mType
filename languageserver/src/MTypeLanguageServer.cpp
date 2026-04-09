@@ -1,7 +1,7 @@
 #include "MTypeLanguageServer.hpp"
+#include "utils/UriUtils.hpp"
 #include <iostream>
 #include <filesystem>
-#include <sstream>
 
 namespace mtype::lsp
 {
@@ -139,39 +139,6 @@ namespace mtype::lsp
         }
     }
 
-    // URL decode helper for workspace root
-    static std::string urlDecodeStr(const std::string& str)
-    {
-        std::string result;
-        result.reserve(str.size());
-        for (size_t i = 0; i < str.size(); ++i)
-        {
-            if (str[i] == '%' && i + 2 < str.size())
-            {
-                int value;
-                std::istringstream iss(str.substr(i + 1, 2));
-                if (iss >> std::hex >> value)
-                {
-                    result += static_cast<char>(value);
-                    i += 2;
-                }
-                else
-                {
-                    result += str[i];
-                }
-            }
-            else if (str[i] == '+')
-            {
-                result += ' ';
-            }
-            else
-            {
-                result += str[i];
-            }
-        }
-        return result;
-    }
-
     void MTypeLanguageServer::handleInitialize(const json& id, const json& params)
     {
         // Extract workspace root from initialize params
@@ -180,20 +147,7 @@ namespace mtype::lsp
 
         if (params.contains("rootUri") && params["rootUri"].is_string())
         {
-            std::string rootUri = params["rootUri"];
-            // Convert file:/// URI to path
-            const std::string filePrefix = "file:///";
-            if (rootUri.find(filePrefix) == 0)
-            {
-                workspaceRoot = rootUri.substr(filePrefix.length());
-                // URL decode (e.g., %20 -> space)
-                workspaceRoot = urlDecodeStr(workspaceRoot);
-                // On Windows, handle /C:/path -> C:/path
-                if (workspaceRoot.length() >= 3 && workspaceRoot[0] == '/' && workspaceRoot[2] == ':')
-                {
-                    workspaceRoot = workspaceRoot.substr(1);
-                }
-            }
+            workspaceRoot = UriUtils::uriToFilePath(params["rootUri"]);
         }
         else if (params.contains("rootPath") && params["rootPath"].is_string())
         {

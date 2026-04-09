@@ -23,7 +23,6 @@ private:
     std::vector<Diagnostic> analyzeDiagnostics(const Document* doc);
     std::vector<Diagnostic> validateImportPaths(const Document* doc);
     std::string resolveImportPath(const std::string& baseUri, const std::string& relativePath);
-    std::string uriToFilePath(const std::string& uri);
 
     DocumentManager* documentManager_;
     DiagnosticPublisher publisher_;

@@ -1,4 +1,5 @@
 #include "DiagnosticsHandler.hpp"
+#include "../utils/UriUtils.hpp"
 #include <sstream>
 #include <regex>
 #include <filesystem>
@@ -7,41 +8,6 @@ namespace fs = std::filesystem;
 
 namespace mtype::lsp
 {
-    // Helper function to URL decode a string
-    static std::string urlDecode(const std::string& str)
-    {
-        std::string result;
-        result.reserve(str.size());
-
-        for (size_t i = 0; i < str.size(); ++i)
-        {
-            if (str[i] == '%' && i + 2 < str.size())
-            {
-                int value;
-                std::istringstream iss(str.substr(i + 1, 2));
-                if (iss >> std::hex >> value)
-                {
-                    result += static_cast<char>(value);
-                    i += 2;
-                }
-                else
-                {
-                    result += str[i];
-                }
-            }
-            else if (str[i] == '+')
-            {
-                result += ' ';
-            }
-            else
-            {
-                result += str[i];
-            }
-        }
-
-        return result;
-    }
-
     DiagnosticsHandler::DiagnosticsHandler(DocumentManager* docMgr)
         : documentManager_(docMgr)
     {
@@ -122,30 +88,7 @@ namespace mtype::lsp
         auto pathDiagnostics = validateImportPaths(doc);
         diagnostics.insert(diagnostics.end(), pathDiagnostics.begin(), pathDiagnostics.end());
 
-        // TODO: Add more sophisticated error checking with proper source locations
-        // - Type errors with specific line/column
-        // - Undefined variables
-        // - Unused variables (warning)
-        // - etc.
-
         return diagnostics;
-    }
-
-    std::string DiagnosticsHandler::uriToFilePath(const std::string& uri)
-    {
-        std::string path = uri;
-        const std::string filePrefix = "file:///";
-        if (path.find(filePrefix) == 0)
-        {
-            path = path.substr(filePrefix.length());
-            path = urlDecode(path);
-            // On Windows, convert /C:/path to C:/path
-            if (path.length() >= 3 && path[0] == '/' && path[2] == ':')
-            {
-                path = path.substr(1);
-            }
-        }
-        return path;
     }
 
     std::vector<Diagnostic> DiagnosticsHandler::validateImportPaths(const Document* doc)
@@ -163,7 +106,7 @@ namespace mtype::lsp
         std::regex importRegex("import\\s+.*\\s+from\\s+\"([^\"]+)\"");
 
         // Get the directory of the current file
-        std::string currentFilePath = uriToFilePath(doc->uri);
+        std::string currentFilePath = UriUtils::uriToFilePath(doc->uri);
         std::string currentDir = fs::path(currentFilePath).parent_path().string();
 
         while (std::getline(stream, line))
@@ -218,37 +161,14 @@ namespace mtype::lsp
 
     std::string DiagnosticsHandler::resolveImportPath(const std::string& baseUri, const std::string& relativePath)
     {
-        // Convert file:// URI to filesystem path
-        std::string basePath = baseUri;
-
-        // Remove file:/// prefix if present
-        const std::string filePrefix = "file:///";
-        if (basePath.find(filePrefix) == 0)
-        {
-            basePath = basePath.substr(filePrefix.length());
-
-            // URL decode the path (e.g., %3A -> :)
-            basePath = urlDecode(basePath);
-
-            // On Windows, convert /C:/path to C:/path
-            if (basePath.length() >= 3 && basePath[0] == '/' && basePath[2] == ':')
-            {
-                basePath = basePath.substr(1);
-            }
-        }
+        std::string basePath = UriUtils::uriToFilePath(baseUri);
 
         try
         {
-            // Get the directory containing the current file
             fs::path currentFilePath(basePath);
             fs::path currentDir = currentFilePath.parent_path();
-
-            // Resolve the relative path
             fs::path targetPath = currentDir / relativePath;
-
-            // Normalize the path
-            std::string result = targetPath.lexically_normal().string();
-            return result;
+            return targetPath.lexically_normal().string();
         }
         catch (...)
         {
