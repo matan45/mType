@@ -257,10 +257,10 @@ namespace services
         // Second pass: Link parent classes and populate members
         for (const auto& classMeta : classes)
         {
-            // Skip if class is already registered (e.g., from buildLibrary in same session)
+            // Remove old class definition if it exists (enables hot-reload of modified scripts)
             if (classRegistry->findClass(classMeta.name))
             {
-                continue;
+                classRegistry->removeItem(classMeta.name);
             }
 
             auto classDef = classMap[classMeta.name];

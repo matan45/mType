@@ -658,18 +658,30 @@ namespace vm::runtime
                 {
                     if (instructionPointer >= program->getInstructionCount())
                         break;
+                    if (suspendedByAwait)
+                        break;
                     const auto& instr = program->getInstruction(instructionPointer);
                     executeInstruction(instr);
                     instructionPointer++;
                 }
-                if (stackManager->size() > frameBase)
+                if (!suspendedByAwait && stackManager->size() > frameBase)
                     result = stackManager->pop();
-                while (stackManager->size() > frameBase)
-                    stackManager->pop();
+                if (!suspendedByAwait)
+                {
+                    while (stackManager->size() > frameBase)
+                        stackManager->pop();
+                }
             }
             else
             {
                 result = interpretLoop();
+            }
+
+            // If suspended by await, don't restore state — EventLoop will resume
+            if (suspendedByAwait)
+            {
+                suspendedByAwait = false;
+                return result;
             }
 
             // Restore state
@@ -769,18 +781,30 @@ namespace vm::runtime
                 {
                     if (instructionPointer >= program->getInstructionCount())
                         break;
+                    if (suspendedByAwait)
+                        break;
                     const auto& instr = program->getInstruction(instructionPointer);
                     executeInstruction(instr);
                     instructionPointer++;
                 }
-                if (stackManager->size() > frameBase)
+                if (!suspendedByAwait && stackManager->size() > frameBase)
                     result = stackManager->pop();
-                while (stackManager->size() > frameBase)
-                    stackManager->pop();
+                if (!suspendedByAwait)
+                {
+                    while (stackManager->size() > frameBase)
+                        stackManager->pop();
+                }
             }
             else
             {
                 result = interpretLoop();
+            }
+
+            // If suspended by await, don't restore state — EventLoop will resume
+            if (suspendedByAwait)
+            {
+                suspendedByAwait = false;
+                return result;
             }
 
             // Restore state
