@@ -76,6 +76,13 @@ namespace environment::registry
         return inheritanceTracker->getParentClass(childName);
     }
 
+    void ClassRegistry::clearScriptDefinitions()
+    {
+        items.clear();
+        inheritanceTracker->clear();
+        reifiedTypeRegistry->clear();
+    }
+
     // NEW (Phase 4): Reified type management
     ::types::UnifiedTypePtr ClassRegistry::getReifiedClassType(
         const std::string& className,

@@ -78,6 +78,7 @@ namespace services
         constants::ExecutionMode getExecutionMode() const;
 
         // Memory management methods
+        void resetForRebuild();
         void cleanupRegistries();
         size_t cleanupUnusedInterfaces();
         std::vector<std::string> findUnusedInterfaces() const;

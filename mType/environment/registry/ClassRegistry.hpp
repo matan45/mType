@@ -44,6 +44,9 @@ namespace environment::registry
         [[nodiscard]] std::vector<std::string> getChildClasses(const std::string& parentName) const;
         [[nodiscard]] std::string getParentClass(const std::string& childName) const;
 
+        // Clear all script-defined classes, preserving builtin "Object" class
+        void clearScriptDefinitions();
+
         // NEW (Phase 4): Reified type management for generic classes
         [[nodiscard]] std::shared_ptr<::types::ReifiedTypeRegistry> getReifiedTypeRegistry() const
         {

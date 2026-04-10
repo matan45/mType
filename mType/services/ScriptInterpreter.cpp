@@ -165,6 +165,26 @@ namespace services
         return result;
     }
 
+    void ScriptInterpreter::resetForRebuild()
+    {
+        if (environment)
+        {
+            environment->resetForRebuild();
+        }
+
+        cachedBytecodeProgram.reset();
+
+        if (vm)
+        {
+            vm->reset();
+        }
+
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(nullptr);
+        }
+    }
+
     void ScriptInterpreter::cleanupRegistries()
     {
         if (environment)

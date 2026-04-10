@@ -41,6 +41,27 @@ namespace environment
         if (nativeRegistry) nativeRegistry->cleanup();
     }
 
+    void Environment::resetForRebuild()
+    {
+        if (classRegistry) classRegistry->clearScriptDefinitions();
+        if (functionRegistry) functionRegistry->clearAllFunctions();
+        if (interfaceRegistry) interfaceRegistry->clear();
+        if (exportRegistry) exportRegistry->clearAll();
+        if (variableManager) variableManager->cleanup();
+
+        if (scopeManager)
+        {
+            scopeManager->cleanup();
+            scopeManager->initialize();
+        }
+
+        importManager = nullptr;
+
+        // Reset circular dependency detector
+        auto config = importDependencyDetector->getConfig();
+        importDependencyDetector = std::make_shared<circularDependency::CircularDependencyDetector>(config);
+    }
+
     std::shared_ptr<ClassRegistry> Environment::getClassRegistry() const
     {
         return classRegistry;

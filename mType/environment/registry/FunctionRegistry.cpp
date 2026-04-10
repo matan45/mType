@@ -103,6 +103,11 @@ namespace environment::registry
         return nullptr;
     }
 
+    void FunctionRegistry::clearAllFunctions()
+    {
+        functionOverloads.clear();
+    }
+
     std::shared_ptr<FunctionDefinition> FunctionRegistry::findFunctionByArgCount(
         const std::string& name,
         size_t argCount) const

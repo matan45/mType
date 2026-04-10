@@ -98,5 +98,10 @@ namespace environment::registry
          * @brief Clear all cached inheritance chains
          */
         void clearCache();
+
+        /**
+         * @brief Clear all inheritance relationships and caches
+         */
+        void clear();
     };
 }

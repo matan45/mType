@@ -61,6 +61,7 @@ namespace environment
 
         void initialize();
         void cleanup();
+        void resetForRebuild();
 
         std::shared_ptr<ClassRegistry> getClassRegistry() const;
         std::shared_ptr<FunctionRegistry> getFunctionRegistry() const;

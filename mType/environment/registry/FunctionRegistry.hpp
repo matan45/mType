@@ -53,6 +53,9 @@ namespace environment::registry
             const std::string& name,
             size_t argCount) const;
 
+        // Clear all script-defined functions
+        void clearAllFunctions();
+
     private:
         // Hide base class methods to prevent accidental misuse of base storage
         // (base class storage is not used; all data is in functionOverloads)

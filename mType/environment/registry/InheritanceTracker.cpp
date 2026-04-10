@@ -140,4 +140,11 @@ namespace environment::registry
     {
         inheritanceChainCache.clear();
     }
+
+    void InheritanceTracker::clear()
+    {
+        parentToChildren.clear();
+        childToParent.clear();
+        inheritanceChainCache.clear();
+    }
 }
