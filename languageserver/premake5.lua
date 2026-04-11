@@ -2,6 +2,7 @@
 workspace "mType-LanguageServer"
     architecture "x64"
     startproject "mtype-language-server"
+	toolset "v145"
 
     configurations
     {
@@ -29,6 +30,39 @@ project "mtype-language-server"
         "main.cpp",
         "src/**.hpp",
         "src/**.cpp",
+
+        -- MYT-35 — Shared diagnostic data model and exception converter.
+        -- The LSP needs the exception → Diagnostic conversion (used by
+        -- DocumentManager) and the SourceFileCache (so editor buffers
+        -- are addressable for snippets the renderer reads). The Rust-style
+        -- DiagnosticRenderer itself is included for build symmetry but
+        -- is not actually invoked by the LSP path.
+        "../mType/diagnostics/**.hpp",
+        "../mType/diagnostics/**.cpp",
+
+        -- MYT-49/MYT-50 — Compile-time analyzer passes (override checker,
+        -- unused variable analyzer). The LSP runs OverrideAnnotationChecker
+        -- against parsed documents (DocumentManager.cpp) for parity with
+        -- the bytecode-compile path.
+        "../mType/analysis/**.hpp",
+        "../mType/analysis/**.cpp",
+
+        -- MYT-35 — String utilities (Levenshtein, DidYouMean) used by
+        -- the suggestion engine paths in later phases. Header-only deps
+        -- need the .cpp here so the linker resolves them.
+        "../mType/util/**.hpp",
+        "../mType/util/**.cpp",
+
+        -- MYT-35 — Errors that the converter dispatches against. Most
+        -- exception classes are header-only so their typeinfo is emitted
+        -- per-TU and deduped by the linker. AccessViolationException has
+        -- an out-of-line .cpp where the typeinfo lives, so we ship it
+        -- here for the converter's dynamic_cast to resolve. UserException
+        -- is intentionally excluded — it pulls in value::Value (mtype-core)
+        -- and the LSP path doesn't run bytecode, so it can never throw one.
+        -- ExceptionConverter.cpp's dispatch is compiled out via
+        -- MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION (see defines below).
+        "../mType/errors/AccessViolationException.cpp",
 
         -- mType core sources for full semantic analysis
 
@@ -159,6 +193,14 @@ project "mtype-language-server"
         -- Also include vcpkg path if available (won't hurt if it doesn't exist)
         "$(VCPKG_ROOT)/installed/x64-windows/include",
     }
+
+    -- MYT-35 — The LSP path never throws UserException (it doesn't run
+    -- bytecode) and doesn't link mtype-core, so the dispatch is compiled
+    -- out via this define. ExceptionConverter.cpp guards the dispatch
+    -- and the converter function with #ifndef MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION.
+    -- _CRT_SECURE_NO_WARNINGS matches the main mType project's setting so
+    -- std::getenv (used by TerminalDetect) doesn't trigger C4996.
+    defines { "MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION", "_CRT_SECURE_NO_WARNINGS" }
 
     filter "system:windows"
         systemversion "latest"

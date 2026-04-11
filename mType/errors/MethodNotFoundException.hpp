@@ -2,6 +2,7 @@
 
 #include "RuntimeException.hpp"
 #include <string>
+#include <vector>
 
 namespace errors
 {
@@ -16,6 +17,10 @@ namespace errors
     private:
         std::string methodName_;
         std::string className_;
+        // MYT-35 Phase 4 — names of methods that DO exist on the target
+        // class. Used by the diagnostic converter to power "did you mean
+        // 'doStuff'?" suggestions.
+        std::vector<std::string> identifierPool_;
 
     public:
         MethodNotFoundException(const std::string& methodName,
@@ -39,7 +44,20 @@ namespace errors
         {
         }
 
+        MethodNotFoundException(const std::string& methodName,
+                                const std::string& className,
+                                const SourceLocation& loc,
+                                std::vector<std::string> pool)
+            : RuntimeException("Method '" + methodName + "' not found" +
+                             (className.empty() ? "" : " on class '" + className + "'"), loc)
+            , methodName_(methodName)
+            , className_(className)
+            , identifierPool_(std::move(pool))
+        {
+        }
+
         const std::string& getMethodName() const { return methodName_; }
         const std::string& getClassName() const { return className_; }
+        const std::vector<std::string>& getIdentifierPool() const { return identifierPool_; }
     };
 }

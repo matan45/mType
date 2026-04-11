@@ -12,6 +12,7 @@
 #include "../../mType/environment/Environment.hpp"
 #include "../../mType/services/ImportManager.hpp"
 #include "../../mType/ast/ASTNode.hpp"
+#include "../../mType/diagnostics/Diagnostic.hpp"
 
 namespace mtype::lsp {
 
@@ -41,8 +42,13 @@ struct Document {
 
     // State
     bool isParsed = false;
-    std::vector<std::string> parseErrors;
-    std::vector<std::string> semanticErrors;
+    // MYT-35 — diagnostics are stored as the shared core model. Both
+    // parser and semantic-analysis exceptions get converted at the
+    // catch site (DocumentManager::parseDocument) via
+    // diagnostics::fromException, so the LSP DiagnosticsHandler can
+    // emit precise locations and codes without ever string-parsing
+    // an exception's `what()`.
+    std::vector<diagnostics::Diagnostic> diagnostics;
     std::vector<token::Token> tokens;
 
     // Symbol location tracking for go-to-definition

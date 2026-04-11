@@ -1,6 +1,11 @@
 #include "DocumentManager.hpp"
 #include "../../mType/token/TokenType.hpp"
 #include "../../mType/environment/EnvironmentBuilder.hpp"
+#include "../../mType/environment/registry/ClassRegistry.hpp"
+#include "../../mType/diagnostics/ExceptionConverter.hpp"
+#include "../../mType/diagnostics/SourceFileCache.hpp"
+#include "../../mType/analysis/OverrideAnnotationChecker.hpp"
+#include "../../mType/analysis/UnusedVariableAnalyzer.hpp"
 #include "utils/MemoryFileReader.hpp"
 #include "analysis/SymbolRegistrationVisitor.hpp"
 #include "analysis/ImportResolver.hpp"
@@ -51,6 +56,9 @@ void DocumentManager::updateDocument(const std::string& uri, const std::string& 
 }
 
 void DocumentManager::closeDocument(const std::string& uri) {
+    // Drop the file's cached source so a stale snippet can't show up if
+    // the same URI is reopened with different content.
+    diagnostics::SourceFileCache::instance().invalidate(uri);
     documents_.erase(uri);
 }
 
@@ -70,10 +78,17 @@ void DocumentManager::parseDocument(const std::string& uri) {
         return;
     }
 
+    // Publish the in-memory editor buffer to the diagnostic source cache
+    // BEFORE parsing, so any throw from the parser/lexer can resolve its
+    // span back to the unsaved content the user is currently editing.
+    // The Lexer constructor also publishes (from disk-on-load), but the
+    // LSP needs the buffer-truth so unsaved changes show in snippets.
+    diagnostics::SourceFileCache::instance().publishFromContent(
+        uri, doc->content);
+
     try {
-        // Clear errors but preserve AST and environment if parse fails
-        doc->parseErrors.clear();
-        doc->semanticErrors.clear();
+        // Clear diagnostics but preserve AST and environment if parse fails
+        doc->diagnostics.clear();
         doc->tokens.clear();
 
         // Save previous AST and environment in case parse fails
@@ -111,7 +126,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
                 parseSucceeded = true;
             }
         } catch (const std::exception& e) {
-            doc->parseErrors.push_back(e.what());
+            doc->diagnostics.push_back(diagnostics::fromException(e));
         }
 
         // Only update AST and environment if parsing succeeded
@@ -142,7 +157,38 @@ void DocumentManager::parseDocument(const std::string& uri) {
                 doc->symbolLocations = visitor->getSymbolLocations();
             }
         } catch (const std::exception& e) {
-            doc->semanticErrors.push_back(std::string("Symbol registration error: ") + e.what());
+            doc->diagnostics.push_back(diagnostics::fromException(e));
+        }
+
+        // MYT-50 LSP parity — run the missing-@Override checker against
+        // every class registered in the document's environment. The check
+        // is read-only and pure, identical to what ClassRegistrar runs on
+        // the bytecode-compile path. Catches the case where a method
+        // shadows a parent without `@Override` and surfaces an MT-W2002
+        // warning in VS Code.
+        if (doc->environment) {
+            if (auto classRegistry = doc->environment->getClassRegistry()) {
+                for (const auto& className : classRegistry->getAllItemNames()) {
+                    auto cls = classRegistry->findClass(className);
+                    if (!cls) continue;
+                    auto warns = analysis::OverrideAnnotationChecker::check(*cls);
+                    for (auto& w : warns) {
+                        doc->diagnostics.push_back(std::move(w));
+                    }
+                }
+            }
+        }
+
+        // MYT-49 — run the unused-variable analyzer. Conservative walker
+        // (gives up on unfamiliar AST shapes so we never produce a false
+        // positive) emits one MT-W2001 per declared-but-never-read local
+        // with rename + remove fixes attached.
+        if (parseSucceeded && !doc->ast.empty()) {
+            auto unusedWarnings = analysis::UnusedVariableAnalyzer::analyze(
+                doc->ast.front().get());
+            for (auto& w : unusedWarnings) {
+                doc->diagnostics.push_back(std::move(w));
+            }
         }
 
         // Resolve and parse imported files to get their symbols
@@ -169,7 +215,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
         doc->isParsed = true;
 
     } catch (const std::exception& e) {
-        doc->parseErrors.push_back(std::string("Fatal error: ") + e.what());
+        doc->diagnostics.push_back(diagnostics::fromException(e));
         doc->isParsed = false;
     }
 }

@@ -1,6 +1,9 @@
 #include "TestUtilities.hpp"
 #include "DebugSession.hpp"
 #include "ScriptAnalyzer.hpp"
+#include "ErrorReporting.hpp"
+
+#include "../diagnostics/DiagnosticRenderer.hpp"
 
 #include "../gc/GC.hpp"
 #include "../parser/Parser.hpp"
@@ -34,6 +37,27 @@ int main(int argc, char* argv[])
 {
     // Bytecode VM is the only execution mode
     constants::ExecutionMode execMode = constants::ExecutionMode::BYTECODE_VM;
+
+    // Pre-scan for color flags so the diagnostic renderer is configured
+    // before any subcommand handler can throw and need to report. The
+    // main flag-parsing loop further down also accepts these flags so
+    // any duplicates harmlessly re-set the same mode.
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string arg = argv[i];
+        if (arg == "--no-color" || arg == "--color=never")
+        {
+            runMain::setColorMode(diagnostics::DiagnosticRenderer::ColorMode::Never);
+        }
+        else if (arg == "--color=always")
+        {
+            runMain::setColorMode(diagnostics::DiagnosticRenderer::ColorMode::Always);
+        }
+        else if (arg == "--color=auto")
+        {
+            runMain::setColorMode(diagnostics::DiagnosticRenderer::ColorMode::Auto);
+        }
+    }
 
     // Check for test suite execution
     if (argc >= 2 && std::string(argv[argc - 2]) == "--test" && argc >= 3)
@@ -74,6 +98,8 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --profile <script.mt>      - Run with profiler (light mode: function timing)\n";
         std::cout << "  " << argv[0] << " --profile=full <script.mt> - Run with full profiler (timing + call graph + opcodes)\n";
         std::cout << "  " << argv[0] << " --profile-output=json      - Output profiler report as JSON\n";
+        std::cout << "  " << argv[0] << " --no-color                 - Disable colored diagnostic output (also: NO_COLOR env var)\n";
+        std::cout << "  " << argv[0] << " --color=always|auto|never  - Force color mode (default: auto / TTY-detect)\n";
         std::cout << "  " << argv[0] << " --compile <script.mt>      - Compile to bytecode file (.mtc)\n";
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
         std::cout << "  " << argv[0] << " --build [project.mtproj]   - Build project (compile all files to bytecode)\n";
@@ -185,7 +211,7 @@ int main(int argc, char* argv[])
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Build error: " << e.what() << std::endl;
+            runMain::reportException(e);
             return 1;
         }
     }
@@ -230,7 +256,7 @@ int main(int argc, char* argv[])
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Clean error: " << e.what() << std::endl;
+            runMain::reportException(e);
             return 1;
         }
     }
@@ -328,7 +354,7 @@ int main(int argc, char* argv[])
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Error: " << e.what() << std::endl;
+            runMain::reportException(e);
             return 1;
         }
     }
@@ -407,7 +433,7 @@ int main(int argc, char* argv[])
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Error: " << e.what() << std::endl;
+            runMain::reportException(e);
             return 1;
         }
     }
@@ -447,7 +473,7 @@ int main(int argc, char* argv[])
             }
             catch (const std::exception& e)
             {
-                std::cerr << "Compilation error: " << e.what() << std::endl;
+                runMain::reportException(e);
                 return 1;
             }
         }
@@ -469,7 +495,7 @@ int main(int argc, char* argv[])
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Execution error: " << e.what() << std::endl;
+            runMain::reportException(e);
             return 1;
         }
     }
@@ -486,7 +512,7 @@ int main(int argc, char* argv[])
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Error: " << e.what() << std::endl;
+            runMain::reportException(e);
             return 1;
         }
     }
@@ -514,7 +540,7 @@ int main(int argc, char* argv[])
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Error: " << e.what() << std::endl;
+            runMain::reportException(e);
             return 1;
         }
     }
@@ -560,6 +586,18 @@ int main(int argc, char* argv[])
         {
             profileOutputFormat = vm::profiler::ProfilerOutputFormat::JSON;
         }
+        else if (arg == "--no-color" || arg == "--color=never")
+        {
+            runMain::setColorMode(diagnostics::DiagnosticRenderer::ColorMode::Never);
+        }
+        else if (arg == "--color=always")
+        {
+            runMain::setColorMode(diagnostics::DiagnosticRenderer::ColorMode::Always);
+        }
+        else if (arg == "--color=auto")
+        {
+            runMain::setColorMode(diagnostics::DiagnosticRenderer::ColorMode::Auto);
+        }
         else if (arg[0] != '-')
         {
             filename = arg;
@@ -602,6 +640,12 @@ int main(int argc, char* argv[])
 
         interpreter.runScript(filename);
 
+        // MYT-35 follow-up — drain any non-fatal compile-time warnings
+        // (unused variables, missing @Override, etc.) and render them
+        // through the same Rust-style renderer used for errors. Done
+        // after runScript so the user sees output first, then warnings.
+        runMain::reportWarnings(interpreter.getCompilerWarnings());
+
         // Force a GC collection at program end to detect any remaining cycles
         gc::GC::forceCollect();
 
@@ -628,7 +672,7 @@ int main(int argc, char* argv[])
     }
     catch (const std::exception& e)
     {
-        std::cerr << e.what() << std::endl;
+        runMain::reportException(e);
         // Clean up profiler before exit
         if (profileMode != vm::profiler::ProfilerMode::DISABLED)
         {

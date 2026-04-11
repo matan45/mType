@@ -1,18 +1,40 @@
 #include "MTypeLanguageServer.hpp"
 #include "utils/UriUtils.hpp"
-#include <iostream>
+#include <chrono>
 #include <filesystem>
+#include <future>
+#include <iostream>
+#include <thread>
 
 namespace mtype::lsp
 {
+    namespace
+    {
+        // Idle window for debouncing per-keystroke reindex requests. Tuned
+        // to absorb a fast typing burst (~5 keys/sec) without blocking the
+        // moment the user pauses. Tweak if it feels sluggish.
+        constexpr auto kReindexDebounceWindow = std::chrono::milliseconds(250);
+    }
+
     MTypeLanguageServer::MTypeLanguageServer()
     {
         documentManager_ = std::make_unique<DocumentManager>();
-        completionHandler_ = std::make_unique<CompletionHandler>(documentManager_.get());
+        // MYT-47 — workspace symbol index, populated lazily during
+        // handleInitialize once we know the workspace root.
+        workspaceIndex_ = std::make_shared<analysis::WorkspaceSymbolIndex>();
+        reindexDebouncer_ = std::make_shared<ReindexDebouncer>();
+
+        // MYT-51 — the completion handler shares the same workspace
+        // symbol index as the code-action handler so the auto-import
+        // completion branch and the missing-import quick fix see the
+        // same symbol pool.
+        completionHandler_ = std::make_unique<CompletionHandler>(
+            documentManager_.get(), workspaceIndex_);
         diagnosticsHandler_ = std::make_unique<DiagnosticsHandler>(documentManager_.get());
         hoverHandler_ = std::make_unique<HoverHandler>(documentManager_.get());
         definitionHandler_ = std::make_unique<DefinitionHandler>(documentManager_.get());
-        codeActionHandler_ = std::make_unique<CodeActionHandler>(documentManager_.get());
+        codeActionHandler_ = std::make_unique<CodeActionHandler>(
+            documentManager_.get(), workspaceIndex_);
         codeLensHandler_ = std::make_unique<CodeLensHandler>(documentManager_.get());
         formattingHandler_ = std::make_unique<FormattingHandler>();
 
@@ -157,6 +179,19 @@ namespace mtype::lsp
         if (!workspaceRoot.empty())
         {
             projectConfig_->loadFromWorkspace(workspaceRoot);
+
+            // MYT-47 — kick off the initial workspace symbol scan in a
+            // background thread. The future is shared with the index so
+            // request handlers (the missing-import quick fix and the
+            // auto-import completion branch) can short-block early
+            // requests via WorkspaceSymbolIndex::waitForReady().
+            auto idx = workspaceIndex_;
+            std::string root = workspaceRoot;
+            workspaceIndexReady_ = std::async(std::launch::async,
+                [idx, root]() {
+                    idx->buildFromWorkspace(root);
+                }).share();
+            workspaceIndex_->setReadyFuture(workspaceIndexReady_);
         }
 
         // Share project config with handlers
@@ -211,6 +246,13 @@ namespace mtype::lsp
 
         documentManager_->openDocument(uri, text, version);
         diagnosticsHandler_->publishDiagnostics(uri);
+
+        // MYT-47 — keep the workspace symbol index in sync with the
+        // newly-parsed document so the missing-import quick fix can
+        // surface symbols defined in files that have just been opened.
+        // Use the buffer overload so unsaved changes (LSP can reopen a
+        // dirty document) are visible to the index immediately.
+        if (workspaceIndex_) workspaceIndex_->reindexFile(uri, text);
     }
 
     void MTypeLanguageServer::handleDidChangeTextDocument(const json& params)
@@ -225,13 +267,55 @@ namespace mtype::lsp
             std::string text = contentChanges[0]["text"];
             documentManager_->updateDocument(uri, text, version);
             diagnosticsHandler_->publishDiagnostics(uri);
+            // MYT-47 — refresh the workspace index entries for this file.
+            // Debounced so a typing burst only fires one reindex after the
+            // user pauses (full lex+parse on every keystroke is wasteful).
+            // The buffer is captured by value so the index sees the user's
+            // unsaved changes, not whatever happens to be on disk.
+            scheduleDebouncedReindex(uri, text);
         }
+    }
+
+    void MTypeLanguageServer::scheduleDebouncedReindex(const std::string& uri,
+                                                       const std::string& content)
+    {
+        if (!workspaceIndex_) return;
+
+        // Capture-by-value: shared_ptrs, a uint64, and the buffer. No
+        // `this` capture so an in-flight task survives LSP destruction
+        // without dangling.
+        auto debouncer = reindexDebouncer_;
+        auto idx = workspaceIndex_;
+        std::uint64_t version;
+        {
+            std::lock_guard<std::mutex> lock(debouncer->mutex);
+            version = ++debouncer->versions[uri];
+        }
+
+        std::thread([uri, content, version, debouncer, idx]()
+        {
+            std::this_thread::sleep_for(kReindexDebounceWindow);
+            {
+                std::lock_guard<std::mutex> lock(debouncer->mutex);
+                auto it = debouncer->versions.find(uri);
+                if (it == debouncer->versions.end() || it->second != version)
+                {
+                    return;  // a newer change came in; this task is stale.
+                }
+            }
+            // Buffer overload — workspace index sees the live editor
+            // content, not whatever's on disk.
+            idx->reindexFile(uri, content);
+        }).detach();
     }
 
     void MTypeLanguageServer::handleDidCloseTextDocument(const json& params)
     {
         std::string uri = params["textDocument"]["uri"];
         documentManager_->closeDocument(uri);
+        // MYT-47 — drop entries for closed documents so the index doesn't
+        // accumulate stale data when the editor closes a file.
+        if (workspaceIndex_) workspaceIndex_->invalidateFile(uri);
     }
 
     void MTypeLanguageServer::handleCompletion(const json& id, const json& params)
@@ -289,11 +373,21 @@ namespace mtype::lsp
         std::string uri = params["textDocument"]["uri"];
         Range range = params["range"];
 
-        // Get diagnostics if provided
+        // Parse the context.diagnostics list. VS Code sends every diagnostic
+        // attached to the cursor range here so the server can match each
+        // action to a specific diagnostic via the `data` blob and the
+        // `code` field. Previously this list was silently dropped.
         std::vector<Diagnostic> diagnostics;
         if (params.contains("context") && params["context"].contains("diagnostics"))
         {
-            // Parse diagnostics from params if needed
+            const auto& diagsJson = params["context"]["diagnostics"];
+            if (diagsJson.is_array())
+            {
+                for (const auto& diagJson : diagsJson)
+                {
+                    diagnostics.push_back(diagJson.get<Diagnostic>());
+                }
+            }
         }
 
         auto actions = codeActionHandler_->handleCodeAction(uri, range, diagnostics);

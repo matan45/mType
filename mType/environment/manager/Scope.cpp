@@ -1,5 +1,6 @@
 ﻿#include "Scope.hpp"
 #include <algorithm>
+#include <unordered_set>
 
 namespace environment::manager
 {
@@ -90,6 +91,32 @@ namespace environment::manager
         {
             names.push_back(varName);
         }
+        std::sort(names.begin(), names.end());
+        return names;
+    }
+
+    std::vector<std::string> Scope::getAllVisibleVariableNames() const
+    {
+        // Collect into a set first so shadowed names from outer scopes
+        // don't double-up. Walks the parent chain via raw pointers (the
+        // shared_ptrs returned by getParent() keep the chain alive for
+        // the duration of this call) so the method doesn't depend on
+        // `*this` being owned by a shared_ptr — calling shared_from_this
+        // here would throw bad_weak_ptr if the Scope happened to be
+        // stack-allocated, e.g. in a unit test fixture.
+        std::unordered_set<std::string> seen;
+        const Scope* current = this;
+        std::shared_ptr<Scope> keepalive;  // anchors the parent chain
+        while (current)
+        {
+            for (const auto& [varName, _] : current->variables)
+            {
+                seen.insert(varName);
+            }
+            keepalive = current->getParent();
+            current = keepalive.get();
+        }
+        std::vector<std::string> names(seen.begin(), seen.end());
         std::sort(names.begin(), names.end());
         return names;
     }

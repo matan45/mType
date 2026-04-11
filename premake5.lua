@@ -48,7 +48,8 @@ end
 
 --------------------------------------------------------------------------------
 -- Library: mtype-common
--- Foundation types: tokens, constants, circular dependency detection, SourceLocation
+-- Foundation types: tokens, constants, circular dependency detection,
+-- SourceLocation, and standalone string utilities (edit distance, etc.)
 --------------------------------------------------------------------------------
 project "mtype-common"
    kind "StaticLib"
@@ -62,6 +63,8 @@ project "mtype-common"
       "mType/constants/**.cpp",
       "mType/circularDependency/**.hpp",
       "mType/circularDependency/**.cpp",
+      "mType/util/**.hpp",
+      "mType/util/**.cpp",
       "mType/errors/SourceLocation.hpp",
    }
 
@@ -86,6 +89,48 @@ project "mtype-errors"
       "mType/errors/SourceLocation.hpp",
       "mType/errors/UserException.hpp",
       "mType/errors/UserException.cpp",
+   }
+
+
+--------------------------------------------------------------------------------
+-- Library: mtype-diagnostics
+-- Shared Diagnostic data model + renderer + cache used by both the CLI
+-- and the language server. Depends on mtype-errors and mtype-core so the
+-- exception converter can dynamic_cast against every exception type
+-- (including UserException, whose typeinfo lives in mtype-core because
+-- UserException.cpp pulls in value::Value).
+--------------------------------------------------------------------------------
+project "mtype-diagnostics"
+   kind "StaticLib"
+   location "mType"
+   commonConfig()
+
+   links { "mtype-common", "mtype-errors", "mtype-core" }
+
+   files {
+      "mType/diagnostics/**.hpp",
+      "mType/diagnostics/**.cpp",
+   }
+
+
+--------------------------------------------------------------------------------
+-- Library: mtype-analysis
+-- Compile-time analyzer passes that produce non-fatal diagnostics:
+--   - OverrideAnnotationChecker (MYT-50): missing @Override warnings
+--   - UnusedVariableAnalyzer    (MYT-49): unused local variable warnings
+-- Depends on mtype-ast (AST traversal) + mtype-core (ClassDefinition,
+-- Environment) + mtype-diagnostics (Diagnostic emission).
+--------------------------------------------------------------------------------
+project "mtype-analysis"
+   kind "StaticLib"
+   location "mType"
+   commonConfig()
+
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-diagnostics" }
+
+   files {
+      "mType/analysis/**.hpp",
+      "mType/analysis/**.cpp",
    }
 
 
@@ -141,7 +186,7 @@ project "mtype-frontend"
    location "mType"
    commonConfig()
 
-   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast" }
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-diagnostics" }
 
    files {
       "mType/lexer/**.hpp",
@@ -163,7 +208,7 @@ project "mtype-vm"
    location "mType"
    commonConfig()
 
-   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast" }
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-diagnostics", "mtype-analysis" }
 
    includedirs { "vendor/asmjit" }
    defines { "ASMJIT_STATIC" }
@@ -212,7 +257,7 @@ project "mtype-extensions"
    location "mType"
    commonConfig()
 
-   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-frontend", "mtype-vm" }
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-frontend", "mtype-vm", "mtype-diagnostics", "mtype-analysis" }
 
    files {
       "mType/gc/**.hpp",
@@ -244,6 +289,7 @@ project "mtype-tests"
    links {
       "mtype-common", "mtype-errors", "mtype-core", "mtype-ast",
       "mtype-frontend", "mtype-vm", "mtype-jit", "mtype-extensions",
+      "mtype-diagnostics", "mtype-analysis",
    }
 
    includedirs { "vendor/asmjit" }
@@ -284,6 +330,8 @@ project "mType"
       "mtype-frontend",
       "mtype-ast",
       "mtype-core",
+      "mtype-analysis",
+      "mtype-diagnostics",
       "mtype-errors",
       "mtype-common",
    }

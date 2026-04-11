@@ -1,5 +1,6 @@
 #include "BaseParser.hpp"
 #include "../../errors/ParseException.hpp"
+#include "../../errors/MissingSemicolonException.hpp"
 
 namespace parser::core
 {
@@ -12,6 +13,15 @@ namespace parser::core
     {
         if (!tokenStream.check(type))
         {
+            // MYT-48 — promote the missing-semicolon case to a typed
+            // exception so the diagnostic converter can route it to
+            // MT-E0002 with an "Insert ';'" quick fix. The current-token
+            // location is the byte right after where `;` should appear.
+            if (type == TokenType::SEMICOLON)
+            {
+                throw MissingSemicolonException(tokenStream.current().location);
+            }
+
             std::string expectedName = "TOKEN"; // Simplified for now
             std::string actualName = "TOKEN"; // Simplified for now
             std::string message = "Expected token but found different token";

@@ -28,6 +28,7 @@
 #include "visitors/ClassCompiler.hpp"
 #include "ImportHelper.hpp"
 #include "../../circularDependency/CircularDependencyDetector.hpp"
+#include "../../diagnostics/Diagnostic.hpp"
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -134,6 +135,23 @@ namespace vm::compiler
         // Annotations (metadata only - no bytecode generation)
         value::Value visitAnnotationNode(ast::AnnotationNode* node) override;
 
+        // MYT-35 Phase-2 follow-up — non-fatal warning sink. Compile-time
+        // analyzers (e.g., MYT-50 missing-@Override checker) push
+        // Diagnostic objects here. The CLI driver renders them after a
+        // successful compile via runMain::reportWarning().
+        void addWarning(diagnostics::Diagnostic warning)
+        {
+            warnings_.push_back(std::move(warning));
+        }
+        const std::vector<diagnostics::Diagnostic>& warnings() const
+        {
+            return warnings_;
+        }
+        std::vector<diagnostics::Diagnostic> takeWarnings()
+        {
+            return std::move(warnings_);
+        }
+
     private:
         // Core components
         bytecode::BytecodeProgram program;
@@ -177,6 +195,11 @@ namespace vm::compiler
 
         // Validation control
         bool skipStrictValidation;
+
+        // MYT-35 follow-up — non-fatal warnings collected during compile.
+        // Drained by the CLI driver after compile() returns; the LSP path
+        // bypasses this sink and pushes directly to Document::diagnostics.
+        std::vector<diagnostics::Diagnostic> warnings_;
 
         // Helper methods for coordination
         void registerClassesForBytecode(ast::ASTNode* node);

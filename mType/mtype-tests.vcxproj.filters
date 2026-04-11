@@ -357,7 +357,13 @@
     <ClInclude Include="tests\suites\CollectionsTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\CompletionLogicTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ControlFlowTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\DiagnosticsTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\EnhancedForLoopTestSuite.hpp">
@@ -449,7 +455,13 @@
     <ClCompile Include="tests\suites\CollectionsTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\CompletionLogicTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\ControlFlowTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\DiagnosticsTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\EnhancedForLoopTestSuite.cpp">
@@ -4175,6 +4187,9 @@
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\importNonExistentFile.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\interopNullDeref_error.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\invalidClassNameSpecialChar.mt">

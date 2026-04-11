@@ -38,6 +38,12 @@ namespace environment::registry
         // Get all overloads for a function name
         std::vector<std::shared_ptr<FunctionDefinition>> getAllFunctionOverloads(const std::string& name) const;
 
+        // Enumerate every registered function name (one entry per name,
+        // not per overload). Sorted alphabetically for stable diagnostics.
+        // Used by the diagnostic IdentifierEnumerator to build "did you
+        // mean" pools.
+        std::vector<std::string> getAllFunctionNames() const;
+
         // Find function by signature (with type parameters)
         std::shared_ptr<FunctionDefinition> findFunctionBySignature(
             const std::string& name,

@@ -6,6 +6,7 @@
 #include "../errors/ParseException.hpp"
 #include "../value/StringPool.hpp"
 #include "../constants/SecurityConstants.hpp"
+#include "../diagnostics/SourceFileCache.hpp"
 
 namespace lexer
 {
@@ -115,6 +116,11 @@ namespace lexer
     {
         input = fileReader->readFile(filePath);
         locationTracker->splitIntoLines(input);
+
+        // Publish source lines so the diagnostic renderer can produce
+        // snippets without re-reading the file from disk.
+        diagnostics::SourceFileCache::instance().publish(
+            filePath, locationTracker->getLines());
     }
 
     Token Lexer::parseNumber()

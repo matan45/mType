@@ -2,6 +2,7 @@
 
 #include "RuntimeException.hpp"
 #include <string>
+#include <vector>
 
 namespace errors
 {
@@ -15,6 +16,11 @@ namespace errors
     {
     private:
         std::string className_;
+        // MYT-35 Phase 4 — see UndefinedException for the rationale.
+        // Throwers that know the candidate class names visible at the
+        // failure site can attach them so the diagnostic converter can
+        // surface a "did you mean 'Foo'?" suggestion.
+        std::vector<std::string> identifierPool_;
 
     public:
         explicit ClassNotFoundException(const std::string& className,
@@ -24,6 +30,16 @@ namespace errors
         {
         }
 
+        ClassNotFoundException(const std::string& className,
+                                const SourceLocation& loc,
+                                std::vector<std::string> pool)
+            : RuntimeException("Class '" + className + "' not found", loc)
+            , className_(className)
+            , identifierPool_(std::move(pool))
+        {
+        }
+
         const std::string& getClassName() const { return className_; }
+        const std::vector<std::string>& getIdentifierPool() const { return identifierPool_; }
     };
 }

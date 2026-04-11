@@ -15,6 +15,11 @@ namespace vm::compiler::validation
     class CompileTimeValidator;  // Forward declaration
 }
 
+namespace vm::compiler
+{
+    class BytecodeCompiler;  // Forward declaration — back-pointer for the warning sink
+}
+
 namespace vm::compiler::registration
 {
     /**
@@ -35,6 +40,11 @@ namespace vm::compiler::registration
         // Validator setup (called after construction)
         void setCompileTimeValidator(validation::CompileTimeValidator* validator) { compileTimeValidator = validator; }
 
+        // MYT-35 follow-up — back-pointer to the owning BytecodeCompiler so
+        // analyzer-style checks (e.g., MYT-50 missing-@Override) can push
+        // non-fatal Diagnostics into the compiler's warning sink.
+        void setBytecodeCompiler(BytecodeCompiler* compiler) { compiler_ = compiler; }
+
         // Main registration methods
         void registerClassesForBytecode(ast::ASTNode* node);
         void linkParentClasses(ast::ASTNode* node);
@@ -53,6 +63,7 @@ namespace vm::compiler::registration
         InterfaceRegistrar* interfaceRegistrar;
         std::unique_ptr<ClassInheritanceValidator> inheritanceValidator;
         validation::CompileTimeValidator* compileTimeValidator = nullptr;
+        BytecodeCompiler* compiler_ = nullptr;  // optional warning sink (MYT-35 follow-up)
 
         // Helper methods
         void registerSingleClass(ast::ClassNode* classNode);

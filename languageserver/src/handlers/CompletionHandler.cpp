@@ -1,12 +1,53 @@
 #include "CompletionHandler.hpp"
+
+#include "../analysis/WorkspaceSymbolIndex.hpp"
+#include "../utils/ImportUtils.hpp"
+#include "../utils/UriUtils.hpp"
 #include "../../../mType/ast/AccessModifier.hpp"
-#include <sstream>
+#include "../../../mType/diagnostics/IdentifierEnumerator.hpp"
+#include "../../../mType/util/EditDistance.hpp"
+#include "../../../mType/util/ImportScan.hpp"
+#include "../../../mType/util/TokenExtraction.hpp"
+
 #include <algorithm>
+#include <regex>
+#include <sstream>
+#include <unordered_set>
 
 namespace mtype::lsp {
 
-CompletionHandler::CompletionHandler(DocumentManager* docMgr)
+namespace {
+    // Returns true if `text` ends in the given keyword used as an
+    // inheritance keyword (whitespace-bounded), optionally followed by a
+    // partial identifier the user is currently typing. Replaces the
+    // earlier `find("extends")` / `find("implements")` checks, which
+    // matched substrings inside identifiers (e.g. `myImplementsFoo`)
+    // and inside `// implements` comments preceding the cursor.
+    bool textEndsInInheritanceKeyword(const std::string& text, const char* keyword)
+    {
+        // Pattern: optional non-word char (or string start), keyword,
+        // mandatory whitespace, optional partial identifier, end-of-string.
+        const std::string pattern =
+            std::string("(^|[^A-Za-z0-9_])") + keyword + "\\s+\\w*$";
+        // static const inside a function would still cost a per-call branch
+        // and we want a different pattern per keyword anyway. The two
+        // call sites below fire only when a completion request lands, so
+        // re-compiling per request is acceptable; the alternative
+        // (per-keyword statics) is messier than it's worth here.
+        try {
+            std::regex re(pattern);
+            return std::regex_search(text, re);
+        } catch (const std::regex_error&) {
+            return false;
+        }
+    }
+}
+
+CompletionHandler::CompletionHandler(
+    DocumentManager* docMgr,
+    std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex)
     : documentManager_(docMgr),
+      workspaceIndex_(std::move(workspaceIndex)),
       pathCompletionHandler_(std::make_unique<PathCompletionHandler>(docMgr)) {}
 
 std::vector<CompletionItem> CompletionHandler::handleCompletion(
@@ -30,7 +71,13 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
 
     // Get the current line to determine context
     std::string currentLine = getLineAtPosition(doc->content, position);
-    std::string textBeforeCursor = currentLine.substr(0, std::min(position.character, static_cast<int>(currentLine.length())));
+    std::string textBeforeCursor = currentLine.substr(
+        0, std::min(position.character, static_cast<int>(currentLine.length())));
+
+    // MYT-51 — extract the partial identifier under the cursor once,
+    // upfront, so every branch can apply the same fuzzy filter.
+    const std::string typedPrefix =
+        util::extractIdentifierTokenBefore(currentLine, position.character);
 
     // Check if we're after :: (static member access) or . (instance member access)
     // Trim whitespace from the end
@@ -52,6 +99,26 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
         isStaticAccess = false;
         operatorPos = trimmed.length() - 1;
     }
+    // MYT-51 — if we're mid-identifier immediately after `<ident>.` or
+    // `<ident>::`, `typedPrefix` will have eaten the partial token but
+    // `operatorPos` above still points past it. Recompute by stripping
+    // the typed prefix from `trimmed` so the member-access branch can
+    // still find the operator.
+    else if (!typedPrefix.empty()
+             && trimmed.length() > typedPrefix.length()) {
+        const std::string beforeTyped =
+            trimmed.substr(0, trimmed.length() - typedPrefix.length());
+        if (beforeTyped.length() >= 2
+            && beforeTyped.substr(beforeTyped.length() - 2) == "::") {
+            isStaticAccess = true;
+            operatorPos = beforeTyped.length() - 2;
+            trimmed = beforeTyped;
+        } else if (!beforeTyped.empty() && beforeTyped.back() == '.') {
+            isStaticAccess = false;
+            operatorPos = beforeTyped.length() - 1;
+            trimmed = beforeTyped;
+        }
+    }
 
     if (operatorPos != std::string::npos) {
         // We're in member access context - find the identifier before :: or .
@@ -68,20 +135,25 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
         if (!identifier.empty()) {
             // Get member completions for this identifier
             auto memberItems = getMemberCompletions(uri, identifier, position.line, isStaticAccess);
+            applyFuzzyFilter(memberItems, typedPrefix);
             return memberItems;
         }
     }
 
     // Check context-specific completions
-    // If we're after "implements", only show interfaces
-    if (textBeforeCursor.find("implements") != std::string::npos) {
+    // If we're after "implements" (as a token, not a substring), only show
+    // interfaces. Token-aware to avoid matching `myImplementsFoo` and
+    // `// implements ...` in comments.
+    if (textEndsInInheritanceKeyword(textBeforeCursor, "implements")) {
         auto interfaces = getInterfaceCompletions(uri);
+        applyFuzzyFilter(interfaces, typedPrefix);
         return interfaces;
     }
 
-    // If we're after "extends", only show classes
-    if (textBeforeCursor.find("extends") != std::string::npos) {
+    // If we're after "extends" (as a token), only show classes.
+    if (textEndsInInheritanceKeyword(textBeforeCursor, "extends")) {
         auto classes = getClassCompletions(uri);
+        applyFuzzyFilter(classes, typedPrefix);
         return classes;
     }
 
@@ -103,17 +175,23 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     auto collections = getCollectionCompletions();
     items.insert(items.end(), collections.begin(), collections.end());
 
-    // Add variables from current document
-    auto variables = getVariableCompletions(uri, position.line);
-    items.insert(items.end(), variables.begin(), variables.end());
+    // MYT-51 — unified identifier enumeration replaces the three
+    // per-category walks (variables / classes / interfaces) with a
+    // single pass that rides on diagnostics::IdentifierEnumerator
+    // and the interface registry, each tagged with the right
+    // CompletionItemKind.
+    auto identifiers = getIdentifierCompletions(uri);
+    items.insert(items.end(), identifiers.begin(), identifiers.end());
 
-    // Add classes from environment
-    auto classes = getClassCompletions(uri);
-    items.insert(items.end(), classes.begin(), classes.end());
+    // MYT-51 — apply the fuzzy filter over the in-scope pool before
+    // surfacing auto-import items so workspace matches aren't fighting
+    // against in-scope matches for the same typed prefix.
+    applyFuzzyFilter(items, typedPrefix);
 
-    // Add interfaces from environment
-    auto interfaces = getInterfaceCompletions(uri);
-    items.insert(items.end(), interfaces.begin(), interfaces.end());
+    // MYT-51 — auto-import completion items. No-op if workspaceIndex_
+    // is null or the user hasn't typed a prefix yet.
+    auto autoImports = getAutoImportCompletions(uri, typedPrefix, items);
+    items.insert(items.end(), autoImports.begin(), autoImports.end());
 
     return items;
 }
@@ -132,6 +210,25 @@ std::string CompletionHandler::getLineAtPosition(const std::string& content, con
     }
 
     return "";
+}
+
+void CompletionHandler::applyFuzzyFilter(
+    std::vector<CompletionItem>& items,
+    const std::string& typedPrefix) const
+{
+    if (typedPrefix.empty()) return;
+
+    const int budget = std::max(1, static_cast<int>(typedPrefix.size()) / 3);
+
+    items.erase(std::remove_if(items.begin(), items.end(),
+        [&typedPrefix, budget](const CompletionItem& item) {
+            // Keep prefix matches unconditionally — VS Code will
+            // re-score them and put them at the top of the list.
+            if (item.label.rfind(typedPrefix, 0) == 0) return false;
+            // Otherwise drop anything outside the rustc-style budget.
+            return util::levenshtein(typedPrefix, item.label, budget) > budget;
+        }),
+        items.end());
 }
 
 std::vector<CompletionItem> CompletionHandler::getKeywordCompletions() const {
@@ -242,18 +339,73 @@ std::vector<CompletionItem> CompletionHandler::getCollectionCompletions() const 
     return items;
 }
 
-std::vector<CompletionItem> CompletionHandler::getVariableCompletions(const std::string& uri, int line) const {
+std::vector<CompletionItem> CompletionHandler::getIdentifierCompletions(const std::string& uri) const {
     std::vector<CompletionItem> items;
 
-    auto identifiers = documentManager_->getIdentifiersInScope(uri, line);
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc || !doc->environment) {
+        return items;
+    }
 
-    for (const auto& id : identifiers) {
+    const auto* env = doc->environment.get();
+
+    // Kind-specialised enumerations. Each of these rides on the
+    // same scope-walking + registry-walking logic the diagnostics
+    // "did you mean" pool uses (MYT-49 Phase 4), so the completion
+    // list is guaranteed to match what the diagnostic system sees.
+    auto variables = diagnostics::IdentifierEnumerator::visibleVariables(env);
+    auto functions = diagnostics::IdentifierEnumerator::visibleFunctions(env);
+    auto classes = diagnostics::IdentifierEnumerator::visibleClasses(env);
+
+    // Track seen names so the same symbol isn't surfaced twice if
+    // the enumerator returns overlapping pools (rare, but cheap to
+    // guard against).
+    std::unordered_set<std::string> seen;
+
+    for (const auto& name : variables) {
+        if (!seen.insert(name).second) continue;
         CompletionItem item;
-        item.label = id;
+        item.label = name;
         item.kind = static_cast<int>(CompletionItemKind::Variable);
         item.detail = "variable";
-        item.insertText = id;
-        items.push_back(item);
+        item.insertText = name;
+        items.push_back(std::move(item));
+    }
+
+    for (const auto& name : functions) {
+        if (!seen.insert(name).second) continue;
+        CompletionItem item;
+        item.label = name;
+        item.kind = static_cast<int>(CompletionItemKind::Function);
+        item.detail = "function";
+        item.insertText = name;
+        items.push_back(std::move(item));
+    }
+
+    for (const auto& name : classes) {
+        if (!seen.insert(name).second) continue;
+        CompletionItem item;
+        item.label = name;
+        item.kind = static_cast<int>(CompletionItemKind::Class);
+        item.detail = "class";
+        item.insertText = name;
+        items.push_back(std::move(item));
+    }
+
+    // Interfaces aren't covered by IdentifierEnumerator, so walk the
+    // registry directly (same source the old getInterfaceCompletions
+    // used). Kept consistent with the other branches for clarity.
+    if (auto interfaceRegistry = doc->environment->getInterfaceRegistry()) {
+        auto allInterfaces = interfaceRegistry->getAllInterfaces();
+        for (const auto& [interfaceName, interfaceDef] : allInterfaces) {
+            if (!seen.insert(interfaceName).second) continue;
+            CompletionItem item;
+            item.label = interfaceName;
+            item.kind = static_cast<int>(CompletionItemKind::Interface);
+            item.detail = "interface";
+            item.insertText = interfaceName;
+            items.push_back(std::move(item));
+        }
     }
 
     return items;
@@ -267,14 +419,8 @@ std::vector<CompletionItem> CompletionHandler::getClassCompletions(const std::st
         return items;
     }
 
-    // Get classes from the environment's class registry
-    auto classRegistry = doc->environment->getClassRegistry();
-    if (!classRegistry) {
-        return items;
-    }
-
-    // Get ALL registered classes (not just from symbol locations)
-    auto classNames = classRegistry->getAllItemNames();
+    auto classNames =
+        diagnostics::IdentifierEnumerator::visibleClasses(doc->environment.get());
 
     for (const auto& className : classNames) {
         CompletionItem item;
@@ -282,7 +428,7 @@ std::vector<CompletionItem> CompletionHandler::getClassCompletions(const std::st
         item.kind = static_cast<int>(CompletionItemKind::Class);
         item.detail = "class";
         item.insertText = className;
-        items.push_back(item);
+        items.push_back(std::move(item));
     }
 
     return items;
@@ -296,22 +442,79 @@ std::vector<CompletionItem> CompletionHandler::getInterfaceCompletions(const std
         return items;
     }
 
-    // Get interfaces from the environment's interface registry
-    auto interfaceRegistry = doc->environment->getInterfaceRegistry();
-    if (!interfaceRegistry) {
-        return items;
-    }
+    // Route through IdentifierEnumerator so the visibility rules match
+    // getClassCompletions / getIdentifierCompletions exactly. The
+    // enumerator returns a sorted, deduplicated vector.
+    auto interfaceNames =
+        diagnostics::IdentifierEnumerator::visibleInterfaces(doc->environment.get());
 
-    // Get ALL registered interfaces
-    auto allInterfaces = interfaceRegistry->getAllInterfaces();
-
-    for (const auto& [interfaceName, interfaceDef] : allInterfaces) {
+    for (const auto& interfaceName : interfaceNames) {
         CompletionItem item;
         item.label = interfaceName;
         item.kind = static_cast<int>(CompletionItemKind::Interface);
         item.detail = "interface";
         item.insertText = interfaceName;
-        items.push_back(item);
+        items.push_back(std::move(item));
+    }
+
+    return items;
+}
+
+std::vector<CompletionItem> CompletionHandler::getAutoImportCompletions(
+    const std::string& uri,
+    const std::string& typedPrefix,
+    const std::vector<CompletionItem>& existingItems) const
+{
+    std::vector<CompletionItem> items;
+
+    if (!workspaceIndex_ || typedPrefix.empty()) {
+        return items;
+    }
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc) {
+        return items;
+    }
+
+    // Short-block until the initial workspace scan is populated. Without
+    // this, an early auto-import completion request would see an empty
+    // index and offer no suggestions even when the symbol exists.
+    workspaceIndex_->waitForReady(std::chrono::milliseconds(50));
+
+    auto matches = workspaceIndex_->findByName(typedPrefix, /*maxResults=*/5);
+    if (matches.empty()) {
+        return items;
+    }
+
+    // Names already surfaced by the in-scope enumeration — skip them
+    // so the dropdown doesn't double-list the same symbol.
+    std::unordered_set<std::string> existingLabels;
+    existingLabels.reserve(existingItems.size());
+    for (const auto& item : existingItems) {
+        existingLabels.insert(item.label);
+    }
+
+    const std::string referencingPath = UriUtils::uriToFilePath(uri);
+    const int insertLine = util::findImportInsertLine(doc->content);
+
+    for (const auto& match : matches) {
+        if (existingLabels.count(match.name) != 0) continue;
+
+        const std::string symbolPath = UriUtils::uriToFilePath(match.fileUri);
+        if (symbolPath == referencingPath) continue; // same file
+
+        const std::string spelling =
+            analysis::WorkspaceSymbolIndex::computeImportSpelling(
+                symbolPath, referencingPath);
+
+        CompletionItem item;
+        item.label = match.name;
+        item.kind = static_cast<int>(CompletionItemKind::Class);
+        item.detail = "Auto-import from \"" + spelling + "\"";
+        item.insertText = match.name;
+        item.additionalTextEdits.push_back(
+            utils::buildImportInsertEdit(insertLine, match.name, spelling));
+        items.push_back(std::move(item));
     }
 
     return items;

@@ -1,0 +1,33 @@
+#pragma once
+#include "RuntimeException.hpp"
+#include <string>
+
+namespace errors
+{
+    /**
+     * Thrown when a class has no constructor matching the given argument
+     * list. Mirrors MethodNotFoundException but specialized for <init>.
+     * MYT-46.
+     */
+    class ConstructorNotFoundException : public RuntimeException
+    {
+    private:
+        std::string className_;
+        size_t paramCount_;
+
+    public:
+        ConstructorNotFoundException(const std::string& className,
+                                     size_t paramCount,
+                                     const SourceLocation& loc = SourceLocation())
+            : RuntimeException(
+                "Constructor not found for class '" + className
+                + "' with " + std::to_string(paramCount) + " parameters", loc)
+            , className_(className)
+            , paramCount_(paramCount)
+        {
+        }
+
+        const std::string& getClassName() const { return className_; }
+        size_t getParamCount() const { return paramCount_; }
+    };
+}

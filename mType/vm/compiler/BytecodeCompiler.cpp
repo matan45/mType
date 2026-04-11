@@ -243,6 +243,11 @@ namespace vm::compiler
         context.compileTimeValidator = compileTimeValidator.get();
         classRegistrar.setCompileTimeValidator(compileTimeValidator.get());
 
+        // MYT-35 follow-up — give the registrar a back-pointer so analyzer
+        // checks (MYT-50 missing-@Override, etc.) can push warnings into
+        // this compiler's sink. Picked up by the CLI driver after compile().
+        classRegistrar.setBytecodeCompiler(this);
+
         // Set up static field initialization detector in context
         context.staticFieldInitDetector = staticFieldInitDetector;
     }
@@ -671,7 +676,8 @@ namespace vm::compiler
                         if (!exportRegistry->symbolExists(resolvedPath, symbolName)) {
                             throw errors::TypeException(
                                 "Cannot import '" + symbolName + "' from '" + filePath + "': " +
-                                "Symbol not found"
+                                "Symbol not found",
+                                node->getLocation()
                             );
                         }
 
@@ -679,7 +685,8 @@ namespace vm::compiler
                         if (!exportRegistry->isSymbolExported(resolvedPath, symbolName)) {
                             throw errors::TypeException(
                                 "Cannot import '" + symbolName + "' from '" + filePath + "': " +
-                                "Symbol is private and not exported. Only public symbols can be imported."
+                                "Symbol is private and not exported. Only public symbols can be imported.",
+                                node->getLocation()
                             );
                         }
                     }

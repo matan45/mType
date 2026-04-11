@@ -1,8 +1,11 @@
 #include "VirtualMachine.hpp"
 #include "executors/ControlFlowExecutor.hpp"
-#include "../../errors/RuntimeException.hpp"
+#include "utils/InteropExceptionDecorator.hpp"
 #include "../../errors/ClassNotFoundException.hpp"
+#include "../../errors/ConstructorNotFoundException.hpp"
 #include "../../errors/NullPointerException.hpp"
+#include "../../errors/RuntimeException.hpp"
+#include "../../errors/ScriptException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 
@@ -11,56 +14,57 @@ namespace vm::runtime
     // Object construction & lambda invocation
     value::Value VirtualMachine::createObject(const std::string& className, const std::vector<value::Value>& args)
     {
-        if (!program)
-        {
-            throw errors::RuntimeException(
-                "No program loaded - cannot create object in bytecode mode without compiled bytecode");
-        }
-
-        // Find class definition
-        auto classDef = environment->findClass(className);
-        if (!classDef)
-        {
-            throw errors::ClassNotFoundException(className);
-        }
-
-        // Create object instance
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
-
-        // Find constructor using type-aware lookup
-        auto constructor = classDef->findConstructorByTypes(args);
-        if (!constructor)
-        {
-            // Check for default constructor case (no params, no explicit constructor)
-            bool hasAnyConstructor = !classDef->getConstructors().empty();
-            if (args.empty() && !hasAnyConstructor)
-            {
-                // Default constructor - just return the instance
-                return value::Value(instance);
-            }
-            throw errors::RuntimeException("Constructor not found for class '" + className +
-                "' with " + std::to_string(args.size()) + " parameters");
-        }
-
-        // Look for constructor bytecode using type signature (matches compiler naming)
-        std::string typeSignature = constructor->getTypeSignature();
-        std::string qualifiedName = typeSignature.empty()
-            ? className + "::<init>"
-            : className + "::<init>/" + typeSignature;
-        auto* ctorMetadata = program->getFunction(qualifiedName);
-        if (!ctorMetadata)
-        {
-            throw errors::RuntimeException("Constructor '" + qualifiedName +
-                "' has no bytecode. Bytecode compilation is required for VM execution.");
-        }
-
-        // Save current state
+        // Save current state up front so the typed catch can decorate the
+        // exception against the LIVE callStack before we restore.
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
         size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            if (!program)
+            {
+                throw errors::RuntimeException(
+                    "No program loaded - cannot create object in bytecode mode without compiled bytecode");
+            }
+
+            // Find class definition
+            auto classDef = environment->findClass(className);
+            if (!classDef)
+            {
+                throw errors::ClassNotFoundException(className);
+            }
+
+            // Create object instance
+            auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+
+            // Find constructor using type-aware lookup
+            auto constructor = classDef->findConstructorByTypes(args);
+            if (!constructor)
+            {
+                // Check for default constructor case (no params, no explicit constructor)
+                bool hasAnyConstructor = !classDef->getConstructors().empty();
+                if (args.empty() && !hasAnyConstructor)
+                {
+                    // Default constructor - just return the instance
+                    return value::Value(instance);
+                }
+                // MYT-46: typed throw → MT-E1009 NameConstructorNotFound.
+                throw errors::ConstructorNotFoundException(className, args.size());
+            }
+
+            // Look for constructor bytecode using type signature (matches compiler naming)
+            std::string typeSignature = constructor->getTypeSignature();
+            std::string qualifiedName = typeSignature.empty()
+                ? className + "::<init>"
+                : className + "::<init>/" + typeSignature;
+            auto* ctorMetadata = program->getFunction(qualifiedName);
+            if (!ctorMetadata)
+            {
+                throw errors::RuntimeException("Constructor '" + qualifiedName +
+                    "' has no bytecode. Bytecode compilation is required for VM execution.");
+            }
+
             // Reset finally offset for new function call
             currentFinallyOffset = SIZE_MAX;
 
@@ -116,6 +120,15 @@ namespace vm::runtime
 
             return instance;
         }
+        catch (errors::ScriptException& e)
+        {
+            // MYT-46: decorate using LIVE callStack BEFORE state restore.
+            utils::decorateFromCallStack(e, callStack, program);
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
+            throw;
+        }
         catch (...)
         {
             // Restore state on error
@@ -129,31 +142,32 @@ namespace vm::runtime
     value::Value VirtualMachine::invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
                                                const std::vector<value::Value>& args)
     {
-        if (!program)
-        {
-            throw errors::RuntimeException(
-                "No program loaded - cannot invoke lambda in bytecode mode without compiled bytecode");
-        }
-
-        if (!lambda)
-        {
-            throw errors::NullPointerException("Cannot invoke null lambda");
-        }
-
-        size_t paramCount = lambda->parameterCount;
-        if (args.size() != paramCount)
-        {
-            throw errors::RuntimeException("Lambda expects " + std::to_string(paramCount) +
-                " arguments but got " + std::to_string(args.size()));
-        }
-
-        // Save current state
+        // Save current state up front so the typed catch can decorate the
+        // exception against the LIVE callStack before we restore.
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
         size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            if (!program)
+            {
+                throw errors::RuntimeException(
+                    "No program loaded - cannot invoke lambda in bytecode mode without compiled bytecode");
+            }
+
+            if (!lambda)
+            {
+                throw errors::NullPointerException("Cannot invoke null lambda");
+            }
+
+            size_t paramCount = lambda->parameterCount;
+            if (args.size() != paramCount)
+            {
+                throw errors::RuntimeException("Lambda expects " + std::to_string(paramCount) +
+                    " arguments but got " + std::to_string(args.size()));
+            }
+
             currentFinallyOffset = SIZE_MAX;
             size_t frameBase = stackManager->size();
 
@@ -251,6 +265,15 @@ namespace vm::runtime
             currentFinallyOffset = savedCurrentFinallyOffset;
 
             return result;
+        }
+        catch (errors::ScriptException& e)
+        {
+            // MYT-46: decorate using LIVE callStack BEFORE state restore.
+            utils::decorateFromCallStack(e, callStack, program);
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
+            throw;
         }
         catch (...)
         {

@@ -27,6 +27,8 @@
 #include "../tests/suites/JsonTestSuite.hpp"
 #include "../tests/suites/StringInterpolationTestSuite.hpp"
 #include "../tests/suites/ScriptApiNativeTestSuite.hpp"
+#include "../tests/suites/DiagnosticsTestSuite.hpp"
+#include "../tests/suites/CompletionLogicTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -152,6 +154,14 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<ScriptApiNativeTestSuite>();
     }
+    else if (suiteName == "diagnostics" || suiteName == "diag")
+    {
+        return std::make_unique<DiagnosticsTestSuite>();
+    }
+    else if (suiteName == "completion" || suiteName == "completion-logic")
+    {
+        return std::make_unique<CompletionLogicTestSuite>();
+    }
     return nullptr;
 }
 
@@ -185,6 +195,8 @@ void printAvailableTestSuites()
     std::cout << "  interpolation - String Interpolation Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
     std::cout << "  scriptapi    - ScriptAPI Native FFI Test Suite (MYT-42)\n";
+    std::cout << "  diagnostics  - Diagnostics Foundation Test Suite (MYT-35)\n";
+    std::cout << "  completion   - Completion Logic Test Suite (MYT-51)\n";
 }
 
 void runSpecificTestSuite(const std::string& suiteName,
@@ -246,6 +258,8 @@ void runAllTests(constants::ExecutionMode execMode)
     suites.push_back(std::make_unique<JsonTestSuite>());
     suites.push_back(std::make_unique<StringInterpolationTestSuite>());
     suites.push_back(std::make_unique<ScriptApiNativeTestSuite>());
+    suites.push_back(std::make_unique<DiagnosticsTestSuite>());
+    suites.push_back(std::make_unique<CompletionLogicTestSuite>());
 
     for (auto& suite : suites)
     {

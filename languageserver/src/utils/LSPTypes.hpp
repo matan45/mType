@@ -73,23 +73,23 @@ inline void from_json(const json& j, TextDocumentContentChangeEvent& e) {
     j.at("text").get_to(e.text);
 }
 
+// Forward declaration so CompletionItem can hold a vector of them;
+// the full definition lives further down in this header.
+struct TextEdit;
+
 struct CompletionItem {
     std::string label;
     int kind; // CompletionItemKind
     std::optional<std::string> detail;
     std::optional<std::string> documentation;
     std::optional<std::string> insertText;
+    // MYT-51 — auto-import completion items attach a TextEdit that
+    // inserts the missing `import ... from "..."` line when the user
+    // accepts the completion. LSP spec models this as an array; VS
+    // Code applies all entries silently alongside the main insert.
+    std::vector<TextEdit> additionalTextEdits;
 
-    json toJson() const {
-        json j = {
-            {"label", label},
-            {"kind", kind}
-        };
-        if (detail) j["detail"] = *detail;
-        if (documentation) j["documentation"] = *documentation;
-        if (insertText) j["insertText"] = *insertText;
-        return j;
-    }
+    json toJson() const;
 };
 
 enum class CompletionItemKind {
@@ -121,11 +121,52 @@ enum class DiagnosticSeverity {
     Hint = 4
 };
 
+struct CodeDescription {
+    std::string href;
+
+    json toJson() const {
+        return json{ {"href", href} };
+    }
+};
+
+inline void from_json(const json& j, CodeDescription& cd) {
+    j.at("href").get_to(cd.href);
+}
+
+struct DiagnosticRelatedInformation {
+    Location location;
+    std::string message;
+
+    json toJson() const {
+        return json{
+            {"location", location.toJson()},
+            {"message", message}
+        };
+    }
+};
+
+inline void from_json(const json& j, DiagnosticRelatedInformation& dri) {
+    j.at("location").get_to(dri.location);
+    j.at("message").get_to(dri.message);
+}
+
 struct Diagnostic {
     Range range;
     int severity; // DiagnosticSeverity
     std::string message;
     std::optional<std::string> source;
+
+    // Extended LSP fields used by the unified diagnostic system (MYT-35).
+    // `code` is a string (we publish "MT-E1001"-style ids) but the spec
+    // also allows int — we store as json so round-tripping works either way.
+    std::optional<json> code;
+    std::optional<CodeDescription> codeDescription;
+    std::vector<DiagnosticRelatedInformation> relatedInformation;
+    std::vector<int> tags;     // DiagnosticTag: Unnecessary=1, Deprecated=2
+    // Opaque blob round-tripped through textDocument/codeAction so the
+    // server can recover the original diagnostic context when generating
+    // quick fixes.
+    std::optional<json> data;
 
     json toJson() const {
         json j = {
@@ -134,9 +175,52 @@ struct Diagnostic {
             {"message", message}
         };
         if (source) j["source"] = *source;
+        if (code) j["code"] = *code;
+        if (codeDescription) j["codeDescription"] = codeDescription->toJson();
+        if (!relatedInformation.empty()) {
+            json arr = json::array();
+            for (const auto& ri : relatedInformation) arr.push_back(ri.toJson());
+            j["relatedInformation"] = arr;
+        }
+        if (!tags.empty()) j["tags"] = tags;
+        if (data) j["data"] = *data;
         return j;
     }
 };
+
+inline void from_json(const json& j, Diagnostic& d) {
+    j.at("range").get_to(d.range);
+    if (j.contains("severity")) {
+        d.severity = j.at("severity").get<int>();
+    } else {
+        d.severity = 1; // Error
+    }
+    if (j.contains("message")) {
+        d.message = j.at("message").get<std::string>();
+    }
+    if (j.contains("source")) {
+        d.source = j.at("source").get<std::string>();
+    }
+    if (j.contains("code")) {
+        d.code = j.at("code");
+    }
+    if (j.contains("codeDescription")) {
+        d.codeDescription = j.at("codeDescription").get<CodeDescription>();
+    }
+    if (j.contains("relatedInformation")) {
+        for (const auto& item : j.at("relatedInformation")) {
+            d.relatedInformation.push_back(item.get<DiagnosticRelatedInformation>());
+        }
+    }
+    if (j.contains("tags")) {
+        for (const auto& t : j.at("tags")) {
+            d.tags.push_back(t.get<int>());
+        }
+    }
+    if (j.contains("data")) {
+        d.data = j.at("data");
+    }
+}
 
 struct Hover {
     std::string contents;
@@ -165,6 +249,24 @@ struct TextEdit {
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(TextEdit, range, newText)
 };
 
+// Out-of-line so we can reference TextEdit::toJson() (TextEdit is
+// only forward-declared at the point CompletionItem is defined).
+inline json CompletionItem::toJson() const {
+    json j = {
+        {"label", label},
+        {"kind", kind}
+    };
+    if (detail) j["detail"] = *detail;
+    if (documentation) j["documentation"] = *documentation;
+    if (insertText) j["insertText"] = *insertText;
+    if (!additionalTextEdits.empty()) {
+        json arr = json::array();
+        for (const auto& te : additionalTextEdits) arr.push_back(te.toJson());
+        j["additionalTextEdits"] = arr;
+    }
+    return j;
+}
+
 struct WorkspaceEdit {
     std::map<std::string, std::vector<TextEdit>> changes; // uri -> edits
 
@@ -187,6 +289,10 @@ struct CodeAction {
     std::string title;
     std::optional<std::string> kind; // "quickfix", "refactor", etc.
     std::optional<WorkspaceEdit> edit;
+    // The diagnostics that this action addresses (LSP spec field).
+    // VS Code uses this to associate the action with the squiggle that
+    // produced it, so the bulb shows up next to the right line.
+    std::vector<Diagnostic> diagnostics;
 
     json toJson() const {
         json j = {
@@ -194,6 +300,11 @@ struct CodeAction {
         };
         if (kind) j["kind"] = *kind;
         if (edit) j["edit"] = edit->toJson();
+        if (!diagnostics.empty()) {
+            json arr = json::array();
+            for (const auto& d : diagnostics) arr.push_back(d.toJson());
+            j["diagnostics"] = arr;
+        }
         return j;
     }
 };

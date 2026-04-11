@@ -12,6 +12,7 @@
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../errors/UndefinedException.hpp"
+#include "../../../diagnostics/IdentifierEnumerator.hpp"
 #include  <iostream>
 
 namespace vm::compiler::visitors
@@ -383,11 +384,21 @@ namespace vm::compiler::visitors
 
         if (!inLambda) {
             if (!ctx.globalRegistry.exists(name)) {
-                throw errors::UndefinedException("Variable '" + name + "' is not defined", node->getLocation());
+                // MYT-35 Phase 4 — capture the visible-identifier pool so
+                // the diagnostic converter can power "did you mean ...?".
+                throw errors::UndefinedException(
+                    "Variable '" + name + "' is not defined",
+                    node->getLocation(),
+                    diagnostics::IdentifierEnumerator::visibleIdentifiers(
+                        ctx.environment.get()));
             }
             bool inScope = ctx.globalRegistry.isInScope(name, ctx.variableTracker.getCurrentScopeDepth());
             if (!inScope) {
-                throw errors::UndefinedException("Variable '" + name + "' is not defined or is out of scope", node->getLocation());
+                throw errors::UndefinedException(
+                    "Variable '" + name + "' is not defined or is out of scope",
+                    node->getLocation(),
+                    diagnostics::IdentifierEnumerator::visibleIdentifiers(
+                        ctx.environment.get()));
             }
         }
 

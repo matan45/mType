@@ -16,7 +16,10 @@
 #include "executors/PrimitiveMethodExecutor.hpp"
 #include "executors/InlineCacheExecutor.hpp"
 #include "utils/ExceptionHandler.hpp"
+#include "utils/InteropExceptionDecorator.hpp"
+#include "../../errors/FunctionNotFoundException.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/ScriptException.hpp"
 #include "../../errors/UserException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtime/EventLoop.hpp"
@@ -152,27 +155,50 @@ namespace vm::runtime
 
     value::Value VirtualMachine::executeFunction(const std::string& functionName, const std::vector<value::Value>& args)
     {
-        if (!program)
+        size_t savedIP = instructionPointer;
+        std::vector<CallFrame> savedCallStack = callStack;
+
+        try
         {
-            throw errors::RuntimeException("No program loaded");
-        }
+            if (!program)
+            {
+                throw errors::RuntimeException("No program loaded");
+            }
 
-        auto* funcMetadata = program->getFunction(functionName);
-        if (!funcMetadata)
+            auto* funcMetadata = program->getFunction(functionName);
+            if (!funcMetadata)
+            {
+                // MYT-46: typed throw → MT-E1010 NameFunctionNotFound.
+                throw errors::FunctionNotFoundException(functionName);
+            }
+
+            // Push arguments onto stack
+            for (const auto& arg : args)
+            {
+                push(arg);
+            }
+
+            // Set instruction pointer to function start
+            instructionPointer = funcMetadata->startOffset;
+
+            return interpretLoop();
+        }
+        catch (errors::ScriptException& e)
         {
-            throw errors::RuntimeException("Function not found: " + functionName);
+            // MYT-46: decorate using the LIVE callStack BEFORE restoring the
+            // saved one — the live stack still contains any frame pushed by
+            // interpretLoop. The decorator no-ops on empty stacks.
+            utils::decorateFromCallStack(e, callStack, program);
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            throw;
         }
-
-        // Push arguments onto stack
-        for (const auto& arg : args)
+        catch (...)
         {
-            push(arg);
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            throw;
         }
-
-        // Set instruction pointer to function start
-        instructionPointer = funcMetadata->startOffset;
-
-        return interpretLoop();
     }
 
     void VirtualMachine::push(const value::Value& value)
