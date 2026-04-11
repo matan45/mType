@@ -73,23 +73,23 @@ inline void from_json(const json& j, TextDocumentContentChangeEvent& e) {
     j.at("text").get_to(e.text);
 }
 
+// Forward declaration so CompletionItem can hold a vector of them;
+// the full definition lives further down in this header.
+struct TextEdit;
+
 struct CompletionItem {
     std::string label;
     int kind; // CompletionItemKind
     std::optional<std::string> detail;
     std::optional<std::string> documentation;
     std::optional<std::string> insertText;
+    // MYT-51 — auto-import completion items attach a TextEdit that
+    // inserts the missing `import ... from "..."` line when the user
+    // accepts the completion. LSP spec models this as an array; VS
+    // Code applies all entries silently alongside the main insert.
+    std::vector<TextEdit> additionalTextEdits;
 
-    json toJson() const {
-        json j = {
-            {"label", label},
-            {"kind", kind}
-        };
-        if (detail) j["detail"] = *detail;
-        if (documentation) j["documentation"] = *documentation;
-        if (insertText) j["insertText"] = *insertText;
-        return j;
-    }
+    json toJson() const;
 };
 
 enum class CompletionItemKind {
@@ -248,6 +248,24 @@ struct TextEdit {
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(TextEdit, range, newText)
 };
+
+// Out-of-line so we can reference TextEdit::toJson() (TextEdit is
+// only forward-declared at the point CompletionItem is defined).
+inline json CompletionItem::toJson() const {
+    json j = {
+        {"label", label},
+        {"kind", kind}
+    };
+    if (detail) j["detail"] = *detail;
+    if (documentation) j["documentation"] = *documentation;
+    if (insertText) j["insertText"] = *insertText;
+    if (!additionalTextEdits.empty()) {
+        json arr = json::array();
+        for (const auto& te : additionalTextEdits) arr.push_back(te.toJson());
+        j["additionalTextEdits"] = arr;
+    }
+    return j;
+}
 
 struct WorkspaceEdit {
     std::map<std::string, std::vector<TextEdit>> changes; // uri -> edits

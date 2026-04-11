@@ -72,6 +72,12 @@
     <ClInclude Include="util\EditDistance.hpp">
       <Filter>util</Filter>
     </ClInclude>
+    <ClInclude Include="util\ImportScan.hpp">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="util\TokenExtraction.hpp">
+      <Filter>util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="circularDependency\CircularDependencyDetector.cpp">
@@ -87,6 +93,12 @@
       <Filter>util</Filter>
     </ClCompile>
     <ClCompile Include="util\EditDistance.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="util\ImportScan.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="util\TokenExtraction.cpp">
       <Filter>util</Filter>
     </ClCompile>
   </ItemGroup>

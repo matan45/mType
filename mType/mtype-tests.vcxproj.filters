@@ -357,6 +357,9 @@
     <ClInclude Include="tests\suites\CollectionsTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\CompletionLogicTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ControlFlowTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -450,6 +453,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\CollectionsTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\CompletionLogicTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ControlFlowTestSuite.cpp">

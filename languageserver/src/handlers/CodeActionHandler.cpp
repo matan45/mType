@@ -1,10 +1,11 @@
 #include "CodeActionHandler.hpp"
 #include "../analysis/WorkspaceSymbolIndex.hpp"
+#include "../utils/ImportUtils.hpp"
 #include "../utils/UriUtils.hpp"
 #include "../../../mType/runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../mType/runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../mType/util/ImportScan.hpp"
 #include <cctype>
-#include <regex>
 #include <sstream>
 #include <string>
 
@@ -172,24 +173,9 @@ std::vector<CodeAction> CodeActionHandler::generateMissingImportFixes(
     auto matches = workspaceIndex_->findByName(identifier, /*maxResults=*/5);
     if (matches.empty()) return actions;
 
-    // Determine where to insert the new import line. Scan the first
-    // ~50 lines of the document for the last `import` statement.
-    int insertLine = 0;
-    {
-        std::istringstream stream(doc->content);
-        std::string current;
-        int lineNo = 0;
-        std::regex importRegex("^\\s*import\\b");
-        while (std::getline(stream, current) && lineNo < 50)
-        {
-            if (std::regex_search(current, importRegex))
-            {
-                insertLine = lineNo + 1; // insert after the matched line
-            }
-            ++lineNo;
-        }
-    }
-
+    // MYT-51 — insertion-line scan extracted to util::findImportInsertLine
+    // so the auto-import completion path produces byte-identical edits.
+    const int insertLine = util::findImportInsertLine(doc->content);
     const std::string referencingPath = UriUtils::uriToFilePath(uri);
 
     for (const auto& match : matches)
@@ -210,13 +196,8 @@ std::vector<CodeAction> CodeActionHandler::generateMissingImportFixes(
         action.diagnostics.push_back(diagnostic);
 
         WorkspaceEdit edit;
-        TextEdit insertEdit;
-        insertEdit.range.start.line = insertLine;
-        insertEdit.range.start.character = 0;
-        insertEdit.range.end = insertEdit.range.start;
-        insertEdit.newText = "import " + identifier
-            + " from \"" + spelling + "\";\n";
-        edit.changes[uri].push_back(insertEdit);
+        edit.changes[uri].push_back(
+            utils::buildImportInsertEdit(insertLine, identifier, spelling));
         action.edit = edit;
 
         actions.push_back(std::move(action));

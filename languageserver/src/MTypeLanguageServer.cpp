@@ -13,7 +13,12 @@ namespace mtype::lsp
         // handleInitialize once we know the workspace root.
         workspaceIndex_ = std::make_shared<analysis::WorkspaceSymbolIndex>();
 
-        completionHandler_ = std::make_unique<CompletionHandler>(documentManager_.get());
+        // MYT-51 — the completion handler shares the same workspace
+        // symbol index as the code-action handler so the auto-import
+        // completion branch and the missing-import quick fix see the
+        // same symbol pool.
+        completionHandler_ = std::make_unique<CompletionHandler>(
+            documentManager_.get(), workspaceIndex_);
         diagnosticsHandler_ = std::make_unique<DiagnosticsHandler>(documentManager_.get());
         hoverHandler_ = std::make_unique<HoverHandler>(documentManager_.get());
         definitionHandler_ = std::make_unique<DefinitionHandler>(documentManager_.get());
