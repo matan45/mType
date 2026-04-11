@@ -587,5 +587,12 @@ namespace tests::testSuite
         addTestFromFile("Value Class Extends Error",
                         errorPath + "value_extends_error.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === MYT-42: Object.getClass() polymorphism + error ===
+        addOutputVerificationTest("Get Class Polymorphism",
+                        passPath + "getClassPolymorphism.mt");
+        addTestFromFile("Get Class On Null Error",
+                        errorPath + "getClassOnNull.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

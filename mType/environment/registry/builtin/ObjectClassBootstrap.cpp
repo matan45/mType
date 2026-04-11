@@ -75,6 +75,25 @@ namespace environment::registry::builtin
             objectClass->addInstanceMethod("hashCode", hashCodeMethod);
         }
 
+        // getClass() : Class — returns the runtime Class of this instance,
+        // including parameterized type arguments for generic instances.
+        // Implemented natively in ObjectExecutor — routes through
+        // ScriptAPI::getClass which calls Class.forName, so there is a
+        // single code path shared with the C++ FFI surface (MYT-42).
+        {
+            std::vector<std::pair<std::string, value::ParameterType>> params;
+            params.emplace_back("this", value::ParameterType::forClass("Object"));
+            auto getClassMethod = std::make_shared<runtimeTypes::klass::MethodDefinition>(
+                "getClass",
+                value::ValueType::OBJECT,
+                params,
+                nullptr, // No AST body — handled natively in ObjectExecutor
+                false,   // Not static
+                ast::AccessModifier::PUBLIC
+            );
+            objectClass->addInstanceMethod("getClass", getClassMethod);
+        }
+
         // Register Object in ClassRegistry
         classRegistry->registerClass("Object", objectClass);
     }

@@ -519,5 +519,13 @@ namespace tests::testSuite
         addTestFromFile("Constraint Circular",
                     errorPath + "constraintCircular.mt",
                     TestType::ERROR_EXPECTED);
+
+        // === MYT-42: obj.getClass() ===
+        addOutputVerificationTest("Get Class From Instance",
+                    passPath + "getClassFromInstance.mt");
+        addOutputVerificationTest("Get Class From Generic Instance",
+                    passPath + "getClassFromGenericInstance.mt");
+        addOutputVerificationTest("Get Class Identity Vs ForName",
+                    passPath + "getClassIdentityVsForName.mt");
     }
 }

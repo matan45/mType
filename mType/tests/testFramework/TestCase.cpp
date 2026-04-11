@@ -3,9 +3,11 @@
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
 #include "../../services/ScriptInterpreter.hpp"
+#include "../../services/ScriptAPI.hpp"
 #include "../../environment/registry/ClassRegistry.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../vm/runtime/VirtualMachine.hpp"
+#include "../../vm/bytecode/BytecodeProgram.hpp"
 #include "../../runtime/EventLoop.hpp"
 #include "../../reflection/ReflectionNatives.hpp"
 #include "../../json/JsonNatives.hpp"
@@ -22,6 +24,16 @@ namespace tests::testFramework
     TestCase::TestCase(const std::string& testName, const std::string& testFilePath, TestType testType)
         : name(testName), filePath(testFilePath), type(testType), status(TestStatus::NOT_RUN),
           executionTime(0), executionMode(constants::ExecutionMode::BYTECODE_VM)
+    {
+    }
+
+    TestCase::TestCase(const std::string& testName,
+                       std::string bootstrap,
+                       NativeCallback callback)
+        : name(testName), filePath(""), type(TestType::NATIVE_CALLBACK),
+          status(TestStatus::NOT_RUN), executionTime(0),
+          executionMode(constants::ExecutionMode::BYTECODE_VM),
+          bootstrapSource(std::move(bootstrap)), nativeCallback(std::move(callback))
     {
     }
 
@@ -45,6 +57,14 @@ namespace tests::testFramework
 
         // Reset GC state to prevent cross-test contamination
         gc::GC::reset();
+
+        if (type == TestType::NATIVE_CALLBACK)
+        {
+            executeNativeCallback();
+            auto endTime = std::chrono::high_resolution_clock::now();
+            executionTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+            return;
+        }
 
         try
         {
@@ -261,8 +281,83 @@ namespace tests::testFramework
             return "PERFORMANCE";
         case TestType::SCRIPT_INTEROP:
             return "SCRIPT_INTEROP";
+        case TestType::NATIVE_CALLBACK:
+            return "NATIVE_CALLBACK";
         default:
             return "UNKNOWN";
+        }
+    }
+
+    void TestCase::executeNativeCallback()
+    {
+        if (!nativeCallback)
+        {
+            status = TestStatus::ERROR;
+            errorMessage = "NATIVE_CALLBACK test has no callback set";
+            return;
+        }
+
+        // Redirect stdout to capture any output the bootstrap or callback
+        // produces — we discard it unless the test fails, in which case the
+        // captured output is attached to aid debugging.
+        std::stringstream outputBuffer;
+        std::streambuf* oldCout = std::cout.rdbuf(outputBuffer.rdbuf());
+
+        try
+        {
+            ScriptInterpreter testInterpreter(executionMode);
+            testInterpreter.getVM()->setJitEnabled(true);
+
+            // Write the bootstrap source to a temp file so we can drive it
+            // through the normal runScript path (which handles imports,
+            // class registration, and all the usual ceremony).
+            std::filesystem::path tempFile;
+            if (!bootstrapSource.empty())
+            {
+                tempFile = std::filesystem::temp_directory_path() /
+                           ("mtype_native_cb_" + std::to_string(
+                               std::chrono::steady_clock::now().time_since_epoch().count()) + ".mt");
+                {
+                    std::ofstream out(tempFile);
+                    out << bootstrapSource;
+                }
+                testInterpreter.runScript(tempFile.string());
+            }
+
+            // Build a ScriptAPI bound to the interpreter's VM + bytecode
+            // program and hand it to the callback. Any exception thrown
+            // from the callback fails the test via the catch below.
+            auto vmShared = testInterpreter.getVM();
+            vm::runtime::VirtualMachine* vmPtr = vmShared.get();
+            const vm::bytecode::BytecodeProgram* program = vmPtr ? vmPtr->getProgram() : nullptr;
+            services::ScriptAPI api(testInterpreter.getEnvironment(), vmPtr, program);
+
+            nativeCallback(api);
+
+            // Clean up the temp file — best effort, ignore errors.
+            if (!tempFile.empty())
+            {
+                std::error_code ec;
+                std::filesystem::remove(tempFile, ec);
+            }
+
+            std::cout.rdbuf(oldCout);
+            output = outputBuffer.str();
+            status = TestStatus::PASSED;
+        }
+        catch (const std::exception& e)
+        {
+            std::cout.rdbuf(oldCout);
+            output = outputBuffer.str();
+            status = TestStatus::FAILED;
+            errorMessage = std::string("Native callback failed: ") + e.what();
+        }
+        catch (...)
+        {
+            std::cout.rdbuf(oldCout);
+            output = outputBuffer.str();
+            status = TestStatus::FAILED;
+            errorMessage = "Native callback failed: unknown exception";
         }
     }
 

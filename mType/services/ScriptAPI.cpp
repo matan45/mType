@@ -14,13 +14,44 @@
 #include "../errors/ReturnException.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
+#include "../vm/runtime/executors/TypeExecutor.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
 #include "../runtime/EventLoop.hpp"
 #include "../value/PromiseValue.hpp"
+#include "../value/NativeArray.hpp"
 #include <iostream>
 
 namespace services
 {
+    namespace
+    {
+        /**
+         * Centralized unwrap for ObjectInstance values — the single chokepoint
+         * that replaces the `std::get<std::shared_ptr<ObjectInstance>>` pattern
+         * across the public ScriptAPI surface (MYT-42).
+         *
+         * Throws ObjectException tagged with `apiName` when the value does not
+         * hold an ObjectInstance, so error messages tell you which API call
+         * rejected the argument.
+         */
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance>
+        asObjectInstance(const value::Value& v, const char* apiName)
+        {
+            if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v))
+            {
+                throw errors::ObjectException(
+                    "Value is not an object", "", apiName);
+            }
+            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v);
+            if (!instance)
+            {
+                throw errors::ObjectException(
+                    "Value is a null object", "", apiName);
+            }
+            return instance;
+        }
+    }
+
     ScriptAPI::ScriptAPI(std::shared_ptr<environment::Environment> env,
                          vm::runtime::VirtualMachine* virtualMachine,
                          const vm::bytecode::BytecodeProgram* bytecodeProgram)
@@ -61,12 +92,7 @@ namespace services
                                        const std::string& methodName,
                                        const std::vector<value::Value>& args)
     {
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
-        {
-            throw errors::ObjectException("Cannot call method on non-object value", "", __FUNCTION__);
-        }
-
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
+        auto instance = asObjectInstance(object, "ScriptAPI::callMethod");
 
         // Use VM for method invocation
         if (vm)
@@ -245,12 +271,7 @@ namespace services
 
     value::Value ScriptAPI::getField(const value::Value& object, const std::string& fieldName)
     {
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
-        {
-            throw errors::ObjectException("Cannot access field on non-object value", "", __FUNCTION__);
-        }
-
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
+        auto instance = asObjectInstance(object, "ScriptAPI::getField");
 
         // Use VM for field access
         if (vm)
@@ -272,12 +293,7 @@ namespace services
                             const std::string& fieldName,
                             const value::Value& value)
     {
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
-        {
-            throw errors::ObjectException("Cannot set field on non-object value", "", __FUNCTION__);
-        }
-
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
+        auto instance = asObjectInstance(object, "ScriptAPI::setField");
 
         // Use VM for field access
         if (vm)
@@ -315,25 +331,121 @@ namespace services
 
     bool ScriptAPI::isObjectOfClass(const value::Value& object, const std::string& className)
     {
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
+        // Silent-false for non-objects is the documented behavior of this
+        // utility — keep it distinct from the throw-on-mismatch helpers.
+        // Uses get_if so this file still passes the hygiene grep (no
+        // `std::get<std::shared_ptr<ObjectInstance>>` outside asObjectInstance).
+        auto* instancePtr =
+            std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&object);
+        if (!instancePtr || !*instancePtr)
         {
             return false;
         }
-
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
-        auto classDef = instance->getClassDefinition();
-        return classDef->getName() == className;
+        auto classDef = (*instancePtr)->getClassDefinition();
+        return classDef && classDef->getName() == className;
     }
 
     std::string ScriptAPI::getObjectClassName(const value::Value& object)
     {
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object))
+        auto instance = asObjectInstance(object, "ScriptAPI::getObjectClassName");
+        return instance->getClassDefinition()->getName();
+    }
+
+    // ================================================================
+    // MYT-42 — generic type metadata / Class FFI
+    // ================================================================
+
+    api::Class ScriptAPI::getClass(const value::Value& object)
+    {
+        auto instance = asObjectInstance(object, "ScriptAPI::getClass");
+
+        // Reconstruct the canonical parameterized name using the same
+        // helper the bytecode INSTANCEOF op uses — this guarantees the
+        // string we pass to Class.forName lines up with what the language
+        // side would produce (e.g. "Box<Int>" with ", " spacing).
+        std::string canonicalName =
+            vm::runtime::TypeExecutor::reconstructObjectFullType(instance);
+        if (canonicalName.empty())
         {
-            throw errors::TypeConversionException("Value is not an object", "unknown", "object");
+            canonicalName = instance->getClassDefinition()->getName();
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(object);
-        auto classDef = instance->getClassDefinition();
-        return classDef->getName();
+        // Route through the same reflection path as language-side
+        // Class.forName — same ReflectionHandleRegistry, same interning,
+        // same handle identity.
+        value::Value raw = callStaticMethod(
+            "Class", "forName", { value::Value(canonicalName) });
+        return api::Class(std::move(raw));
+    }
+
+    api::Class ScriptAPI::classOf(const std::string& typeName)
+    {
+        value::Value raw = callStaticMethod(
+            "Class", "forName", { value::Value(typeName) });
+        return api::Class(std::move(raw));
+    }
+
+    std::vector<api::Class> ScriptAPI::getGenericArguments(const value::Value& object)
+    {
+        // Route through the language surface: Class.getTypeArguments()
+        // returns Class[] via the same __reflect_getTypeArguments native
+        // that powers the language path, so identity is preserved.
+        api::Class cls = getClass(object);
+        value::Value argsArray = callMethod(cls.asValue(), "getTypeArguments", {});
+
+        std::vector<api::Class> result;
+        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(argsArray))
+        {
+            return result;
+        }
+        auto array = std::get<std::shared_ptr<value::NativeArray>>(argsArray);
+        if (!array)
+        {
+            return result;
+        }
+
+        result.reserve(array->size());
+        for (size_t i = 0; i < array->size(); ++i)
+        {
+            value::Value element = array->get(i);
+            // Each element must be a Class ObjectInstance — the api::Class
+            // ctor will throw if that invariant is ever violated.
+            result.emplace_back(std::move(element));
+        }
+        return result;
+    }
+
+    bool ScriptAPI::isInstanceOf(const value::Value& object,
+                                 const std::string& fullyParameterizedType)
+    {
+        // Shared code path with bytecode INSTANCEOF — same routine in
+        // TypeExecutor handles primitives, parameterized objects, and the
+        // interface hierarchy walk.
+        return vm::runtime::TypeExecutor::checkInstanceOfByName(
+            object, fullyParameterizedType, environment);
+    }
+
+    bool ScriptAPI::isInstanceOf(const value::Value& object, const api::Class& cls)
+    {
+        // Fetch the parameterized name from the Class via its own
+        // language-side getName() — proves the Class instance is legit
+        // and that cross-surface identity holds.
+        value::Value nameValue = callMethod(cls.asValue(), "getName", {});
+        std::string name;
+        if (std::holds_alternative<std::string>(nameValue))
+        {
+            name = std::get<std::string>(nameValue);
+        }
+        else if (std::holds_alternative<value::InternedString>(nameValue))
+        {
+            name = std::get<value::InternedString>(nameValue).getString();
+        }
+        else
+        {
+            throw errors::ObjectException(
+                "Class.getName() returned a non-string value",
+                "Class", "ScriptAPI::isInstanceOf");
+        }
+        return isInstanceOf(object, name);
     }
 }

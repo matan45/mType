@@ -242,15 +242,8 @@ namespace vm::runtime
         // Pop value to check
         value::Value val = context.stackManager->pop();
 
-        bool result = false;
-
-        // Check if it's a primitive type
-        if (checkInstanceofPrimitive(val, targetTypeName)) {
-            result = true;
-        } else {
-            // Check if it's an object type
-            result = checkInstanceofObject(val, targetTypeName);
-        }
+        // Shared FFI entry point — same code path as ScriptAPI::isInstanceOf.
+        bool result = checkInstanceOfByName(val, targetTypeName, context.environment);
 
         // Push boolean result onto stack
         context.stackManager->push(result);
@@ -266,14 +259,19 @@ namespace vm::runtime
 
         value::Value val = context.stackManager->pop();
 
-        bool result = false;
-        if (checkInstanceofPrimitive(val, resolved)) {
-            result = true;
-        } else {
-            result = checkInstanceofObject(val, resolved);
-        }
+        bool result = checkInstanceOfByName(val, resolved, context.environment);
 
         context.stackManager->push(result);
+    }
+
+    bool TypeExecutor::checkInstanceOfByName(
+        const value::Value& val,
+        const std::string& targetTypeName,
+        const std::shared_ptr<environment::Environment>& env) {
+        if (checkInstanceofPrimitive(val, targetTypeName)) {
+            return true;
+        }
+        return checkInstanceofObject(val, targetTypeName, env.get());
     }
 
     std::string TypeExecutor::resolveTypeParameter(const std::string& paramName) {
@@ -331,6 +329,7 @@ namespace vm::runtime
         }
     }
 
+    // static
     bool TypeExecutor::checkInstanceofPrimitive(const value::Value& val, const std::string& targetTypeName) {
         if (targetTypeName == "Int" || targetTypeName == "int") {
             return std::holds_alternative<int64_t>(val);
@@ -347,7 +346,10 @@ namespace vm::runtime
         return false;
     }
 
-    bool TypeExecutor::checkInstanceofObject(const value::Value& val, const std::string& targetTypeName) {
+    bool TypeExecutor::checkInstanceofObject(
+        const value::Value& val,
+        const std::string& targetTypeName,
+        environment::Environment* env) {
         // Object type check
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
             auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
@@ -442,7 +444,7 @@ namespace vm::runtime
                                 std::unordered_set<std::string> visited;
                                 if (checkInterfaceHierarchyParam(
                                         substituted, targetTypeName, visited,
-                                        obj->getGenericTypeBindings())) {
+                                        obj->getGenericTypeBindings(), env)) {
                                     result = true;
                                     break;
                                 }
@@ -455,7 +457,7 @@ namespace vm::runtime
                                     break;
                                 }
                                 std::unordered_set<std::string> visited;
-                                if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+                                if (checkInterfaceHierarchy(iface, targetTypeName, visited, env)) {
                                     result = true;
                                     break;
                                 }
@@ -510,7 +512,7 @@ namespace vm::runtime
                             std::unordered_set<std::string> visited;
                             if (checkInterfaceHierarchyParam(
                                     substituted, targetTypeName, visited,
-                                    obj->getGenericTypeBindings())) {
+                                    obj->getGenericTypeBindings(), env)) {
                                 result = true;
                                 break;
                             }
@@ -522,7 +524,7 @@ namespace vm::runtime
                                 break;
                             }
                             std::unordered_set<std::string> visited;
-                            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+                            if (checkInterfaceHierarchy(iface, targetTypeName, visited, env)) {
                                 result = true;
                                 break;
                             }
@@ -736,7 +738,7 @@ namespace vm::runtime
         const auto& interfaces = classDef->getImplementedInterfaces();
         for (const auto& iface : interfaces) {
             std::unordered_set<std::string> visited;
-            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+            if (checkInterfaceHierarchy(iface, targetTypeName, visited, context.environment.get())) {
                 return true;
             }
         }
@@ -824,7 +826,8 @@ namespace vm::runtime
     bool TypeExecutor::checkInterfaceHierarchy(
         const std::string& interfaceName,
         const std::string& targetInterface,
-        std::unordered_set<std::string>& visited
+        std::unordered_set<std::string>& visited,
+        environment::Environment* env
     ) {
         // Avoid infinite loops with circular dependencies
         if (visited.count(interfaceName)) {
@@ -864,11 +867,11 @@ namespace vm::runtime
         }
 
         // Check extended interfaces recursively
-        auto interfaceDef = context.environment->findInterface(interfaceName);
+        auto interfaceDef = env ? env->findInterface(interfaceName) : nullptr;
         if (interfaceDef) {
             const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
             for (const auto& extendedInterface : extendedInterfaces) {
-                if (checkInterfaceHierarchy(extendedInterface, targetInterface, visited)) {
+                if (checkInterfaceHierarchy(extendedInterface, targetInterface, visited, env)) {
                     return true;
                 }
             }
@@ -894,7 +897,8 @@ namespace vm::runtime
         const std::string& interfaceName,
         const std::string& targetInterface,
         std::unordered_set<std::string>& visited,
-        const std::unordered_map<std::string, std::string>& bindings
+        const std::unordered_map<std::string, std::string>& bindings,
+        environment::Environment* env
     ) {
         // Avoid infinite loops with circular dependencies. Use the full
         // substituted name as the visited key so two different parameterized
@@ -918,7 +922,7 @@ namespace vm::runtime
         // Look up the interface by its raw base name. If it's not registered
         // as an interface, we can't walk further — return the direct match
         // result we already checked.
-        auto interfaceDef = context.environment->findInterface(currentComp.baseName);
+        auto interfaceDef = env ? env->findInterface(currentComp.baseName) : nullptr;
         if (!interfaceDef) {
             return false;
         }
@@ -937,7 +941,7 @@ namespace vm::runtime
         const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
         for (const auto& extendedInterface : extendedInterfaces) {
             std::string substituted = substituteTypeExpression(extendedInterface, newBindings);
-            if (checkInterfaceHierarchyParam(substituted, targetInterface, visited, newBindings)) {
+            if (checkInterfaceHierarchyParam(substituted, targetInterface, visited, newBindings, env)) {
                 return true;
             }
         }

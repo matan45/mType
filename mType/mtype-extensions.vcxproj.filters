@@ -19,6 +19,9 @@
     <Filter Include="services">
       <UniqueIdentifier>{C98C7E0E-B559-D919-DE72-C7C1CA9E0EA8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="services\api">
+      <UniqueIdentifier>{923A3511-7E9D-C4B5-2723-FD6B13659038}</UniqueIdentifier>
+    </Filter>
     <Filter Include="validation">
       <UniqueIdentifier>{10E17C64-FC98-BEB1-65A0-970D517759A2}</UniqueIdentifier>
     </Filter>
@@ -134,6 +137,9 @@
     </ClInclude>
     <ClInclude Include="services\ScriptInterpreter.hpp">
       <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\api\Class.hpp">
+      <Filter>services\api</Filter>
     </ClInclude>
     <ClInclude Include="validation\AnnotationValidator.hpp">
       <Filter>validation</Filter>

@@ -399,6 +399,9 @@
     <ClInclude Include="tests\suites\ReflectionTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\ScriptApiNativeTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\StreamTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -486,6 +489,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ReflectionTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ScriptApiNativeTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\StreamTestSuite.cpp">
@@ -2521,6 +2527,9 @@
     <None Include="tests\testFiles\class\error\functionScopingFail.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\getClassOnNull.mt">
+      <Filter>testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\invalidConstructor.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
@@ -2912,6 +2921,12 @@
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\genericInheritance.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\getClassPolymorphism.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\getClassPolymorphism.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\implicitObjectInheritance.expected">
@@ -5213,6 +5228,24 @@
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\genericWithPrimitiveTypes.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\getClassFromGenericInstance.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\getClassFromGenericInstance.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\getClassFromInstance.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\getClassFromInstance.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\getClassIdentityVsForName.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\getClassIdentityVsForName.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\globalGenericFunctions.expected">

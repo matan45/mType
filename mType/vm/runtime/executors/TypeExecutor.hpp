@@ -27,18 +27,19 @@ namespace vm::runtime
         void handleInstanceofTypeParam(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCast(const bytecode::BytecodeProgram::Instruction& instr);
 
-    private:
-        ExecutionContext& context;
-
-        // Helper methods for type checking
-        bool checkInstanceofPrimitive(const value::Value& val, const std::string& targetTypeName);
-        bool checkInstanceofObject(const value::Value& val, const std::string& targetTypeName);
-
-        // Resolve a type-parameter name (e.g. "T") to its bound concrete type
-        // name via the current receiver's generic bindings. Throws a clean
-        // RuntimeException if the parameter cannot be resolved (no this,
-        // unbound parameter, etc.).
-        std::string resolveTypeParameter(const std::string& paramName);
+        // ============================================================
+        // Public FFI entry point (MYT-42)
+        //
+        // Shared between the bytecode INSTANCEOF op and ScriptAPI so
+        // language-level `obj isClassOf X` and native-level
+        // ScriptAPI::isInstanceOf(obj, "X") are literally the same code
+        // path. Pure static — uses `env` only to resolve interface
+        // lookups during hierarchy walks.
+        // ============================================================
+        static bool checkInstanceOfByName(
+            const value::Value& val,
+            const std::string& targetTypeName,
+            const std::shared_ptr<environment::Environment>& env);
 
         // Reconstruct the full parameterized type name for a runtime receiver.
         // For a new Box<Int>(...) instance returns "Box<Int>"; falls back to
@@ -46,14 +47,32 @@ namespace vm::runtime
         // parameters OR if its bindings are incomplete (partial / erased).
         // Matches the exact spacing produced by ast::GenericType::toString()
         // (", " after commas) so string equality against the compiler-emitted
-        // target name is valid.
-        std::string reconstructObjectFullType(
+        // target name is valid. Public for reuse by the FFI (MYT-42).
+        static std::string reconstructObjectFullType(
             const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
-        std::string reconstructValueObjectFullType(
+
+    private:
+        ExecutionContext& context;
+
+        // Helper methods for type checking — static so they can run
+        // without an ExecutionContext (reused by the FFI entry point).
+        static bool checkInstanceofPrimitive(const value::Value& val, const std::string& targetTypeName);
+        static bool checkInstanceofObject(
+            const value::Value& val,
+            const std::string& targetTypeName,
+            environment::Environment* env);
+
+        // Resolve a type-parameter name (e.g. "T") to its bound concrete type
+        // name via the current receiver's generic bindings. Throws a clean
+        // RuntimeException if the parameter cannot be resolved (no this,
+        // unbound parameter, etc.).
+        std::string resolveTypeParameter(const std::string& paramName);
+
+        static std::string reconstructValueObjectFullType(
             const std::shared_ptr<value::ValueObject>& obj);
 
         // Shared join helper used by both reconstruction paths.
-        std::string buildParameterizedName(
+        static std::string buildParameterizedName(
             const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef,
             const std::unordered_map<std::string, std::string>& bindings);
 
@@ -65,10 +84,11 @@ namespace vm::runtime
         value::Value castToObject(const value::Value& val, const std::string& targetTypeName);
 
         // Interface hierarchy checking (raw mode — existing behavior)
-        bool checkInterfaceHierarchy(
+        static bool checkInterfaceHierarchy(
             const std::string& interfaceName,
             const std::string& targetInterface,
-            std::unordered_set<std::string>& visited
+            std::unordered_set<std::string>& visited,
+            environment::Environment* env
         );
 
         // Interface hierarchy checking (MYT-44 parameterized mode).
@@ -76,11 +96,12 @@ namespace vm::runtime
         // along with the bindings that produced it. At each recursion step the
         // bindings are rebuilt against the NEW interface's declared parameters
         // via rebindForInterface, so parameter names can differ across the chain.
-        bool checkInterfaceHierarchyParam(
+        static bool checkInterfaceHierarchyParam(
             const std::string& interfaceName,
             const std::string& targetInterface,
             std::unordered_set<std::string>& visited,
-            const std::unordered_map<std::string, std::string>& bindings
+            const std::unordered_map<std::string, std::string>& bindings,
+            environment::Environment* env
         );
 
         // Convert value to string representation
@@ -91,7 +112,7 @@ namespace vm::runtime
             std::string baseName;
             std::string typeParams;
         };
-        TypeComponents extractTypeComponents(const std::string& typeName);
+        static TypeComponents extractTypeComponents(const std::string& typeName);
         bool checkExactMatch(const std::string& className, const std::string& targetTypeName,
                             const TypeComponents& classComp, const TypeComponents& targetComp);
         bool checkUpcastMatch(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
