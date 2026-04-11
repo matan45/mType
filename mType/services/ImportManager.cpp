@@ -29,6 +29,11 @@ namespace services
         baseDirectory = dir;
     }
 
+    void ImportManager::setProjectRoot(const std::string& root)
+    {
+        projectRoot = root;
+    }
+
     std::string ImportManager::getCurrentFilePath() const
     {
         return currentFilePath;
@@ -167,17 +172,27 @@ namespace services
     void ImportManager::enforceWithinProjectRoot(const fs::path& resolved,
                                                  const std::string& originalPath)
     {
-        // baseDirectory may not exist on disk yet (e.g. unit tests with a
+        // Containment is opt-in: only enforced when an explicit project
+        // root has been configured (via setProjectRoot). Ad-hoc scripts
+        // and tests run without one and skip the check entirely, since
+        // their layouts often legitimately use ../ to reach shared lib
+        // directories.
+        if (projectRoot.empty())
+        {
+            return;
+        }
+
+        // projectRoot may not exist on disk yet (e.g. unit tests with a
         // dummy "."). Fall back to lexically_normal so we still compare on
         // a fully reduced path.
         fs::path canonicalRoot;
         try
         {
-            canonicalRoot = fs::canonical(baseDirectory);
+            canonicalRoot = fs::canonical(projectRoot);
         }
         catch (const std::filesystem::filesystem_error&)
         {
-            canonicalRoot = fs::absolute(baseDirectory).lexically_normal();
+            canonicalRoot = fs::absolute(projectRoot).lexically_normal();
         }
 
         fs::path canonicalResolved;

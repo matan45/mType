@@ -75,7 +75,7 @@ namespace vm::runtime
     void ArithmeticExecutor::handleNeg() {
         value::Value val = context.stackManager->pop();
         if (std::holds_alternative<int64_t>(val)) {
-            context.stackManager->push(utils::checkedNeg64(std::get<int64_t>(val)));
+            context.stackManager->push(utils::wrappingNeg64(std::get<int64_t>(val)));
         } else if (std::holds_alternative<double>(val)) {
             context.stackManager->push(-std::get<double>(val));
         } else {
@@ -86,7 +86,7 @@ namespace vm::runtime
     void ArithmeticExecutor::handleInc() {
         value::Value val = context.stackManager->pop();
         if (std::holds_alternative<int64_t>(val)) {
-            context.stackManager->push(utils::checkedAdd64(std::get<int64_t>(val), 1));
+            context.stackManager->push(utils::wrappingAdd64(std::get<int64_t>(val), 1));
         } else if (std::holds_alternative<double>(val)) {
             context.stackManager->push(std::get<double>(val) + 1.0);
         } else {
@@ -97,7 +97,7 @@ namespace vm::runtime
     void ArithmeticExecutor::handleDec() {
         value::Value val = context.stackManager->pop();
         if (std::holds_alternative<int64_t>(val)) {
-            context.stackManager->push(utils::checkedSub64(std::get<int64_t>(val), 1));
+            context.stackManager->push(utils::wrappingSub64(std::get<int64_t>(val), 1));
         } else if (std::holds_alternative<double>(val)) {
             context.stackManager->push(std::get<double>(val) - 1.0);
         } else {
@@ -118,7 +118,7 @@ namespace vm::runtime
         }
         int64_t r = std::get<int64_t>(context.stackManager->pop());
         int64_t l = std::get<int64_t>(context.stackManager->pop());
-        context.stackManager->push(utils::checkedAdd64(l, r));
+        context.stackManager->push(utils::wrappingAdd64(l, r));
     }
 
     void ArithmeticExecutor::handleSubInt() {
@@ -133,7 +133,7 @@ namespace vm::runtime
         }
         int64_t r = std::get<int64_t>(context.stackManager->pop());
         int64_t l = std::get<int64_t>(context.stackManager->pop());
-        context.stackManager->push(utils::checkedSub64(l, r));
+        context.stackManager->push(utils::wrappingSub64(l, r));
     }
 
     void ArithmeticExecutor::handleMulInt() {
@@ -148,7 +148,7 @@ namespace vm::runtime
         }
         int64_t r = std::get<int64_t>(context.stackManager->pop());
         int64_t l = std::get<int64_t>(context.stackManager->pop());
-        context.stackManager->push(utils::checkedMul64(l, r));
+        context.stackManager->push(utils::wrappingMul64(l, r));
     }
 
     void ArithmeticExecutor::handleDivInt() {
@@ -242,22 +242,24 @@ namespace vm::runtime
             int64_t l = std::get<int64_t>(unboxedLeft);
             int64_t r = std::get<int64_t>(unboxedRight);
             switch (op) {
-                case OpCode::ADD: return utils::checkedAdd64(l, r);
-                case OpCode::SUB: return utils::checkedSub64(l, r);
-                case OpCode::MUL: return utils::checkedMul64(l, r);
+                case OpCode::ADD: return utils::wrappingAdd64(l, r);
+                case OpCode::SUB: return utils::wrappingSub64(l, r);
+                case OpCode::MUL: return utils::wrappingMul64(l, r);
                 case OpCode::DIV:
                     if (r == 0) {
                         utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
                     }
-                    // Guard against -INT64_MIN / -1 which is also UB.
+                    // INT64_MIN / -1 is UB on x86 (raises SIGFPE). Java
+                    // defines this as wrapping to INT64_MIN; match that.
                     if (l == INT64_MIN && r == -1) {
-                        utils::ErrorLocationHelper::throwRuntimeError(context, "Integer overflow in division");
+                        return INT64_MIN;
                     }
                     return l / r;
                 case OpCode::MOD:
                     if (r == 0) {
                         utils::ErrorLocationHelper::throwRuntimeError(context, "Modulo by zero");
                     }
+                    // INT64_MIN % -1 is UB on x86. Java defines it as 0.
                     if (l == INT64_MIN && r == -1) {
                         return static_cast<int64_t>(0);
                     }

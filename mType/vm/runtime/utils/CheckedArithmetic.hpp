@@ -8,18 +8,46 @@
 namespace vm::runtime::utils
 {
     /**
-     * Overflow-checked int64 arithmetic helpers.
+     * int64 arithmetic helpers — two flavors:
      *
-     * Signed integer overflow is undefined behavior in C++, so we cannot
-     * detect it after the fact by inspecting the result. On GCC and Clang
-     * we use the well-defined `__builtin_*_overflow` intrinsics. On MSVC
-     * (which has no equivalent intrinsic for signed 64-bit) we test the
-     * operation against the int64 range *before* performing it, so the
-     * actual arithmetic never invokes UB.
+     * 1. wrappingAdd64 / wrappingSub64 / wrappingMul64 / wrappingNeg64
+     *    Default semantics for the VM's `+`, `-`, `*`, `INC`, `DEC`, `NEG`
+     *    instructions. Casts through uint64_t so the operation is
+     *    well-defined two's-complement wrap (no UB). This matches Java /
+     *    C# (unchecked) / Go / Rust (`wrapping_*`) and is the only
+     *    semantics that doesn't break legitimate hash, CRC, RNG, and
+     *    bit-twiddling code that intentionally wraps.
      *
-     * On overflow we throw RuntimeException so the VM can surface a clean
-     * script error instead of crashing or wrapping silently.
+     * 2. checkedAdd64 / checkedSub64 / checkedMul64 / checkedNeg64
+     *    Throwing variants. Available for future Math.addExact-style APIs
+     *    where the script explicitly opts into overflow detection. NOT
+     *    used by the default arithmetic opcodes.
+     *
+     * The point of MYT-29 here is to eliminate undefined behavior, not to
+     * change language semantics. Wrapping covers the UB without changing
+     * observable behavior for normal code.
      */
+
+    // ---- Wrapping (default) ----
+
+    inline int64_t wrappingAdd64(int64_t a, int64_t b) {
+        return static_cast<int64_t>(static_cast<uint64_t>(a) + static_cast<uint64_t>(b));
+    }
+
+    inline int64_t wrappingSub64(int64_t a, int64_t b) {
+        return static_cast<int64_t>(static_cast<uint64_t>(a) - static_cast<uint64_t>(b));
+    }
+
+    inline int64_t wrappingMul64(int64_t a, int64_t b) {
+        return static_cast<int64_t>(static_cast<uint64_t>(a) * static_cast<uint64_t>(b));
+    }
+
+    inline int64_t wrappingNeg64(int64_t a) {
+        // -INT64_MIN wraps to INT64_MIN, matching Java's `-x` semantics.
+        return static_cast<int64_t>(0u - static_cast<uint64_t>(a));
+    }
+
+    // ---- Checked (opt-in, throws on overflow) ----
 
 #if defined(__GNUC__) || defined(__clang__)
     #define MTYPE_HAS_BUILTIN_OVERFLOW 1
