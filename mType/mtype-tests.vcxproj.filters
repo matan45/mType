@@ -7816,6 +7816,9 @@
     <None Include="tests\testFiles\lib\primitives\Bool.mt">
       <Filter>testFiles\lib\primitives</Filter>
     </None>
+    <None Include="tests\testFiles\lib\primitives\Box.mt">
+      <Filter>testFiles\lib\primitives</Filter>
+    </None>
     <None Include="tests\testFiles\lib\primitives\Float.mt">
       <Filter>testFiles\lib\primitives</Filter>
     </None>
@@ -8209,6 +8212,9 @@
     <None Include="tests\testFiles\reflection\error\fieldNotFound.mt">
       <Filter>testFiles\reflection\error</Filter>
     </None>
+    <None Include="tests\testFiles\reflection\error\forNameInvalidParameterized.mt">
+      <Filter>testFiles\reflection\error</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\error\methodNotFound.mt">
       <Filter>testFiles\reflection\error</Filter>
     </None>
@@ -8227,10 +8233,46 @@
     <None Include="tests\testFiles\reflection\pass\basicReflection.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
+    <None Include="tests\testFiles\reflection\pass\boxMultiplePrimitives.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\boxMultiplePrimitives.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\boxOfBox.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\boxOfBox.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\boxTemplateReflection.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\boxTemplateReflection.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\boxUserClass.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\boxUserClass.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\pass\classForName.expected">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\classForName.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classGetNameNested.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classGetNameNested.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classGetNameParameterized.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classGetNameParameterized.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\classMetadata.expected">
@@ -8275,10 +8317,58 @@
     <None Include="tests\testFiles\reflection\pass\fieldTypes.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
+    <None Include="tests\testFiles\reflection\pass\forNameIdentityConvergence.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\forNameIdentityConvergence.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\pass\genericClassReflection.expected">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\genericClassReflection.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getClassNameStillRaw.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getClassNameStillRaw.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsAlignedWithParameters.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsAlignedWithParameters.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsAreClasses.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsAreClasses.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsBasic.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsBasic.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsEmptyForNonGeneric.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsEmptyForNonGeneric.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsEmptyForOpen.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsEmptyForOpen.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsMultipleParams.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getTypeArgumentsMultipleParams.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\inheritanceReflection.expected">
@@ -8333,6 +8423,12 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\objectReflectionApi.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\openVsClosedNotEqual.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\openVsClosedNotEqual.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\reflectionInvocation.expected">

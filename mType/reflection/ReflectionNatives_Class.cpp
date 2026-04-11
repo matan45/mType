@@ -4,11 +4,153 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/InternedString.hpp"
+#include "../types/UnifiedType.hpp"
+#include "../types/ReifiedTypeRegistry.hpp"
+#include "../environment/registry/ClassRegistry.hpp"
+#include <cctype>
+#include <utility>
 
 namespace reflection
 {
     using namespace value;
     using namespace runtimeTypes::klass;
+
+    namespace
+    {
+        // Trim ASCII whitespace from both ends.
+        std::string trim(const std::string& s)
+        {
+            size_t start = 0;
+            while (start < s.size() && std::isspace(static_cast<unsigned char>(s[start])))
+            {
+                ++start;
+            }
+            size_t end = s.size();
+            while (end > start && std::isspace(static_cast<unsigned char>(s[end - 1])))
+            {
+                --end;
+            }
+            return s.substr(start, end - start);
+        }
+
+        /**
+         * Parse a type expression string like "Box", "Box<Int>", or
+         * "Map<String, List<Int>>" into its base name and a list of argument
+         * substrings (kept as full substrings so nested generics can be
+         * recursively parsed).
+         *
+         * Tolerates whitespace around commas and inside angle brackets.
+         * Throws on unbalanced brackets or empty arguments.
+         */
+        std::pair<std::string, std::vector<std::string>> parseTypeNameArgs(const std::string& input)
+        {
+            std::string s = trim(input);
+            if (s.empty())
+            {
+                throw errors::RuntimeException("Invalid type name: empty string");
+            }
+
+            size_t ltPos = s.find('<');
+            if (ltPos == std::string::npos)
+            {
+                return {s, {}};
+            }
+
+            std::string base = trim(s.substr(0, ltPos));
+            if (base.empty())
+            {
+                throw errors::RuntimeException("Invalid type name: missing base name in '" + input + "'");
+            }
+
+            if (s.back() != '>')
+            {
+                throw errors::RuntimeException("Invalid type name: unbalanced angle brackets in '" + input + "'");
+            }
+
+            // Body is everything between the outermost '<' and the final '>'.
+            std::string body = s.substr(ltPos + 1, s.size() - ltPos - 2);
+
+            std::vector<std::string> args;
+            int depth = 0;
+            size_t argStart = 0;
+            for (size_t i = 0; i < body.size(); ++i)
+            {
+                char c = body[i];
+                if (c == '<')
+                {
+                    ++depth;
+                }
+                else if (c == '>')
+                {
+                    --depth;
+                    if (depth < 0)
+                    {
+                        throw errors::RuntimeException(
+                            "Invalid type name: unbalanced angle brackets in '" + input + "'");
+                    }
+                }
+                else if (c == ',' && depth == 0)
+                {
+                    std::string piece = trim(body.substr(argStart, i - argStart));
+                    if (piece.empty())
+                    {
+                        throw errors::RuntimeException(
+                            "Invalid type name: empty type argument in '" + input + "'");
+                    }
+                    args.push_back(std::move(piece));
+                    argStart = i + 1;
+                }
+            }
+
+            if (depth != 0)
+            {
+                throw errors::RuntimeException(
+                    "Invalid type name: unbalanced angle brackets in '" + input + "'");
+            }
+
+            std::string lastPiece = trim(body.substr(argStart));
+            if (lastPiece.empty())
+            {
+                throw errors::RuntimeException(
+                    "Invalid type name: empty type argument in '" + input + "'");
+            }
+            args.push_back(std::move(lastPiece));
+
+            return {std::move(base), std::move(args)};
+        }
+
+        /**
+         * Recursively resolve a type expression string to a canonically-interned
+         * UnifiedTypePtr via ReifiedTypeRegistry::intern.
+         *
+         * For each subterm, verifies that the base name resolves to a real
+         * ClassDefinition in the environment, so errors surface at the precise
+         * missing-type level (e.g. "Class not found: NotAType" even when nested
+         * inside "Box<NotAType>").
+         */
+        ::types::UnifiedTypePtr resolveToReifiedType(
+            const std::string& typeExpr,
+            environment::Environment* env)
+        {
+            auto [baseName, argStrings] = parseTypeNameArgs(typeExpr);
+
+            auto baseDef = env->findClass(baseName);
+            if (!baseDef)
+            {
+                throw errors::RuntimeException("Class not found: " + baseName);
+            }
+
+            std::vector<::types::UnifiedTypePtr> argTypes;
+            argTypes.reserve(argStrings.size());
+            for (const auto& argStr : argStrings)
+            {
+                argTypes.push_back(resolveToReifiedType(argStr, env));
+            }
+
+            auto type = ::types::UnifiedType::classType(baseName, std::move(argTypes));
+            return env->getClassRegistry()->getReifiedTypeRegistry()->intern(type);
+        }
+    } // anonymous namespace
 
     // ========== Class Reflection Implementations ==========
 
@@ -22,15 +164,34 @@ namespace reflection
             throw errors::RuntimeException("Reflection environment not initialized");
         }
 
+        auto& registry = ReflectionHandleRegistry::instance();
+
+        // Closed (parameterized) form: e.g. "Box<Int>" or "Map<String, List<Int>>".
+        // Parse, recursively resolve each type argument, intern through the
+        // ReifiedTypeRegistry, and mint a closed handle distinct from the open
+        // "Box" handle.
+        if (className.find('<') != std::string::npos)
+        {
+            auto reified = resolveToReifiedType(className, currentEnvironment.get());
+            auto baseDef = currentEnvironment->findClass(reified->getName());
+            if (!baseDef)
+            {
+                // resolveToReifiedType already verifies the base is resolvable,
+                // but guard defensively in case interning normalized the name.
+                throw errors::RuntimeException("Class not found: " + reified->getName());
+            }
+            int64_t handle = registry.getOrCreateClosedClassHandle(baseDef, reified);
+            return static_cast<int>(handle);
+        }
+
+        // Open form: existing path.
         auto classDef = currentEnvironment->findClass(className);
         if (!classDef)
         {
             throw errors::RuntimeException("Class not found: " + className);
         }
 
-        auto& registry = ReflectionHandleRegistry::instance();
         int64_t handle = registry.getOrCreateClassHandle(classDef);
-
         return static_cast<int>(handle);
     }
 
@@ -242,6 +403,64 @@ namespace reflection
         return result;
     }
 
+    Value ReflectionNatives::__reflect_getTypeArguments(const std::vector<Value>& args)
+    {
+        validateArgCount(args, 1, "__reflect_getTypeArguments");
+        int64_t classHandle = extractInt(args[0], "__reflect_getTypeArguments", "classHandle");
+
+        auto& registry = ReflectionHandleRegistry::instance();
+        auto classDef = registry.getClass(classHandle);
+        if (!classDef)
+        {
+            throw errors::RuntimeException("Invalid class handle");
+        }
+
+        // Open template handles and non-generic classes return an empty array.
+        auto reified = registry.getReifiedType(classHandle);
+        if (!reified || reified->getTypeArguments().empty())
+        {
+            return std::make_shared<NativeArray>(0, ValueType::INT);
+        }
+
+        const auto& typeArgs = reified->getTypeArguments();
+        auto result = std::make_shared<NativeArray>(typeArgs.size(), ValueType::INT);
+
+        if (!currentEnvironment)
+        {
+            throw errors::RuntimeException("Reflection environment not initialized");
+        }
+
+        for (size_t i = 0; i < typeArgs.size(); ++i)
+        {
+            const auto& arg = typeArgs[i];
+            if (!arg)
+            {
+                throw errors::RuntimeException("Invalid null type argument in reified type");
+            }
+
+            auto argBaseDef = currentEnvironment->findClass(arg->getName());
+            if (!argBaseDef)
+            {
+                throw errors::RuntimeException("Class not found: " + arg->getName());
+            }
+
+            int64_t argHandle;
+            if (arg->isParameterized())
+            {
+                // Nested closed form (e.g. List<Int> inside Map<String,List<Int>>).
+                // Mint a closed handle so the caller can recursively introspect.
+                argHandle = registry.getOrCreateClosedClassHandle(argBaseDef, arg);
+            }
+            else
+            {
+                argHandle = registry.getOrCreateClassHandle(argBaseDef);
+            }
+            result->set(static_cast<int>(i), argHandle);
+        }
+
+        return result;
+    }
+
     Value ReflectionNatives::__reflect_getClassModifiers(const std::vector<Value>& args)
     {
         validateArgCount(args, 1, "__reflect_getClassModifiers");
@@ -255,6 +474,45 @@ namespace reflection
         }
 
         return classDef->getModifierFlags();
+    }
+
+    Value ReflectionNatives::__reflect_getName(const std::vector<Value>& args)
+    {
+        validateArgCount(args, 1, "__reflect_getName");
+        int64_t classHandle = extractInt(args[0], "__reflect_getName", "classHandle");
+
+        auto& registry = ReflectionHandleRegistry::instance();
+        auto classDef = registry.getClass(classHandle);
+        if (!classDef)
+        {
+            throw errors::RuntimeException("Invalid class handle");
+        }
+
+        // Closed-form handles render the parameterized canonical string
+        // (e.g. "Box<Int>"); open-form handles return the raw class name.
+        auto reified = registry.getReifiedType(classHandle);
+        if (reified)
+        {
+            return reified->toCanonicalString();
+        }
+        return classDef->getName();
+    }
+
+    Value ReflectionNatives::__reflect_getRawName(const std::vector<Value>& args)
+    {
+        validateArgCount(args, 1, "__reflect_getRawName");
+        int64_t classHandle = extractInt(args[0], "__reflect_getRawName", "classHandle");
+
+        auto& registry = ReflectionHandleRegistry::instance();
+        auto classDef = registry.getClass(classHandle);
+        if (!classDef)
+        {
+            throw errors::RuntimeException("Invalid class handle");
+        }
+
+        // Option A: raw name ALWAYS comes from the ClassDefinition, never
+        // rendered with type arguments, matching ValueObject::getClassName().
+        return classDef->getName();
     }
 
 } // namespace reflection

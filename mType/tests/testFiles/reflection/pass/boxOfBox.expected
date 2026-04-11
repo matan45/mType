@@ -1,0 +1,10 @@
+Outer getName: Box<Box<Int>>
+Outer getRawName: Box
+Outer arg count: 1
+Inner getName: Box<Int>
+Inner getRawName: Box
+Inner isClosed: true
+Inner arg count: 1
+Innermost getName: Int
+Inner handle matches forName: true
+Test passed

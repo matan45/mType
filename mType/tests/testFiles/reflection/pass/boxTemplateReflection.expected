@@ -1,0 +1,8 @@
+isGeneric: true
+isOpen: true
+isClosed: false
+Type param count: 1
+Type param 0: T
+Type arg count: 0
+Method count > 0: true
+Test passed

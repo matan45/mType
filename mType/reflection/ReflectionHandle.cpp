@@ -1,4 +1,5 @@
 #include "ReflectionHandle.hpp"
+#include "../types/ReifiedTypeRegistry.hpp"
 #include <stdexcept>
 
 namespace reflection
@@ -102,6 +103,64 @@ namespace reflection
 
         // Register new handle
         return registerClass(classDef);
+    }
+
+    int64_t ReflectionHandleRegistry::getOrCreateClosedClassHandle(
+        const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& baseDef,
+        const ::types::UnifiedTypePtr& reified)
+    {
+        if (!baseDef)
+        {
+            throw std::invalid_argument("getOrCreateClosedClassHandle: baseDef cannot be null");
+        }
+        if (!reified)
+        {
+            throw std::invalid_argument("getOrCreateClosedClassHandle: reified cannot be null");
+        }
+
+        const std::string canonical = reified->toCanonicalString();
+
+        std::lock_guard<std::mutex> lock(mutex);
+
+        // Dedup: reuse the closed handle for this canonical form if one exists.
+        auto it = canonicalStringToHandle.find(canonical);
+        if (it != canonicalStringToHandle.end())
+        {
+            return it->second;
+        }
+
+        // Mint a fresh handle. Closed handles still point at the base
+        // ClassDefinition in classHandles so every existing native that does
+        // `registry.getClass(handle)` keeps working on a closed handle.
+        //
+        // NOTE: we deliberately do NOT touch classNameToHandle here — that map
+        // stays keyed on raw names, which is what keeps open and closed handles
+        // distinct (forName("Box") vs forName("Box<Int>")).
+        int64_t handle = nextHandle++;
+        classHandles[handle] = baseDef;
+        closedHandleReified[handle] = reified;
+        canonicalStringToHandle[canonical] = handle;
+        handleTypeMap[handle] = HandleType::CLASS;
+
+        return handle;
+    }
+
+    ::types::UnifiedTypePtr ReflectionHandleRegistry::getReifiedType(int64_t handle) const
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        auto it = closedHandleReified.find(handle);
+        if (it != closedHandleReified.end())
+        {
+            return it->second;
+        }
+        return nullptr;
+    }
+
+    bool ReflectionHandleRegistry::isClosedHandle(int64_t handle) const
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return closedHandleReified.find(handle) != closedHandleReified.end();
     }
 
     // ========== Field Handle Management ==========
@@ -295,12 +354,33 @@ namespace reflection
         {
             case HandleType::CLASS:
             {
+                // Erase closed-form entries first so we don't leave orphan
+                // side-map state if this handle was a parameterized closed form.
+                auto closedIt = closedHandleReified.find(handle);
+                if (closedIt != closedHandleReified.end())
+                {
+                    if (closedIt->second)
+                    {
+                        canonicalStringToHandle.erase(closedIt->second->toCanonicalString());
+                    }
+                    closedHandleReified.erase(closedIt);
+                }
+
                 auto classIt = classHandles.find(handle);
                 if (classIt != classHandles.end())
                 {
+                    // Only erase from classNameToHandle if THIS handle is the
+                    // one indexed by the class's raw name. For closed handles
+                    // classNameToHandle either has no entry or points at the
+                    // open-form handle — don't clobber that.
                     if (classIt->second)
                     {
-                        classNameToHandle.erase(classIt->second->getName());
+                        const std::string& rawName = classIt->second->getName();
+                        auto nameIt = classNameToHandle.find(rawName);
+                        if (nameIt != classNameToHandle.end() && nameIt->second == handle)
+                        {
+                            classNameToHandle.erase(nameIt);
+                        }
                     }
                     classHandles.erase(classIt);
                 }
@@ -384,6 +464,10 @@ namespace reflection
 
         // Clear handle type tracking
         handleTypeMap.clear();
+
+        // Clear closed-form parameterized class handle maps
+        closedHandleReified.clear();
+        canonicalStringToHandle.clear();
 
         nextHandle = 1;
     }

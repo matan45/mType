@@ -1,0 +1,8 @@
+getName: Box<Widget>
+getRawName: Box
+isClosed: true
+Arg count: 1
+Arg getName: Widget
+Arg isGeneric: false
+Inner handle matches Widget: true
+Test passed

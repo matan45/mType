@@ -13,6 +13,7 @@
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../ast/nodes/annotations/AnnotationNode.hpp"
+#include "../types/UnifiedType.hpp"
 
 namespace reflection
 {
@@ -120,6 +121,18 @@ namespace reflection
         // Maps handle -> type for efficient releaseHandle lookup
         std::unordered_map<int64_t, HandleType> handleTypeMap;
 
+        // ========== Closed-Form (Parameterized) Class Handles ==========
+        // For handles that represent a closed parameterized type like Box<Int>.
+        // Populated ONLY for closed handles; open-form class handles have no entry here.
+        // The handle still lives in classHandles (pointing at the base ClassDefinition)
+        // so every existing reflection native continues to work unchanged.
+        std::unordered_map<int64_t, ::types::UnifiedTypePtr> closedHandleReified;
+
+        // Reverse dedup map keyed by UnifiedType::toCanonicalString() (e.g. "Box<Int>").
+        // Disjoint from classNameToHandle (keyed on raw names like "Box"), which
+        // automatically gives `forName("Box") != forName("Box<Int>")` for free.
+        std::unordered_map<std::string, int64_t> canonicalStringToHandle;
+
         // ========== Private Helper Methods ==========
         static std::string makeFieldKey(int64_t classHandle, const std::string& fieldName);
         static std::string makeMethodKey(int64_t classHandle, const std::string& methodName,
@@ -150,6 +163,9 @@ namespace reflection
             annotationPtrToHandle.clear();
             // Clear handle type tracking
             handleTypeMap.clear();
+            // Clear closed-form parameterized class handle maps
+            closedHandleReified.clear();
+            canonicalStringToHandle.clear();
         }
 
     public:
@@ -193,6 +209,41 @@ namespace reflection
          * @return Existing or new handle
          */
         int64_t getOrCreateClassHandle(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef);
+
+        /**
+         * @brief Get or create a handle for a closed parameterized class type
+         *
+         * Returns a handle distinct from the open-form handle of the same base
+         * class. For example, `forName("Box")` and `forName("Box<Int>")` produce
+         * different handles via different maps.
+         *
+         * The returned handle still resolves to the base ClassDefinition through
+         * getClass(), so all existing reflection natives (getFields, getMethods,
+         * etc.) continue to work unchanged on closed handles.
+         *
+         * @param baseDef The base ClassDefinition (e.g. the `Box` definition)
+         * @param reified The reified UnifiedType describing the closed form
+         *                (e.g. `Box<Int>`). Will be interned via ReifiedTypeRegistry.
+         * @return Existing or new handle (interned by canonical string)
+         */
+        int64_t getOrCreateClosedClassHandle(
+            const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& baseDef,
+            const ::types::UnifiedTypePtr& reified);
+
+        /**
+         * @brief Get the reified UnifiedType for a closed class handle
+         * @param handle The class handle
+         * @return The reified type if the handle is closed, nullptr for open
+         *         handles or unknown handles
+         */
+        ::types::UnifiedTypePtr getReifiedType(int64_t handle) const;
+
+        /**
+         * @brief Check if a handle represents a closed (parameterized) class form
+         * @param handle The class handle
+         * @return true if a reified type is associated with this handle
+         */
+        bool isClosedHandle(int64_t handle) const;
 
         // ========== Field Handle Management ==========
 

@@ -1,0 +1,8 @@
+getName: Box<Int>
+getRawName: Box
+isGeneric: true
+isClosed: true
+open getName: Box
+open getRawName: Box
+open isClosed: false
+Test passed

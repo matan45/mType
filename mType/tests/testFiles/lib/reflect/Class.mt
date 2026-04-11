@@ -24,9 +24,20 @@ class Class {
         return new Class(handle, className);
     }
 
-    // Get the fully qualified class name
+    // Get the fully qualified class name.
+    // For closed parameterized handles this is the canonical parameterized
+    // form (e.g. "Box<Int>"); for open handles it's the raw class name.
+    // Sourced from the native so nested type arguments render correctly even
+    // when this Class instance was built via getTypeArguments() on a parent.
     public function getName(): string {
-        return this._className;
+        return __reflect_getName(this._nativeHandle);
+    }
+
+    // Get the raw (template-level) class name, stripping any type arguments.
+    // Mirrors ValueObject::getClassName() — a closed Box<Int> handle still
+    // returns "Box" here. See Option A in the reflection refactor design.
+    public function getRawName(): string {
+        return __reflect_getRawName(this._nativeHandle);
     }
 
     // Get the simple class name (without package)
@@ -82,6 +93,35 @@ class Class {
     // Get generic type parameter names
     public function getTypeParameters(): string[] {
         return __reflect_getTypeParameters(this._nativeHandle);
+    }
+
+    // Get runtime type arguments bound to a closed parameterized class.
+    // For Box<Int>::forName, returns [Int::class]. For an open template
+    // (Box) or a non-generic class, returns an empty array. Each element
+    // is itself a fully usable Class — open or closed as appropriate for
+    // nested generics like Map<String, List<Int>>.
+    public function getTypeArguments(): Class[] {
+        int[] argHandles = __reflect_getTypeArguments(this._nativeHandle);
+        Class[] result = new Class[argHandles.length];
+        for (int i = 0; i < argHandles.length; i = i + 1) {
+            string argName = __reflect_getName(argHandles[i]);
+            result[i] = new Class(argHandles[i], argName);
+        }
+        return result;
+    }
+
+    // True if this Class represents an open generic template — either a
+    // non-generic class or a generic class with no bound type arguments
+    // (forName("Box") rather than forName("Box<Int>")).
+    public function isOpen(): bool {
+        return !this.isClosed();
+    }
+
+    // True if this Class represents a closed (fully parameterized) generic
+    // type — forName("Box<Int>") is closed; forName("Box") is not.
+    public function isClosed(): bool {
+        int[] argHandles = __reflect_getTypeArguments(this._nativeHandle);
+        return argHandles.length > 0;
     }
 
     // Get a public field by name (includes inherited fields)

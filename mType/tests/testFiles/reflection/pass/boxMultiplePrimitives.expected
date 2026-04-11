@@ -1,0 +1,15 @@
+Box<Int> arg: Int
+Box<Float> arg: Float
+Box<Bool> arg: Bool
+Box<String> arg: String
+Int raw: Box
+Float raw: Box
+Bool raw: Box
+String raw: Box
+Int!=Float: true
+Int!=Bool: true
+Int!=String: true
+Float!=Bool: true
+Float!=String: true
+Bool!=String: true
+Test passed

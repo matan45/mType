@@ -119,11 +119,44 @@ namespace reflection
         static value::Value __reflect_getTypeParameters(const std::vector<value::Value>& args);
 
         /**
+         * @brief Get runtime type arguments bound to a closed parameterized class
+         * args[0]: classHandle (int)
+         * Returns: int[] array of class handles (empty for open/non-generic classes)
+         *
+         * For Box<Int>, returns [handle-for-Int]. For the open template Box,
+         * returns an empty array. Each returned handle is itself a fully usable
+         * class handle — open or closed as appropriate.
+         */
+        static value::Value __reflect_getTypeArguments(const std::vector<value::Value>& args);
+
+        /**
          * @brief Get class modifier flags
          * args[0]: classHandle (int)
          * Returns: int (modifier flags)
          */
         static value::Value __reflect_getClassModifiers(const std::vector<value::Value>& args);
+
+        /**
+         * @brief Get canonical class name (parameterized form for closed handles)
+         * args[0]: classHandle (int)
+         * Returns: String
+         *
+         * For a closed handle representing Box<Int> returns "Box<Int>"; for an
+         * open handle returns the raw class name ("Box"). Used to back
+         * Class.getName() so nested type arguments render correctly.
+         */
+        static value::Value __reflect_getName(const std::vector<value::Value>& args);
+
+        /**
+         * @brief Get raw (template-level) class name, stripping any bindings
+         * args[0]: classHandle (int)
+         * Returns: String
+         *
+         * Always returns the underlying ClassDefinition's name. Mirrors
+         * ValueObject::getClassName() semantics (Option A — the parameterized
+         * name lives only on Class.getName, never on the raw class-name path).
+         */
+        static value::Value __reflect_getRawName(const std::vector<value::Value>& args);
 
         // ========== Field Reflection Natives ==========
 
