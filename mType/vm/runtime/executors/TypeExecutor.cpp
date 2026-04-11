@@ -5,10 +5,232 @@
 #include "../../../value/ValueObject.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/UserException.hpp"
+#include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include <sstream>
 #include <iostream>
+#include <cctype>
+
 namespace vm::runtime
 {
+    namespace
+    {
+        // ==========================================================================
+        // MYT-44 — file-local helpers for parameterized-interface matching.
+        //
+        // These implement the string-level substitution needed to discriminate
+        // `list isClassOf List<Int>` from `list isClassOf List<String>`, given
+        // that ClassDefinition::implementedInterfaces stores entries verbatim
+        // from the parser (e.g., "List<E>" where E references the declaring
+        // class's own type parameter). Nothing is wired yet; the call sites
+        // come in later steps of MYT-44.
+        // ==========================================================================
+
+        // Trim ASCII whitespace from both ends of a string.
+        std::string trimString(const std::string& s)
+        {
+            size_t start = 0;
+            while (start < s.size() && std::isspace(static_cast<unsigned char>(s[start])))
+            {
+                ++start;
+            }
+            size_t end = s.size();
+            while (end > start && std::isspace(static_cast<unsigned char>(s[end - 1])))
+            {
+                --end;
+            }
+            return s.substr(start, end - start);
+        }
+
+        // Split a type-parameter list like "<Int, Map<K, V>>" or "<Int,Map<K,V>>"
+        // into its top-level atoms: ["Int", "Map<K, V>"] / ["Int", "Map<K,V>"].
+        //
+        // Tolerates both spacing conventions — the parser emits no-space (see
+        // ParserUtils.cpp:208) while GenericType::toString() emits with-space.
+        // The depth counter guarantees that inner commas (inside nested
+        // angle brackets) do not split the outer list.
+        //
+        // Input may be the params suffix of extractTypeComponents ("<...>") or
+        // the bare inner body ("..." without enclosing brackets). Both shapes
+        // are handled — we strip a leading '<' and trailing '>' if present.
+        // An empty or malformed input returns an empty vector (defensive).
+        std::vector<std::string> splitTopLevelTypeArgs(const std::string& params)
+        {
+            std::string body = trimString(params);
+            if (body.empty())
+            {
+                return {};
+            }
+            if (body.front() == '<' && body.back() == '>')
+            {
+                body = body.substr(1, body.size() - 2);
+            }
+            body = trimString(body);
+            if (body.empty())
+            {
+                return {};
+            }
+
+            std::vector<std::string> atoms;
+            int depth = 0;
+            size_t argStart = 0;
+            for (size_t i = 0; i < body.size(); ++i)
+            {
+                char c = body[i];
+                if (c == '<')
+                {
+                    ++depth;
+                }
+                else if (c == '>')
+                {
+                    --depth;
+                    if (depth < 0)
+                    {
+                        // Unbalanced — bail out defensively.
+                        return {};
+                    }
+                }
+                else if (c == ',' && depth == 0)
+                {
+                    std::string piece = trimString(body.substr(argStart, i - argStart));
+                    if (!piece.empty())
+                    {
+                        atoms.push_back(std::move(piece));
+                    }
+                    argStart = i + 1;
+                }
+            }
+
+            if (depth != 0)
+            {
+                // Unbalanced — bail out defensively.
+                return {};
+            }
+
+            std::string last = trimString(body.substr(argStart));
+            if (!last.empty())
+            {
+                atoms.push_back(std::move(last));
+            }
+            return atoms;
+        }
+
+        // Recursively substitute type-parameter names in a type expression,
+        // using a bindings map like {"E": "Int"}.
+        //
+        // Examples:
+        //   "List<E>"            + {"E": "Int"}         → "List<Int>"
+        //   "Map<K, V>"          + {"K": "S", "V": "I"} → "Map<S, I>"
+        //   "List<Wrapper<E>>"   + {"E": "Int"}         → "List<Wrapper<Int>>"
+        //   "List<Int>"          + {}                   → "List<Int>" (no-op)
+        //   "E"                  + {"E": "Int"}         → "Int"        (leaf substitution)
+        //   "E"                  + {}                   → "E"          (verbatim fallback)
+        //
+        // The output always uses ", " (with space) between top-level atoms so
+        // the result lines up with GenericType::toString() / MYT-41's
+        // buildParameterizedName spacing contract, enabling string equality
+        // against compiler-emitted target strings.
+        //
+        // Only leaf atoms (bare identifiers with no `<...>`) are looked up in
+        // bindings. The base name of a parameterized expression like
+        // "List<E>" is NOT substituted — "List" stays as a class name,
+        // only "E" becomes the lookup target. Unknown atoms are left
+        // verbatim (matching the partial-binding fallback used by
+        // buildParameterizedName at line 661).
+        std::string substituteTypeExpression(
+            const std::string& expr,
+            const std::unordered_map<std::string, std::string>& bindings)
+        {
+            std::string trimmed = trimString(expr);
+            if (trimmed.empty())
+            {
+                return trimmed;
+            }
+
+            // Split base from params using the same extractor the rest of
+            // TypeExecutor already relies on (first '<').
+            size_t genericStart = trimmed.find('<');
+            std::string base;
+            std::string params;
+            if (genericStart == std::string::npos)
+            {
+                base = trimmed;
+                params = "";
+            }
+            else
+            {
+                base = trimmed.substr(0, genericStart);
+                params = trimmed.substr(genericStart); // keeps the "<...>"
+            }
+
+            if (params.empty())
+            {
+                // Leaf — look up in bindings, otherwise verbatim fallback.
+                auto it = bindings.find(base);
+                if (it != bindings.end() && !it->second.empty())
+                {
+                    return it->second;
+                }
+                return base;
+            }
+
+            // Parameterized — recurse into each atom. Base name is preserved.
+            std::vector<std::string> atoms = splitTopLevelTypeArgs(params);
+            std::string out = base;
+            out += "<";
+            for (size_t i = 0; i < atoms.size(); ++i)
+            {
+                if (i > 0) out += ", "; // MYT-41 spacing contract
+                out += substituteTypeExpression(atoms[i], bindings);
+            }
+            out += ">";
+            return out;
+        }
+
+        // Compute a fresh binding map for recursion into an interface's own
+        // extended-interfaces list. Takes the substituted type-arguments
+        // (e.g., "<Int>") and the target interface's declared parameters
+        // (e.g., [B] for `interface SortedList<B>`) and produces a map keyed
+        // by the NEW interface's parameter names.
+        //
+        // This is the rebind step that makes interface-on-interface
+        // inheritance correct even when parameter names differ across the
+        // chain. Without it, passing parent bindings down would only work
+        // when names accidentally coincide.
+        //
+        // On size mismatch (malformed input or raw extends), returns an
+        // empty map — callers should interpret that as "bail out of
+        // parameterized recursion for this branch."
+        std::unordered_map<std::string, std::string> rebindForInterface(
+            const runtimeTypes::klass::InterfaceDefinition* ifaceDef,
+            const std::string& substitutedParams)
+        {
+            std::unordered_map<std::string, std::string> result;
+            if (!ifaceDef)
+            {
+                return result;
+            }
+
+            const auto& declaredParams = ifaceDef->getGenericParameters();
+            if (declaredParams.empty())
+            {
+                return result;
+            }
+
+            std::vector<std::string> atoms = splitTopLevelTypeArgs(substitutedParams);
+            if (atoms.size() != declaredParams.size())
+            {
+                // Arity mismatch — refuse to guess, return empty.
+                return result;
+            }
+
+            for (size_t i = 0; i < declaredParams.size(); ++i)
+            {
+                result[declaredParams[i].name] = atoms[i];
+            }
+            return result;
+        }
+    } // anonymous namespace
+
     TypeExecutor::TypeExecutor(ExecutionContext& ctx)
         : context(ctx)
     {}
@@ -188,30 +410,55 @@ namespace vm::runtime
                 }
 
                 // Also check if object implements an interface with that name.
-                // IMPORTANT: Must check interface hierarchy recursively AND
-                // check parent classes' interfaces too. When the target is
-                // parameterized (e.g. `List<Int>`), the interface branch is
-                // skipped — threading interface-declaration type parameters
-                // through receiver bindings is out of scope for v1.
-                if (!result && !targetHasParams) {
-                    // Walk up the inheritance chain checking interfaces at each level
+                // Walks up the inheritance chain checking interfaces at each
+                // level. Two code paths coexist:
+                //
+                //  - Raw target (MYT-41 unchanged): strip generics, compare
+                //    base names, recurse via raw checkInterfaceHierarchy.
+                //  - Parameterized target (MYT-44): substitute the interface
+                //    entries through the receiver's generic bindings, compare
+                //    the reconstructed form verbatim, recurse via
+                //    checkInterfaceHierarchyParam with rebound bindings at
+                //    each interface-inheritance step.
+                if (!result) {
                     auto currentClass = classDef;
                     while (currentClass && !result) {
                         const auto& interfaces = currentClass->getImplementedInterfaces();
                         for (const auto& iface : interfaces) {
-                            // Extract base interface name for comparison
-                            std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
-
-                            if (iface == targetTypeName || baseIfaceName == baseTargetName) {
-                                result = true;
-                                break;
-                            }
-
-                            // Check if this interface extends the target interface (interface inheritance)
-                            std::unordered_set<std::string> visited;
-                            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
-                                result = true;
-                                break;
+                            if (targetHasParams) {
+                                // MYT-44: substitute declaration-time type args
+                                // (e.g. "List<E>") using the receiver's runtime
+                                // bindings ({"E": "Int"}) to produce "List<Int>",
+                                // then compare against the target.
+                                std::string substituted = substituteTypeExpression(
+                                    iface, obj->getGenericTypeBindings());
+                                if (substituted == targetTypeName) {
+                                    result = true;
+                                    break;
+                                }
+                                // Recurse through interface-on-interface
+                                // inheritance, rebinding at each step so
+                                // parameter names can differ across the chain.
+                                std::unordered_set<std::string> visited;
+                                if (checkInterfaceHierarchyParam(
+                                        substituted, targetTypeName, visited,
+                                        obj->getGenericTypeBindings())) {
+                                    result = true;
+                                    break;
+                                }
+                            } else {
+                                // MYT-41 raw path, unchanged.
+                                std::string baseIfaceName =
+                                    ::types::TypeConversionUtils::extractBaseTypeName(iface);
+                                if (iface == targetTypeName || baseIfaceName == baseTargetName) {
+                                    result = true;
+                                    break;
+                                }
+                                std::unordered_set<std::string> visited;
+                                if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+                                    result = true;
+                                    break;
+                                }
                             }
                         }
 
@@ -246,20 +493,39 @@ namespace vm::runtime
                     result = true;
                 }
 
-                // Check implemented interfaces — only for raw targets
-                // (parameterized interface matching is out of scope for v1).
-                if (!result && !targetHasParams) {
+                // Check implemented interfaces — mirrors the ObjectInstance
+                // branch above for value classes. Raw target uses the
+                // existing checkInterfaceHierarchy path; parameterized
+                // target uses MYT-44's substitution-based walk.
+                if (!result) {
                     const auto& interfaces = classDef->getImplementedInterfaces();
                     for (const auto& iface : interfaces) {
-                        std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
-                        if (iface == targetTypeName || baseIfaceName == baseTargetName) {
-                            result = true;
-                            break;
-                        }
-                        std::unordered_set<std::string> visited;
-                        if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
-                            result = true;
-                            break;
+                        if (targetHasParams) {
+                            std::string substituted = substituteTypeExpression(
+                                iface, obj->getGenericTypeBindings());
+                            if (substituted == targetTypeName) {
+                                result = true;
+                                break;
+                            }
+                            std::unordered_set<std::string> visited;
+                            if (checkInterfaceHierarchyParam(
+                                    substituted, targetTypeName, visited,
+                                    obj->getGenericTypeBindings())) {
+                                result = true;
+                                break;
+                            }
+                        } else {
+                            std::string baseIfaceName =
+                                ::types::TypeConversionUtils::extractBaseTypeName(iface);
+                            if (iface == targetTypeName || baseIfaceName == baseTargetName) {
+                                result = true;
+                                break;
+                            }
+                            std::unordered_set<std::string> visited;
+                            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+                                result = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -605,6 +871,74 @@ namespace vm::runtime
                 if (checkInterfaceHierarchy(extendedInterface, targetInterface, visited)) {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    // MYT-44: parameterized interface-hierarchy walk.
+    //
+    // `interfaceName` is already substituted (e.g. "SortedList<Int>") — the
+    // caller resolved the receiver's bindings before invoking us. At each
+    // recursion step we look up the interface's definition, rebuild the
+    // binding map using the interface's OWN declared parameters (which may
+    // use different letters than the caller), then substitute its extended
+    // interfaces and recurse.
+    //
+    // Split from the raw-mode overload because the two modes have materially
+    // different recursion contracts (bindings must travel alongside the name
+    // in parameterized mode) and MYT-44 explicitly does not want to risk
+    // regressing the raw path.
+    bool TypeExecutor::checkInterfaceHierarchyParam(
+        const std::string& interfaceName,
+        const std::string& targetInterface,
+        std::unordered_set<std::string>& visited,
+        const std::unordered_map<std::string, std::string>& bindings
+    ) {
+        // Avoid infinite loops with circular dependencies. Use the full
+        // substituted name as the visited key so two different parameterized
+        // views of the same template (e.g. SortedList<Int> vs SortedList<String>
+        // reached through different paths) don't collide.
+        if (visited.count(interfaceName)) {
+            return false;
+        }
+        visited.insert(interfaceName);
+
+        // Direct match on the already-substituted form.
+        if (interfaceName == targetInterface) {
+            return true;
+        }
+
+        // Split current interface into base + params so we can both look up
+        // the InterfaceDefinition (by raw base name) AND feed the substituted
+        // args into rebindForInterface for the recursion step.
+        TypeComponents currentComp = extractTypeComponents(interfaceName);
+
+        // Look up the interface by its raw base name. If it's not registered
+        // as an interface, we can't walk further — return the direct match
+        // result we already checked.
+        auto interfaceDef = context.environment->findInterface(currentComp.baseName);
+        if (!interfaceDef) {
+            return false;
+        }
+
+        // Rebuild the binding map using the interface's own declared params.
+        // When arity matches, this gives us new bindings keyed by the
+        // interface's parameter names. When it doesn't (e.g. a raw extends
+        // clause or malformed input), rebindForInterface returns empty and
+        // any substitutions in this recursion step will fall back to the
+        // verbatim behavior — which is still correct for raw targets but
+        // will fail the parameterized match, as desired.
+        auto newBindings = rebindForInterface(interfaceDef.get(), currentComp.typeParams);
+
+        // Walk the extended-interfaces list, substituting each entry against
+        // the new bindings and recursing with them.
+        const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
+        for (const auto& extendedInterface : extendedInterfaces) {
+            std::string substituted = substituteTypeExpression(extendedInterface, newBindings);
+            if (checkInterfaceHierarchyParam(substituted, targetInterface, visited, newBindings)) {
+                return true;
             }
         }
 

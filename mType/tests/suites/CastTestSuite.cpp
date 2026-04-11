@@ -150,6 +150,24 @@ namespace tests::testSuite
         addOutputVerificationTest("isClassOf Generic Upcast",
                         passPath + "isClassOfGenericUpcast.mt");
 
+        // === MYT-44: PARAMETERIZED INTERFACE isClassOf TESTS ===
+        // Verify that parameterized interface targets discriminate by type
+        // arguments (not just base interface name) and that the rebind-on-
+        // recursion step correctly handles interface-on-interface inheritance
+        // when parameter letters differ across the chain.
+        addOutputVerificationTest("isClassOf Interface Param",
+                        passPath + "isClassOfInterfaceParam.mt");
+        addOutputVerificationTest("isClassOf Interface Param Raw Fallback",
+                        passPath + "isClassOfInterfaceParamRawFallback.mt");
+        addOutputVerificationTest("isClassOf Interface Param Invariance",
+                        passPath + "isClassOfInterfaceParamInvariance.mt");
+        addOutputVerificationTest("isClassOf Interface Param Constant Binding",
+                        passPath + "isClassOfInterfaceParamConstantBinding.mt");
+        addOutputVerificationTest("isClassOf Interface Param Inherited",
+                        passPath + "isClassOfInterfaceParamInherited.mt");
+        addOutputVerificationTest("isClassOf Interface Param Nested",
+                        passPath + "isClassOfInterfaceParamNested.mt");
+
         // === MYT-41: TYPE-PARAMETER isClassOf TESTS ===
         // `obj isClassOf T` inside a generic method resolves T via the
         // receiver's runtime bindings before delegating to the normal

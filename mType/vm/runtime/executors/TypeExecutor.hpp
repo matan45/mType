@@ -64,11 +64,23 @@ namespace vm::runtime
         value::Value castToBool(const value::Value& val);
         value::Value castToObject(const value::Value& val, const std::string& targetTypeName);
 
-        // Interface hierarchy checking
+        // Interface hierarchy checking (raw mode — existing behavior)
         bool checkInterfaceHierarchy(
             const std::string& interfaceName,
             const std::string& targetInterface,
             std::unordered_set<std::string>& visited
+        );
+
+        // Interface hierarchy checking (MYT-44 parameterized mode).
+        // Takes a pre-substituted `interfaceName` string (e.g. "SortedList<Int>")
+        // along with the bindings that produced it. At each recursion step the
+        // bindings are rebuilt against the NEW interface's declared parameters
+        // via rebindForInterface, so parameter names can differ across the chain.
+        bool checkInterfaceHierarchyParam(
+            const std::string& interfaceName,
+            const std::string& targetInterface,
+            std::unordered_set<std::string>& visited,
+            const std::unordered_map<std::string, std::string>& bindings
         );
 
         // Convert value to string representation
