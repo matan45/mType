@@ -2,17 +2,23 @@
 #include "utils/UriUtils.hpp"
 #include <iostream>
 #include <filesystem>
+#include <future>
 
 namespace mtype::lsp
 {
     MTypeLanguageServer::MTypeLanguageServer()
     {
         documentManager_ = std::make_unique<DocumentManager>();
+        // MYT-47 — workspace symbol index, populated lazily during
+        // handleInitialize once we know the workspace root.
+        workspaceIndex_ = std::make_shared<analysis::WorkspaceSymbolIndex>();
+
         completionHandler_ = std::make_unique<CompletionHandler>(documentManager_.get());
         diagnosticsHandler_ = std::make_unique<DiagnosticsHandler>(documentManager_.get());
         hoverHandler_ = std::make_unique<HoverHandler>(documentManager_.get());
         definitionHandler_ = std::make_unique<DefinitionHandler>(documentManager_.get());
-        codeActionHandler_ = std::make_unique<CodeActionHandler>(documentManager_.get());
+        codeActionHandler_ = std::make_unique<CodeActionHandler>(
+            documentManager_.get(), workspaceIndex_);
         codeLensHandler_ = std::make_unique<CodeLensHandler>(documentManager_.get());
         formattingHandler_ = std::make_unique<FormattingHandler>();
 
@@ -157,6 +163,17 @@ namespace mtype::lsp
         if (!workspaceRoot.empty())
         {
             projectConfig_->loadFromWorkspace(workspaceRoot);
+
+            // MYT-47 — kick off the initial workspace symbol scan in a
+            // background thread. The future is stashed so request handlers
+            // (specifically the missing-import quick fix) can wait on it
+            // with a short timeout if a code action arrives early.
+            auto idx = workspaceIndex_;
+            std::string root = workspaceRoot;
+            workspaceIndexReady_ = std::async(std::launch::async,
+                [idx, root]() {
+                    idx->buildFromWorkspace(root);
+                }).share();
         }
 
         // Share project config with handlers
@@ -211,6 +228,11 @@ namespace mtype::lsp
 
         documentManager_->openDocument(uri, text, version);
         diagnosticsHandler_->publishDiagnostics(uri);
+
+        // MYT-47 — keep the workspace symbol index in sync with the
+        // newly-parsed document so the missing-import quick fix can
+        // surface symbols defined in files that have just been opened.
+        if (workspaceIndex_) workspaceIndex_->reindexFile(uri);
     }
 
     void MTypeLanguageServer::handleDidChangeTextDocument(const json& params)
@@ -225,6 +247,8 @@ namespace mtype::lsp
             std::string text = contentChanges[0]["text"];
             documentManager_->updateDocument(uri, text, version);
             diagnosticsHandler_->publishDiagnostics(uri);
+            // MYT-47 — refresh the workspace index entries for this file.
+            if (workspaceIndex_) workspaceIndex_->reindexFile(uri);
         }
     }
 
@@ -232,6 +256,9 @@ namespace mtype::lsp
     {
         std::string uri = params["textDocument"]["uri"];
         documentManager_->closeDocument(uri);
+        // MYT-47 — drop entries for closed documents so the index doesn't
+        // accumulate stale data when the editor closes a file.
+        if (workspaceIndex_) workspaceIndex_->invalidateFile(uri);
     }
 
     void MTypeLanguageServer::handleCompletion(const json& id, const json& params)

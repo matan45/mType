@@ -40,6 +40,13 @@ project "mtype-language-server"
         "../mType/diagnostics/**.hpp",
         "../mType/diagnostics/**.cpp",
 
+        -- MYT-49/MYT-50 — Compile-time analyzer passes (override checker,
+        -- unused variable analyzer). The LSP runs OverrideAnnotationChecker
+        -- against parsed documents (DocumentManager.cpp) for parity with
+        -- the bytecode-compile path.
+        "../mType/analysis/**.hpp",
+        "../mType/analysis/**.cpp",
+
         -- MYT-35 — String utilities (Levenshtein, DidYouMean) used by
         -- the suggestion engine paths in later phases. Header-only deps
         -- need the .cpp here so the linker resolves them.

@@ -38,6 +38,7 @@
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/global/ArrayOperationsNative.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
+#include "../analysis/UnusedVariableAnalyzer.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
 #include "../runtime/EventLoop.hpp"
@@ -156,6 +157,20 @@ namespace services
         // IMPORTANT: Resolve all imports BEFORE optimization
         // This ensures the optimizer can see and analyze imported code
         importResolver->resolveImports(ast.get());
+
+        // MYT-49 — run the unused-variable analyzer against the resolved
+        // AST BEFORE optimization (so the analyzer sees the user's
+        // original code shape, not the optimized form). Push results
+        // into the BytecodeCompiler's warning sink so Main.cpp's
+        // post-runScript loop renders them.
+        if (compiler)
+        {
+            auto unusedWarnings = analysis::UnusedVariableAnalyzer::analyze(ast.get());
+            for (auto& w : unusedWarnings)
+            {
+                compiler->addWarning(std::move(w));
+            }
+        }
 
         // Apply AST optimizations
         ast = optimizationService->applyOptimizations(std::move(ast), environment);
@@ -334,6 +349,15 @@ namespace services
     std::shared_ptr<environment::Environment> ScriptInterpreter::getEnvironment() const
     {
         return environment;
+    }
+
+    const std::vector<diagnostics::Diagnostic>& ScriptInterpreter::getCompilerWarnings() const
+    {
+        // The compiler is built lazily by initializeServices(); if a caller
+        // asks for warnings before any compile has happened, fall back to a
+        // shared empty vector so the reference stays valid.
+        static const std::vector<diagnostics::Diagnostic> kEmpty;
+        return compiler ? compiler->warnings() : kEmpty;
     }
 
     void ScriptInterpreter::enableDebugging()

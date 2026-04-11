@@ -1,8 +1,11 @@
 #include "DocumentManager.hpp"
 #include "../../mType/token/TokenType.hpp"
 #include "../../mType/environment/EnvironmentBuilder.hpp"
+#include "../../mType/environment/registry/ClassRegistry.hpp"
 #include "../../mType/diagnostics/ExceptionConverter.hpp"
 #include "../../mType/diagnostics/SourceFileCache.hpp"
+#include "../../mType/analysis/OverrideAnnotationChecker.hpp"
+#include "../../mType/analysis/UnusedVariableAnalyzer.hpp"
 #include "utils/MemoryFileReader.hpp"
 #include "analysis/SymbolRegistrationVisitor.hpp"
 #include "analysis/ImportResolver.hpp"
@@ -155,6 +158,37 @@ void DocumentManager::parseDocument(const std::string& uri) {
             }
         } catch (const std::exception& e) {
             doc->diagnostics.push_back(diagnostics::fromException(e));
+        }
+
+        // MYT-50 LSP parity — run the missing-@Override checker against
+        // every class registered in the document's environment. The check
+        // is read-only and pure, identical to what ClassRegistrar runs on
+        // the bytecode-compile path. Catches the case where a method
+        // shadows a parent without `@Override` and surfaces an MT-W2002
+        // warning in VS Code.
+        if (doc->environment) {
+            if (auto classRegistry = doc->environment->getClassRegistry()) {
+                for (const auto& className : classRegistry->getAllItemNames()) {
+                    auto cls = classRegistry->findClass(className);
+                    if (!cls) continue;
+                    auto warns = analysis::OverrideAnnotationChecker::check(*cls);
+                    for (auto& w : warns) {
+                        doc->diagnostics.push_back(std::move(w));
+                    }
+                }
+            }
+        }
+
+        // MYT-49 — run the unused-variable analyzer. Conservative walker
+        // (gives up on unfamiliar AST shapes so we never produce a false
+        // positive) emits one MT-W2001 per declared-but-never-read local
+        // with rename + remove fixes attached.
+        if (parseSucceeded && !doc->ast.empty()) {
+            auto unusedWarnings = analysis::UnusedVariableAnalyzer::analyze(
+                doc->ast.front().get());
+            for (auto& w : unusedWarnings) {
+                doc->diagnostics.push_back(std::move(w));
+            }
         }
 
         // Resolve and parse imported files to get their symbols

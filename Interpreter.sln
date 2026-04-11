@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mType", "mType\mType.vcxproj", "{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-analysis", "mType\mtype-analysis.vcxproj", "{E530134E-D1FE-0654-BA92-777AA6FFE2B8}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-ast", "mType\mtype-ast.vcxproj", "{899FB307-F509-687E-3E48-1924AAF145D3}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-common", "mType\mtype-common.vcxproj", "{EA55AE2A-D6B8-3DCF-7F3E-76856B800952}"
@@ -33,6 +35,10 @@ Global
 		{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}.Debug|x64.Build.0 = Debug|x64
 		{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}.Release|x64.ActiveCfg = Release|x64
 		{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}.Release|x64.Build.0 = Release|x64
+		{E530134E-D1FE-0654-BA92-777AA6FFE2B8}.Debug|x64.ActiveCfg = Debug|x64
+		{E530134E-D1FE-0654-BA92-777AA6FFE2B8}.Debug|x64.Build.0 = Debug|x64
+		{E530134E-D1FE-0654-BA92-777AA6FFE2B8}.Release|x64.ActiveCfg = Release|x64
+		{E530134E-D1FE-0654-BA92-777AA6FFE2B8}.Release|x64.Build.0 = Release|x64
 		{899FB307-F509-687E-3E48-1924AAF145D3}.Debug|x64.ActiveCfg = Debug|x64
 		{899FB307-F509-687E-3E48-1924AAF145D3}.Debug|x64.Build.0 = Debug|x64
 		{899FB307-F509-687E-3E48-1924AAF145D3}.Release|x64.ActiveCfg = Release|x64

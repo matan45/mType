@@ -1,7 +1,10 @@
 #include "CodeActionHandler.hpp"
+#include "../analysis/WorkspaceSymbolIndex.hpp"
+#include "../utils/UriUtils.hpp"
 #include "../../../mType/runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../mType/runtimeTypes/klass/ClassDefinition.hpp"
 #include <cctype>
+#include <regex>
 #include <sstream>
 #include <string>
 
@@ -72,8 +75,10 @@ std::string getLine(const std::string& content, int lineNumber) {
 
 namespace mtype::lsp {
 
-CodeActionHandler::CodeActionHandler(DocumentManager* docMgr)
-    : documentManager_(docMgr) {}
+CodeActionHandler::CodeActionHandler(
+    DocumentManager* docMgr,
+    std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex)
+    : documentManager_(docMgr), workspaceIndex_(std::move(workspaceIndex)) {}
 
 std::vector<CodeAction> CodeActionHandler::handleCodeAction(
     const std::string& uri,
@@ -103,6 +108,28 @@ std::vector<CodeAction> CodeActionHandler::generateFixesForDiagnostic(
     const std::string& uri,
     const Diagnostic& diagnostic
 ) {
+    std::vector<CodeAction> actions;
+
+    // MYT-47 — missing-import quick fix. Diagnostics produced by
+    // ClassNotFoundException / UndefinedException carry their source
+    // exception type in `data.exceptionType`. Try the workspace
+    // symbol index first; the typo fix below remains as a fallback.
+    if (diagnostic.data
+        && diagnostic.data->is_object()
+        && diagnostic.data->contains("exceptionType"))
+    {
+        const auto& exType = (*diagnostic.data)["exceptionType"];
+        if (exType.is_string())
+        {
+            const std::string s = exType.get<std::string>();
+            if (s == "ClassNotFoundException" || s == "UndefinedException")
+            {
+                auto importFixes = generateMissingImportFixes(uri, diagnostic);
+                actions.insert(actions.end(), importFixes.begin(), importFixes.end());
+            }
+        }
+    }
+
     // The Phase 4 ExceptionConverter attaches a `data["suggestions"]`
     // array whenever did-you-mean produced a candidate. Any diagnostic
     // that has at least one suggestion can drive a typo fix, regardless
@@ -115,10 +142,87 @@ std::vector<CodeAction> CodeActionHandler::generateFixesForDiagnostic(
         && (*diagnostic.data)["suggestions"].is_array()
         && !(*diagnostic.data)["suggestions"].empty())
     {
-        return generateTypoFixActions(uri, diagnostic);
+        auto typoFixes = generateTypoFixActions(uri, diagnostic);
+        actions.insert(actions.end(), typoFixes.begin(), typoFixes.end());
     }
 
-    return {};
+    return actions;
+}
+
+std::vector<CodeAction> CodeActionHandler::generateMissingImportFixes(
+    const std::string& uri,
+    const Diagnostic& diagnostic
+) {
+    std::vector<CodeAction> actions;
+    if (!workspaceIndex_) return actions;
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc) return actions;
+
+    // Extract the missing identifier from the source line at the
+    // diagnostic's anchor. Reuses the same word-extraction helpers as
+    // the typo fix.
+    const std::string line = getLine(doc->content, diagnostic.range.start.line);
+    const auto [wordStart, wordEnd] =
+        wordRangeAt(line, diagnostic.range.start.character);
+    if (wordEnd <= wordStart) return actions;
+    const std::string identifier = line.substr(wordStart, wordEnd - wordStart);
+    if (identifier.empty()) return actions;
+
+    auto matches = workspaceIndex_->findByName(identifier, /*maxResults=*/5);
+    if (matches.empty()) return actions;
+
+    // Determine where to insert the new import line. Scan the first
+    // ~50 lines of the document for the last `import` statement.
+    int insertLine = 0;
+    {
+        std::istringstream stream(doc->content);
+        std::string current;
+        int lineNo = 0;
+        std::regex importRegex("^\\s*import\\b");
+        while (std::getline(stream, current) && lineNo < 50)
+        {
+            if (std::regex_search(current, importRegex))
+            {
+                insertLine = lineNo + 1; // insert after the matched line
+            }
+            ++lineNo;
+        }
+    }
+
+    const std::string referencingPath = UriUtils::uriToFilePath(uri);
+
+    for (const auto& match : matches)
+    {
+        const std::string symbolPath = UriUtils::uriToFilePath(match.fileUri);
+        if (symbolPath == referencingPath)
+        {
+            continue; // self-import would be nonsense
+        }
+
+        const std::string spelling =
+            analysis::WorkspaceSymbolIndex::computeImportSpelling(
+                symbolPath, referencingPath);
+
+        CodeAction action;
+        action.title = "Add import '" + identifier + "' from \"" + spelling + "\"";
+        action.kind = "quickfix";
+        action.diagnostics.push_back(diagnostic);
+
+        WorkspaceEdit edit;
+        TextEdit insertEdit;
+        insertEdit.range.start.line = insertLine;
+        insertEdit.range.start.character = 0;
+        insertEdit.range.end = insertEdit.range.start;
+        insertEdit.newText = "import " + identifier
+            + " from \"" + spelling + "\";\n";
+        edit.changes[uri].push_back(insertEdit);
+        action.edit = edit;
+
+        actions.push_back(std::move(action));
+    }
+
+    return actions;
 }
 
 std::vector<CodeAction> CodeActionHandler::generateTypoFixActions(

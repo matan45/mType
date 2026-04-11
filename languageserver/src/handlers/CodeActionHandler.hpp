@@ -1,15 +1,25 @@
 #pragma once
 
+#include <memory>
 #include <vector>
 #include <string>
 #include "../utils/LSPTypes.hpp"
 #include "../DocumentManager.hpp"
 
+namespace mtype::lsp::analysis
+{
+    class WorkspaceSymbolIndex;
+}
+
 namespace mtype::lsp {
 
 class CodeActionHandler {
 public:
-    explicit CodeActionHandler(DocumentManager* docMgr);
+    // MYT-47 — `workspaceIndex` may be null (e.g., in tests). The
+    // missing-import fix gracefully no-ops when it is.
+    explicit CodeActionHandler(
+        DocumentManager* docMgr,
+        std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex = nullptr);
 
     std::vector<CodeAction> handleCodeAction(
         const std::string& uri,
@@ -39,6 +49,15 @@ private:
         const Diagnostic& diagnostic
     );
 
+    // MYT-47 — missing import. Triggered when the diagnostic's data blob
+    // identifies an UndefinedException / ClassNotFoundException source.
+    // Queries the workspace symbol index for files defining the missing
+    // identifier and returns one CodeAction per match (capped to 5).
+    std::vector<CodeAction> generateMissingImportFixes(
+        const std::string& uri,
+        const Diagnostic& diagnostic
+    );
+
     // ----- Diagnostic-agnostic actions (always considered) -----
 
     // Generate code actions for implementing missing interface methods
@@ -61,6 +80,7 @@ private:
     );
 
     DocumentManager* documentManager_;
+    std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
 };
 
 } // namespace mtype::lsp

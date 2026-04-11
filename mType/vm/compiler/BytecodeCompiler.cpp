@@ -243,6 +243,11 @@ namespace vm::compiler
         context.compileTimeValidator = compileTimeValidator.get();
         classRegistrar.setCompileTimeValidator(compileTimeValidator.get());
 
+        // MYT-35 follow-up — give the registrar a back-pointer so analyzer
+        // checks (MYT-50 missing-@Override, etc.) can push warnings into
+        // this compiler's sink. Picked up by the CLI driver after compile().
+        classRegistrar.setBytecodeCompiler(this);
+
         // Set up static field initialization detector in context
         context.staticFieldInitDetector = staticFieldInitDetector;
     }

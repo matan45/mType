@@ -1,5 +1,6 @@
 #pragma once
 
+#include <future>
 #include <memory>
 #include "DocumentManager.hpp"
 #include "handlers/CompletionHandler.hpp"
@@ -9,6 +10,7 @@
 #include "handlers/CodeActionHandler.hpp"
 #include "handlers/CodeLensHandler.hpp"
 #include "handlers/FormattingHandler.hpp"
+#include "analysis/WorkspaceSymbolIndex.hpp"
 #include "utils/JsonRpc.hpp"
 #include "utils/LSPTypes.hpp"
 #include "utils/ProjectConfigProvider.hpp"
@@ -56,6 +58,12 @@ private:
     std::unique_ptr<CodeLensHandler> codeLensHandler_;
     std::unique_ptr<FormattingHandler> formattingHandler_;
     std::shared_ptr<ProjectConfigProvider> projectConfig_;
+
+    // MYT-47 — workspace-wide symbol index used by the missing-import
+    // quick fix. Built off-thread at initialise so a large workspace
+    // doesn't block the LSP handshake.
+    std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
+    std::shared_future<void> workspaceIndexReady_;
 
     bool shouldExit_ = false;
 };

@@ -640,6 +640,12 @@ int main(int argc, char* argv[])
 
         interpreter.runScript(filename);
 
+        // MYT-35 follow-up — drain any non-fatal compile-time warnings
+        // (unused variables, missing @Override, etc.) and render them
+        // through the same Rust-style renderer used for errors. Done
+        // after runScript so the user sees output first, then warnings.
+        runMain::reportWarnings(interpreter.getCompilerWarnings());
+
         // Force a GC collection at program end to detect any remaining cycles
         gc::GC::forceCollect();
 

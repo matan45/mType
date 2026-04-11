@@ -103,6 +103,10 @@ namespace mtype::lsp
             out.code = std::string(coreDiag.code->id);
         }
 
+        // LSP DiagnosticTag values are integers (1 = Unnecessary, 2 = Deprecated)
+        // and the core severity-equivalent enum. Pass through verbatim.
+        out.tags = coreDiag.tags;
+
         // Secondary spans → relatedInformation. Each carries a label and
         // a Location pointing back into the source file.
         for (const auto& secondary : coreDiag.secondarySpans)

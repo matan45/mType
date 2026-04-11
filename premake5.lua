@@ -114,6 +114,27 @@ project "mtype-diagnostics"
 
 
 --------------------------------------------------------------------------------
+-- Library: mtype-analysis
+-- Compile-time analyzer passes that produce non-fatal diagnostics:
+--   - OverrideAnnotationChecker (MYT-50): missing @Override warnings
+--   - UnusedVariableAnalyzer    (MYT-49): unused local variable warnings
+-- Depends on mtype-ast (AST traversal) + mtype-core (ClassDefinition,
+-- Environment) + mtype-diagnostics (Diagnostic emission).
+--------------------------------------------------------------------------------
+project "mtype-analysis"
+   kind "StaticLib"
+   location "mType"
+   commonConfig()
+
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-diagnostics" }
+
+   files {
+      "mType/analysis/**.hpp",
+      "mType/analysis/**.cpp",
+   }
+
+
+--------------------------------------------------------------------------------
 -- Library: mtype-core
 -- Core runtime: value types, runtime type definitions, type system, environment
 -- These are merged due to circular dependencies between value/runtimeTypes/types/environment
@@ -187,7 +208,7 @@ project "mtype-vm"
    location "mType"
    commonConfig()
 
-   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-diagnostics" }
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-diagnostics", "mtype-analysis" }
 
    includedirs { "vendor/asmjit" }
    defines { "ASMJIT_STATIC" }
@@ -236,7 +257,7 @@ project "mtype-extensions"
    location "mType"
    commonConfig()
 
-   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-frontend", "mtype-vm", "mtype-diagnostics" }
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-frontend", "mtype-vm", "mtype-diagnostics", "mtype-analysis" }
 
    files {
       "mType/gc/**.hpp",
@@ -268,7 +289,7 @@ project "mtype-tests"
    links {
       "mtype-common", "mtype-errors", "mtype-core", "mtype-ast",
       "mtype-frontend", "mtype-vm", "mtype-jit", "mtype-extensions",
-      "mtype-diagnostics",
+      "mtype-diagnostics", "mtype-analysis",
    }
 
    includedirs { "vendor/asmjit" }
@@ -309,6 +330,7 @@ project "mType"
       "mtype-frontend",
       "mtype-ast",
       "mtype-core",
+      "mtype-analysis",
       "mtype-diagnostics",
       "mtype-errors",
       "mtype-common",

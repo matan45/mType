@@ -8,6 +8,7 @@
 #include "../ast/ASTNode.hpp"
 #include "../constants/ExecutionMode.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
+#include "../diagnostics/Diagnostic.hpp"
 
 // Forward declarations
 namespace vm::compiler
@@ -136,6 +137,12 @@ namespace services
         // Access to environment and VM for advanced operations
         std::shared_ptr<environment::Environment> getEnvironment() const;
         std::shared_ptr<vm::runtime::VirtualMachine> getVM() const { return vm; }
+
+        // MYT-35 follow-up — non-fatal warnings collected during the most
+        // recent compile (e.g., MYT-49 unused variables, MYT-50 missing
+        // @Override). Drained by the CLI driver after runScript() returns.
+        // Returns an empty vector if the compiler has not been built yet.
+        const std::vector<diagnostics::Diagnostic>& getCompilerWarnings() const;
 
         // Debug support
         void enableDebugging();

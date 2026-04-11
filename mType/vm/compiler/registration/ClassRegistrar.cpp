@@ -1,5 +1,7 @@
 #include "ClassRegistrar.hpp"
+#include "../BytecodeCompiler.hpp"
 #include "../validation/CompileTimeValidator.hpp"
+#include "../../../analysis/OverrideAnnotationChecker.hpp"
 #include "../../MethodSignature.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
@@ -494,6 +496,15 @@ namespace vm::compiler::registration
                 // Validate method overrides against Object
                 validateMethodOverrides(classDef, parentDef, classNode);
 
+                // MYT-50 — also run the missing-@Override checker for
+                // classes whose parent is the implicit Object root.
+                if (compiler_) {
+                    auto warns = analysis::OverrideAnnotationChecker::check(*classDef);
+                    for (auto& w : warns) {
+                        compiler_->addWarning(std::move(w));
+                    }
+                }
+
                 // Validate abstract method implementations
                 if (!classDef->isAbstract()) {
                     auto unimplemented = classDef->getUnimplementedAbstractMethods();
@@ -554,6 +565,17 @@ namespace vm::compiler::registration
 
             // Validate method overrides
             validateMethodOverrides(classDef, parentDef, classNode);
+
+            // MYT-50 — emit MT-W2002 warnings for methods that override
+            // an ancestor without an explicit @Override annotation. The
+            // checker is read-only and skips classes with no parent;
+            // safe to call here once the parent link is established.
+            if (compiler_) {
+                auto warns = analysis::OverrideAnnotationChecker::check(*classDef);
+                for (auto& w : warns) {
+                    compiler_->addWarning(std::move(w));
+                }
+            }
 
             // Validate abstract method implementations (must be done after parent link is established)
             if (!classDef->isAbstract()) {

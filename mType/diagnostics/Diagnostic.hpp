@@ -104,6 +104,14 @@ namespace diagnostics
         // Runtime call stack (UserException only — empty otherwise)
         std::vector<std::string> stackTrace;
 
+        // LSP-style diagnostic tags. Mirrors LSP's DiagnosticTag enum:
+        //   1 = Unnecessary (greyed out / strike-through in VS Code)
+        //   2 = Deprecated  (strike-through)
+        // Carried end-to-end so the LSP converter and (eventually) the
+        // CLI renderer can apply consistent visual treatment without
+        // each surface having to derive the tag from the code id.
+        std::vector<int> tags;
+
         // Diagnostic aid: the C++ type that produced this diagnostic, for the
         // LSP `data` blob and for tests. Empty when not constructed from an
         // exception.

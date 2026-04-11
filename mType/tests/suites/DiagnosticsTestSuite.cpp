@@ -7,12 +7,25 @@
 #include "../../diagnostics/ExceptionConverter.hpp"
 #include "../../diagnostics/SourceFileCache.hpp"
 
+#include "../../analysis/OverrideAnnotationChecker.hpp"
+#include "../../analysis/UnusedVariableAnalyzer.hpp"
+#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../ast/nodes/annotations/AnnotationNode.hpp"
+#include "../../ast/nodes/statements/ProgramNode.hpp"
+#include "../../ast/nodes/statements/AssignmentNode.hpp"
+#include "../../ast/nodes/expressions/VariableNode.hpp"
+#include "../../ast/nodes/expressions/IntegerNode.hpp"
+#include "../../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../../value/ValueType.hpp"
+
 #include "../../errors/AccessViolationException.hpp"
 #include "../../errors/AmbiguousCallException.hpp"
 #include "../../errors/ClassNotFoundException.hpp"
 #include "../../errors/DuplicateDeclarationException.hpp"
 #include "../../errors/FieldNotFoundException.hpp"
 #include "../../errors/MethodNotFoundException.hpp"
+#include "../../errors/MissingSemicolonException.hpp"
 #include "../../errors/NoMatchingOverloadException.hpp"
 #include "../../errors/NullPointerException.hpp"
 #include "../../errors/ParseException.hpp"
@@ -780,6 +793,197 @@ namespace tests::testSuite
                     "rendered hint should mention the candidate");
             });
 
+        // ================================================================
+        // MYT-48 — MissingSemicolonException → MT-E0002 + Insert ';' fix
+        // ================================================================
+
+        addCallbackTest("phase48: missing_semicolon_routes_to_MT_E0002", "",
+            [](ScriptAPI&) {
+                errors::MissingSemicolonException ex(
+                    errors::SourceLocation("a.mt", 3, 14));
+                auto diag = diagnostics::fromException(ex);
+                require(diag.code != nullptr, "expected a code");
+                require(std::string(diag.code->id) == "MT-E0002",
+                    "expected MT-E0002, got " + std::string(diag.code->id));
+                require(diag.severity == diagnostics::Severity::Error,
+                    "missing-semicolon should be Error severity");
+                require(diag.sourceExceptionType == "MissingSemicolonException",
+                    "exception type tag should be MissingSemicolonException");
+                require(diag.primarySpan.start.getLine() == 3
+                        && diag.primarySpan.start.getColumn() == 14,
+                    "primary span should be 3:14");
+            });
+
+        addCallbackTest("phase48: missing_semicolon_diagnostic_has_machine_applicable_fix", "",
+            [](ScriptAPI&) {
+                errors::MissingSemicolonException ex(
+                    errors::SourceLocation("a.mt", 1, 7));
+                auto diag = diagnostics::fromException(ex);
+                require(diag.suggestions.size() == 1,
+                    "expected exactly one suggestion, got "
+                    + std::to_string(diag.suggestions.size()));
+
+                const auto& fix = diag.suggestions[0];
+                require(fix.applicability == diagnostics::FixApplicability::MachineApplicable,
+                    "expected MachineApplicable fix");
+                require(fix.edits.size() == 1, "expected one TextEdit");
+                require(fix.edits[0].newText == ";",
+                    "edit must insert exactly ';'");
+                // Zero-width insertion (start == end at the same point).
+                require(fix.edits[0].start.getLine() == 1
+                        && fix.edits[0].start.getColumn() == 7,
+                    "edit start should match primary span");
+                require(fix.edits[0].end.getLine() == 1
+                        && fix.edits[0].end.getColumn() == 7,
+                    "edit end should equal start (zero-width insert)");
+            });
+
+        addCallbackTest("phase48: missing_semicolon_dispatch_beats_generic_parse_exception", "",
+            [](ScriptAPI&) {
+                // dynamic_cast must hit the typed branch before the generic
+                // ParseException branch — otherwise the code would be MT-E0005.
+                std::unique_ptr<errors::ParseException> ex =
+                    std::make_unique<errors::MissingSemicolonException>(
+                        errors::SourceLocation("a.mt", 1, 1));
+                auto diag = diagnostics::fromException(*ex);
+                require(std::string(diag.code->id) == "MT-E0002",
+                    "expected typed dispatch to MT-E0002, got "
+                    + std::string(diag.code->id));
+            });
+
+        // ================================================================
+        // MYT-50 — OverrideAnnotationChecker → MT-W2002 + Add @Override
+        // ================================================================
+
+        // Helper for Phase 50 tests: build a parent + child class pair,
+        // optionally annotate the child method with @Override, return the
+        // pair so the test can pass it to OverrideAnnotationChecker::check.
+        auto buildOverridePair = [](bool childHasOverrideAnnotation,
+                                    ast::AccessModifier parentAccess
+                                        = ast::AccessModifier::PUBLIC)
+            -> std::pair<std::shared_ptr<runtimeTypes::klass::ClassDefinition>,
+                         std::shared_ptr<runtimeTypes::klass::ClassDefinition>>
+        {
+            using runtimeTypes::klass::ClassDefinition;
+            using runtimeTypes::klass::MethodDefinition;
+
+            auto parent = std::make_shared<ClassDefinition>("Parent");
+            auto child  = std::make_shared<ClassDefinition>("Child");
+            child->setParentClass(parent);
+
+            std::vector<std::pair<std::string, value::ParameterType>> noParams;
+
+            auto parentMethod = std::make_shared<MethodDefinition>(
+                "foo", value::ValueType::VOID, noParams,
+                nullptr, false, parentAccess);
+            parentMethod->setSourceLocation(
+                errors::SourceLocation("parent.mt", 5, 5));
+            parent->addInstanceMethod("foo", parentMethod);
+
+            auto childMethod = std::make_shared<MethodDefinition>(
+                "foo", value::ValueType::VOID, noParams,
+                nullptr, false, ast::AccessModifier::PUBLIC);
+            childMethod->setSourceLocation(
+                errors::SourceLocation("child.mt", 12, 5));
+            if (childHasOverrideAnnotation) {
+                childMethod->addAnnotation(
+                    std::make_shared<ast::nodes::annotations::AnnotationNode>("Override"));
+            }
+            child->addInstanceMethod("foo", childMethod);
+
+            return { parent, child };
+        };
+
+        addCallbackTest("phase50: method_overriding_without_annotation_warns",
+            "", [buildOverridePair](ScriptAPI&) {
+                auto pair = buildOverridePair(false, ast::AccessModifier::PUBLIC);
+                auto warns = analysis::OverrideAnnotationChecker::check(*pair.second);
+                require(warns.size() == 1,
+                    "expected exactly one missing-@Override warning, got "
+                    + std::to_string(warns.size()));
+                require(std::string(warns[0].code->id) == "MT-W2002",
+                    "expected MT-W2002, got " + std::string(warns[0].code->id));
+                require(warns[0].severity == diagnostics::Severity::Warning,
+                    "missing-@Override should be Warning severity");
+            });
+
+        addCallbackTest("phase50: method_with_override_annotation_not_warned",
+            "", [buildOverridePair](ScriptAPI&) {
+                auto pair = buildOverridePair(true, ast::AccessModifier::PUBLIC);
+                auto warns = analysis::OverrideAnnotationChecker::check(*pair.second);
+                require(warns.empty(),
+                    "method with @Override should not produce a warning");
+            });
+
+        addCallbackTest("phase50: method_not_overriding_parent_not_warned",
+            "", [](ScriptAPI&) {
+                using runtimeTypes::klass::ClassDefinition;
+                using runtimeTypes::klass::MethodDefinition;
+
+                auto parent = std::make_shared<ClassDefinition>("Parent");
+                auto child  = std::make_shared<ClassDefinition>("Child");
+                child->setParentClass(parent);
+
+                std::vector<std::pair<std::string, value::ParameterType>> noParams;
+                auto childMethod = std::make_shared<MethodDefinition>(
+                    "uniqueToChild", value::ValueType::VOID, noParams,
+                    nullptr, false, ast::AccessModifier::PUBLIC);
+                childMethod->setSourceLocation(errors::SourceLocation("c.mt", 1, 1));
+                child->addInstanceMethod("uniqueToChild", childMethod);
+
+                auto warns = analysis::OverrideAnnotationChecker::check(*child);
+                require(warns.empty(),
+                    "method unique to child must not be flagged as override");
+            });
+
+        addCallbackTest("phase50: private_parent_method_not_warned",
+            "", [buildOverridePair](ScriptAPI&) {
+                auto pair = buildOverridePair(false, ast::AccessModifier::PRIVATE);
+                auto warns = analysis::OverrideAnnotationChecker::check(*pair.second);
+                require(warns.empty(),
+                    "private parent methods are not visible — child is not overriding");
+            });
+
+        addCallbackTest("phase50: warning_has_secondary_span_at_parent",
+            "", [buildOverridePair](ScriptAPI&) {
+                auto pair = buildOverridePair(false, ast::AccessModifier::PUBLIC);
+                auto warns = analysis::OverrideAnnotationChecker::check(*pair.second);
+                require(warns.size() == 1, "expected one warning");
+                require(warns[0].secondarySpans.size() == 1,
+                    "expected one secondary span pointing at parent");
+                require(warns[0].secondarySpans[0].start.getFilename() == "parent.mt"
+                        && warns[0].secondarySpans[0].start.getLine() == 5,
+                    "secondary span should target the parent method's source location");
+                require(warns[0].secondarySpans[0].label.find("parent") != std::string::npos,
+                    "secondary span label should mention 'parent'");
+            });
+
+        addCallbackTest("phase50: warning_suggestion_inserts_override",
+            "", [buildOverridePair](ScriptAPI&) {
+                auto pair = buildOverridePair(false, ast::AccessModifier::PUBLIC);
+                auto warns = analysis::OverrideAnnotationChecker::check(*pair.second);
+                require(warns.size() == 1, "expected one warning");
+                require(warns[0].suggestions.size() == 1,
+                    "expected one Add @Override suggestion");
+                const auto& fix = warns[0].suggestions[0];
+                require(fix.applicability == diagnostics::FixApplicability::MachineApplicable,
+                    "Add @Override fix should be MachineApplicable");
+                require(fix.edits.size() == 1, "expected one TextEdit");
+                require(fix.edits[0].newText.find("@Override") != std::string::npos,
+                    "edit must insert @Override");
+                require(fix.edits[0].newText.find("\n") != std::string::npos,
+                    "edit must include a newline so the annotation sits on its own line");
+            });
+
+        addCallbackTest("phase50: orphan_class_with_no_parent_skipped",
+            "", [](ScriptAPI&) {
+                using runtimeTypes::klass::ClassDefinition;
+                auto orphan = std::make_shared<ClassDefinition>("Orphan");
+                auto warns = analysis::OverrideAnnotationChecker::check(*orphan);
+                require(warns.empty(),
+                    "classes without a parent should produce no warnings");
+            });
+
         addCallbackTest("phase5: rendered diagnostic includes help line", "",
             [](ScriptAPI&) {
                 std::vector<std::string> pool = { "calculateSum" };
@@ -807,6 +1011,155 @@ namespace tests::testSuite
                     "help line must include the candidate identifier");
 
                 cache.invalidate("phase5_help.mt");
+            });
+
+        // ================================================================
+        // MYT-49 — UnusedVariableAnalyzer → MT-W2001 + rename/remove fixes
+        // ================================================================
+
+        addCallbackTest("phase49: unused_top_level_variable_warns",
+            "", [](ScriptAPI&) {
+                using namespace ast::nodes;
+                auto value = std::make_unique<expressions::IntegerNode>(
+                    42, errors::SourceLocation("a.mt", 1, 9));
+                auto decl = std::make_unique<statements::AssignmentNode>(
+                    "foo", std::move(value),
+                    value::ValueType::INT, "", false, false,
+                    errors::SourceLocation("a.mt", 1, 5));
+
+                std::vector<std::unique_ptr<ast::ASTNode>> stmts;
+                stmts.push_back(std::move(decl));
+                auto program = std::make_unique<statements::ProgramNode>(
+                    std::move(stmts), errors::SourceLocation("a.mt", 1, 1));
+
+                auto warns = analysis::UnusedVariableAnalyzer::analyze(program.get());
+                require(warns.size() == 1,
+                    "expected one unused-variable warning, got "
+                    + std::to_string(warns.size()));
+                require(std::string(warns[0].code->id) == "MT-W2001",
+                    "expected MT-W2001, got " + std::string(warns[0].code->id));
+                require(warns[0].severity == diagnostics::Severity::Warning,
+                    "should be Warning severity");
+                require(warns[0].message.find("foo") != std::string::npos,
+                    "message should mention the variable name");
+            });
+
+        addCallbackTest("phase49: variable_read_via_VariableNode_not_warned",
+            "", [](ScriptAPI&) {
+                using namespace ast::nodes;
+                auto value = std::make_unique<expressions::IntegerNode>(
+                    42, errors::SourceLocation("a.mt", 1, 9));
+                auto decl = std::make_unique<statements::AssignmentNode>(
+                    "foo", std::move(value),
+                    value::ValueType::INT, "", false, false,
+                    errors::SourceLocation("a.mt", 1, 5));
+
+                // Wrap a VariableNode "foo" in a function call to count
+                // as a read in expression position.
+                std::vector<std::unique_ptr<ast::ASTNode>> args;
+                args.push_back(std::make_unique<expressions::VariableNode>(
+                    "foo", errors::SourceLocation("a.mt", 2, 9)));
+                auto call = std::make_unique<functions::FunctionCallNode>(
+                    "println", std::move(args),
+                    errors::SourceLocation("a.mt", 2, 1));
+
+                std::vector<std::unique_ptr<ast::ASTNode>> stmts;
+                stmts.push_back(std::move(decl));
+                stmts.push_back(std::move(call));
+                auto program = std::make_unique<statements::ProgramNode>(
+                    std::move(stmts), errors::SourceLocation("a.mt", 1, 1));
+
+                auto warns = analysis::UnusedVariableAnalyzer::analyze(program.get());
+                require(warns.empty(),
+                    "variable read after declaration should produce no warning");
+            });
+
+        addCallbackTest("phase49: underscore_prefix_skipped",
+            "", [](ScriptAPI&) {
+                using namespace ast::nodes;
+                auto value = std::make_unique<expressions::IntegerNode>(
+                    42, errors::SourceLocation("a.mt", 1, 10));
+                auto decl = std::make_unique<statements::AssignmentNode>(
+                    "_unused", std::move(value),
+                    value::ValueType::INT, "", false, false,
+                    errors::SourceLocation("a.mt", 1, 5));
+
+                std::vector<std::unique_ptr<ast::ASTNode>> stmts;
+                stmts.push_back(std::move(decl));
+                auto program = std::make_unique<statements::ProgramNode>(
+                    std::move(stmts), errors::SourceLocation("a.mt", 1, 1));
+
+                auto warns = analysis::UnusedVariableAnalyzer::analyze(program.get());
+                require(warns.empty(),
+                    "_-prefixed variables are deliberately marked unused");
+            });
+
+        addCallbackTest("phase49: warning_carries_unnecessary_tag",
+            "", [](ScriptAPI&) {
+                using namespace ast::nodes;
+                auto value = std::make_unique<expressions::IntegerNode>(
+                    1, errors::SourceLocation("a.mt", 1, 9));
+                auto decl = std::make_unique<statements::AssignmentNode>(
+                    "x", std::move(value),
+                    value::ValueType::INT, "", false, false,
+                    errors::SourceLocation("a.mt", 1, 5));
+
+                std::vector<std::unique_ptr<ast::ASTNode>> stmts;
+                stmts.push_back(std::move(decl));
+                auto program = std::make_unique<statements::ProgramNode>(
+                    std::move(stmts), errors::SourceLocation("a.mt", 1, 1));
+
+                auto warns = analysis::UnusedVariableAnalyzer::analyze(program.get());
+                require(warns.size() == 1, "expected one warning");
+                bool hasUnnecessaryTag = false;
+                for (int t : warns[0].tags) if (t == 1) hasUnnecessaryTag = true;
+                require(hasUnnecessaryTag,
+                    "warning must carry LSP DiagnosticTag::Unnecessary (1)");
+            });
+
+        addCallbackTest("phase49: warning_has_rename_to_underscore_fix",
+            "", [](ScriptAPI&) {
+                using namespace ast::nodes;
+                auto value = std::make_unique<expressions::IntegerNode>(
+                    1, errors::SourceLocation("a.mt", 1, 9));
+                auto decl = std::make_unique<statements::AssignmentNode>(
+                    "tmp", std::move(value),
+                    value::ValueType::INT, "", false, false,
+                    errors::SourceLocation("a.mt", 1, 5));
+
+                std::vector<std::unique_ptr<ast::ASTNode>> stmts;
+                stmts.push_back(std::move(decl));
+                auto program = std::make_unique<statements::ProgramNode>(
+                    std::move(stmts), errors::SourceLocation("a.mt", 1, 1));
+
+                auto warns = analysis::UnusedVariableAnalyzer::analyze(program.get());
+                require(warns.size() == 1, "expected one warning");
+                require(!warns[0].suggestions.empty(),
+                    "expected at least one suggestion");
+                const auto& fix = warns[0].suggestions[0];
+                require(fix.applicability == diagnostics::FixApplicability::MachineApplicable,
+                    "rename fix should be MachineApplicable");
+                require(fix.edits.size() == 1, "expected one TextEdit");
+                require(fix.edits[0].newText == "_",
+                    "rename fix inserts a single underscore prefix");
+            });
+
+        addCallbackTest("phase49: empty_program_has_no_warnings",
+            "", [](ScriptAPI&) {
+                using namespace ast::nodes;
+                std::vector<std::unique_ptr<ast::ASTNode>> stmts;
+                auto program = std::make_unique<statements::ProgramNode>(
+                    std::move(stmts), errors::SourceLocation("a.mt", 1, 1));
+                auto warns = analysis::UnusedVariableAnalyzer::analyze(program.get());
+                require(warns.empty(),
+                    "empty program should produce zero warnings");
+            });
+
+        addCallbackTest("phase49: null_input_returns_empty",
+            "", [](ScriptAPI&) {
+                auto warns = analysis::UnusedVariableAnalyzer::analyze(nullptr);
+                require(warns.empty(),
+                    "null AST should return empty vector, not crash");
             });
     }
 }

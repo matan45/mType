@@ -7,6 +7,7 @@
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/GenericType.hpp"
 #include "../../errors/ParseException.hpp"
+#include "../../errors/MissingSemicolonException.hpp"
 #include "../../token/TokenType.hpp"
 
 namespace parser
@@ -99,7 +100,8 @@ namespace parser
         // Expect semicolon to end method signature
         if (tokenStream.current().type != TokenType::SEMICOLON)
         {
-            throw ParseException("Expected ';' after method signature", tokenStream.current().location);
+            // MYT-48 — typed exception so the LSP offers an "Insert ';'" fix.
+            throw errors::MissingSemicolonException(tokenStream.current().location);
         }
         tokenStream.advance();
 

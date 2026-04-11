@@ -18,6 +18,7 @@
 #include "../errors/FinalModificationException.hpp"
 #include "../errors/InheritanceException.hpp"
 #include "../errors/MethodNotFoundException.hpp"
+#include "../errors/MissingSemicolonException.hpp"
 #include "../errors/NoMatchingOverloadException.hpp"
 #include "../errors/NullPointerException.hpp"
 #include "../errors/ObjectException.hpp"
@@ -139,6 +140,29 @@ namespace diagnostics
                 .withPrimary(e.getSecondDeclaration(), "redeclared here")
                 .withSecondary(e.getFirstDeclaration(), "first declared here")
                 .withSourceException("DuplicateSignatureException")
+                .build();
+        }
+
+        Diagnostic convertMissingSemicolon(const errors::MissingSemicolonException& e)
+        {
+            // Build a structured "Insert ';'" suggestion. The LSP code
+            // action handler picks this up via the existing
+            // data["suggestions"] route — no special-case dispatch in
+            // CodeActionHandler is required.
+            Suggestion fix;
+            fix.label = "insert ';'";
+            fix.renderedHint = "help: insert ';' here";
+            // Zero-width edit at the missing-semicolon column.
+            fix.edits.push_back(TextEdit{
+                e.getLocation(), e.getLocation(), ";"
+            });
+            fix.applicability = FixApplicability::MachineApplicable;
+
+            return DiagnosticBuilder(codes::ParseMissingSemicolon)
+                .withMessage("expected ';' at end of statement")
+                .withPrimary(e.getLocation(), "expected ';' here")
+                .withSuggestion(std::move(fix))
+                .withSourceException("MissingSemicolonException")
                 .build();
         }
 
@@ -458,6 +482,8 @@ namespace diagnostics
             return convertDuplicateDeclaration(*p);
         if (auto p = dynamic_cast<const errors::DuplicateSignatureException*>(&e))
             return convertDuplicateSignature(*p);
+        if (auto p = dynamic_cast<const errors::MissingSemicolonException*>(&e))
+            return convertMissingSemicolon(*p);
 
         // TypeException subclasses
         if (auto p = dynamic_cast<const errors::AccessViolationException*>(&e))
