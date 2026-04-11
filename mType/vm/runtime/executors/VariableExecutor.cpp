@@ -234,6 +234,19 @@ namespace vm::runtime
 
         size_t slot = instr.operands[0];
 
+        // SECURITY: cap the slot index symmetrically with handleStoreLocal.
+        // The attacker controls `slot` via bytecode operands; without this
+        // cap a near-SIZE_MAX value would wrap when added to frameBase
+        // below (line `frameBase + slot`) and could land inside a valid
+        // stack range, bypassing the bounds check that follows.
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "LOAD_LOCAL slot index " + std::to_string(slot) +
+                " exceeds per-frame limit " +
+                std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
+        }
+
         // Check if we're in a lambda context and this is a captured variable
         // If so, look it up by name through the SharedStackFrame parent chain for reference capture
         if (!context.callStack.empty() && context.callStack.back().originatingLambda)

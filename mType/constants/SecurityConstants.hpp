@@ -27,7 +27,14 @@ namespace constants
         constexpr size_t MAX_LOCAL_STACK_PER_FRAME   = 100'000;
 
         // === Parser / lexer caps ===
-        constexpr size_t MAX_PARSER_RECURSION_DEPTH  = 256;
+        // NOTE: each expression descent burns ~13 RecursionDepthGuard frames
+        // (parseTernary + 10 parseBinaryLevel layers + parseUnary + parsePostfix),
+        // so a parenthesized sub-expression `(...)` consumes ~13 units of
+        // budget per nesting level. 1024 / 13 ≈ 78 paren levels — well above
+        // anything legitimate code generators emit, while still catching
+        // pathological depth before the C++ call stack runs out (typically
+        // ~5000 frames on default thread stacks).
+        constexpr size_t MAX_PARSER_RECURSION_DEPTH  = 1024;
         constexpr size_t MAX_OPTIMIZER_DEPTH         = 256;
         constexpr size_t MAX_IDENTIFIER_LENGTH       = 1024;
         constexpr size_t MAX_NUMBER_LITERAL_LENGTH   = 256;

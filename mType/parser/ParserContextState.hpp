@@ -3,6 +3,7 @@
 #include "../constants/SecurityConstants.hpp"
 #include "../errors/ParseException.hpp"
 #include <cstddef>
+#include <string>
 
 namespace parser
 {
