@@ -94,6 +94,27 @@ namespace environment::manager
         return names;
     }
 
+    std::vector<std::string> Scope::getAllVisibleVariableNames() const
+    {
+        // Collect into a set first so shadowed names from outer scopes
+        // don't double-up. The result is sorted for stable diagnostics.
+        std::vector<std::string> names;
+        std::shared_ptr<const Scope> current = shared_from_this();
+        while (current)
+        {
+            for (const auto& [varName, _] : current->variables)
+            {
+                if (std::find(names.begin(), names.end(), varName) == names.end())
+                {
+                    names.push_back(varName);
+                }
+            }
+            current = current->getParent();
+        }
+        std::sort(names.begin(), names.end());
+        return names;
+    }
+
     size_t Scope::getVariableCount() const
     {
         return variables.size();

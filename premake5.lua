@@ -187,7 +187,7 @@ project "mtype-vm"
    location "mType"
    commonConfig()
 
-   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast" }
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-diagnostics" }
 
    includedirs { "vendor/asmjit" }
    defines { "ASMJIT_STATIC" }

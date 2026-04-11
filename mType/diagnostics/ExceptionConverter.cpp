@@ -2,6 +2,7 @@
 
 #include "DiagnosticBuilder.hpp"
 #include "ErrorCodeRegistry.hpp"
+#include "../util/DidYouMean.hpp"
 
 #include "../errors/AbstractClassException.hpp"
 #include "../errors/AccessViolationException.hpp"
@@ -78,6 +79,33 @@ namespace diagnostics
                 .withPrimary(e.getLocation())
                 .withSourceException(exceptionTypeName)
                 .build();
+        }
+
+        // Try to attach a "did you mean ..." suggestion to a builder.
+        // No-op if the pool is empty or no candidate is close enough.
+        // The query is the misspelled identifier; the noun ("variable",
+        // "class", "method", "field") is folded into the rendered hint.
+        void attachDidYouMean(DiagnosticBuilder& b,
+                              const std::string& query,
+                              const std::vector<std::string>& pool,
+                              const char* noun)
+        {
+            if (pool.empty())
+            {
+                return;
+            }
+            auto match = util::findClosestMatch(query, pool);
+            if (!match)
+            {
+                return;
+            }
+            Suggestion s;
+            s.label = "did you mean '" + *match + "'?";
+            s.renderedHint = "a " + std::string(noun)
+                            + " with a similar name exists: '"
+                            + *match + "'";
+            s.applicability = FixApplicability::MaybeIncorrect;
+            b.withSuggestion(std::move(s));
         }
 
         // ----- specific converters ----------------------------------------
@@ -205,6 +233,7 @@ namespace diagnostics
             b.withMessage("cannot find class '" + e.getClassName() + "'")
              .withPrimary(e.getLocation(), "not found in this scope")
              .withSourceException("ClassNotFoundException");
+            attachDidYouMean(b, e.getClassName(), e.getIdentifierPool(), "class");
             return std::move(b).build();
         }
 
@@ -218,6 +247,7 @@ namespace diagnostics
             b.withMessage(headline)
              .withPrimary(e.getLocation(), "not found")
              .withSourceException("MethodNotFoundException");
+            attachDidYouMean(b, e.getMethodName(), e.getIdentifierPool(), "method");
             return std::move(b).build();
         }
 
@@ -231,6 +261,7 @@ namespace diagnostics
             b.withMessage(headline)
              .withPrimary(e.getLocation(), "not found")
              .withSourceException("FieldNotFoundException");
+            attachDidYouMean(b, e.getFieldName(), e.getIdentifierPool(), "field");
             return std::move(b).build();
         }
 
@@ -358,7 +389,33 @@ namespace diagnostics
 
         Diagnostic convertUndefined(const errors::UndefinedException& e)
         {
-            return plainFromScript(e, codes::NameUndefinedVariable, "UndefinedException");
+            DiagnosticBuilder b(codes::NameUndefinedVariable);
+            b.withMessage(e.getMessage())
+             .withPrimary(e.getLocation())
+             .withSourceException("UndefinedException");
+
+            // The exception's message often contains the failing
+            // identifier in quotes (e.g. "Undefined variable 'foa'").
+            // Pull it out for the suggestion lookup. If we can't, just
+            // run did-you-mean against the raw message — `findClosestMatch`
+            // will reject quickly if the message is too long for the
+            // budget.
+            const std::string& msg = e.getMessage();
+            std::string query;
+            const size_t quoteStart = msg.find('\'');
+            if (quoteStart != std::string::npos)
+            {
+                const size_t quoteEnd = msg.find('\'', quoteStart + 1);
+                if (quoteEnd != std::string::npos)
+                {
+                    query = msg.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
+                }
+            }
+            if (!query.empty())
+            {
+                attachDidYouMean(b, query, e.getIdentifierPool(), "identifier");
+            }
+            return std::move(b).build();
         }
 
         Diagnostic convertEnvironment(const errors::EnvironmentException& e)

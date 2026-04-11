@@ -1,4 +1,5 @@
 ﻿#include "FunctionRegistry.hpp"
+#include <algorithm>
 
 namespace environment::registry
 {
@@ -37,6 +38,17 @@ namespace environment::registry
             return it->second;
         }
         return {};
+    }
+
+    std::vector<std::string> FunctionRegistry::getAllFunctionNames() const
+    {
+        std::vector<std::string> names;
+        names.reserve(functionOverloads.size());
+        for (const auto& [name, _] : functionOverloads) {
+            names.push_back(name);
+        }
+        std::sort(names.begin(), names.end());
+        return names;
     }
 
     std::shared_ptr<FunctionDefinition> FunctionRegistry::findFunctionBySignature(

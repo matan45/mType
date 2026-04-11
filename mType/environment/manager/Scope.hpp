@@ -47,6 +47,10 @@ namespace environment::manager
         bool hasVariableInCurrentScope(const std::string& varName) const;
         
         std::vector<std::string> getAllVariableNames() const;
+        // Walks the parent chain and returns every variable name visible
+        // from this scope, deduplicated. Used by the diagnostic
+        // IdentifierEnumerator to build "did you mean" pools.
+        std::vector<std::string> getAllVisibleVariableNames() const;
         size_t getVariableCount() const;
         
         std::shared_ptr<Scope> findScope(const std::string& scopeName) const;

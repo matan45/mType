@@ -648,5 +648,80 @@ namespace tests::testSuite
                 require(output.find("-->") == std::string::npos,
                     "no arrow line should appear when there is no location");
             });
+
+        // ================================================================
+        // Phase 4 — suggestion-aware converters
+        // ================================================================
+
+        addCallbackTest("phase4: UndefinedException with pool emits did-you-mean", "",
+            [](ScriptAPI&) {
+                std::vector<std::string> pool = { "foo", "bar", "baz" };
+                errors::UndefinedException ex(
+                    "Variable 'foa' is not defined",
+                    errors::SourceLocation("a.mt", 3, 5),
+                    pool);
+                auto diag = diagnostics::fromException(ex);
+                require(diag.suggestions.size() == 1,
+                    "expected 1 suggestion attached to diagnostic, got "
+                    + std::to_string(diag.suggestions.size()));
+                require(diag.suggestions[0].label.find("foo") != std::string::npos,
+                    "suggestion label should mention 'foo'");
+            });
+
+        addCallbackTest("phase4: UndefinedException without pool emits no suggestion", "",
+            [](ScriptAPI&) {
+                errors::UndefinedException ex(
+                    "Variable 'foa' is not defined",
+                    errors::SourceLocation("a.mt", 3, 5));
+                auto diag = diagnostics::fromException(ex);
+                require(diag.suggestions.empty(),
+                    "no pool means no suggestions");
+            });
+
+        addCallbackTest("phase4: ClassNotFoundException with pool emits did-you-mean", "",
+            [](ScriptAPI&) {
+                std::vector<std::string> pool = { "List", "Stream", "Queue" };
+                errors::ClassNotFoundException ex("Lis",
+                    errors::SourceLocation("a.mt", 1, 1), pool);
+                auto diag = diagnostics::fromException(ex);
+                require(diag.suggestions.size() == 1,
+                    "expected one class suggestion");
+                require(diag.suggestions[0].label.find("List") != std::string::npos,
+                    "suggestion should propose 'List'");
+            });
+
+        addCallbackTest("phase4: MethodNotFoundException with pool emits did-you-mean", "",
+            [](ScriptAPI&) {
+                std::vector<std::string> pool = { "doStuff", "doThing", "doOther" };
+                errors::MethodNotFoundException ex("doStufg", "Foo",
+                    errors::SourceLocation("a.mt", 4, 9), pool);
+                auto diag = diagnostics::fromException(ex);
+                require(diag.suggestions.size() == 1,
+                    "expected one method suggestion");
+                require(diag.suggestions[0].label.find("doStuff") != std::string::npos,
+                    "suggestion should propose 'doStuff'");
+            });
+
+        addCallbackTest("phase4: FieldNotFoundException with pool emits did-you-mean", "",
+            [](ScriptAPI&) {
+                std::vector<std::string> pool = { "count", "name", "value" };
+                errors::FieldNotFoundException ex("counr", "Foo",
+                    errors::SourceLocation("a.mt", 6, 5), pool);
+                auto diag = diagnostics::fromException(ex);
+                require(diag.suggestions.size() == 1,
+                    "expected one field suggestion");
+                require(diag.suggestions[0].label.find("count") != std::string::npos,
+                    "suggestion should propose 'count'");
+            });
+
+        addCallbackTest("phase4: pool too sparse to suggest stays empty", "",
+            [](ScriptAPI&) {
+                std::vector<std::string> pool = { "totallyDifferent" };
+                errors::ClassNotFoundException ex("Foo",
+                    errors::SourceLocation("a.mt", 1, 1), pool);
+                auto diag = diagnostics::fromException(ex);
+                require(diag.suggestions.empty(),
+                    "no candidate within Levenshtein budget should yield no suggestion");
+            });
     }
 }
