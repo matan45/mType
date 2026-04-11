@@ -54,8 +54,16 @@ namespace services::api
 
         /**
          * Runtime check: is this Value a Class ObjectInstance?
-         * Used by the ctor and available to native code that needs to probe
-         * a Value before wrapping it.
+         *
+         * Two signals are required — the class name must be "Class" AND
+         * the instance must carry a `_nativeHandle: int` field. This
+         * guards against user code defining `class Class {}` as an
+         * impostor — such a class would lack the reflection handle and
+         * is rejected at the wrapper boundary instead of silently
+         * sailing through with undefined behavior.
+         *
+         * The field-existence check is what gives the guarantee teeth.
+         * A plain name check would accept any user-defined shadow.
          */
         static bool isClassValue(const value::Value& v)
         {
@@ -69,7 +77,15 @@ namespace services::api
                 return false;
             }
             auto classDef = instance->getClassDefinition();
-            return classDef && classDef->getName() == "Class";
+            if (!classDef || classDef->getName() != "Class")
+            {
+                return false;
+            }
+            // Second signal: the reflection Class carries a
+            // `_nativeHandle: int` field that no user-defined "Class"
+            // shadow would have by accident.
+            auto handleField = instance->getField("_nativeHandle");
+            return handleField != nullptr;
         }
     };
 }

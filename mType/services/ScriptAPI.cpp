@@ -19,6 +19,8 @@
 #include "../runtime/EventLoop.hpp"
 #include "../value/PromiseValue.hpp"
 #include "../value/NativeArray.hpp"
+#include "../reflection/ReflectionHandle.hpp"
+#include "../types/UnifiedType.hpp"
 #include <iostream>
 
 namespace services
@@ -393,24 +395,34 @@ namespace services
         api::Class cls = getClass(object);
         value::Value argsArray = callMethod(cls.asValue(), "getTypeArguments", {});
 
-        std::vector<api::Class> result;
+        // Class.getTypeArguments() always returns a Class[] — at the VM
+        // level a shared_ptr<NativeArray> with object elements. Anything
+        // else is an internal invariant violation and must fail loudly
+        // rather than silently return an empty vector.
         if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(argsArray))
         {
-            return result;
+            throw errors::ObjectException(
+                "Class.getTypeArguments() returned an unexpected value shape "
+                "(expected NativeArray)",
+                "Class", "ScriptAPI::getGenericArguments");
         }
         auto array = std::get<std::shared_ptr<value::NativeArray>>(argsArray);
         if (!array)
         {
-            return result;
+            throw errors::ObjectException(
+                "Class.getTypeArguments() returned a null array",
+                "Class", "ScriptAPI::getGenericArguments");
         }
 
+        std::vector<api::Class> result;
         result.reserve(array->size());
         for (size_t i = 0; i < array->size(); ++i)
         {
-            value::Value element = array->get(i);
             // Each element must be a Class ObjectInstance — the api::Class
-            // ctor will throw if that invariant is ever violated.
-            result.emplace_back(std::move(element));
+            // ctor throws with a clear message if that invariant is ever
+            // violated (e.g. if Class.mt is ever refactored to return
+            // something other than Class[]).
+            result.emplace_back(array->get(i));
         }
         return result;
     }
@@ -427,24 +439,39 @@ namespace services
 
     bool ScriptAPI::isInstanceOf(const value::Value& object, const api::Class& cls)
     {
-        // Fetch the parameterized name from the Class via its own
-        // language-side getName() — proves the Class instance is legit
-        // and that cross-surface identity holds.
-        value::Value nameValue = callMethod(cls.asValue(), "getName", {});
-        std::string name;
-        if (std::holds_alternative<std::string>(nameValue))
+        // Hot-path implementation — read the Class's `_nativeHandle`
+        // field directly and resolve the canonical name through
+        // ReflectionHandleRegistry. No VM round-trip, no bytecode
+        // invocation. For closed handles (parameterized types) we use
+        // the reified UnifiedType's canonical string; for open handles
+        // we use the ClassDefinition's raw name. Both paths produce the
+        // same string the language-side Class.getName() would.
+        auto instance = asObjectInstance(cls.asValue(), "ScriptAPI::isInstanceOf");
+        value::Value handleVal = instance->getFieldValue("_nativeHandle");
+        if (!std::holds_alternative<int64_t>(handleVal))
         {
-            name = std::get<std::string>(nameValue);
+            throw errors::ObjectException(
+                "Class._nativeHandle is missing or not an int",
+                "Class", "ScriptAPI::isInstanceOf");
         }
-        else if (std::holds_alternative<value::InternedString>(nameValue))
+        int64_t handle = std::get<int64_t>(handleVal);
+
+        auto& registry = reflection::ReflectionHandleRegistry::instance();
+        std::string name;
+        auto reified = registry.getReifiedType(handle);
+        if (reified)
         {
-            name = std::get<value::InternedString>(nameValue).getString();
+            name = reified->toCanonicalString();
         }
         else
         {
-            throw errors::ObjectException(
-                "Class.getName() returned a non-string value",
-                "Class", "ScriptAPI::isInstanceOf");
+            auto classDef = registry.getClass(handle);
+            if (!classDef)
+            {
+                throw errors::RuntimeException(
+                    "ScriptAPI::isInstanceOf: invalid class handle");
+            }
+            name = classDef->getName();
         }
         return isInstanceOf(object, name);
     }
