@@ -28,12 +28,12 @@ namespace tests::testFramework
     }
 
     TestCase::TestCase(const std::string& testName,
-                       std::string bootstrap,
+                       const std::string& bootstrapFilePath,
                        NativeCallback callback)
-        : name(testName), filePath(""), type(TestType::NATIVE_CALLBACK),
+        : name(testName), filePath(bootstrapFilePath), type(TestType::NATIVE_CALLBACK),
           status(TestStatus::NOT_RUN), executionTime(0),
           executionMode(constants::ExecutionMode::BYTECODE_VM),
-          bootstrapSource(std::move(bootstrap)), nativeCallback(std::move(callback))
+          nativeCallback(std::move(callback))
     {
     }
 
@@ -308,20 +308,22 @@ namespace tests::testFramework
             ScriptInterpreter testInterpreter(executionMode);
             testInterpreter.getVM()->setJitEnabled(true);
 
-            // Write the bootstrap source to a temp file so we can drive it
-            // through the normal runScript path (which handles imports,
-            // class registration, and all the usual ceremony).
-            std::filesystem::path tempFile;
-            if (!bootstrapSource.empty())
+            // Parse-and-register the bootstrap file WITHOUT executing its
+            // top-level code (same mechanism SCRIPT_INTEROP uses, so the
+            // VM is left in a clean "ready for interop" state after).
+            // `filePath` stores the bootstrap file here. The bootstrap is
+            // required to contain only class/function declarations —
+            // callbacks drive execution via ScriptAPI::callFunction.
+            if (!filePath.empty())
             {
-                tempFile = std::filesystem::temp_directory_path() /
-                           ("mtype_native_cb_" + std::to_string(
-                               std::chrono::steady_clock::now().time_since_epoch().count()) + ".mt");
+                if (!std::filesystem::exists(filePath))
                 {
-                    std::ofstream out(tempFile);
-                    out << bootstrapSource;
+                    std::cout.rdbuf(oldCout);
+                    status = TestStatus::ERROR;
+                    errorMessage = "Bootstrap file not found: " + filePath;
+                    return;
                 }
-                testInterpreter.runScript(tempFile.string());
+                testInterpreter.parseAndRegisterClasses(filePath);
             }
 
             // Build a ScriptAPI bound to the interpreter's VM + bytecode
@@ -333,13 +335,6 @@ namespace tests::testFramework
             services::ScriptAPI api(testInterpreter.getEnvironment(), vmPtr, program);
 
             nativeCallback(api);
-
-            // Clean up the temp file — best effort, ignore errors.
-            if (!tempFile.empty())
-            {
-                std::error_code ec;
-                std::filesystem::remove(tempFile, ec);
-            }
 
             std::cout.rdbuf(oldCout);
             output = outputBuffer.str();

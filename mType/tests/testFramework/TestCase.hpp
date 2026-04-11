@@ -41,9 +41,10 @@ namespace tests::testFramework
         std::string output;
         constants::ExecutionMode executionMode;
 
-        // NATIVE_CALLBACK state — bootstrap mt source to execute before
-        // the callback runs, plus the callback itself.
-        std::string bootstrapSource;
+        // NATIVE_CALLBACK state — the callback itself. The bootstrap
+        // is taken from `filePath` (a real committed .mt file in the
+        // test tree), so relative imports resolve the same way they do
+        // for normal tests.
         NativeCallback nativeCallback;
 
         // Helper methods
@@ -53,10 +54,13 @@ namespace tests::testFramework
     public:
         TestCase(const std::string& testName, const std::string& testFilePath, TestType testType = TestType::NORMAL);
 
-        // NATIVE_CALLBACK constructor — no file path, runs a C++ callback
-        // against a ScriptInterpreter pre-seeded with `bootstrapSource`.
+        // NATIVE_CALLBACK constructor — runs `bootstrapFilePath` first
+        // (so the callback can reference classes / globals it declares),
+        // then invokes the C++ callback with a ScriptAPI bound to the
+        // same interpreter. `bootstrapFilePath` may be empty if the
+        // callback doesn't need any mt-side setup.
         TestCase(const std::string& testName,
-                 std::string bootstrapSource,
+                 const std::string& bootstrapFilePath,
                  NativeCallback callback);
 
         void execute();

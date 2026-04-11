@@ -77,10 +77,10 @@ namespace tests::testFramework
     }
 
     void TestSuite::addCallbackTest(const std::string& name,
-                                    std::string bootstrap,
+                                    const std::string& bootstrapFilePath,
                                     NativeCallback callback)
     {
-        testCases.emplace_back(name, std::move(bootstrap), std::move(callback));
+        testCases.emplace_back(name, bootstrapFilePath, std::move(callback));
     }
 
     void TestSuite::generateHtmlReport()

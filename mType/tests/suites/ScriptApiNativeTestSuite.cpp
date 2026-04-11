@@ -27,29 +27,12 @@ namespace tests::testSuite
             }
         }
 
-        // Bootstrap source shared by most tests. Seeds the interpreter
-        // with:
-        //   - Int primitive (via lib/primitives/Int.mt)
-        //   - Box<T> generic wrapper (via lib/primitives/Box.mt)
-        //   - Class reflection (via lib/reflect/Class.mt)
-        //   - global `box` : Box<Int> — the parameterized subject
-        //   - global `animal` : Animal — the non-generic subject
-        //   - global `forNameHandle` : int — handle from the language-side
-        //     Class.forName("Box<Int>") used for cross-surface identity
-        //     checks
-        const char* kBootstrap = R"MT(
-import * from "mType/tests/testFiles/lib/reflect/Class.mt";
-import * from "mType/tests/testFiles/lib/primitives/Int.mt";
-import * from "mType/tests/testFiles/lib/primitives/Box.mt";
-
-class Animal {
-    public constructor() {}
-}
-
-Box<Int> box = new Box<Int>(42);
-Animal animal = new Animal();
-int forNameHandle = Class::forName("Box<Int>").getNativeHandle();
-)MT";
+        // Committed bootstrap file shared by every native test — see
+        // mType/tests/testFiles/scriptapi/bootstrap.mt for the source.
+        // Running it as a real file (instead of a temp copy) lets its
+        // relative imports resolve correctly.
+        const std::string kBootstrap =
+            "mType/tests/testFiles/scriptapi/bootstrap.mt";
 
         // Extract an int64 from a Class value's _nativeHandle field.
         // Proves identity checks without leaking internals to the test.
@@ -85,7 +68,7 @@ int forNameHandle = Class::forName("Box<Int>").getNativeHandle();
         addCallbackTest("getGenericArguments returns [Int] for Box<Int>",
             kBootstrap,
             [](ScriptAPI& api) {
-                value::Value box = api.getVariable("box");
+                value::Value box = api.callFunction("makeBox", {});
                 auto args = api.getGenericArguments(box);
                 require(args.size() == 1,
                     "expected 1 type argument, got " + std::to_string(args.size()));
@@ -97,7 +80,7 @@ int forNameHandle = Class::forName("Box<Int>").getNativeHandle();
         addCallbackTest("getGenericArguments returns empty for non-generic",
             kBootstrap,
             [](ScriptAPI& api) {
-                value::Value animal = api.getVariable("animal");
+                value::Value animal = api.callFunction("makeAnimal", {});
                 auto args = api.getGenericArguments(animal);
                 require(args.empty(),
                     "expected empty type arguments, got " + std::to_string(args.size()));
@@ -108,7 +91,7 @@ int forNameHandle = Class::forName("Box<Int>").getNativeHandle();
         addCallbackTest("isInstanceOf(box, \"Box<Int>\") == true",
             kBootstrap,
             [](ScriptAPI& api) {
-                value::Value box = api.getVariable("box");
+                value::Value box = api.callFunction("makeBox", {});
                 require(api.isInstanceOf(box, "Box<Int>"),
                     "box should be instanceof Box<Int>");
             });
@@ -116,7 +99,7 @@ int forNameHandle = Class::forName("Box<Int>").getNativeHandle();
         addCallbackTest("isInstanceOf(box, classOf(\"Box<Int>\")) matches string overload",
             kBootstrap,
             [](ScriptAPI& api) {
-                value::Value box = api.getVariable("box");
+                value::Value box = api.callFunction("makeBox", {});
                 Class cls = api.classOf("Box<Int>");
                 require(api.isInstanceOf(box, cls),
                     "Class-overload should agree with string overload");
@@ -129,7 +112,7 @@ int forNameHandle = Class::forName("Box<Int>").getNativeHandle();
         addCallbackTest("getClass(box) identity matches Class.forName(\"Box<Int>\")",
             kBootstrap,
             [](ScriptAPI& api) {
-                value::Value box = api.getVariable("box");
+                value::Value box = api.callFunction("makeBox", {});
                 Class viaGetClass = api.getClass(box);
                 Class viaClassOf = api.classOf("Box<Int>");
                 require(handleOf(api, viaGetClass) == handleOf(api, viaClassOf),
@@ -139,13 +122,13 @@ int forNameHandle = Class::forName("Box<Int>").getNativeHandle();
         addCallbackTest("classOf handle matches language-side Class.forName handle",
             kBootstrap,
             [](ScriptAPI& api) {
-                // forNameHandle was captured inside the bootstrap via
-                // language-side Class.forName("Box<Int>"). If this matches
-                // the handle from native classOf, we've proven the single
-                // ReflectionHandleRegistry is shared.
-                value::Value langHandleVal = api.getVariable("forNameHandle");
+                // langForNameHandle() captures the native handle from the
+                // language-side Class.forName("Box<Int>"). If the native
+                // classOf handle matches, the same ReflectionHandleRegistry
+                // is shared across both surfaces.
+                value::Value langHandleVal = api.callFunction("langForNameHandle", {});
                 require(std::holds_alternative<int64_t>(langHandleVal),
-                    "forNameHandle bootstrap variable must be an int");
+                    "langForNameHandle() must return an int");
                 int64_t langHandle = std::get<int64_t>(langHandleVal);
                 Class nativeCls = api.classOf("Box<Int>");
                 require(handleOf(api, nativeCls) == langHandle,
@@ -197,7 +180,7 @@ int forNameHandle = Class::forName("Box<Int>").getNativeHandle();
         addCallbackTest("returned Class is callable via ScriptAPI::callMethod",
             kBootstrap,
             [](ScriptAPI& api) {
-                value::Value box = api.getVariable("box");
+                value::Value box = api.callFunction("makeBox", {});
                 auto args = api.getGenericArguments(box);
                 require(args.size() == 1, "expected 1 type argument");
 

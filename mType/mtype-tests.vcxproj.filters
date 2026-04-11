@@ -310,6 +310,9 @@
     <Filter Include="testFiles\reflection\pass">
       <UniqueIdentifier>{98C82D8C-048B-6116-4D3B-F0A2B93C3AF4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\scriptapi">
+      <UniqueIdentifier>{D6B8AF20-421A-8D2E-CB87-D3E037E8C3ED}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\stream">
       <UniqueIdentifier>{7338515D-5F31-70AF-8863-553474BB4FBB}</UniqueIdentifier>
     </Filter>
@@ -8574,6 +8577,9 @@
     </None>
     <None Include="tests\testFiles\reflection\pass\superclassReflection.mt">
       <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\scriptapi\bootstrap.mt">
+      <Filter>testFiles\scriptapi</Filter>
     </None>
     <None Include="tests\testFiles\stream\error\streamLimitNegative.mt">
       <Filter>testFiles\stream\error</Filter>

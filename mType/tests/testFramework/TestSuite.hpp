@@ -33,12 +33,13 @@ namespace tests::testFramework
         void addInteropTest(const std::string& name, const std::string& filePath);
 
         // MYT-42 — register a C++-driven test that exercises ScriptAPI
-        // directly. `bootstrap` is optional mt source executed before the
-        // callback runs (so the callback can reference classes/variables
-        // it declares). Any uncaught exception thrown from the callback
-        // fails the test.
+        // directly. `bootstrapFilePath` is an optional mt file executed
+        // before the callback runs (so the callback can reference
+        // classes / globals it declares). Any uncaught exception thrown
+        // from the callback fails the test. Pass an empty string for
+        // callbacks that don't need any mt-side setup.
         void addCallbackTest(const std::string& name,
-                             std::string bootstrap,
+                             const std::string& bootstrapFilePath,
                              NativeCallback callback);
 
         void setExecutionModeForAll(constants::ExecutionMode mode);
