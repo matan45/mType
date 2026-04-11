@@ -66,6 +66,14 @@ namespace tests::testFramework
         testCases.emplace_back(name, filePath, type);
     }
 
+    void TestSuite::addTestFromFile(const std::string& name,
+                                    const std::string& filePath,
+                                    TestType type,
+                                    const std::string& expectedErrorSubstring)
+    {
+        testCases.emplace_back(name, filePath, type, expectedErrorSubstring);
+    }
+
     void TestSuite::addOutputVerificationTest(const std::string& name, const std::string& filePath)
     {
         testCases.emplace_back(name, filePath, TestType::OUTPUT_EXPECTED);

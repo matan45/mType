@@ -4156,6 +4156,9 @@
     <None Include="tests\testFiles\error\error\errorCatchBlockOrdering_error.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\error\errorCatchNonException_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
     <None Include="tests\testFiles\error\error\errorEmptyTry_error.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
@@ -4166,6 +4169,9 @@
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\errorThrowPrimitive_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorUncaughtMain_error.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\importNonExistentFile.mt">
@@ -4594,6 +4600,12 @@
     <None Include="tests\testFiles\error\pass\errorPartialFailure_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorPropagationTypedNoMatch_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorPropagationTypedNoMatch_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorRecursiveCatch_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
@@ -4666,10 +4678,40 @@
     <None Include="tests\testFiles\error\pass\errorStackTraceCustomMessage_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceFrameOrder_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceFrameOrder_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceLambdaFrameName_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceLambdaFrameName_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceLineNumbers_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceLineNumbers_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceMethodNameFormat_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceMethodNameFormat_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorStackTraceNested_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorStackTraceNested_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceRethrowIdentity_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStackTraceRethrowIdentity_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorStackTraceWithLambda_pass.expected">

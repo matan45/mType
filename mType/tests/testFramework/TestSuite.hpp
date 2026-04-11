@@ -29,6 +29,12 @@ namespace tests::testFramework
         const std::string& getName() const { return suiteName; }
 
         void addTestFromFile(const std::string& name, const std::string& filePath, TestType type = TestType::NORMAL);
+        // MYT-38 — overload that pins the substring required to appear in
+        // the thrown exception's message for an ERROR_EXPECTED test to pass.
+        void addTestFromFile(const std::string& name,
+                             const std::string& filePath,
+                             TestType type,
+                             const std::string& expectedErrorSubstring);
         void addOutputVerificationTest(const std::string& name, const std::string& filePath);
         void addInteropTest(const std::string& name, const std::string& filePath);
 
