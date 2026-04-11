@@ -95,15 +95,17 @@ project "mtype-errors"
 --------------------------------------------------------------------------------
 -- Library: mtype-diagnostics
 -- Shared Diagnostic data model + renderer + cache used by both the CLI
--- and the language server. Depends on mtype-errors so the exception
--- converter (added in Phase 2) can dynamic_cast every exception type.
+-- and the language server. Depends on mtype-errors and mtype-core so the
+-- exception converter can dynamic_cast against every exception type
+-- (including UserException, whose typeinfo lives in mtype-core because
+-- UserException.cpp pulls in value::Value).
 --------------------------------------------------------------------------------
 project "mtype-diagnostics"
    kind "StaticLib"
    location "mType"
    commonConfig()
 
-   links { "mtype-common", "mtype-errors" }
+   links { "mtype-common", "mtype-errors", "mtype-core" }
 
    files {
       "mType/diagnostics/**.hpp",

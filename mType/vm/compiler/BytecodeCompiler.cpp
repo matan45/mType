@@ -671,7 +671,8 @@ namespace vm::compiler
                         if (!exportRegistry->symbolExists(resolvedPath, symbolName)) {
                             throw errors::TypeException(
                                 "Cannot import '" + symbolName + "' from '" + filePath + "': " +
-                                "Symbol not found"
+                                "Symbol not found",
+                                node->getLocation()
                             );
                         }
 
@@ -679,7 +680,8 @@ namespace vm::compiler
                         if (!exportRegistry->isSymbolExported(resolvedPath, symbolName)) {
                             throw errors::TypeException(
                                 "Cannot import '" + symbolName + "' from '" + filePath + "': " +
-                                "Symbol is private and not exported. Only public symbols can be imported."
+                                "Symbol is private and not exported. Only public symbols can be imported.",
+                                node->getLocation()
                             );
                         }
                     }
