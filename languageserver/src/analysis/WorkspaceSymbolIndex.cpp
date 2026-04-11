@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -62,6 +63,38 @@ namespace mtype::lsp::analysis
         }
     } // namespace
 
+    namespace
+    {
+        // Reads a file from disk into a string. Returns false on failure
+        // (caller decides whether to silently skip or report).
+        bool readFileFromDisk(const std::string& filePath, std::string& outContent)
+        {
+            std::ifstream stream(filePath);
+            if (!stream.is_open()) return false;
+            outContent.assign(
+                (std::istreambuf_iterator<char>(stream)),
+                std::istreambuf_iterator<char>());
+            return true;
+        }
+    }
+
+    void WorkspaceSymbolIndex::setReadyFuture(std::shared_future<void> future)
+    {
+        readyFuture_ = std::move(future);
+    }
+
+    bool WorkspaceSymbolIndex::waitForReady(std::chrono::milliseconds timeout) const
+    {
+        if (!readyFuture_.valid())
+        {
+            // No async build was ever scheduled — treat as ready (the
+            // index might be empty, but we won't make consumers block
+            // forever waiting for a future that doesn't exist).
+            return true;
+        }
+        return readyFuture_.wait_for(timeout) == std::future_status::ready;
+    }
+
     void WorkspaceSymbolIndex::buildFromWorkspace(const std::string& workspaceRoot)
     {
         const auto files = utils::MtFileWalker::findMtFiles(workspaceRoot);
@@ -72,42 +105,47 @@ namespace mtype::lsp::analysis
 
         for (const auto& path : files)
         {
-            indexFileLocked(path);
+            std::string content;
+            if (!readFileFromDisk(path, content)) continue;
+            indexFileLocked(path, content);
         }
     }
 
     void WorkspaceSymbolIndex::reindexFile(const std::string& fileUri)
     {
-        // Convert URI back to a filesystem path for parsing.
+        // Disk fallback path. Used when we don't have an in-memory buffer
+        // (e.g. a file the editor hasn't opened yet, or a refresh
+        // triggered by a file-system event for a closed document).
+        const std::string path = UriUtils::uriToFilePath(fileUri);
+        std::string content;
+        if (!readFileFromDisk(path, content)) return;
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        dropEntriesLocked(fileUri);
+        indexFileLocked(path, content);
+    }
+
+    void WorkspaceSymbolIndex::reindexFile(const std::string& fileUri,
+                                           const std::string& content)
+    {
+        // Buffer path. Preferred when the LSP has the live editor content
+        // — without this, the auto-import quick fix would not see symbols
+        // declared in unsaved files until they were saved.
         const std::string path = UriUtils::uriToFilePath(fileUri);
 
         std::lock_guard<std::mutex> lock(mutex_);
-        // Drop existing entries for this URI before re-indexing.
-        auto byFileIt = byFile_.find(fileUri);
-        if (byFileIt != byFile_.end())
-        {
-            for (const auto& name : byFileIt->second)
-            {
-                auto byNameIt = byName_.find(name);
-                if (byNameIt == byName_.end()) continue;
-                auto& vec = byNameIt->second;
-                vec.erase(
-                    std::remove_if(vec.begin(), vec.end(),
-                        [&fileUri](const WorkspaceSymbol& s) {
-                            return s.fileUri == fileUri;
-                        }),
-                    vec.end());
-                if (vec.empty()) byName_.erase(byNameIt);
-            }
-            byFile_.erase(byFileIt);
-        }
-
-        indexFileLocked(path);
+        dropEntriesLocked(fileUri);
+        indexFileLocked(path, content);
     }
 
     void WorkspaceSymbolIndex::invalidateFile(const std::string& fileUri)
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        dropEntriesLocked(fileUri);
+    }
+
+    void WorkspaceSymbolIndex::dropEntriesLocked(const std::string& fileUri)
+    {
         auto byFileIt = byFile_.find(fileUri);
         if (byFileIt == byFile_.end()) return;
 
@@ -142,23 +180,17 @@ namespace mtype::lsp::analysis
         return results;
     }
 
-    void WorkspaceSymbolIndex::indexFileLocked(const std::string& filePath)
+    void WorkspaceSymbolIndex::indexFileLocked(const std::string& filePath,
+                                                const std::string& content)
     {
         if (filePath.empty()) return;
 
-        // Re-run the parse pipeline. We don't share state with
-        // DocumentManager because the workspace index needs disk
-        // contents, not editor buffers — the editor buffer for an
-        // open document gets refreshed via reindexFile() which still
-        // reads from disk (acceptable: the user just saved).
+        // Caller supplies the content (either from disk in the
+        // buildFromWorkspace / disk-fallback path, or from the live
+        // editor buffer via the buffer overload of reindexFile). This
+        // method just runs the parse pipeline against it.
         try
         {
-            std::ifstream stream(filePath);
-            if (!stream.is_open()) return;
-            std::string content(
-                (std::istreambuf_iterator<char>(stream)),
-                std::istreambuf_iterator<char>());
-
             const std::string fileUri = UriUtils::filePathToUri(filePath);
 
             auto memReader = std::make_unique<MemoryFileReader>();
@@ -196,10 +228,19 @@ namespace mtype::lsp::analysis
                 byFile_[fileUri] = std::move(indexedNames);
             }
         }
+        catch (const std::exception& e)
+        {
+            // Log at debug level so workspace indexing failures are
+            // diagnosable. We don't propagate — one bad file shouldn't
+            // bring down the whole index, and the user will see proper
+            // diagnostics for the file when they open it.
+            std::cerr << "[mType LSP] Workspace index parse failed for "
+                      << filePath << ": " << e.what() << std::endl;
+        }
         catch (...)
         {
-            // Silently swallow — this file will get its own diagnostics
-            // when the user opens it.
+            std::cerr << "[mType LSP] Workspace index parse failed for "
+                      << filePath << ": unknown exception" << std::endl;
         }
     }
 
@@ -238,8 +279,18 @@ namespace mtype::lsp::analysis
             }
             return spelling;
         }
+        catch (const std::exception& e)
+        {
+            std::cerr << "[mType LSP] computeImportSpelling failed for "
+                      << symbolFilePath << " from " << referencingFilePath
+                      << ": " << e.what() << std::endl;
+            return symbolFilePath;
+        }
         catch (...)
         {
+            std::cerr << "[mType LSP] computeImportSpelling failed for "
+                      << symbolFilePath << " from " << referencingFilePath
+                      << ": unknown exception" << std::endl;
             return symbolFilePath;
         }
     }

@@ -1,17 +1,28 @@
 #include "MTypeLanguageServer.hpp"
 #include "utils/UriUtils.hpp"
-#include <iostream>
+#include <chrono>
 #include <filesystem>
 #include <future>
+#include <iostream>
+#include <thread>
 
 namespace mtype::lsp
 {
+    namespace
+    {
+        // Idle window for debouncing per-keystroke reindex requests. Tuned
+        // to absorb a fast typing burst (~5 keys/sec) without blocking the
+        // moment the user pauses. Tweak if it feels sluggish.
+        constexpr auto kReindexDebounceWindow = std::chrono::milliseconds(250);
+    }
+
     MTypeLanguageServer::MTypeLanguageServer()
     {
         documentManager_ = std::make_unique<DocumentManager>();
         // MYT-47 — workspace symbol index, populated lazily during
         // handleInitialize once we know the workspace root.
         workspaceIndex_ = std::make_shared<analysis::WorkspaceSymbolIndex>();
+        reindexDebouncer_ = std::make_shared<ReindexDebouncer>();
 
         // MYT-51 — the completion handler shares the same workspace
         // symbol index as the code-action handler so the auto-import
@@ -170,15 +181,17 @@ namespace mtype::lsp
             projectConfig_->loadFromWorkspace(workspaceRoot);
 
             // MYT-47 — kick off the initial workspace symbol scan in a
-            // background thread. The future is stashed so request handlers
-            // (specifically the missing-import quick fix) can wait on it
-            // with a short timeout if a code action arrives early.
+            // background thread. The future is shared with the index so
+            // request handlers (the missing-import quick fix and the
+            // auto-import completion branch) can short-block early
+            // requests via WorkspaceSymbolIndex::waitForReady().
             auto idx = workspaceIndex_;
             std::string root = workspaceRoot;
             workspaceIndexReady_ = std::async(std::launch::async,
                 [idx, root]() {
                     idx->buildFromWorkspace(root);
                 }).share();
+            workspaceIndex_->setReadyFuture(workspaceIndexReady_);
         }
 
         // Share project config with handlers
@@ -237,7 +250,9 @@ namespace mtype::lsp
         // MYT-47 — keep the workspace symbol index in sync with the
         // newly-parsed document so the missing-import quick fix can
         // surface symbols defined in files that have just been opened.
-        if (workspaceIndex_) workspaceIndex_->reindexFile(uri);
+        // Use the buffer overload so unsaved changes (LSP can reopen a
+        // dirty document) are visible to the index immediately.
+        if (workspaceIndex_) workspaceIndex_->reindexFile(uri, text);
     }
 
     void MTypeLanguageServer::handleDidChangeTextDocument(const json& params)
@@ -253,8 +268,45 @@ namespace mtype::lsp
             documentManager_->updateDocument(uri, text, version);
             diagnosticsHandler_->publishDiagnostics(uri);
             // MYT-47 — refresh the workspace index entries for this file.
-            if (workspaceIndex_) workspaceIndex_->reindexFile(uri);
+            // Debounced so a typing burst only fires one reindex after the
+            // user pauses (full lex+parse on every keystroke is wasteful).
+            // The buffer is captured by value so the index sees the user's
+            // unsaved changes, not whatever happens to be on disk.
+            scheduleDebouncedReindex(uri, text);
         }
+    }
+
+    void MTypeLanguageServer::scheduleDebouncedReindex(const std::string& uri,
+                                                       const std::string& content)
+    {
+        if (!workspaceIndex_) return;
+
+        // Capture-by-value: shared_ptrs, a uint64, and the buffer. No
+        // `this` capture so an in-flight task survives LSP destruction
+        // without dangling.
+        auto debouncer = reindexDebouncer_;
+        auto idx = workspaceIndex_;
+        std::uint64_t version;
+        {
+            std::lock_guard<std::mutex> lock(debouncer->mutex);
+            version = ++debouncer->versions[uri];
+        }
+
+        std::thread([uri, content, version, debouncer, idx]()
+        {
+            std::this_thread::sleep_for(kReindexDebounceWindow);
+            {
+                std::lock_guard<std::mutex> lock(debouncer->mutex);
+                auto it = debouncer->versions.find(uri);
+                if (it == debouncer->versions.end() || it->second != version)
+                {
+                    return;  // a newer change came in; this task is stale.
+                }
+            }
+            // Buffer overload — workspace index sees the live editor
+            // content, not whatever's on disk.
+            idx->reindexFile(uri, content);
+        }).detach();
     }
 
     void MTypeLanguageServer::handleDidCloseTextDocument(const json& params)

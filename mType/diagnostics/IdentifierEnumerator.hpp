@@ -53,5 +53,9 @@ namespace diagnostics
         /// Top-level classes only.
         static std::vector<std::string> visibleClasses(
             const environment::Environment* env);
+
+        /// Top-level interfaces only.
+        static std::vector<std::string> visibleInterfaces(
+            const environment::Environment* env);
     };
 }

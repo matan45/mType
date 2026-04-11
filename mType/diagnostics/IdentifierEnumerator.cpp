@@ -6,6 +6,7 @@
 #include "../environment/manager/VariableManager.hpp"
 #include "../environment/registry/ClassRegistry.hpp"
 #include "../environment/registry/FunctionRegistry.hpp"
+#include "../runtimeTypes/klass/InterfaceRegistry.hpp"
 
 #include <algorithm>
 
@@ -82,6 +83,24 @@ namespace diagnostics
             return classReg->getAllItemNames();
         }
         return {};
+    }
+
+    std::vector<std::string> IdentifierEnumerator::visibleInterfaces(
+        const environment::Environment* env)
+    {
+        if (!env) return {};
+        auto ifaceReg = env->getInterfaceRegistry();
+        if (!ifaceReg) return {};
+        // InterfaceRegistry doesn't inherit from the Registry base
+        // template, so it has no getAllItemNames(). Walk the map keys.
+        const auto& all = ifaceReg->getAllInterfaces();
+        std::vector<std::string> names;
+        names.reserve(all.size());
+        for (const auto& [name, _] : all)
+        {
+            names.push_back(name);
+        }
+        return sorted(std::move(names));
     }
 
     std::vector<std::string> IdentifierEnumerator::visibleIdentifiers(

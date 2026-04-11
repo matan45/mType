@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -65,12 +67,46 @@ namespace mtype::lsp::analysis
         void buildFromWorkspace(const std::string& workspaceRoot);
 
         /**
+         * Hand the index the future returned by the std::async that
+         * runs `buildFromWorkspace`. The index doesn't own the build
+         * task itself — the LSP server does — but it needs the future
+         * so consumers can call `waitForReady()` without poking at the
+         * server's private members.
+         *
+         * Call once during LSP initialise. Calling more than once
+         * replaces the previous future.
+         */
+        void setReadyFuture(std::shared_future<void> future);
+
+        /**
+         * Wait up to `timeout` for the initial workspace scan to
+         * complete. Returns true if the scan is done (or no scan was
+         * scheduled), false if the timeout expired.
+         *
+         * Consumers (the missing-import quick fix and the auto-import
+         * completion branch) call this before querying `findByName` so
+         * an early request doesn't see an empty index. The 50 ms cap is
+         * a sensible UX ceiling: if the scan takes longer, fall through
+         * to "no suggestion" rather than blocking the user.
+         */
+        bool waitForReady(std::chrono::milliseconds timeout) const;
+
+        /**
          * Refresh the index entries for one file. Drops the file's
-         * existing entries first, then re-parses (cheap if the LSP just
-         * parsed it for diagnostics). Called from
-         * `DocumentManager::parseDocument` after a successful reparse.
+         * existing entries first, then re-parses from disk. Used by the
+         * initial build path and as a fallback when no in-memory buffer
+         * is available (e.g., a file the editor hasn't opened yet).
          */
         void reindexFile(const std::string& fileUri);
+
+        /**
+         * Refresh the index entries for one file using the supplied
+         * content directly (no disk I/O). Preferred path when the LSP
+         * has the unsaved editor buffer in hand — without this overload,
+         * symbols defined in unsaved files would not show up in the
+         * auto-import quick fix until the user saved.
+         */
+        void reindexFile(const std::string& fileUri, const std::string& content);
 
         /**
          * Drop every entry whose `fileUri` matches. Called when a
@@ -105,8 +141,18 @@ namespace mtype::lsp::analysis
         std::unordered_map<std::string, std::vector<WorkspaceSymbol>> byName_;
         std::unordered_map<std::string, std::vector<std::string>> byFile_; // fileUri → names
 
-        // Indexes a single file. Caller may hold the mutex; this method
-        // does not lock it itself.
-        void indexFileLocked(const std::string& filePath);
+        // Future of the initial workspace scan, set by setReadyFuture
+        // during LSP initialise. waitForReady consults it to short-block
+        // early code-action / completion requests until the scan is
+        // populated. Mutable so a const waitForReady can call wait_for.
+        mutable std::shared_future<void> readyFuture_;
+
+        // Indexes a single file using the provided content. Caller must
+        // hold the mutex; this method does not lock it itself.
+        void indexFileLocked(const std::string& filePath, const std::string& content);
+
+        // Drops every entry whose fileUri == `fileUri`. Caller must hold
+        // the mutex. Shared by reindexFile and invalidateFile.
+        void dropEntriesLocked(const std::string& fileUri);
     };
 }

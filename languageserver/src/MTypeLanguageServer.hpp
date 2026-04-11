@@ -1,7 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <future>
 #include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
 #include "DocumentManager.hpp"
 #include "handlers/CompletionHandler.hpp"
 #include "handlers/DiagnosticsHandler.hpp"
@@ -64,6 +68,23 @@ private:
     // doesn't block the LSP handshake.
     std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
     std::shared_future<void> workspaceIndexReady_;
+
+    // Debouncer for per-keystroke reindex requests. The reindex itself is
+    // moderately expensive (full lex+parse), and VS Code sends one change
+    // event per keystroke for full-document sync. The debouncer holds a
+    // monotonic version per URI; each scheduled task wakes after the idle
+    // window and only runs reindex if its captured version is still the
+    // latest. Detached so it doesn't block message processing; held by
+    // shared_ptr so in-flight tasks survive LSP destruction without
+    // touching `this`.
+    struct ReindexDebouncer
+    {
+        std::mutex mutex;
+        std::unordered_map<std::string, std::uint64_t> versions;
+    };
+    std::shared_ptr<ReindexDebouncer> reindexDebouncer_;
+
+    void scheduleDebouncedReindex(const std::string& uri, const std::string& content);
 
     bool shouldExit_ = false;
 };

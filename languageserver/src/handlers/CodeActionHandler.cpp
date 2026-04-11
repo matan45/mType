@@ -170,6 +170,11 @@ std::vector<CodeAction> CodeActionHandler::generateMissingImportFixes(
     const std::string identifier = line.substr(wordStart, wordEnd - wordStart);
     if (identifier.empty()) return actions;
 
+    // Short-block until the initial workspace scan is populated. Without
+    // this, an early code action that fires before the async scan
+    // finishes would see an empty index and offer no quick fix.
+    workspaceIndex_->waitForReady(std::chrono::milliseconds(50));
+
     auto matches = workspaceIndex_->findByName(identifier, /*maxResults=*/5);
     if (matches.empty()) return actions;
 

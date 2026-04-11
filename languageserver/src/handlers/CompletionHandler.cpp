@@ -10,10 +10,38 @@
 #include "../../../mType/util/TokenExtraction.hpp"
 
 #include <algorithm>
+#include <regex>
 #include <sstream>
 #include <unordered_set>
 
 namespace mtype::lsp {
+
+namespace {
+    // Returns true if `text` ends in the given keyword used as an
+    // inheritance keyword (whitespace-bounded), optionally followed by a
+    // partial identifier the user is currently typing. Replaces the
+    // earlier `find("extends")` / `find("implements")` checks, which
+    // matched substrings inside identifiers (e.g. `myImplementsFoo`)
+    // and inside `// implements` comments preceding the cursor.
+    bool textEndsInInheritanceKeyword(const std::string& text, const char* keyword)
+    {
+        // Pattern: optional non-word char (or string start), keyword,
+        // mandatory whitespace, optional partial identifier, end-of-string.
+        const std::string pattern =
+            std::string("(^|[^A-Za-z0-9_])") + keyword + "\\s+\\w*$";
+        // static const inside a function would still cost a per-call branch
+        // and we want a different pattern per keyword anyway. The two
+        // call sites below fire only when a completion request lands, so
+        // re-compiling per request is acceptable; the alternative
+        // (per-keyword statics) is messier than it's worth here.
+        try {
+            std::regex re(pattern);
+            return std::regex_search(text, re);
+        } catch (const std::regex_error&) {
+            return false;
+        }
+    }
+}
 
 CompletionHandler::CompletionHandler(
     DocumentManager* docMgr,
@@ -113,15 +141,17 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     }
 
     // Check context-specific completions
-    // If we're after "implements", only show interfaces
-    if (textBeforeCursor.find("implements") != std::string::npos) {
+    // If we're after "implements" (as a token, not a substring), only show
+    // interfaces. Token-aware to avoid matching `myImplementsFoo` and
+    // `// implements ...` in comments.
+    if (textEndsInInheritanceKeyword(textBeforeCursor, "implements")) {
         auto interfaces = getInterfaceCompletions(uri);
         applyFuzzyFilter(interfaces, typedPrefix);
         return interfaces;
     }
 
-    // If we're after "extends", only show classes
-    if (textBeforeCursor.find("extends") != std::string::npos) {
+    // If we're after "extends" (as a token), only show classes.
+    if (textEndsInInheritanceKeyword(textBeforeCursor, "extends")) {
         auto classes = getClassCompletions(uri);
         applyFuzzyFilter(classes, typedPrefix);
         return classes;
@@ -412,13 +442,13 @@ std::vector<CompletionItem> CompletionHandler::getInterfaceCompletions(const std
         return items;
     }
 
-    auto interfaceRegistry = doc->environment->getInterfaceRegistry();
-    if (!interfaceRegistry) {
-        return items;
-    }
+    // Route through IdentifierEnumerator so the visibility rules match
+    // getClassCompletions / getIdentifierCompletions exactly. The
+    // enumerator returns a sorted, deduplicated vector.
+    auto interfaceNames =
+        diagnostics::IdentifierEnumerator::visibleInterfaces(doc->environment.get());
 
-    auto allInterfaces = interfaceRegistry->getAllInterfaces();
-    for (const auto& [interfaceName, interfaceDef] : allInterfaces) {
+    for (const auto& interfaceName : interfaceNames) {
         CompletionItem item;
         item.label = interfaceName;
         item.kind = static_cast<int>(CompletionItemKind::Interface);
@@ -445,6 +475,11 @@ std::vector<CompletionItem> CompletionHandler::getAutoImportCompletions(
     if (!doc) {
         return items;
     }
+
+    // Short-block until the initial workspace scan is populated. Without
+    // this, an early auto-import completion request would see an empty
+    // index and offer no suggestions even when the symbol exists.
+    workspaceIndex_->waitForReady(std::chrono::milliseconds(50));
 
     auto matches = workspaceIndex_->findByName(typedPrefix, /*maxResults=*/5);
     if (matches.empty()) {
