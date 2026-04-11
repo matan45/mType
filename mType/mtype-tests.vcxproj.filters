@@ -360,6 +360,9 @@
     <ClInclude Include="tests\suites\ControlFlowTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\DiagnosticsTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\EnhancedForLoopTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -450,6 +453,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ControlFlowTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\DiagnosticsTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\EnhancedForLoopTestSuite.cpp">

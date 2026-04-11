@@ -27,6 +27,7 @@
 #include "../tests/suites/JsonTestSuite.hpp"
 #include "../tests/suites/StringInterpolationTestSuite.hpp"
 #include "../tests/suites/ScriptApiNativeTestSuite.hpp"
+#include "../tests/suites/DiagnosticsTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -152,6 +153,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<ScriptApiNativeTestSuite>();
     }
+    else if (suiteName == "diagnostics" || suiteName == "diag")
+    {
+        return std::make_unique<DiagnosticsTestSuite>();
+    }
     return nullptr;
 }
 
@@ -185,6 +190,7 @@ void printAvailableTestSuites()
     std::cout << "  interpolation - String Interpolation Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
     std::cout << "  scriptapi    - ScriptAPI Native FFI Test Suite (MYT-42)\n";
+    std::cout << "  diagnostics  - Diagnostics Foundation Test Suite (MYT-35)\n";
 }
 
 void runSpecificTestSuite(const std::string& suiteName,
@@ -246,6 +252,7 @@ void runAllTests(constants::ExecutionMode execMode)
     suites.push_back(std::make_unique<JsonTestSuite>());
     suites.push_back(std::make_unique<StringInterpolationTestSuite>());
     suites.push_back(std::make_unique<ScriptApiNativeTestSuite>());
+    suites.push_back(std::make_unique<DiagnosticsTestSuite>());
 
     for (auto& suite : suites)
     {
