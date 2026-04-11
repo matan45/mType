@@ -142,6 +142,7 @@ namespace project
             // Create import manager with project settings
             auto importManager = std::make_unique<services::ImportManager>();
             importManager->setBaseDirectory(config.projectRoot);
+            importManager->setProjectRoot(config.projectRoot); // SECURITY: enforce containment
             importManager->setSearchPaths(absoluteSearchPaths);
             importManager->setPathAliases(config.imports.aliases);
             importManager->setCurrentFilePath(tempFile.string());
@@ -278,6 +279,7 @@ namespace project
                                                  const ProjectConfig& config)
     {
         importManager.setBaseDirectory(config.projectRoot);
+        importManager.setProjectRoot(config.projectRoot); // SECURITY: enforce containment
     }
 
     void ProjectBuilder::reportProgress(size_t current, size_t total, const std::string& file)

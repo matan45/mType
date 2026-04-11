@@ -51,6 +51,9 @@
     <ClInclude Include="constants\LambdaConstants.hpp">
       <Filter>constants</Filter>
     </ClInclude>
+    <ClInclude Include="constants\SecurityConstants.hpp">
+      <Filter>constants</Filter>
+    </ClInclude>
     <ClInclude Include="errors\SourceLocation.hpp">
       <Filter>errors</Filter>
     </ClInclude>

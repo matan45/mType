@@ -29,6 +29,13 @@ namespace services
         // Original base directory (never changes after initialization)
         std::string baseDirectory;
 
+        // SECURITY: optional project root for path-traversal containment.
+        // When non-empty, all resolved import paths must canonicalize to a
+        // location inside this directory. When empty (the default — used
+        // by ad-hoc scripts and tests), no containment check is performed.
+        // Only project builds (ProjectBuilder) opt in.
+        std::string projectRoot;
+
         // Current file being processed (for resolving relative imports)
         std::string currentFilePath;
 
@@ -45,6 +52,13 @@ namespace services
 
         // Set the base directory for relative imports
         void setBaseDirectory(const std::string& dir);
+
+        // SECURITY: opt in to project-root containment for imports. When
+        // set, every resolved import must canonicalize to a path inside
+        // `root`; otherwise FileException is thrown. Leave unset for
+        // ad-hoc scripts where the lib/ directory may live outside the
+        // script's own folder.
+        void setProjectRoot(const std::string& root);
 
         // Get/Set current file path (for nested import resolution)
         std::string getCurrentFilePath() const;
@@ -103,5 +117,15 @@ namespace services
                            bool useConsistentResolve);
         std::filesystem::path normalizeFilePath(const std::filesystem::path& filePath,
                                                bool allowFallback);
+
+        // SECURITY: ensure a resolved path lives inside baseDirectory.
+        // Throws errors::FileException on path-traversal attempts. Used by
+        // resolvePath() to reject absolute or `..`-laden imports that would
+        // otherwise reach files outside the project root. The check uses
+        // canonical() + iterator-mismatch on path components so it cannot be
+        // bypassed by a sibling directory with the same prefix
+        // (e.g. "/projectroot-evil/").
+        void enforceWithinProjectRoot(const std::filesystem::path& resolved,
+                                      const std::string& originalPath);
     };
 }

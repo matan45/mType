@@ -327,6 +327,9 @@
     <ClInclude Include="vm\runtime\utils\BoxingUtils.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\utils\CheckedArithmetic.hpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\utils\ErrorLocationHelper.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
@@ -519,6 +522,30 @@
       <Filter>vm\profiler</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachine.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineAsync.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineDispatch.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineFields.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineHelpers.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineInteropCall.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineInteropConstruct.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineJit.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineLoop.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\context\ExecutionContext.cpp">

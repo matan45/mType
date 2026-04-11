@@ -5,6 +5,7 @@
 #include "TokenFactory.hpp"
 #include "../errors/ParseException.hpp"
 #include "../value/StringPool.hpp"
+#include "../constants/SecurityConstants.hpp"
 
 namespace lexer
 {
@@ -266,6 +267,15 @@ namespace lexer
         size_t start = pos;
         while (pos < input.length() && (std::isdigit(input[pos]) || input[pos] == '.'))
         {
+            // SECURITY: cap numeric literal length to prevent oversized
+            // tokens from exhausting memory.
+            if (pos - start >= constants::security::MAX_NUMBER_LITERAL_LENGTH)
+            {
+                throw errors::ParseException(
+                    "Float literal exceeds maximum length of " +
+                    std::to_string(constants::security::MAX_NUMBER_LITERAL_LENGTH) + " characters",
+                    locationTracker->getCurrentLocation());
+            }
             advance();
         }
         std::string_view floatView(input.data() + start, pos - start);
@@ -292,6 +302,14 @@ namespace lexer
         size_t start = pos;
         while (pos < input.length() && std::isdigit(input[pos]))
         {
+            // SECURITY: cap numeric literal length.
+            if (pos - start >= constants::security::MAX_NUMBER_LITERAL_LENGTH)
+            {
+                throw errors::ParseException(
+                    "Integer literal exceeds maximum length of " +
+                    std::to_string(constants::security::MAX_NUMBER_LITERAL_LENGTH) + " characters",
+                    locationTracker->getCurrentLocation());
+            }
             advance();
         }
         std::string_view intView(input.data() + start, pos - start);
@@ -320,6 +338,15 @@ namespace lexer
         size_t start = pos;
         while (pos < input.length() && (std::isalnum(input[pos]) || input[pos] == '_'))
         {
+            // SECURITY: cap identifier length to prevent multi-megabyte
+            // identifiers from a crafted source file.
+            if (pos - start >= constants::security::MAX_IDENTIFIER_LENGTH)
+            {
+                throw errors::ParseException(
+                    "Identifier exceeds maximum length of " +
+                    std::to_string(constants::security::MAX_IDENTIFIER_LENGTH) + " characters",
+                    locationTracker->getCurrentLocation());
+            }
             advance();
         }
         return std::string_view(input.data() + start, pos - start);
@@ -350,6 +377,15 @@ namespace lexer
 
         while (pos < input.length() && input[pos] != '"')
         {
+            // SECURITY: cap accumulated string length so a 1 GB literal
+            // cannot be assembled from many short escape sequences.
+            if (result.size() >= constants::security::MAX_STRING_LITERAL_LENGTH)
+            {
+                throw errors::ParseException(
+                    "String literal exceeds maximum length of " +
+                    std::to_string(constants::security::MAX_STRING_LITERAL_LENGTH) + " characters",
+                    locationTracker->getCurrentLocation());
+            }
             if (input[pos] == '\\' && pos + 1 < input.length())
             {
                 advance(); // Skip backslash
@@ -376,6 +412,15 @@ namespace lexer
         size_t end = pos;
         while (end < input.length() && input[end] != '"')
         {
+            // SECURITY: cap raw string literal length on the size-finding
+            // pass too, before we ever allocate.
+            if (end - start >= constants::security::MAX_STRING_LITERAL_LENGTH)
+            {
+                throw errors::ParseException(
+                    "String literal exceeds maximum length of " +
+                    std::to_string(constants::security::MAX_STRING_LITERAL_LENGTH) + " characters",
+                    locationTracker->getCurrentLocation());
+            }
             if (input[end] == '\\')
             {
                 hasEscapes = true;

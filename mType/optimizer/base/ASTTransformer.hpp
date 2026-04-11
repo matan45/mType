@@ -25,6 +25,11 @@ namespace optimizer::base {
 		OptimizationContext* context;
 		bool modified;
 
+		// SECURITY: depth counter for transformChild() recursion. Prevents
+		// crafted ASTs (or deeply nested user code that survived parser
+		// limits) from blowing the C++ call stack during optimization.
+		size_t transformDepth = 0;
+
 		// Helper: Clone a child node if it needs transformation
 		std::unique_ptr<ast::ASTNode> transformChild(ast::ASTNode* child);
 

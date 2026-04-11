@@ -607,6 +607,24 @@
     <None Include="tests\testFiles\annotation\pass\script_annotation_valid.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\script_async_callmethod_test.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_async_callmethod_test.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_callmethod_test.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_callmethod_test.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_native_string_compare_test.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_native_string_compare_test.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\single_exception_pass.expected">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
@@ -8459,6 +8477,12 @@
       <Filter>testFiles\stringpool</Filter>
     </None>
     <None Include="tests\testFiles\stringpool\debug_single_chars.mt">
+      <Filter>testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_compare_parameter_test.expected">
+      <Filter>testFiles\stringpool</Filter>
+    </None>
+    <None Include="tests\testFiles\stringpool\string_compare_parameter_test.mt">
       <Filter>testFiles\stringpool</Filter>
     </None>
     <None Include="tests\testFiles\stringpool\string_pool_comprehensive_test.expected">

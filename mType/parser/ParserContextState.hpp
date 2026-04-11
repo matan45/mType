@@ -1,5 +1,10 @@
 #pragma once
 
+#include "../constants/SecurityConstants.hpp"
+#include "../errors/ParseException.hpp"
+#include <cstddef>
+#include <string>
+
 namespace parser
 {
     /// @brief Manages parsing context state flags (inside function, class, etc.)
@@ -14,9 +19,45 @@ namespace parser
         bool insideInterfaceBody = false;
         bool insideConstructorBody = false;
 
+        // SECURITY: tracks current expression-parser recursion depth so the
+        // parser can reject pathologically nested input (e.g. ((((...x)))))
+        // before exhausting the C++ call stack.
+        size_t recursionDepth = 0;
+
     public:
         ParserContextState() = default;
         ~ParserContextState() = default;
+
+        // Recursion depth tracking
+        [[nodiscard]] size_t getRecursionDepth() const noexcept { return recursionDepth; }
+
+        /// @brief RAII guard that increments parser recursion depth on
+        /// construction and decrements on destruction. Throws ParseException
+        /// if the depth would exceed MAX_PARSER_RECURSION_DEPTH.
+        class RecursionDepthGuard
+        {
+        private:
+            ParserContextState& context;
+        public:
+            explicit RecursionDepthGuard(ParserContextState& ctx)
+                : context(ctx)
+            {
+                if (++context.recursionDepth > constants::security::MAX_PARSER_RECURSION_DEPTH)
+                {
+                    --context.recursionDepth;
+                    throw errors::ParseException("Parser recursion depth exceeded maximum of " +
+                        std::to_string(constants::security::MAX_PARSER_RECURSION_DEPTH));
+                }
+            }
+            ~RecursionDepthGuard()
+            {
+                --context.recursionDepth;
+            }
+            RecursionDepthGuard(const RecursionDepthGuard&) = delete;
+            RecursionDepthGuard& operator=(const RecursionDepthGuard&) = delete;
+            RecursionDepthGuard(RecursionDepthGuard&&) = delete;
+            RecursionDepthGuard& operator=(RecursionDepthGuard&&) = delete;
+        };
 
         // Async context management
         [[nodiscard]] bool isInsideAsyncFunction() const noexcept { return insideAsyncFunction; }

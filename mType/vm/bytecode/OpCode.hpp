@@ -224,6 +224,12 @@ namespace vm::bytecode
 
         // === Reserved for Future Use (161-255) ===
         // Opcodes reserved for future extensions
+
+        // Sentinel — must remain the last entry. Used by isValidOpCode and
+        // bytecode deserialization to range-check incoming opcode bytes
+        // without requiring manual updates each time a new opcode is added.
+        // NOT a valid opcode itself.
+        OPCODE_SENTINEL_,
     };
 
     /**
@@ -411,6 +417,26 @@ namespace vm::bytecode
 
             default: return "UNKNOWN";
         }
+    }
+
+    /**
+     * Number of legal opcodes. Derived from the OPCODE_SENTINEL_ marker so
+     * adding a new opcode before the sentinel automatically extends the
+     * valid range — no manual update needed here.
+     */
+    static_assert(static_cast<size_t>(OpCode::OPCODE_SENTINEL_) <= 256,
+                  "OpCode enum exceeds uint8_t range; widen the wire format "
+                  "before adding more opcodes");
+    constexpr uint8_t OPCODE_COUNT = static_cast<uint8_t>(OpCode::OPCODE_SENTINEL_);
+
+    /**
+     * Range-check a deserialized opcode byte against the legal enum range.
+     * Used by BytecodeProgram::readInstructions() to reject malformed .mtc
+     * files that contain reserved or out-of-range opcode bytes.
+     * Strict `<` because OPCODE_SENTINEL_ is not itself a valid opcode.
+     */
+    inline bool isValidOpCode(OpCode opcode) {
+        return static_cast<uint8_t>(opcode) < OPCODE_COUNT;
     }
 }
 

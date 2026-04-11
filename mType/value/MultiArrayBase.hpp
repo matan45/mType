@@ -1,10 +1,12 @@
 #pragma once
 #include "IMultiDimensionalArray.hpp"
 #include "ValueType.hpp"
+#include "../constants/SecurityConstants.hpp"
 #include <vector>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
+#include <climits>
 
 namespace value
 {
@@ -202,6 +204,10 @@ namespace value
         /**
          * @brief Calculate strides for each dimension
          * For array[n1][n2][n3], strides are [n2*n3, n3, 1]
+         *
+         * SECURITY: each multiplication is overflow-checked. A crafted set of
+         * dimensions (e.g. {SIZE_MAX/2, 4}) would otherwise silently wrap and
+         * produce strides that bypass downstream bounds checks.
          */
         void calculateStrides() {
             strides_.resize(dimensions_.size());
@@ -209,17 +215,37 @@ namespace value
 
             strides_.back() = 1; // Last dimension has stride 1
             for (int i = static_cast<int>(dimensions_.size()) - 2; i >= 0; --i) {
-                strides_[i] = strides_[i + 1] * dimensions_[i + 1];
+                size_t next = dimensions_[i + 1];
+                if (next != 0 && strides_[i + 1] > SIZE_MAX / next) {
+                    throw std::runtime_error("Array stride overflow");
+                }
+                strides_[i] = strides_[i + 1] * next;
             }
         }
 
         /**
          * @brief Calculate total number of elements
+         *
+         * SECURITY: uses checked multiplication and a hard cap on the total
+         * element count to prevent integer overflow when computing array
+         * allocations from untrusted dimensions.
          */
         size_t calculateTotalSize() const {
             if (dimensions_.empty()) return 0;
-            return std::accumulate(dimensions_.begin(), dimensions_.end(),
-                                 size_t(1), std::multiplies<size_t>());
+            size_t total = 1;
+            for (size_t d : dimensions_) {
+                if (d == 0) {
+                    return 0;
+                }
+                if (total > SIZE_MAX / d) {
+                    throw std::runtime_error("Array dimension overflow");
+                }
+                total *= d;
+            }
+            if (total > constants::security::MAX_ARRAY_DIMENSION_PRODUCT) {
+                throw std::runtime_error("Array exceeds maximum element count");
+            }
+            return total;
         }
 
         /**
