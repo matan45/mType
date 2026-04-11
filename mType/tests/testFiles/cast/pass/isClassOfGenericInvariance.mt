@@ -10,7 +10,7 @@ class Animal {
 }
 
 class Dog extends Animal {
-    public constructor(string name) { super(name); }
+    public constructor(string name) : super(name) {}
 }
 
 Box<Dog> boxDog = new Box<Dog>(new Dog("rex"));

@@ -9,7 +9,7 @@ class Animal<T> {
 }
 
 class Dog<T> extends Animal<T> {
-    constructor(T tag) { super(tag); }
+    constructor(T tag) : super(tag) {}
 }
 
 import * from "../../lib/primitives/Int.mt";
