@@ -422,12 +422,57 @@ namespace vm::compiler::visitors
 
         // Get target type information
         const auto* targetType = node->getTargetType();
+
+        // A bare type-parameter RHS (e.g. `obj isClassOf T`) can't be resolved
+        // at compile time — `T` is only bound when the enclosing generic class
+        // is instantiated. Emit INSTANCEOF_TYPEPARAM so the runtime resolves
+        // `T` via the current receiver's generic bindings before dispatching
+        // into the normal instanceof machinery.
+        //
+        // IMPORTANT: GenericType::isGenericParameter() is an implementation
+        // check (variant holds<string>), not a semantic check — it returns
+        // true for ANY class name like `Dog` or `Box`, not just for actual
+        // type parameters. We must additionally verify the name matches a
+        // declared type parameter of the enclosing generic scope. Without
+        // this guard every `obj isClassOf UserClass` would be routed through
+        // the TYPEPARAM path and blow up at runtime.
+        if (targetType->isGenericParameter() && !targetType->isParameterized())
+        {
+            const std::string& candidate = targetType->getBaseTypeName();
+            bool isDeclaredParam = false;
+
+            // Check class-level generic parameters. Method-level type
+            // parameters (`function<U> foo(...)`) are not currently tracked
+            // on CompilerContext — a free generic function RHS still emits
+            // INSTANCEOF and may surface a "Class not found" error at
+            // runtime, which is the existing behavior.
+            if (ctx.currentClassNode)
+            {
+                for (const auto& p : ctx.currentClassNode->getGenericParameters())
+                {
+                    if (p.name == candidate)
+                    {
+                        isDeclaredParam = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isDeclaredParam)
+            {
+                size_t nameIndex = ctx.program.getConstantPool().addString(candidate);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF_TYPEPARAM,
+                                             static_cast<uint64_t>(nameIndex), node);
+                return std::monostate{};
+            }
+        }
+
+        // Concrete RHS — may be raw ("Box") or parameterized ("Box<Int>").
+        // GenericType::toString() already emits the canonical parameterized
+        // form with ", " spacing, which the runtime reconstruction matches
+        // exactly so string equality does the discrimination job.
         std::string targetTypeName = targetType->toString();
-
-        // Store target type name in constant pool
         size_t typeNameIndex = ctx.program.getConstantPool().addString(targetTypeName);
-
-        // Emit INSTANCEOF instruction
         ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF, static_cast<uint64_t>(typeNameIndex), node);
 
         return std::monostate{};

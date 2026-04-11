@@ -10,6 +10,7 @@
 //   toString()  — returns "ClassName@hashCode" via ObjectInstance::getContentHash()
 //   equals()    — content-based equality via ObjectInstance::contentEquals()
 //   hashCode()  — content-based hash via ObjectInstance::getContentHash()
+//   getClass()  — returns the runtime Class via ScriptAPI::getClass (MYT-42)
 
 public class Object {
 
@@ -29,5 +30,12 @@ public class Object {
     // Default: content-based hash derived from all field values
     public function hashCode(): int{
 	return 0;
+	}
+
+    // Returns the runtime Class of this instance, including parameterized
+    // type arguments for generic instances. Equivalent to native-level
+    // ScriptAPI::getClass(value) — single implementation, two surfaces.
+    public function getClass(): Class{
+	return null;
 	}
 }

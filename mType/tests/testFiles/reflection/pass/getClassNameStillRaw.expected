@@ -1,0 +1,6 @@
+open getRawName: Box
+closed getRawName: Box
+raw names match: true
+closed getName: Box<Int>
+names differ: true
+Test passed

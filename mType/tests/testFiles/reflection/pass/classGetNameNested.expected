@@ -1,0 +1,9 @@
+Outer getName: Pair<String,Box<Int>>
+Outer getRawName: Pair
+Outer arg count: 2
+Arg 0 getName: String
+Arg 1 getName: Box<Int>
+Arg 1 getRawName: Box
+Inner arg count: 1
+Inner arg 0 getName: Int
+Test passed

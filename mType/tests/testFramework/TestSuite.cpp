@@ -76,6 +76,13 @@ namespace tests::testFramework
         testCases.emplace_back(name, filePath, TestType::SCRIPT_INTEROP);
     }
 
+    void TestSuite::addCallbackTest(const std::string& name,
+                                    const std::string& bootstrapFilePath,
+                                    NativeCallback callback)
+    {
+        testCases.emplace_back(name, bootstrapFilePath, std::move(callback));
+    }
+
     void TestSuite::generateHtmlReport()
     {
         // Create reports directory if it doesn't exist

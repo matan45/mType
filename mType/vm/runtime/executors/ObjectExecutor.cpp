@@ -2,6 +2,7 @@
 #include "ObjectInstanceHelper.hpp"
 #include "FunctionExecutor.hpp"
 #include "../../MethodSignature.hpp"
+#include "../../../services/ScriptAPI.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/NullCheckUtils.hpp"
 #include "../../../errors/SourceLocation.hpp"
@@ -542,7 +543,8 @@ namespace vm::runtime
         }
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
-        if (!funcMetadata && (simpleMethodName == "toString" || simpleMethodName == "equals" || simpleMethodName == "hashCode")) {
+        if (!funcMetadata && (simpleMethodName == "toString" || simpleMethodName == "equals" ||
+                              simpleMethodName == "hashCode" || simpleMethodName == "getClass")) {
             // Native Object method fallback — when no bytecode exists for an Object method,
             // dispatch to native C++ implementations. This handles both direct Object method
             // calls and cases where overload resolution selects the Object signature (e.g.,
@@ -576,6 +578,16 @@ namespace vm::runtime
             }
             if (simpleMethodName == "hashCode") {
                 context.stackManager->push(computeHashCode());
+                return;
+            }
+            if (simpleMethodName == "getClass") {
+                // MYT-42: route through ScriptAPI so language-side
+                // obj.getClass() and native ScriptAPI::getClass are the
+                // same code path. Builds the parameterized canonical name
+                // from the instance's reified type and calls Class.forName.
+                services::ScriptAPI api(context.environment, context.vm, context.program);
+                context.stackManager->push(
+                    api.getClass(value::Value(instance)).asValue());
                 return;
             }
         }

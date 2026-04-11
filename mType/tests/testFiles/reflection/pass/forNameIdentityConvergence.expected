@@ -1,0 +1,5 @@
+a == b handle: true
+a == c handle: true
+a getName: Box<Int>
+c getName: Box<Int>
+Test passed

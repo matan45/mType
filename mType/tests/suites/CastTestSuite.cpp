@@ -133,6 +133,52 @@ namespace tests::testSuite
         addOutputVerificationTest("isClassOf Deep Hierarchy",
                         passPath + "isClassOfDeepHierarchy.mt");
 
+        // === MYT-41: PARAMETERIZED isClassOf TESTS ===
+        // Verify that isClassOf discriminates between different type arguments
+        // on the same base class (Box<Int> vs Box<String>) and preserves the
+        // existing type-erased raw-base fallback for backward compatibility.
+        addOutputVerificationTest("isClassOf Generic Exact",
+                        passPath + "isClassOfGenericExact.mt");
+        addOutputVerificationTest("isClassOf Generic Raw Fallback",
+                        passPath + "isClassOfGenericRawFallback.mt");
+        addOutputVerificationTest("isClassOf Generic Nested",
+                        passPath + "isClassOfGenericNested.mt");
+        addOutputVerificationTest("isClassOf Generic Multi Param",
+                        passPath + "isClassOfGenericMultiParam.mt");
+        addOutputVerificationTest("isClassOf Generic Invariance",
+                        passPath + "isClassOfGenericInvariance.mt");
+        addOutputVerificationTest("isClassOf Generic Upcast",
+                        passPath + "isClassOfGenericUpcast.mt");
+
+        // === MYT-44: PARAMETERIZED INTERFACE isClassOf TESTS ===
+        // Verify that parameterized interface targets discriminate by type
+        // arguments (not just base interface name) and that the rebind-on-
+        // recursion step correctly handles interface-on-interface inheritance
+        // when parameter letters differ across the chain.
+        addOutputVerificationTest("isClassOf Interface Param",
+                        passPath + "isClassOfInterfaceParam.mt");
+        addOutputVerificationTest("isClassOf Interface Param Raw Fallback",
+                        passPath + "isClassOfInterfaceParamRawFallback.mt");
+        addOutputVerificationTest("isClassOf Interface Param Invariance",
+                        passPath + "isClassOfInterfaceParamInvariance.mt");
+        addOutputVerificationTest("isClassOf Interface Param Constant Binding",
+                        passPath + "isClassOfInterfaceParamConstantBinding.mt");
+        addOutputVerificationTest("isClassOf Interface Param Inherited",
+                        passPath + "isClassOfInterfaceParamInherited.mt");
+        addOutputVerificationTest("isClassOf Interface Param Nested",
+                        passPath + "isClassOfInterfaceParamNested.mt");
+
+        // === MYT-41: TYPE-PARAMETER isClassOf TESTS ===
+        // `obj isClassOf T` inside a generic method resolves T via the
+        // receiver's runtime bindings before delegating to the normal
+        // instanceof check.
+        addOutputVerificationTest("isClassOf Type Param",
+                        passPath + "isClassOfTypeParam.mt");
+        addOutputVerificationTest("isClassOf Type Param Negative",
+                        passPath + "isClassOfTypeParamNegative.mt");
+        addOutputVerificationTest("isClassOf Type Param With Primitive",
+                        passPath + "isClassOfTypeParamWithPrimitive.mt");
+
         // === INTEGRATION TESTS (5 tests) ===
         addOutputVerificationTest("Safe Downcast Pattern",
                         passPath + "safeDowncastPattern.mt");
@@ -160,6 +206,20 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Generic Type Mismatch Cast",
                         errorPath + "genericTypeMismatchCast.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === MYT-41: isClassOf ERROR TESTS ===
+        // Note: a runtime "unbound type parameter" test is not included —
+        // the compiler guard (see ExpressionCompiler::compileInstanceOf)
+        // only emits INSTANCEOF_TYPEPARAM when the RHS name matches a
+        // declared generic parameter of an enclosing class, and any
+        // normally-constructed instance of such a class has its bindings
+        // populated at `new Foo<T>(...)` time. The defensive error in
+        // TypeExecutor::resolveTypeParameter is still there, but it isn't
+        // reachable through ordinary mType source, so there's no user-facing
+        // test for it.
+        addTestFromFile("isClassOf Malformed Parameterized",
+                        errorPath + "isClassOfMalformedParameterized.mt",
                         TestType::ERROR_EXPECTED);
 
         // ====================================

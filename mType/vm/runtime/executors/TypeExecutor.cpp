@@ -5,10 +5,232 @@
 #include "../../../value/ValueObject.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/UserException.hpp"
+#include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include <sstream>
 #include <iostream>
+#include <cctype>
+
 namespace vm::runtime
 {
+    namespace
+    {
+        // ==========================================================================
+        // MYT-44 — file-local helpers for parameterized-interface matching.
+        //
+        // These implement the string-level substitution needed to discriminate
+        // `list isClassOf List<Int>` from `list isClassOf List<String>`, given
+        // that ClassDefinition::implementedInterfaces stores entries verbatim
+        // from the parser (e.g., "List<E>" where E references the declaring
+        // class's own type parameter). Nothing is wired yet; the call sites
+        // come in later steps of MYT-44.
+        // ==========================================================================
+
+        // Trim ASCII whitespace from both ends of a string.
+        std::string trimString(const std::string& s)
+        {
+            size_t start = 0;
+            while (start < s.size() && std::isspace(static_cast<unsigned char>(s[start])))
+            {
+                ++start;
+            }
+            size_t end = s.size();
+            while (end > start && std::isspace(static_cast<unsigned char>(s[end - 1])))
+            {
+                --end;
+            }
+            return s.substr(start, end - start);
+        }
+
+        // Split a type-parameter list like "<Int, Map<K, V>>" or "<Int,Map<K,V>>"
+        // into its top-level atoms: ["Int", "Map<K, V>"] / ["Int", "Map<K,V>"].
+        //
+        // Tolerates both spacing conventions — the parser emits no-space (see
+        // ParserUtils.cpp:208) while GenericType::toString() emits with-space.
+        // The depth counter guarantees that inner commas (inside nested
+        // angle brackets) do not split the outer list.
+        //
+        // Input may be the params suffix of extractTypeComponents ("<...>") or
+        // the bare inner body ("..." without enclosing brackets). Both shapes
+        // are handled — we strip a leading '<' and trailing '>' if present.
+        // An empty or malformed input returns an empty vector (defensive).
+        std::vector<std::string> splitTopLevelTypeArgs(const std::string& params)
+        {
+            std::string body = trimString(params);
+            if (body.empty())
+            {
+                return {};
+            }
+            if (body.front() == '<' && body.back() == '>')
+            {
+                body = body.substr(1, body.size() - 2);
+            }
+            body = trimString(body);
+            if (body.empty())
+            {
+                return {};
+            }
+
+            std::vector<std::string> atoms;
+            int depth = 0;
+            size_t argStart = 0;
+            for (size_t i = 0; i < body.size(); ++i)
+            {
+                char c = body[i];
+                if (c == '<')
+                {
+                    ++depth;
+                }
+                else if (c == '>')
+                {
+                    --depth;
+                    if (depth < 0)
+                    {
+                        // Unbalanced — bail out defensively.
+                        return {};
+                    }
+                }
+                else if (c == ',' && depth == 0)
+                {
+                    std::string piece = trimString(body.substr(argStart, i - argStart));
+                    if (!piece.empty())
+                    {
+                        atoms.push_back(std::move(piece));
+                    }
+                    argStart = i + 1;
+                }
+            }
+
+            if (depth != 0)
+            {
+                // Unbalanced — bail out defensively.
+                return {};
+            }
+
+            std::string last = trimString(body.substr(argStart));
+            if (!last.empty())
+            {
+                atoms.push_back(std::move(last));
+            }
+            return atoms;
+        }
+
+        // Recursively substitute type-parameter names in a type expression,
+        // using a bindings map like {"E": "Int"}.
+        //
+        // Examples:
+        //   "List<E>"            + {"E": "Int"}         → "List<Int>"
+        //   "Map<K, V>"          + {"K": "S", "V": "I"} → "Map<S, I>"
+        //   "List<Wrapper<E>>"   + {"E": "Int"}         → "List<Wrapper<Int>>"
+        //   "List<Int>"          + {}                   → "List<Int>" (no-op)
+        //   "E"                  + {"E": "Int"}         → "Int"        (leaf substitution)
+        //   "E"                  + {}                   → "E"          (verbatim fallback)
+        //
+        // The output always uses ", " (with space) between top-level atoms so
+        // the result lines up with GenericType::toString() / MYT-41's
+        // buildParameterizedName spacing contract, enabling string equality
+        // against compiler-emitted target strings.
+        //
+        // Only leaf atoms (bare identifiers with no `<...>`) are looked up in
+        // bindings. The base name of a parameterized expression like
+        // "List<E>" is NOT substituted — "List" stays as a class name,
+        // only "E" becomes the lookup target. Unknown atoms are left
+        // verbatim (matching the partial-binding fallback used by
+        // buildParameterizedName at line 661).
+        std::string substituteTypeExpression(
+            const std::string& expr,
+            const std::unordered_map<std::string, std::string>& bindings)
+        {
+            std::string trimmed = trimString(expr);
+            if (trimmed.empty())
+            {
+                return trimmed;
+            }
+
+            // Split base from params using the same extractor the rest of
+            // TypeExecutor already relies on (first '<').
+            size_t genericStart = trimmed.find('<');
+            std::string base;
+            std::string params;
+            if (genericStart == std::string::npos)
+            {
+                base = trimmed;
+                params = "";
+            }
+            else
+            {
+                base = trimmed.substr(0, genericStart);
+                params = trimmed.substr(genericStart); // keeps the "<...>"
+            }
+
+            if (params.empty())
+            {
+                // Leaf — look up in bindings, otherwise verbatim fallback.
+                auto it = bindings.find(base);
+                if (it != bindings.end() && !it->second.empty())
+                {
+                    return it->second;
+                }
+                return base;
+            }
+
+            // Parameterized — recurse into each atom. Base name is preserved.
+            std::vector<std::string> atoms = splitTopLevelTypeArgs(params);
+            std::string out = base;
+            out += "<";
+            for (size_t i = 0; i < atoms.size(); ++i)
+            {
+                if (i > 0) out += ", "; // MYT-41 spacing contract
+                out += substituteTypeExpression(atoms[i], bindings);
+            }
+            out += ">";
+            return out;
+        }
+
+        // Compute a fresh binding map for recursion into an interface's own
+        // extended-interfaces list. Takes the substituted type-arguments
+        // (e.g., "<Int>") and the target interface's declared parameters
+        // (e.g., [B] for `interface SortedList<B>`) and produces a map keyed
+        // by the NEW interface's parameter names.
+        //
+        // This is the rebind step that makes interface-on-interface
+        // inheritance correct even when parameter names differ across the
+        // chain. Without it, passing parent bindings down would only work
+        // when names accidentally coincide.
+        //
+        // On size mismatch (malformed input or raw extends), returns an
+        // empty map — callers should interpret that as "bail out of
+        // parameterized recursion for this branch."
+        std::unordered_map<std::string, std::string> rebindForInterface(
+            const runtimeTypes::klass::InterfaceDefinition* ifaceDef,
+            const std::string& substitutedParams)
+        {
+            std::unordered_map<std::string, std::string> result;
+            if (!ifaceDef)
+            {
+                return result;
+            }
+
+            const auto& declaredParams = ifaceDef->getGenericParameters();
+            if (declaredParams.empty())
+            {
+                return result;
+            }
+
+            std::vector<std::string> atoms = splitTopLevelTypeArgs(substitutedParams);
+            if (atoms.size() != declaredParams.size())
+            {
+                // Arity mismatch — refuse to guess, return empty.
+                return result;
+            }
+
+            for (size_t i = 0; i < declaredParams.size(); ++i)
+            {
+                result[declaredParams[i].name] = atoms[i];
+            }
+            return result;
+        }
+    } // anonymous namespace
+
     TypeExecutor::TypeExecutor(ExecutionContext& ctx)
         : context(ctx)
     {}
@@ -20,18 +242,66 @@ namespace vm::runtime
         // Pop value to check
         value::Value val = context.stackManager->pop();
 
-        bool result = false;
-
-        // Check if it's a primitive type
-        if (checkInstanceofPrimitive(val, targetTypeName)) {
-            result = true;
-        } else {
-            // Check if it's an object type
-            result = checkInstanceofObject(val, targetTypeName);
-        }
+        // Shared FFI entry point — same code path as ScriptAPI::isInstanceOf.
+        bool result = checkInstanceOfByName(val, targetTypeName, context.environment);
 
         // Push boolean result onto stack
         context.stackManager->push(result);
+    }
+
+    void TypeExecutor::handleInstanceofTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {
+        // The operand is a constant-pool string index holding the bare type
+        // parameter name (e.g. "T"). Resolve it against the current receiver's
+        // generic bindings, then chain into the existing instanceof machinery
+        // exactly as if the user had written `obj isClassOf <concrete>`.
+        const std::string& paramName = context.program->getConstantPool().getString(instr.operands[0]);
+        std::string resolved = resolveTypeParameter(paramName);
+
+        value::Value val = context.stackManager->pop();
+
+        bool result = checkInstanceOfByName(val, resolved, context.environment);
+
+        context.stackManager->push(result);
+    }
+
+    bool TypeExecutor::checkInstanceOfByName(
+        const value::Value& val,
+        const std::string& targetTypeName,
+        const std::shared_ptr<environment::Environment>& env) {
+        if (checkInstanceofPrimitive(val, targetTypeName)) {
+            return true;
+        }
+        return checkInstanceofObject(val, targetTypeName, env.get());
+    }
+
+    std::string TypeExecutor::resolveTypeParameter(const std::string& paramName) {
+        // Walk from the innermost frame outward looking for a receiver whose
+        // class declares this type parameter. Instance-method frames on a
+        // generic class carry the binding on `thisInstance`; free generic
+        // functions (no `this`) are NOT supported in v1 — the error message
+        // names that restriction so users can tell it apart from other cases.
+        auto& callStack = context.callStack;
+        if (callStack.empty()) {
+            throw errors::RuntimeException(
+                "Type parameter '" + paramName +
+                "' cannot be resolved outside of a function call");
+        }
+
+        for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
+            const auto& frame = *it;
+            if (!frame.thisInstance) {
+                continue;
+            }
+            const auto& bindings = frame.thisInstance->getGenericTypeBindings();
+            auto found = bindings.find(paramName);
+            if (found != bindings.end() && !found->second.empty()) {
+                return found->second;
+            }
+        }
+
+        throw errors::RuntimeException(
+            "Type parameter '" + paramName +
+            "' is not bound in this context (free generic functions are not yet supported)");
     }
 
     void TypeExecutor::handleCast(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -59,6 +329,7 @@ namespace vm::runtime
         }
     }
 
+    // static
     bool TypeExecutor::checkInstanceofPrimitive(const value::Value& val, const std::string& targetTypeName) {
         if (targetTypeName == "Int" || targetTypeName == "int") {
             return std::holds_alternative<int64_t>(val);
@@ -75,54 +346,121 @@ namespace vm::runtime
         return false;
     }
 
-    bool TypeExecutor::checkInstanceofObject(const value::Value& val, const std::string& targetTypeName) {
+    bool TypeExecutor::checkInstanceofObject(
+        const value::Value& val,
+        const std::string& targetTypeName,
+        environment::Environment* env) {
         // Object type check
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
             auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
 
             if (obj) {
                 auto classDef = obj->getClassDefinition();
-                std::string className = classDef->getName();
+                // Reconstruct the FULL parameterized type (e.g. "Box<Int>") from
+                // runtime bindings — classDef->getName() is the raw "Box" only
+                // (MYT-40 Option A). This is what enables `box isClassOf Box<Int>`
+                // to discriminate from `Box<String>`.
+                std::string className = reconstructObjectFullType(obj);
 
                 // Extract base class name from generic instantiation (e.g., "Box<Int>" -> "Box")
                 std::string baseClassName = ::types::TypeConversionUtils::extractBaseTypeName(className);
                 std::string baseTargetName = ::types::TypeConversionUtils::extractBaseTypeName(targetTypeName);
 
-                // Check if object's class matches target type (exact or base generic match)
-                bool result = (className == targetTypeName) || (baseClassName == baseTargetName);
+                // Parameterized-target guard: if the target has type arguments,
+                // we must NOT fall through to the base-only match — otherwise
+                // Box<String> would incorrectly satisfy `isClassOf Box<Int>`.
+                // Extract the target's type-params suffix once so both the
+                // exact-match and upcast paths can inspect it.
+                bool targetHasParams = (targetTypeName.find('<') != std::string::npos);
+
+                bool result = false;
+                if (className == targetTypeName) {
+                    // Exact full-type match — works for both raw and parameterized.
+                    result = true;
+                } else if (!targetHasParams && baseClassName == baseTargetName) {
+                    // Raw target — backward compat: `Box<Int> isClassOf Box` → true.
+                    // Only fires when the target has no `<...>`.
+                    result = true;
+                }
 
                 // If not exact match, check inheritance hierarchy
                 if (!result) {
-                    result = classDef->isSubclassOf(targetTypeName);
+                    if (!targetHasParams) {
+                        // Raw target — existing behavior: walk subclass chain
+                        // by name, allowing erased-to-base matches.
+                        result = classDef->isSubclassOf(targetTypeName);
 
-                    // Also check with base names for generic types
-                    if (!result && baseTargetName != targetTypeName) {
-                        result = classDef->isSubclassOf(baseTargetName);
+                        if (!result && baseTargetName != targetTypeName) {
+                            result = classDef->isSubclassOf(baseTargetName);
+                        }
+                    } else {
+                        // Parameterized target — upcast only succeeds when the
+                        // base matches by inheritance AND the type argument
+                        // strings agree. Propagating type arguments through
+                        // `extends` is out of scope for v1 (documented).
+                        std::string classParams;
+                        size_t genericStart = className.find('<');
+                        if (genericStart != std::string::npos) {
+                            classParams = className.substr(genericStart);
+                        }
+                        std::string targetParams = targetTypeName.substr(targetTypeName.find('<'));
+                        if (classDef->isSubclassOf(baseTargetName) &&
+                            classParams == targetParams) {
+                            result = true;
+                        }
                     }
                 }
 
-                // Also check if object implements an interface with that name
-                // IMPORTANT: Must check interface hierarchy recursively
-                // AND check parent classes' interfaces too
+                // Also check if object implements an interface with that name.
+                // Walks up the inheritance chain checking interfaces at each
+                // level. Two code paths coexist:
+                //
+                //  - Raw target (MYT-41 unchanged): strip generics, compare
+                //    base names, recurse via raw checkInterfaceHierarchy.
+                //  - Parameterized target (MYT-44): substitute the interface
+                //    entries through the receiver's generic bindings, compare
+                //    the reconstructed form verbatim, recurse via
+                //    checkInterfaceHierarchyParam with rebound bindings at
+                //    each interface-inheritance step.
                 if (!result) {
-                    // Walk up the inheritance chain checking interfaces at each level
                     auto currentClass = classDef;
                     while (currentClass && !result) {
                         const auto& interfaces = currentClass->getImplementedInterfaces();
                         for (const auto& iface : interfaces) {
-                            // Extract base interface name for comparison
-                            std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
-
-                            if (iface == targetTypeName || baseIfaceName == baseTargetName) {
-                                result = true;
-                                break;
-                            }
-
-                            // Check if this interface extends the target interface (interface inheritance)
-                            std::unordered_set<std::string> visited;
-                            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
-                                result = true;
-                                break;
+                            if (targetHasParams) {
+                                // MYT-44: substitute declaration-time type args
+                                // (e.g. "List<E>") using the receiver's runtime
+                                // bindings ({"E": "Int"}) to produce "List<Int>",
+                                // then compare against the target.
+                                std::string substituted = substituteTypeExpression(
+                                    iface, obj->getGenericTypeBindings());
+                                if (substituted == targetTypeName) {
+                                    result = true;
+                                    break;
+                                }
+                                // Recurse through interface-on-interface
+                                // inheritance, rebinding at each step so
+                                // parameter names can differ across the chain.
+                                std::unordered_set<std::string> visited;
+                                if (checkInterfaceHierarchyParam(
+                                        substituted, targetTypeName, visited,
+                                        obj->getGenericTypeBindings(), env)) {
+                                    result = true;
+                                    break;
+                                }
+                            } else {
+                                // MYT-41 raw path, unchanged.
+                                std::string baseIfaceName =
+                                    ::types::TypeConversionUtils::extractBaseTypeName(iface);
+                                if (iface == targetTypeName || baseIfaceName == baseTargetName) {
+                                    result = true;
+                                    break;
+                                }
+                                std::unordered_set<std::string> visited;
+                                if (checkInterfaceHierarchy(iface, targetTypeName, visited, env)) {
+                                    result = true;
+                                    break;
+                                }
                             }
                         }
 
@@ -141,25 +479,55 @@ namespace vm::runtime
             auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
             if (obj) {
                 auto classDef = obj->getClassDefinition();
-                std::string className = classDef->getName();
+                // Reconstruct the full parameterized type from bindings —
+                // value classes CAN be generic, so we mirror the ObjectInstance
+                // path. Note that most value-class instances won't have
+                // bindings, so this reduces to classDef->getName() for them.
+                std::string className = reconstructValueObjectFullType(obj);
                 std::string baseClassName = ::types::TypeConversionUtils::extractBaseTypeName(className);
                 std::string baseTargetName = ::types::TypeConversionUtils::extractBaseTypeName(targetTypeName);
+                bool targetHasParams = (targetTypeName.find('<') != std::string::npos);
 
-                bool result = (className == targetTypeName) || (baseClassName == baseTargetName);
+                bool result = false;
+                if (className == targetTypeName) {
+                    result = true;
+                } else if (!targetHasParams && baseClassName == baseTargetName) {
+                    result = true;
+                }
 
-                // Check implemented interfaces
+                // Check implemented interfaces — mirrors the ObjectInstance
+                // branch above for value classes. Raw target uses the
+                // existing checkInterfaceHierarchy path; parameterized
+                // target uses MYT-44's substitution-based walk.
                 if (!result) {
                     const auto& interfaces = classDef->getImplementedInterfaces();
                     for (const auto& iface : interfaces) {
-                        std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
-                        if (iface == targetTypeName || baseIfaceName == baseTargetName) {
-                            result = true;
-                            break;
-                        }
-                        std::unordered_set<std::string> visited;
-                        if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
-                            result = true;
-                            break;
+                        if (targetHasParams) {
+                            std::string substituted = substituteTypeExpression(
+                                iface, obj->getGenericTypeBindings());
+                            if (substituted == targetTypeName) {
+                                result = true;
+                                break;
+                            }
+                            std::unordered_set<std::string> visited;
+                            if (checkInterfaceHierarchyParam(
+                                    substituted, targetTypeName, visited,
+                                    obj->getGenericTypeBindings(), env)) {
+                                result = true;
+                                break;
+                            }
+                        } else {
+                            std::string baseIfaceName =
+                                ::types::TypeConversionUtils::extractBaseTypeName(iface);
+                            if (iface == targetTypeName || baseIfaceName == baseTargetName) {
+                                result = true;
+                                break;
+                            }
+                            std::unordered_set<std::string> visited;
+                            if (checkInterfaceHierarchy(iface, targetTypeName, visited, env)) {
+                                result = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -370,7 +738,7 @@ namespace vm::runtime
         const auto& interfaces = classDef->getImplementedInterfaces();
         for (const auto& iface : interfaces) {
             std::unordered_set<std::string> visited;
-            if (checkInterfaceHierarchy(iface, targetTypeName, visited)) {
+            if (checkInterfaceHierarchy(iface, targetTypeName, visited, context.environment.get())) {
                 return true;
             }
         }
@@ -458,7 +826,8 @@ namespace vm::runtime
     bool TypeExecutor::checkInterfaceHierarchy(
         const std::string& interfaceName,
         const std::string& targetInterface,
-        std::unordered_set<std::string>& visited
+        std::unordered_set<std::string>& visited,
+        environment::Environment* env
     ) {
         // Avoid infinite loops with circular dependencies
         if (visited.count(interfaceName)) {
@@ -498,13 +867,82 @@ namespace vm::runtime
         }
 
         // Check extended interfaces recursively
-        auto interfaceDef = context.environment->findInterface(interfaceName);
+        auto interfaceDef = env ? env->findInterface(interfaceName) : nullptr;
         if (interfaceDef) {
             const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
             for (const auto& extendedInterface : extendedInterfaces) {
-                if (checkInterfaceHierarchy(extendedInterface, targetInterface, visited)) {
+                if (checkInterfaceHierarchy(extendedInterface, targetInterface, visited, env)) {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    // MYT-44: parameterized interface-hierarchy walk.
+    //
+    // `interfaceName` is already substituted (e.g. "SortedList<Int>") — the
+    // caller resolved the receiver's bindings before invoking us. At each
+    // recursion step we look up the interface's definition, rebuild the
+    // binding map using the interface's OWN declared parameters (which may
+    // use different letters than the caller), then substitute its extended
+    // interfaces and recurse.
+    //
+    // Split from the raw-mode overload because the two modes have materially
+    // different recursion contracts (bindings must travel alongside the name
+    // in parameterized mode) and MYT-44 explicitly does not want to risk
+    // regressing the raw path.
+    bool TypeExecutor::checkInterfaceHierarchyParam(
+        const std::string& interfaceName,
+        const std::string& targetInterface,
+        std::unordered_set<std::string>& visited,
+        const std::unordered_map<std::string, std::string>& bindings,
+        environment::Environment* env
+    ) {
+        // Avoid infinite loops with circular dependencies. Use the full
+        // substituted name as the visited key so two different parameterized
+        // views of the same template (e.g. SortedList<Int> vs SortedList<String>
+        // reached through different paths) don't collide.
+        if (visited.count(interfaceName)) {
+            return false;
+        }
+        visited.insert(interfaceName);
+
+        // Direct match on the already-substituted form.
+        if (interfaceName == targetInterface) {
+            return true;
+        }
+
+        // Split current interface into base + params so we can both look up
+        // the InterfaceDefinition (by raw base name) AND feed the substituted
+        // args into rebindForInterface for the recursion step.
+        TypeComponents currentComp = extractTypeComponents(interfaceName);
+
+        // Look up the interface by its raw base name. If it's not registered
+        // as an interface, we can't walk further — return the direct match
+        // result we already checked.
+        auto interfaceDef = env ? env->findInterface(currentComp.baseName) : nullptr;
+        if (!interfaceDef) {
+            return false;
+        }
+
+        // Rebuild the binding map using the interface's own declared params.
+        // When arity matches, this gives us new bindings keyed by the
+        // interface's parameter names. When it doesn't (e.g. a raw extends
+        // clause or malformed input), rebindForInterface returns empty and
+        // any substitutions in this recursion step will fall back to the
+        // verbatim behavior — which is still correct for raw targets but
+        // will fail the parameterized match, as desired.
+        auto newBindings = rebindForInterface(interfaceDef.get(), currentComp.typeParams);
+
+        // Walk the extended-interfaces list, substituting each entry against
+        // the new bindings and recursing with them.
+        const auto& extendedInterfaces = interfaceDef->getExtendedInterfaces();
+        for (const auto& extendedInterface : extendedInterfaces) {
+            std::string substituted = substituteTypeExpression(extendedInterface, newBindings);
+            if (checkInterfaceHierarchyParam(substituted, targetInterface, visited, newBindings, env)) {
+                return true;
             }
         }
 
@@ -540,5 +978,57 @@ namespace vm::runtime
             return obj ? "<" + obj->getClassName() + ">" : "null";
         }
         return "<object>";
+    }
+
+    std::string TypeExecutor::buildParameterizedName(
+        const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef,
+        const std::unordered_map<std::string, std::string>& bindings) {
+        const auto& declaredParams = classDef->getGenericParameters();
+        if (declaredParams.empty()) {
+            return classDef->getName();
+        }
+
+        // Partial bindings → type-erased fallback (raw base name). Matches
+        // the existing backward-compat behavior for instances created via
+        // `new Box(...)` without explicit type arguments.
+        std::vector<std::string> args;
+        args.reserve(declaredParams.size());
+        for (const auto& p : declaredParams) {
+            auto it = bindings.find(p.name);
+            if (it == bindings.end() || it->second.empty()) {
+                return classDef->getName();
+            }
+            args.push_back(it->second);
+        }
+
+        // Spacing MUST match ast::GenericType::toString() exactly ("<", ", ", ">")
+        // so the compiler-emitted target string and the runtime-reconstructed
+        // receiver string are comparable via raw string equality.
+        std::string out = classDef->getName();
+        out += "<";
+        for (size_t i = 0; i < args.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += args[i];
+        }
+        out += ">";
+        return out;
+    }
+
+    std::string TypeExecutor::reconstructObjectFullType(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj) {
+        if (!obj) {
+            return "";
+        }
+        return buildParameterizedName(obj->getClassDefinition(),
+                                      obj->getGenericTypeBindings());
+    }
+
+    std::string TypeExecutor::reconstructValueObjectFullType(
+        const std::shared_ptr<value::ValueObject>& obj) {
+        if (!obj) {
+            return "";
+        }
+        return buildParameterizedName(obj->getClassDefinition(),
+                                      obj->getGenericTypeBindings());
     }
 }

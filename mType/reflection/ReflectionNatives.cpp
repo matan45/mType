@@ -43,7 +43,10 @@ namespace reflection
         nativeRegistry->registerNativeFunction("__reflect_newInstance", __reflect_newInstance);
         nativeRegistry->registerNativeFunction("__reflect_isGenericClass", __reflect_isGenericClass);
         nativeRegistry->registerNativeFunction("__reflect_getTypeParameters", __reflect_getTypeParameters);
+        nativeRegistry->registerNativeFunction("__reflect_getTypeArguments", __reflect_getTypeArguments);
         nativeRegistry->registerNativeFunction("__reflect_getClassModifiers", __reflect_getClassModifiers);
+        nativeRegistry->registerNativeFunction("__reflect_getName", __reflect_getName);
+        nativeRegistry->registerNativeFunction("__reflect_getRawName", __reflect_getRawName);
 
         // Field reflection
         nativeRegistry->registerNativeFunction("__reflect_getField", __reflect_getField);

@@ -1,0 +1,5 @@
+Arg getName: Int
+Arg getRawName: Int
+Arg isGeneric: false
+Arg isOpen: true
+Test passed

@@ -78,6 +78,44 @@ namespace tests::testSuite
         addOutputVerificationTest("Generic Class Reflection",
                         passPath + "genericClassReflection.mt");
 
+        // === PARAMETERIZED TYPE REFLECTION TESTS (MYT-40) ===
+        // Tests that Class.forName("Box<Int>") and getTypeArguments() surface
+        // the reified type arguments of closed parameterized generic classes.
+
+        addOutputVerificationTest("Get Type Arguments Basic",
+                        passPath + "getTypeArgumentsBasic.mt");
+        addOutputVerificationTest("Get Type Arguments Are Classes",
+                        passPath + "getTypeArgumentsAreClasses.mt");
+        addOutputVerificationTest("Get Type Arguments Multiple Params",
+                        passPath + "getTypeArgumentsMultipleParams.mt");
+        addOutputVerificationTest("Get Type Arguments Aligned With Parameters",
+                        passPath + "getTypeArgumentsAlignedWithParameters.mt");
+        addOutputVerificationTest("Get Type Arguments Empty For Open",
+                        passPath + "getTypeArgumentsEmptyForOpen.mt");
+        addOutputVerificationTest("Get Type Arguments Empty For Non Generic",
+                        passPath + "getTypeArgumentsEmptyForNonGeneric.mt");
+        addOutputVerificationTest("Class Get Name Parameterized",
+                        passPath + "classGetNameParameterized.mt");
+        addOutputVerificationTest("Class Get Name Nested",
+                        passPath + "classGetNameNested.mt");
+        addOutputVerificationTest("Open Vs Closed Not Equal",
+                        passPath + "openVsClosedNotEqual.mt");
+        addOutputVerificationTest("For Name Identity Convergence",
+                        passPath + "forNameIdentityConvergence.mt");
+        addOutputVerificationTest("Get Class Name Still Raw",
+                        passPath + "getClassNameStillRaw.mt");
+
+        // Box<T>-centric coverage — drives the parser, interning, and
+        // nested-generic code paths through a single shared generic class.
+        addOutputVerificationTest("Box Template Reflection",
+                        passPath + "boxTemplateReflection.mt");
+        addOutputVerificationTest("Box Multiple Primitives",
+                        passPath + "boxMultiplePrimitives.mt");
+        addOutputVerificationTest("Box Of Box",
+                        passPath + "boxOfBox.mt");
+        addOutputVerificationTest("Box User Class",
+                        passPath + "boxUserClass.mt");
+
         // === INVOCATION TESTS ===
         // Tests for method invocation and constructor invocation via reflection
 
@@ -101,6 +139,9 @@ namespace tests::testSuite
 
         addTestFromFile("Class Not Found Error",
                         errorPath + "classNotFound.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("For Name Invalid Parameterized",
+                        errorPath + "forNameInvalidParameterized.mt",
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Field Not Found Error",
                         errorPath + "fieldNotFound.mt",
