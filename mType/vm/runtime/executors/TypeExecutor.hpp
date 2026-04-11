@@ -5,6 +5,7 @@
 #include "../../../value/StringPool.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ValueObject.hpp"
 #include <functional>
 #include <unordered_set>
 
@@ -23,6 +24,7 @@ namespace vm::runtime
 
         // Type operations
         void handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleInstanceofTypeParam(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCast(const bytecode::BytecodeProgram::Instruction& instr);
 
     private:
@@ -31,6 +33,29 @@ namespace vm::runtime
         // Helper methods for type checking
         bool checkInstanceofPrimitive(const value::Value& val, const std::string& targetTypeName);
         bool checkInstanceofObject(const value::Value& val, const std::string& targetTypeName);
+
+        // Resolve a type-parameter name (e.g. "T") to its bound concrete type
+        // name via the current receiver's generic bindings. Throws a clean
+        // RuntimeException if the parameter cannot be resolved (no this,
+        // unbound parameter, etc.).
+        std::string resolveTypeParameter(const std::string& paramName);
+
+        // Reconstruct the full parameterized type name for a runtime receiver.
+        // For a new Box<Int>(...) instance returns "Box<Int>"; falls back to
+        // the raw class name if the instance has no declared generic
+        // parameters OR if its bindings are incomplete (partial / erased).
+        // Matches the exact spacing produced by ast::GenericType::toString()
+        // (", " after commas) so string equality against the compiler-emitted
+        // target name is valid.
+        std::string reconstructObjectFullType(
+            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+        std::string reconstructValueObjectFullType(
+            const std::shared_ptr<value::ValueObject>& obj);
+
+        // Shared join helper used by both reconstruction paths.
+        std::string buildParameterizedName(
+            const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef,
+            const std::unordered_map<std::string, std::string>& bindings);
 
         // Helper methods for casting
         value::Value castToInt(const value::Value& val);

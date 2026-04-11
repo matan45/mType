@@ -153,6 +153,7 @@ namespace vm::optimization
             case OpCode::STORE_LOCAL:
             case OpCode::STORE_GLOBAL:
             case OpCode::INSTANCEOF:
+            case OpCode::INSTANCEOF_TYPEPARAM:
             case OpCode::CAST:
             case OpCode::CHECK_TYPE:
             case OpCode::ARRAY_LENGTH:
@@ -218,6 +219,7 @@ namespace vm::optimization
             case OpCode::INC:
             case OpCode::DEC:
             case OpCode::INSTANCEOF:
+            case OpCode::INSTANCEOF_TYPEPARAM:
             case OpCode::CAST:
             case OpCode::CHECK_TYPE:
             case OpCode::ARRAY_LENGTH:

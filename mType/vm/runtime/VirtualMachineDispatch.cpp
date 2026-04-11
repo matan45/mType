@@ -283,6 +283,8 @@ namespace vm::runtime
         // Type operations - delegated to TypeExecutor
         case OpCode::INSTANCEOF: typeExecutor->handleInstanceof(instr);
             break;
+        case OpCode::INSTANCEOF_TYPEPARAM: typeExecutor->handleInstanceofTypeParam(instr);
+            break;
         case OpCode::CAST: typeExecutor->handleCast(instr);
             break;
 

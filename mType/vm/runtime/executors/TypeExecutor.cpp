@@ -34,6 +34,56 @@ namespace vm::runtime
         context.stackManager->push(result);
     }
 
+    void TypeExecutor::handleInstanceofTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {
+        // The operand is a constant-pool string index holding the bare type
+        // parameter name (e.g. "T"). Resolve it against the current receiver's
+        // generic bindings, then chain into the existing instanceof machinery
+        // exactly as if the user had written `obj isClassOf <concrete>`.
+        const std::string& paramName = context.program->getConstantPool().getString(instr.operands[0]);
+        std::string resolved = resolveTypeParameter(paramName);
+
+        value::Value val = context.stackManager->pop();
+
+        bool result = false;
+        if (checkInstanceofPrimitive(val, resolved)) {
+            result = true;
+        } else {
+            result = checkInstanceofObject(val, resolved);
+        }
+
+        context.stackManager->push(result);
+    }
+
+    std::string TypeExecutor::resolveTypeParameter(const std::string& paramName) {
+        // Walk from the innermost frame outward looking for a receiver whose
+        // class declares this type parameter. Instance-method frames on a
+        // generic class carry the binding on `thisInstance`; free generic
+        // functions (no `this`) are NOT supported in v1 — the error message
+        // names that restriction so users can tell it apart from other cases.
+        auto& callStack = context.callStack;
+        if (callStack.empty()) {
+            throw errors::RuntimeException(
+                "Type parameter '" + paramName +
+                "' cannot be resolved outside of a function call");
+        }
+
+        for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
+            const auto& frame = *it;
+            if (!frame.thisInstance) {
+                continue;
+            }
+            const auto& bindings = frame.thisInstance->getGenericTypeBindings();
+            auto found = bindings.find(paramName);
+            if (found != bindings.end() && !found->second.empty()) {
+                return found->second;
+            }
+        }
+
+        throw errors::RuntimeException(
+            "Type parameter '" + paramName +
+            "' is not bound in this context (free generic functions are not yet supported)");
+    }
+
     void TypeExecutor::handleCast(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get target type name from constant pool
         const std::string& targetTypeName = context.program->getConstantPool().getString(instr.operands[0]);
@@ -82,29 +132,68 @@ namespace vm::runtime
 
             if (obj) {
                 auto classDef = obj->getClassDefinition();
-                std::string className = classDef->getName();
+                // Reconstruct the FULL parameterized type (e.g. "Box<Int>") from
+                // runtime bindings — classDef->getName() is the raw "Box" only
+                // (MYT-40 Option A). This is what enables `box isClassOf Box<Int>`
+                // to discriminate from `Box<String>`.
+                std::string className = reconstructObjectFullType(obj);
 
                 // Extract base class name from generic instantiation (e.g., "Box<Int>" -> "Box")
                 std::string baseClassName = ::types::TypeConversionUtils::extractBaseTypeName(className);
                 std::string baseTargetName = ::types::TypeConversionUtils::extractBaseTypeName(targetTypeName);
 
-                // Check if object's class matches target type (exact or base generic match)
-                bool result = (className == targetTypeName) || (baseClassName == baseTargetName);
+                // Parameterized-target guard: if the target has type arguments,
+                // we must NOT fall through to the base-only match — otherwise
+                // Box<String> would incorrectly satisfy `isClassOf Box<Int>`.
+                // Extract the target's type-params suffix once so both the
+                // exact-match and upcast paths can inspect it.
+                bool targetHasParams = (targetTypeName.find('<') != std::string::npos);
+
+                bool result = false;
+                if (className == targetTypeName) {
+                    // Exact full-type match — works for both raw and parameterized.
+                    result = true;
+                } else if (!targetHasParams && baseClassName == baseTargetName) {
+                    // Raw target — backward compat: `Box<Int> isClassOf Box` → true.
+                    // Only fires when the target has no `<...>`.
+                    result = true;
+                }
 
                 // If not exact match, check inheritance hierarchy
                 if (!result) {
-                    result = classDef->isSubclassOf(targetTypeName);
+                    if (!targetHasParams) {
+                        // Raw target — existing behavior: walk subclass chain
+                        // by name, allowing erased-to-base matches.
+                        result = classDef->isSubclassOf(targetTypeName);
 
-                    // Also check with base names for generic types
-                    if (!result && baseTargetName != targetTypeName) {
-                        result = classDef->isSubclassOf(baseTargetName);
+                        if (!result && baseTargetName != targetTypeName) {
+                            result = classDef->isSubclassOf(baseTargetName);
+                        }
+                    } else {
+                        // Parameterized target — upcast only succeeds when the
+                        // base matches by inheritance AND the type argument
+                        // strings agree. Propagating type arguments through
+                        // `extends` is out of scope for v1 (documented).
+                        std::string classParams;
+                        size_t genericStart = className.find('<');
+                        if (genericStart != std::string::npos) {
+                            classParams = className.substr(genericStart);
+                        }
+                        std::string targetParams = targetTypeName.substr(targetTypeName.find('<'));
+                        if (classDef->isSubclassOf(baseTargetName) &&
+                            classParams == targetParams) {
+                            result = true;
+                        }
                     }
                 }
 
-                // Also check if object implements an interface with that name
-                // IMPORTANT: Must check interface hierarchy recursively
-                // AND check parent classes' interfaces too
-                if (!result) {
+                // Also check if object implements an interface with that name.
+                // IMPORTANT: Must check interface hierarchy recursively AND
+                // check parent classes' interfaces too. When the target is
+                // parameterized (e.g. `List<Int>`), the interface branch is
+                // skipped — threading interface-declaration type parameters
+                // through receiver bindings is out of scope for v1.
+                if (!result && !targetHasParams) {
                     // Walk up the inheritance chain checking interfaces at each level
                     auto currentClass = classDef;
                     while (currentClass && !result) {
@@ -141,14 +230,25 @@ namespace vm::runtime
             auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
             if (obj) {
                 auto classDef = obj->getClassDefinition();
-                std::string className = classDef->getName();
+                // Reconstruct the full parameterized type from bindings —
+                // value classes CAN be generic, so we mirror the ObjectInstance
+                // path. Note that most value-class instances won't have
+                // bindings, so this reduces to classDef->getName() for them.
+                std::string className = reconstructValueObjectFullType(obj);
                 std::string baseClassName = ::types::TypeConversionUtils::extractBaseTypeName(className);
                 std::string baseTargetName = ::types::TypeConversionUtils::extractBaseTypeName(targetTypeName);
+                bool targetHasParams = (targetTypeName.find('<') != std::string::npos);
 
-                bool result = (className == targetTypeName) || (baseClassName == baseTargetName);
+                bool result = false;
+                if (className == targetTypeName) {
+                    result = true;
+                } else if (!targetHasParams && baseClassName == baseTargetName) {
+                    result = true;
+                }
 
-                // Check implemented interfaces
-                if (!result) {
+                // Check implemented interfaces — only for raw targets
+                // (parameterized interface matching is out of scope for v1).
+                if (!result && !targetHasParams) {
                     const auto& interfaces = classDef->getImplementedInterfaces();
                     for (const auto& iface : interfaces) {
                         std::string baseIfaceName = ::types::TypeConversionUtils::extractBaseTypeName(iface);
@@ -540,5 +640,57 @@ namespace vm::runtime
             return obj ? "<" + obj->getClassName() + ">" : "null";
         }
         return "<object>";
+    }
+
+    std::string TypeExecutor::buildParameterizedName(
+        const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef,
+        const std::unordered_map<std::string, std::string>& bindings) {
+        const auto& declaredParams = classDef->getGenericParameters();
+        if (declaredParams.empty()) {
+            return classDef->getName();
+        }
+
+        // Partial bindings → type-erased fallback (raw base name). Matches
+        // the existing backward-compat behavior for instances created via
+        // `new Box(...)` without explicit type arguments.
+        std::vector<std::string> args;
+        args.reserve(declaredParams.size());
+        for (const auto& p : declaredParams) {
+            auto it = bindings.find(p.name);
+            if (it == bindings.end() || it->second.empty()) {
+                return classDef->getName();
+            }
+            args.push_back(it->second);
+        }
+
+        // Spacing MUST match ast::GenericType::toString() exactly ("<", ", ", ">")
+        // so the compiler-emitted target string and the runtime-reconstructed
+        // receiver string are comparable via raw string equality.
+        std::string out = classDef->getName();
+        out += "<";
+        for (size_t i = 0; i < args.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += args[i];
+        }
+        out += ">";
+        return out;
+    }
+
+    std::string TypeExecutor::reconstructObjectFullType(
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj) {
+        if (!obj) {
+            return "";
+        }
+        return buildParameterizedName(obj->getClassDefinition(),
+                                      obj->getGenericTypeBindings());
+    }
+
+    std::string TypeExecutor::reconstructValueObjectFullType(
+        const std::shared_ptr<value::ValueObject>& obj) {
+        if (!obj) {
+            return "";
+        }
+        return buildParameterizedName(obj->getClassDefinition(),
+                                      obj->getGenericTypeBindings());
     }
 }

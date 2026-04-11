@@ -73,7 +73,8 @@ namespace vm::jit
                 case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:
                 case OpCode::ARRAY_GET_INT_LOCAL: case OpCode::ARRAY_SET_INT_LOCAL:
                 case OpCode::ARRAY_LENGTH_LOCAL:
-                case OpCode::INSTANCEOF:  case OpCode::CAST:
+                case OpCode::INSTANCEOF:  case OpCode::INSTANCEOF_TYPEPARAM:
+                case OpCode::CAST:
                     return true;
                 default: break;
             }

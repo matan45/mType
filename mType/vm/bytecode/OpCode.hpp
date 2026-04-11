@@ -116,7 +116,8 @@ namespace vm::bytecode
         THIS_CONSTRUCTOR,   // Call another constructor in the same class
 
         // === Type Operations (80-85) ===
-        INSTANCEOF,         // Check if object is instance of class
+        INSTANCEOF,         // Check if object is instance of class (operand: type name string index)
+        INSTANCEOF_TYPEPARAM, // Check instance-of against a type parameter (operand: parameter name string index)
         CAST,               // Cast object to type
         CHECK_TYPE,         // Runtime type check
         TYPE_CONVERT,       // Type conversion
@@ -332,6 +333,7 @@ namespace vm::bytecode
             case OpCode::THIS_CONSTRUCTOR: return "THIS_CONSTRUCTOR";
 
             case OpCode::INSTANCEOF: return "INSTANCEOF";
+            case OpCode::INSTANCEOF_TYPEPARAM: return "INSTANCEOF_TYPEPARAM";
             case OpCode::CAST: return "CAST";
             case OpCode::CHECK_TYPE: return "CHECK_TYPE";
             case OpCode::TYPE_CONVERT: return "TYPE_CONVERT";

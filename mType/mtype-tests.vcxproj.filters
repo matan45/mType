@@ -1684,6 +1684,12 @@
     <None Include="tests\testFiles\cast\error\invalidInterfaceCast.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
+    <None Include="tests\testFiles\cast\error\isClassOfMalformedParameterized.mt">
+      <Filter>testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\isClassOfUnboundTypeParam.mt">
+      <Filter>testFiles\cast\error</Filter>
+    </None>
     <None Include="tests\testFiles\cast\error\nullToPrimitiveCast.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
@@ -2197,6 +2203,42 @@
     <None Include="tests\testFiles\cast\pass\isClassOfGeneric.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericExact.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericExact.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericInvariance.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericInvariance.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericMultiParam.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericMultiParam.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericNested.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericNested.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericRawFallback.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericRawFallback.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericUpcast.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfGenericUpcast.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\cast\pass\isClassOfInterface.expected">
       <Filter>testFiles\cast\pass</Filter>
     </None>
@@ -2225,6 +2267,24 @@
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\isClassOfPrimitive.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfTypeParam.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfTypeParam.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfTypeParamNegative.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfTypeParamNegative.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfTypeParamWithPrimitive.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfTypeParamWithPrimitive.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\listGenericCast.expected">
