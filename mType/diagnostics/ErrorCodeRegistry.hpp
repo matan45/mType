@@ -42,6 +42,8 @@
     X(NameClassNotFound,            "MT-E1006", ::diagnostics::Severity::Error, "class not found at runtime") \
     X(NameMethodNotFound,           "MT-E1007", ::diagnostics::Severity::Error, "method not found at runtime") \
     X(NameFieldNotFound,            "MT-E1008", ::diagnostics::Severity::Error, "field not found at runtime") \
+    X(NameConstructorNotFound,      "MT-E1009", ::diagnostics::Severity::Error, "constructor not found at runtime") \
+    X(NameFunctionNotFound,         "MT-E1010", ::diagnostics::Severity::Error, "function not found at runtime") \
     /* ----- type system ----- */ \
     X(TypeMismatch,                 "MT-E2001", ::diagnostics::Severity::Error, "type mismatch") \
     X(TypeConversionFailed,         "MT-E2002", ::diagnostics::Severity::Error, "type conversion failed") \
@@ -62,6 +64,8 @@
     X(RuntimeUserException,         "MT-E5003", ::diagnostics::Severity::Error, "uncaught exception") \
     X(RuntimeObject,                "MT-E5004", ::diagnostics::Severity::Error, "object operation failed") \
     X(RuntimeGeneric,               "MT-E5005", ::diagnostics::Severity::Error, "runtime error") \
+    X(RuntimeDivisionByZero,        "MT-E5006", ::diagnostics::Severity::Error, "division by zero") \
+    X(RuntimeStackUnderflow,        "MT-E5007", ::diagnostics::Severity::Error, "stack underflow") \
     /* ----- environment / file / argument ----- */ \
     X(EnvironmentError,             "MT-E6001", ::diagnostics::Severity::Error, "environment error") \
     X(FileError,                    "MT-E6002", ::diagnostics::Severity::Error, "file error") \

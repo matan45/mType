@@ -22,18 +22,24 @@
 #include "../../errors/AccessViolationException.hpp"
 #include "../../errors/AmbiguousCallException.hpp"
 #include "../../errors/ClassNotFoundException.hpp"
+#include "../../errors/ConstructorNotFoundException.hpp"
+#include "../../errors/DivisionByZeroException.hpp"
 #include "../../errors/DuplicateDeclarationException.hpp"
 #include "../../errors/FieldNotFoundException.hpp"
+#include "../../errors/FunctionNotFoundException.hpp"
 #include "../../errors/MethodNotFoundException.hpp"
 #include "../../errors/MissingSemicolonException.hpp"
 #include "../../errors/NoMatchingOverloadException.hpp"
 #include "../../errors/NullPointerException.hpp"
 #include "../../errors/ParseException.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/StackUnderflowException.hpp"
 #include "../../errors/TypeConversionException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/TypeResolutionException.hpp"
 #include "../../errors/UndefinedException.hpp"
+
+#include "../../vm/runtime/utils/InteropExceptionDecorator.hpp"
 
 #include "../../util/DidYouMean.hpp"
 #include "../../util/EditDistance.hpp"
@@ -371,6 +377,90 @@ namespace tests::testSuite
                 }
                 require(foundOperation,
                     "notes should include the operation context");
+            });
+
+        // ----- MYT-46 ---------------------------------------------------
+
+        addCallbackTest("MYT-46: ScriptException::setLocation respects default-only guard", "",
+            [](ScriptAPI&) {
+                // Real location: stays put, ignores later setLocation.
+                errors::NullPointerException ex1("oops",
+                    errors::SourceLocation("real.mt", 5, 2));
+                ex1.setLocation(errors::SourceLocation("wrong.mt", 99, 99));
+                require(ex1.getLocation().getFilename() == "real.mt",
+                    "real loc preserved");
+
+                // Default location: gets overwritten on first setLocation call.
+                errors::NullPointerException ex2("oops");
+                ex2.setLocation(errors::SourceLocation("decorated.mt", 12, 7));
+                require(ex2.getLocation().getFilename() == "decorated.mt",
+                    "default loc updated");
+                require(ex2.getLocation().getLine() == 12, "line updated");
+            });
+
+        addCallbackTest("MYT-46: ScriptException::setStackTrace flows through converter", "",
+            [](ScriptAPI&) {
+                errors::NullPointerException ex("oops",
+                    errors::SourceLocation("a.mt", 1, 1));
+                ex.setStackTrace({"  at main (a.mt:3:1)", "  at inner (a.mt:10:5)"});
+                auto diag = diagnostics::fromException(ex);
+                require(diag.stackTrace.size() == 2, "stack trace propagated");
+                require(diag.stackTrace[0].find("main") != std::string::npos,
+                    "first frame ok");
+            });
+
+        addCallbackTest("MYT-46: DivisionByZeroException routes to MT-E5006", "",
+            [](ScriptAPI&) {
+                errors::DivisionByZeroException ex("division",
+                    errors::SourceLocation("m.mt", 4, 9));
+                auto diag = diagnostics::fromException(ex);
+                require(std::string(diag.code->id) == "MT-E5006",
+                    "expected MT-E5006 RuntimeDivisionByZero");
+                require(diag.primarySpan.start.getFilename() == "m.mt",
+                    "loc preserved");
+            });
+
+        addCallbackTest("MYT-46: StackUnderflowException routes to MT-E5007", "",
+            [](ScriptAPI&) {
+                errors::StackUnderflowException ex(3, 1,
+                    errors::SourceLocation("m.mt", 1, 1));
+                auto diag = diagnostics::fromException(ex);
+                require(std::string(diag.code->id) == "MT-E5007",
+                    "expected MT-E5007 RuntimeStackUnderflow");
+            });
+
+        addCallbackTest("MYT-46: ConstructorNotFoundException routes to MT-E1009", "",
+            [](ScriptAPI&) {
+                errors::ConstructorNotFoundException ex("Foo", 2,
+                    errors::SourceLocation("m.mt", 1, 1));
+                auto diag = diagnostics::fromException(ex);
+                require(std::string(diag.code->id) == "MT-E1009",
+                    "expected MT-E1009 NameConstructorNotFound");
+                require(diag.message.find("Foo") != std::string::npos,
+                    "class name in headline");
+                require(diag.message.find("2") != std::string::npos,
+                    "param count in headline");
+            });
+
+        addCallbackTest("MYT-46: FunctionNotFoundException routes to MT-E1010", "",
+            [](ScriptAPI&) {
+                errors::FunctionNotFoundException ex("greet",
+                    errors::SourceLocation("m.mt", 1, 1));
+                auto diag = diagnostics::fromException(ex);
+                require(std::string(diag.code->id) == "MT-E1010",
+                    "expected MT-E1010 NameFunctionNotFound");
+                require(diag.message.find("greet") != std::string::npos,
+                    "function name in headline");
+            });
+
+        addCallbackTest("MYT-46: decorateFromCallStack no-ops on empty stack", "",
+            [](ScriptAPI&) {
+                errors::NullPointerException ex("oops");
+                std::vector<vm::runtime::CallFrame> emptyStack;
+                vm::runtime::utils::decorateFromCallStack(ex, emptyStack, nullptr);
+                require(ex.getLocation().getFilename() == "<unknown>",
+                    "loc unchanged");
+                require(ex.getStackTrace().empty(), "stack trace unchanged");
             });
 
         addCallbackTest("converter: TypeConversionException records source/target", "",

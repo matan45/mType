@@ -336,6 +336,9 @@
     <ClInclude Include="vm\runtime\utils\ExceptionHandler.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\utils\InteropExceptionDecorator.hpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\utils\NullCheckUtils.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
@@ -606,6 +609,9 @@
       <Filter>vm\runtime\stack</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\utils\ExceptionHandler.cpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\utils\InteropExceptionDecorator.cpp">
       <Filter>vm\runtime\utils</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\validation\AccessValidator.cpp">

@@ -1,5 +1,7 @@
 #include "VirtualMachine.hpp"
+#include "../../errors/DivisionByZeroException.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/StackUnderflowException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
@@ -156,10 +158,10 @@ namespace vm::runtime
             case OpCode::SUB: return l - r;
             case OpCode::MUL: return l * r;
             case OpCode::DIV:
-                if (r == 0) throw errors::RuntimeException("Division by zero");
+                if (r == 0) throw errors::DivisionByZeroException("division");
                 return l / r;
             case OpCode::MOD:
-                if (r == 0) throw errors::RuntimeException("Modulo by zero");
+                if (r == 0) throw errors::DivisionByZeroException("modulo");
                 return l % r;
             default: break;
             }
@@ -181,7 +183,7 @@ namespace vm::runtime
             case OpCode::SUB: return l - r;
             case OpCode::MUL: return l * r;
             case OpCode::DIV:
-                if (r == 0.0) throw errors::RuntimeException("Division by zero");
+                if (r == 0.0) throw errors::DivisionByZeroException("division");
                 return l / r;
             default: break;
             }
@@ -215,9 +217,7 @@ namespace vm::runtime
         // Will be removed once all handlers are moved to executors
         if (stackManager->size() < required)
         {
-            throw errors::RuntimeException("Stack underflow: required " +
-                std::to_string(required) + " but only " +
-                std::to_string(stackManager->size()) + " available");
+            throw errors::StackUnderflowException(required, stackManager->size());
         }
     }
 

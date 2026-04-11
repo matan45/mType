@@ -1,8 +1,11 @@
 #include "VirtualMachine.hpp"
 #include "executors/ControlFlowExecutor.hpp"
+#include "utils/InteropExceptionDecorator.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/ClassNotFoundException.hpp"
+#include "../../errors/MethodNotFoundException.hpp"
 #include "../../errors/NullPointerException.hpp"
+#include "../../errors/ScriptException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 
@@ -12,62 +15,64 @@ namespace vm::runtime
                                               const std::string& methodName,
                                               const std::vector<value::Value>& args)
     {
-        if (!program)
-        {
-            throw errors::RuntimeException(
-                "No program loaded - cannot invoke method in bytecode mode without compiled bytecode");
-        }
-
-        if (!instance)
-        {
-            throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object");
-        }
-
-        auto classDef = instance->getClassDefinition();
-        size_t argCount = args.size();
-
-        // Find method in hierarchy
-        auto method = classDef->findInstanceMethodInHierarchy(methodName, argCount);
-        if (!method)
-        {
-            throw errors::RuntimeException("Instance method not found: " + methodName +
-                " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
-        }
-
-        // Find which class defines this method and get the type signature
-        std::string definingClassName = classDef->getName();
-        std::string typeSignature;
-        auto currentClass = classDef;
-        while (currentClass)
-        {
-            auto localMethod = currentClass->findInstanceMethod(methodName, argCount);
-            if (localMethod)
-            {
-                definingClassName = currentClass->getName();
-                typeSignature = localMethod->getTypeSignature();
-                break;
-            }
-            currentClass = currentClass->getParentClass();
-        }
-
-        // Look for method bytecode using type signature (matches compiler naming)
-        std::string qualifiedName = typeSignature.empty()
-            ? definingClassName + "::" + methodName
-            : definingClassName + "::" + methodName + "/" + typeSignature;
-        auto* funcMetadata = program->getFunction(qualifiedName);
-        if (!funcMetadata)
-        {
-            throw errors::RuntimeException("Method '" + qualifiedName +
-                "' has no bytecode. Bytecode compilation is required for VM execution.");
-        }
-
-        // Save current state
+        // Save current state up front so the typed catch can decorate the
+        // exception against the LIVE callStack before we restore.
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
         size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            if (!program)
+            {
+                throw errors::RuntimeException(
+                    "No program loaded - cannot invoke method in bytecode mode without compiled bytecode");
+            }
+
+            if (!instance)
+            {
+                throw errors::NullPointerException("Cannot call method '" + methodName + "' on null object");
+            }
+
+            auto classDef = instance->getClassDefinition();
+            size_t argCount = args.size();
+
+            // Find method in hierarchy
+            auto method = classDef->findInstanceMethodInHierarchy(methodName, argCount);
+            if (!method)
+            {
+                // MYT-46: typed throw so the converter routes this to MT-E1007
+                // (NameMethodNotFound) instead of the catchall MT-E5005.
+                throw errors::MethodNotFoundException(methodName, classDef->getName());
+            }
+
+            // Find which class defines this method and get the type signature
+            std::string definingClassName = classDef->getName();
+            std::string typeSignature;
+            auto currentClass = classDef;
+            while (currentClass)
+            {
+                auto localMethod = currentClass->findInstanceMethod(methodName, argCount);
+                if (localMethod)
+                {
+                    definingClassName = currentClass->getName();
+                    typeSignature = localMethod->getTypeSignature();
+                    break;
+                }
+                currentClass = currentClass->getParentClass();
+            }
+
+            // Look for method bytecode using type signature (matches compiler naming)
+            std::string qualifiedName = typeSignature.empty()
+                ? definingClassName + "::" + methodName
+                : definingClassName + "::" + methodName + "/" + typeSignature;
+            auto* funcMetadata = program->getFunction(qualifiedName);
+            if (!funcMetadata)
+            {
+                throw errors::RuntimeException("Method '" + qualifiedName +
+                    "' has no bytecode. Bytecode compilation is required for VM execution.");
+            }
+
             // Reset finally offset for new function call
             currentFinallyOffset = SIZE_MAX;
 
@@ -135,6 +140,15 @@ namespace vm::runtime
 
             return result;
         }
+        catch (errors::ScriptException& e)
+        {
+            // MYT-46: decorate using LIVE callStack BEFORE state restore.
+            utils::decorateFromCallStack(e, callStack, program);
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
+            throw;
+        }
         catch (...)
         {
             // Restore state on error
@@ -149,49 +163,51 @@ namespace vm::runtime
                                                     const std::string& methodName,
                                                     const std::vector<value::Value>& args)
     {
-        if (!program)
-        {
-            throw errors::RuntimeException(
-                "No program loaded - cannot invoke static method in bytecode mode without compiled bytecode");
-        }
-
-        auto classDef = environment->findClass(className);
-        if (!classDef)
-        {
-            throw errors::ClassNotFoundException(className);
-        }
-
-        size_t argCount = args.size();
-        auto method = classDef->findStaticMethod(methodName, argCount);
-        if (!method)
-        {
-            throw errors::RuntimeException("Static method not found: " + methodName +
-                " with " + std::to_string(argCount) + " arguments in class " + className);
-        }
-
-        // Look for method bytecode using type signature (matches compiler naming)
-        std::string typeSignature = method->getTypeSignature();
-        std::string qualifiedName = typeSignature.empty()
-            ? className + "::" + methodName
-            : className + "::" + methodName + "/" + typeSignature;
-        // For static methods, append $static suffix
-        if (method->isStatic()) {
-            qualifiedName += "$static";
-        }
-        auto* funcMetadata = program->getFunction(qualifiedName);
-        if (!funcMetadata)
-        {
-            throw errors::RuntimeException("Static method '" + qualifiedName +
-                "' has no bytecode. Bytecode compilation is required for VM execution.");
-        }
-
-        // Save current state
+        // Save current state up front so the typed catch can decorate the
+        // exception against the LIVE callStack before we restore.
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
         size_t savedCurrentFinallyOffset = currentFinallyOffset;
 
         try
         {
+            if (!program)
+            {
+                throw errors::RuntimeException(
+                    "No program loaded - cannot invoke static method in bytecode mode without compiled bytecode");
+            }
+
+            auto classDef = environment->findClass(className);
+            if (!classDef)
+            {
+                throw errors::ClassNotFoundException(className);
+            }
+
+            size_t argCount = args.size();
+            auto method = classDef->findStaticMethod(methodName, argCount);
+            if (!method)
+            {
+                // MYT-46: typed throw so the converter routes this to MT-E1007
+                // (NameMethodNotFound) instead of the catchall MT-E5005.
+                throw errors::MethodNotFoundException(methodName, className);
+            }
+
+            // Look for method bytecode using type signature (matches compiler naming)
+            std::string typeSignature = method->getTypeSignature();
+            std::string qualifiedName = typeSignature.empty()
+                ? className + "::" + methodName
+                : className + "::" + methodName + "/" + typeSignature;
+            // For static methods, append $static suffix
+            if (method->isStatic()) {
+                qualifiedName += "$static";
+            }
+            auto* funcMetadata = program->getFunction(qualifiedName);
+            if (!funcMetadata)
+            {
+                throw errors::RuntimeException("Static method '" + qualifiedName +
+                    "' has no bytecode. Bytecode compilation is required for VM execution.");
+            }
+
             // Reset finally offset for new function call
             currentFinallyOffset = SIZE_MAX;
 
@@ -257,6 +273,15 @@ namespace vm::runtime
             currentFinallyOffset = savedCurrentFinallyOffset;
 
             return result;
+        }
+        catch (errors::ScriptException& e)
+        {
+            // MYT-46: decorate using LIVE callStack BEFORE state restore.
+            utils::decorateFromCallStack(e, callStack, program);
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
+            throw;
         }
         catch (...)
         {

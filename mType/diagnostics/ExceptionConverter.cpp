@@ -10,17 +10,21 @@
 #include "../errors/ArgumentException.hpp"
 #include "../errors/ArrayCreationException.hpp"
 #include "../errors/ClassNotFoundException.hpp"
+#include "../errors/ConstructorNotFoundException.hpp"
+#include "../errors/DivisionByZeroException.hpp"
 #include "../errors/DuplicateDeclarationException.hpp"
 #include "../errors/DuplicateSignatureException.hpp"
 #include "../errors/EnvironmentException.hpp"
 #include "../errors/FieldNotFoundException.hpp"
 #include "../errors/FileException.hpp"
 #include "../errors/FinalModificationException.hpp"
+#include "../errors/FunctionNotFoundException.hpp"
 #include "../errors/InheritanceException.hpp"
 #include "../errors/MethodNotFoundException.hpp"
 #include "../errors/MissingSemicolonException.hpp"
 #include "../errors/NoMatchingOverloadException.hpp"
 #include "../errors/NullPointerException.hpp"
+#include "../errors/StackUnderflowException.hpp"
 #include "../errors/ObjectException.hpp"
 #include "../errors/ParseException.hpp"
 #include "../errors/RuntimeException.hpp"
@@ -256,6 +260,7 @@ namespace diagnostics
             DiagnosticBuilder b(codes::NameClassNotFound);
             b.withMessage("cannot find class '" + e.getClassName() + "'")
              .withPrimary(e.getLocation(), "not found in this scope")
+             .withStackTrace(e.getStackTrace())
              .withSourceException("ClassNotFoundException");
             attachDidYouMean(b, e.getClassName(), e.getIdentifierPool(), "class");
             return std::move(b).build();
@@ -270,6 +275,7 @@ namespace diagnostics
                   + "' on class '" + e.getClassName() + "'";
             b.withMessage(headline)
              .withPrimary(e.getLocation(), "not found")
+             .withStackTrace(e.getStackTrace())
              .withSourceException("MethodNotFoundException");
             attachDidYouMean(b, e.getMethodName(), e.getIdentifierPool(), "method");
             return std::move(b).build();
@@ -284,6 +290,7 @@ namespace diagnostics
                   + "' on class '" + e.getClassName() + "'";
             b.withMessage(headline)
              .withPrimary(e.getLocation(), "not found")
+             .withStackTrace(e.getStackTrace())
              .withSourceException("FieldNotFoundException");
             attachDidYouMean(b, e.getFieldName(), e.getIdentifierPool(), "field");
             return std::move(b).build();
@@ -294,6 +301,7 @@ namespace diagnostics
             DiagnosticBuilder b(codes::RuntimeNullPointer);
             b.withMessage(stripRuntimePrefix(e.getMessage()))
              .withPrimary(e.getLocation(), "null dereference here")
+             .withStackTrace(e.getStackTrace())
              .withSourceException("NullPointerException");
             if (!e.getOperation().empty())
             {
@@ -339,6 +347,56 @@ namespace diagnostics
             {
                 b.withNote("object type: " + e.getObjectType());
             }
+            return std::move(b).build();
+        }
+
+        // ----- MYT-46 typed promotions ----------------------------------
+
+        Diagnostic convertDivisionByZero(const errors::DivisionByZeroException& e)
+        {
+            DiagnosticBuilder b(codes::RuntimeDivisionByZero);
+            b.withMessage(stripRuntimePrefix(e.getMessage()))
+             .withPrimary(e.getLocation(), "divisor is zero")
+             .withStackTrace(e.getStackTrace())
+             .withSourceException("DivisionByZeroException");
+            if (!e.getOperation().empty())
+            {
+                b.withNote("operation: " + e.getOperation());
+            }
+            return std::move(b).build();
+        }
+
+        Diagnostic convertStackUnderflow(const errors::StackUnderflowException& e)
+        {
+            DiagnosticBuilder b(codes::RuntimeStackUnderflow);
+            b.withMessage(stripRuntimePrefix(e.getMessage()))
+             .withPrimary(e.getLocation(), "stack too shallow")
+             .withStackTrace(e.getStackTrace())
+             .withNote("required " + std::to_string(e.getRequired())
+                       + ", available " + std::to_string(e.getAvailable()))
+             .withSourceException("StackUnderflowException");
+            return std::move(b).build();
+        }
+
+        Diagnostic convertConstructorNotFound(const errors::ConstructorNotFoundException& e)
+        {
+            DiagnosticBuilder b(codes::NameConstructorNotFound);
+            b.withMessage("cannot find a constructor on '" + e.getClassName()
+                          + "' taking " + std::to_string(e.getParamCount())
+                          + " argument(s)")
+             .withPrimary(e.getLocation(), "no matching constructor")
+             .withStackTrace(e.getStackTrace())
+             .withSourceException("ConstructorNotFoundException");
+            return std::move(b).build();
+        }
+
+        Diagnostic convertFunctionNotFound(const errors::FunctionNotFoundException& e)
+        {
+            DiagnosticBuilder b(codes::NameFunctionNotFound);
+            b.withMessage("cannot find function '" + e.getFunctionName() + "'")
+             .withPrimary(e.getLocation(), "not found")
+             .withStackTrace(e.getStackTrace())
+             .withSourceException("FunctionNotFoundException");
             return std::move(b).build();
         }
 
@@ -407,6 +465,7 @@ namespace diagnostics
             return DiagnosticBuilder(codes::RuntimeGeneric)
                 .withMessage(stripRuntimePrefix(e.getMessage()))
                 .withPrimary(e.getLocation())
+                .withStackTrace(e.getStackTrace())
                 .withSourceException("RuntimeException")
                 .build();
         }
@@ -512,6 +571,15 @@ namespace diagnostics
             return convertFinalModification(*p);
         if (auto p = dynamic_cast<const errors::ObjectException*>(&e))
             return convertObject(*p);
+        // MYT-46 typed promotions
+        if (auto p = dynamic_cast<const errors::DivisionByZeroException*>(&e))
+            return convertDivisionByZero(*p);
+        if (auto p = dynamic_cast<const errors::StackUnderflowException*>(&e))
+            return convertStackUnderflow(*p);
+        if (auto p = dynamic_cast<const errors::ConstructorNotFoundException*>(&e))
+            return convertConstructorNotFound(*p);
+        if (auto p = dynamic_cast<const errors::FunctionNotFoundException*>(&e))
+            return convertFunctionNotFound(*p);
 
         // ScriptException subclasses (mid-tier siblings)
         if (auto p = dynamic_cast<const errors::AbstractClassException*>(&e))

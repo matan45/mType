@@ -136,6 +136,13 @@ namespace tests::testSuite
         addTestFromFile("Enhanced Null Pointer Location Error",
                         errorPath + "enhancedNullPointerLocation.mt",
                         TestType::ERROR_EXPECTED);
+        // MYT-46 — interop wrapper decorates the caught exception with a
+        // real SourceLocation walked from the live callStack. Substring
+        // filter pins the diagnostic to the NullPointerException path.
+        addTestFromFile("MYT-46 Interop Null Deref Carries Location",
+                        errorPath + "interopNullDeref_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Cannot");
 
         // Static method validation error tests (expected to fail)
         addTestFromFile("Static Method Access This Error",

@@ -4189,6 +4189,9 @@
     <None Include="tests\testFiles\error\error\importNonExistentFile.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\error\interopNullDeref_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
     <None Include="tests\testFiles\error\error\invalidClassNameSpecialChar.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
