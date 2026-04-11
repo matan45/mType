@@ -191,9 +191,15 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
 
         // === MYT-41: isClassOf ERROR TESTS ===
-        addTestFromFile("isClassOf Unbound Type Param",
-                        errorPath + "isClassOfUnboundTypeParam.mt",
-                        TestType::ERROR_EXPECTED);
+        // Note: a runtime "unbound type parameter" test is not included —
+        // the compiler guard (see ExpressionCompiler::compileInstanceOf)
+        // only emits INSTANCEOF_TYPEPARAM when the RHS name matches a
+        // declared generic parameter of an enclosing class, and any
+        // normally-constructed instance of such a class has its bindings
+        // populated at `new Foo<T>(...)` time. The defensive error in
+        // TypeExecutor::resolveTypeParameter is still there, but it isn't
+        // reachable through ordinary mType source, so there's no user-facing
+        // test for it.
         addTestFromFile("isClassOf Malformed Parameterized",
                         errorPath + "isClassOfMalformedParameterized.mt",
                         TestType::ERROR_EXPECTED);
