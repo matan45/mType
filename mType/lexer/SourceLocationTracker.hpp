@@ -39,5 +39,10 @@ namespace lexer
 
         // Line management
         void splitIntoLines(const std::string& input);
+
+        // Source line access (used by the diagnostics SourceFileCache to
+        // expose snippets to the renderer without re-reading from disk).
+        const std::vector<std::string>& getLines() const { return lines; }
+        const std::string& getFilename() const { return filename; }
     };
 }

@@ -13,6 +13,9 @@
     <Filter Include="token">
       <UniqueIdentifier>{46CD7010-B2E1-98C1-7B63-3C21E73695F2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="util">
+      <UniqueIdentifier>{43339F7C-2F6A-A00D-D856-8610C46C1C0F}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="circularDependency\CircularDependencyConfig.hpp">
@@ -63,6 +66,12 @@
     <ClInclude Include="token\TokenType.hpp">
       <Filter>token</Filter>
     </ClInclude>
+    <ClInclude Include="util\DidYouMean.hpp">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="util\EditDistance.hpp">
+      <Filter>util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="circularDependency\CircularDependencyDetector.cpp">
@@ -73,6 +82,12 @@
     </ClCompile>
     <ClCompile Include="circularDependency\DependencyTypeUtils.cpp">
       <Filter>circularDependency</Filter>
+    </ClCompile>
+    <ClCompile Include="util\DidYouMean.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="util\EditDistance.cpp">
+      <Filter>util</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

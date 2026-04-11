@@ -48,7 +48,8 @@ end
 
 --------------------------------------------------------------------------------
 -- Library: mtype-common
--- Foundation types: tokens, constants, circular dependency detection, SourceLocation
+-- Foundation types: tokens, constants, circular dependency detection,
+-- SourceLocation, and standalone string utilities (edit distance, etc.)
 --------------------------------------------------------------------------------
 project "mtype-common"
    kind "StaticLib"
@@ -62,6 +63,8 @@ project "mtype-common"
       "mType/constants/**.cpp",
       "mType/circularDependency/**.hpp",
       "mType/circularDependency/**.cpp",
+      "mType/util/**.hpp",
+      "mType/util/**.cpp",
       "mType/errors/SourceLocation.hpp",
    }
 
@@ -86,6 +89,25 @@ project "mtype-errors"
       "mType/errors/SourceLocation.hpp",
       "mType/errors/UserException.hpp",
       "mType/errors/UserException.cpp",
+   }
+
+
+--------------------------------------------------------------------------------
+-- Library: mtype-diagnostics
+-- Shared Diagnostic data model + renderer + cache used by both the CLI
+-- and the language server. Depends on mtype-errors so the exception
+-- converter (added in Phase 2) can dynamic_cast every exception type.
+--------------------------------------------------------------------------------
+project "mtype-diagnostics"
+   kind "StaticLib"
+   location "mType"
+   commonConfig()
+
+   links { "mtype-common", "mtype-errors" }
+
+   files {
+      "mType/diagnostics/**.hpp",
+      "mType/diagnostics/**.cpp",
    }
 
 
@@ -141,7 +163,7 @@ project "mtype-frontend"
    location "mType"
    commonConfig()
 
-   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast" }
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-diagnostics" }
 
    files {
       "mType/lexer/**.hpp",
@@ -212,7 +234,7 @@ project "mtype-extensions"
    location "mType"
    commonConfig()
 
-   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-frontend", "mtype-vm" }
+   links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-frontend", "mtype-vm", "mtype-diagnostics" }
 
    files {
       "mType/gc/**.hpp",
@@ -244,6 +266,7 @@ project "mtype-tests"
    links {
       "mtype-common", "mtype-errors", "mtype-core", "mtype-ast",
       "mtype-frontend", "mtype-vm", "mtype-jit", "mtype-extensions",
+      "mtype-diagnostics",
    }
 
    includedirs { "vendor/asmjit" }
@@ -284,6 +307,7 @@ project "mType"
       "mtype-frontend",
       "mtype-ast",
       "mtype-core",
+      "mtype-diagnostics",
       "mtype-errors",
       "mtype-common",
    }
