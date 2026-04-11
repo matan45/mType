@@ -346,6 +346,52 @@ namespace tests::testSuite
         addOutputVerificationTest("Error Stack Trace With Lambda",
                         passPath + "errorStackTraceWithLambda_pass.mt");
 
+        // === THROW VALIDATION ERROR TESTS (3 tests) ===
+        // Files exist on disk but were previously unregistered (MYT-38).
+        addTestFromFile("Error Throw Primitive",
+                        errorPath + "errorThrowPrimitive_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Error Throw Null",
+                        errorPath + "errorThrowNull_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Error Throw Mismatch",
+                        errorPath + "errorThrowMismatch_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === MYT-38 STACK TRACE CONTENT (6 tests) ===
+        // These tests assert on the *content* of the trace string, not just
+        // its presence. They lock in the format emitted by ExceptionExecutor
+        // (function names, frame order, source line numbers, lambda/method
+        // naming) so future changes to the trace format intentionally break
+        // and force a deliberate update.
+        addOutputVerificationTest("Error Stack Trace Frame Order",
+                        passPath + "errorStackTraceFrameOrder_pass.mt");
+        addOutputVerificationTest("Error Stack Trace Method Name Format",
+                        passPath + "errorStackTraceMethodNameFormat_pass.mt");
+        addOutputVerificationTest("Error Stack Trace Rethrow Identity",
+                        passPath + "errorStackTraceRethrowIdentity_pass.mt");
+        addOutputVerificationTest("Error Stack Trace Line Numbers",
+                        passPath + "errorStackTraceLineNumbers_pass.mt");
+        addOutputVerificationTest("Error Stack Trace Lambda Frame Name",
+                        passPath + "errorStackTraceLambdaFrameName_pass.mt");
+        addOutputVerificationTest("Error Propagation Typed No Match",
+                        passPath + "errorPropagationTypedNoMatch_pass.mt");
+
+        // === MYT-38 EXCEPTION-TYPE REJECTION (2 tests) ===
+        // These tests use the new expectedErrorSubstring overload to assert
+        // not just that an error was thrown, but that it was thrown for the
+        // expected reason — substrings drawn from the actual messages
+        // emitted by ExceptionExecutor.cpp:39-92 (throw validation) and
+        // TryStatementHelper::compileCatchBlocks (catch validation).
+        addTestFromFile("Error Catch Non-Exception Type",
+                        errorPath + "errorCatchNonException_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "NotAnException");
+        addTestFromFile("Error Uncaught In Main",
+                        errorPath + "errorUncaughtMain_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "MytUncaughtSentinel38");
+
         // === THROW TESTS (5 tests) ===
         addOutputVerificationTest("Error Throw In Catch Different",
                         passPath + "errorThrowInCatchDifferent_pass.mt");

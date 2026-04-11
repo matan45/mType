@@ -1,0 +1,3 @@
+start
+outer: caught OtherException: typedPropagation
+end

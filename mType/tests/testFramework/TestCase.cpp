@@ -28,6 +28,16 @@ namespace tests::testFramework
     }
 
     TestCase::TestCase(const std::string& testName,
+                       const std::string& testFilePath,
+                       TestType testType,
+                       const std::string& expectedErrorSubstr)
+        : name(testName), filePath(testFilePath), type(testType), status(TestStatus::NOT_RUN),
+          executionTime(0), executionMode(constants::ExecutionMode::BYTECODE_VM),
+          expectedErrorSubstring(expectedErrorSubstr)
+    {
+    }
+
+    TestCase::TestCase(const std::string& testName,
                        const std::string& bootstrapFilePath,
                        NativeCallback callback)
         : name(testName), filePath(bootstrapFilePath), type(TestType::NATIVE_CALLBACK),
@@ -182,6 +192,7 @@ namespace tests::testFramework
                 {
                     status = TestStatus::PASSED;
                     errorMessage = "Expected parse error: " + std::string(e.what());
+                    applyExpectedErrorFilter(e.what());
                 }
                 else
                 {
@@ -198,6 +209,7 @@ namespace tests::testFramework
                 {
                     status = TestStatus::PASSED;
                     errorMessage = "Expected type error: " + std::string(e.what());
+                    applyExpectedErrorFilter(e.what());
                 }
                 else
                 {
@@ -214,6 +226,7 @@ namespace tests::testFramework
                 {
                     status = TestStatus::PASSED;
                     errorMessage = "Expected undefined error: " + std::string(e.what());
+                    applyExpectedErrorFilter(e.what());
                 }
                 else
                 {
@@ -230,6 +243,7 @@ namespace tests::testFramework
                 {
                     status = TestStatus::PASSED;
                     errorMessage = "Expected error: " + std::string(e.what());
+                    applyExpectedErrorFilter(e.what());
                 }
                 else
                 {
@@ -440,5 +454,19 @@ namespace tests::testFramework
 
         // Then validate content
         return normalizedOutput == normalizedExpected;
+    }
+
+    void TestCase::applyExpectedErrorFilter(const std::string& errWhat)
+    {
+        if (status != TestStatus::PASSED || expectedErrorSubstring.empty())
+        {
+            return;
+        }
+        if (errWhat.find(expectedErrorSubstring) == std::string::npos)
+        {
+            status = TestStatus::FAILED;
+            errorMessage = "Expected error containing '" + expectedErrorSubstring +
+                           "' but got: " + errWhat;
+        }
     }
 }

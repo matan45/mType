@@ -326,34 +326,6 @@ namespace tests::testSuite
         addOutputVerificationTest("Return Lambda Implicit",
                         passPath + "returnLambdaImplicit_pass.mt");
 
-        // === EXCEPTION HANDLING (12 tests) ===
-        addOutputVerificationTest("Exception Try Catch Finally All",
-                        passPath + "exceptionTryCatchFinallyAll_pass.mt");
-        addOutputVerificationTest("Exception Nested Try Catch",
-                        passPath + "exceptionNestedTryCatch_pass.mt");
-        addOutputVerificationTest("Exception Rethrow",
-                        passPath + "exceptionRethrow_pass.mt");
-        addOutputVerificationTest("Exception Propagation Chain",
-                        passPath + "exceptionPropagationChain_pass.mt");
-        addOutputVerificationTest("Exception Finally No Catch",
-                        passPath + "exceptionFinallyNoCatch_pass.mt");
-        addOutputVerificationTest("Exception Multiple Catch",
-                        passPath + "exceptionMultipleCatch_pass.mt");
-        addOutputVerificationTest("Exception Catch All",
-                        passPath + "exceptionCatchAll_pass.mt");
-        addOutputVerificationTest("Exception Resource Cleanup",
-                        passPath + "exceptionResourceCleanup_pass.mt");
-        addOutputVerificationTest("Exception In Initializer",
-                        passPath + "exceptionInInitializer_pass.mt");
-        addOutputVerificationTest("Exception In Lambda",
-                        passPath + "exceptionInLambda_pass.mt");
-        addTestFromFile("Exception Uncaught",
-                        errorPath + "exceptionUncaught_error.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Exception Invalid Catch Type",
-                        errorPath + "exceptionInvalidCatchType_error.mt",
-                        TestType::ERROR_EXPECTED);
-
         // === RECURSION EDGE CASES (6 tests) ===
         addOutputVerificationTest("Recursion Tail Optimizable",
                         passPath + "recursionTailOptimizable_pass.mt");
