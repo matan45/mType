@@ -78,7 +78,18 @@ namespace environment::registry
 
     void ClassRegistry::clearScriptDefinitions()
     {
+        // Preserve built-in classes (registered by EnvironmentBuilder, not by scripts)
+        static const std::vector<std::string> builtinClasses = {"Object"};
+        std::unordered_map<std::string, std::shared_ptr<runtimeTypes::klass::ClassDefinition>> preserved;
+        for (const auto& name : builtinClasses)
+        {
+            auto it = items.find(name);
+            if (it != items.end())
+                preserved.insert(*it);
+        }
         items.clear();
+        items.insert(preserved.begin(), preserved.end());
+
         inheritanceTracker->clear();
         reifiedTypeRegistry->clear();
     }
