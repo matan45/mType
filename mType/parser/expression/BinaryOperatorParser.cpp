@@ -33,6 +33,10 @@ namespace parser::expression
 
     std::unique_ptr<ASTNode> BinaryOperatorParser::parseTernary()
     {
+        // SECURITY: bound recursion depth for nested ternaries
+        // (e.g. a ? b : c ? d : e ? ...).
+        ParserContextState::RecursionDepthGuard depthGuard(context.getContextState());
+
         auto expr = parseLogicalOr();
 
         if (tokenStream.check(TokenType::QUESTION))
@@ -163,6 +167,10 @@ namespace parser::expression
         std::function<std::unique_ptr<ASTNode>()> parseNext,
         const std::vector<TokenType>& operators)
     {
+        // SECURITY: each precedence level is a recursion frame, so guard
+        // depth here too. Catches nested expressions like (((((1+2))))).
+        ParserContextState::RecursionDepthGuard depthGuard(context.getContextState());
+
         try
         {
             return ParserUtils::parseBinaryOperators(tokenStream, parseNext, operators);

@@ -36,6 +36,11 @@ namespace parser::expression
 
     std::unique_ptr<ASTNode> PostfixOperatorParser::parsePostfix()
     {
+        // SECURITY: bound recursion depth. parsePostfix is the recursive
+        // entry point for primary expressions, including parenthesized
+        // sub-expressions and index accesses (a[b[c[...]]]).
+        ParserContextState::RecursionDepthGuard depthGuard(context.getContextState());
+
         if (!expressionParser)
         {
             throw ParseException("ExpressionParser not initialized in PostfixOperatorParser",

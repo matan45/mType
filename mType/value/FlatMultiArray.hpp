@@ -3,9 +3,25 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <climits>
+#include <stdexcept>
 
 namespace value
 {
+    namespace detail
+    {
+        // Overflow-checked addition for size_t. Used by FlatMultiArray when
+        // combining a view's base offset with a caller-supplied linear index;
+        // unsigned wrap would otherwise produce a small effectiveIndex that
+        // bypasses the dataStorage.size() bound check.
+        inline size_t checkedOffsetAdd(size_t a, size_t b) {
+            if (b > SIZE_MAX - a) {
+                throw std::out_of_range("Array offset overflow");
+            }
+            return a + b;
+        }
+    }
+
     /**
      * @brief Flattened multi-dimensional array implementation for optimal cache performance
      *
@@ -99,7 +115,7 @@ namespace value
             }
 
             const auto& dataStorage = getDataStorage();
-            size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+            size_t effectiveIndex = detail::checkedOffsetAdd(getEffectiveOffset(), linearIndex);
 
             if (effectiveIndex >= dataStorage.size()) {
                 return std::monostate{}; // Return null for out of bounds
@@ -120,7 +136,7 @@ namespace value
             }
 
             auto& dataStorage = getDataStorage();
-            size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+            size_t effectiveIndex = detail::checkedOffsetAdd(getEffectiveOffset(), linearIndex);
 
             if (effectiveIndex >= dataStorage.size()) {
                 throw std::out_of_range("Calculated index exceeds array bounds");
@@ -135,7 +151,7 @@ namespace value
          */
         Value get(size_t index) const {
             const auto& dataStorage = getDataStorage();
-            size_t effectiveIndex = getEffectiveOffset() + index;
+            size_t effectiveIndex = detail::checkedOffsetAdd(getEffectiveOffset(), index);
 
             if (index >= calculateTotalSize()) {
                 throw std::out_of_range("Single-dimensional array index " + std::to_string(index) +
@@ -154,7 +170,7 @@ namespace value
          */
         void set(size_t index, const Value& value) {
             auto& dataStorage = getDataStorage();
-            size_t effectiveIndex = getEffectiveOffset() + index;
+            size_t effectiveIndex = detail::checkedOffsetAdd(getEffectiveOffset(), index);
 
             if (index >= calculateTotalSize()) {
                 throw std::out_of_range("Single-dimensional array assignment index " + std::to_string(index) +

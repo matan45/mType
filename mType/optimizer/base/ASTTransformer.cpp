@@ -1,4 +1,7 @@
 #include "ASTTransformer.hpp"
+#include "../../constants/SecurityConstants.hpp"
+#include <stdexcept>
+#include <string>
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/nodes/statements/IfNode.hpp"
@@ -36,6 +39,26 @@ namespace optimizer::base {
 		if (!child) {
 			return nullptr;
 		}
+
+		// SECURITY: bound recursion depth. transformChild() recurses through
+		// visitBlockNode -> transformChildren -> transformChild for nested
+		// statements/expressions; without this guard a deeply nested AST
+		// would blow the C++ stack during optimization.
+		struct DepthGuard {
+			size_t& depth;
+			explicit DepthGuard(size_t& d) : depth(d) {
+				if (++depth > constants::security::MAX_OPTIMIZER_DEPTH) {
+					--depth;
+					throw std::runtime_error(
+						"Optimizer recursion depth exceeded maximum of " +
+						std::to_string(constants::security::MAX_OPTIMIZER_DEPTH));
+				}
+			}
+			~DepthGuard() { --depth; }
+			DepthGuard(const DepthGuard&) = delete;
+			DepthGuard& operator=(const DepthGuard&) = delete;
+		};
+		DepthGuard depthGuard(transformDepth);
 
 		// Manual dispatch since ASTNode::accept returns Value, not unique_ptr<ASTNode>
 		// We'll use dynamic_cast to determine node type and call appropriate visit method

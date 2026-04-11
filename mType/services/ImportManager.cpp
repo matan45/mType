@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
+#include "../errors/FileException.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
@@ -77,10 +78,15 @@ namespace services
 
         fs::path filePath(resolvedPath);
 
-        // If path is absolute, just normalize and return
+        // SECURITY: absolute paths are still allowed because some build
+        // systems pass absolute paths into the import alias map, but they
+        // must canonicalize to a location inside baseDirectory. Path
+        // traversal attempts (/etc/passwd, C:\Windows\..., etc.) are
+        // rejected by enforceWithinProjectRoot.
         if (!filePath.is_relative())
         {
             filePath = normalizeFilePath(filePath, false);
+            enforceWithinProjectRoot(filePath, path);
             return filePath.string();
         }
 
@@ -95,6 +101,7 @@ namespace services
                 candidate = normalizeFilePath(candidate, true);
                 if (fs::exists(candidate))
                 {
+                    enforceWithinProjectRoot(candidate, path);
                     return candidate.string();
                 }
             }
@@ -112,6 +119,7 @@ namespace services
                 candidate = normalizeFilePath(candidate, true);
                 if (fs::exists(candidate))
                 {
+                    enforceWithinProjectRoot(candidate, path);
                     return candidate.string();
                 }
             }
@@ -131,6 +139,7 @@ namespace services
                 candidate = normalizeFilePath(candidate, true);
                 if (fs::exists(candidate))
                 {
+                    enforceWithinProjectRoot(candidate, path);
                     return candidate.string();
                 }
             }
@@ -151,7 +160,53 @@ namespace services
         }
 
         filePath = normalizeFilePath(filePath, false);
+        enforceWithinProjectRoot(filePath, path);
         return filePath.string();
+    }
+
+    void ImportManager::enforceWithinProjectRoot(const fs::path& resolved,
+                                                 const std::string& originalPath)
+    {
+        // baseDirectory may not exist on disk yet (e.g. unit tests with a
+        // dummy "."). Fall back to lexically_normal so we still compare on
+        // a fully reduced path.
+        fs::path canonicalRoot;
+        try
+        {
+            canonicalRoot = fs::canonical(baseDirectory);
+        }
+        catch (const std::filesystem::filesystem_error&)
+        {
+            canonicalRoot = fs::absolute(baseDirectory).lexically_normal();
+        }
+
+        fs::path canonicalResolved;
+        try
+        {
+            canonicalResolved = fs::canonical(resolved);
+        }
+        catch (const std::filesystem::filesystem_error&)
+        {
+            canonicalResolved = fs::absolute(resolved).lexically_normal();
+        }
+
+        // Component-by-component prefix check. Using std::mismatch on the
+        // path iterators is the canonical way to defeat
+        // /projectroot-evil/file kinds of bypass that a string find() would
+        // accept.
+        auto rootIt = canonicalRoot.begin();
+        auto rootEnd = canonicalRoot.end();
+        auto pathIt = canonicalResolved.begin();
+        auto pathEnd = canonicalResolved.end();
+
+        for (; rootIt != rootEnd; ++rootIt, ++pathIt)
+        {
+            if (pathIt == pathEnd || *pathIt != *rootIt)
+            {
+                throw errors::FileException(
+                    "Import path escapes project root: " + originalPath);
+            }
+        }
     }
 
     ASTNode* ImportManager::parseAndCacheAST(const std::string& rawPath)

@@ -103,5 +103,15 @@ namespace services
                            bool useConsistentResolve);
         std::filesystem::path normalizeFilePath(const std::filesystem::path& filePath,
                                                bool allowFallback);
+
+        // SECURITY: ensure a resolved path lives inside baseDirectory.
+        // Throws errors::FileException on path-traversal attempts. Used by
+        // resolvePath() to reject absolute or `..`-laden imports that would
+        // otherwise reach files outside the project root. The check uses
+        // canonical() + iterator-mismatch on path components so it cannot be
+        // bypassed by a sibling directory with the same prefix
+        // (e.g. "/projectroot-evil/").
+        void enforceWithinProjectRoot(const std::filesystem::path& resolved,
+                                      const std::string& originalPath);
     };
 }

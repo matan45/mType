@@ -327,6 +327,9 @@
     <ClInclude Include="vm\runtime\utils\BoxingUtils.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\utils\CheckedArithmetic.hpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\utils\ErrorLocationHelper.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>

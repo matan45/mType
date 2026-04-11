@@ -33,6 +33,10 @@ namespace parser::expression
 
     std::unique_ptr<ASTNode> UnaryOperatorParser::parseUnary()
     {
+        // SECURITY: bound recursion depth so deeply nested input like
+        // !!!!!!...x or ((((...)))) cannot exhaust the C++ call stack.
+        ParserContextState::RecursionDepthGuard depthGuard(context.getContextState());
+
         // Check for cast expression first: (Type)expression
         if (expressionParser && expressionParser->getCastParser()->canParse(tokenStream))
         {

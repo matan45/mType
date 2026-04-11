@@ -3,6 +3,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueTypeUtils.hpp"
+#include "../../../constants/SecurityConstants.hpp"
 namespace vm::runtime
 {
     VariableExecutor::VariableExecutor(ExecutionContext& ctx)
@@ -305,6 +306,18 @@ namespace vm::runtime
         }
 
         size_t slot = instr.operands[0];
+
+        // SECURITY: cap the slot index directly. The attacker controls `slot`
+        // via bytecode operands, so an unbounded value would otherwise drive
+        // the stack-extending while loop below into an OOM/DoS condition.
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "STORE_LOCAL slot index " + std::to_string(slot) +
+                " exceeds per-frame limit " +
+                std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
+        }
+
         std::string varName = "";
         if (instr.operands.size() > 1)
         {

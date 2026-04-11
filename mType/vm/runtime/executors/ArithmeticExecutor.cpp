@@ -1,5 +1,6 @@
 #include "ArithmeticExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
+#include "../utils/CheckedArithmetic.hpp"
 #include "../../../value/StringPool.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../value/ValueObject.hpp"
@@ -7,6 +8,33 @@
 #include "../../../value/FlatMultiArray.hpp"
 #include "../../../value/SparseMultiArray.hpp"
 #include <sstream>
+
+namespace
+{
+    // SECURITY: validate that an unboxed value's runtime variant matches
+    // the primitive tag advertised by the wrapper object. A mismatch means
+    // the box's "value" field has been mutated to a type that disagrees
+    // with its tag, which would otherwise let arithmetic execute on the
+    // wrong type and produce a type-confusion vulnerability.
+    inline bool matchesPrimitiveTag(const value::Value& v, value::PrimitiveTypeTag tag)
+    {
+        switch (tag)
+        {
+        case value::PrimitiveTypeTag::INT:
+            return std::holds_alternative<int64_t>(v);
+        case value::PrimitiveTypeTag::FLOAT:
+            return std::holds_alternative<double>(v);
+        case value::PrimitiveTypeTag::BOOL:
+            return std::holds_alternative<bool>(v);
+        case value::PrimitiveTypeTag::STRING:
+            return std::holds_alternative<std::string>(v) ||
+                   std::holds_alternative<value::InternedString>(v);
+        case value::PrimitiveTypeTag::NONE:
+        default:
+            return true;
+        }
+    }
+}
 
 namespace vm::runtime
 {
@@ -47,7 +75,7 @@ namespace vm::runtime
     void ArithmeticExecutor::handleNeg() {
         value::Value val = context.stackManager->pop();
         if (std::holds_alternative<int64_t>(val)) {
-            context.stackManager->push(-std::get<int64_t>(val));
+            context.stackManager->push(utils::checkedNeg64(std::get<int64_t>(val)));
         } else if (std::holds_alternative<double>(val)) {
             context.stackManager->push(-std::get<double>(val));
         } else {
@@ -58,7 +86,7 @@ namespace vm::runtime
     void ArithmeticExecutor::handleInc() {
         value::Value val = context.stackManager->pop();
         if (std::holds_alternative<int64_t>(val)) {
-            context.stackManager->push(std::get<int64_t>(val) + 1);
+            context.stackManager->push(utils::checkedAdd64(std::get<int64_t>(val), 1));
         } else if (std::holds_alternative<double>(val)) {
             context.stackManager->push(std::get<double>(val) + 1.0);
         } else {
@@ -69,7 +97,7 @@ namespace vm::runtime
     void ArithmeticExecutor::handleDec() {
         value::Value val = context.stackManager->pop();
         if (std::holds_alternative<int64_t>(val)) {
-            context.stackManager->push(std::get<int64_t>(val) - 1);
+            context.stackManager->push(utils::checkedSub64(std::get<int64_t>(val), 1));
         } else if (std::holds_alternative<double>(val)) {
             context.stackManager->push(std::get<double>(val) - 1.0);
         } else {
@@ -90,7 +118,7 @@ namespace vm::runtime
         }
         int64_t r = std::get<int64_t>(context.stackManager->pop());
         int64_t l = std::get<int64_t>(context.stackManager->pop());
-        context.stackManager->push(l + r);
+        context.stackManager->push(utils::checkedAdd64(l, r));
     }
 
     void ArithmeticExecutor::handleSubInt() {
@@ -105,7 +133,7 @@ namespace vm::runtime
         }
         int64_t r = std::get<int64_t>(context.stackManager->pop());
         int64_t l = std::get<int64_t>(context.stackManager->pop());
-        context.stackManager->push(l - r);
+        context.stackManager->push(utils::checkedSub64(l, r));
     }
 
     void ArithmeticExecutor::handleMulInt() {
@@ -120,7 +148,7 @@ namespace vm::runtime
         }
         int64_t r = std::get<int64_t>(context.stackManager->pop());
         int64_t l = std::get<int64_t>(context.stackManager->pop());
-        context.stackManager->push(l * r);
+        context.stackManager->push(utils::checkedMul64(l, r));
     }
 
     void ArithmeticExecutor::handleDivInt() {
@@ -169,27 +197,43 @@ namespace vm::runtime
 
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left)) {
             auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left);
-            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
+            auto tag = obj->getPrimitiveTag();
+            if (tag != value::PrimitiveTypeTag::NONE) {
                 unboxedLeft = obj->getFieldValue("value");
+                if (!matchesPrimitiveTag(unboxedLeft, tag)) {
+                    throw errors::RuntimeException("Unboxing tag/value mismatch on left operand");
+                }
             }
         }
         else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(left)) {
             auto& obj = std::get<std::shared_ptr<value::ValueObject>>(left);
-            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
+            auto tag = obj->getPrimitiveTag();
+            if (tag != value::PrimitiveTypeTag::NONE) {
                 unboxedLeft = obj->getFieldValue("value");
+                if (!matchesPrimitiveTag(unboxedLeft, tag)) {
+                    throw errors::RuntimeException("Unboxing tag/value mismatch on left operand");
+                }
             }
         }
 
         if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right)) {
             auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right);
-            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
+            auto tag = obj->getPrimitiveTag();
+            if (tag != value::PrimitiveTypeTag::NONE) {
                 unboxedRight = obj->getFieldValue("value");
+                if (!matchesPrimitiveTag(unboxedRight, tag)) {
+                    throw errors::RuntimeException("Unboxing tag/value mismatch on right operand");
+                }
             }
         }
         else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(right)) {
             auto& obj = std::get<std::shared_ptr<value::ValueObject>>(right);
-            if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
+            auto tag = obj->getPrimitiveTag();
+            if (tag != value::PrimitiveTypeTag::NONE) {
                 unboxedRight = obj->getFieldValue("value");
+                if (!matchesPrimitiveTag(unboxedRight, tag)) {
+                    throw errors::RuntimeException("Unboxing tag/value mismatch on right operand");
+                }
             }
         }
 
@@ -198,17 +242,24 @@ namespace vm::runtime
             int64_t l = std::get<int64_t>(unboxedLeft);
             int64_t r = std::get<int64_t>(unboxedRight);
             switch (op) {
-                case OpCode::ADD: return l + r;
-                case OpCode::SUB: return l - r;
-                case OpCode::MUL: return l * r;
+                case OpCode::ADD: return utils::checkedAdd64(l, r);
+                case OpCode::SUB: return utils::checkedSub64(l, r);
+                case OpCode::MUL: return utils::checkedMul64(l, r);
                 case OpCode::DIV:
                     if (r == 0) {
                         utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
+                    }
+                    // Guard against -INT64_MIN / -1 which is also UB.
+                    if (l == INT64_MIN && r == -1) {
+                        utils::ErrorLocationHelper::throwRuntimeError(context, "Integer overflow in division");
                     }
                     return l / r;
                 case OpCode::MOD:
                     if (r == 0) {
                         utils::ErrorLocationHelper::throwRuntimeError(context, "Modulo by zero");
+                    }
+                    if (l == INT64_MIN && r == -1) {
+                        return static_cast<int64_t>(0);
                     }
                     return l % r;
                 default: break;

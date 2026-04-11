@@ -412,5 +412,21 @@ namespace vm::bytecode
             default: return "UNKNOWN";
         }
     }
+
+    /**
+     * Highest legal OpCode value. Update this whenever a new opcode is added
+     * to the enum so that bytecode deserialization can range-check incoming
+     * opcode bytes against the legal set.
+     */
+    constexpr uint8_t MAX_VALID_OPCODE = static_cast<uint8_t>(OpCode::STRING_BUILD);
+
+    /**
+     * Range-check a deserialized opcode byte against the legal enum range.
+     * Used by BytecodeProgram::readInstructions() to reject malformed .mtc
+     * files that contain reserved or out-of-range opcode bytes.
+     */
+    inline bool isValidOpCode(OpCode opcode) {
+        return static_cast<uint8_t>(opcode) <= MAX_VALID_OPCODE;
+    }
 }
 

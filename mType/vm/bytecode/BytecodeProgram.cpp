@@ -1,11 +1,77 @@
 ﻿#include "BytecodeProgram.hpp"
 #include "BytecodeIOHelper.hpp"
+#include "../../constants/SecurityConstants.hpp"
 #include <sstream>
 #include <iomanip>
 #include <stdexcept>
 #include <iostream>
 namespace vm::bytecode
 {
+    namespace
+    {
+        // Reject obviously malformed counts read from a bytecode stream before
+        // they reach a vector::resize. Throws std::runtime_error so the caller
+        // (deserialize) propagates a clear "bytecode rejected" message.
+        inline void validateCount(size_t count, size_t max, const char* what) {
+            if (count > max) {
+                throw std::runtime_error(
+                    std::string("Bytecode deserialization rejected: ") + what +
+                    " count " + std::to_string(count) + " exceeds limit " + std::to_string(max));
+            }
+        }
+
+        // Same idea, for individual serialized strings (function names, type
+        // names, exception messages, ...). Caps at MAX_STRING_BYTES so an
+        // attacker cannot allocate a multi-GiB std::string from a 16-byte
+        // length prefix.
+        inline void validateStringLen(size_t len, const char* what) {
+            if (len > constants::security::MAX_STRING_BYTES) {
+                throw std::runtime_error(
+                    std::string("Bytecode deserialization rejected: ") + what +
+                    " string length " + std::to_string(len) + " exceeds limit " +
+                    std::to_string(constants::security::MAX_STRING_BYTES));
+            }
+        }
+
+        // Sentinel for "no handler" used by the bytecode compiler. SIZE_MAX
+        // means the catch / finally branch is absent and must not be range-
+        // checked against the instruction array.
+        constexpr size_t IP_NONE = static_cast<size_t>(-1);
+
+        // Verify that an exception-table entry's instruction pointers fall
+        // within the loaded instruction array. Skips the SIZE_MAX sentinel
+        // used for absent catch / finally branches.
+        inline void validateExceptionEntry(size_t startIP, size_t endIP,
+                                           size_t catchIP, size_t finallyIP,
+                                           size_t instructionCount,
+                                           const char* context) {
+            if (startIP >= endIP) {
+                throw std::runtime_error(
+                    std::string("Bytecode deserialization rejected: ") + context +
+                    " exception entry has startIP " + std::to_string(startIP) +
+                    " >= endIP " + std::to_string(endIP));
+            }
+            if (endIP > instructionCount) {
+                throw std::runtime_error(
+                    std::string("Bytecode deserialization rejected: ") + context +
+                    " exception entry endIP " + std::to_string(endIP) +
+                    " exceeds instruction count " + std::to_string(instructionCount));
+            }
+            if (catchIP != IP_NONE && catchIP >= instructionCount) {
+                throw std::runtime_error(
+                    std::string("Bytecode deserialization rejected: ") + context +
+                    " exception entry catchIP " + std::to_string(catchIP) +
+                    " out of range (instruction count " + std::to_string(instructionCount) + ")");
+            }
+            if (finallyIP != IP_NONE && finallyIP >= instructionCount) {
+                throw std::runtime_error(
+                    std::string("Bytecode deserialization rejected: ") + context +
+                    " exception entry finallyIP " + std::to_string(finallyIP) +
+                    " out of range (instruction count " + std::to_string(instructionCount) + ")");
+            }
+        }
+    }
+
     // === Instruction Implementation ===
 
     BytecodeProgram::Instruction::Instruction() : opcode(OpCode::NOP) {}
@@ -593,22 +659,26 @@ namespace vm::bytecode
         // Read integers (64-bit)
         size_t count;
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        validateCount(count, constants::security::MAX_CONSTANT_POOL_ENTRIES, "constant pool integers");
         constantPool.integers.resize(count);
         in.read(reinterpret_cast<char*>(constantPool.integers.data()),
                count * sizeof(int64_t));
 
         // Read floats
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        validateCount(count, constants::security::MAX_CONSTANT_POOL_ENTRIES, "constant pool floats");
         constantPool.floats.resize(count);
         in.read(reinterpret_cast<char*>(constantPool.floats.data()),
                count * sizeof(double));
 
         // Read strings
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        validateCount(count, constants::security::MAX_CONSTANT_POOL_ENTRIES, "constant pool strings");
         constantPool.strings.resize(count);
         for (size_t i = 0; i < count; ++i) {
             size_t len;
             in.read(reinterpret_cast<char*>(&len), sizeof(len));
+            validateStringLen(len, "constant pool string");
             std::string str(len, '\0');
             in.read(&str[0], len);
             constantPool.strings[i] = std::move(str);
@@ -634,14 +704,22 @@ namespace vm::bytecode
     void BytecodeProgram::readInstructions(std::istream& in) {
         size_t count;
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        validateCount(count, constants::security::MAX_INSTRUCTION_COUNT, "instructions");
         instructions.resize(count);
         for (size_t i = 0; i < count; ++i) {
             in.read(reinterpret_cast<char*>(&instructions[i].opcode),
                    sizeof(instructions[i].opcode));
+            if (!isValidOpCode(instructions[i].opcode)) {
+                throw std::runtime_error(
+                    "Bytecode deserialization rejected: invalid opcode " +
+                    std::to_string(static_cast<unsigned>(instructions[i].opcode)) +
+                    " at instruction " + std::to_string(i));
+            }
             in.read(reinterpret_cast<char*>(&instructions[i].flags),
                    sizeof(instructions[i].flags));
             size_t opCount;
             in.read(reinterpret_cast<char*>(&opCount), sizeof(opCount));
+            validateCount(opCount, constants::security::MAX_OPERANDS_PER_INSTR, "instruction operands");
             if (opCount > 0) {
                 instructions[i].operands.resize(opCount);
                 in.read(reinterpret_cast<char*>(instructions[i].operands.data()),
@@ -709,10 +787,12 @@ namespace vm::bytecode
     void BytecodeProgram::readFunctions(std::istream& in) {
         size_t count;
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        validateCount(count, constants::security::MAX_FUNCTION_COUNT, "functions");
         for (size_t i = 0; i < count; ++i) {
             // Read function name
             size_t len;
             in.read(reinterpret_cast<char*>(&len), sizeof(len));
+            validateStringLen(len, "function name");
             std::string name(len, '\0');
             in.read(&name[0], len);
 
@@ -726,8 +806,23 @@ namespace vm::bytecode
             in.read(reinterpret_cast<char*>(&func.isStatic), sizeof(func.isStatic));
             in.read(reinterpret_cast<char*>(&func.isNative), sizeof(func.isNative));
 
+            // Native functions have no compiled body, so their offsets are
+            // not constrained by the instruction array.
+            if (!func.isNative) {
+                if (func.startOffset > instructions.size() ||
+                    func.instructionCount > instructions.size() ||
+                    func.startOffset + func.instructionCount > instructions.size()) {
+                    throw std::runtime_error(
+                        "Bytecode deserialization rejected: function '" + name +
+                        "' has out-of-range body [" + std::to_string(func.startOffset) +
+                        " .. +" + std::to_string(func.instructionCount) +
+                        "] (instruction count " + std::to_string(instructions.size()) + ")");
+                }
+            }
+
             // Read return type
             in.read(reinterpret_cast<char*>(&len), sizeof(len));
+            validateStringLen(len, "function return type");
             std::string returnType(len, '\0');
             in.read(&returnType[0], len);
             func.returnType = returnType;
@@ -735,9 +830,11 @@ namespace vm::bytecode
             // Read parameter names
             size_t paramCount;
             in.read(reinterpret_cast<char*>(&paramCount), sizeof(paramCount));
+            validateCount(paramCount, constants::security::MAX_PARAMETERS_PER_FUNCTION, "function parameters");
             func.parameterNames.resize(paramCount);
             for (size_t j = 0; j < paramCount; ++j) {
                 in.read(reinterpret_cast<char*>(&len), sizeof(len));
+                validateStringLen(len, "function parameter name");
                 std::string paramName(len, '\0');
                 in.read(&paramName[0], len);
                 func.parameterNames[j] = paramName;
@@ -746,6 +843,7 @@ namespace vm::bytecode
             // Read exception table
             size_t entryCount;
             in.read(reinterpret_cast<char*>(&entryCount), sizeof(entryCount));
+            validateCount(entryCount, constants::security::MAX_EXCEPTION_TABLE_ENTRIES, "function exception table entries");
             for (size_t j = 0; j < entryCount; ++j) {
                 size_t startIP, endIP, catchIP, finallyIP, catchVarSlot;
                 uint32_t nestingLevel;
@@ -759,13 +857,20 @@ namespace vm::bytecode
 
                 // Read exception type string
                 in.read(reinterpret_cast<char*>(&len), sizeof(len));
+                validateStringLen(len, "exception type");
                 std::string exceptionType(len, '\0');
                 in.read(&exceptionType[0], len);
 
                 // Read catch variable name string
                 in.read(reinterpret_cast<char*>(&len), sizeof(len));
+                validateStringLen(len, "catch var name");
                 std::string catchVarName(len, '\0');
                 in.read(&catchVarName[0], len);
+
+                // Validate IPs against the loaded instruction array.
+                validateExceptionEntry(startIP, endIP, catchIP, finallyIP,
+                                       instructions.size(),
+                                       ("function '" + name + "'").c_str());
 
                 // Add entry to function's exception table
                 ExceptionTableEntry entry(startIP, endIP, catchIP, finallyIP, exceptionType, nestingLevel, catchVarName, catchVarSlot);
@@ -1141,6 +1246,7 @@ namespace vm::bytecode
         // Read exception table entry count
         size_t entryCount;
         in.read(reinterpret_cast<char*>(&entryCount), sizeof(entryCount));
+        validateCount(entryCount, constants::security::MAX_EXCEPTION_TABLE_ENTRIES, "global exception table entries");
 
         // Read each entry
         for (size_t i = 0; i < entryCount; ++i) {
@@ -1157,13 +1263,20 @@ namespace vm::bytecode
             // Read exception type string
             size_t len;
             in.read(reinterpret_cast<char*>(&len), sizeof(len));
+            validateStringLen(len, "exception type");
             std::string exceptionType(len, '\0');
             in.read(&exceptionType[0], len);
 
             // Read catch variable name string
             in.read(reinterpret_cast<char*>(&len), sizeof(len));
+            validateStringLen(len, "catch var name");
             std::string catchVarName(len, '\0');
             in.read(&catchVarName[0], len);
+
+            // Validate IPs against the loaded instruction array.
+            validateExceptionEntry(startIP, endIP, catchIP, finallyIP,
+                                   instructions.size(),
+                                   "global");
 
             // Add entry to global exception table
             ExceptionTableEntry entry(startIP, endIP, catchIP, finallyIP, exceptionType, nestingLevel, catchVarName, catchVarSlot);
