@@ -723,5 +723,90 @@ namespace tests::testSuite
                 require(diag.suggestions.empty(),
                     "no candidate within Levenshtein budget should yield no suggestion");
             });
+
+        // ================================================================
+        // Phase 5 — quick-fix contract: Suggestion::label format
+        //
+        // The LSP CodeActionHandler::generateTypoFixActions parses the
+        // candidate identifier out of the Suggestion's label by matching
+        // the substring between the first pair of single quotes. These
+        // tests pin the format that the converter emits so the parser
+        // contract can never silently drift.
+        // ================================================================
+
+        addCallbackTest("phase5: typo suggestion label has parseable single-quoted candidate", "",
+            [](ScriptAPI&) {
+                // Pool chosen so exactly one candidate is the closest:
+                // 'foo' is distance 1 from 'foa' (substitute a->o), the
+                // others are far enough to fall outside the rustc-style
+                // budget. Avoids the three-way distance-1 tie that
+                // makes 'print/printf/println' style pools brittle.
+                std::vector<std::string> pool = { "foo", "totallyDifferent", "anotherIdent" };
+                errors::UndefinedException ex(
+                    "Variable 'foa' is not defined",
+                    errors::SourceLocation("a.mt", 1, 1),
+                    pool);
+                auto diag = diagnostics::fromException(ex);
+                require(diag.suggestions.size() == 1,
+                    "expected exactly one suggestion");
+
+                const std::string& label = diag.suggestions[0].label;
+                const size_t openQuote = label.find('\'');
+                require(openQuote != std::string::npos,
+                    "label must contain an opening single quote");
+                const size_t closeQuote = label.find('\'', openQuote + 1);
+                require(closeQuote != std::string::npos,
+                    "label must contain a closing single quote");
+                const std::string candidate =
+                    label.substr(openQuote + 1, closeQuote - openQuote - 1);
+                require(!candidate.empty(),
+                    "candidate identifier must be non-empty");
+                require(candidate.find('\'') == std::string::npos,
+                    "candidate must not itself contain quotes");
+                require(candidate == "foo",
+                    "expected closest-match candidate 'foo', got '" + candidate + "'");
+            });
+
+        addCallbackTest("phase5: typo suggestion has rendered hint for CLI renderer", "",
+            [](ScriptAPI&) {
+                std::vector<std::string> pool = { "List" };
+                errors::ClassNotFoundException ex("Lis",
+                    errors::SourceLocation("a.mt", 1, 1), pool);
+                auto diag = diagnostics::fromException(ex);
+                require(diag.suggestions.size() == 1, "expected one suggestion");
+                require(!diag.suggestions[0].renderedHint.empty(),
+                    "rendered hint must be set so the CLI renderer can show '= help: ...'");
+                require(diag.suggestions[0].renderedHint.find("List") != std::string::npos,
+                    "rendered hint should mention the candidate");
+            });
+
+        addCallbackTest("phase5: rendered diagnostic includes help line", "",
+            [](ScriptAPI&) {
+                std::vector<std::string> pool = { "calculateSum" };
+                errors::UndefinedException ex(
+                    "Variable 'calculateSun' is not defined",
+                    errors::SourceLocation("phase5_help.mt", 2, 1),
+                    pool);
+
+                auto& cache = diagnostics::SourceFileCache::instance();
+                cache.publishFromContent("phase5_help.mt",
+                    "let calculateSum = 1;\nprintln(calculateSun);");
+
+                auto diag = diagnostics::fromException(ex);
+
+                std::ostringstream out;
+                auto opts = diagnostics::DiagnosticRenderer::defaultOptions();
+                opts.stream = &out;
+                opts.colorMode = diagnostics::DiagnosticRenderer::ColorMode::Never;
+                diagnostics::DiagnosticRenderer(opts).render(diag);
+                const std::string output = out.str();
+
+                require(output.find("= help:") != std::string::npos,
+                    "renderer must emit '= help:' line for diagnostics with suggestions");
+                require(output.find("calculateSum") != std::string::npos,
+                    "help line must include the candidate identifier");
+
+                cache.invalidate("phase5_help.mt");
+            });
     }
 }
