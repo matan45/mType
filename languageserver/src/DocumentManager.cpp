@@ -1,6 +1,8 @@
 #include "DocumentManager.hpp"
 #include "../../mType/token/TokenType.hpp"
 #include "../../mType/environment/EnvironmentBuilder.hpp"
+#include "../../mType/diagnostics/ExceptionConverter.hpp"
+#include "../../mType/diagnostics/SourceFileCache.hpp"
 #include "utils/MemoryFileReader.hpp"
 #include "analysis/SymbolRegistrationVisitor.hpp"
 #include "analysis/ImportResolver.hpp"
@@ -51,6 +53,9 @@ void DocumentManager::updateDocument(const std::string& uri, const std::string& 
 }
 
 void DocumentManager::closeDocument(const std::string& uri) {
+    // Drop the file's cached source so a stale snippet can't show up if
+    // the same URI is reopened with different content.
+    diagnostics::SourceFileCache::instance().invalidate(uri);
     documents_.erase(uri);
 }
 
@@ -70,10 +75,17 @@ void DocumentManager::parseDocument(const std::string& uri) {
         return;
     }
 
+    // Publish the in-memory editor buffer to the diagnostic source cache
+    // BEFORE parsing, so any throw from the parser/lexer can resolve its
+    // span back to the unsaved content the user is currently editing.
+    // The Lexer constructor also publishes (from disk-on-load), but the
+    // LSP needs the buffer-truth so unsaved changes show in snippets.
+    diagnostics::SourceFileCache::instance().publishFromContent(
+        uri, doc->content);
+
     try {
-        // Clear errors but preserve AST and environment if parse fails
-        doc->parseErrors.clear();
-        doc->semanticErrors.clear();
+        // Clear diagnostics but preserve AST and environment if parse fails
+        doc->diagnostics.clear();
         doc->tokens.clear();
 
         // Save previous AST and environment in case parse fails
@@ -111,7 +123,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
                 parseSucceeded = true;
             }
         } catch (const std::exception& e) {
-            doc->parseErrors.push_back(e.what());
+            doc->diagnostics.push_back(diagnostics::fromException(e));
         }
 
         // Only update AST and environment if parsing succeeded
@@ -142,7 +154,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
                 doc->symbolLocations = visitor->getSymbolLocations();
             }
         } catch (const std::exception& e) {
-            doc->semanticErrors.push_back(std::string("Symbol registration error: ") + e.what());
+            doc->diagnostics.push_back(diagnostics::fromException(e));
         }
 
         // Resolve and parse imported files to get their symbols
@@ -169,7 +181,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
         doc->isParsed = true;
 
     } catch (const std::exception& e) {
-        doc->parseErrors.push_back(std::string("Fatal error: ") + e.what());
+        doc->diagnostics.push_back(diagnostics::fromException(e));
         doc->isParsed = false;
     }
 }

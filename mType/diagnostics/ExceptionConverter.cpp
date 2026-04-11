@@ -27,7 +27,9 @@
 #include "../errors/TypeException.hpp"
 #include "../errors/TypeResolutionException.hpp"
 #include "../errors/UndefinedException.hpp"
-#include "../errors/UserException.hpp"
+#ifndef MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION
+    #include "../errors/UserException.hpp"
+#endif
 #include "../ast/AccessModifier.hpp"
 
 #include <sstream>
@@ -320,6 +322,7 @@ namespace diagnostics
             return std::move(b).build();
         }
 
+#ifndef MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION
         Diagnostic convertUserException(const errors::UserException& e)
         {
             DiagnosticBuilder b(codes::RuntimeUserException);
@@ -330,6 +333,7 @@ namespace diagnostics
              .withSourceException("UserException");
             return std::move(b).build();
         }
+#endif
 
         // ----- mid-tier base classes --------------------------------------
 
@@ -431,8 +435,10 @@ namespace diagnostics
             return convertAbstract(*p);
         if (auto p = dynamic_cast<const errors::InheritanceException*>(&e))
             return convertInheritance(*p);
+#ifndef MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION
         if (auto p = dynamic_cast<const errors::UserException*>(&e))
             return convertUserException(*p);
+#endif
         if (auto p = dynamic_cast<const errors::UndefinedException*>(&e))
             return convertUndefined(*p);
         if (auto p = dynamic_cast<const errors::EnvironmentException*>(&e))

@@ -1,5 +1,11 @@
 #include "DiagnosticsHandler.hpp"
 #include "../utils/UriUtils.hpp"
+#include "../utils/LspDiagnosticConverter.hpp"
+
+#include "../../../mType/diagnostics/DiagnosticBuilder.hpp"
+#include "../../../mType/diagnostics/ErrorCodeRegistry.hpp"
+#include "../../../mType/errors/SourceLocation.hpp"
+
 #include <sstream>
 #include <regex>
 #include <filesystem>
@@ -38,64 +44,35 @@ namespace mtype::lsp
 
     std::vector<Diagnostic> DiagnosticsHandler::analyzeDiagnostics(const Document* doc)
     {
-        std::vector<Diagnostic> diagnostics;
+        std::vector<Diagnostic> result;
 
-        if (!doc) return diagnostics;
+        if (!doc) return result;
 
-        // Add parse errors
-        for (const auto& error : doc->parseErrors)
+        // MYT-35 — Convert each shared core Diagnostic into the LSP wire
+        // type via LspDiagnosticConverter. No regex on exception strings;
+        // the structured spans, codes, notes, and secondary spans flow
+        // directly through. The doc->diagnostics list is populated by
+        // DocumentManager::parseDocument from caught exceptions.
+        for (const auto& core : doc->diagnostics)
         {
-            Diagnostic diag;
-            diag.severity = static_cast<int>(DiagnosticSeverity::Error);
-            diag.message = "Parse error: " + error;
-            diag.source = "mType Parser";
-
-            // Try to extract line and column from error message
-            // Format: "Error at file:///.../file.mt:LINE:COL: message"
-            std::regex locationRegex(":([0-9]+):([0-9]+):");
-            std::smatch match;
-            if (std::regex_search(error, match, locationRegex) && match.size() >= 3)
-            {
-                int line = std::stoi(match[1].str());
-                int col = std::stoi(match[2].str());
-                // Convert from 1-based (parser) to 0-based (LSP)
-                diag.range.start.line = line - 1;
-                diag.range.start.character = col - 1;
-                diag.range.end.line = line - 1;
-                diag.range.end.character = col; // Highlight at least one character
-            }
-            else
-            {
-                // Fallback to line 0 if we can't parse the location
-                diag.range = Range{{0, 0}, {0, 0}};
-            }
-
-            diagnostics.push_back(diag);
+            result.push_back(toLspDiagnostic(core, doc->uri));
         }
 
-        // Add semantic errors
-        for (const auto& error : doc->semanticErrors)
-        {
-            Diagnostic diag;
-            diag.range = Range{{0, 0}, {0, 0}}; // Default range
-            diag.severity = static_cast<int>(DiagnosticSeverity::Error);
-            diag.message = "Semantic error: " + error;
-            diag.source = "mType Analyzer";
-            diagnostics.push_back(diag);
-        }
+        // Import path validation produces core diagnostics too, then we
+        // convert through the same path so the rendering is uniform.
+        auto importDiagnostics = validateImportPaths(doc);
+        result.insert(result.end(),
+                      importDiagnostics.begin(),
+                      importDiagnostics.end());
 
-        // Add import path validation
-        auto pathDiagnostics = validateImportPaths(doc);
-        diagnostics.insert(diagnostics.end(), pathDiagnostics.begin(), pathDiagnostics.end());
-
-        return diagnostics;
+        return result;
     }
 
     std::vector<Diagnostic> DiagnosticsHandler::validateImportPaths(const Document* doc)
     {
-        std::vector<Diagnostic> diagnostics;
+        std::vector<Diagnostic> result;
 
-        if (!doc) return diagnostics;
+        if (!doc) return result;
 
         // Parse imports from content
         std::istringstream stream(doc->content);
@@ -134,29 +111,31 @@ namespace mtype::lsp
 
                 if (!exists)
                 {
-                    Diagnostic diag;
-
-                    // Find the position of the path in the line
+                    // Find the position of the path in the line. Source
+                    // locations use 1-based line/column; the converter
+                    // maps back to 0-based for LSP.
                     size_t pathStart = line.find('"') + 1;
                     size_t pathEnd = line.find('"', pathStart);
 
-                    diag.range.start.line = lineNumber;
-                    diag.range.start.character = static_cast<int>(pathStart);
-                    diag.range.end.line = lineNumber;
-                    diag.range.end.character = static_cast<int>(pathEnd);
+                    errors::SourceLocation start(
+                        doc->uri, lineNumber + 1, static_cast<int>(pathStart) + 1);
+                    errors::SourceLocation end(
+                        doc->uri, lineNumber + 1, static_cast<int>(pathEnd) + 1);
 
-                    diag.severity = static_cast<int>(DiagnosticSeverity::Error);
-                    diag.message = "Cannot find module: '" + importPath + "'";
-                    diag.source = "mType Import Resolver";
-
-                    diagnostics.push_back(diag);
+                    auto coreDiag =
+                        diagnostics::DiagnosticBuilder(diagnostics::codes::FileError)
+                            .withMessage("cannot find module '" + importPath + "'")
+                            .withPrimaryRange(start, end, "module not found")
+                            .withSourceException("ImportResolver")
+                            .build();
+                    result.push_back(toLspDiagnostic(coreDiag, doc->uri));
                 }
             }
 
             lineNumber++;
         }
 
-        return diagnostics;
+        return result;
     }
 
     std::string DiagnosticsHandler::resolveImportPath(const std::string& baseUri, const std::string& relativePath)

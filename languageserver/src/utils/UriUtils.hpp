@@ -72,5 +72,45 @@ namespace UriUtils {
         return path;
     }
 
+    /**
+     * Convert a filesystem path to a `file://` URI. Used by the
+     * diagnostic converter when a secondary span references a file
+     * outside the document the LSP is currently publishing diagnostics
+     * for. Best-effort: only encodes the bare minimum (spaces) and
+     * normalises Windows backslashes to forward slashes.
+     */
+    inline std::string filePathToUri(const std::string& path)
+    {
+        if (path.empty())
+        {
+            return "";
+        }
+        std::string normalized;
+        normalized.reserve(path.size());
+        for (char c : path)
+        {
+            normalized.push_back(c == '\\' ? '/' : c);
+        }
+        std::string encoded;
+        encoded.reserve(normalized.size());
+        for (char c : normalized)
+        {
+            if (c == ' ')
+            {
+                encoded.append("%20");
+            }
+            else
+            {
+                encoded.push_back(c);
+            }
+        }
+        // file:///C:/foo  on Windows;  file:///home/x/foo  on POSIX
+        if (!encoded.empty() && encoded.front() == '/')
+        {
+            return "file://" + encoded;
+        }
+        return "file:///" + encoded;
+    }
+
 } // namespace UriUtils
 } // namespace mtype::lsp

@@ -289,11 +289,21 @@ namespace mtype::lsp
         std::string uri = params["textDocument"]["uri"];
         Range range = params["range"];
 
-        // Get diagnostics if provided
+        // Parse the context.diagnostics list. VS Code sends every diagnostic
+        // attached to the cursor range here so the server can match each
+        // action to a specific diagnostic via the `data` blob and the
+        // `code` field. Previously this list was silently dropped.
         std::vector<Diagnostic> diagnostics;
         if (params.contains("context") && params["context"].contains("diagnostics"))
         {
-            // Parse diagnostics from params if needed
+            const auto& diagsJson = params["context"]["diagnostics"];
+            if (diagsJson.is_array())
+            {
+                for (const auto& diagJson : diagsJson)
+                {
+                    diagnostics.push_back(diagJson.get<Diagnostic>());
+                }
+            }
         }
 
         auto actions = codeActionHandler_->handleCodeAction(uri, range, diagnostics);

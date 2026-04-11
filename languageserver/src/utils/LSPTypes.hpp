@@ -121,11 +121,52 @@ enum class DiagnosticSeverity {
     Hint = 4
 };
 
+struct CodeDescription {
+    std::string href;
+
+    json toJson() const {
+        return json{ {"href", href} };
+    }
+};
+
+inline void from_json(const json& j, CodeDescription& cd) {
+    j.at("href").get_to(cd.href);
+}
+
+struct DiagnosticRelatedInformation {
+    Location location;
+    std::string message;
+
+    json toJson() const {
+        return json{
+            {"location", location.toJson()},
+            {"message", message}
+        };
+    }
+};
+
+inline void from_json(const json& j, DiagnosticRelatedInformation& dri) {
+    j.at("location").get_to(dri.location);
+    j.at("message").get_to(dri.message);
+}
+
 struct Diagnostic {
     Range range;
     int severity; // DiagnosticSeverity
     std::string message;
     std::optional<std::string> source;
+
+    // Extended LSP fields used by the unified diagnostic system (MYT-35).
+    // `code` is a string (we publish "MT-E1001"-style ids) but the spec
+    // also allows int — we store as json so round-tripping works either way.
+    std::optional<json> code;
+    std::optional<CodeDescription> codeDescription;
+    std::vector<DiagnosticRelatedInformation> relatedInformation;
+    std::vector<int> tags;     // DiagnosticTag: Unnecessary=1, Deprecated=2
+    // Opaque blob round-tripped through textDocument/codeAction so the
+    // server can recover the original diagnostic context when generating
+    // quick fixes.
+    std::optional<json> data;
 
     json toJson() const {
         json j = {
@@ -134,9 +175,52 @@ struct Diagnostic {
             {"message", message}
         };
         if (source) j["source"] = *source;
+        if (code) j["code"] = *code;
+        if (codeDescription) j["codeDescription"] = codeDescription->toJson();
+        if (!relatedInformation.empty()) {
+            json arr = json::array();
+            for (const auto& ri : relatedInformation) arr.push_back(ri.toJson());
+            j["relatedInformation"] = arr;
+        }
+        if (!tags.empty()) j["tags"] = tags;
+        if (data) j["data"] = *data;
         return j;
     }
 };
+
+inline void from_json(const json& j, Diagnostic& d) {
+    j.at("range").get_to(d.range);
+    if (j.contains("severity")) {
+        d.severity = j.at("severity").get<int>();
+    } else {
+        d.severity = 1; // Error
+    }
+    if (j.contains("message")) {
+        d.message = j.at("message").get<std::string>();
+    }
+    if (j.contains("source")) {
+        d.source = j.at("source").get<std::string>();
+    }
+    if (j.contains("code")) {
+        d.code = j.at("code");
+    }
+    if (j.contains("codeDescription")) {
+        d.codeDescription = j.at("codeDescription").get<CodeDescription>();
+    }
+    if (j.contains("relatedInformation")) {
+        for (const auto& item : j.at("relatedInformation")) {
+            d.relatedInformation.push_back(item.get<DiagnosticRelatedInformation>());
+        }
+    }
+    if (j.contains("tags")) {
+        for (const auto& t : j.at("tags")) {
+            d.tags.push_back(t.get<int>());
+        }
+    }
+    if (j.contains("data")) {
+        d.data = j.at("data");
+    }
+}
 
 struct Hover {
     std::string contents;
@@ -187,6 +271,10 @@ struct CodeAction {
     std::string title;
     std::optional<std::string> kind; // "quickfix", "refactor", etc.
     std::optional<WorkspaceEdit> edit;
+    // The diagnostics that this action addresses (LSP spec field).
+    // VS Code uses this to associate the action with the squiggle that
+    // produced it, so the bulb shows up next to the right line.
+    std::vector<Diagnostic> diagnostics;
 
     json toJson() const {
         json j = {
@@ -194,6 +282,11 @@ struct CodeAction {
         };
         if (kind) j["kind"] = *kind;
         if (edit) j["edit"] = edit->toJson();
+        if (!diagnostics.empty()) {
+            json arr = json::array();
+            for (const auto& d : diagnostics) arr.push_back(d.toJson());
+            j["diagnostics"] = arr;
+        }
         return j;
     }
 };
