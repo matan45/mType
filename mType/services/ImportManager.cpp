@@ -185,6 +185,20 @@ namespace services
         // projectRoot may not exist on disk yet (e.g. unit tests with a
         // dummy "."). Fall back to lexically_normal so we still compare on
         // a fully reduced path.
+        //
+        // KNOWN GAP: lexically_normal does NOT resolve symlinks. A symlink
+        // inside projectRoot whose target points outside the root would
+        // pass the prefix check on this fallback path. The mitigating
+        // factors are:
+        //   1) The fallback only triggers when fs::canonical fails, which
+        //      typically means the file does not yet exist — so there is
+        //      nothing for the importer to read anyway.
+        //   2) Once the file exists, fs::canonical succeeds and resolves
+        //      symlinks normally, so any escape attempt is caught the next
+        //      time the path is checked.
+        // Tightening this further would require distinguishing "path
+        // doesn't exist" from "permission denied" on canonical(), which
+        // std::filesystem doesn't expose portably.
         fs::path canonicalRoot;
         try
         {
