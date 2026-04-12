@@ -286,6 +286,72 @@
     <Filter Include="testFiles\overloading\pass">
       <UniqueIdentifier>{27604E5E-1370-FA2E-7C29-5F4D6858E9C7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\packagemanager">
+      <UniqueIdentifier>{8E76E782-7A9B-3603-A3E6-1B938F6A3521}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\project">
+      <UniqueIdentifier>{F4609592-E0B1-80D4-0916-6F96F5C5133E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\project\src">
+      <UniqueIdentifier>{0B79A0AF-F75F-62A7-A0B0-C8C48C76DB0D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry">
+      <UniqueIdentifier>{B6AB5CC2-221A-B241-6B03-6D41D7B0A7DD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\circular-a">
+      <UniqueIdentifier>{C83C4153-B44F-41AC-5D39-1E99492BDEF9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\circular-a\1.0.0">
+      <UniqueIdentifier>{C4E4F03A-B078-E6E2-193D-409705F020D5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\circular-a\1.0.0\src">
+      <UniqueIdentifier>{DB64B95E-C70E-EF6D-B0DF-F6889C288F5C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\circular-b">
+      <UniqueIdentifier>{C93C4153-B54F-41AC-5E39-1E994A2BDEF9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\circular-b\1.0.0">
+      <UniqueIdentifier>{8521EB87-71B5-E02F-DA79-3AE4C62C1B22}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\circular-b\1.0.0\src">
+      <UniqueIdentifier>{1C1A16E4-08C4-4BF3-F194-530EDDDDEBE1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\mathlib">
+      <UniqueIdentifier>{6655A45F-D26F-0701-1B92-179587EB2E08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\mathlib\1.0.0">
+      <UniqueIdentifier>{E27BB7BD-4EB7-1781-57AC-9410C3669CB1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\mathlib\1.0.0\src">
+      <UniqueIdentifier>{F95A1283-656C-BA29-EEBD-4C695ACE4363}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\mathlib\1.2.0">
+      <UniqueIdentifier>{6484B7BD-D0BF-1781-D9B4-9410456F9CB1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\mathlib\1.2.0\src">
+      <UniqueIdentifier>{7BD4061D-E7E5-AEC3-7037-4103DC4738FD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\mathlib\2.0.0">
+      <UniqueIdentifier>{6394C9BD-CFCF-2981-D8C4-A610447FAEB1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\mathlib\2.0.0\src">
+      <UniqueIdentifier>{FACB8EF7-66DD-369E-EF2E-C9DD5B3FC0D7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\utils">
+      <UniqueIdentifier>{B62D016E-22BD-C258-2BB9-A37097C7FD64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\utils\2.0.0">
+      <UniqueIdentifier>{B3689B52-1FD9-9DCB-E8F7-17545427D6CC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\utils\2.0.0\src">
+      <UniqueIdentifier>{4A48D28E-B60E-2FAB-FF69-BD0D6B6F9D0F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\utils\2.1.0">
+      <UniqueIdentifier>{F46C9B52-60DD-9DCB-29FC-1754952BD6CC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\packagemanager\registry\utils\2.1.0\src">
+      <UniqueIdentifier>{0B85CCDB-774B-29F8-C0A6-B75A2CAC975C}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\projectManifest">
       <UniqueIdentifier>{55FC83A7-C1BE-B731-0A6F-46BE7670900F}</UniqueIdentifier>
     </Filter>
@@ -462,6 +528,9 @@
     <ClInclude Include="tests\suites\OverloadingTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\PackageManagerTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ReflectionTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -561,6 +630,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\OverloadingTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\PackageManagerTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ReflectionTestSuite.cpp">
@@ -8439,6 +8511,30 @@
     </None>
     <None Include="tests\testFiles\overloading\pass\zeroVsOneParam.mt">
       <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\packagemanager\project\src\App.mt">
+      <Filter>testFiles\packagemanager\project\src</Filter>
+    </None>
+    <None Include="tests\testFiles\packagemanager\registry\circular-a\1.0.0\src\A.mt">
+      <Filter>testFiles\packagemanager\registry\circular-a\1.0.0\src</Filter>
+    </None>
+    <None Include="tests\testFiles\packagemanager\registry\circular-b\1.0.0\src\B.mt">
+      <Filter>testFiles\packagemanager\registry\circular-b\1.0.0\src</Filter>
+    </None>
+    <None Include="tests\testFiles\packagemanager\registry\mathlib\1.0.0\src\Vector.mt">
+      <Filter>testFiles\packagemanager\registry\mathlib\1.0.0\src</Filter>
+    </None>
+    <None Include="tests\testFiles\packagemanager\registry\mathlib\1.2.0\src\Vector.mt">
+      <Filter>testFiles\packagemanager\registry\mathlib\1.2.0\src</Filter>
+    </None>
+    <None Include="tests\testFiles\packagemanager\registry\mathlib\2.0.0\src\Vector.mt">
+      <Filter>testFiles\packagemanager\registry\mathlib\2.0.0\src</Filter>
+    </None>
+    <None Include="tests\testFiles\packagemanager\registry\utils\2.0.0\src\StringUtil.mt">
+      <Filter>testFiles\packagemanager\registry\utils\2.0.0\src</Filter>
+    </None>
+    <None Include="tests\testFiles\packagemanager\registry\utils\2.1.0\src\StringUtil.mt">
+      <Filter>testFiles\packagemanager\registry\utils\2.1.0\src</Filter>
     </None>
     <None Include="tests\testFiles\projectManifest\lib\LibUtil.mt">
       <Filter>testFiles\projectManifest\lib</Filter>

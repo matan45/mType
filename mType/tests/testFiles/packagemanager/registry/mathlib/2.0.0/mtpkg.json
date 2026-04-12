@@ -1,0 +1,7 @@
+{
+  "name": "mathlib",
+  "version": "2.0.0",
+  "description": "Math utilities v2",
+  "source": "src",
+  "dependencies": {}
+}
