@@ -76,23 +76,10 @@ Example: `C:\\path\\to\\mType\\bin\\mType\\Debug\\x64\\mType.exe`
 
 ### Configuration Options
 
-#### Language Server
 ```json
 {
-  "mTypeLanguageServer.enable": true,
+  "mType.languageServer.path": "/path/to/mtype-language-server",
   "mTypeLanguageServer.interpreterPath": "/path/to/mType.exe"
-}
-```
-
-#### Code Formatter
-```json
-{
-  "mTypeFormatter.tabSize": 4,
-  "mTypeFormatter.useTabs": false,
-  "mTypeFormatter.formatOnSave": true,
-  "mTypeFormatter.insertSpaceAroundOperators": true,
-  "mTypeFormatter.insertBlankLines": true,
-  "mTypeFormatter.organizeImports": true
 }
 ```
 
@@ -100,14 +87,10 @@ Example: `C:\\path\\to\\mType\\bin\\mType\\Debug\\x64\\mType.exe`
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `mTypeLanguageServer.enable` | boolean | true | Enable/disable language server |
-| `mTypeLanguageServer.interpreterPath` | string | "" | Path to mType interpreter executable |
-| `mTypeFormatter.tabSize` | number | 4 | Number of spaces per indentation level |
-| `mTypeFormatter.useTabs` | boolean | false | Use tabs for indentation instead of spaces |
-| `mTypeFormatter.formatOnSave` | boolean | true | Automatically format mType files on save |
-| `mTypeFormatter.insertSpaceAroundOperators` | boolean | true | Insert spaces around operators (=, +, -, *, /, etc.) |
-| `mTypeFormatter.insertBlankLines` | boolean | true | Insert blank lines between classes and methods |
-| `mTypeFormatter.organizeImports` | boolean | true | Automatically organize and sort import statements |
+| `mType.languageServer.path` | string | "" | Path to the C++ language server executable (auto-detected if empty) |
+| `mTypeLanguageServer.interpreterPath` | string | "" | Path to mType interpreter executable (used by the Run command) |
+
+Formatting options (tab size, spaces vs tabs) are sent by VS Code via standard LSP `FormattingOptions` — configure them in your VS Code editor settings.
 
 ## Usage
 
@@ -408,39 +391,20 @@ npm run watch        # Watch for changes and auto-compile
 ```
 mtype-vscode-extension/
 ├── src/
-│   ├── extension.ts              # Extension entry point
-│   ├── analysis/                 # Code analysis components
-│   │   ├── MTypeCodeAnalyzer.ts
-│   │   ├── MTypeScopeAnalyzer.ts
-│   │   └── MTypeContextAnalyzer.ts
-│   ├── completion/               # Code completion providers
-│   │   └── MTypeCompletionProvider.ts
-│   ├── definition/               # Go-to-definition support
-│   │   └── MTypeDefinitionProvider.ts
-│   ├── references/               # Find references support
-│   │   ├── MTypeReferenceProvider.ts
-│   │   └── MTypeCodeLensProvider.ts
-│   ├── formatter/                # Code formatting
-│   │   └── MTypeFormatter.ts
-│   ├── imports/                  # Import management
-│   │   ├── MTypeImportResolver.ts
-│   │   ├── MTypeImportDiagnostics.ts
-│   │   └── MTypeImportCompletionProvider.ts
-│   └── analyzer/                 # Additional analyzers
-│       ├── MTypeSemanticTokensProvider.ts
-│       ├── MTypeSignatureHelpProvider.ts
-│       └── MTypeCodeActionsProvider.ts
+│   ├── extension.ts              # Extension entry point (thin LSP client)
+│   └── languageClient.ts         # LSP client configuration
 ├── syntaxes/
 │   └── mtype.tmGrammar.json      # TextMate grammar
 ├── themes/
-│   ├── mtype-dark-theme.json     # Dark color theme
-│   └── mtype-light-theme.json    # Light color theme
+│   └── mtype-dark-theme.json     # Dark color theme
 ├── icons/
 │   └── mtype-icon-theme.json     # File icon theme
 ├── language-configuration/
 │   └── mtype-configuration.json  # Language configuration
 └── package.json                  # Extension manifest
 ```
+
+All language intelligence (completion, diagnostics, references, formatting, etc.) is provided by the C++ language server (`mtype-language-server`). The VS Code extension is a thin client that launches the server and forwards LSP messages.
 
 ### Testing
 
@@ -464,15 +428,99 @@ Check the Output panel → "mType Language Server" for diagnostic logs.
 
 ## Architecture
 
-The extension uses a modular architecture with specialized components:
+The extension is a thin LSP client. All language intelligence is handled by the C++ language server (`mtype-language-server`), which speaks standard LSP over stdio. The server provides:
 
-- **Analyzer**: Parses code structure and builds AST representations
-- **Scope Analyzer**: Tracks variable scopes and visibility rules
-- **Context Analyzer**: Determines completion context for IntelliSense
-- **Import Resolver**: Handles cross-file imports and symbol resolution
-- **Formatter**: AST-based code formatting with configurable rules
-- **Debug Adapter**: Implements Debug Adapter Protocol for debugging support
-- **Providers**: VS Code language feature providers (completion, definition, references, etc.)
+- **CompletionHandler**: Context-aware code completion
+- **HoverHandler**: Type and documentation hover
+- **DefinitionHandler**: Go-to-definition
+- **ReferencesHandler**: Find all references (workspace-wide)
+- **SignatureHelpHandler**: Parameter hints
+- **SemanticTokensHandler**: Enhanced semantic highlighting (20 token types, 10 modifiers)
+- **FormattingHandler**: Code formatting with import organization
+- **CodeActionHandler**: Quick fixes and refactoring
+- **CodeLensHandler**: Reference counts
+- **DiagnosticsHandler**: Real-time error reporting
+- **PathCompletionHandler**: Import path completion
+
+The VS Code extension contributes static assets (TextMate grammar, themes, icons, language configuration) and common commands (Run, Format, Find References).
+
+## Using mType Language Server with Other Editors
+
+The C++ language server (`mtype-language-server`) speaks standard LSP over stdio and works with any LSP-capable editor.
+
+### Neovim
+
+```lua
+vim.lsp.start({
+    name = 'mtype',
+    cmd = { '/path/to/mtype-language-server' },
+    filetypes = { 'mtype' },
+    root_dir = vim.fs.dirname(vim.fs.find({ '.mtproj', '.git' }, { upward = true })[1]),
+})
+```
+
+Or with `nvim-lspconfig`, add a custom server config.
+
+### Helix
+
+In `~/.config/helix/languages.toml`:
+
+```toml
+[[language]]
+name = "mtype"
+scope = "source.mtype"
+file-types = ["mt"]
+language-servers = ["mtype-language-server"]
+
+[language-server.mtype-language-server]
+command = "/path/to/mtype-language-server"
+```
+
+### JetBrains (IntelliJ, CLion, etc.)
+
+Install the [LSP Support](https://plugins.jetbrains.com/plugin/10209-lsp-support) plugin, then configure:
+
+- **Executable**: `/path/to/mtype-language-server`
+- **File pattern**: `*.mt`
+
+### Emacs (eglot)
+
+```elisp
+(add-to-list 'eglot-server-programs
+             '(mtype-mode . ("/path/to/mtype-language-server")))
+```
+
+### Zed
+
+In `~/.config/zed/settings.json`:
+
+```json
+{
+  "lsp": {
+    "mtype-language-server": {
+      "binary": { "path": "/path/to/mtype-language-server" }
+    }
+  }
+}
+```
+
+### Sublime Text (LSP package)
+
+In LSP settings:
+
+```json
+{
+  "clients": {
+    "mtype": {
+      "enabled": true,
+      "command": ["/path/to/mtype-language-server"],
+      "selector": "source.mtype"
+    }
+  }
+}
+```
+
+> **Note**: Only the VS Code extension provides icons, themes, and TextMate syntax highlighting. Other editors need their own syntax grammar (e.g., tree-sitter) for coloring.
 
 ## Contributing
 

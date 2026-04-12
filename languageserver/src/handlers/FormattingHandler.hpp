@@ -47,6 +47,9 @@ private:
     // Check if line should increase indent for next line (opening brace)
     bool shouldIncreaseIndent(const std::string& line);
 
+    // Organize import statements (sort by depth, deduplicate)
+    std::string organizeImports(const std::string& content);
+
     // Trim whitespace from line
     std::string trim(const std::string& str);
 

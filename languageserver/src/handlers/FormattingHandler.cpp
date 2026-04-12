@@ -11,7 +11,10 @@ std::vector<TextEdit> FormattingHandler::formatDocument(
 ) {
     std::vector<TextEdit> edits;
 
-    std::istringstream stream(content);
+    // Pre-process: organize imports before formatting
+    std::string organized = organizeImports(content);
+
+    std::istringstream stream(organized);
     std::string line;
     std::ostringstream formattedContent;
     int currentIndent = 0;
@@ -48,7 +51,7 @@ std::vector<TextEdit> FormattingHandler::formatDocument(
     edit.range.start.character = 0;
 
     // Calculate end position (last line, last character)
-    std::istringstream countStream(content);
+    std::istringstream countStream(organized);
     int totalLines = 0;
     std::string lastLine;
     while (std::getline(countStream, lastLine)) {
@@ -61,7 +64,7 @@ std::vector<TextEdit> FormattingHandler::formatDocument(
     std::string result = formattedContent.str();
 
     // Remove trailing newline if content didn't have one
-    if (!content.empty() && content.back() != '\n' && !result.empty() && result.back() == '\n') {
+    if (!organized.empty() && organized.back() != '\n' && !result.empty() && result.back() == '\n') {
         result.pop_back();
     }
 
@@ -82,7 +85,7 @@ std::vector<TextEdit> FormattingHandler::formatDocument(
         result = trimmed.str();
 
         // Remove trailing newline again if needed
-        if (!content.empty() && content.back() != '\n' && !result.empty() && result.back() == '\n') {
+        if (!organized.empty() && organized.back() != '\n' && !result.empty() && result.back() == '\n') {
             result.pop_back();
         }
     }
@@ -96,6 +99,90 @@ std::vector<TextEdit> FormattingHandler::formatDocument(
     edits.push_back(edit);
 
     return edits;
+}
+
+std::string FormattingHandler::organizeImports(const std::string& content) {
+    std::istringstream stream(content);
+    std::string line;
+    std::vector<std::string> imports;
+    std::vector<std::string> nonImports;
+    bool inImportSection = true;
+
+    while (std::getline(stream, line)) {
+        std::string trimmed = trim(line);
+        if (trimmed.substr(0, 7) == "import ") {
+            imports.push_back(trimmed);
+        } else {
+            if (!trimmed.empty() || !inImportSection) {
+                inImportSection = false;
+            }
+            nonImports.push_back(line);
+        }
+    }
+
+    if (imports.empty()) {
+        return content;
+    }
+
+    // Extract the path from an import line for sorting
+    auto extractPath = [](const std::string& importLine) -> std::string {
+        // Match: from "path" or from 'path'
+        std::regex pathRegex(R"(from\s+["']([^"']+)["'])");
+        std::smatch match;
+        if (std::regex_search(importLine, match, pathRegex)) {
+            return match[1].str();
+        }
+        return "";
+    };
+
+    // Count relative depth (number of ../ segments)
+    auto countDepth = [](const std::string& path) -> int {
+        int depth = 0;
+        size_t pos = 0;
+        while ((pos = path.find("../", pos)) != std::string::npos) {
+            depth++;
+            pos += 3;
+        }
+        return depth;
+    };
+
+    // Sort imports by: (1) relative depth ascending, (2) path alphabetically
+    std::sort(imports.begin(), imports.end(),
+        [&](const std::string& a, const std::string& b) {
+            std::string pathA = extractPath(a);
+            std::string pathB = extractPath(b);
+            int depthA = countDepth(pathA);
+            int depthB = countDepth(pathB);
+            if (depthA != depthB) return depthA < depthB;
+            return pathA < pathB;
+        });
+
+    // Deduplicate
+    imports.erase(std::unique(imports.begin(), imports.end()), imports.end());
+
+    // Reassemble: sorted imports, blank separator, then rest
+    std::ostringstream result;
+    for (const auto& imp : imports) {
+        result << imp << "\n";
+    }
+
+    // Add blank line between imports and code if there is non-empty code
+    bool hasNonEmptyCode = false;
+    for (const auto& l : nonImports) {
+        if (!trim(l).empty()) { hasNonEmptyCode = true; break; }
+    }
+    if (hasNonEmptyCode) {
+        result << "\n";
+    }
+
+    for (size_t i = 0; i < nonImports.size(); i++) {
+        result << nonImports[i];
+        if (i + 1 < nonImports.size()) {
+            result << "\n";
+        }
+    }
+
+    return result.str();
 }
 
 std::vector<TextEdit> FormattingHandler::formatRange(
