@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -11,7 +12,7 @@ namespace fs = std::filesystem;
 class TempDir {
 public:
     TempDir() {
-        static int counter = 0;
+        static std::atomic<int> counter{0};
         path_ = fs::temp_directory_path() / ("mtype_test_" + std::to_string(++counter)
                 + "_" + std::to_string(std::time(nullptr)));
         fs::create_directories(path_);

@@ -1,6 +1,7 @@
 #include "WorkspaceSymbolIndexTestSuite.hpp"
 #include "../src/analysis/WorkspaceSymbolIndex.hpp"
 
+#include <atomic>
 #include <thread>
 #include <vector>
 
@@ -73,37 +74,49 @@ void WorkspaceSymbolIndexTestSuite::registerTests(LspTestHarness& harness) {
             "spelling should not contain .mt extension");
     });
 
-    harness.addTest("thread safety: concurrent reindex and find", []() {
+    harness.addTest("thread safety: concurrent reindex and find do not crash", []() {
         analysis::WorkspaceSymbolIndex index;
 
         // Seed initial data
         index.reindexFile("file:///initial.mt", "class Initial {}\n");
 
+        std::atomic<bool> go{false};
+        std::atomic<bool> crashed{false};
         std::vector<std::thread> threads;
-        bool failed = false;
 
         // Multiple readers
         for (int i = 0; i < 4; ++i) {
-            threads.emplace_back([&index, &failed]() {
-                for (int j = 0; j < 100; ++j) {
-                    auto r = index.findByName("Initial");
-                    // May be empty during reindex, that's fine
-                    (void)r;
+            threads.emplace_back([&]() {
+                while (!go.load()) {} // spin until all threads are ready
+                try {
+                    for (int j = 0; j < 100; ++j) {
+                        auto r = index.findByName("Initial");
+                        (void)r;
+                    }
+                } catch (...) {
+                    crashed.store(true);
                 }
             });
         }
 
         // One writer
-        threads.emplace_back([&index]() {
-            for (int j = 0; j < 50; ++j) {
-                index.reindexFile("file:///writer.mt",
-                    "class Writer" + std::to_string(j) + " {}\n");
+        threads.emplace_back([&]() {
+            while (!go.load()) {} // spin until all threads are ready
+            try {
+                for (int j = 0; j < 50; ++j) {
+                    index.reindexFile("file:///writer.mt",
+                        "class Writer" + std::to_string(j) + " {}\n");
+                }
+            } catch (...) {
+                crashed.store(true);
             }
         });
 
+        go.store(true); // release all threads simultaneously
+
         for (auto& t : threads) t.join();
 
-        require(!failed, "concurrent access should not crash");
+        require(!crashed.load(), "concurrent access should not crash");
     });
 }
 

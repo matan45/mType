@@ -1,6 +1,8 @@
 #include "FormattingHandlerTestSuite.hpp"
 #include "../src/handlers/FormattingHandler.hpp"
 
+#include <sstream>
+
 namespace mtype::lsp::test {
 
 void FormattingHandlerTestSuite::registerTests(LspTestHarness& harness) {
@@ -34,9 +36,21 @@ void FormattingHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto edits = handler.formatDocument(source, opts);
 
         require(edits.size() == 1, "expected 1 edit");
-        // Line after opening brace should have 4-space indent
-        require(edits[0].newText.find("\n    ") != std::string::npos,
-            "expected 4-space indent after opening brace");
+        // Split into lines and check that line after "class Foo {" has 4-space indent
+        std::istringstream ss(edits[0].newText);
+        std::string line;
+        bool foundIndented = false;
+        bool afterBrace = false;
+        while (std::getline(ss, line)) {
+            if (afterBrace && !line.empty()) {
+                require(line.substr(0, 4) == "    ",
+                    "line after opening brace should start with 4 spaces, got: '" + line + "'");
+                foundIndented = true;
+                break;
+            }
+            if (line.find('{') != std::string::npos) afterBrace = true;
+        }
+        require(foundIndented, "should have found an indented line after opening brace");
     });
 
     harness.addTest("insertSpaces=true with tabSize=2 produces 2-space indent", []() {

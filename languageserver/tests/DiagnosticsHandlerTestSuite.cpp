@@ -70,10 +70,10 @@ void DiagnosticsHandlerTestSuite::registerTests(LspTestHarness& harness) {
         });
 
         handler.publishDiagnostics("file:///test.mt");
-        // Valid source should have no error-severity diagnostics (severity 1)
+        // Valid 'class Foo {}' should produce no error-severity diagnostics
         for (const auto& d : capturedDiags) {
             require(d.severity != 1,
-                "valid document should not produce error diagnostics: " + d.message);
+                "valid 'class Foo {}' should not produce errors, got: " + d.message);
         }
     });
 

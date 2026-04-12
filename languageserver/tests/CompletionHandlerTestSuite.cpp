@@ -194,32 +194,57 @@ function topLevelFn(): void {}
     // Test 7: Context narrowing after 'extends'
     // ---------------------------------------------------------------
     harness.addTest("context narrowing: extends shows only classes", []() {
-        auto docMgr = makeDocManager("file:///test/extends.mt",
-            "class Base {}\ninterface IFace {}\nclass Child extends ");
-        CompletionHandler handler(docMgr.get());
-        auto items = handler.handleCompletion("file:///test/extends.mt", {2, 20});
+        const std::string uri = "file:///test/extends.mt";
+        // Use a valid document. Position cursor right after "extends " on the
+        // class declaration line. The textEndsInInheritanceKeyword check only
+        // looks at the text before the cursor on that line.
+        // "class Child extends Base {}" — cursor after "extends " at col 21.
+        auto docMgr = makeDocManager(uri,
+            "class Base {}\ninterface IFace {}\nclass Child extends Base {}\n");
 
-        // Should contain Base (class) but not IFace (interface)
-        if (hasItemWithLabel(items, "Base")) {
-            require(!hasItemWithLabel(items, "IFace"),
-                "extends context should not show interfaces");
-        }
+        CompletionHandler handler(docMgr.get());
+        // Line 2: "class Child extends Base {}" — col 20 is right after "extends "
+        auto items = handler.handleCompletion(uri, {2, 20});
+
+        require(!items.empty(), "extends context should return completions");
+        require(hasItemWithLabel(items, "Base"),
+            "extends context should include class 'Base'");
+        require(!hasItemWithLabel(items, "IFace"),
+            "extends context should not show interfaces");
     });
 
     // ---------------------------------------------------------------
     // Test 8: Context narrowing after 'implements'
     // ---------------------------------------------------------------
     harness.addTest("context narrowing: implements shows only interfaces", []() {
-        auto docMgr = makeDocManager("file:///test/implements.mt",
-            "class Base {}\ninterface IFace {\n    function doIt(): void;\n}\nclass Child implements ");
-        CompletionHandler handler(docMgr.get());
-        auto items = handler.handleCompletion("file:///test/implements.mt", {4, 22});
+        const std::string uri = "file:///test/implements.mt";
+        // Interface with a method signature — empty interfaces may not produce
+        // an InterfaceNode in the parser.
+        auto docMgr = makeDocManager(uri,
+            "class Base {}\n"
+            "interface IFace {\n    function doIt(): void;\n}\n"
+            "class Child implements IFace {\n    function doIt(): void {}\n}\n");
 
-        // Should contain IFace (interface) but not Base (class)
-        if (hasItemWithLabel(items, "IFace")) {
-            require(!hasItemWithLabel(items, "Base"),
-                "implements context should not show classes");
-        }
+        // Verify IFace actually registered in the interface registry
+        auto* doc = docMgr->getDocument(uri);
+        require(doc != nullptr && doc->environment != nullptr,
+            "precondition: environment must exist");
+        auto ifaceReg = doc->environment->getInterfaceRegistry();
+        require(ifaceReg != nullptr, "precondition: interface registry must exist");
+        const auto& allIfaces = ifaceReg->getAllInterfaces();
+        require(allIfaces.count("IFace") > 0,
+            "precondition: IFace must be in interface registry, found "
+            + std::to_string(allIfaces.size()) + " interfaces");
+
+        CompletionHandler handler(docMgr.get());
+        // Line 4: "class Child implements IFace {" — col 22 is right after "implements "
+        auto items = handler.handleCompletion(uri, {4, 22});
+
+        require(!items.empty(), "implements context should return completions");
+        require(hasItemWithLabel(items, "IFace"),
+            "implements context should include interface 'IFace'");
+        require(!hasItemWithLabel(items, "Base"),
+            "implements context should not show classes");
     });
 
     // ---------------------------------------------------------------
@@ -251,30 +276,19 @@ function topLevelFn(): void {}
         const std::string libUri = "file:///test/lib/Foo.mt";
 
         // Foo is defined in the current document as a class.
-        // Use clean parseable source so Foo registers in the class registry.
-        // Then type "Foo" on the next line to trigger auto-import check.
-        auto docMgr = makeDocManager(mainUri, "class Foo {}\nFoo");
+        // First verify that Foo actually shows up in completions (in scope).
+        auto docMgr = makeDocManager(mainUri, "class Foo {}\n");
+        CompletionHandler plainHandler(docMgr.get());
+        auto plainItems = plainHandler.handleCompletion(mainUri, {1, 0});
+        require(hasItemWithLabel(plainItems, "Foo"),
+            "precondition: 'Foo' must be in scope from the class definition");
 
-        // Verify Foo is actually registered in the environment
-        auto* doc = docMgr->getDocument(mainUri);
-        bool fooInScope = false;
-        if (doc && doc->environment) {
-            auto classReg = doc->environment->getClassRegistry();
-            if (classReg && classReg->findClass("Foo")) {
-                fooInScope = true;
-            }
-        }
-
-        if (!fooInScope) {
-            // Parser didn't register Foo (parse error on bare "Foo" line).
-            // This test can't validate name-collision suppression without
-            // the class in scope. Skip gracefully.
-            return;
-        }
-
+        // Now add a workspace index with Foo from another file and type "Foo"
         auto wsIndex = std::make_shared<analysis::WorkspaceSymbolIndex>();
         wsIndex->reindexFile(libUri, "class Foo {}\n");
 
+        // Re-open with typed prefix to trigger auto-import
+        docMgr->updateDocument(mainUri, "class Foo {}\nFoo", 2);
         CompletionHandler handler(docMgr.get(), wsIndex);
         auto items = handler.handleCompletion(mainUri, {1, 3});
 

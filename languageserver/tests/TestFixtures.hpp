@@ -33,6 +33,8 @@ inline Diagnostic makeDiagnostic(const Range& range,
 }
 
 // Builds an LSP Diagnostic with a suggestions data blob for typo fixes.
+// All values are constructed via nlohmann::json objects (not string
+// concatenation), so special characters in suggestions are properly escaped.
 inline Diagnostic makeDiagnosticWithSuggestions(
     const Range& range,
     const std::string& message,
@@ -43,9 +45,13 @@ inline Diagnostic makeDiagnosticWithSuggestions(
     diag.message = message;
     nlohmann::json sugArr = nlohmann::json::array();
     for (const auto& s : suggestions) {
-        sugArr.push_back(nlohmann::json{{"label", "did you mean '" + s + "'?"}});
+        nlohmann::json entry;
+        entry["label"] = "did you mean '" + s + "'?";
+        sugArr.push_back(std::move(entry));
     }
-    diag.data = nlohmann::json{{"suggestions", sugArr}};
+    nlohmann::json data;
+    data["suggestions"] = std::move(sugArr);
+    diag.data = std::move(data);
     return diag;
 }
 

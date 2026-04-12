@@ -93,9 +93,16 @@ void MtFileWalkerTestSuite::registerTests(LspTestHarness& harness) {
         auto files = utils::MtFileWalker::findMtFiles(tmpDir.path());
         require(files.size() >= 3, "expected at least 3 files");
 
-        // Verify sorted order
+        // Normalize paths (backslash → forward slash) before comparing,
+        // since std::sort on mixed separators is platform-dependent.
+        auto normalize = [](const std::string& p) {
+            std::string n = p;
+            for (char& c : n) { if (c == '\\') c = '/'; }
+            return n;
+        };
         for (size_t i = 1; i < files.size(); ++i) {
-            require(files[i - 1] <= files[i], "results should be sorted");
+            require(normalize(files[i - 1]) <= normalize(files[i]),
+                "results should be sorted");
         }
     });
 
