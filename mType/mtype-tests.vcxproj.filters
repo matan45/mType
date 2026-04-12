@@ -91,6 +91,12 @@
     <Filter Include="testFiles\error\pass\modules">
       <UniqueIdentifier>{5F4DD884-4B08-C830-F4BF-407BE05912C1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\exe">
+      <UniqueIdentifier>{C90EED9F-35CF-68D6-FE09-B2536A89ADB2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\src">
+      <UniqueIdentifier>{600915DA-CC1F-1370-1597-9E9181ECE3F7}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\gc">
       <UniqueIdentifier>{11D292ED-FD34-2292-A6BA-5A4892FCED14}</UniqueIdentifier>
     </Filter>
@@ -4953,6 +4959,9 @@
     </None>
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\src\Main.mt">
+      <Filter>testFiles\exe\src</Filter>
     </None>
     <None Include="tests\testFiles\gc\pass\deepCycle.expected">
       <Filter>testFiles\gc\pass</Filter>

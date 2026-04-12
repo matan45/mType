@@ -1,0 +1,6 @@
+<Project Name="ExeTest" Version="1.0.0">
+  <Source>
+    <Include>src/**/*.mt</Include>
+  </Source>
+  <Output Directory="build" />
+</Project>

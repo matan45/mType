@@ -243,6 +243,31 @@ namespace services
         return program;
     }
 
+    std::unique_ptr<vm::bytecode::BytecodeProgram> BytecodeService::runFromProgram(
+        vm::bytecode::BytecodeProgram program)
+    {
+        auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
+
+        // Register classes from metadata
+        registerClassesFromMetadata(result->getClasses());
+
+        // Set program on VM and ScriptAPI
+        if (vm)
+        {
+            vm->setProgram(result.get());
+        }
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(result.get());
+        }
+
+        // Execute the bytecode (registers functions and runs top-level code)
+        BytecodeExecutor::executeProgram(vm, *result);
+
+        // Keep program alive — caller owns the unique_ptr
+        return result;
+    }
+
     std::unique_ptr<vm::bytecode::BytecodeProgram> BytecodeService::loadFromProgram(
         vm::bytecode::BytecodeProgram program)
     {

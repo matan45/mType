@@ -474,20 +474,12 @@ namespace validation
 
                 // Static methods do NOT have implicit 'this', so exactly 1 parameter (args)
                 // Return type must be void, access must be public
-                // string[] is represented as ValueType::OBJECT with className "string[]"
                 if (params.size() == 1 &&
                     method->getReturnType() == value::ValueType::VOID &&
                     method->getAccessModifier() == ast::AccessModifier::PUBLIC)
                 {
-                    const auto& paramType = params[0].second;
-                    if (paramType.basicType == value::ValueType::ARRAY ||
-                        (paramType.basicType == value::ValueType::OBJECT &&
-                         paramType.className.has_value() &&
-                         paramType.className.value().find("[]") != std::string::npos))
-                    {
-                        hasMainMethod = true;
-                        break;
-                    }
+                    hasMainMethod = true;
+                    break;
                 }
             }
         }

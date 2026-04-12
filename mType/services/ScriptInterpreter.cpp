@@ -477,4 +477,10 @@ namespace services
         // Load an already-deserialized bytecode program
         cachedBytecodeProgram = bytecodeService->loadFromProgram(std::move(program));
     }
+
+    void ScriptInterpreter::runFromProgram(vm::bytecode::BytecodeProgram program)
+    {
+        // Load and execute an already-deserialized bytecode program, keep it alive
+        cachedBytecodeProgram = bytecodeService->runFromProgram(std::move(program));
+    }
 }

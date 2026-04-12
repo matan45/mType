@@ -355,6 +355,9 @@ project "mtype-launcher"
    location "mType"
    commonConfig()
 
+   -- Output to the same directory as mType.exe so --build --exe can find it
+   targetdir "bin/mType/%{cfg.buildcfg}/%{cfg.platform}"
+
    includedirs { "vendor/asmjit", "packagemanager/src" }
    defines { "ASMJIT_STATIC" }
 

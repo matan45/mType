@@ -202,6 +202,25 @@ namespace vm::runtime
                 qualifiedName += "$static";
             }
             auto* funcMetadata = program->getFunction(qualifiedName);
+
+            // Fallback: the method's type signature (e.g. "array") may differ from the
+            // compiler's function name (e.g. "string[]"). Scan for a matching function.
+            if (!funcMetadata)
+            {
+                std::string prefix = className + "::" + methodName;
+                std::string suffix = method->isStatic() ? "$static" : "";
+                for (const auto& [fname, fmeta] : program->getFunctions())
+                {
+                    if (fname.rfind(prefix, 0) == 0 &&
+                        (!suffix.empty() ? fname.find(suffix) != std::string::npos : true) &&
+                        fname != prefix + suffix)
+                    {
+                        funcMetadata = program->getFunction(fname);
+                        break;
+                    }
+                }
+            }
+
             if (!funcMetadata)
             {
                 throw errors::RuntimeException("Static method '" + qualifiedName +

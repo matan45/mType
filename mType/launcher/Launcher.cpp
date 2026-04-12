@@ -139,15 +139,15 @@ int main(int argc, char* argv[])
         std::istringstream stream(std::string(blob.begin(), blob.end()));
         auto program = vm::bytecode::BytecodeProgram::deserialize(stream);
 
-        // Boot interpreter and load program
+        // Boot interpreter and execute program (registers functions + runs top-level code)
         services::ScriptInterpreter interpreter;
-        interpreter.loadFromProgram(std::move(program));
+        interpreter.runFromProgram(std::move(program));
 
         // Find @EntryPoint class
         auto env = interpreter.getEnvironment();
         std::string entryClass = findEntryPointClass(env);
 
-        // Build String[] args from argv (skip argv[0] which is the exe name)
+        // Build string[] args from argv (skip argv[0] which is the exe name)
         size_t argCount = (argc > 1) ? static_cast<size_t>(argc - 1) : 0;
         auto argsArray = std::make_shared<value::NativeArray>(argCount, value::ValueType::STRING);
         for (size_t i = 0; i < argCount; ++i)
