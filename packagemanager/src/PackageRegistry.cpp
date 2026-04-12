@@ -1,4 +1,5 @@
 #include "PackageRegistry.hpp"
+#include "GitSource.hpp"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -111,5 +112,67 @@ namespace packagemanager
         }
 
         return (fs::path(home) / ".mtype" / "registry").string();
+    }
+
+    void PackageRegistry::registerGitSource(const std::string& packageName, const std::string& source)
+    {
+        gitSources[packageName] = source;
+    }
+
+    std::vector<SemVer> PackageRegistry::getAvailableVersionsWithFetch(const std::string& packageName)
+    {
+        // First check local cache
+        auto localVersions = getAvailableVersions(packageName);
+
+        // If we have a git source and no local versions, query remote
+        auto it = gitSources.find(packageName);
+        if (it != gitSources.end())
+        {
+            std::string cloneUrl = GitSource::toCloneUrl(it->second);
+            auto remoteTags = GitSource::listRemoteTags(cloneUrl);
+
+            // Merge: add remote versions not already cached locally
+            for (const auto& remoteVer : remoteTags)
+            {
+                bool alreadyCached = false;
+                for (const auto& localVer : localVersions)
+                {
+                    if (localVer == remoteVer)
+                    {
+                        alreadyCached = true;
+                        break;
+                    }
+                }
+                if (!alreadyCached)
+                {
+                    localVersions.push_back(remoteVer);
+                }
+            }
+
+            std::sort(localVersions.begin(), localVersions.end());
+        }
+
+        return localVersions;
+    }
+
+    void PackageRegistry::ensureCached(const std::string& packageName, const std::string& version)
+    {
+        // Already cached locally
+        if (packageExists(packageName, version))
+        {
+            return;
+        }
+
+        // Check if we have a git source for this package
+        auto it = gitSources.find(packageName);
+        if (it == gitSources.end())
+        {
+            throw std::runtime_error(
+                "Package " + packageName + "@" + version +
+                " not found in local registry and no git source registered");
+        }
+
+        std::string cloneUrl = GitSource::toCloneUrl(it->second);
+        GitSource::fetchIntoRegistry(cloneUrl, packageName, version, registryRoot);
     }
 }

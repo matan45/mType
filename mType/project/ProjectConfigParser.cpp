@@ -165,6 +165,13 @@ namespace project
                     PackageDependency dep;
                     dep.name = nameIt->second;
                     dep.versionRange = versionIt->second;
+
+                    auto sourceIt = child.attributes.find("Source");
+                    if (sourceIt != child.attributes.end())
+                    {
+                        dep.source = sourceIt->second;
+                    }
+
                     deps.packages.push_back(dep);
                 }
             }

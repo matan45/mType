@@ -4,7 +4,7 @@
 
 namespace packagemanager
 {
-    DependencyResolver::DependencyResolver(const PackageRegistry& registry)
+    DependencyResolver::DependencyResolver(PackageRegistry& registry)
         : registry(registry)
     {
     }
@@ -12,6 +12,15 @@ namespace packagemanager
     std::unordered_map<std::string, ResolvedPackage> DependencyResolver::resolve(
         const std::vector<PackageDependency>& directDeps)
     {
+        // Register git sources from dependencies before resolving
+        for (const auto& dep : directDeps)
+        {
+            if (!dep.source.empty())
+            {
+                registry.registerGitSource(dep.name, dep.source);
+            }
+        }
+
         std::unordered_map<std::string, ResolvedPackage> resolved;
         std::vector<std::string> resolveStack;
 
@@ -51,7 +60,7 @@ namespace packagemanager
             SemVer existingVer = SemVer::parse(it->second.version);
             if (range.satisfiedBy(existingVer))
             {
-                return; // Already resolved with a compatible version
+                return;
             }
             throw std::runtime_error(
                 "Version conflict for package '" + name + "': " +
@@ -59,8 +68,8 @@ namespace packagemanager
                 " but " + versionRange + " is also required");
         }
 
-        // Find available versions
-        auto versions = registry.getAvailableVersions(name);
+        // Find available versions (queries git remote if source registered)
+        auto versions = registry.getAvailableVersionsWithFetch(name);
         if (versions.empty())
         {
             throw std::runtime_error("Package not found in registry: " + name);
@@ -68,6 +77,9 @@ namespace packagemanager
 
         // Find best match
         SemVer bestVersion = findBestMatch(versions, range);
+
+        // Ensure the version is cached locally (clones from git if needed)
+        registry.ensureCached(name, bestVersion.toString());
 
         // Get manifest for transitive dependencies
         PackageManifest manifest = registry.getManifest(name, bestVersion.toString());

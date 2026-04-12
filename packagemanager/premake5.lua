@@ -1,7 +1,7 @@
 -- mType Package Manager Build Configuration
-workspace "mType-PackageManager"
+workspace "mtpm"
     architecture "x64"
-    startproject "mtype-package-manager"
+    startproject "mtpm"
 	toolset "v145"
 
     configurations
@@ -19,10 +19,10 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 
 --------------------------------------------------------------------------------
--- Executable: mtype-package-manager
+-- Executable: mtpm
 -- Standalone CLI for package management
 --------------------------------------------------------------------------------
-project "mtype-package-manager"
+project "mtpm"
     kind "ConsoleApp"
     language "C++"
     cppdialect "C++20"

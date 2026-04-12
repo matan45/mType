@@ -36,6 +36,9 @@
     <ClInclude Include="..\packagemanager\src\DependencyResolver.hpp">
       <Filter>packagemanager\src</Filter>
     </ClInclude>
+    <ClInclude Include="..\packagemanager\src\GitSource.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
     <ClInclude Include="..\packagemanager\src\Lockfile.hpp">
       <Filter>packagemanager\src</Filter>
     </ClInclude>
@@ -192,6 +195,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\packagemanager\src\DependencyResolver.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\GitSource.cpp">
       <Filter>packagemanager\src</Filter>
     </ClCompile>
     <ClCompile Include="..\packagemanager\src\Lockfile.cpp">

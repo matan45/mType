@@ -27,6 +27,7 @@ namespace project
     {
         std::string name;
         std::string versionRange;
+        std::string source;  // e.g. "github:user/repo", empty = local registry
     };
 
     struct DependenciesConfig

@@ -12,14 +12,20 @@
 
 static void printUsage(const char* argv0)
 {
-    std::cout << "mType Package Manager\n\n";
+    std::cout << "mtpm - mType Package Manager\n\n";
     std::cout << "Usage:\n";
-    std::cout << "  " << argv0 << " install [project.mtproj]       - Install all dependencies\n";
-    std::cout << "  " << argv0 << " add <pkg>@<version> [.mtproj]  - Add a package dependency\n";
-    std::cout << "  " << argv0 << " remove <pkg> [.mtproj]         - Remove a package dependency\n";
-    std::cout << "  " << argv0 << " list [.mtproj]                 - List installed packages\n";
-    std::cout << "  " << argv0 << " init <name> <version>          - Create mtpkg.json for publishing\n";
-    std::cout << "  " << argv0 << " --help                         - Show this help\n";
+    std::cout << "  " << argv0 << " install [project.mtproj]                          - Install all dependencies\n";
+    std::cout << "  " << argv0 << " add <pkg>@<ver> [--source github:user/repo]      - Add a package\n";
+    std::cout << "  " << argv0 << " remove <pkg> [.mtproj]                            - Remove a package\n";
+    std::cout << "  " << argv0 << " list [.mtproj]                                    - List installed packages\n";
+    std::cout << "  " << argv0 << " init <name> <version>                             - Create mtpkg.json\n";
+    std::cout << "  " << argv0 << " --help                                            - Show this help\n";
+    std::cout << "\nSource formats:\n";
+    std::cout << "  github:user/repo                  - GitHub shorthand\n";
+    std::cout << "  https://github.com/user/repo.git  - Full git URL\n";
+    std::cout << "\nExamples:\n";
+    std::cout << "  " << argv0 << " add mathlib@^1.0.0 --source github:matan45/mathlib\n";
+    std::cout << "  " << argv0 << " install\n";
 }
 
 static std::string findMtproj(const std::string& explicitPath)
@@ -90,6 +96,17 @@ static std::vector<packagemanager::PackageDependency> parseDependenciesFromMtpro
             }
         }
 
+        size_t srcPos = tag.find("Source=\"");
+        if (srcPos != std::string::npos)
+        {
+            srcPos += 8;
+            size_t srcEnd = tag.find("\"", srcPos);
+            if (srcEnd != std::string::npos)
+            {
+                dep.source = tag.substr(srcPos, srcEnd - srcPos);
+            }
+        }
+
         if (!dep.name.empty() && !dep.versionRange.empty())
         {
             deps.push_back(dep);
@@ -103,7 +120,8 @@ static std::vector<packagemanager::PackageDependency> parseDependenciesFromMtpro
 
 static void insertDependencyIntoMtproj(const std::string& mtprojPath,
                                         const std::string& name,
-                                        const std::string& version)
+                                        const std::string& version,
+                                        const std::string& source = "")
 {
     std::ifstream inFile(mtprojPath);
     std::stringstream buffer;
@@ -128,7 +146,12 @@ static void insertDependencyIntoMtproj(const std::string& mtprojPath,
     size_t pos = content.find("</Dependencies>");
     if (pos != std::string::npos)
     {
-        std::string entry = "    <Package Name=\"" + name + "\" Version=\"" + version + "\" />\n  ";
+        std::string entry = "    <Package Name=\"" + name + "\" Version=\"" + version + "\"";
+        if (!source.empty())
+        {
+            entry += " Source=\"" + source + "\"";
+        }
+        entry += " />\n  ";
         content.insert(pos, entry);
     }
 
@@ -226,12 +249,12 @@ int main(int argc, char* argv[])
         return result.success ? 0 : 1;
     }
 
-    // Handle: add <pkg>@<version> [.mtproj]
+    // Handle: add <pkg>@<version> [--source github:user/repo] [.mtproj]
     if (command == "add")
     {
         if (argc < 3)
         {
-            std::cerr << "Usage: " << argv[0] << " add <package>@<version> [.mtproj]\n";
+            std::cerr << "Usage: " << argv[0] << " add <package>@<version> [--source github:user/repo] [.mtproj]\n";
             return 1;
         }
 
@@ -245,14 +268,37 @@ int main(int argc, char* argv[])
 
         std::string name = pkgSpec.substr(0, atPos);
         std::string version = pkgSpec.substr(atPos + 1);
+        std::string source;
+        std::string mtprojPath;
 
-        std::string mtprojPath = findMtproj(argc >= 4 ? argv[3] : "");
+        // Parse remaining args for --source and .mtproj path
+        for (int i = 3; i < argc; ++i)
+        {
+            std::string arg = argv[i];
+            if (arg == "--source" && i + 1 < argc)
+            {
+                source = argv[++i];
+            }
+            else if (arg[0] != '-')
+            {
+                mtprojPath = arg;
+            }
+        }
+
+        mtprojPath = findMtproj(mtprojPath);
         std::string projectRoot = std::filesystem::path(mtprojPath).parent_path().string();
 
-        std::cout << "Adding " << name << "@" << version << "...\n";
+        if (!source.empty())
+        {
+            std::cout << "Adding " << name << "@" << version << " from " << source << "...\n";
+        }
+        else
+        {
+            std::cout << "Adding " << name << "@" << version << "...\n";
+        }
 
         // Update .mtproj
-        insertDependencyIntoMtproj(mtprojPath, name, version);
+        insertDependencyIntoMtproj(mtprojPath, name, version, source);
 
         // Install
         auto deps = parseDependenciesFromMtproj(mtprojPath);

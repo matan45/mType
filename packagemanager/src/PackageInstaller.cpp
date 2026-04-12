@@ -75,11 +75,23 @@ namespace packagemanager
             // Resolve dependencies
             std::unordered_map<std::string, ResolvedPackage> resolved;
 
+            // Register git sources so ensureCached can fetch if needed
+            for (const auto& dep : dependencies)
+            {
+                if (!dep.source.empty())
+                {
+                    registry.registerGitSource(dep.name, dep.source);
+                }
+            }
+
             if (useLockfile)
             {
                 reportProgress("Using lockfile for version resolution");
                 for (const auto& [name, locked] : lockfile.packages)
                 {
+                    // Ensure locked version is cached (fetches from git if needed)
+                    registry.ensureCached(name, locked.version);
+
                     ResolvedPackage pkg;
                     pkg.name = name;
                     pkg.version = locked.version;

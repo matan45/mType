@@ -11,6 +11,7 @@ namespace packagemanager
     {
         std::string name;
         std::string versionRange;
+        std::string source;  // e.g. "github:user/repo", empty = local registry
     };
 
     struct ResolvedPackage
@@ -24,13 +25,13 @@ namespace packagemanager
     class DependencyResolver
     {
     public:
-        explicit DependencyResolver(const PackageRegistry& registry);
+        explicit DependencyResolver(PackageRegistry& registry);
 
         std::unordered_map<std::string, ResolvedPackage> resolve(
             const std::vector<PackageDependency>& directDeps);
 
     private:
-        const PackageRegistry& registry;
+        PackageRegistry& registry;
 
         void resolveRecursive(
             const std::string& name,
