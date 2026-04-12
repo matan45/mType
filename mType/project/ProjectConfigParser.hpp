@@ -30,6 +30,8 @@ namespace project
 
         void parseImportsElement(const XmlElement& element, ImportsConfig& imports);
 
+        void parseDependenciesElement(const XmlElement& element, DependenciesConfig& deps);
+
         void resolveSourceFiles(ProjectConfig& config);
 
         void validateConfig(const ProjectConfig& config);

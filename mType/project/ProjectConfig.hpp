@@ -23,6 +23,17 @@ namespace project
         std::unordered_map<std::string, std::string> aliases;
     };
 
+    struct PackageDependency
+    {
+        std::string name;
+        std::string versionRange;
+    };
+
+    struct DependenciesConfig
+    {
+        std::vector<PackageDependency> packages;
+    };
+
     struct ProjectConfig
     {
         std::string name;
@@ -32,6 +43,7 @@ namespace project
         SourceConfig source;
         OutputConfig output;
         ImportsConfig imports;
+        DependenciesConfig dependencies;
 
         std::vector<std::string> resolvedSourceFiles;
     };

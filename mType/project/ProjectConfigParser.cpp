@@ -90,6 +90,10 @@ namespace project
             {
                 parseImportsElement(child, config.imports);
             }
+            else if (child.tagName == "Dependencies")
+            {
+                parseDependenciesElement(child, config.dependencies);
+            }
         }
     }
 
@@ -142,6 +146,26 @@ namespace project
                 if (nameIt != child.attributes.end() && pathIt != child.attributes.end())
                 {
                     imports.aliases[nameIt->second] = pathIt->second;
+                }
+            }
+        }
+    }
+
+    void ProjectConfigParser::parseDependenciesElement(const XmlElement& element, DependenciesConfig& deps)
+    {
+        for (const auto& child : element.children)
+        {
+            if (child.tagName == "Package")
+            {
+                auto nameIt = child.attributes.find("Name");
+                auto versionIt = child.attributes.find("Version");
+
+                if (nameIt != child.attributes.end() && versionIt != child.attributes.end())
+                {
+                    PackageDependency dep;
+                    dep.name = nameIt->second;
+                    dep.versionRange = versionIt->second;
+                    deps.packages.push_back(dep);
                 }
             }
         }

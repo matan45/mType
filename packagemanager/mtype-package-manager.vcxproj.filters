@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="mType">
+      <UniqueIdentifier>{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mType\json">
+      <UniqueIdentifier>{BD90C26E-A948-04BC-1250-DD17FE269FAC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mType\project">
+      <UniqueIdentifier>{DA00682A-46C1-E360-0FFC-2CDE7B7B283D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mType\services">
+      <UniqueIdentifier>{E754535B-D322-4761-BCB6-B787A82323C6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\mType\json\JsonParser.hpp">
+      <Filter>mType\json</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mType\json\JsonValue.hpp">
+      <Filter>mType\json</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mType\project\GlobMatcher.hpp">
+      <Filter>mType\project</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mType\project\ProjectConfig.hpp">
+      <Filter>mType\project</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mType\project\ProjectConfigParser.hpp">
+      <Filter>mType\project</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mType\project\XmlParser.hpp">
+      <Filter>mType\project</Filter>
+    </ClInclude>
+    <ClInclude Include="..\mType\services\FileReader.hpp">
+      <Filter>mType\services</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DependencyResolver.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Lockfile.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MtModulesManager.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PackageInstaller.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PackageManifest.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PackageRegistry.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SemVer.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Sha256.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\mType\json\JsonParser.cpp">
+      <Filter>mType\json</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mType\json\JsonValue.cpp">
+      <Filter>mType\json</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mType\project\GlobMatcher.cpp">
+      <Filter>mType\project</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mType\project\ProjectConfigParser.cpp">
+      <Filter>mType\project</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mType\project\XmlParser.cpp">
+      <Filter>mType\project</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mType\services\FileReader.cpp">
+      <Filter>mType\services</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DependencyResolver.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Lockfile.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MtModulesManager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PackageInstaller.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PackageManifest.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PackageRegistry.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SemVer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Sha256.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
