@@ -33,7 +33,7 @@ class App {
         };
         print("Factorial 5: " + factorial.apply(5));
 
-        // Lambda as callback parameter
+        // Lambda as callback parameter (higher-order)
         int result = applyTwice(doubler, 3);
         print("Double twice 3: " + result);
 
@@ -43,8 +43,8 @@ class App {
         print("Add offset to 5: " + adder.apply(5));
 
         // String lambda
-        StringFunction upper = s -> s + "!";
-        print("Exclaim: " + upper.apply("hello"));
+        StringFunction exclaim = s -> s + "!";
+        print("Exclaim: " + exclaim.apply("hello"));
 
         // Predicate lambda
         IntPredicate isEven = x -> x % 2 == 0;

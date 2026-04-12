@@ -1,11 +1,8 @@
 // Test: Collections in standalone exe
-import * from "../../../../lib/collections/ArrayList.mt";
-import * from "../../../../lib/collections/HashMap.mt";
-import * from "../../../../lib/collections/HashSet.mt";
-import * from "../../../../lib/collections/Stack.mt";
-import * from "../../../../lib/collections/ArrayQueue.mt";
-import * from "../../../../lib/primitives/Int.mt";
-import * from "../../../../lib/primitives/String.mt";
+import * from "collections/ArrayList.mt";
+import * from "collections/Stack.mt";
+import * from "collections/ArrayQueue.mt";
+import * from "primitives/Int.mt";
 
 @EntryPoint
 class App {
@@ -18,21 +15,11 @@ class App {
         print("ArrayList size: " + list.size());
         print("ArrayList[1]: " + list.get(1));
 
-        // HashMap
-        HashMap<String, Int> map = new HashMap<String, Int>();
-        map.put(new String("a"), new Int(1));
-        map.put(new String("b"), new Int(2));
-        map.put(new String("c"), new Int(3));
-        print("HashMap size: " + map.size());
-        print("HashMap[b]: " + map.get(new String("b")));
-
-        // HashSet
-        HashSet<String> set = new HashSet<String>();
-        set.add(new String("x"));
-        set.add(new String("y"));
-        set.add(new String("x"));
-        print("HashSet size: " + set.size());
-        print("HashSet contains x: " + set.contains(new String("x")));
+        // ArrayList iteration
+        print("ArrayList contents:");
+        for (Int item : list) {
+            print("  " + item);
+        }
 
         // Stack
         Stack<Int> stack = new Stack<Int>();

@@ -20,10 +20,6 @@
 #include <filesystem>
 #include <cstdio>
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 namespace tests::testFramework
 {
     using namespace services;
@@ -391,27 +387,32 @@ namespace tests::testFramework
     {
         try
         {
-            // Step 1: Locate the launcher binary next to the running mType executable
-            std::string launcherPath;
+            // Step 1: Locate the launcher binary in the build output directory
 #ifdef _WIN32
-            char buf[MAX_PATH];
-            DWORD len = GetModuleFileNameA(nullptr, buf, MAX_PATH);
-            if (len == 0 || len == MAX_PATH)
-            {
-                status = TestStatus::ERROR;
-                errorMessage = "Failed to determine mType executable path";
-                return;
-            }
-            std::filesystem::path mtypePath = std::filesystem::path(std::string(buf, len)).parent_path();
-            launcherPath = (mtypePath / "mtype-launcher.exe").string();
+            std::string launcherName = "mtype-launcher.exe";
 #else
-            // On non-Windows, try relative to current working directory
-            launcherPath = "bin/mType/Debug/x64/mtype-launcher";
+            std::string launcherName = "mtype-launcher";
 #endif
-            if (!std::filesystem::exists(launcherPath))
+            // Try known build output paths relative to working directory
+            std::string launcherPath;
+            std::vector<std::string> searchPaths = {
+                "bin/mType/Debug/x64/" + launcherName,
+                "bin/mType/Release/x64/" + launcherName,
+                "bin/mtype-launcher/Debug/x64/" + launcherName,
+                "bin/mtype-launcher/Release/x64/" + launcherName
+            };
+            for (const auto& candidate : searchPaths)
+            {
+                if (std::filesystem::exists(candidate))
+                {
+                    launcherPath = candidate;
+                    break;
+                }
+            }
+            if (launcherPath.empty())
             {
                 status = TestStatus::SKIPPED;
-                errorMessage = "Launcher binary not found: " + launcherPath +
+                errorMessage = "Launcher binary not found in any search path"
                                " (build mtype-launcher project first)";
                 return;
             }

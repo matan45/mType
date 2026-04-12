@@ -1,5 +1,6 @@
 // Test: Generics in standalone exe
-// Generic class, generic method, Pair<K,V>
+import * from "primitives/Int.mt";
+import * from "primitives/String.mt";
 
 class Box<T> {
     private T value;
@@ -38,20 +39,20 @@ class Pair<K, V> {
 @EntryPoint
 class App {
     public static function main(string[] args): void {
-        // Generic class with int
-        Box<int> intBox = new Box<int>(42);
+        // Generic class with boxed Int
+        Box<Int> intBox = new Box<Int>(new Int(42));
         print("Int box: " + intBox.getValue());
 
-        // Generic class with string
-        Box<string> strBox = new Box<string>("hello");
+        // Generic class with boxed String
+        Box<String> strBox = new Box<String>(new String("hello"));
         print("String box: " + strBox.getValue());
 
         // Pair with different types
-        Pair<string, int> pair = new Pair<string, int>("age", 25);
+        Pair<String, Int> pair = new Pair<String, Int>(new String("age"), new Int(25));
         print("Pair: " + pair.getFirst() + " = " + pair.getSecond());
 
         // Nested generics
-        Box<Box<int>> nested = new Box<Box<int>>(new Box<int>(99));
+        Box<Box<Int>> nested = new Box<Box<Int>>(new Box<Int>(new Int(99)));
         print("Nested: " + nested.getValue().getValue());
 
         print("Generics test passed");

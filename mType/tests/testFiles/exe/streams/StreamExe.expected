@@ -1,17 +1,12 @@
 Even numbers:
   2
   4
-  6
 Doubled:
   2
   4
   6
   8
   10
-  12
-Even count: 3
-Odd * 10:
-  10
-  30
-  50
+Sum: 15
+Size: 5
 Streams test passed

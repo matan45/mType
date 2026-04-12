@@ -164,6 +164,12 @@ namespace project
             importManager->setPathAliases(buildMergedAliases(config));
             importManager->setCurrentFilePath(tempFile.string());
 
+            // Allow imports from search path directories (they may be outside project root)
+            for (const auto& absSearchPath : absoluteSearchPaths)
+            {
+                importManager->addAllowedRoot(absSearchPath);
+            }
+
             services::ImportManager* importMgrPtr = importManager.get();
 
             // Parse the virtual source
@@ -287,6 +293,12 @@ namespace project
             importManager->setSearchPaths(absoluteSearchPaths);
             importManager->setPathAliases(buildMergedAliases(config));
             importManager->setCurrentFilePath(tempFile.string());
+
+            // Allow imports from search path directories (they may be outside project root)
+            for (const auto& absSearchPath : absoluteSearchPaths)
+            {
+                importManager->addAllowedRoot(absSearchPath);
+            }
 
             services::ImportManager* importMgrPtr = importManager.get();
 

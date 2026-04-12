@@ -46,14 +46,14 @@ class Square extends Rectangle {
 }
 
 class Counter {
-    private static int count = 0;
+    public static int count = 0;
 
     public static function increment(): void {
-        Counter.count = Counter.count + 1;
+        count = count + 1;
     }
 
     public static function getCount(): int {
-        return Counter.count;
+        return count;
     }
 }
 

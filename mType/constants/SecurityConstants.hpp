@@ -17,7 +17,7 @@ namespace constants
         // === Bytecode deserialization caps ===
         constexpr size_t MAX_CONSTANT_POOL_ENTRIES   = 1'000'000;
         constexpr size_t MAX_INSTRUCTION_COUNT       = 1'000'000;
-        constexpr size_t MAX_OPERANDS_PER_INSTR      = 16;
+        constexpr size_t MAX_OPERANDS_PER_INSTR      = 64;
         constexpr size_t MAX_FUNCTION_COUNT          = 100'000;
         constexpr size_t MAX_PARAMETERS_PER_FUNCTION = 256;
         constexpr size_t MAX_EXCEPTION_TABLE_ENTRIES = 100'000;

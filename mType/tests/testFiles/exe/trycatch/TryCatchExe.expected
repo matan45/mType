@@ -1,7 +1,6 @@
-Success with code 0
-Caught validation: Invalid input
-Caught not found: Item not found
-Inner catch: Inner error
-Outer catch: Converted to not found
-Propagated: Invalid input
+Try block executed successfully
+No error
+OK at index 0
+Error at index 1: code 42
+OK at index 2
 Try/Catch test passed

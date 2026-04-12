@@ -1,5 +1,5 @@
 // Test: Async/Await in standalone exe
-import * from "../../../../lib/primitives/Int.mt";
+import * from "primitives/Int.mt";
 
 function async computeSquare(int n): Promise<Int> {
     int result = n * n;

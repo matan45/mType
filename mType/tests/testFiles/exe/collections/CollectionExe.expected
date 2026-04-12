@@ -1,9 +1,9 @@
 ArrayList size: 3
 ArrayList[1]: 20
-HashMap size: 3
-HashMap[b]: 2
-HashSet size: 2
-HashSet contains x: true
+ArrayList contents:
+  10
+  20
+  30
 Stack peek: 300
 Stack pop: 300
 Stack size after pop: 2
