@@ -17,17 +17,58 @@ workspace "mType-LanguageServer"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
-project "mtype-language-server"
-    kind "ConsoleApp"
+-- Shared configuration applied to all LSP projects
+function lspCommonConfig()
     language "C++"
     cppdialect "C++17"
 
     targetdir ("bin/" .. outputdir)
     objdir ("bin-int/" .. outputdir)
 
+    includedirs
+    {
+        "src",
+        "../mType",
+        "vendor",  -- For local nlohmann/json (vendor/nlohmann/json.hpp)
+        -- Also include vcpkg path if available (won't hurt if it doesn't exist)
+        "$(VCPKG_ROOT)/installed/x64-windows/include",
+    }
+
+    -- MYT-35 — The LSP path never throws UserException (it doesn't run
+    -- bytecode) and doesn't link mtype-core, so the dispatch is compiled
+    -- out via this define. ExceptionConverter.cpp guards the dispatch
+    -- and the converter function with #ifndef MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION.
+    -- _CRT_SECURE_NO_WARNINGS matches the main mType project's setting so
+    -- std::getenv (used by TerminalDetect) doesn't trigger C4996.
+    defines { "MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION", "_CRT_SECURE_NO_WARNINGS" }
+
+    filter "system:windows"
+        systemversion "latest"
+
+    filter "configurations:Debug"
+        defines { "DEBUG" }
+        runtime "Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines { "NDEBUG" }
+        runtime "Release"
+        optimize "On"
+
+    filter {}
+end
+
+
+--------------------------------------------------------------------------------
+-- Library: mtype-language-server-lib
+-- All LSP handler/analysis code as a static library (excludes entry point)
+--------------------------------------------------------------------------------
+project "mtype-language-server-lib"
+    kind "StaticLib"
+    lspCommonConfig()
+
     files
     {
-        "main.cpp",
         "src/**.hpp",
         "src/**.cpp",
 
@@ -185,32 +226,34 @@ project "mtype-language-server"
         -- Note: Excluding ArrayOperations.cpp to avoid SIMD/runtime dependencies
     }
 
-    includedirs
+
+--------------------------------------------------------------------------------
+-- Executable: mtype-language-server
+-- Thin entry point that links the static library
+--------------------------------------------------------------------------------
+project "mtype-language-server"
+    kind "ConsoleApp"
+    lspCommonConfig()
+
+    files { "main.cpp" }
+
+    links { "mtype-language-server-lib" }
+
+
+--------------------------------------------------------------------------------
+-- Executable: mtype-language-server-tests
+-- Test runner for LSP handler-level tests
+--------------------------------------------------------------------------------
+project "mtype-language-server-tests"
+    kind "ConsoleApp"
+    lspCommonConfig()
+
+    includedirs { "tests" }
+
+    files
     {
-        "src",
-        "../mType",
-        "vendor",  -- For local nlohmann/json (vendor/nlohmann/json.hpp)
-        -- Also include vcpkg path if available (won't hurt if it doesn't exist)
-        "$(VCPKG_ROOT)/installed/x64-windows/include",
+        "tests/**.hpp",
+        "tests/**.cpp",
     }
 
-    -- MYT-35 — The LSP path never throws UserException (it doesn't run
-    -- bytecode) and doesn't link mtype-core, so the dispatch is compiled
-    -- out via this define. ExceptionConverter.cpp guards the dispatch
-    -- and the converter function with #ifndef MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION.
-    -- _CRT_SECURE_NO_WARNINGS matches the main mType project's setting so
-    -- std::getenv (used by TerminalDetect) doesn't trigger C4996.
-    defines { "MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION", "_CRT_SECURE_NO_WARNINGS" }
-
-    filter "system:windows"
-        systemversion "latest"
-
-    filter "configurations:Debug"
-        defines { "DEBUG" }
-        runtime "Debug"
-        symbols "On"
-
-    filter "configurations:Release"
-        defines { "NDEBUG" }
-        runtime "Release"
-        optimize "On"
+    links { "mtype-language-server-lib" }
