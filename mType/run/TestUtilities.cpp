@@ -32,6 +32,7 @@
 #include "../tests/suites/WorkspaceTestSuite.hpp"
 #include "../tests/suites/PackageManagerTestSuite.hpp"
 #include "../tests/suites/ExeTestSuite.hpp"
+#include "../tests/suites/DependencyGraphTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -177,6 +178,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<ExeTestSuite>();
     }
+    else if (suiteName == "deps" || suiteName == "dependency" || suiteName == "dependency-graph")
+    {
+        return std::make_unique<DependencyGraphTestSuite>();
+    }
     return nullptr;
 }
 
@@ -215,6 +220,7 @@ void printAvailableTestSuites()
     std::cout << "  workspace    - Workspace Multi-Project Test Suite\n";
     std::cout << "  pkg          - Package Manager Test Suite\n";
     std::cout << "  exe          - Standalone Executable Build Test Suite\n";
+    std::cout << "  deps         - Dependency Graph Test Suite\n";
 }
 
 void runSpecificTestSuite(const std::string& suiteName,
@@ -281,6 +287,7 @@ void runAllTests(constants::ExecutionMode execMode)
     suites.push_back(std::make_unique<WorkspaceTestSuite>());
     suites.push_back(std::make_unique<PackageManagerTestSuite>());
     suites.push_back(std::make_unique<ExeTestSuite>());
+    suites.push_back(std::make_unique<DependencyGraphTestSuite>());
 
     for (auto& suite : suites)
     {
