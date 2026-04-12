@@ -37,6 +37,10 @@ namespace mtype::lsp
             documentManager_.get(), workspaceIndex_);
         codeLensHandler_ = std::make_unique<CodeLensHandler>(documentManager_.get());
         formattingHandler_ = std::make_unique<FormattingHandler>();
+        referencesHandler_ = std::make_unique<ReferencesHandler>(
+            documentManager_.get(), workspaceIndex_);
+        signatureHelpHandler_ = std::make_unique<SignatureHelpHandler>(documentManager_.get());
+        semanticTokensHandler_ = std::make_unique<SemanticTokensHandler>(documentManager_.get());
 
         // Set up diagnostics publisher
         diagnosticsHandler_->setPublisher(
@@ -131,6 +135,18 @@ namespace mtype::lsp
         {
             handleFormatting(id, params);
         }
+        else if (method == "textDocument/references")
+        {
+            handleReferences(id, params);
+        }
+        else if (method == "textDocument/signatureHelp")
+        {
+            handleSignatureHelp(id, params);
+        }
+        else if (method == "textDocument/semanticTokens/full")
+        {
+            handleSemanticTokensFull(id, params);
+        }
         else
         {
             sendError(id, -32601, "Method not found: " + method);
@@ -216,7 +232,23 @@ namespace mtype::lsp
             },
             {"documentFormattingProvider", true},
             {"documentRangeFormattingProvider", false}, // TODO: Implement
-            {"referencesProvider", false} // TODO: Implement
+            {"referencesProvider", true},
+            {
+                "signatureHelpProvider", {
+                    {"triggerCharacters", json::array({"(", ","})}
+                }
+            },
+            {
+                "semanticTokensProvider", {
+                    {
+                        "legend", {
+                            {"tokenTypes", SemanticTokensHandler::tokenTypes()},
+                            {"tokenModifiers", SemanticTokensHandler::tokenModifiers()}
+                        }
+                    },
+                    {"full", true}
+                }
+            }
         };
 
         json result = {
@@ -462,6 +494,53 @@ namespace mtype::lsp
         }
 
         sendResponse(id, result);
+    }
+
+    void MTypeLanguageServer::handleReferences(const json& id, const json& params)
+    {
+        std::string uri = params["textDocument"]["uri"];
+        Position position = params["position"];
+
+        bool includeDeclaration = false;
+        if (params.contains("context") && params["context"].contains("includeDeclaration"))
+        {
+            includeDeclaration = params["context"]["includeDeclaration"].get<bool>();
+        }
+
+        auto locations = referencesHandler_->handleReferences(uri, position, includeDeclaration);
+
+        json result = json::array();
+        for (const auto& loc : locations)
+        {
+            result.push_back(loc.toJson());
+        }
+
+        sendResponse(id, result);
+    }
+
+    void MTypeLanguageServer::handleSignatureHelp(const json& id, const json& params)
+    {
+        std::string uri = params["textDocument"]["uri"];
+        Position position = params["position"];
+
+        auto help = signatureHelpHandler_->handleSignatureHelp(uri, position);
+
+        if (help)
+        {
+            sendResponse(id, help->toJson());
+        }
+        else
+        {
+            sendResponse(id, nullptr);
+        }
+    }
+
+    void MTypeLanguageServer::handleSemanticTokensFull(const json& id, const json& params)
+    {
+        std::string uri = params["textDocument"]["uri"];
+
+        auto tokens = semanticTokensHandler_->handleSemanticTokensFull(uri);
+        sendResponse(id, tokens.toJson());
     }
 
     void MTypeLanguageServer::sendResponse(const json& id, const json& result)

@@ -238,55 +238,15 @@
       "type": "object",
       "title": "mType Configuration",
       "properties": {
-        "mType.languageServer.enable": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable mType Language Server Protocol (LSP) mode for universal editor support. When disabled, uses built-in VS Code providers."
-        },
         "mType.languageServer.path": {
           "type": "string",
-          "default": "mtype-language-server",
-          "description": "Path to mType language server executable. Can be absolute or relative path, or just the executable name if it's in PATH."
-        },
-        "mTypeLanguageServer.enable": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable mType language server (deprecated, use mType.languageServer.enable)"
+          "default": "",
+          "description": "Path to mType language server executable. Leave empty to use the default location next to the extension."
         },
         "mTypeLanguageServer.interpreterPath": {
           "type": "string",
           "default": "",
-          "description": "Path to mType interpreter executable"
-        },
-        "mTypeFormatter.tabSize": {
-          "type": "number",
-          "default": 4,
-          "description": "Number of spaces per indentation level"
-        },
-        "mTypeFormatter.useTabs": {
-          "type": "boolean",
-          "default": false,
-          "description": "Use tabs for indentation instead of spaces"
-        },
-        "mTypeFormatter.formatOnSave": {
-          "type": "boolean",
-          "default": true,
-          "description": "Format mType files on save"
-        },
-        "mTypeFormatter.insertSpaceAroundOperators": {
-          "type": "boolean",
-          "default": true,
-          "description": "Insert spaces around operators (=, +, -, *, /, etc.)"
-        },
-        "mTypeFormatter.insertBlankLines": {
-          "type": "boolean",
-          "default": true,
-          "description": "Insert blank lines between classes and methods for better readability"
-        },
-        "mTypeFormatter.organizeImports": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically organize and sort import statements"
+          "description": "Path to mType interpreter executable (used by the Run command)"
         }
       }
     }
@@ -302,10 +262,6 @@
     "typescript": "^4.4.4"
   },
   "dependencies": {
-    "vscode-languageclient": "^8.1.0",
-    "vscode-languageserver": "^8.1.0",
-    "vscode-languageserver-textdocument": "^1.0.1",
-    "@vscode/debugadapter": "^1.65.0",
-    "@vscode/debugprotocol": "^1.65.0"
+    "vscode-languageclient": "^8.1.0"
   }
 }

@@ -144,6 +144,17 @@ namespace mtype::lsp::analysis
         dropEntriesLocked(fileUri);
     }
 
+    std::vector<std::string> WorkspaceSymbolIndex::getAllIndexedFiles() const
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::vector<std::string> files;
+        files.reserve(byFile_.size());
+        for (const auto& [uri, _] : byFile_) {
+            files.push_back(uri);
+        }
+        return files;
+    }
+
     void WorkspaceSymbolIndex::dropEntriesLocked(const std::string& fileUri)
     {
         auto byFileIt = byFile_.find(fileUri);

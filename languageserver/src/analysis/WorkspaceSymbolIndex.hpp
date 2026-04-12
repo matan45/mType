@@ -123,6 +123,12 @@ namespace mtype::lsp::analysis
             std::size_t maxResults = 5) const;
 
         /**
+         * Return the URIs of all files currently in the index.
+         * Used by the references handler to search across the workspace.
+         */
+        std::vector<std::string> getAllIndexedFiles() const;
+
+        /**
          * Convert an absolute file path to a relative import spelling
          * usable in an `import ... from "..."` statement, computed from
          * the path of the file that needs the import. The result has

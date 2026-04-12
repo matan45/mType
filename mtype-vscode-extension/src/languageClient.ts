@@ -10,14 +10,7 @@ import {
 let client: LanguageClient | undefined;
 
 export function activateLanguageServer(context: vscode.ExtensionContext): void {
-    // Check if LSP is enabled in settings
     const config = vscode.workspace.getConfiguration('mType');
-    const useLSP = config.get<boolean>('languageServer.enable', false);
-
-    if (!useLSP) {
-        vscode.window.showInformationMessage('mType LSP is disabled. Enable it in settings to use Language Server features.');
-        return;
-    }
 
     // Get language server executable path from settings
     let serverExecutable = config.get<string>('languageServer.path', '');

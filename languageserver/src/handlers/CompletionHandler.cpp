@@ -23,20 +23,34 @@ namespace {
     // earlier `find("extends")` / `find("implements")` checks, which
     // matched substrings inside identifiers (e.g. `myImplementsFoo`)
     // and inside `// implements` comments preceding the cursor.
-    bool textEndsInInheritanceKeyword(const std::string& text, const char* keyword)
+    // Returns true if `text` ends with the inheritance keyword, optionally
+    // followed by whitespace and a partial identifier. When it matches,
+    // `outPartial` is set to the partial identifier the user typed AFTER
+    // the keyword (may be empty), so the caller can fuzzy-filter with it
+    // instead of the global typedPrefix (which would be the keyword itself
+    // when the cursor sits right after "implements" or "extends").
+    //
+    // Matches these cursor positions (| = cursor):
+    //   "class X implements|"    → outPartial = ""
+    //   "class X implements |"   → outPartial = ""
+    //   "class X implements IF|" → outPartial = "IF"
+    bool textEndsInInheritanceKeyword(const std::string& text, const char* keyword,
+                                      std::string& outPartial)
     {
-        // Pattern: optional non-word char (or string start), keyword,
-        // mandatory whitespace, optional partial identifier, end-of-string.
+        // Pattern: word-boundary before keyword, keyword at end, optionally
+        // followed by whitespace and a partial identifier.
         const std::string pattern =
-            std::string("(^|[^A-Za-z0-9_])") + keyword + "\\s+\\w*$";
-        // static const inside a function would still cost a per-call branch
-        // and we want a different pattern per keyword anyway. The two
-        // call sites below fire only when a completion request lands, so
-        // re-compiling per request is acceptable; the alternative
-        // (per-keyword statics) is messier than it's worth here.
+            std::string("(^|[^A-Za-z0-9_])") + keyword + "(\\s+(\\w*))?$";
         try {
             std::regex re(pattern);
-            return std::regex_search(text, re);
+            std::smatch match;
+            if (std::regex_search(text, match, re)) {
+                // Group 3 is the partial identifier after the keyword+space.
+                // Empty when cursor is right after the keyword or the space.
+                outPartial = match[3].matched ? match[3].str() : std::string{};
+                return true;
+            }
+            return false;
         } catch (const std::regex_error&) {
             return false;
         }
@@ -144,16 +158,19 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     // If we're after "implements" (as a token, not a substring), only show
     // interfaces. Token-aware to avoid matching `myImplementsFoo` and
     // `// implements ...` in comments.
-    if (textEndsInInheritanceKeyword(textBeforeCursor, "implements")) {
+    // Use the post-keyword partial (not the global typedPrefix, which
+    // would be "implements" itself when the cursor is right after it).
+    std::string inheritancePartial;
+    if (textEndsInInheritanceKeyword(textBeforeCursor, "implements", inheritancePartial)) {
         auto interfaces = getInterfaceCompletions(uri);
-        applyFuzzyFilter(interfaces, typedPrefix);
+        applyFuzzyFilter(interfaces, inheritancePartial);
         return interfaces;
     }
 
     // If we're after "extends" (as a token), only show classes.
-    if (textEndsInInheritanceKeyword(textBeforeCursor, "extends")) {
+    if (textEndsInInheritanceKeyword(textBeforeCursor, "extends", inheritancePartial)) {
         auto classes = getClassCompletions(uri);
-        applyFuzzyFilter(classes, typedPrefix);
+        applyFuzzyFilter(classes, inheritancePartial);
         return classes;
     }
 
