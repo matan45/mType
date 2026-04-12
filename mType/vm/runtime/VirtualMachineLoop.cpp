@@ -153,14 +153,15 @@ namespace vm::runtime
             // Only do expensive checks when debugging is actually enabled
             if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
             {
-                if (currentSourceLine > 0)
+                // Look up source location from the bytecode program's source map
+                // (LINE/SOURCE_FILE opcodes are not emitted; use the compiler's map instead)
+                auto* loc = program->getSourceLocation(instructionPointer);
+                if (loc && loc->line > 0 && !loc->filename.empty())
                 {
-                    // Convert to errors::SourceLocation for debugger
-                    errors::SourceLocation location(currentSourceFile,
-                                                    currentSourceLine,
-                                                    0);  // Column not tracked per-instruction
+                    errors::SourceLocation location(loc->filename,
+                                                    static_cast<int>(loc->line),
+                                                    static_cast<int>(loc->column));
 
-                    // Check for breakpoints/stepping
                     if (debugger::DebugHookHelper::shouldPause(location))
                     {
                         debugger::DebugHookHelper::waitForResume();
@@ -183,6 +184,21 @@ namespace vm::runtime
             {
                 // Delegate exception handling to ExceptionHandler
                 auto result = exceptionHandler->handleUserException(e, instructionPointer, currentFinallyOffset);
+
+                // Debug hook: check if debugger wants to break on this exception
+                if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
+                {
+                    bool isUncaught = !result.handled;
+                    auto* exLoc = program->getSourceLocation(instructionPointer);
+                    errors::SourceLocation exLocation = exLoc
+                        ? errors::SourceLocation(exLoc->filename, static_cast<int>(exLoc->line), static_cast<int>(exLoc->column))
+                        : errors::SourceLocation(currentSourceFile, currentSourceLine, 0);
+                    debugger::DebugHookHelper::handleException(
+                        e.getExceptionTypeName(),
+                        e.what(),
+                        exLocation,
+                        isUncaught);
+                }
 
                 if (!result.handled)
                 {

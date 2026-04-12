@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { activateLanguageServer, deactivateLanguageServer } from './languageClient';
+import { MTypeDebugAdapterFactory, MTypeDebugConfigurationProvider } from './debug/MTypeDebugAdapterFactory';
 
 function registerCommonCommands(context: vscode.ExtensionContext): void {
     // Command to run mType file
@@ -84,6 +85,14 @@ function registerCommonCommands(context: vscode.ExtensionContext): void {
 export async function activate(context: vscode.ExtensionContext) {
     registerCommonCommands(context);
     activateLanguageServer(context);
+
+    // Register debug adapter
+    context.subscriptions.push(
+        vscode.debug.registerDebugAdapterDescriptorFactory('mtype', new MTypeDebugAdapterFactory())
+    );
+    context.subscriptions.push(
+        vscode.debug.registerDebugConfigurationProvider('mtype', new MTypeDebugConfigurationProvider())
+    );
 }
 
 export function deactivate(): Thenable<void> | undefined {

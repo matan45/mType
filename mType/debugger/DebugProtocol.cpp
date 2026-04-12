@@ -9,6 +9,12 @@
 
 namespace debugger {
 
+    std::atomic<std::ostream*> DebugProtocol::protocolOutputStream{nullptr};
+
+    void DebugProtocol::setProtocolStream(std::ostream* stream) {
+        protocolOutputStream.store(stream, std::memory_order_release);
+    }
+
     DebugProtocol::Message DebugProtocol::parse(const std::string& line) {
         Message msg;
         std::string trimmedLine = line;
@@ -91,8 +97,10 @@ namespace debugger {
     }
 
     void DebugProtocol::send(const Message& message) {
-        std::cout << message.serialize() << std::endl;
-        std::cout.flush();
+        auto* stream = protocolOutputStream.load(std::memory_order_acquire);
+        std::ostream& out = stream ? *stream : std::cout;
+        out << message.serialize() << std::endl;
+        out.flush();
     }
 
     void DebugProtocol::sendOK() {
@@ -481,11 +489,6 @@ namespace debugger {
             return;
         }
 
-        if (!currentEnvironment || !variableInspector) {
-            DebugProtocol::sendError("Environment not available");
-            return;
-        }
-
         try {
             // Trim whitespace
             size_t start = expression.find_first_not_of(" \t\r\n");
@@ -499,7 +502,35 @@ namespace debugger {
             // For now, support simple variable lookup only
             // TODO: Full expression evaluation requires parser/evaluator integration
 
-            // Try to find variable in current scope (local first, then global)
+            // Try VM mode first (bytecode execution)
+            if (currentVM && vmVariableInspector) {
+                // Look up in local variables first, then global
+                auto locals = vmVariableInspector->getLocalVariables(currentVM);
+                for (const auto& var : locals) {
+                    if (var.name == varName) {
+                        DebugProtocol::sendEvaluateResult(var.value, var.type, var.referenceId);
+                        return;
+                    }
+                }
+
+                auto globals = vmVariableInspector->getGlobalVariables(currentVM);
+                for (const auto& var : globals) {
+                    if (var.name == varName) {
+                        DebugProtocol::sendEvaluateResult(var.value, var.type, var.referenceId);
+                        return;
+                    }
+                }
+
+                DebugProtocol::sendError("Variable not found: " + varName);
+                return;
+            }
+
+            // Fallback to AST mode (Environment-based)
+            if (!currentEnvironment || !variableInspector) {
+                DebugProtocol::sendError("Environment not available");
+                return;
+            }
+
             auto scopeManager = currentEnvironment->getScopeManager();
             if (!scopeManager) {
                 DebugProtocol::sendError("No scope manager available");
