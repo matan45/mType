@@ -60,6 +60,10 @@ namespace project
         BuildResult buildLibrary(const ProjectConfig& config, const std::string& outputPath,
                                  std::shared_ptr<environment::Environment> env);
 
+        // Build a standalone executable with embedded bytecode
+        BuildResult buildExecutable(const ProjectConfig& config, const std::string& outputPath,
+                                    const std::string& launcherPath);
+
         void clean(const ProjectConfig& config);
 
     private:

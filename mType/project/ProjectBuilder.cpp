@@ -9,6 +9,8 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
+#include <cstdint>
 
 namespace project
 {
@@ -201,6 +203,148 @@ namespace project
 
             // Clean up temp file
             std::filesystem::remove(tempFile);
+
+            result.filesCompiled = sourceFiles.size();
+        }
+        catch (const std::exception& e)
+        {
+            result.success = false;
+            result.errors.push_back(e.what());
+        }
+
+        auto endTime = std::chrono::steady_clock::now();
+        result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+        return result;
+    }
+
+    BuildResult ProjectBuilder::buildExecutable(const ProjectConfig& config,
+                                                const std::string& outputPath,
+                                                const std::string& launcherPath)
+    {
+        BuildResult result;
+        auto startTime = std::chrono::steady_clock::now();
+
+        const auto& sourceFiles = config.resolvedSourceFiles;
+
+        if (sourceFiles.empty())
+        {
+            result.errors.push_back("No source files to compile");
+            result.success = false;
+            auto endTime = std::chrono::steady_clock::now();
+            result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+            return result;
+        }
+
+        // Verify launcher exists
+        if (!std::filesystem::exists(launcherPath))
+        {
+            result.errors.push_back("Launcher binary not found: " + launcherPath);
+            result.success = false;
+            auto endTime = std::chrono::steady_clock::now();
+            result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+            return result;
+        }
+
+        try
+        {
+            // Step 1: Compile project to a single BytecodeProgram (same as buildLibrary)
+            std::string virtualSource;
+            for (const auto& sourceFile : sourceFiles)
+            {
+                std::filesystem::path srcPath(sourceFile);
+                std::filesystem::path projRoot(config.projectRoot);
+                std::filesystem::path relativePath = std::filesystem::relative(srcPath, projRoot);
+                virtualSource += "import * from \"" + relativePath.string() + "\";\n";
+            }
+
+            std::filesystem::path tempDir = std::filesystem::temp_directory_path();
+            std::filesystem::path tempFile = tempDir / "_mtype_exe_bundle.mt";
+
+            {
+                std::ofstream out(tempFile);
+                out << virtualSource;
+            }
+
+            reportProgress(1, 2, "Compiling bytecode...");
+
+            std::vector<std::string> absoluteSearchPaths;
+            for (const auto& searchPath : config.imports.searchPaths)
+            {
+                std::filesystem::path absPath = std::filesystem::path(config.projectRoot) / searchPath;
+                absoluteSearchPaths.push_back(absPath.string());
+            }
+
+            auto importManager = std::make_unique<services::ImportManager>();
+            importManager->setBaseDirectory(config.projectRoot);
+            importManager->setProjectRoot(config.projectRoot);
+
+            for (const auto& root : workspaceAdditionalRoots)
+            {
+                importManager->addAllowedRoot(root);
+            }
+
+            importManager->setSearchPaths(absoluteSearchPaths);
+            importManager->setPathAliases(buildMergedAliases(config));
+            importManager->setCurrentFilePath(tempFile.string());
+
+            services::ImportManager* importMgrPtr = importManager.get();
+
+            environment::EnvironmentBuilder envBuilder;
+            auto environment = envBuilder.build();
+
+            lexer::Lexer lex(tempFile.string());
+            parser::Parser parser(lex, std::move(importManager));
+            auto ast = parser.parseProgram();
+
+            environment->setImportManager(importMgrPtr);
+            importMgrPtr->resolveAllImports(ast.get());
+
+            services::OptimizationService optimizationService;
+            ast = optimizationService.applyOptimizations(std::move(ast), environment);
+
+            vm::compiler::BytecodeCompiler compiler(environment, true);
+            auto program = compiler.compile(ast.get());
+
+            std::filesystem::remove(tempFile);
+
+            // Step 2: Serialize bytecode to a memory buffer
+            std::ostringstream bytecodeStream;
+            program.serialize(bytecodeStream);
+            std::string bytecodeBlob = bytecodeStream.str();
+
+            reportProgress(2, 2, "Embedding bytecode...");
+
+            // Step 3: Ensure output directory exists
+            std::filesystem::path outPath(outputPath);
+            if (outPath.has_parent_path() && !std::filesystem::exists(outPath.parent_path()))
+            {
+                std::filesystem::create_directories(outPath.parent_path());
+            }
+
+            // Step 4: Copy launcher binary to output path
+            std::filesystem::copy_file(launcherPath, outputPath,
+                                       std::filesystem::copy_options::overwrite_existing);
+
+            // Step 5: Append bytecode blob + size footer + magic
+            std::ofstream outFile(outputPath, std::ios::binary | std::ios::app);
+            if (!outFile)
+            {
+                throw std::runtime_error("Could not open output file for appending: " + outputPath);
+            }
+
+            // Write bytecode blob
+            outFile.write(bytecodeBlob.data(), static_cast<std::streamsize>(bytecodeBlob.size()));
+
+            // Write 8-byte blob size (little-endian)
+            uint64_t blobSize = bytecodeBlob.size();
+            outFile.write(reinterpret_cast<const char*>(&blobSize), sizeof(blobSize));
+
+            // Write 4-byte magic footer "MTEX"
+            const char magic[4] = { 'M', 'T', 'E', 'X' };
+            outFile.write(magic, 4);
+
+            outFile.close();
 
             result.filesCompiled = sourceFiles.size();
         }

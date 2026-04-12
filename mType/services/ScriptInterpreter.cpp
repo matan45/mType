@@ -471,4 +471,10 @@ namespace services
         // Load bytecode and register classes without executing
         cachedBytecodeProgram = bytecodeService->loadCompiledBytecodeWithoutExecuting(bytecodeFile);
     }
+
+    void ScriptInterpreter::loadFromProgram(vm::bytecode::BytecodeProgram program)
+    {
+        // Load an already-deserialized bytecode program
+        cachedBytecodeProgram = bytecodeService->loadFromProgram(std::move(program));
+    }
 }

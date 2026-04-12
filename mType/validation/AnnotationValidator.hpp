@@ -74,6 +74,22 @@ namespace validation
             const SourceLocation& location);
 
         /**
+         * @brief Validate @EntryPoint annotation on a class
+         *
+         * Checks that:
+         * 1. The class is not abstract
+         * 2. The class has a static main(args): void method
+         * 3. The main method accepts exactly one parameter (String[] args)
+         *
+         * @param classDefinition The class definition to validate
+         * @param location Source location for error reporting
+         * @throws TypeException if @EntryPoint requirements are not met
+         */
+        static void validateEntryPointAnnotation(
+            std::shared_ptr<ClassDefinition> classDefinition,
+            const SourceLocation& location);
+
+        /**
          * @brief Validate @Throw annotation on a method or function
          *
          * Checks that:

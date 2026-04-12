@@ -670,6 +670,12 @@
     <None Include="tests\testFiles\annotation\error\empty_throw_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\entrypoint_abstract_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\entrypoint_no_main_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\invalid_exception_class_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -713,6 +719,18 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\combined_annotations_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\entrypoint_annotation_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\entrypoint_annotation_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\entrypoint_print_args_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\entrypoint_print_args_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\method_throw_pass.expected">

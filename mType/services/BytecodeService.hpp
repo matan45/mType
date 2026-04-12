@@ -80,5 +80,8 @@ namespace services
 
         // Load bytecode file and register classes without executing
         std::unique_ptr<vm::bytecode::BytecodeProgram> loadCompiledBytecodeWithoutExecuting(const std::string& bytecodeFile);
+
+        // Load an already-deserialized bytecode program and register classes without executing
+        std::unique_ptr<vm::bytecode::BytecodeProgram> loadFromProgram(vm::bytecode::BytecodeProgram program);
     };
 }
