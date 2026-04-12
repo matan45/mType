@@ -6,6 +6,8 @@
 #include "../../errors/MethodNotFoundException.hpp"
 #include "../../errors/NullPointerException.hpp"
 #include "../../errors/ScriptException.hpp"
+#include "../../errors/UserException.hpp"
+#include "utils/ExceptionHandler.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 
@@ -97,7 +99,7 @@ namespace vm::runtime
             pushCallFrame(frame);
             stats.functionCalls++;
 
-            // Execute method (direct loop to avoid recreating executors)
+            // Execute method (direct loop with UserException handling for try/catch support)
             instructionPointer = funcMetadata->startOffset;
             value::Value result = std::monostate{};
             if (controlFlowExecutor)
@@ -110,7 +112,25 @@ namespace vm::runtime
                     if (suspendedByAwait)
                         break;
                     const auto& instr = program->getInstruction(instructionPointer);
-                    executeInstruction(instr);
+                    try
+                    {
+                        executeInstruction(instr);
+                    }
+                    catch (errors::UserException& e)
+                    {
+                        auto handlerResult = exceptionHandler->handleUserException(
+                            e, instructionPointer, currentFinallyOffset);
+                        if (!handlerResult.handled)
+                        {
+                            throw;
+                        }
+                        instructionPointer = handlerResult.newInstructionPointer;
+                        if (handlerResult.jumpedToFinally)
+                        {
+                            pendingException = std::make_unique<errors::UserException>(e);
+                        }
+                        continue;
+                    }
                     instructionPointer++;
                 }
                 if (!suspendedByAwait && stackManager->size() > frameBase)
@@ -251,10 +271,52 @@ namespace vm::runtime
             pushCallFrame(frame);
             stats.functionCalls++;
 
-            // Execute method via interpretLoop which has proper UserException handling
-            // (the direct loop lacked try/catch for UserException, breaking try/catch in exe)
+            // Execute method (direct loop with UserException handling for try/catch support)
             instructionPointer = funcMetadata->startOffset;
-            value::Value result = interpretLoop();
+            value::Value result = std::monostate{};
+            if (controlFlowExecutor)
+            {
+                size_t targetDepth = savedCallStack.size();
+                while (callStack.size() > targetDepth)
+                {
+                    if (instructionPointer >= program->getInstructionCount())
+                        break;
+                    if (suspendedByAwait)
+                        break;
+                    const auto& instr = program->getInstruction(instructionPointer);
+                    try
+                    {
+                        executeInstruction(instr);
+                    }
+                    catch (errors::UserException& e)
+                    {
+                        auto handlerResult = exceptionHandler->handleUserException(
+                            e, instructionPointer, currentFinallyOffset);
+                        if (!handlerResult.handled)
+                        {
+                            throw;  // Re-throw if no handler found
+                        }
+                        instructionPointer = handlerResult.newInstructionPointer;
+                        if (handlerResult.jumpedToFinally)
+                        {
+                            pendingException = std::make_unique<errors::UserException>(e);
+                        }
+                        continue;
+                    }
+                    instructionPointer++;
+                }
+                if (!suspendedByAwait && stackManager->size() > frameBase)
+                    result = stackManager->pop();
+                if (!suspendedByAwait)
+                {
+                    while (stackManager->size() > frameBase)
+                        stackManager->pop();
+                }
+            }
+            else
+            {
+                result = interpretLoop();
+            }
 
             // If suspended by await, don't restore state — EventLoop will resume
             if (suspendedByAwait)
