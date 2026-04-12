@@ -99,6 +99,21 @@
     <ClInclude Include="project\ProjectConfigParser.hpp">
       <Filter>project</Filter>
     </ClInclude>
+    <ClInclude Include="project\ProjectDiscovery.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\WorkspaceBuilder.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\WorkspaceConfig.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\WorkspaceConfigParser.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\XmlParser.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
     <ClInclude Include="reflection\ReflectionHandle.hpp">
       <Filter>reflection</Filter>
     </ClInclude>
@@ -204,6 +219,15 @@
       <Filter>project</Filter>
     </ClCompile>
     <ClCompile Include="project\ProjectConfigParser.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\WorkspaceBuilder.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\WorkspaceConfigParser.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\XmlParser.cpp">
       <Filter>project</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionHandle.cpp">

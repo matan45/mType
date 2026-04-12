@@ -16,6 +16,9 @@
 #include "../json/JsonNatives.hpp"
 #include "../project/ProjectConfigParser.hpp"
 #include "../project/ProjectBuilder.hpp"
+#include "../project/ProjectDiscovery.hpp"
+#include "../project/WorkspaceConfigParser.hpp"
+#include "../project/WorkspaceBuilder.hpp"
 #include "../vm/profiler/ProfilerMode.hpp"
 #include "../vm/profiler/ProfilerContext.hpp"
 #include "../vm/profiler/ProfilerReport.hpp"
@@ -107,6 +110,8 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --clean [project.mtproj]   - Remove compiled bytecode files\n";
         std::cout << "  " << argv[0] <<
             " --init <name> <include>    - Create new .mtproj file (e.g. --init MyApp src/**/*.mt)\n";
+        std::cout << "  " << argv[0] <<
+            " --init-workspace <name>    - Create new .mtworkspace file\n";
         std::cout << "  " << argv[0] << " --add <pattern> [.mtproj]  - Add include pattern to project\n";
         std::cout << "  " << argv[0] << " --remove <pattern> [.mtproj] - Remove include pattern from project\n";
         std::cout << "  " << argv[0] <<
@@ -120,10 +125,10 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    // Handle --build command (project compilation)
+    // Handle --build command (project/workspace compilation)
     if (argc >= 2 && std::string(argv[1]) == "--build")
     {
-        std::string mtprojPath;
+        std::string configPath;
         bool buildLib = false;
 
         for (int i = 2; i < argc; ++i)
@@ -135,79 +140,160 @@ int main(int argc, char* argv[])
             }
             else if (arg[0] != '-')
             {
-                mtprojPath = arg;
+                configPath = arg;
             }
         }
 
         try
         {
-            project::ProjectConfigParser parser;
+            // Determine if we're building a workspace or a project
+            bool isWorkspace = false;
 
-            if (mtprojPath.empty())
+            if (!configPath.empty())
             {
-                auto found = parser.findProject(".");
-                if (!found)
+                // Explicit path: check extension
+                if (configPath.size() > 12 &&
+                    configPath.substr(configPath.size() - 12) == ".mtworkspace")
                 {
-                    std::cerr << "Error: No .mtproj file found in current directory or parents\n";
-                    return 1;
+                    isWorkspace = true;
                 }
-                mtprojPath = *found;
-            }
-
-            std::cout << "Loading project: " << mtprojPath << "\n";
-
-            auto config = parser.parse(mtprojPath);
-
-            std::cout << "Project: " << config->name;
-            if (!config->version.empty())
-            {
-                std::cout << " v" << config->version;
-            }
-            std::cout << "\n";
-            std::cout << "Source files: " << config->resolvedSourceFiles.size() << "\n";
-            std::cout << "Output directory: " << config->output.directory << "\n";
-
-            project::ProjectBuilder builder;
-
-            builder.setProgressCallback([](const project::BuildProgress& progress)
-            {
-                std::cout << "[" << progress.current << "/" << progress.total << "] " << progress.currentFile << "\n";
-            });
-
-            project::BuildResult result;
-
-            if (buildLib)
-            {
-                // Build into single library file
-                std::filesystem::path outputDir = std::filesystem::path(config->projectRoot) / config->output.directory;
-                std::string libPath = (outputDir / (config->name + ".mtcLib")).string();
-                std::cout << "Building library: " << libPath << "\n\n";
-                result = builder.buildLibrary(*config, libPath);
             }
             else
             {
-                std::cout << "\n";
-                result = builder.build(*config);
-            }
-
-            std::cout << "\nBuild " << (result.success ? "succeeded" : "failed") << "\n";
-            std::cout << "  Compiled: " << result.filesCompiled << " files\n";
-            if (result.filesFailed > 0)
-            {
-                std::cout << "  Failed:   " << result.filesFailed << " files\n";
-            }
-            std::cout << "  Duration: " << result.duration.count() << "ms\n";
-
-            if (!result.errors.empty())
-            {
-                std::cout << "\nErrors:\n";
-                for (const auto& error : result.errors)
+                // Auto-detect: workspace takes priority over project
+                auto discovery = project::findProjectOrWorkspace(".");
+                if (!discovery)
                 {
-                    std::cout << "  " << error << "\n";
+                    std::cerr << "Error: No .mtproj or .mtworkspace file found in current directory or parents\n";
+                    return 1;
                 }
+                configPath = discovery->path;
+                isWorkspace = (discovery->type == project::DiscoveryType::WORKSPACE);
             }
 
-            return result.success ? 0 : 1;
+            if (isWorkspace)
+            {
+                // Workspace build
+                if (buildLib)
+                {
+                    std::cerr << "Error: --lib is not supported for workspace builds\n";
+                    return 1;
+                }
+
+                project::WorkspaceConfigParser wsParser;
+                std::cout << "Loading workspace: " << configPath << "\n";
+
+                auto wsConfig = wsParser.parse(configPath);
+
+                std::cout << "Workspace: " << wsConfig->name;
+                if (!wsConfig->version.empty())
+                {
+                    std::cout << " v" << wsConfig->version;
+                }
+                std::cout << "\n";
+                std::cout << "Member projects: " << wsConfig->members.size() << "\n";
+
+                for (const auto& member : wsConfig->members)
+                {
+                    std::cout << "  - " << member.getName() << " (" << member.path << ")\n";
+                }
+                std::cout << "\n";
+
+                project::WorkspaceBuilder builder;
+                builder.setProgressCallback([](const project::WorkspaceBuildProgress& progress)
+                {
+                    std::cout << "[" << progress.projectName << " "
+                              << progress.fileProgress.current << "/"
+                              << progress.fileProgress.total << "] "
+                              << progress.fileProgress.currentFile << "\n";
+                });
+
+                auto result = builder.build(*wsConfig);
+
+                std::cout << "\nWorkspace build " << (result.success ? "succeeded" : "failed") << "\n";
+                std::cout << "  Projects: " << result.projectsBuilt << " built";
+                if (result.projectsFailed > 0)
+                {
+                    std::cout << ", " << result.projectsFailed << " failed";
+                }
+                std::cout << "\n";
+                std::cout << "  Files:    " << result.totalFilesCompiled << " compiled";
+                if (result.totalFilesFailed > 0)
+                {
+                    std::cout << ", " << result.totalFilesFailed << " failed";
+                }
+                std::cout << "\n";
+                std::cout << "  Duration: " << result.duration.count() << "ms\n";
+
+                if (!result.errors.empty())
+                {
+                    std::cout << "\nErrors:\n";
+                    for (const auto& error : result.errors)
+                    {
+                        std::cout << "  " << error << "\n";
+                    }
+                }
+
+                return result.success ? 0 : 1;
+            }
+            else
+            {
+                // Single project build
+                project::ProjectConfigParser parser;
+                std::cout << "Loading project: " << configPath << "\n";
+
+                auto config = parser.parse(configPath);
+
+                std::cout << "Project: " << config->name;
+                if (!config->version.empty())
+                {
+                    std::cout << " v" << config->version;
+                }
+                std::cout << "\n";
+                std::cout << "Source files: " << config->resolvedSourceFiles.size() << "\n";
+                std::cout << "Output directory: " << config->output.directory << "\n";
+
+                project::ProjectBuilder builder;
+
+                builder.setProgressCallback([](const project::BuildProgress& progress)
+                {
+                    std::cout << "[" << progress.current << "/" << progress.total << "] " << progress.currentFile << "\n";
+                });
+
+                project::BuildResult result;
+
+                if (buildLib)
+                {
+                    std::filesystem::path outputDir = std::filesystem::path(config->projectRoot) / config->output.directory;
+                    std::string libPath = (outputDir / (config->name + ".mtcLib")).string();
+                    std::cout << "Building library: " << libPath << "\n\n";
+                    result = builder.buildLibrary(*config, libPath);
+                }
+                else
+                {
+                    std::cout << "\n";
+                    result = builder.build(*config);
+                }
+
+                std::cout << "\nBuild " << (result.success ? "succeeded" : "failed") << "\n";
+                std::cout << "  Compiled: " << result.filesCompiled << " files\n";
+                if (result.filesFailed > 0)
+                {
+                    std::cout << "  Failed:   " << result.filesFailed << " files\n";
+                }
+                std::cout << "  Duration: " << result.duration.count() << "ms\n";
+
+                if (!result.errors.empty())
+                {
+                    std::cout << "\nErrors:\n";
+                    for (const auto& error : result.errors)
+                    {
+                        std::cout << "  " << error << "\n";
+                    }
+                }
+
+                return result.success ? 0 : 1;
+            }
         }
         catch (const std::exception& e)
         {
@@ -219,39 +305,70 @@ int main(int argc, char* argv[])
     // Handle --clean command
     if (argc >= 2 && std::string(argv[1]) == "--clean")
     {
-        std::string mtprojPath;
+        std::string configPath;
 
         for (int i = 2; i < argc; ++i)
         {
             std::string arg = argv[i];
             if (arg[0] != '-')
             {
-                mtprojPath = arg;
+                configPath = arg;
                 break;
             }
         }
 
         try
         {
-            project::ProjectConfigParser parser;
+            bool isWorkspace = false;
 
-            if (mtprojPath.empty())
+            if (!configPath.empty())
             {
-                auto found = parser.findProject(".");
-                if (!found)
+                if (configPath.size() > 12 &&
+                    configPath.substr(configPath.size() - 12) == ".mtworkspace")
                 {
-                    std::cerr << "Error: No .mtproj file found in current directory or parents\n";
+                    isWorkspace = true;
+                }
+            }
+            else
+            {
+                auto discovery = project::findProjectOrWorkspace(".");
+                if (!discovery)
+                {
+                    std::cerr << "Error: No .mtproj or .mtworkspace file found in current directory or parents\n";
                     return 1;
                 }
-                mtprojPath = *found;
+                configPath = discovery->path;
+                isWorkspace = (discovery->type == project::DiscoveryType::WORKSPACE);
             }
 
-            auto config = parser.parse(mtprojPath);
+            if (isWorkspace)
+            {
+                project::WorkspaceConfigParser wsParser;
+                auto wsConfig = wsParser.parse(configPath);
 
-            project::ProjectBuilder builder;
-            builder.clean(*config);
+                project::WorkspaceBuilder builder;
+                builder.clean(*wsConfig);
 
-            std::cout << "Clean completed. Removed: " << config->output.directory << "\n";
+                std::cout << "Clean completed for workspace: " << wsConfig->name << "\n";
+                for (const auto& member : wsConfig->members)
+                {
+                    if (member.config)
+                    {
+                        std::cout << "  - " << member.getName() << ": " << member.config->output.directory << "\n";
+                    }
+                }
+            }
+            else
+            {
+                project::ProjectConfigParser parser;
+                auto config = parser.parse(configPath);
+
+                project::ProjectBuilder builder;
+                builder.clean(*config);
+
+                std::cout << "Clean completed. Removed: " << config->output.directory << "\n";
+            }
+
             return 0;
         }
         catch (const std::exception& e)
@@ -290,6 +407,44 @@ int main(int argc, char* argv[])
         outFile << "  <Imports>\n";
         outFile << "  </Imports>\n";
         outFile << "</Project>\n";
+
+        outFile.close();
+
+        std::cout << "Created " << filename << "\n";
+        return 0;
+    }
+
+    // Handle --init-workspace command (create new .mtworkspace file)
+    if (argc >= 3 && std::string(argv[1]) == "--init-workspace")
+    {
+        std::string workspaceName = argv[2];
+        std::string filename = workspaceName + ".mtworkspace";
+
+        if (std::filesystem::exists(filename))
+        {
+            std::cerr << "Error: " << filename << " already exists\n";
+            return 1;
+        }
+
+        std::ofstream outFile(filename);
+        if (!outFile)
+        {
+            std::cerr << "Error: Could not create " << filename << "\n";
+            return 1;
+        }
+
+        outFile << "<Workspace Name=\"" << workspaceName << "\" Version=\"1.0.0\">\n";
+        outFile << "  <Members>\n";
+
+        // Add any member paths provided as extra arguments
+        for (int i = 3; i < argc; ++i)
+        {
+            outFile << "    <Member Path=\"" << argv[i] << "\" />\n";
+        }
+
+        outFile << "  </Members>\n";
+        outFile << "  <Output Directory=\"build\" />\n";
+        outFile << "</Workspace>\n";
 
         outFile.close();
 

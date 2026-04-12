@@ -31,7 +31,19 @@ namespace services
 
     void ImportManager::setProjectRoot(const std::string& root)
     {
-        projectRoot = root;
+        allowedRoots.clear();
+        if (!root.empty())
+        {
+            allowedRoots.push_back(root);
+        }
+    }
+
+    void ImportManager::addAllowedRoot(const std::string& root)
+    {
+        if (!root.empty())
+        {
+            allowedRoots.push_back(root);
+        }
     }
 
     std::string ImportManager::getCurrentFilePath() const
@@ -172,41 +184,14 @@ namespace services
     void ImportManager::enforceWithinProjectRoot(const fs::path& resolved,
                                                  const std::string& originalPath)
     {
-        // Containment is opt-in: only enforced when an explicit project
-        // root has been configured (via setProjectRoot). Ad-hoc scripts
-        // and tests run without one and skip the check entirely, since
-        // their layouts often legitimately use ../ to reach shared lib
-        // directories.
-        if (projectRoot.empty())
+        // Containment is opt-in: only enforced when explicit allowed root(s)
+        // have been configured (via setProjectRoot/addAllowedRoot). Ad-hoc
+        // scripts and tests run without any and skip the check entirely,
+        // since their layouts often legitimately use ../ to reach shared
+        // lib directories.
+        if (allowedRoots.empty())
         {
             return;
-        }
-
-        // projectRoot may not exist on disk yet (e.g. unit tests with a
-        // dummy "."). Fall back to lexically_normal so we still compare on
-        // a fully reduced path.
-        //
-        // KNOWN GAP: lexically_normal does NOT resolve symlinks. A symlink
-        // inside projectRoot whose target points outside the root would
-        // pass the prefix check on this fallback path. The mitigating
-        // factors are:
-        //   1) The fallback only triggers when fs::canonical fails, which
-        //      typically means the file does not yet exist — so there is
-        //      nothing for the importer to read anyway.
-        //   2) Once the file exists, fs::canonical succeeds and resolves
-        //      symlinks normally, so any escape attempt is caught the next
-        //      time the path is checked.
-        // Tightening this further would require distinguishing "path
-        // doesn't exist" from "permission denied" on canonical(), which
-        // std::filesystem doesn't expose portably.
-        fs::path canonicalRoot;
-        try
-        {
-            canonicalRoot = fs::canonical(projectRoot);
-        }
-        catch (const std::filesystem::filesystem_error&)
-        {
-            canonicalRoot = fs::absolute(projectRoot).lexically_normal();
         }
 
         fs::path canonicalResolved;
@@ -219,23 +204,45 @@ namespace services
             canonicalResolved = fs::absolute(resolved).lexically_normal();
         }
 
-        // Component-by-component prefix check. Using std::mismatch on the
-        // path iterators is the canonical way to defeat
-        // /projectroot-evil/file kinds of bypass that a string find() would
-        // accept.
-        auto rootIt = canonicalRoot.begin();
-        auto rootEnd = canonicalRoot.end();
-        auto pathIt = canonicalResolved.begin();
-        auto pathEnd = canonicalResolved.end();
-
-        for (; rootIt != rootEnd; ++rootIt, ++pathIt)
+        // Check if the resolved path falls within ANY of the allowed roots.
+        for (const auto& root : allowedRoots)
         {
-            if (pathIt == pathEnd || *pathIt != *rootIt)
+            fs::path canonicalRoot;
+            try
             {
-                throw errors::FileException(
-                    "Import path escapes project root: " + originalPath);
+                canonicalRoot = fs::canonical(root);
+            }
+            catch (const std::filesystem::filesystem_error&)
+            {
+                canonicalRoot = fs::absolute(root).lexically_normal();
+            }
+
+            // Component-by-component prefix check. Using iterator comparison
+            // defeats /projectroot-evil/file kinds of bypass that a string
+            // find() would accept.
+            auto rootIt = canonicalRoot.begin();
+            auto rootEnd = canonicalRoot.end();
+            auto pathIt = canonicalResolved.begin();
+            auto pathEnd = canonicalResolved.end();
+
+            bool isWithin = true;
+            for (; rootIt != rootEnd; ++rootIt, ++pathIt)
+            {
+                if (pathIt == pathEnd || *pathIt != *rootIt)
+                {
+                    isWithin = false;
+                    break;
+                }
+            }
+
+            if (isWithin)
+            {
+                return;
             }
         }
+
+        throw errors::FileException(
+            "Import path escapes project root: " + originalPath);
     }
 
     ASTNode* ImportManager::parseAndCacheAST(const std::string& rawPath)

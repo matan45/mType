@@ -4,6 +4,7 @@
 #include <chrono>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 namespace environment
 {
@@ -44,6 +45,13 @@ namespace project
 
         void setProgressCallback(ProgressCallback callback);
 
+        // Set workspace context for cross-project imports.
+        // aliases: map of @projectName -> absolute project root path
+        // additionalRoots: allowed roots for security containment
+        void setWorkspaceContext(
+            const std::unordered_map<std::string, std::string>& aliases,
+            const std::vector<std::string>& additionalRoots);
+
         BuildResult build(const ProjectConfig& config);
 
         BuildResult buildLibrary(const ProjectConfig& config, const std::string& outputPath);
@@ -56,6 +64,8 @@ namespace project
 
     private:
         ProgressCallback progressCallback;
+        std::unordered_map<std::string, std::string> workspaceAliases;
+        std::vector<std::string> workspaceAdditionalRoots;
 
         bool compileFile(const std::string& sourcePath,
                          const std::string& outputPath,

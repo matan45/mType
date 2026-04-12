@@ -20,6 +20,14 @@ namespace project
         progressCallback = std::move(callback);
     }
 
+    void ProjectBuilder::setWorkspaceContext(
+        const std::unordered_map<std::string, std::string>& aliases,
+        const std::vector<std::string>& additionalRoots)
+    {
+        workspaceAliases = aliases;
+        workspaceAdditionalRoots = additionalRoots;
+    }
+
     BuildResult ProjectBuilder::build(const ProjectConfig& config)
     {
         BuildResult result;
@@ -143,8 +151,22 @@ namespace project
             auto importManager = std::make_unique<services::ImportManager>();
             importManager->setBaseDirectory(config.projectRoot);
             importManager->setProjectRoot(config.projectRoot); // SECURITY: enforce containment
+
+            // Add workspace-level allowed roots for cross-project imports
+            for (const auto& root : workspaceAdditionalRoots)
+            {
+                importManager->addAllowedRoot(root);
+            }
+
             importManager->setSearchPaths(absoluteSearchPaths);
-            importManager->setPathAliases(config.imports.aliases);
+
+            // Merge workspace aliases with project aliases (project takes priority)
+            auto mergedAliases = workspaceAliases;
+            for (const auto& [name, path] : config.imports.aliases)
+            {
+                mergedAliases[name] = path;
+            }
+            importManager->setPathAliases(mergedAliases);
             importManager->setCurrentFilePath(tempFile.string());
 
             services::ImportManager* importMgrPtr = importManager.get();
@@ -217,9 +239,16 @@ namespace project
                 absoluteSearchPaths.push_back(absPath.string());
             }
 
+            // Merge workspace aliases with project aliases (project takes priority)
+            auto mergedAliases = workspaceAliases;
+            for (const auto& [name, path] : config.imports.aliases)
+            {
+                mergedAliases[name] = path;
+            }
+
             interpreter.compileToFile(sourcePath, outputPath,
                                       absoluteSearchPaths,
-                                      config.imports.aliases);
+                                      mergedAliases);
             return true;
         }
         catch (const std::exception& e)
@@ -280,6 +309,20 @@ namespace project
     {
         importManager.setBaseDirectory(config.projectRoot);
         importManager.setProjectRoot(config.projectRoot); // SECURITY: enforce containment
+
+        // Add workspace-level allowed roots for cross-project imports
+        for (const auto& root : workspaceAdditionalRoots)
+        {
+            importManager.addAllowedRoot(root);
+        }
+
+        // Merge workspace aliases (project's own aliases take priority)
+        auto mergedAliases = workspaceAliases;
+        for (const auto& [name, path] : config.imports.aliases)
+        {
+            mergedAliases[name] = path;
+        }
+        importManager.setPathAliases(mergedAliases);
     }
 
     void ProjectBuilder::reportProgress(size_t current, size_t total, const std::string& file)
