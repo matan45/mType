@@ -96,10 +96,13 @@ std::optional<SignatureHelp> SignatureHelpHandler::handleSignatureHelp(
         signatures = findFunctionSignatures(uri, callCtx->functionName, position.line);
     }
 
-    // Check built-in functions
-    auto builtin = getBuiltInSignature(callCtx->functionName);
-    if (builtin) {
-        signatures.push_back(*builtin);
+    // Only add built-in signature if no user-defined match was found,
+    // to avoid showing both when the user shadows a built-in name.
+    if (signatures.empty()) {
+        auto builtin = getBuiltInSignature(callCtx->functionName);
+        if (builtin) {
+            signatures.push_back(*builtin);
+        }
     }
 
     if (signatures.empty()) return std::nullopt;
@@ -113,24 +116,70 @@ std::optional<SignatureHelp> SignatureHelpHandler::handleSignatureHelp(
 
 std::optional<SignatureHelpHandler::FunctionCallContext>
 SignatureHelpHandler::findFunctionCall(const std::string& textBeforeCursor) const {
-    // Match method calls: object.method(args...
-    std::regex methodRegex(R"((\w+)\.(\w+)\s*\(([^)]*)$)");
+    // Scan backwards for the outermost unmatched '(' to correctly
+    // handle nested calls like obj.method(foo(), bar|.
+    // The [^)]* approach breaks on nested parentheses.
+    int depth = 0;
+    int openParenPos = -1;
+    bool inString = false;
+    char stringChar = 0;
+
+    for (int i = static_cast<int>(textBeforeCursor.length()) - 1; i >= 0; --i) {
+        char c = textBeforeCursor[i];
+        char prev = (i > 0) ? textBeforeCursor[i - 1] : 0;
+
+        // Simple string tracking (backwards)
+        if ((c == '"' || c == '\'') && prev != '\\') {
+            if (inString && c == stringChar) {
+                inString = false;
+            } else if (!inString) {
+                inString = true;
+                stringChar = c;
+            }
+            continue;
+        }
+        if (inString) continue;
+
+        if (c == ')') {
+            depth++;
+        } else if (c == '(') {
+            if (depth > 0) {
+                depth--;
+            } else {
+                openParenPos = i;
+                break;
+            }
+        }
+    }
+
+    if (openParenPos < 0) return std::nullopt;
+
+    // Extract the function/method name before the '('
+    std::string beforeParen = textBeforeCursor.substr(0, openParenPos);
+    // Trim trailing whitespace
+    while (!beforeParen.empty() && std::isspace(static_cast<unsigned char>(beforeParen.back()))) {
+        beforeParen.pop_back();
+    }
+    if (beforeParen.empty()) return std::nullopt;
+
+    // Match method call: object.method
+    std::regex methodRegex(R"((\w+)\.(\w+)$)");
     std::smatch methodMatch;
-    if (std::regex_search(textBeforeCursor, methodMatch, methodRegex)) {
+    if (std::regex_search(beforeParen, methodMatch, methodRegex)) {
         return FunctionCallContext{methodMatch[2].str(), true, methodMatch[1].str()};
     }
 
-    // Match static method calls: ClassName::method(args...
-    std::regex staticRegex(R"((\w+)::(\w+)\s*\(([^)]*)$)");
+    // Match static method call: ClassName::method
+    std::regex staticRegex(R"((\w+)::(\w+)$)");
     std::smatch staticMatch;
-    if (std::regex_search(textBeforeCursor, staticMatch, staticRegex)) {
+    if (std::regex_search(beforeParen, staticMatch, staticRegex)) {
         return FunctionCallContext{staticMatch[2].str(), true, staticMatch[1].str()};
     }
 
-    // Match function calls: functionName(args...
-    std::regex funcRegex(R"((\w+)\s*\(([^)]*)$)");
+    // Match plain function call: functionName
+    std::regex funcRegex(R"((\w+)$)");
     std::smatch funcMatch;
-    if (std::regex_search(textBeforeCursor, funcMatch, funcRegex)) {
+    if (std::regex_search(beforeParen, funcMatch, funcRegex)) {
         return FunctionCallContext{funcMatch[1].str(), false, ""};
     }
 
@@ -322,14 +371,37 @@ std::optional<SignatureInfo> SignatureHelpHandler::getBuiltInSignature(const std
 }
 
 int SignatureHelpHandler::getActiveParameter(const std::string& textBeforeCursor) const {
-    // Find the last opening parenthesis
-    auto lastParen = textBeforeCursor.rfind('(');
-    if (lastParen == std::string::npos) return 0;
+    // Find the outermost unmatched '(' by scanning backwards,
+    // matching the same logic as findFunctionCall.
+    int depth = 0;
+    int openParenPos = -1;
+    bool inStr = false;
+    char strCh = 0;
 
-    std::string afterParen = textBeforeCursor.substr(lastParen + 1);
+    for (int i = static_cast<int>(textBeforeCursor.length()) - 1; i >= 0; --i) {
+        char c = textBeforeCursor[i];
+        char prev = (i > 0) ? textBeforeCursor[i - 1] : 0;
+
+        if ((c == '"' || c == '\'') && prev != '\\') {
+            if (inStr && c == strCh) inStr = false;
+            else if (!inStr) { inStr = true; strCh = c; }
+            continue;
+        }
+        if (inStr) continue;
+
+        if (c == ')') depth++;
+        else if (c == '(') {
+            if (depth > 0) depth--;
+            else { openParenPos = i; break; }
+        }
+    }
+
+    if (openParenPos < 0) return 0;
+
+    std::string afterParen = textBeforeCursor.substr(openParenPos + 1);
 
     int paramIndex = 0;
-    int depth = 0;
+    int nestDepth = 0;
     bool inString = false;
     char stringChar = 0;
     bool inInterpolation = false;
@@ -370,9 +442,9 @@ int SignatureHelpHandler::getActiveParameter(const std::string& textBeforeCursor
         }
 
         // Handle nesting
-        if (c == '(' || c == '[' || c == '<') depth++;
-        else if (c == ')' || c == ']' || c == '>') depth--;
-        else if (c == ',' && depth == 0) paramIndex++;
+        if (c == '(' || c == '[' || c == '<') nestDepth++;
+        else if (c == ')' || c == ']' || c == '>') nestDepth--;
+        else if (c == ',' && nestDepth == 0) paramIndex++;
     }
 
     return paramIndex;

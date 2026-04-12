@@ -39,6 +39,13 @@ static std::vector<DecodedToken> decodeTokens(const SemanticTokens& tokens) {
     return result;
 }
 
+// Helper: resolve a token type name to its index via the legend
+static int tokenTypeIndex(const std::string& name) {
+    const auto& types = SemanticTokensHandler::tokenTypes();
+    auto it = std::find(types.begin(), types.end(), name);
+    return (it != types.end()) ? static_cast<int>(it - types.begin()) : -1;
+}
+
 // Helper: find a token that matches criteria
 static bool hasToken(const std::vector<DecodedToken>& tokens,
                      int line, int tokenType, int minLength = 1) {
@@ -46,6 +53,15 @@ static bool hasToken(const std::vector<DecodedToken>& tokens,
         [&](const DecodedToken& t) {
             return t.line == line && t.tokenType == tokenType && t.length >= minLength;
         });
+}
+
+// Helper: count tokens at a specific (line, startChar) — used to detect duplicates
+static int countTokensAt(const std::vector<DecodedToken>& tokens, int line, int startChar) {
+    int count = 0;
+    for (const auto& t : tokens) {
+        if (t.line == line && t.startChar == startChar) count++;
+    }
+    return count;
 }
 
 void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
@@ -89,7 +105,7 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
         auto decoded = decodeTokens(tokens);
 
-        int decoratorType = 19; // "decorator" index
+        int decoratorType = tokenTypeIndex("decorator");
         require(hasToken(decoded, 0, decoratorType),
             "expected decorator token on line 0 for @Override");
         require(hasToken(decoded, 1, decoratorType),
@@ -103,8 +119,8 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
         auto decoded = decodeTokens(tokens);
 
-        int keywordType = 12; // "keyword"
-        int classType = 1;    // "class"
+        int keywordType = tokenTypeIndex("keyword");
+        int classType = tokenTypeIndex("class");
 
         require(hasToken(decoded, 0, keywordType, 5),
             "expected keyword token for 'class'");
@@ -119,7 +135,7 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
         auto decoded = decodeTokens(tokens);
 
-        int interfaceType = 3; // "interface"
+        int interfaceType = tokenTypeIndex("interface");
         require(hasToken(decoded, 0, interfaceType, 8),
             "expected interface token for 'Drawable'");
     });
@@ -134,9 +150,9 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
         auto decoded = decodeTokens(tokens);
 
-        int modifierType = 13; // "modifier"
-        int keywordType = 12;  // "keyword"
-        int methodType = 11;   // "method"
+        int modifierType = tokenTypeIndex("modifier");
+        int keywordType = tokenTypeIndex("keyword");
+        int methodType = tokenTypeIndex("method");
 
         require(hasToken(decoded, 1, modifierType),
             "expected modifier token on line 1 for 'static'");
@@ -153,7 +169,7 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
         auto decoded = decodeTokens(tokens);
 
-        int keywordType = 12;
+        int keywordType = tokenTypeIndex("keyword");
         require(hasToken(decoded, 0, keywordType, 2),
             "expected keyword token for 'if'");
         require(hasToken(decoded, 0, keywordType, 6),
@@ -167,7 +183,7 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
         auto decoded = decodeTokens(tokens);
 
-        int functionType = 10; // "function"
+        int functionType = tokenTypeIndex("function");
         require(hasToken(decoded, 0, functionType, 5),
             "expected function token for 'print'");
         require(hasToken(decoded, 1, functionType, 3),
@@ -181,13 +197,29 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
         auto decoded = decodeTokens(tokens);
 
-        int functionType = 10; // "function"
+        int functionType = tokenTypeIndex("function");
         // "if" and "while" should NOT be tokenized as function calls
         bool ifAsFunction = std::any_of(decoded.begin(), decoded.end(),
             [&](const DecodedToken& t) {
                 return t.tokenType == functionType && t.length == 2 && t.line == 0;
             });
         require(!ifAsFunction, "'if' should not be tokenized as function call");
+    });
+
+    harness.addTest("no duplicate tokens for modifier keywords", []() {
+        // Words like "static", "public", etc. should emit ONE token (modifier),
+        // not two (keyword + modifier).
+        auto docMgr = makeDocManager("file:///test.mt", "public static int x = 1;\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        // "public" is at col 0, "static" is at col 7
+        require(countTokensAt(decoded, 0, 0) == 1,
+            "'public' should emit exactly 1 token, not 2");
+        require(countTokensAt(decoded, 0, 7) == 1,
+            "'static' should emit exactly 1 token, not 2");
     });
 
     harness.addTest("toJson produces valid LSP semantic tokens format", []() {
@@ -216,6 +248,23 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
             require(t.startChar >= 0, "startChar should be non-negative");
             require(t.length > 0, "length should be positive");
         }
+    });
+
+    harness.addTest("class declaration with extra spaces uses correct positions", []() {
+        // Regression: hardcoded offset arithmetic broke with multiple spaces
+        auto docMgr = makeDocManager("file:///test.mt", "class  MyClass {}\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        int classType = tokenTypeIndex("class");
+        // "MyClass" starts at col 7 (class + 2 spaces)
+        bool found = std::any_of(decoded.begin(), decoded.end(),
+            [&](const DecodedToken& t) {
+                return t.tokenType == classType && t.startChar == 7 && t.length == 7;
+            });
+        require(found, "class name should be at col 7 with double-space after 'class'");
     });
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <regex>
 #include <string>
 #include <vector>
 #include "../utils/LSPTypes.hpp"
@@ -37,25 +38,34 @@ private:
         int tokenModifiers;
     };
 
-    // Tokenization passes (each appends to tokens_)
-    void tokenizeAnnotations(const std::string& line, int lineIndex);
-    void tokenizeClassDeclarations(const std::string& line, int lineIndex);
-    void tokenizeInterfaceDeclarations(const std::string& line, int lineIndex);
-    void tokenizeMethodDeclarations(const std::string& line, int lineIndex);
-    void tokenizeVariableDeclarations(const std::string& line, int lineIndex);
-    void tokenizeKeywords(const std::string& line, int lineIndex);
+    // Tokenization passes — each appends to the supplied vector
+    void tokenizeAnnotations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    void tokenizeClassDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    void tokenizeInterfaceDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    void tokenizeMethodDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    void tokenizeVariableDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    void tokenizeKeywords(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     void tokenizeTypes(const std::string& line, int lineIndex,
-                       const std::vector<std::string>& knownClasses);
-    void tokenizeModifiers(const std::string& line, int lineIndex);
-    void tokenizeFunctionCalls(const std::string& line, int lineIndex);
+                       const std::vector<std::string>& knownClasses,
+                       std::vector<RawToken>& tokens) const;
+    void tokenizeModifiers(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    void tokenizeFunctionCalls(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
 
     // Helpers
     static int encodeTokenType(const std::string& type);
     static int encodeTokenModifiers(const std::vector<std::string>& mods);
-    void pushToken(int line, int startChar, int length, int type, int modifiers);
+    static void pushToken(std::vector<RawToken>& tokens, int line, int startChar, int length, int type, int modifiers);
 
-    // Scratch buffer cleared per-request
-    std::vector<RawToken> tokens_;
+    // Pre-compiled regexes (built once in constructor)
+    std::regex annotationRegex_;
+    std::regex classRegex_;
+    std::regex interfaceRegex_;
+    std::regex methodRegex_;
+    std::regex varRegex_;
+    std::regex keywordRegex_;           // single alternation for all keywords
+    std::regex modifierRegex_;          // single alternation for all modifiers
+    std::regex functionCallRegex_;
+    std::regex classDeclLookbehind_;    // for tokenizeTypes skip check
 
     DocumentManager* documentManager_;
 };

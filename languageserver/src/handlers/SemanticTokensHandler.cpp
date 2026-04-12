@@ -1,7 +1,7 @@
 #include "SemanticTokensHandler.hpp"
 #include <algorithm>
-#include <regex>
 #include <sstream>
+#include <unordered_set>
 
 namespace mtype::lsp {
 
@@ -73,22 +73,37 @@ int SemanticTokensHandler::encodeTokenModifiers(const std::vector<std::string>& 
     return result;
 }
 
-void SemanticTokensHandler::pushToken(int line, int startChar, int length, int type, int modifiers) {
+void SemanticTokensHandler::pushToken(std::vector<RawToken>& tokens,
+                                       int line, int startChar, int length,
+                                       int type, int modifiers) {
     if (length <= 0) return;
-    tokens_.push_back({line, startChar, length, type, modifiers});
+    tokens.push_back({line, startChar, length, type, modifiers});
 }
 
-// ---------- Constructor ----------
+// ---------- Constructor — pre-compile all regexes ----------
 
 SemanticTokensHandler::SemanticTokensHandler(DocumentManager* docMgr)
-    : documentManager_(docMgr)
+    : annotationRegex_(R"(@(\w+))")
+    , classRegex_(R"(\b(abstract\s+)?class\s+(\w+))")
+    , interfaceRegex_(R"(\binterface\s+(\w+))")
+    , methodRegex_(R"(\b(static\s+)?(async\s+)?function\s+(\w+)\s*\()")
+    , varRegex_(R"(\b(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?(\w+(?:<[^>]+>)?)\s+(\w+)\s*[;=])")
+    // Single alternation — no per-keyword/per-modifier regex construction.
+    // Keywords that are also modifiers are excluded here; they are handled
+    // solely by tokenizeModifiers to avoid duplicate tokens at the same position.
+    , keywordRegex_(R"(\b(if|else|while|do|for|switch|case|default|break|continue|match|return|new|this|super|try|catch|finally|throw|import|from|extends|implements|final|await)\b)")
+    , modifierRegex_(R"(\b(public|private|protected|static|abstract|async|final)\b)")
+    , functionCallRegex_(R"(\b(\w+)\s*\()")
+    , classDeclLookbehind_(R"(\b(?:class|interface)\s*$)")
+    , documentManager_(docMgr)
 {
 }
 
 // ---------- Main entry point ----------
 
 SemanticTokens SemanticTokensHandler::handleSemanticTokensFull(const std::string& uri) {
-    tokens_.clear();
+    // Thread-safe: use a local vector instead of a member scratch buffer
+    std::vector<RawToken> tokens;
 
     auto* doc = documentManager_->getDocument(uri);
     if (!doc) return SemanticTokens{};
@@ -117,20 +132,20 @@ SemanticTokens SemanticTokensHandler::handleSemanticTokensFull(const std::string
     int lineIndex = 0;
 
     while (std::getline(stream, line)) {
-        tokenizeAnnotations(line, lineIndex);
-        tokenizeClassDeclarations(line, lineIndex);
-        tokenizeInterfaceDeclarations(line, lineIndex);
-        tokenizeMethodDeclarations(line, lineIndex);
-        tokenizeVariableDeclarations(line, lineIndex);
-        tokenizeKeywords(line, lineIndex);
-        tokenizeTypes(line, lineIndex, knownClasses);
-        tokenizeModifiers(line, lineIndex);
-        tokenizeFunctionCalls(line, lineIndex);
+        tokenizeAnnotations(line, lineIndex, tokens);
+        tokenizeClassDeclarations(line, lineIndex, tokens);
+        tokenizeInterfaceDeclarations(line, lineIndex, tokens);
+        tokenizeMethodDeclarations(line, lineIndex, tokens);
+        tokenizeVariableDeclarations(line, lineIndex, tokens);
+        tokenizeKeywords(line, lineIndex, tokens);
+        tokenizeTypes(line, lineIndex, knownClasses, tokens);
+        tokenizeModifiers(line, lineIndex, tokens);
+        tokenizeFunctionCalls(line, lineIndex, tokens);
         lineIndex++;
     }
 
     // Sort tokens by (line, startChar)
-    std::sort(tokens_.begin(), tokens_.end(), [](const RawToken& a, const RawToken& b) {
+    std::sort(tokens.begin(), tokens.end(), [](const RawToken& a, const RawToken& b) {
         if (a.line != b.line) return a.line < b.line;
         return a.startChar < b.startChar;
     });
@@ -140,7 +155,7 @@ SemanticTokens SemanticTokensHandler::handleSemanticTokensFull(const std::string
     int prevLine = 0;
     int prevStart = 0;
 
-    for (const auto& tok : tokens_) {
+    for (const auto& tok : tokens) {
         int deltaLine = tok.line - prevLine;
         int deltaStart = (deltaLine == 0) ? (tok.startChar - prevStart) : tok.startChar;
 
@@ -159,65 +174,66 @@ SemanticTokens SemanticTokensHandler::handleSemanticTokensFull(const std::string
 
 // ---------- Tokenization passes ----------
 
-void SemanticTokensHandler::tokenizeAnnotations(const std::string& line, int lineIndex) {
-    std::regex regex(R"(@(\w+))");
-    auto begin = std::sregex_iterator(line.begin(), line.end(), regex);
+void SemanticTokensHandler::tokenizeAnnotations(const std::string& line, int lineIndex,
+                                                 std::vector<RawToken>& tokens) const {
+    auto begin = std::sregex_iterator(line.begin(), line.end(), annotationRegex_);
     auto end = std::sregex_iterator();
 
     for (auto it = begin; it != end; ++it) {
-        pushToken(lineIndex,
+        pushToken(tokens, lineIndex,
                   static_cast<int>(it->position()),
                   static_cast<int>((*it)[0].length()),
-                  encodeTokenType("decorator"),
-                  0);
+                  encodeTokenType("decorator"), 0);
     }
 }
 
-void SemanticTokensHandler::tokenizeClassDeclarations(const std::string& line, int lineIndex) {
-    std::regex regex(R"(\b(abstract\s+)?class\s+(\w+))");
-    auto begin = std::sregex_iterator(line.begin(), line.end(), regex);
+void SemanticTokensHandler::tokenizeClassDeclarations(const std::string& line, int lineIndex,
+                                                       std::vector<RawToken>& tokens) const {
+    auto begin = std::sregex_iterator(line.begin(), line.end(), classRegex_);
     auto end = std::sregex_iterator();
 
     for (auto it = begin; it != end; ++it) {
         bool hasAbstract = (*it)[1].matched;
-        int classKeywordOffset = static_cast<int>(it->position()) + (hasAbstract ? static_cast<int>((*it)[1].length()) : 0);
+        int classKeywordOffset = static_cast<int>(it->position())
+            + (hasAbstract ? static_cast<int>((*it)[1].length()) : 0);
 
         // Highlight "class" keyword
-        pushToken(lineIndex, classKeywordOffset, 5,
+        pushToken(tokens, lineIndex, classKeywordOffset, 5,
                   encodeTokenType("keyword"), 0);
 
-        // Highlight class name
+        // Highlight class name — use the actual match position of group 2
         std::string className = (*it)[2].str();
-        int nameOffset = classKeywordOffset + 6; // "class " = 6 chars
-        pushToken(lineIndex, nameOffset, static_cast<int>(className.length()),
+        int nameOffset = static_cast<int>(it->position(2));
+        pushToken(tokens, lineIndex, nameOffset, static_cast<int>(className.length()),
                   encodeTokenType("class"),
                   encodeTokenModifiers({"declaration"}));
     }
 }
 
-void SemanticTokensHandler::tokenizeInterfaceDeclarations(const std::string& line, int lineIndex) {
-    std::regex regex(R"(\binterface\s+(\w+))");
-    auto begin = std::sregex_iterator(line.begin(), line.end(), regex);
+void SemanticTokensHandler::tokenizeInterfaceDeclarations(const std::string& line, int lineIndex,
+                                                           std::vector<RawToken>& tokens) const {
+    auto begin = std::sregex_iterator(line.begin(), line.end(), interfaceRegex_);
     auto end = std::sregex_iterator();
 
     for (auto it = begin; it != end; ++it) {
         int pos = static_cast<int>(it->position());
 
         // Highlight "interface" keyword
-        pushToken(lineIndex, pos, 9,
+        pushToken(tokens, lineIndex, pos, 9,
                   encodeTokenType("keyword"), 0);
 
-        // Highlight interface name
+        // Highlight interface name — use the actual match position of group 1
         std::string name = (*it)[1].str();
-        pushToken(lineIndex, pos + 10, static_cast<int>(name.length()),
+        int namePos = static_cast<int>(it->position(1));
+        pushToken(tokens, lineIndex, namePos, static_cast<int>(name.length()),
                   encodeTokenType("interface"),
                   encodeTokenModifiers({"declaration"}));
     }
 }
 
-void SemanticTokensHandler::tokenizeMethodDeclarations(const std::string& line, int lineIndex) {
-    std::regex regex(R"(\b(static\s+)?(async\s+)?function\s+(\w+)\s*\()");
-    auto begin = std::sregex_iterator(line.begin(), line.end(), regex);
+void SemanticTokensHandler::tokenizeMethodDeclarations(const std::string& line, int lineIndex,
+                                                        std::vector<RawToken>& tokens) const {
+    auto begin = std::sregex_iterator(line.begin(), line.end(), methodRegex_);
     auto end = std::sregex_iterator();
 
     for (auto it = begin; it != end; ++it) {
@@ -228,7 +244,7 @@ void SemanticTokensHandler::tokenizeMethodDeclarations(const std::string& line, 
 
         // Highlight "static" if present
         if (isStatic) {
-            pushToken(lineIndex, offset, 6,
+            pushToken(tokens, lineIndex, offset, 6,
                       encodeTokenType("modifier"),
                       encodeTokenModifiers({"static"}));
             offset += static_cast<int>((*it)[1].length());
@@ -236,39 +252,36 @@ void SemanticTokensHandler::tokenizeMethodDeclarations(const std::string& line, 
 
         // Highlight "async" if present
         if (isAsync) {
-            pushToken(lineIndex, offset, 5,
+            pushToken(tokens, lineIndex, offset, 5,
                       encodeTokenType("modifier"),
                       encodeTokenModifiers({"async"}));
             offset += static_cast<int>((*it)[2].length());
         }
 
         // Highlight "function" keyword
-        pushToken(lineIndex, offset, 8,
+        pushToken(tokens, lineIndex, offset, 8,
                   encodeTokenType("keyword"), 0);
 
-        // Highlight method name
-        int namePos = static_cast<int>(line.find(methodName, offset + 8));
-        if (namePos >= 0) {
-            std::vector<std::string> mods = {"declaration"};
-            if (isStatic) mods.push_back("static");
-            if (isAsync) mods.push_back("async");
+        // Highlight method name — use actual match position of group 3
+        int namePos = static_cast<int>(it->position(3));
+        std::vector<std::string> mods = {"declaration"};
+        if (isStatic) mods.push_back("static");
+        if (isAsync) mods.push_back("async");
 
-            pushToken(lineIndex, namePos, static_cast<int>(methodName.length()),
-                      encodeTokenType("method"),
-                      encodeTokenModifiers(mods));
-        }
+        pushToken(tokens, lineIndex, namePos, static_cast<int>(methodName.length()),
+                  encodeTokenType("method"),
+                  encodeTokenModifiers(mods));
     }
 }
 
-void SemanticTokensHandler::tokenizeVariableDeclarations(const std::string& line, int lineIndex) {
-    std::regex regex(R"(\b(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?(\w+(?:<[^>]+>)?)\s+(\w+)\s*[;=])");
-    auto begin = std::sregex_iterator(line.begin(), line.end(), regex);
+void SemanticTokensHandler::tokenizeVariableDeclarations(const std::string& line, int lineIndex,
+                                                          std::vector<RawToken>& tokens) const {
+    auto begin = std::sregex_iterator(line.begin(), line.end(), varRegex_);
     auto end = std::sregex_iterator();
 
     for (auto it = begin; it != end; ++it) {
         std::string varName = (*it)[2].str();
-        int namePos = static_cast<int>(line.find(varName, static_cast<size_t>(it->position())));
-        if (namePos < 0) continue;
+        int namePos = static_cast<int>(it->position(2));
 
         std::string fullMatch = (*it)[0].str();
         bool isStatic = fullMatch.find("static") != std::string::npos;
@@ -278,104 +291,104 @@ void SemanticTokensHandler::tokenizeVariableDeclarations(const std::string& line
         if (isStatic) mods.push_back("static");
         if (isFinal) mods.push_back("readonly");
 
-        pushToken(lineIndex, namePos, static_cast<int>(varName.length()),
+        pushToken(tokens, lineIndex, namePos, static_cast<int>(varName.length()),
                   encodeTokenType("variable"),
                   encodeTokenModifiers(mods));
     }
 }
 
-void SemanticTokensHandler::tokenizeKeywords(const std::string& line, int lineIndex) {
-    static const std::vector<std::string> keywords = {
-        "if", "else", "while", "do", "for", "switch", "case", "default", "break", "continue", "match",
-        "return", "new", "this", "super", "try", "catch", "finally", "throw",
-        "import", "from", "extends", "implements", "abstract", "final",
-        "public", "private", "protected", "static", "async", "await"
-    };
+void SemanticTokensHandler::tokenizeKeywords(const std::string& line, int lineIndex,
+                                              std::vector<RawToken>& tokens) const {
+    // Uses a single pre-compiled alternation regex.
+    // Excludes words that are also modifiers (public, private, protected,
+    // static, abstract, async) — those are handled by tokenizeModifiers
+    // to avoid emitting duplicate tokens at the same position.
+    auto begin = std::sregex_iterator(line.begin(), line.end(), keywordRegex_);
+    auto end = std::sregex_iterator();
 
-    for (const auto& kw : keywords) {
-        std::regex regex("\\b" + kw + "\\b");
-        auto begin = std::sregex_iterator(line.begin(), line.end(), regex);
-        auto end = std::sregex_iterator();
-
-        for (auto it = begin; it != end; ++it) {
-            pushToken(lineIndex,
-                      static_cast<int>(it->position()),
-                      static_cast<int>(kw.length()),
-                      encodeTokenType("keyword"), 0);
-        }
+    for (auto it = begin; it != end; ++it) {
+        pushToken(tokens, lineIndex,
+                  static_cast<int>(it->position()),
+                  static_cast<int>((*it)[0].length()),
+                  encodeTokenType("keyword"), 0);
     }
 }
 
 void SemanticTokensHandler::tokenizeTypes(
     const std::string& line, int lineIndex,
-    const std::vector<std::string>& knownClasses)
+    const std::vector<std::string>& knownClasses,
+    std::vector<RawToken>& tokens) const
 {
-    for (const auto& typeName : knownClasses) {
-        std::regex regex("\\b" + typeName + "\\b");
-        auto begin = std::sregex_iterator(line.begin(), line.end(), regex);
-        auto end = std::sregex_iterator();
+    // Build a single alternation regex for all known types.
+    // This is per-request but only one regex per call (not per-type per-line).
+    if (knownClasses.empty()) return;
 
-        for (auto it = begin; it != end; ++it) {
-            int pos = static_cast<int>(it->position());
-
-            // Skip if this is part of a class/interface declaration (already handled)
-            int lookback = std::max(0, pos - 20);
-            std::string before = line.substr(lookback, pos - lookback);
-            if (std::regex_search(before, std::regex(R"(\b(?:class|interface)\s*$)"))) {
-                continue;
-            }
-
-            pushToken(lineIndex, pos, static_cast<int>(typeName.length()),
-                      encodeTokenType("class"), 0);
-        }
+    std::string pattern = "\\b(";
+    for (size_t i = 0; i < knownClasses.size(); i++) {
+        if (i > 0) pattern += "|";
+        pattern += knownClasses[i];
     }
-}
+    pattern += ")\\b";
 
-void SemanticTokensHandler::tokenizeModifiers(const std::string& line, int lineIndex) {
-    static const std::vector<std::string> modifiers = {
-        "public", "private", "protected", "static", "final", "abstract", "async"
-    };
-
-    for (const auto& mod : modifiers) {
-        std::regex regex("\\b" + mod + "\\b");
-        auto begin = std::sregex_iterator(line.begin(), line.end(), regex);
-        auto end = std::sregex_iterator();
-
-        for (auto it = begin; it != end; ++it) {
-            std::vector<std::string> tokenMods;
-            if (mod == "static") tokenMods.push_back("static");
-            if (mod == "final") tokenMods.push_back("readonly");
-            if (mod == "abstract") tokenMods.push_back("abstract");
-            if (mod == "async") tokenMods.push_back("async");
-
-            pushToken(lineIndex,
-                      static_cast<int>(it->position()),
-                      static_cast<int>(mod.length()),
-                      encodeTokenType("modifier"),
-                      encodeTokenModifiers(tokenMods));
-        }
-    }
-}
-
-void SemanticTokensHandler::tokenizeFunctionCalls(const std::string& line, int lineIndex) {
-    std::regex regex(R"(\b(\w+)\s*\()");
-    auto begin = std::sregex_iterator(line.begin(), line.end(), regex);
+    std::regex typesRegex(pattern);
+    auto begin = std::sregex_iterator(line.begin(), line.end(), typesRegex);
     auto end = std::sregex_iterator();
 
-    static const std::vector<std::string> skipKeywords = {
+    for (auto it = begin; it != end; ++it) {
+        int pos = static_cast<int>(it->position());
+
+        // Skip if this is part of a class/interface declaration (already handled)
+        int lookback = std::max(0, pos - 20);
+        std::string before = line.substr(lookback, pos - lookback);
+        if (std::regex_search(before, classDeclLookbehind_)) {
+            continue;
+        }
+
+        pushToken(tokens, lineIndex, pos, static_cast<int>((*it)[0].length()),
+                  encodeTokenType("class"), 0);
+    }
+}
+
+void SemanticTokensHandler::tokenizeModifiers(const std::string& line, int lineIndex,
+                                               std::vector<RawToken>& tokens) const {
+    // Uses a single pre-compiled alternation regex.
+    // This is the sole emitter for modifier words (public, private, protected,
+    // static, abstract, async, final). tokenizeKeywords excludes these to
+    // prevent duplicate tokens at the same position.
+    auto begin = std::sregex_iterator(line.begin(), line.end(), modifierRegex_);
+    auto end = std::sregex_iterator();
+
+    for (auto it = begin; it != end; ++it) {
+        std::string mod = (*it)[1].str();
+
+        std::vector<std::string> tokenMods;
+        if (mod == "static") tokenMods.push_back("static");
+        if (mod == "final") tokenMods.push_back("readonly");
+        if (mod == "abstract") tokenMods.push_back("abstract");
+        if (mod == "async") tokenMods.push_back("async");
+
+        pushToken(tokens, lineIndex,
+                  static_cast<int>(it->position()),
+                  static_cast<int>(mod.length()),
+                  encodeTokenType("modifier"),
+                  encodeTokenModifiers(tokenMods));
+    }
+}
+
+void SemanticTokensHandler::tokenizeFunctionCalls(const std::string& line, int lineIndex,
+                                                    std::vector<RawToken>& tokens) const {
+    auto begin = std::sregex_iterator(line.begin(), line.end(), functionCallRegex_);
+    auto end = std::sregex_iterator();
+
+    static const std::unordered_set<std::string> skipKeywords = {
         "if", "while", "for", "switch", "catch", "function"
     };
 
     for (auto it = begin; it != end; ++it) {
         std::string funcName = (*it)[1].str();
+        if (skipKeywords.count(funcName)) continue;
 
-        bool isKeyword = false;
-        for (const auto& kw : skipKeywords) {
-            if (funcName == kw) { isKeyword = true; break; }
-        }
-        if (isKeyword) continue;
-
-        pushToken(lineIndex,
+        pushToken(tokens, lineIndex,
                   static_cast<int>(it->position()),
                   static_cast<int>(funcName.length()),
                   encodeTokenType("function"), 0);

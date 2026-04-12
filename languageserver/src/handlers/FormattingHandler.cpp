@@ -110,10 +110,12 @@ std::string FormattingHandler::organizeImports(const std::string& content) {
 
     while (std::getline(stream, line)) {
         std::string trimmed = trim(line);
-        if (trimmed.substr(0, 7) == "import ") {
+        if (inImportSection && trimmed.substr(0, 7) == "import ") {
             imports.push_back(trimmed);
         } else {
-            if (!trimmed.empty() || !inImportSection) {
+            // The first non-empty, non-import line ends the import section.
+            // Blank lines between imports are tolerated.
+            if (!trimmed.empty()) {
                 inImportSection = false;
             }
             nonImports.push_back(line);

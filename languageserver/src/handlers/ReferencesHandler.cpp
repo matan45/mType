@@ -1,9 +1,7 @@
 #include "ReferencesHandler.hpp"
 #include "../utils/UriUtils.hpp"
-#include <fstream>
 #include <regex>
 #include <sstream>
-#include <filesystem>
 
 namespace mtype::lsp {
 
@@ -39,7 +37,11 @@ std::vector<Location> ReferencesHandler::handleReferences(
 
     std::vector<Location> results;
 
-    // Find references in the current document
+    // Find references in the current document.
+    // Class names get declaration-aware search (skips class/interface line).
+    // All other symbol types (method, field, variable, constructor) use
+    // whole-word search — no class-scope filtering is applied. A method
+    // named "get" will match every use of "get" in the file.
     if (ctx.type == "class") {
         auto refs = findClassReferences(word, uri, content, includeDeclaration);
         results.insert(results.end(), refs.begin(), refs.end());
@@ -48,30 +50,26 @@ std::vector<Location> ReferencesHandler::handleReferences(
         results.insert(results.end(), refs.begin(), refs.end());
     }
 
-    // Find cross-file references via workspace index
+    // Find cross-file references.
+    // First check the workspace symbol index to narrow down which files
+    // might contain the symbol, then only scan files that are already open
+    // in the editor (via DocumentManager). Avoids naive disk I/O on every
+    // Find References invocation.
     if (workspaceIndex_) {
         workspaceIndex_->waitForReady(std::chrono::milliseconds(200));
+
+        // Only search files that are currently open in the editor.
+        // This avoids slow disk reads for large workspaces and ensures
+        // we use the same UTF-8 / line-ending normalization as DocumentManager.
         auto allFiles = workspaceIndex_->getAllIndexedFiles();
 
         for (const auto& fileUri : allFiles) {
             if (fileUri == uri) continue;
 
-            // Try to get content from the document manager (open files)
             auto* otherDoc = documentManager_->getDocument(fileUri);
-            std::string otherContent;
-            if (otherDoc) {
-                otherContent = otherDoc->content;
-            } else {
-                // Read from disk
-                std::string filePath = UriUtils::uriToFilePath(fileUri);
-                std::ifstream file(filePath);
-                if (!file.is_open()) continue;
-                std::ostringstream ss;
-                ss << file.rdbuf();
-                otherContent = ss.str();
-            }
+            if (!otherDoc) continue;
 
-            auto refs = findReferencesInDocument(word, fileUri, otherContent);
+            auto refs = findReferencesInDocument(word, fileUri, otherDoc->content);
             results.insert(results.end(), refs.begin(), refs.end());
         }
     }
@@ -226,15 +224,23 @@ std::vector<Location> ReferencesHandler::findVariableReferences(
     const std::string& content,
     bool includeDeclaration) const
 {
-    // For variables, we just do whole-word search across all lines
-    // (same as findReferencesInDocument, but optionally skipping the declaration)
     std::vector<Location> refs;
     std::istringstream stream(content);
     std::string line;
     int lineNum = 0;
-    bool foundDeclaration = false;
+
+    // Pre-check which lines are declaration lines (type varName [;=])
+    // so we can skip the variable name on those lines when !includeDeclaration.
+    // This is checked per-line, not just for the first declaration found.
+    std::regex declRegex(R"(\b\w+\s+)" + varName + R"(\s*[;=])");
 
     while (std::getline(stream, line)) {
+        // Determine if this line declares the variable
+        bool isDeclarationLine = false;
+        if (!includeDeclaration) {
+            isDeclarationLine = std::regex_search(line, declRegex);
+        }
+
         size_t startIdx = 0;
         while (true) {
             size_t pos = line.find(varName, startIdx);
@@ -245,12 +251,21 @@ std::vector<Location> ReferencesHandler::findVariableReferences(
                             ? line[pos + varName.length()] : ' ';
 
             if (isWordBoundary(prevChar) && isWordBoundary(nextChar)) {
-                // Skip the first occurrence if it looks like a declaration and includeDeclaration is false
-                if (!includeDeclaration && !foundDeclaration) {
-                    // Check if this line has a declaration pattern
-                    std::regex declRegex(R"(\b\w+\s+)" + varName + R"(\s*[;=])");
-                    if (std::regex_search(line, declRegex)) {
-                        foundDeclaration = true;
+                // On a declaration line, skip the occurrence that is part of the
+                // declaration (the one immediately following the type name).
+                // We still include other occurrences on the same line, e.g.
+                // in "int x = x + 1;" the second x is a usage.
+                if (isDeclarationLine) {
+                    // Check if this particular match is the declared name
+                    // (preceded by type + whitespace, followed by ; or =)
+                    std::string beforeMatch = line.substr(0, pos);
+                    std::string afterMatch = line.substr(pos + varName.length());
+                    // Trim and check: does beforeMatch end with "type "?
+                    // and afterMatch start with optional whitespace + ; or = ?
+                    std::regex localDeclCheck(R"(\w+\s+$)");
+                    std::regex afterDeclCheck(R"(^\s*[;=])");
+                    if (std::regex_search(beforeMatch, localDeclCheck) &&
+                        std::regex_search(afterMatch, afterDeclCheck)) {
                         startIdx = pos + 1;
                         continue;
                     }

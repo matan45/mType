@@ -55,13 +55,12 @@ void SignatureHelpHandlerTestSuite::registerTests(LspTestHarness& harness) {
         SignatureHelpHandler handler(docMgr.get());
 
         // Cursor after first comma: "foo(a, " — col 7 → activeParameter=1
+        // "foo" is not a builtin or declared function, so this returns nullopt.
+        // The active parameter tracking is validated by the nested-parens test
+        // which uses the builtin "print" instead.
         auto result1 = handler.handleSignatureHelp("file:///test.mt", {0, 7});
-        // This might not return a result since "foo" isn't builtin,
-        // but if it does, check active parameter
-        if (result1.has_value()) {
-            require(result1->activeParameter == 1,
-                "after first comma, active param should be 1, got " + std::to_string(result1->activeParameter));
-        }
+        require(!result1.has_value(),
+            "unknown function 'foo' should return nullopt");
     });
 
     harness.addTest("returns nullopt when no function call at cursor", []() {
@@ -95,12 +94,10 @@ void SignatureHelpHandlerTestSuite::registerTests(LspTestHarness& harness) {
 
         // Cursor inside "new Point(" — line 4, col 20
         auto result = handler.handleSignatureHelp("file:///test.mt", {4, 20});
-        // The constructor should be found
-        if (result.has_value()) {
-            require(!result->signatures.empty(), "expected constructor signature");
-            require(result->signatures[0].parameters.size() == 2,
-                "constructor should have 2 parameters");
-        }
+        require(result.has_value(), "expected signature help for constructor call");
+        require(!result->signatures.empty(), "expected constructor signature");
+        require(result->signatures[0].parameters.size() == 2,
+            "constructor should have 2 parameters");
     });
 
     harness.addTest("signature help toJson produces valid LSP format", []() {
@@ -132,10 +129,9 @@ void SignatureHelpHandlerTestSuite::registerTests(LspTestHarness& harness) {
 
         // Cursor after "print(foo(1), " — col 14, should be on parameter 1
         auto result = handler.handleSignatureHelp("file:///test.mt", {0, 14});
-        if (result.has_value()) {
-            require(result->activeParameter == 1,
-                "should be on parameter 1 after nested call, got " + std::to_string(result->activeParameter));
-        }
+        require(result.has_value(), "expected signature help for print() with nested call");
+        require(result->activeParameter == 1,
+            "should be on parameter 1 after nested call, got " + std::to_string(result->activeParameter));
     });
 }
 
