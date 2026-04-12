@@ -1,8 +1,10 @@
 // Test: Collections in standalone exe
 import * from "collections/ArrayList.mt";
+import * from "collections/HashSet.mt";
 import * from "collections/Stack.mt";
 import * from "collections/ArrayQueue.mt";
 import * from "primitives/Int.mt";
+import * from "primitives/String.mt";
 
 @EntryPoint
 class App {
@@ -20,6 +22,14 @@ class App {
         for (Int item : list) {
             print("  " + item);
         }
+
+        // HashSet
+        HashSet<String> set = new HashSet<String>();
+        set.add(new String("x"));
+        set.add(new String("y"));
+        set.add(new String("x"));
+        print("HashSet size: " + set.size());
+        print("HashSet contains x: " + set.contains(new String("x")));
 
         // Stack
         Stack<Int> stack = new Stack<Int>();

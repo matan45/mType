@@ -1,41 +1,57 @@
-// Test: Try/Catch basic flow in standalone exe
-// Note: Exception catch dispatch in exe runtime is a known limitation.
-// This test validates the non-exception path only.
+// Test: Try/Catch in standalone exe
+import * from "exceptions/Exception.mt";
+
+class AppError extends Exception {
+    public constructor(string msg) : super(msg) {
+    }
+}
+
+function riskyDivide(int a, int b): int {
+    if (b == 0) {
+        throw new AppError("Division by zero");
+    }
+    return a / b;
+}
 
 @EntryPoint
 class App {
     public static function main(string[] args): void {
-        // Try block that succeeds (no exception thrown)
-        bool entered = false;
-        bool caught = false;
-
-        // Demonstrate control flow without exceptions
-        int result = 0;
-        if (result == 0) {
-            print("Try block executed successfully");
+        // Successful operation
+        try {
+            int result = riskyDivide(10, 2);
+            print("10 / 2 = " + result);
+        } catch (AppError e) {
+            print("Error: " + e.getMessage());
         }
 
-        // Simulate error handling with conditionals
-        int errorCode = 0;
-        if (errorCode != 0) {
-            print("Error occurred: " + errorCode);
-        } else {
-            print("No error");
+        // Catch thrown exception
+        try {
+            riskyDivide(10, 0);
+        } catch (AppError e) {
+            print("Caught: " + e.getMessage());
         }
 
-        // Multiple error code checks
-        int[] codes = new int[3];
-        codes[0] = 0;
-        codes[1] = 42;
-        codes[2] = 0;
+        // Catch via base class
+        try {
+            throw new AppError("Caught as base");
+        } catch (Exception e) {
+            print("Base catch: " + e.getMessage());
+        }
 
-        for (int i = 0; i < 3; i = i + 1) {
-            if (codes[i] != 0) {
-                print("Error at index " + i + ": code " + codes[i]);
-            } else {
-                print("OK at index " + i);
+        // Nested try/catch
+        try {
+            try {
+                throw new AppError("Inner error");
+            } catch (AppError e) {
+                print("Inner catch: " + e.getMessage());
+                throw new AppError("Rethrown from inner");
             }
+        } catch (AppError e) {
+            print("Outer catch: " + e.getMessage());
         }
+
+        // Code continues after catch
+        print("After all catches");
 
         print("Try/Catch test passed");
     }

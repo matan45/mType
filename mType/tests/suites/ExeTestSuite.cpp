@@ -59,5 +59,12 @@ namespace tests::testSuite
         // ===== CAST =====
         addExeTest("Exe - Cast",
                    basePath + "cast/CastExe.mtproj");
+
+        // ===== REGRESSION: MYT-63 — parent class linking =====
+        addExeTest("Exe - Regression: Exception Catch Dispatch (MYT-63)",
+                   basePath + "regression-catch/RegressionCatchExe.mtproj");
+
+        addExeTest("Exe - Regression: Inherited Method Resolution (MYT-63)",
+                   basePath + "regression-method/RegressionMethodExe.mtproj");
     }
 }

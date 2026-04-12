@@ -154,6 +154,18 @@
     <Filter Include="testFiles\exe\nullsafety\src">
       <UniqueIdentifier>{96B2217A-826D-1126-2B25-8A7017BF5BB6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\exe\regression-catch">
+      <UniqueIdentifier>{69AF8101-55D5-4B68-3E1B-D1332AE07034}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\regression-catch\src">
+      <UniqueIdentifier>{00FA4840-EC35-4CAA-5548-64A141A3F4C4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\regression-method">
+      <UniqueIdentifier>{67AB5349-D38E-6289-DC91-90C548F428DA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\regression-method\src">
+      <UniqueIdentifier>{FEC494D8-6A7E-FF82-F3DD-195D5F96B5F2}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\exe\src">
       <UniqueIdentifier>{600915DA-CC1F-1370-1597-9E9181ECE3F7}</UniqueIdentifier>
     </Filter>
@@ -5109,6 +5121,18 @@
     </None>
     <None Include="tests\testFiles\exe\nullsafety\src\Main.mt">
       <Filter>testFiles\exe\nullsafety\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\regression-catch\RegressionCatchExe.expected">
+      <Filter>testFiles\exe\regression-catch</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\regression-catch\src\Main.mt">
+      <Filter>testFiles\exe\regression-catch\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\regression-method\RegressionMethodExe.expected">
+      <Filter>testFiles\exe\regression-method</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\regression-method\src\Main.mt">
+      <Filter>testFiles\exe\regression-method\src</Filter>
     </None>
     <None Include="tests\testFiles\exe\src\Main.mt">
       <Filter>testFiles\exe\src</Filter>

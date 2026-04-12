@@ -1,6 +1,7 @@
-Try block executed successfully
-No error
-OK at index 0
-Error at index 1: code 42
-OK at index 2
+10 / 2 = 5
+Caught: Division by zero
+Base catch: Caught as base
+Inner catch: Inner error
+Outer catch: Rethrown from inner
+After all catches
 Try/Catch test passed

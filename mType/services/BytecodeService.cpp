@@ -381,10 +381,27 @@ namespace services
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
         const std::unordered_map<std::string, std::shared_ptr<runtimeTypes::klass::ClassDefinition>>& classMap)
     {
-        // Link parent class
-        if (!classMeta.parentClassName.empty() && classMap.count(classMeta.parentClassName))
+        // Link parent class - check bytecode metadata first, then fall back to
+        // the environment's class registry for library classes (e.g. Exception)
+        // that may have been registered separately.
+        if (!classMeta.parentClassName.empty())
         {
-            classDef->setParentClass(classMap.at(classMeta.parentClassName));
+            if (classMap.count(classMeta.parentClassName))
+            {
+                classDef->setParentClass(classMap.at(classMeta.parentClassName));
+            }
+            else
+            {
+                auto classRegistry = environment->getClassRegistry();
+                if (classRegistry)
+                {
+                    auto parentDef = classRegistry->findClass(classMeta.parentClassName);
+                    if (parentDef)
+                    {
+                        classDef->setParentClass(parentDef);
+                    }
+                }
+            }
         }
 
         // Add fields, methods, and constructors

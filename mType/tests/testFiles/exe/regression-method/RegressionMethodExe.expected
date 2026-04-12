@@ -1,0 +1,5 @@
+PASS: HashSet size = 2
+PASS: contains a = true
+PASS: HashMap size = 2
+PASS: get key1 = 100
+Regression method test passed
