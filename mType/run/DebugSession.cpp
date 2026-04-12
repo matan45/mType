@@ -17,13 +17,13 @@ using namespace environment;
 void runInDebugMode(const std::string& filename,
                     constants::ExecutionMode execMode)
 {
-    // Output debug banner to stderr so it doesn't interfere with debug protocol on stdout
-    std::cerr << "\n" << std::string(80, '=') << "\n";
-    std::cerr << "mType Debugger Mode\n";
-    std::cerr << std::string(80, '=') << "\n";
-    std::cerr << "Debug protocol: stdin/stdout\n";
-    std::cerr << "Script file: " << filename << "\n";
-    std::cerr << std::string(80, '=') << "\n\n";
+    // Redirect std::cout to stderr so that print() output doesn't corrupt
+    // the debug protocol on stdout. Protocol messages use a dedicated stream
+    // backed by the original stdout.
+    auto* originalStdoutBuf = std::cout.rdbuf();
+    std::cout.rdbuf(std::cerr.rdbuf());
+    std::ostream protocolStream(originalStdoutBuf);
+    debugger::DebugProtocol::setProtocolStream(&protocolStream);
 
     try
     {
@@ -55,7 +55,6 @@ void runInDebugMode(const std::string& filename,
 
         // Pause at entry to allow debugger to set breakpoints
         debugCtx.pause();
-        std::cerr << "Paused at entry. Waiting for debugger commands...\n";
 
         // Send STOPPED event with reason "entry" to notify VSCode
         errors::SourceLocation entryLocation(filename, 1, 1);
@@ -90,6 +89,10 @@ void runInDebugMode(const std::string& filename,
         // Shutdown debug context
         debugger::DebugContext::shutdown();
 
+        // Restore stdout and clear protocol stream
+        debugger::DebugProtocol::setProtocolStream(nullptr);
+        std::cout.rdbuf(originalStdoutBuf);
+
         std::cerr << "\n" << std::string(80, '=') << "\n";
         std::cerr << "Debug session ended\n";
         std::cerr << std::string(80, '=') << "\n";
@@ -101,6 +104,10 @@ void runInDebugMode(const std::string& filename,
         {
             debugger::DebugHookHelper::exitFunctionHook("<main>");
         }
+        // Restore stdout and clear protocol stream
+        debugger::DebugProtocol::setProtocolStream(nullptr);
+        std::cout.rdbuf(originalStdoutBuf);
+
         std::cerr << "Debug session error: " << e.what() << std::endl;
         debugger::DebugContext::shutdown();
     }

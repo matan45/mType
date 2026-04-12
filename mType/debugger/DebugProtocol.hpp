@@ -50,6 +50,15 @@ namespace debugger {
      */
     class DebugProtocol {
     public:
+        /**
+         * Set a dedicated output stream for protocol messages.
+         * When set, send() uses this stream instead of std::cout.
+         * This allows redirecting std::cout (for print()) to stderr
+         * while keeping protocol messages on the original stdout.
+         */
+        static void setProtocolStream(std::ostream* stream);
+
+
         struct Message {
             std::string command;
             std::map<std::string, std::string> parameters;
@@ -167,6 +176,7 @@ namespace debugger {
 
     private:
         static std::string unescapeValue(const std::string& value);
+        static std::ostream* protocolOutputStream;
     };
 
     // Forward declarations
