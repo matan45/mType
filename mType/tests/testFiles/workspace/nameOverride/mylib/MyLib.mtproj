@@ -1,0 +1,5 @@
+<Project Name="mylib" Version="1.0.0">
+  <Source>
+    <Include>src/**/*.mt</Include>
+  </Source>
+</Project>

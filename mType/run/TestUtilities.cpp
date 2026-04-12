@@ -29,6 +29,8 @@
 #include "../tests/suites/ScriptApiNativeTestSuite.hpp"
 #include "../tests/suites/DiagnosticsTestSuite.hpp"
 #include "../tests/suites/CompletionLogicTestSuite.hpp"
+#include "../tests/suites/WorkspaceTestSuite.hpp"
+#include "../tests/suites/PackageManagerTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -162,6 +164,14 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<CompletionLogicTestSuite>();
     }
+    else if (suiteName == "workspace" || suiteName == "ws")
+    {
+        return std::make_unique<WorkspaceTestSuite>();
+    }
+    else if (suiteName == "packagemanager" || suiteName == "pkg" || suiteName == "pm")
+    {
+        return std::make_unique<PackageManagerTestSuite>();
+    }
     return nullptr;
 }
 
@@ -194,9 +204,11 @@ void printAvailableTestSuites()
     std::cout << "  json         - JSON Serialization/Deserialization Test Suite\n";
     std::cout << "  interpolation - String Interpolation Test Suite\n";
     std::cout << "  native       - Native C++ Integration Test Suite\n";
-    std::cout << "  scriptapi    - ScriptAPI Native FFI Test Suite (MYT-42)\n";
-    std::cout << "  diagnostics  - Diagnostics Foundation Test Suite (MYT-35)\n";
-    std::cout << "  completion   - Completion Logic Test Suite (MYT-51)\n";
+    std::cout << "  scriptapi    - ScriptAPI Native FFI Test Suite\n";
+    std::cout << "  diagnostics  - Diagnostics Foundation Test Suite\n";
+    std::cout << "  completion   - Completion Logic Test Suite\n";
+    std::cout << "  workspace    - Workspace Multi-Project Test Suite\n";
+    std::cout << "  pkg          - Package Manager Test Suite\n";
 }
 
 void runSpecificTestSuite(const std::string& suiteName,
@@ -260,6 +272,8 @@ void runAllTests(constants::ExecutionMode execMode)
     suites.push_back(std::make_unique<ScriptApiNativeTestSuite>());
     suites.push_back(std::make_unique<DiagnosticsTestSuite>());
     suites.push_back(std::make_unique<CompletionLogicTestSuite>());
+    suites.push_back(std::make_unique<WorkspaceTestSuite>());
+    suites.push_back(std::make_unique<PackageManagerTestSuite>());
 
     for (auto& suite : suites)
     {

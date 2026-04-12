@@ -1,0 +1,6 @@
+<Workspace Name="CrossImport" Version="1.0.0">
+  <Members>
+    <Member Path="lib" />
+    <Member Path="app" />
+  </Members>
+</Workspace>

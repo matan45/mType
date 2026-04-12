@@ -1,0 +1,6 @@
+<Workspace Name="DuplicateNames" Version="1.0.0">
+  <Members>
+    <Member Path="projA" />
+    <Member Path="projB" />
+  </Members>
+</Workspace>

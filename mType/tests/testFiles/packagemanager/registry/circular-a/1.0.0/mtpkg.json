@@ -1,0 +1,8 @@
+{
+  "name": "circular-a",
+  "version": "1.0.0",
+  "source": "src",
+  "dependencies": {
+    "circular-b": "1.0.0"
+  }
+}

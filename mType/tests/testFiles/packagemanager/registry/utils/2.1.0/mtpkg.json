@@ -1,0 +1,7 @@
+{
+  "name": "utils",
+  "version": "2.1.0",
+  "description": "Shared utilities",
+  "source": "src",
+  "dependencies": {}
+}

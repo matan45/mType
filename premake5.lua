@@ -259,6 +259,8 @@ project "mtype-extensions"
 
    links { "mtype-common", "mtype-errors", "mtype-core", "mtype-ast", "mtype-frontend", "mtype-vm", "mtype-diagnostics", "mtype-analysis" }
 
+   includedirs { "packagemanager/src" }
+
    files {
       "mType/gc/**.hpp",
       "mType/gc/**.cpp",
@@ -274,7 +276,12 @@ project "mtype-extensions"
       "mType/project/**.cpp",
       "mType/services/**.hpp",
       "mType/services/**.cpp",
+      "packagemanager/src/**.hpp",
+      "packagemanager/src/**.cpp",
    }
+
+   -- Exclude standalone Main.cpp from library build
+   removefiles { "packagemanager/src/Main.cpp" }
 
 
 --------------------------------------------------------------------------------
@@ -292,7 +299,7 @@ project "mtype-tests"
       "mtype-diagnostics", "mtype-analysis",
    }
 
-   includedirs { "vendor/asmjit" }
+   includedirs { "vendor/asmjit", "packagemanager/src" }
    defines { "ASMJIT_STATIC" }
 
    files {

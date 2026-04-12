@@ -1,6 +1,7 @@
 #pragma once
 #include "ProjectConfig.hpp"
 #include "GlobMatcher.hpp"
+#include "XmlParser.hpp"
 #include <memory>
 #include <optional>
 #include <filesystem>
@@ -19,26 +20,7 @@ namespace project
 
     private:
         GlobMatcher globMatcher;
-
-        struct XmlElement
-        {
-            std::string tagName;
-            std::unordered_map<std::string, std::string> attributes;
-            std::string content;
-            std::vector<XmlElement> children;
-        };
-
-        XmlElement parseXml(const std::string& xml);
-
-        void skipWhitespace(const std::string& xml, size_t& pos);
-
-        std::string parseTagName(const std::string& xml, size_t& pos);
-
-        std::unordered_map<std::string, std::string> parseAttributes(const std::string& xml, size_t& pos);
-
-        std::string parseContent(const std::string& xml, size_t& pos, const std::string& tagName);
-
-        std::vector<XmlElement> parseChildren(const std::string& xml, size_t& pos, const std::string& parentTag);
+        XmlParser xmlParser;
 
         void populateConfig(const XmlElement& root, ProjectConfig& config);
 
@@ -47,6 +29,8 @@ namespace project
         void parseOutputElement(const XmlElement& element, OutputConfig& output);
 
         void parseImportsElement(const XmlElement& element, ImportsConfig& imports);
+
+        void parseDependenciesElement(const XmlElement& element, DependenciesConfig& deps);
 
         void resolveSourceFiles(ProjectConfig& config);
 

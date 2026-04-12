@@ -10,6 +10,12 @@
     <Filter Include="json">
       <UniqueIdentifier>{9F27997C-8B5E-9A0D-344B-80102061160F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="packagemanager">
+      <UniqueIdentifier>{6CD93704-58A7-2B0A-413B-9C302DA8076F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="packagemanager\src">
+      <UniqueIdentifier>{836D3AA6-6F51-FBFB-D8B1-F54EC4B4E57D}</UniqueIdentifier>
+    </Filter>
     <Filter Include="project">
       <UniqueIdentifier>{7CC43AC3-E8A3-B95E-F1BB-44355D1A20C0}</UniqueIdentifier>
     </Filter>
@@ -27,6 +33,33 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\packagemanager\src\DependencyResolver.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\packagemanager\src\GitSource.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\packagemanager\src\Lockfile.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\packagemanager\src\MtModulesManager.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\packagemanager\src\PackageInstaller.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\packagemanager\src\PackageManifest.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\packagemanager\src\PackageRegistry.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\packagemanager\src\SemVer.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\packagemanager\src\Sha256.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
     <ClInclude Include="debugger\DebugContext.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
@@ -99,6 +132,21 @@
     <ClInclude Include="project\ProjectConfigParser.hpp">
       <Filter>project</Filter>
     </ClInclude>
+    <ClInclude Include="project\ProjectDiscovery.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\WorkspaceBuilder.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\WorkspaceConfig.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\WorkspaceConfigParser.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\XmlParser.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
     <ClInclude Include="reflection\ReflectionHandle.hpp">
       <Filter>reflection</Filter>
     </ClInclude>
@@ -146,6 +194,33 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\packagemanager\src\DependencyResolver.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\GitSource.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\Lockfile.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\MtModulesManager.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\PackageInstaller.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\PackageManifest.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\PackageRegistry.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\SemVer.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\Sha256.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
     <ClCompile Include="debugger\DebugContext.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
@@ -204,6 +279,15 @@
       <Filter>project</Filter>
     </ClCompile>
     <ClCompile Include="project\ProjectConfigParser.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\WorkspaceBuilder.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\WorkspaceConfigParser.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\XmlParser.cpp">
       <Filter>project</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionHandle.cpp">

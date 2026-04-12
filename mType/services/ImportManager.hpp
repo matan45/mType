@@ -29,12 +29,14 @@ namespace services
         // Original base directory (never changes after initialization)
         std::string baseDirectory;
 
-        // SECURITY: optional project root for path-traversal containment.
+        // SECURITY: optional project root(s) for path-traversal containment.
         // When non-empty, all resolved import paths must canonicalize to a
-        // location inside this directory. When empty (the default — used
-        // by ad-hoc scripts and tests), no containment check is performed.
-        // Only project builds (ProjectBuilder) opt in.
-        std::string projectRoot;
+        // location inside one of these directories. When empty (the default
+        // — used by ad-hoc scripts and tests), no containment check is
+        // performed. Only project builds (ProjectBuilder) opt in.
+        // The first entry is the primary project root; additional entries
+        // are added for workspace member projects.
+        std::vector<std::string> allowedRoots;
 
         // Current file being processed (for resolving relative imports)
         std::string currentFilePath;
@@ -59,6 +61,11 @@ namespace services
         // ad-hoc scripts where the lib/ directory may live outside the
         // script's own folder.
         void setProjectRoot(const std::string& root);
+
+        // SECURITY: add an additional allowed root for imports. Used by
+        // workspace builds to allow cross-project imports between member
+        // projects while maintaining path-traversal protection.
+        void addAllowedRoot(const std::string& root);
 
         // Get/Set current file path (for nested import resolution)
         std::string getCurrentFilePath() const;

@@ -20,6 +20,14 @@ namespace project
         progressCallback = std::move(callback);
     }
 
+    void ProjectBuilder::setWorkspaceContext(
+        const std::unordered_map<std::string, std::string>& aliases,
+        const std::vector<std::string>& additionalRoots)
+    {
+        workspaceAliases = aliases;
+        workspaceAdditionalRoots = additionalRoots;
+    }
+
     BuildResult ProjectBuilder::build(const ProjectConfig& config)
     {
         BuildResult result;
@@ -143,8 +151,15 @@ namespace project
             auto importManager = std::make_unique<services::ImportManager>();
             importManager->setBaseDirectory(config.projectRoot);
             importManager->setProjectRoot(config.projectRoot); // SECURITY: enforce containment
+
+            // Add workspace-level allowed roots for cross-project imports
+            for (const auto& root : workspaceAdditionalRoots)
+            {
+                importManager->addAllowedRoot(root);
+            }
+
             importManager->setSearchPaths(absoluteSearchPaths);
-            importManager->setPathAliases(config.imports.aliases);
+            importManager->setPathAliases(buildMergedAliases(config));
             importManager->setCurrentFilePath(tempFile.string());
 
             services::ImportManager* importMgrPtr = importManager.get();
@@ -219,7 +234,7 @@ namespace project
 
             interpreter.compileToFile(sourcePath, outputPath,
                                       absoluteSearchPaths,
-                                      config.imports.aliases);
+                                      buildMergedAliases(config));
             return true;
         }
         catch (const std::exception& e)
@@ -275,11 +290,29 @@ namespace project
         return outputStr;
     }
 
+    std::unordered_map<std::string, std::string> ProjectBuilder::buildMergedAliases(
+        const ProjectConfig& config) const
+    {
+        auto merged = workspaceAliases;
+        for (const auto& [name, path] : config.imports.aliases)
+        {
+            merged[name] = path;
+        }
+        return merged;
+    }
+
     void ProjectBuilder::configureImportManager(services::ImportManager& importManager,
                                                  const ProjectConfig& config)
     {
         importManager.setBaseDirectory(config.projectRoot);
         importManager.setProjectRoot(config.projectRoot); // SECURITY: enforce containment
+
+        for (const auto& root : workspaceAdditionalRoots)
+        {
+            importManager.addAllowedRoot(root);
+        }
+
+        importManager.setPathAliases(buildMergedAliases(config));
     }
 
     void ProjectBuilder::reportProgress(size_t current, size_t total, const std::string& file)
