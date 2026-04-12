@@ -3,7 +3,7 @@
 
 @EntryPoint
 abstract class App {
-    static function main(String[] args): void {
+    public static function main(string[] args): void {
         print("Should not work");
     }
 }

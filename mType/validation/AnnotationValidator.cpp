@@ -473,13 +473,21 @@ namespace validation
                 const auto& params = method->getParameters();
 
                 // Static methods do NOT have implicit 'this', so exactly 1 parameter (args)
-                // Return type must be void
+                // Return type must be void, access must be public
+                // string[] is represented as ValueType::OBJECT with className "string[]"
                 if (params.size() == 1 &&
-                    params[0].second.basicType == value::ValueType::ARRAY &&
-                    method->getReturnType() == value::ValueType::VOID)
+                    method->getReturnType() == value::ValueType::VOID &&
+                    method->getAccessModifier() == ast::AccessModifier::PUBLIC)
                 {
-                    hasMainMethod = true;
-                    break;
+                    const auto& paramType = params[0].second;
+                    if (paramType.basicType == value::ValueType::ARRAY ||
+                        (paramType.basicType == value::ValueType::OBJECT &&
+                         paramType.className.has_value() &&
+                         paramType.className.value().find("[]") != std::string::npos))
+                    {
+                        hasMainMethod = true;
+                        break;
+                    }
                 }
             }
         }
@@ -490,7 +498,7 @@ namespace validation
             oss << "Class '" << className
                 << "' is marked with @EntryPoint but does not have the required main method.\n\n"
                 << "@EntryPoint classes must have a static main method with signature:\n"
-                << "  static function main(String[] args): void\n\n"
+                << " public static function main(string[] args): void\n\n"
                 << "Please add this method to your class.";
             throw TypeException(oss.str(), location);
         }

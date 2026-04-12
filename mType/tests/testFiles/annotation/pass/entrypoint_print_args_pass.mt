@@ -3,10 +3,17 @@
 
 @EntryPoint
 class App {
-    static function main(String[] args): void {
-        print("Arg count: " + args.length());
-        for (int i = 0; i < args.length(); i = i + 1) {
+    public static function main(string[] args): void {
+        int count = args.length;
+        print("Arg count: " + count);
+        for (int i = 0; i < count; i = i + 1) {
             print("arg[" + i + "] = " + args[i]);
         }
     }
 }
+
+string[] testArgs = new string[3];
+testArgs[0] = "hello";
+testArgs[1] = "world";
+testArgs[2] = "42";
+App::main(testArgs);
