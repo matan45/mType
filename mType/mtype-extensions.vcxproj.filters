@@ -120,7 +120,19 @@
     <ClInclude Include="json\JsonValue.hpp">
       <Filter>json</Filter>
     </ClInclude>
+    <ClInclude Include="project\DependencyGraph.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\DependencyGraphBuilder.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\DependencyGraphFormatter.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
     <ClInclude Include="project\GlobMatcher.hpp">
+      <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\ImportManagerConfig.hpp">
       <Filter>project</Filter>
     </ClInclude>
     <ClInclude Include="project\ProjectBuilder.hpp">
@@ -271,6 +283,15 @@
     </ClCompile>
     <ClCompile Include="json\JsonValue.cpp">
       <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="project\DependencyGraph.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\DependencyGraphBuilder.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\DependencyGraphFormatter.cpp">
+      <Filter>project</Filter>
     </ClCompile>
     <ClCompile Include="project\GlobMatcher.cpp">
       <Filter>project</Filter>

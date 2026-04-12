@@ -4,6 +4,7 @@
 #include "ErrorReporting.hpp"
 
 #include "../diagnostics/DiagnosticRenderer.hpp"
+#include "../diagnostics/TerminalDetect.hpp"
 
 #include "../gc/GC.hpp"
 #include "../parser/Parser.hpp"
@@ -19,6 +20,8 @@
 #include "../project/ProjectDiscovery.hpp"
 #include "../project/WorkspaceConfigParser.hpp"
 #include "../project/WorkspaceBuilder.hpp"
+#include "../project/DependencyGraphBuilder.hpp"
+#include "../project/DependencyGraphFormatter.hpp"
 #include "../vm/profiler/ProfilerMode.hpp"
 #include "../vm/profiler/ProfilerContext.hpp"
 #include "../vm/profiler/ProfilerReport.hpp"
@@ -109,6 +112,12 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --build --lib [.mtproj]    - Build project into single .mtcLib file\n";
         std::cout << "  " << argv[0] << " --build --exe [.mtproj]    - Build standalone executable with embedded bytecode\n";
         std::cout << "  " << argv[0] << " --clean [project.mtproj]   - Remove compiled bytecode files\n";
+        std::cout << "  " << argv[0] << " --deps [project.mtproj]    - Show dependency tree\n";
+        std::cout << "  " << argv[0] << " --deps --json [.mtproj]    - Export dependency graph as JSON\n";
+        std::cout << "  " << argv[0] << " --deps --dot [.mtproj]     - Export dependency graph as Graphviz DOT\n";
+        std::cout << "  " << argv[0] << " --deps --cycles [.mtproj]  - Detect circular dependencies\n";
+        std::cout << "  " << argv[0] <<
+            " --deps --why <file> [.mtproj] - Show import chain to a file\n";
         std::cout << "  " << argv[0] <<
             " --init <name> <include>    - Create new .mtproj file (e.g. --init MyApp src/**/*.mt)\n";
         std::cout << "  " << argv[0] <<
@@ -401,6 +410,112 @@ int main(int argc, char* argv[])
                 std::cout << "Clean completed. Removed: " << config->output.directory << "\n";
             }
 
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            runMain::reportException(e);
+            return 1;
+        }
+    }
+
+    // Handle --deps command (dependency graph analysis)
+    if (argc >= 2 && std::string(argv[1]) == "--deps")
+    {
+        try
+        {
+            // Parse flags
+            std::string configPath;
+            bool jsonOutput = false;
+            bool dotOutput = false;
+            bool showCycles = false;
+            std::string whyFile;
+
+            for (int i = 2; i < argc; ++i)
+            {
+                std::string arg = argv[i];
+                if (arg == "--json") jsonOutput = true;
+                else if (arg == "--dot") dotOutput = true;
+                else if (arg == "--cycles") showCycles = true;
+                else if (arg == "--why" && i + 1 < argc) whyFile = argv[++i];
+                else if (arg[0] != '-') configPath = arg;
+            }
+
+            // Auto-detect project/workspace if not specified
+            bool isWorkspace = false;
+            if (configPath.empty())
+            {
+                auto discovery = project::findProjectOrWorkspace(".");
+                if (!discovery)
+                {
+                    std::cerr << "Error: No .mtproj or .mtworkspace file found\n";
+                    return 1;
+                }
+                configPath = discovery->path;
+                isWorkspace = (discovery->type == project::DiscoveryType::WORKSPACE);
+            }
+            else
+            {
+                isWorkspace = configPath.find(".mtworkspace") != std::string::npos;
+            }
+
+            bool colorEnabled = diagnostics::TerminalDetect::isTerminal(stdout)
+                             && !diagnostics::TerminalDetect::noColorRequested();
+            if (colorEnabled)
+            {
+                diagnostics::TerminalDetect::enableVirtualTerminalProcessing(stdout);
+            }
+
+            // Build the dependency graph
+            project::DependencyGraphBuilder builder;
+            project::DependencyGraph graph = [&]()
+            {
+                if (isWorkspace)
+                {
+                    project::WorkspaceConfigParser wsParser;
+                    auto wsConfig = wsParser.parse(configPath);
+                    return builder.build(*wsConfig);
+                }
+                else
+                {
+                    project::ProjectConfigParser projParser;
+                    auto projConfig = projParser.parse(configPath);
+                    return builder.build(*projConfig);
+                }
+            }();
+
+            // Dispatch to the appropriate output
+            if (showCycles)
+            {
+                auto cycles = graph.findCycles();
+                project::DependencyGraphFormatter::renderCycles(
+                    cycles, graph.getProjectRoot(), std::cout, colorEnabled);
+                return cycles.empty() ? 0 : 1;
+            }
+
+            if (!whyFile.empty())
+            {
+                project::DependencyGraphFormatter::renderWhy(
+                    graph, whyFile, std::cout, colorEnabled);
+                return 0;
+            }
+
+            if (jsonOutput)
+            {
+                auto json = project::DependencyGraphFormatter::toJson(graph);
+                std::cout << json->toJsonString(true) << "\n";
+                return 0;
+            }
+
+            if (dotOutput)
+            {
+                project::DependencyGraphFormatter::renderDot(graph, std::cout);
+                return 0;
+            }
+
+            // Default: render tree
+            project::DependencyGraphFormatter::renderTree(
+                graph, std::cout, colorEnabled);
             return 0;
         }
         catch (const std::exception& e)
