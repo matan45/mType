@@ -14,6 +14,16 @@
 using namespace services;
 using namespace environment;
 
+// RAII guard to restore std::cout and clear the protocol stream on any exit path
+struct StdoutGuard {
+    std::streambuf* original;
+    StdoutGuard(std::streambuf* buf) : original(buf) {}
+    ~StdoutGuard() {
+        debugger::DebugProtocol::setProtocolStream(nullptr);
+        std::cout.rdbuf(original);
+    }
+};
+
 void runInDebugMode(const std::string& filename,
                     constants::ExecutionMode execMode)
 {
@@ -24,6 +34,7 @@ void runInDebugMode(const std::string& filename,
     std::cout.rdbuf(std::cerr.rdbuf());
     std::ostream protocolStream(originalStdoutBuf);
     debugger::DebugProtocol::setProtocolStream(&protocolStream);
+    StdoutGuard stdoutGuard(originalStdoutBuf);
 
     try
     {
@@ -88,14 +99,6 @@ void runInDebugMode(const std::string& filename,
 
         // Shutdown debug context
         debugger::DebugContext::shutdown();
-
-        // Restore stdout and clear protocol stream
-        debugger::DebugProtocol::setProtocolStream(nullptr);
-        std::cout.rdbuf(originalStdoutBuf);
-
-        std::cerr << "\n" << std::string(80, '=') << "\n";
-        std::cerr << "Debug session ended\n";
-        std::cerr << std::string(80, '=') << "\n";
     }
     catch (const std::exception& e)
     {
@@ -104,11 +107,8 @@ void runInDebugMode(const std::string& filename,
         {
             debugger::DebugHookHelper::exitFunctionHook("<main>");
         }
-        // Restore stdout and clear protocol stream
-        debugger::DebugProtocol::setProtocolStream(nullptr);
-        std::cout.rdbuf(originalStdoutBuf);
-
         std::cerr << "Debug session error: " << e.what() << std::endl;
         debugger::DebugContext::shutdown();
     }
+    // StdoutGuard restores std::cout and clears protocol stream on all exit paths
 }

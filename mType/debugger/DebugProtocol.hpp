@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <sstream>
+#include <atomic>
 #include <iostream>
 #include "DebugContext.hpp"
 
@@ -176,7 +177,7 @@ namespace debugger {
 
     private:
         static std::string unescapeValue(const std::string& value);
-        static std::ostream* protocolOutputStream;
+        static std::atomic<std::ostream*> protocolOutputStream;
     };
 
     // Forward declarations

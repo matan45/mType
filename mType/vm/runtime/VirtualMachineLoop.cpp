@@ -104,7 +104,6 @@ namespace vm::runtime
         bool profilerFull = vm::profiler::ProfilerHookHelper::isProfilingEnabled()
                             && vm::profiler::ProfilerContext::getInstance().isFullMode();
 
-
         while (instructionPointer < program->getInstructionCount())
         {
             // Check for pending rejection from an awaited promise
@@ -190,10 +189,14 @@ namespace vm::runtime
                 if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
                 {
                     bool isUncaught = !result.handled;
+                    auto* exLoc = program->getSourceLocation(instructionPointer);
+                    errors::SourceLocation exLocation = exLoc
+                        ? errors::SourceLocation(exLoc->filename, static_cast<int>(exLoc->line), static_cast<int>(exLoc->column))
+                        : errors::SourceLocation(currentSourceFile, currentSourceLine, 0);
                     debugger::DebugHookHelper::handleException(
                         e.getExceptionTypeName(),
                         e.what(),
-                        errors::SourceLocation(currentSourceFile, currentSourceLine, 0),
+                        exLocation,
                         isUncaught);
                 }
 

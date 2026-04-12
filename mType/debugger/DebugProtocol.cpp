@@ -9,10 +9,10 @@
 
 namespace debugger {
 
-    std::ostream* DebugProtocol::protocolOutputStream = nullptr;
+    std::atomic<std::ostream*> DebugProtocol::protocolOutputStream{nullptr};
 
     void DebugProtocol::setProtocolStream(std::ostream* stream) {
-        protocolOutputStream = stream;
+        protocolOutputStream.store(stream, std::memory_order_release);
     }
 
     DebugProtocol::Message DebugProtocol::parse(const std::string& line) {
@@ -97,7 +97,8 @@ namespace debugger {
     }
 
     void DebugProtocol::send(const Message& message) {
-        std::ostream& out = protocolOutputStream ? *protocolOutputStream : std::cout;
+        auto* stream = protocolOutputStream.load(std::memory_order_acquire);
+        std::ostream& out = stream ? *stream : std::cout;
         out << message.serialize() << std::endl;
         out.flush();
     }

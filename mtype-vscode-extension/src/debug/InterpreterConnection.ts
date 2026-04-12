@@ -59,6 +59,11 @@ export class InterpreterConnection extends EventEmitter {
                     this.emit('exit', code, signal);
                 });
 
+                // Timeout for initial connection
+                const startTimeout = setTimeout(() => {
+                    reject(new Error('Timeout waiting for debugger to start'));
+                }, 10000);
+
                 // Read protocol messages from stdout
                 if (this.process.stdout) {
                     this.stdoutReader = readline.createInterface({ input: this.process.stdout });
@@ -73,6 +78,7 @@ export class InterpreterConnection extends EventEmitter {
                         // The first STOPPED event (reason=entry) resolves the start() promise
                         if (!entryReceived && msg.command === 'STOPPED' && msg.parameters.get('reason') === 'entry') {
                             entryReceived = true;
+                            clearTimeout(startTimeout);
                             resolve(msg);
                             return;
                         }
@@ -88,11 +94,6 @@ export class InterpreterConnection extends EventEmitter {
                         this.emit('output', line, 'stdout');
                     });
                 }
-
-                // Timeout for initial connection
-                setTimeout(() => {
-                    reject(new Error('Timeout waiting for debugger to start'));
-                }, 10000);
 
             } catch (err: any) {
                 reject(new Error(`Failed to spawn interpreter: ${err.message}`));
@@ -168,16 +169,7 @@ export class InterpreterConnection extends EventEmitter {
      * Stop the interpreter process.
      */
     public stop(): void {
-        if (this.pendingTimeout) {
-            clearTimeout(this.pendingTimeout);
-            this.pendingTimeout = null;
-        }
-        if (this.pendingReject) {
-            this.pendingReject(new Error('Connection closed'));
-            this.pendingResolve = null;
-            this.pendingReject = null;
-        }
-
+        this.drainQueue();
         this.writeLine('STOP');
 
         setTimeout(() => {
@@ -191,9 +183,7 @@ export class InterpreterConnection extends EventEmitter {
      * Kill the process immediately.
      */
     public kill(): void {
-        if (this.pendingTimeout) {
-            clearTimeout(this.pendingTimeout);
-        }
+        this.drainQueue();
         if (this.stdoutReader) {
             this.stdoutReader.close();
         }
@@ -204,6 +194,24 @@ export class InterpreterConnection extends EventEmitter {
             this.process.kill('SIGKILL');
         }
         this.process = null;
+    }
+
+    private drainQueue(): void {
+        if (this.pendingTimeout) {
+            clearTimeout(this.pendingTimeout);
+            this.pendingTimeout = null;
+        }
+        if (this.pendingReject) {
+            this.pendingReject(new Error('Connection closed'));
+            this.pendingResolve = null;
+            this.pendingReject = null;
+        }
+        const closed = new Error('Connection closed');
+        for (const entry of this.commandQueue) {
+            entry.reject(closed);
+        }
+        this.commandQueue = [];
+        this.processingCommand = false;
     }
 
     private handleMessage(msg: ProtocolMessage): void {
@@ -316,9 +324,8 @@ export class InterpreterConnection extends EventEmitter {
         if (value.indexOf(' ') !== -1 || value.indexOf('=') !== -1 || value.indexOf('\n') !== -1 || value.indexOf('"') !== -1) {
             let escaped = '"';
             for (const c of value) {
-                if (c === '"' || c === '\\') {
-                    escaped += '\\';
-                }
+                if (c === '\n') { escaped += '\\n'; continue; }
+                if (c === '"' || c === '\\') { escaped += '\\'; }
                 escaped += c;
             }
             escaped += '"';

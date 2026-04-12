@@ -36,9 +36,6 @@ export class MTypeDebugSession extends LoggingDebugSession {
     private lastStoppedFile: string = '';
     private lastStoppedLine: number = 0;
 
-    // Cache variables between requests
-    private variableCache: Map<number, DebugProtocol.Variable[]> = new Map();
-
     constructor() {
         super('mtype-debug.txt');
 
@@ -53,8 +50,6 @@ export class MTypeDebugSession extends LoggingDebugSession {
             this.lastStoppedLine = parseInt(msg.parameters.get('line') || '0', 10);
 
             // Clear variable cache on each stop
-            this.variableCache.clear();
-
             if (reason === 'exception') {
                 const message = msg.parameters.get('message') || 'Exception occurred';
                 this.sendEvent(new StoppedEvent('exception', THREAD_ID, message));
@@ -351,42 +346,38 @@ export class MTypeDebugSession extends LoggingDebugSession {
     }
 
     protected async continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): Promise<void> {
-        this.variableCache.clear();
         try {
             await this.connection.sendCommandExpectOK('CONTINUE');
-        } catch {
-            // Non-fatal
+        } catch (err: any) {
+            this.sendEvent(new OutputEvent(`Continue failed: ${err.message}\n`, 'console'));
         }
         response.body = { allThreadsContinued: true };
         this.sendResponse(response);
     }
 
     protected async nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): Promise<void> {
-        this.variableCache.clear();
         try {
             await this.connection.sendCommandExpectOK('STEPOVER');
-        } catch {
-            // Non-fatal
+        } catch (err: any) {
+            this.sendEvent(new OutputEvent(`Step over failed: ${err.message}\n`, 'console'));
         }
         this.sendResponse(response);
     }
 
     protected async stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): Promise<void> {
-        this.variableCache.clear();
         try {
             await this.connection.sendCommandExpectOK('STEPINTO');
-        } catch {
-            // Non-fatal
+        } catch (err: any) {
+            this.sendEvent(new OutputEvent(`Step in failed: ${err.message}\n`, 'console'));
         }
         this.sendResponse(response);
     }
 
     protected async stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): Promise<void> {
-        this.variableCache.clear();
         try {
             await this.connection.sendCommandExpectOK('STEPOUT');
-        } catch {
-            // Non-fatal
+        } catch (err: any) {
+            this.sendEvent(new OutputEvent(`Step out failed: ${err.message}\n`, 'console'));
         }
         this.sendResponse(response);
     }
