@@ -456,7 +456,8 @@ int main(int argc, char* argv[])
             }
             else
             {
-                isWorkspace = configPath.find(".mtworkspace") != std::string::npos;
+                isWorkspace = configPath.size() > 12 &&
+                             configPath.substr(configPath.size() - 12) == ".mtworkspace";
             }
 
             bool colorEnabled = diagnostics::TerminalDetect::isTerminal(stdout)

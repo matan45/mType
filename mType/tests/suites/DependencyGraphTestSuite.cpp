@@ -3,6 +3,7 @@
 #include "../../project/DependencyGraphBuilder.hpp"
 #include "../../project/DependencyGraphFormatter.hpp"
 #include "../../project/ProjectConfigParser.hpp"
+#include "../../project/WorkspaceConfig.hpp"
 #include <filesystem>
 #include <sstream>
 #include <stdexcept>
@@ -13,18 +14,30 @@ namespace tests::testSuite
     using namespace testFramework;
     namespace fs = std::filesystem;
 
+    // ── Helper: locate test fixtures relative to this source file ──
+
+    static fs::path testFixturesDir()
+    {
+        // __FILE__ is always an absolute or repo-relative path set by the
+        // compiler.  Walk up from this .cpp to the testFiles directory so
+        // the tests work regardless of the working directory.
+        fs::path thisFile(__FILE__);
+        // .../tests/suites/DependencyGraphTestSuite.cpp  →  .../tests/testFiles
+        return thisFile.parent_path().parent_path() / "testFiles" / "deps";
+    }
+
     // ── Helper: build a graph from a test directory ──────────
 
-    static project::DependencyGraph buildGraphFromDir(const std::string& relDir)
+    static project::DependencyGraph buildGraphFromDir(const std::string& subDir)
     {
-        std::string absDir = fs::canonical(relDir).string();
+        fs::path dir = testFixturesDir() / subDir;
+        std::string absDir = fs::canonical(dir).string();
 
         project::ProjectConfig config;
         config.name = "TestProject";
         config.version = "1.0.0";
         config.projectRoot = absDir;
 
-        // Collect all .mt files in the directory
         for (const auto& entry : fs::directory_iterator(absDir))
         {
             if (entry.is_regular_file() && entry.path().extension() == ".mt")
@@ -39,21 +52,6 @@ namespace tests::testSuite
 
         project::DependencyGraphBuilder builder;
         return builder.build(config);
-    }
-
-    // ── Helper: check if a node exists with a relative path containing substr ──
-
-    static bool hasNodeContaining(const project::DependencyGraph& graph,
-                                  const std::string& substr)
-    {
-        for (const auto& [path, node] : graph.getNodes())
-        {
-            if (node.relativePath.find(substr) != std::string::npos)
-            {
-                return true;
-            }
-        }
-        return false;
     }
 
     // ── Helper: find canonical path of a node by filename ──
@@ -80,7 +78,7 @@ namespace tests::testSuite
         addCallbackTest("Graph from simple project has correct node count", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
 
             // 3 source files: main.mt, helper.mt, standalone.mt
             if (graph.nodeCount() != 3)
@@ -91,7 +89,7 @@ namespace tests::testSuite
         addCallbackTest("Graph from simple project has correct edge count", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
 
             // main.mt -> helper.mt (1 edge)
             if (graph.edgeCount() != 1)
@@ -102,7 +100,7 @@ namespace tests::testSuite
         addCallbackTest("getDependencies returns correct edges", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             std::string mainPath = findNodeByName(graph, "main.mt");
 
             if (mainPath.empty())
@@ -122,7 +120,7 @@ namespace tests::testSuite
         addCallbackTest("getDependents returns correct reverse edges", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             std::string helperPath = findNodeByName(graph, "helper.mt");
 
             auto dependents = graph.getDependents(helperPath);
@@ -135,7 +133,7 @@ namespace tests::testSuite
         addCallbackTest("Standalone file has no dependencies", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             std::string standalonePath = findNodeByName(graph, "standalone.mt");
 
             auto deps = graph.getDependencies(standalonePath);
@@ -148,7 +146,7 @@ namespace tests::testSuite
         addCallbackTest("Entry points are files with no dependents", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             auto entries = graph.entryPoints();
 
             // main.mt and standalone.mt have no dependents
@@ -165,7 +163,7 @@ namespace tests::testSuite
         addCallbackTest("Chain: a -> b -> c builds correct graph", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/chain");
+            auto graph = buildGraphFromDir("chain");
 
             if (graph.nodeCount() != 3)
                 throw std::runtime_error(
@@ -179,7 +177,7 @@ namespace tests::testSuite
         addCallbackTest("Chain: transitive dependencies", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/chain");
+            auto graph = buildGraphFromDir("chain");
             std::string aPath = findNodeByName(graph, "a.mt");
 
             auto transitive = graph.transitiveDependencies(aPath);
@@ -194,7 +192,7 @@ namespace tests::testSuite
         addCallbackTest("Chain: topological order is valid", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/chain");
+            auto graph = buildGraphFromDir("chain");
             auto order = graph.topologicalOrder();
 
             if (order.size() != 3)
@@ -218,7 +216,7 @@ namespace tests::testSuite
         addCallbackTest("Chain: findPath from a to c", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/chain");
+            auto graph = buildGraphFromDir("chain");
             std::string aPath = findNodeByName(graph, "a.mt");
             std::string cPath = findNodeByName(graph, "c.mt");
 
@@ -236,7 +234,7 @@ namespace tests::testSuite
         addCallbackTest("Diamond: top -> left/right -> bottom", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/diamond");
+            auto graph = buildGraphFromDir("diamond");
 
             if (graph.nodeCount() != 4)
                 throw std::runtime_error(
@@ -251,7 +249,7 @@ namespace tests::testSuite
         addCallbackTest("Diamond: bottom has two dependents", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/diamond");
+            auto graph = buildGraphFromDir("diamond");
             std::string bottomPath = findNodeByName(graph, "bottom.mt");
 
             auto dependents = graph.getDependents(bottomPath);
@@ -264,7 +262,7 @@ namespace tests::testSuite
         addCallbackTest("Diamond: no cycles detected", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/diamond");
+            auto graph = buildGraphFromDir("diamond");
             auto cycles = graph.findCycles();
 
             if (!cycles.empty())
@@ -276,7 +274,7 @@ namespace tests::testSuite
         addCallbackTest("Diamond: topological order is valid", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/diamond");
+            auto graph = buildGraphFromDir("diamond");
             auto order = graph.topologicalOrder();
 
             if (order.size() != 4)
@@ -302,7 +300,7 @@ namespace tests::testSuite
         addCallbackTest("Selective import records symbols", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             std::string mainPath = findNodeByName(graph, "main.mt");
 
             auto deps = graph.getDependencies(mainPath);
@@ -333,7 +331,7 @@ namespace tests::testSuite
         addCallbackTest("Tree formatter produces output", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             std::ostringstream out;
             project::DependencyGraphFormatter::renderTree(graph, out, false);
 
@@ -349,7 +347,7 @@ namespace tests::testSuite
         addCallbackTest("DOT formatter produces valid output", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             std::ostringstream out;
             project::DependencyGraphFormatter::renderDot(graph, out);
 
@@ -364,7 +362,7 @@ namespace tests::testSuite
         addCallbackTest("JSON formatter produces valid output", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             auto json = project::DependencyGraphFormatter::toJson(graph);
 
             if (!json->isObject())
@@ -390,7 +388,7 @@ namespace tests::testSuite
         addCallbackTest("Cycle report shows no cycles for acyclic graph", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/chain");
+            auto graph = buildGraphFromDir("chain");
             auto cycles = graph.findCycles();
 
             std::ostringstream out;
@@ -406,7 +404,7 @@ namespace tests::testSuite
         addCallbackTest("Why formatter finds import chain", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/chain");
+            auto graph = buildGraphFromDir("chain");
 
             std::ostringstream out;
             project::DependencyGraphFormatter::renderWhy(
@@ -418,6 +416,22 @@ namespace tests::testSuite
                     "Why output should reference target file");
         });
 
+        // #13 — renderWhy reports error for non-existent file
+        addCallbackTest("Why formatter shows error for missing file", "",
+            [](services::ScriptAPI&)
+        {
+            auto graph = buildGraphFromDir("simple");
+
+            std::ostringstream out;
+            project::DependencyGraphFormatter::renderWhy(
+                graph, "nonexistent.mt", out, false);
+
+            std::string result = out.str();
+            if (result.find("File not found") == std::string::npos)
+                throw std::runtime_error(
+                    "Expected 'File not found' message for missing file");
+        });
+
         // =============================================
         // Edge Cases
         // =============================================
@@ -425,7 +439,6 @@ namespace tests::testSuite
         addCallbackTest("Empty graph has zero nodes and edges", "",
             [](services::ScriptAPI&)
         {
-            // Build with empty project config
             project::ProjectConfig config;
             config.name = "EmptyProject";
             config.projectRoot = fs::current_path().string();
@@ -444,7 +457,7 @@ namespace tests::testSuite
         addCallbackTest("findPath returns empty for unreachable node", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             std::string mainPath = findNodeByName(graph, "main.mt");
             std::string standalonePath = findNodeByName(graph, "standalone.mt");
 
@@ -457,7 +470,7 @@ namespace tests::testSuite
         addCallbackTest("hasNode returns correct results", "",
             [](services::ScriptAPI&)
         {
-            auto graph = buildGraphFromDir("mType/tests/testFiles/deps/simple");
+            auto graph = buildGraphFromDir("simple");
             std::string mainPath = findNodeByName(graph, "main.mt");
 
             if (!graph.hasNode(mainPath))
@@ -466,6 +479,73 @@ namespace tests::testSuite
             if (graph.hasNode("nonexistent.mt"))
                 throw std::runtime_error(
                     "hasNode should return false for nonexistent file");
+        });
+
+        // =============================================
+        // Workspace Graph Builder Test (#12)
+        // =============================================
+
+        addCallbackTest("Workspace graph merges member projects", "",
+            [](services::ScriptAPI&)
+        {
+            fs::path fixturesDir = testFixturesDir();
+
+            // Build two ProjectConfigs from the simple and chain directories
+            fs::path simpleDir = fs::canonical(fixturesDir / "simple");
+            fs::path chainDir = fs::canonical(fixturesDir / "chain");
+
+            project::ProjectConfig simpleConfig;
+            simpleConfig.name = "simple";
+            simpleConfig.projectRoot = simpleDir.string();
+            for (const auto& entry : fs::directory_iterator(simpleDir))
+            {
+                if (entry.is_regular_file() && entry.path().extension() == ".mt")
+                    simpleConfig.resolvedSourceFiles.push_back(
+                        fs::canonical(entry.path()).string());
+            }
+            std::sort(simpleConfig.resolvedSourceFiles.begin(),
+                      simpleConfig.resolvedSourceFiles.end());
+
+            project::ProjectConfig chainConfig;
+            chainConfig.name = "chain";
+            chainConfig.projectRoot = chainDir.string();
+            for (const auto& entry : fs::directory_iterator(chainDir))
+            {
+                if (entry.is_regular_file() && entry.path().extension() == ".mt")
+                    chainConfig.resolvedSourceFiles.push_back(
+                        fs::canonical(entry.path()).string());
+            }
+            std::sort(chainConfig.resolvedSourceFiles.begin(),
+                      chainConfig.resolvedSourceFiles.end());
+
+            // Build a WorkspaceConfig with both as members
+            project::WorkspaceConfig wsConfig;
+            wsConfig.name = "TestWorkspace";
+            wsConfig.workspaceRoot = fixturesDir.string();
+
+            project::MemberProject simpleMember;
+            simpleMember.path = simpleDir.string();
+            simpleMember.config = std::make_unique<project::ProjectConfig>(simpleConfig);
+            wsConfig.members.push_back(std::move(simpleMember));
+
+            project::MemberProject chainMember;
+            chainMember.path = chainDir.string();
+            chainMember.config = std::make_unique<project::ProjectConfig>(chainConfig);
+            wsConfig.members.push_back(std::move(chainMember));
+
+            project::DependencyGraphBuilder builder;
+            auto graph = builder.build(wsConfig);
+
+            // simple has 3 nodes + 1 edge, chain has 3 nodes + 2 edges = 6 nodes, 3 edges
+            if (graph.nodeCount() != 6)
+                throw std::runtime_error(
+                    "Expected 6 nodes in workspace graph, got " +
+                    std::to_string(graph.nodeCount()));
+
+            if (graph.edgeCount() != 3)
+                throw std::runtime_error(
+                    "Expected 3 edges in workspace graph, got " +
+                    std::to_string(graph.edgeCount()));
         });
     }
 }

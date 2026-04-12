@@ -17,7 +17,7 @@ namespace project
     {
         std::string filePath;      // canonical absolute path
         std::string relativePath;  // relative to project root (for display)
-        NodeKind kind;
+        NodeKind kind = NodeKind::SOURCE_FILE;
     };
 
     struct DependencyEdge
@@ -25,7 +25,7 @@ namespace project
         std::string from;                  // canonical path of importer
         std::string to;                    // canonical path of importee
         std::vector<std::string> symbols;  // empty for wildcard imports
-        bool isWildcard;
+        bool isWildcard = false;
     };
 
     /**
@@ -50,15 +50,22 @@ namespace project
         std::vector<DependencyEdge> getDependents(const std::string& file) const;
 
         // Graph algorithms
-        std::vector<std::string> topologicalOrder() const;
-        std::vector<std::vector<std::string>> findCycles() const;
-        std::vector<std::string> findPath(
+
+        // Returns files in topological order (Kahn's algorithm).
+        // Returns an EMPTY vector when the graph contains cycles — callers
+        // should use findCycles() to distinguish "no files" from "has cycles".
+        [[nodiscard]] std::vector<std::string> topologicalOrder() const;
+
+        [[nodiscard]] std::vector<std::vector<std::string>> findCycles() const;
+
+        [[nodiscard]] std::vector<std::string> findPath(
             const std::string& source, const std::string& target) const;
-        std::unordered_set<std::string> transitiveDependencies(
+
+        [[nodiscard]] std::unordered_set<std::string> transitiveDependencies(
             const std::string& file) const;
 
         // Entry points: nodes with in-degree 0
-        std::vector<std::string> entryPoints() const;
+        [[nodiscard]] std::vector<std::string> entryPoints() const;
 
         // Stats
         size_t nodeCount() const;
@@ -75,15 +82,5 @@ namespace project
         size_t totalEdges_;
 
         void buildReverseAdjacency();
-
-        // Tarjan's SCC helper
-        void strongConnect(
-            const std::string& node,
-            int& index,
-            std::unordered_map<std::string, int>& nodeIndex,
-            std::unordered_map<std::string, int>& lowLink,
-            std::unordered_map<std::string, bool>& onStack,
-            std::vector<std::string>& stack,
-            std::vector<std::vector<std::string>>& sccs) const;
     };
 }

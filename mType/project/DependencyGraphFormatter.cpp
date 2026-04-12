@@ -232,15 +232,15 @@ namespace project
         }
         root->setProperty("edges", std::move(edgesArr));
 
-        // Stats
+        // Stats — compute cycles once to avoid redundant O(V+E) pass
+        auto cycles = graph.findCycles();
         auto stats = json::JsonValue::object();
         stats->setProperty("nodeCount",
             json::JsonValue::integer(static_cast<int64_t>(graph.nodeCount())));
         stats->setProperty("edgeCount",
             json::JsonValue::integer(static_cast<int64_t>(graph.edgeCount())));
         stats->setProperty("cycles",
-            json::JsonValue::integer(
-                static_cast<int64_t>(graph.findCycles().size())));
+            json::JsonValue::integer(static_cast<int64_t>(cycles.size())));
         root->setProperty("stats", std::move(stats));
 
         return root;

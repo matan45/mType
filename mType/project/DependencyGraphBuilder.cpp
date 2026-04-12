@@ -1,7 +1,5 @@
 #include "DependencyGraphBuilder.hpp"
 #include "ImportManagerConfig.hpp"
-#include "WorkspaceConfigParser.hpp"
-#include "ProjectConfigParser.hpp"
 #include "../services/ImportManager.hpp"
 #include "../ast/ASTNode.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
@@ -11,7 +9,14 @@
 #include "../parser/Parser.hpp"
 #include <filesystem>
 #include <fstream>
-#include <sstream>
+#include <stdexcept>
+
+#ifdef _WIN32
+#include <process.h>
+#define getpid _getpid
+#else
+#include <unistd.h>
+#endif
 
 namespace project
 {
@@ -20,6 +25,14 @@ namespace project
     DependencyGraphBuilder::DependencyGraphBuilder() = default;
 
     DependencyGraph DependencyGraphBuilder::build(const ProjectConfig& config)
+    {
+        return build(config, {}, {});
+    }
+
+    DependencyGraph DependencyGraphBuilder::build(
+        const ProjectConfig& config,
+        const std::unordered_map<std::string, std::string>& workspaceAliases,
+        const std::vector<std::string>& additionalRoots)
     {
         // Build a virtual source that imports all project files (same
         // technique as ProjectBuilder::compileToProgram). This lets
@@ -34,9 +47,10 @@ namespace project
             virtualSource += "import * from \"" + relativePath.generic_string() + "\";\n";
         }
 
-        // Write virtual source to a temp file
+        // Write virtual source to a collision-safe temp file (PID suffix)
         fs::path tempDir = fs::temp_directory_path();
-        std::string tempName = "_mtype_deps_" + config.name + ".mt";
+        std::string tempName = "_mtype_deps_" + config.name + "_"
+                             + std::to_string(getpid()) + ".mt";
         fs::path tempFile = tempDir / tempName;
 
         struct TempFileGuard {
@@ -46,12 +60,18 @@ namespace project
 
         {
             std::ofstream out(tempFile);
+            if (!out)
+            {
+                throw std::runtime_error(
+                    "Could not create temp file: " + tempFile.string());
+            }
             out << virtualSource;
         }
 
-        // Configure ImportManager the same way ProjectBuilder does
+        // Configure ImportManager with project + workspace context
         services::ImportManager importManager;
-        configureImportManager(importManager, config);
+        configureImportManager(importManager, config,
+                               workspaceAliases, additionalRoots);
         importManager.setCurrentFilePath(tempFile.string());
 
         // Allow imports from temp dir
@@ -64,19 +84,17 @@ namespace project
         importManager.resolveAllImports(rootAST.get());
 
         // Now walk the resolved AST tree to extract edges.
-        // Every ImportNode that has isResolved()==true and getImportedAST()!=null
-        // represents a real import edge. The ImportManager's astCache maps
-        // resolved file paths to their ASTs — we use that to find the file path
-        // of each imported AST.
         std::unordered_map<std::string, DependencyNode> nodes;
         std::unordered_map<std::string, std::vector<DependencyEdge>> adjacency;
+
+        // Canonical path of the temp file — exclude it from the graph
+        std::string tempCanonical = fs::canonical(tempFile).string();
 
         // Build a reverse map: AST pointer -> file path
         auto importedFiles = importManager.getImportedFiles();
         std::unordered_map<ast::ASTNode*, std::string> astToFile;
         for (const auto& file : importedFiles)
         {
-            // Re-parse to get the AST pointer from cache
             ast::ASTNode* cachedAST = importManager.parseAndCacheAST(file);
             if (cachedAST)
             {
@@ -97,6 +115,9 @@ namespace project
                 canonicalFile = file;
             }
 
+            // Skip the synthetic temp file
+            if (canonicalFile == tempCanonical) continue;
+
             ensureNode(canonicalFile, config, nodes);
 
             ast::ASTNode* fileAST = importManager.parseAndCacheAST(file);
@@ -110,7 +131,6 @@ namespace project
                 if (!importNode->isResolved() || !importNode->getImportedAST())
                     continue;
 
-                // Find which file the imported AST belongs to
                 auto it = astToFile.find(importNode->getImportedAST());
                 if (it == astToFile.end()) continue;
 
@@ -166,13 +186,13 @@ namespace project
             }
         }
 
-        // Process each member project with the same approach
+        // Process each member project with workspace context
         for (const auto& member : config.members)
         {
             if (!member.config) continue;
 
-            // Build a graph for this member and merge
-            auto memberGraph = build(*member.config);
+            auto memberGraph = build(*member.config,
+                                     workspaceAliases, additionalRoots);
 
             for (const auto& [path, node] : memberGraph.getNodes())
             {
@@ -194,19 +214,6 @@ namespace project
             std::move(allAdjacency),
             config.workspaceRoot,
             config.name);
-    }
-
-    void DependencyGraphBuilder::processFile(
-        const std::string& filePath,
-        const ProjectConfig& config,
-        services::ImportManager& importManager,
-        std::unordered_map<std::string, DependencyNode>& nodes,
-        std::unordered_map<std::string, std::vector<DependencyEdge>>& adjacency,
-        std::unordered_set<std::string>& visited)
-    {
-        // Unused — build() now uses resolveAllImports approach
-        (void)filePath; (void)config; (void)importManager;
-        (void)nodes; (void)adjacency; (void)visited;
     }
 
     void DependencyGraphBuilder::collectImportNodes(

@@ -1,6 +1,7 @@
 #include "DependencyGraph.hpp"
 #include <queue>
 #include <algorithm>
+#include <stack>
 
 namespace project
 {
@@ -131,7 +132,7 @@ namespace project
             }
         }
 
-        // If order is incomplete, graph has cycles
+        // If order is incomplete, graph has cycles — return empty
         if (order.size() != nodes_.size())
         {
             return {};
@@ -139,76 +140,103 @@ namespace project
         return order;
     }
 
-    // Tarjan's SCC — finds all strongly connected components with size > 1
-    void DependencyGraph::strongConnect(
-        const std::string& node,
-        int& index,
-        std::unordered_map<std::string, int>& nodeIndex,
-        std::unordered_map<std::string, int>& lowLink,
-        std::unordered_map<std::string, bool>& onStack,
-        std::vector<std::string>& stack,
-        std::vector<std::vector<std::string>>& sccs) const
-    {
-        nodeIndex[node] = index;
-        lowLink[node] = index;
-        index++;
-        stack.push_back(node);
-        onStack[node] = true;
-
-        auto it = adjacency_.find(node);
-        if (it != adjacency_.end())
-        {
-            for (const auto& edge : it->second)
-            {
-                if (nodeIndex.find(edge.to) == nodeIndex.end())
-                {
-                    strongConnect(edge.to, index, nodeIndex, lowLink,
-                                  onStack, stack, sccs);
-                    lowLink[node] = std::min(lowLink[node], lowLink[edge.to]);
-                }
-                else if (onStack[edge.to])
-                {
-                    lowLink[node] = std::min(lowLink[node], nodeIndex[edge.to]);
-                }
-            }
-        }
-
-        if (lowLink[node] == nodeIndex[node])
-        {
-            std::vector<std::string> scc;
-            std::string w;
-            do
-            {
-                w = stack.back();
-                stack.pop_back();
-                onStack[w] = false;
-                scc.push_back(w);
-            } while (w != node);
-
-            // Only report cycles (SCC with more than 1 node)
-            if (scc.size() > 1)
-            {
-                std::reverse(scc.begin(), scc.end());
-                sccs.push_back(std::move(scc));
-            }
-        }
-    }
-
+    // Iterative Tarjan's SCC — avoids stack overflow on deep graphs
     std::vector<std::vector<std::string>> DependencyGraph::findCycles() const
     {
         int index = 0;
         std::unordered_map<std::string, int> nodeIndex;
         std::unordered_map<std::string, int> lowLink;
         std::unordered_map<std::string, bool> onStack;
-        std::vector<std::string> stack;
+        std::vector<std::string> sccStack;
         std::vector<std::vector<std::string>> sccs;
 
-        for (const auto& [path, _] : nodes_)
+        // Iterative DFS frame
+        struct Frame
         {
-            if (nodeIndex.find(path) == nodeIndex.end())
+            std::string node;
+            size_t edgeIdx;  // which neighbour to visit next
+        };
+
+        for (const auto& [startNode, _] : nodes_)
+        {
+            if (nodeIndex.count(startNode)) continue;
+
+            std::stack<Frame> dfs;
+            dfs.push({startNode, 0});
+            nodeIndex[startNode] = index;
+            lowLink[startNode] = index;
+            index++;
+            sccStack.push_back(startNode);
+            onStack[startNode] = true;
+
+            while (!dfs.empty())
             {
-                strongConnect(path, index, nodeIndex, lowLink,
-                              onStack, stack, sccs);
+                auto& frame = dfs.top();
+                const std::string& node = frame.node;
+
+                auto adjIt = adjacency_.find(node);
+                const std::vector<DependencyEdge>* edges = nullptr;
+                if (adjIt != adjacency_.end())
+                {
+                    edges = &adjIt->second;
+                }
+
+                bool pushed = false;
+                while (edges && frame.edgeIdx < edges->size())
+                {
+                    const auto& neighbour = (*edges)[frame.edgeIdx].to;
+                    frame.edgeIdx++;
+
+                    if (!nodeIndex.count(neighbour))
+                    {
+                        nodeIndex[neighbour] = index;
+                        lowLink[neighbour] = index;
+                        index++;
+                        sccStack.push_back(neighbour);
+                        onStack[neighbour] = true;
+                        dfs.push({neighbour, 0});
+                        pushed = true;
+                        break;
+                    }
+                    else if (onStack[neighbour])
+                    {
+                        lowLink[node] = std::min(lowLink[node],
+                                                  nodeIndex[neighbour]);
+                    }
+                }
+
+                if (pushed) continue;
+
+                // All neighbours explored — save node before pop
+                std::string currentNode = node;
+
+                if (lowLink[currentNode] == nodeIndex[currentNode])
+                {
+                    std::vector<std::string> scc;
+                    std::string w;
+                    do
+                    {
+                        w = sccStack.back();
+                        sccStack.pop_back();
+                        onStack[w] = false;
+                        scc.push_back(w);
+                    } while (w != currentNode);
+
+                    if (scc.size() > 1)
+                    {
+                        std::reverse(scc.begin(), scc.end());
+                        sccs.push_back(std::move(scc));
+                    }
+                }
+
+                dfs.pop();
+
+                // Update parent's lowLink using saved copy
+                if (!dfs.empty())
+                {
+                    lowLink[dfs.top().node] = std::min(
+                        lowLink[dfs.top().node], lowLink[currentNode]);
+                }
             }
         }
 
@@ -251,7 +279,6 @@ namespace project
                 predecessor[edge.to] = current;
                 if (edge.to == target)
                 {
-                    // Reconstruct path
                     std::vector<std::string> path;
                     std::string node = target;
                     while (node != source)
