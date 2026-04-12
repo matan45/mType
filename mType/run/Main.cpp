@@ -107,6 +107,7 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --run-cached <file.mtc>    - Run pre-compiled bytecode file\n";
         std::cout << "  " << argv[0] << " --build [project.mtproj]   - Build project (compile all files to bytecode)\n";
         std::cout << "  " << argv[0] << " --build --lib [.mtproj]    - Build project into single .mtcLib file\n";
+        std::cout << "  " << argv[0] << " --build --exe [.mtproj]    - Build standalone executable with embedded bytecode\n";
         std::cout << "  " << argv[0] << " --clean [project.mtproj]   - Remove compiled bytecode files\n";
         std::cout << "  " << argv[0] <<
             " --init <name> <include>    - Create new .mtproj file (e.g. --init MyApp src/**/*.mt)\n";
@@ -130,6 +131,7 @@ int main(int argc, char* argv[])
     {
         std::string configPath;
         bool buildLib = false;
+        bool buildExe = false;
 
         for (int i = 2; i < argc; ++i)
         {
@@ -137,6 +139,10 @@ int main(int argc, char* argv[])
             if (arg == "--lib")
             {
                 buildLib = true;
+            }
+            else if (arg == "--exe")
+            {
+                buildExe = true;
             }
             else if (arg[0] != '-')
             {
@@ -177,6 +183,11 @@ int main(int argc, char* argv[])
                 if (buildLib)
                 {
                     std::cerr << "Error: --lib is not supported for workspace builds\n";
+                    return 1;
+                }
+                if (buildExe)
+                {
+                    std::cerr << "Error: --exe is not supported for workspace builds\n";
                     return 1;
                 }
 
@@ -268,6 +279,27 @@ int main(int argc, char* argv[])
                     std::string libPath = (outputDir / (config->name + ".mtcLib")).string();
                     std::cout << "Building library: " << libPath << "\n\n";
                     result = builder.buildLibrary(*config, libPath);
+                }
+                else if (buildExe)
+                {
+                    std::filesystem::path outputDir = std::filesystem::path(config->projectRoot) / config->output.directory;
+#ifdef _WIN32
+                    std::string exeName = config->name + ".exe";
+#else
+                    std::string exeName = config->name;
+#endif
+                    std::string exePath = (outputDir / exeName).string();
+
+                    // Locate the launcher binary relative to the mType executable
+                    std::filesystem::path mtypePath = std::filesystem::path(argv[0]).parent_path();
+#ifdef _WIN32
+                    std::string launcherPath = (mtypePath / "mtype-launcher.exe").string();
+#else
+                    std::string launcherPath = (mtypePath / "mtype-launcher").string();
+#endif
+
+                    std::cout << "Building executable: " << exePath << "\n\n";
+                    result = builder.buildExecutable(*config, exePath, launcherPath);
                 }
                 else
                 {

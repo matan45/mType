@@ -1,0 +1,9 @@
+<Project Name="TryCatchExe" Version="1.0.0">
+  <Source>
+    <Include>src/**/*.mt</Include>
+  </Source>
+  <Output Directory="build" />
+  <Imports>
+    <SearchPath>../../lib</SearchPath>
+  </Imports>
+</Project>

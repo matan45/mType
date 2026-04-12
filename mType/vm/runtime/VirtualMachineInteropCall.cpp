@@ -6,6 +6,8 @@
 #include "../../errors/MethodNotFoundException.hpp"
 #include "../../errors/NullPointerException.hpp"
 #include "../../errors/ScriptException.hpp"
+#include "../../errors/UserException.hpp"
+#include "utils/ExceptionHandler.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 
@@ -97,7 +99,7 @@ namespace vm::runtime
             pushCallFrame(frame);
             stats.functionCalls++;
 
-            // Execute method (direct loop to avoid recreating executors)
+            // Execute method (direct loop with UserException handling for try/catch support)
             instructionPointer = funcMetadata->startOffset;
             value::Value result = std::monostate{};
             if (controlFlowExecutor)
@@ -110,7 +112,25 @@ namespace vm::runtime
                     if (suspendedByAwait)
                         break;
                     const auto& instr = program->getInstruction(instructionPointer);
-                    executeInstruction(instr);
+                    try
+                    {
+                        executeInstruction(instr);
+                    }
+                    catch (errors::UserException& e)
+                    {
+                        auto handlerResult = exceptionHandler->handleUserException(
+                            e, instructionPointer, currentFinallyOffset);
+                        if (!handlerResult.handled)
+                        {
+                            throw;
+                        }
+                        instructionPointer = handlerResult.newInstructionPointer;
+                        if (handlerResult.jumpedToFinally)
+                        {
+                            pendingException = std::make_unique<errors::UserException>(e);
+                        }
+                        continue;
+                    }
                     instructionPointer++;
                 }
                 if (!suspendedByAwait && stackManager->size() > frameBase)
@@ -202,6 +222,26 @@ namespace vm::runtime
                 qualifiedName += "$static";
             }
             auto* funcMetadata = program->getFunction(qualifiedName);
+
+            // Fallback: the method's type signature (e.g. "array") may differ from the
+            // compiler's function name (e.g. "string[]"). Scan for a matching function.
+            if (!funcMetadata)
+            {
+                std::string prefix = className + "::" + methodName;
+                std::string suffix = method->isStatic() ? "$static" : "";
+                for (const auto& [fname, fmeta] : program->getFunctions())
+                {
+                    if (fname.rfind(prefix, 0) == 0 &&
+                        (!suffix.empty() ? fname.find(suffix) != std::string::npos : true) &&
+                        fname != prefix + suffix)
+                    {
+                        funcMetadata = program->getFunction(fname);
+                        qualifiedName = fname;  // Update to match actual function name
+                        break;
+                    }
+                }
+            }
+
             if (!funcMetadata)
             {
                 throw errors::RuntimeException("Static method '" + qualifiedName +
@@ -231,7 +271,7 @@ namespace vm::runtime
             pushCallFrame(frame);
             stats.functionCalls++;
 
-            // Execute method (direct loop to avoid recreating executors)
+            // Execute method (direct loop with UserException handling for try/catch support)
             instructionPointer = funcMetadata->startOffset;
             value::Value result = std::monostate{};
             if (controlFlowExecutor)
@@ -244,7 +284,25 @@ namespace vm::runtime
                     if (suspendedByAwait)
                         break;
                     const auto& instr = program->getInstruction(instructionPointer);
-                    executeInstruction(instr);
+                    try
+                    {
+                        executeInstruction(instr);
+                    }
+                    catch (errors::UserException& e)
+                    {
+                        auto handlerResult = exceptionHandler->handleUserException(
+                            e, instructionPointer, currentFinallyOffset);
+                        if (!handlerResult.handled)
+                        {
+                            throw;  // Re-throw if no handler found
+                        }
+                        instructionPointer = handlerResult.newInstructionPointer;
+                        if (handlerResult.jumpedToFinally)
+                        {
+                            pendingException = std::make_unique<errors::UserException>(e);
+                        }
+                        continue;
+                    }
                     instructionPointer++;
                 }
                 if (!suspendedByAwait && stackManager->size() > frameBase)

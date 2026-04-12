@@ -1,0 +1,10 @@
+dog isClassOf Dog: true
+dog isClassOf Animal: true
+dog isClassOf Cat: false
+animal isClassOf Cat: true
+animal isClassOf Dog: false
+animal isClassOf Animal: true
+Whiskers purrs
+Dogs: 2
+Cats: 1
+TypeOf test passed

@@ -342,3 +342,39 @@ project "mType"
       "mtype-errors",
       "mtype-common",
    }
+
+
+--------------------------------------------------------------------------------
+-- Executable: mtype-launcher
+-- Minimal launcher that reads appended bytecode and runs it via the VM.
+-- Built alongside mType; used by `mType --build --exe` to produce
+-- standalone executables with embedded bytecode.
+--------------------------------------------------------------------------------
+project "mtype-launcher"
+   kind "ConsoleApp"
+   location "mType"
+   commonConfig()
+
+   -- Output to the same directory as mType.exe so --build --exe can find it
+   targetdir "bin/mType/%{cfg.buildcfg}/%{cfg.platform}"
+
+   includedirs { "vendor/asmjit", "packagemanager/src" }
+   defines { "ASMJIT_STATIC" }
+
+   files {
+      "mType/launcher/**.hpp",
+      "mType/launcher/**.cpp",
+   }
+
+   links {
+      "mtype-extensions",
+      "mtype-jit",
+      "mtype-vm",
+      "mtype-frontend",
+      "mtype-ast",
+      "mtype-core",
+      "mtype-analysis",
+      "mtype-diagnostics",
+      "mtype-errors",
+      "mtype-common",
+   }

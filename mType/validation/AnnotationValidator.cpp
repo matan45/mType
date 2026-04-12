@@ -26,6 +26,13 @@ namespace validation
             validateScriptAnnotation(classDefinition, location);
         }
 
+        // Validate @EntryPoint annotation on class
+        if (auto entryPointAnnotation = classDefinition->getAnnotation("EntryPoint"))
+        {
+            SourceLocation location = entryPointAnnotation->getLocation();
+            validateEntryPointAnnotation(classDefinition, location);
+        }
+
         // Get parent class if exists
         std::shared_ptr<ClassDefinition> parentClass = nullptr;
         if (classDefinition->hasParentClass())
@@ -428,6 +435,62 @@ namespace validation
                 "' is marked with @Script but does not have the required onDestroy method.\n\n"
                 << "@Script classes must have an onDestroy method with signature:\n"
                 << "  function onDestroy(): void\n\n"
+                << "Please add this method to your class.";
+            throw TypeException(oss.str(), location);
+        }
+    }
+
+    void AnnotationValidator::validateEntryPointAnnotation(
+        std::shared_ptr<ClassDefinition> classDefinition,
+        const SourceLocation& location)
+    {
+        if (!classDefinition)
+        {
+            return;
+        }
+
+        const std::string& className = classDefinition->getName();
+
+        // Check 1: Class must not be abstract
+        if (classDefinition->isAbstract())
+        {
+            std::ostringstream oss;
+            oss << "Class '" << className << "' is marked with @EntryPoint but is abstract.\n\n"
+                << "@EntryPoint classes must be concrete classes.\n"
+                << "Please remove the 'abstract' modifier or the @EntryPoint annotation.";
+            throw TypeException(oss.str(), location);
+        }
+
+        // Check 2: Must have a static main method
+        bool hasMainMethod = false;
+        const auto& staticMethods = classDefinition->getStaticMethods();
+
+        auto it = staticMethods.find("main");
+        if (it != staticMethods.end())
+        {
+            for (const auto& method : it->second)
+            {
+                const auto& params = method->getParameters();
+
+                // Static methods do NOT have implicit 'this', so exactly 1 parameter (args)
+                // Return type must be void, access must be public
+                if (params.size() == 1 &&
+                    method->getReturnType() == value::ValueType::VOID &&
+                    method->getAccessModifier() == ast::AccessModifier::PUBLIC)
+                {
+                    hasMainMethod = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasMainMethod)
+        {
+            std::ostringstream oss;
+            oss << "Class '" << className
+                << "' is marked with @EntryPoint but does not have the required main method.\n\n"
+                << "@EntryPoint classes must have a static main method with signature:\n"
+                << " public static function main(string[] args): void\n\n"
                 << "Please add this method to your class.";
             throw TypeException(oss.str(), location);
         }

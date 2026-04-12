@@ -1,0 +1,4 @@
+PASS: caught TestException - exact match
+PASS: caught as Exception - base match
+PASS: caught Exception - direct base
+Regression catch test passed

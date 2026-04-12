@@ -39,6 +39,15 @@ namespace tests::testSuite
         addInteropTest("Script C++ Interop - Async callMethod",
                        passPath + "script_async_callmethod_test.mt");
 
+        // ===== @EntryPoint ANNOTATION - PASS TESTS =====
+        // Tests for @EntryPoint annotation marking classes as executable entry points
+
+        addOutputVerificationTest("EntryPoint Annotation on Class",
+                                  passPath + "entrypoint_annotation_pass.mt");
+
+        addOutputVerificationTest("EntryPoint Print Args",
+                                  passPath + "entrypoint_print_args_pass.mt");
+
         // ===== MULTIPLE ANNOTATIONS - PASS TESTS =====
         // Tests for using multiple annotations together
 
@@ -108,6 +117,17 @@ namespace tests::testSuite
 
         addTestFromFile("Script Without Clean Method",
                         errorPath + "script_annotation_no_clean_method_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // ===== @EntryPoint ANNOTATION - ERROR TESTS =====
+        // Tests for invalid @EntryPoint usage that should fail compilation
+
+        addTestFromFile("EntryPoint on Abstract Class",
+                        errorPath + "entrypoint_abstract_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("EntryPoint Without Main Method",
+                        errorPath + "entrypoint_no_main_error.mt",
                         TestType::ERROR_EXPECTED);
 
         // ===== @Throw ANNOTATION - ERROR TESTS =====

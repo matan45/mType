@@ -1,0 +1,5 @@
+Int box: 42
+String box: hello
+Pair: age = 25
+Nested: 99
+Generics test passed

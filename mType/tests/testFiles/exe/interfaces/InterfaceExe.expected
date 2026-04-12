@@ -1,0 +1,6 @@
+Label: Hello World
+Drawing Button at size 10
+After resize: 20
+Label: Hello World
+Drawing Button at size 20
+Interfaces test passed

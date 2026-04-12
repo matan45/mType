@@ -37,6 +37,7 @@ namespace tests::testFramework
                              const std::string& expectedErrorSubstring);
         void addOutputVerificationTest(const std::string& name, const std::string& filePath);
         void addInteropTest(const std::string& name, const std::string& filePath);
+        void addExeTest(const std::string& name, const std::string& mtprojPath);
 
         // MYT-42 — register a C++-driven test that exercises ScriptAPI
         // directly. `bootstrapFilePath` is an optional mt file executed

@@ -1,0 +1,4 @@
+Arg count: 3
+arg[0] = hello
+arg[1] = world
+arg[2] = 42

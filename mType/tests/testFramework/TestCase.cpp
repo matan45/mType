@@ -12,10 +12,13 @@
 #include "../../reflection/ReflectionNatives.hpp"
 #include "../../json/JsonNatives.hpp"
 #include "../../gc/GC.hpp"
+#include "../../project/ProjectConfigParser.hpp"
+#include "../../project/ProjectBuilder.hpp"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <filesystem>
+#include <cstdio>
 
 namespace tests::testFramework
 {
@@ -71,6 +74,14 @@ namespace tests::testFramework
         if (type == TestType::NATIVE_CALLBACK)
         {
             executeNativeCallback();
+            auto endTime = std::chrono::high_resolution_clock::now();
+            executionTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+            return;
+        }
+
+        if (type == TestType::EXE_TEST)
+        {
+            executeExeTest();
             auto endTime = std::chrono::high_resolution_clock::now();
             executionTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
             return;
@@ -297,6 +308,8 @@ namespace tests::testFramework
             return "SCRIPT_INTEROP";
         case TestType::NATIVE_CALLBACK:
             return "NATIVE_CALLBACK";
+        case TestType::EXE_TEST:
+            return "EXE_TEST";
         default:
             return "UNKNOWN";
         }
@@ -367,6 +380,133 @@ namespace tests::testFramework
             output = outputBuffer.str();
             status = TestStatus::FAILED;
             errorMessage = "Native callback failed: unknown exception";
+        }
+    }
+
+    void TestCase::executeExeTest()
+    {
+        try
+        {
+            // Step 1: Locate the launcher binary in the build output directory
+#ifdef _WIN32
+            std::string launcherName = "mtype-launcher.exe";
+#else
+            std::string launcherName = "mtype-launcher";
+#endif
+            // Try known build output paths relative to working directory
+            std::string launcherPath;
+            std::vector<std::string> searchPaths = {
+                "bin/mType/Debug/x64/" + launcherName,
+                "bin/mType/Release/x64/" + launcherName,
+                "bin/mtype-launcher/Debug/x64/" + launcherName,
+                "bin/mtype-launcher/Release/x64/" + launcherName
+            };
+            for (const auto& candidate : searchPaths)
+            {
+                if (std::filesystem::exists(candidate))
+                {
+                    launcherPath = candidate;
+                    break;
+                }
+            }
+            if (launcherPath.empty())
+            {
+                status = TestStatus::SKIPPED;
+                errorMessage = "Launcher binary not found in any search path"
+                               " (build mtype-launcher project first)";
+                return;
+            }
+
+            // Step 2: Parse the .mtproj file
+            if (!std::filesystem::exists(filePath))
+            {
+                status = TestStatus::ERROR;
+                errorMessage = "Project file not found: " + filePath;
+                return;
+            }
+
+            project::ProjectConfigParser configParser;
+            auto config = configParser.parse(filePath);
+
+            // Step 3: Build the exe
+            std::filesystem::path outputDir =
+                std::filesystem::path(config->projectRoot) / config->output.directory;
+#ifdef _WIN32
+            std::string exeName = config->name + ".exe";
+#else
+            std::string exeName = config->name;
+#endif
+            std::string exePath = (outputDir / exeName).string();
+
+            project::ProjectBuilder builder;
+            auto buildResult = builder.buildExecutable(*config, exePath, launcherPath);
+
+            if (!buildResult.success)
+            {
+                status = TestStatus::FAILED;
+                std::string errors;
+                for (const auto& err : buildResult.errors)
+                {
+                    if (!errors.empty()) errors += "; ";
+                    errors += err;
+                }
+                errorMessage = "Exe build failed: " + errors;
+                return;
+            }
+
+            // Step 4: Run the exe as a subprocess and capture stdout
+            std::string command = "\"" + exePath + "\" 2>&1";
+            FILE* pipe = _popen(command.c_str(), "r");
+            if (!pipe)
+            {
+                status = TestStatus::ERROR;
+                errorMessage = "Failed to run built exe: " + exePath;
+                return;
+            }
+
+            char buffer[256];
+            output.clear();
+            while (fgets(buffer, sizeof(buffer), pipe))
+            {
+                output += buffer;
+            }
+            int exitCode = _pclose(pipe);
+
+            // Step 5: Verify output against .expected file
+            if (verifyOutputAgainstExpected())
+            {
+                status = TestStatus::PASSED;
+            }
+            else
+            {
+                status = TestStatus::FAILED;
+                if (errorMessage.empty())
+                {
+                    errorMessage = "Output does not match expected result";
+                }
+                if (exitCode != 0)
+                {
+                    errorMessage += " (exit code: " + std::to_string(exitCode) + ")";
+                }
+            }
+
+            // Step 6: Cleanup - remove the built exe and build directory
+            try
+            {
+                if (std::filesystem::exists(outputDir))
+                {
+                    std::filesystem::remove_all(outputDir);
+                }
+            }
+            catch (...)
+            {
+                // Cleanup failure is non-fatal
+            }
+        }
+        catch (const std::exception& e)
+        {
+            status = TestStatus::ERROR;
+            errorMessage = "Exe test error: " + std::string(e.what());
         }
     }
 

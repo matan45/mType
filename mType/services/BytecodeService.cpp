@@ -243,6 +243,54 @@ namespace services
         return program;
     }
 
+    std::unique_ptr<vm::bytecode::BytecodeProgram> BytecodeService::runFromProgram(
+        vm::bytecode::BytecodeProgram program)
+    {
+        auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
+
+        // Register classes from metadata
+        registerClassesFromMetadata(result->getClasses());
+
+        // Set program on VM and ScriptAPI
+        if (vm)
+        {
+            vm->setProgram(result.get());
+        }
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(result.get());
+        }
+
+        // Execute the bytecode (registers functions and runs top-level code)
+        BytecodeExecutor::executeProgram(vm, *result);
+
+        // Keep program alive — caller owns the unique_ptr
+        return result;
+    }
+
+    std::unique_ptr<vm::bytecode::BytecodeProgram> BytecodeService::loadFromProgram(
+        vm::bytecode::BytecodeProgram program)
+    {
+        auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
+
+        // Register classes from metadata
+        registerClassesFromMetadata(result->getClasses());
+
+        // Set program on VM for C++ API methods
+        if (vm)
+        {
+            vm->setProgram(result.get());
+        }
+
+        // Set program on ScriptAPI for C++ interop
+        if (scriptAPI)
+        {
+            scriptAPI->setBytecodeProgram(result.get());
+        }
+
+        return result;
+    }
+
     void BytecodeService::registerClassesFromMetadata(
         const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes)
     {
@@ -333,10 +381,27 @@ namespace services
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
         const std::unordered_map<std::string, std::shared_ptr<runtimeTypes::klass::ClassDefinition>>& classMap)
     {
-        // Link parent class
-        if (!classMeta.parentClassName.empty() && classMap.count(classMeta.parentClassName))
+        // Link parent class - check bytecode metadata first, then fall back to
+        // the environment's class registry for library classes (e.g. Exception)
+        // that may have been registered separately.
+        if (!classMeta.parentClassName.empty())
         {
-            classDef->setParentClass(classMap.at(classMeta.parentClassName));
+            if (classMap.count(classMeta.parentClassName))
+            {
+                classDef->setParentClass(classMap.at(classMeta.parentClassName));
+            }
+            else
+            {
+                auto classRegistry = environment->getClassRegistry();
+                if (classRegistry)
+                {
+                    auto parentDef = classRegistry->findClass(classMeta.parentClassName);
+                    if (parentDef)
+                    {
+                        classDef->setParentClass(parentDef);
+                    }
+                }
+            }
         }
 
         // Add fields, methods, and constructors
@@ -423,6 +488,14 @@ namespace services
         {
             auto returnType = stringToValueType(methodMeta.returnType);
             std::vector<std::pair<std::string, value::ParameterType>> params;
+
+            // Instance methods need a 'this' parameter prepended so that
+            // findInstanceMethod's argCount subtraction is consistent with
+            // methods compiled from AST (which always include 'this').
+            if (!isStatic)
+            {
+                params.push_back({"this", value::ParameterType(value::ValueType::OBJECT)});
+            }
 
             for (size_t i = 0; i < methodMeta.parameterNames.size(); ++i)
             {

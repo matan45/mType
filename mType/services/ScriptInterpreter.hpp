@@ -73,6 +73,8 @@ namespace services
                           const std::unordered_map<std::string, std::string>& aliases);
         void runCompiledBytecode(const std::string& bytecodeFile);
         void loadCompiledBytecode(const std::string& bytecodeFile);  // Load without executing
+        void loadFromProgram(vm::bytecode::BytecodeProgram program);  // Load from in-memory program
+        void runFromProgram(vm::bytecode::BytecodeProgram program);   // Load and execute in-memory program
 
         // Execution mode control
         void setExecutionMode(constants::ExecutionMode mode);
