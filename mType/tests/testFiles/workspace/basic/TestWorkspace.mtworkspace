@@ -1,0 +1,7 @@
+<Workspace Name="TestWorkspace" Version="1.0.0">
+  <Members>
+    <Member Path="core" />
+    <Member Path="app" />
+  </Members>
+  <Output Directory="build" />
+</Workspace>

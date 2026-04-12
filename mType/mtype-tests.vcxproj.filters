@@ -334,6 +334,63 @@
     <Filter Include="testFiles\typeChecking\pass">
       <UniqueIdentifier>{4B36EA15-B743-18FC-402A-14E7AC36E4B2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\workspace">
+      <UniqueIdentifier>{F6DE950A-6240-7318-EBAD-B9CA570EAAD7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\basic">
+      <UniqueIdentifier>{47BE4154-B380-75DE-FC30-046B68324EBC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\basic\app">
+      <UniqueIdentifier>{17FB1000-8313-F829-4CC0-87C3B8978CC3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\basic\app\src">
+      <UniqueIdentifier>{AE6CD247-1ADB-27C7-63C4-E2C6CF711D63}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\basic\core">
+      <UniqueIdentifier>{1F733102-0B99-FB68-F4DE-8034E0A32035}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\basic\core\src">
+      <UniqueIdentifier>{B6A8FFD5-A2E4-0240-0BF7-1A37F751AB5A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\crossImport">
+      <UniqueIdentifier>{6A1F1088-D602-1FC8-DF05-4D044B68E518}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\crossImport\app">
+      <UniqueIdentifier>{BA35A148-26EF-0BF3-AF4E-26CD1B07C262}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\crossImport\app\src">
+      <UniqueIdentifier>{D140757D-3DD0-3668-46CC-1780B2DA7174}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\crossImport\lib">
+      <UniqueIdentifier>{9063A148-FC1C-0CF3-857C-26CDF134C262}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\crossImport\lib\src">
+      <UniqueIdentifier>{A769E4BA-13F9-A5A5-1CF5-86BD8803E1B1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\duplicateNames">
+      <UniqueIdentifier>{B4CE36C7-A00A-3A31-091D-5228F577E24B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\duplicateNames\projA">
+      <UniqueIdentifier>{FF9C59CA-EB19-4D0D-1497-4D210073E9A0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\duplicateNames\projA\src">
+      <UniqueIdentifier>{96C2E967-82D5-E9C0-2BBF-C6AD17B1860E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\duplicateNames\projB">
+      <UniqueIdentifier>{009D59CA-EC19-4D0D-1597-4D210173E9A0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\duplicateNames\projB\src">
+      <UniqueIdentifier>{17DBFB67-03EE-FBC0-ACD7-D8AD98C9980E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\nameOverride">
+      <UniqueIdentifier>{A6DDB49E-922E-A0E0-BB92-8EA2A742334A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\nameOverride\mylib">
+      <UniqueIdentifier>{D219053C-BE6B-DC2B-A78A-193C937BF514}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\workspace\nameOverride\mylib\src">
+      <UniqueIdentifier>{E970DD89-D5D8-A357-3E44-B86D2ACBBA43}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFramework">
       <UniqueIdentifier>{738150B1-DF41-CCE7-A87C-156514FC10C4}</UniqueIdentifier>
     </Filter>
@@ -421,6 +478,9 @@
       <Filter>suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\TypeCheckingTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\WorkspaceTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\testFramework\TestCase.hpp">
@@ -519,6 +579,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\TypeCheckingTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\WorkspaceTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\testFramework\TestCase.cpp">
@@ -9468,6 +9531,27 @@
     </None>
     <None Include="tests\testFiles\typeChecking\pass\typeVarianceCovariant_pass.mt">
       <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\workspace\basic\app\src\Main.mt">
+      <Filter>testFiles\workspace\basic\app\src</Filter>
+    </None>
+    <None Include="tests\testFiles\workspace\basic\core\src\MathUtil.mt">
+      <Filter>testFiles\workspace\basic\core\src</Filter>
+    </None>
+    <None Include="tests\testFiles\workspace\crossImport\app\src\AppMain.mt">
+      <Filter>testFiles\workspace\crossImport\app\src</Filter>
+    </None>
+    <None Include="tests\testFiles\workspace\crossImport\lib\src\Greeter.mt">
+      <Filter>testFiles\workspace\crossImport\lib\src</Filter>
+    </None>
+    <None Include="tests\testFiles\workspace\duplicateNames\projA\src\A.mt">
+      <Filter>testFiles\workspace\duplicateNames\projA\src</Filter>
+    </None>
+    <None Include="tests\testFiles\workspace\duplicateNames\projB\src\B.mt">
+      <Filter>testFiles\workspace\duplicateNames\projB\src</Filter>
+    </None>
+    <None Include="tests\testFiles\workspace\nameOverride\mylib\src\Util.mt">
+      <Filter>testFiles\workspace\nameOverride\mylib\src</Filter>
     </None>
   </ItemGroup>
 </Project>

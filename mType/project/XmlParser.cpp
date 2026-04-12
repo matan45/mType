@@ -187,7 +187,23 @@ namespace project
                             }
                             else if (pos + 1 < xml.size() && xml[pos + 1] != '!')
                             {
-                                ++depth;
+                                // Check if this is a self-closing tag (<Tag ... />)
+                                // by scanning ahead to find the closing '>'.
+                                size_t closePos = pos + 1;
+                                while (closePos < xml.size() && xml[closePos] != '>')
+                                {
+                                    ++closePos;
+                                }
+
+                                if (closePos > pos + 1 && xml[closePos - 1] == '/')
+                                {
+                                    // Self-closing tag — skip past it, no depth change
+                                    pos = closePos;
+                                }
+                                else
+                                {
+                                    ++depth;
+                                }
                             }
                         }
                         ++pos;

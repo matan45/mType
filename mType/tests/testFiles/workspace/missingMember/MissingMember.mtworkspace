@@ -1,0 +1,5 @@
+<Workspace Name="MissingMember" Version="1.0.0">
+  <Members>
+    <Member Path="nonexistent" />
+  </Members>
+</Workspace>
