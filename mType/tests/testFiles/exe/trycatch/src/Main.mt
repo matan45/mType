@@ -1,5 +1,5 @@
 // Test: Try/Catch in standalone exe
-import * from "exceptions/Exception.mt";
+import * from "../../../lib/exceptions/Exception.mt";
 
 class AppError extends Exception {
     public constructor(string msg) : super(msg) {
@@ -11,6 +11,15 @@ function riskyDivide(int a, int b): int {
         throw new AppError("Division by zero");
     }
     return a / b;
+}
+
+class Helper {
+    public static function riskyStatic(int code): string {
+        if (code == 0) {
+            throw new AppError("Static error");
+        }
+        return "Static OK";
+    }
 }
 
 @EntryPoint
@@ -48,6 +57,21 @@ class App {
             }
         } catch (AppError e) {
             print("Outer catch: " + e.getMessage());
+        }
+
+        // Catch from static method
+        try {
+            Helper::riskyStatic(0);
+        } catch (AppError e) {
+            print("Static catch: " + e.getMessage());
+        }
+
+        // Successful static call
+        try {
+            string result = Helper::riskyStatic(1);
+            print("Static success: " + result);
+        } catch (AppError e) {
+            print("Unexpected");
         }
 
         // Code continues after catch

@@ -178,8 +178,30 @@ namespace vm::runtime::utils
         // Get function name from current call frame
         const std::string& functionName = callStack.back().functionName;
 
-        // Try to get function metadata
+        // Try to get function metadata (exact match)
         const auto* funcMetadata = program->getFunction(functionName);
+        if (funcMetadata && funcMetadata->exceptionTable.size() > 0)
+        {
+            return &funcMetadata->exceptionTable;
+        }
+
+        // Fallback: the call frame may store a bare name (e.g. "riskyDivide") while the
+        // compiler registered the mangled name (e.g. "riskyDivide/int,int") with the
+        // exception table. Search for a matching function by prefix.
+        if (!funcMetadata || funcMetadata->exceptionTable.size() == 0)
+        {
+            for (const auto& [fname, fmeta] : program->getFunctions())
+            {
+                if (fname.rfind(functionName, 0) == 0 && fname.size() > functionName.size()
+                    && (fname[functionName.size()] == '/' || fname[functionName.size()] == '$')
+                    && fmeta.exceptionTable.size() > 0)
+                {
+                    return &fmeta.exceptionTable;
+                }
+            }
+        }
+
+        // Return empty exception table from exact match if it exists
         if (funcMetadata)
         {
             return &funcMetadata->exceptionTable;

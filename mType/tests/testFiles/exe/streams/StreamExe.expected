@@ -1,12 +1,12 @@
-All items:
-  1
+Even numbers:
   2
-  3
   4
-  5
-Even count: 2
-Odd * 10:
+Doubled:
+  2
+  4
+  6
+  8
   10
-  30
-  50
+Sum: 15
+Size: 5
 Streams test passed

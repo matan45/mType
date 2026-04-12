@@ -216,6 +216,7 @@ namespace vm::runtime
                         fname != prefix + suffix)
                     {
                         funcMetadata = program->getFunction(fname);
+                        qualifiedName = fname;  // Update to match actual function name
                         break;
                     }
                 }
@@ -250,34 +251,10 @@ namespace vm::runtime
             pushCallFrame(frame);
             stats.functionCalls++;
 
-            // Execute method (direct loop to avoid recreating executors)
+            // Execute method via interpretLoop which has proper UserException handling
+            // (the direct loop lacked try/catch for UserException, breaking try/catch in exe)
             instructionPointer = funcMetadata->startOffset;
-            value::Value result = std::monostate{};
-            if (controlFlowExecutor)
-            {
-                size_t targetDepth = savedCallStack.size();
-                while (callStack.size() > targetDepth)
-                {
-                    if (instructionPointer >= program->getInstructionCount())
-                        break;
-                    if (suspendedByAwait)
-                        break;
-                    const auto& instr = program->getInstruction(instructionPointer);
-                    executeInstruction(instr);
-                    instructionPointer++;
-                }
-                if (!suspendedByAwait && stackManager->size() > frameBase)
-                    result = stackManager->pop();
-                if (!suspendedByAwait)
-                {
-                    while (stackManager->size() > frameBase)
-                        stackManager->pop();
-                }
-            }
-            else
-            {
-                result = interpretLoop();
-            }
+            value::Value result = interpretLoop();
 
             // If suspended by await, don't restore state — EventLoop will resume
             if (suspendedByAwait)

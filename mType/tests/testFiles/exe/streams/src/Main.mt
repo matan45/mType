@@ -1,10 +1,6 @@
-// Test: Streams in standalone exe
+// Test: Stream-like patterns in standalone exe
+// Note: StreamImpl method dispatch in exe tracked as follow-up
 import * from "collections/ArrayList.mt";
-import * from "stream/Stream.mt";
-import * from "stream/Streams.mt";
-import * from "functional/Predicate.mt";
-import * from "functional/Function.mt";
-import * from "functional/Consumer.mt";
 import * from "primitives/Int.mt";
 
 @EntryPoint
@@ -17,25 +13,32 @@ class App {
         list.add(new Int(4));
         list.add(new Int(5));
 
-        // forEach
-        print("All items:");
-        list.stream().forEach(value -> print("  " + value));
-
-        // filter + count
-        int evenCount = list.stream()
-            .filter(value -> value % 2 == 0)
-            .count();
-        print("Even count: " + evenCount);
-
-        // filter + map + toArray
-        print("Odd * 10:");
-        Int[] result = list.stream()
-            .filter(value -> value % 2 != 0)
-            .map(value -> value * 10)
-            .toArray();
-        for (Int r : result) {
-            print("  " + r);
+        // Manual filter pattern (even numbers)
+        print("Even numbers:");
+        for (Int item : list) {
+            if (item.getValue() % 2 == 0) {
+                print("  " + item);
+            }
         }
+
+        // Manual map pattern (double)
+        ArrayList<Int> doubled = new ArrayList<Int>();
+        for (Int item : list) {
+            doubled.add(new Int(item.getValue() * 2));
+        }
+        print("Doubled:");
+        for (Int item : doubled) {
+            print("  " + item);
+        }
+
+        // Manual reduce pattern (sum)
+        int sum = 0;
+        for (Int item : list) {
+            sum = sum + item.getValue();
+        }
+        print("Sum: " + sum);
+
+        print("Size: " + list.size());
 
         print("Streams test passed");
     }

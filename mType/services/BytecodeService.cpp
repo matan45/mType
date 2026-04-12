@@ -489,6 +489,14 @@ namespace services
             auto returnType = stringToValueType(methodMeta.returnType);
             std::vector<std::pair<std::string, value::ParameterType>> params;
 
+            // Instance methods need a 'this' parameter prepended so that
+            // findInstanceMethod's argCount subtraction is consistent with
+            // methods compiled from AST (which always include 'this').
+            if (!isStatic)
+            {
+                params.push_back({"this", value::ParameterType(value::ValueType::OBJECT)});
+            }
+
             for (size_t i = 0; i < methodMeta.parameterNames.size(); ++i)
             {
                 auto paramType = stringToValueType(methodMeta.parameterTypes[i]);

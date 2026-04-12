@@ -3,5 +3,7 @@ Caught: Division by zero
 Base catch: Caught as base
 Inner catch: Inner error
 Outer catch: Rethrown from inner
+Static catch: Static error
+Static success: Static OK
 After all catches
 Try/Catch test passed
