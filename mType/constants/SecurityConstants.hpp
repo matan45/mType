@@ -17,6 +17,10 @@ namespace constants
         // === Bytecode deserialization caps ===
         constexpr size_t MAX_CONSTANT_POOL_ENTRIES   = 1'000'000;
         constexpr size_t MAX_INSTRUCTION_COUNT       = 1'000'000;
+        // Raised from 16 to 64 (MYT-62): lambda DEFINE_LAMBDA instructions encode
+        // captured variables, parameter types, and metadata as operands. A block
+        // lambda with several captures and a typed functional interface can
+        // legitimately reach 34+ operands. 64 still bounds allocation tightly.
         constexpr size_t MAX_OPERANDS_PER_INSTR      = 64;
         constexpr size_t MAX_FUNCTION_COUNT          = 100'000;
         constexpr size_t MAX_PARAMETERS_PER_FUNCTION = 256;

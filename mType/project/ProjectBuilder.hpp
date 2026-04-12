@@ -1,5 +1,6 @@
 #pragma once
 #include "ProjectConfig.hpp"
+#include "../vm/bytecode/BytecodeProgram.hpp"
 #include <functional>
 #include <chrono>
 #include <vector>
@@ -89,5 +90,12 @@ namespace project
             const ProjectConfig& config) const;
 
         void reportProgress(size_t current, size_t total, const std::string& file);
+
+        // Shared compilation pipeline: virtual source -> parse -> optimize -> bytecode.
+        // Extracts the common logic from buildLibrary and buildExecutable.
+        // The returned program is ready for serialization or direct execution.
+        vm::bytecode::BytecodeProgram compileToProgram(
+            const ProjectConfig& config,
+            std::shared_ptr<environment::Environment> environment = nullptr);
     };
 }

@@ -38,6 +38,10 @@
 #endif
 #endif
 
+#include <bit>
+static_assert(std::endian::native == std::endian::little,
+              "MTEX binary format assumes little-endian byte order for the blob size field");
+
 static const char FOOTER_MAGIC[4] = { 'M', 'T', 'E', 'X' };
 
 static std::string getExecutablePath()
@@ -88,7 +92,7 @@ static std::vector<char> readAppendedBytecode(const std::string& exePath)
     file.seekg(-4, std::ios::end);
     char magic[4];
     file.read(magic, 4);
-    if (std::memcmp(magic, FOOTER_MAGIC, 4) != 0)
+    if (file.fail() || std::memcmp(magic, FOOTER_MAGIC, 4) != 0)
     {
         throw std::runtime_error("No embedded bytecode found (missing MTEX footer)");
     }
@@ -97,6 +101,10 @@ static std::vector<char> readAppendedBytecode(const std::string& exePath)
     file.seekg(-12, std::ios::end);
     uint64_t blobSize = 0;
     file.read(reinterpret_cast<char*>(&blobSize), sizeof(blobSize));
+    if (file.fail())
+    {
+        throw std::runtime_error("Failed to read embedded bytecode size");
+    }
 
     auto footerEnd = static_cast<uint64_t>(fileSize);
     if (blobSize == 0 || blobSize > footerEnd - 12)
@@ -108,6 +116,10 @@ static std::vector<char> readAppendedBytecode(const std::string& exePath)
     std::vector<char> blob(blobSize);
     file.seekg(-12 - static_cast<std::streamoff>(blobSize), std::ios::end);
     file.read(blob.data(), static_cast<std::streamsize>(blobSize));
+    if (file.fail())
+    {
+        throw std::runtime_error("Failed to read embedded bytecode blob");
+    }
 
     return blob;
 }
@@ -116,15 +128,31 @@ static std::string findEntryPointClass(
     std::shared_ptr<environment::Environment> env)
 {
     auto classRegistry = env->getClassRegistry();
+    std::vector<std::string> entryPoints;
     for (const auto& name : classRegistry->getAllItemNames())
     {
         auto classDef = classRegistry->findClass(name);
         if (classDef && classDef->getAnnotation("EntryPoint"))
         {
-            return name;
+            entryPoints.push_back(name);
         }
     }
-    throw std::runtime_error("No class with @EntryPoint annotation found in bytecode");
+
+    if (entryPoints.empty())
+    {
+        throw std::runtime_error("No class with @EntryPoint annotation found in bytecode");
+    }
+    if (entryPoints.size() > 1)
+    {
+        std::string msg = "Multiple @EntryPoint classes found:";
+        for (const auto& name : entryPoints)
+        {
+            msg += " " + name;
+        }
+        msg += ". Only one @EntryPoint class is allowed per executable.";
+        throw std::runtime_error(msg);
+    }
+    return entryPoints[0];
 }
 
 int main(int argc, char* argv[])
@@ -135,8 +163,11 @@ int main(int argc, char* argv[])
         std::string exePath = getExecutablePath();
         auto blob = readAppendedBytecode(exePath);
 
-        // Deserialize
-        std::istringstream stream(std::string(blob.begin(), blob.end()));
+        // Deserialize (wrap vector in a streambuf to avoid a second copy)
+        struct VectorBuf : std::streambuf {
+            VectorBuf(std::vector<char>& v) { setg(v.data(), v.data(), v.data() + v.size()); }
+        } buf(blob);
+        std::istream stream(&buf);
         auto program = vm::bytecode::BytecodeProgram::deserialize(stream);
 
         // Boot interpreter and execute program (registers functions + runs top-level code)

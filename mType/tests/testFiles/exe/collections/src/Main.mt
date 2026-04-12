@@ -24,6 +24,9 @@ class App {
         }
 
         // HashSet
+        // Known issue: HashSet uses reference equality in exe context (generic
+        // type erasure causes equals() to receive the wrong 'this' offset).
+        // Size returns 3 instead of 2, contains returns false. Tracked for fix.
         HashSet<String> set = new HashSet<String>();
         set.add(new String("x"));
         set.add(new String("y"));

@@ -12,6 +12,13 @@
 #include <sstream>
 #include <cstdint>
 
+#ifdef _WIN32
+#include <process.h>    // _getpid()
+#define getpid _getpid
+#else
+#include <unistd.h>     // getpid()
+#endif
+
 namespace project
 {
     ProjectBuilder::ProjectBuilder() = default;
@@ -119,77 +126,9 @@ namespace project
 
         try
         {
-            // Create a virtual source that imports all files
-            std::string virtualSource;
-            for (const auto& sourceFile : sourceFiles)
-            {
-                // Use relative path from project root
-                std::filesystem::path srcPath(sourceFile);
-                std::filesystem::path projRoot(config.projectRoot);
-                std::filesystem::path relativePath = std::filesystem::relative(srcPath, projRoot);
-                virtualSource += "import * from \"" + relativePath.string() + "\";\n";
-            }
-
-            // Create temp file for virtual source
-            std::filesystem::path tempDir = std::filesystem::temp_directory_path();
-            std::filesystem::path tempFile = tempDir / "_mtype_lib_bundle.mt";
-
-            {
-                std::ofstream out(tempFile);
-                out << virtualSource;
-            }
-
             reportProgress(1, 1, "Building library...");
 
-            // Configure search paths
-            std::vector<std::string> absoluteSearchPaths;
-            for (const auto& searchPath : config.imports.searchPaths)
-            {
-                std::filesystem::path absPath = std::filesystem::path(config.projectRoot) / searchPath;
-                absoluteSearchPaths.push_back(absPath.string());
-            }
-
-            // Create import manager with project settings
-            auto importManager = std::make_unique<services::ImportManager>();
-            importManager->setBaseDirectory(config.projectRoot);
-            importManager->setProjectRoot(config.projectRoot); // SECURITY: enforce containment
-
-            // Add workspace-level allowed roots for cross-project imports
-            for (const auto& root : workspaceAdditionalRoots)
-            {
-                importManager->addAllowedRoot(root);
-            }
-
-            importManager->setSearchPaths(absoluteSearchPaths);
-            importManager->setPathAliases(buildMergedAliases(config));
-            importManager->setCurrentFilePath(tempFile.string());
-
-            // Allow imports from search path directories (they may be outside project root)
-            for (const auto& absSearchPath : absoluteSearchPaths)
-            {
-                importManager->addAllowedRoot(absSearchPath);
-            }
-
-            services::ImportManager* importMgrPtr = importManager.get();
-
-            // Parse the virtual source
-            lexer::Lexer lexer(tempFile.string());
-            parser::Parser parser(lexer, std::move(importManager));
-            auto ast = parser.parseProgram();
-
-            // Set ImportManager on environment
-            environment->setImportManager(importMgrPtr);
-
-            // Resolve imports
-            importMgrPtr->resolveAllImports(ast.get());
-
-            // Apply optimizations
-            services::OptimizationService optimizationService;
-            ast = optimizationService.applyOptimizations(std::move(ast), environment);
-
-            // Compile to bytecode
-            vm::compiler::BytecodeCompiler compiler(environment, true);
-            auto program = compiler.compile(ast.get());
+            auto program = compileToProgram(config, environment);
 
             // Ensure output directory exists
             std::filesystem::path outPath(outputPath);
@@ -206,9 +145,6 @@ namespace project
             }
             program.serialize(outFile);
             outFile.close();
-
-            // Clean up temp file
-            std::filesystem::remove(tempFile);
 
             result.filesCompiled = sourceFiles.size();
         }
@@ -254,105 +190,41 @@ namespace project
 
         try
         {
-            // Step 1: Compile project to a single BytecodeProgram (same as buildLibrary)
-            std::string virtualSource;
-            for (const auto& sourceFile : sourceFiles)
-            {
-                std::filesystem::path srcPath(sourceFile);
-                std::filesystem::path projRoot(config.projectRoot);
-                std::filesystem::path relativePath = std::filesystem::relative(srcPath, projRoot);
-                virtualSource += "import * from \"" + relativePath.string() + "\";\n";
-            }
-
-            std::filesystem::path tempDir = std::filesystem::temp_directory_path();
-            std::filesystem::path tempFile = tempDir / "_mtype_exe_bundle.mt";
-
-            {
-                std::ofstream out(tempFile);
-                out << virtualSource;
-            }
-
             reportProgress(1, 2, "Compiling bytecode...");
 
-            std::vector<std::string> absoluteSearchPaths;
-            for (const auto& searchPath : config.imports.searchPaths)
-            {
-                std::filesystem::path absPath = std::filesystem::path(config.projectRoot) / searchPath;
-                absoluteSearchPaths.push_back(absPath.string());
-            }
+            auto program = compileToProgram(config);
 
-            auto importManager = std::make_unique<services::ImportManager>();
-            importManager->setBaseDirectory(config.projectRoot);
-            importManager->setProjectRoot(config.projectRoot);
-
-            for (const auto& root : workspaceAdditionalRoots)
-            {
-                importManager->addAllowedRoot(root);
-            }
-
-            importManager->setSearchPaths(absoluteSearchPaths);
-            importManager->setPathAliases(buildMergedAliases(config));
-            importManager->setCurrentFilePath(tempFile.string());
-
-            // Allow imports from search path directories (they may be outside project root)
-            for (const auto& absSearchPath : absoluteSearchPaths)
-            {
-                importManager->addAllowedRoot(absSearchPath);
-            }
-
-            services::ImportManager* importMgrPtr = importManager.get();
-
-            environment::EnvironmentBuilder envBuilder;
-            auto environment = envBuilder.build();
-
-            lexer::Lexer lex(tempFile.string());
-            parser::Parser parser(lex, std::move(importManager));
-            auto ast = parser.parseProgram();
-
-            environment->setImportManager(importMgrPtr);
-            importMgrPtr->resolveAllImports(ast.get());
-
-            services::OptimizationService optimizationService;
-            ast = optimizationService.applyOptimizations(std::move(ast), environment);
-
-            vm::compiler::BytecodeCompiler compiler(environment, true);
-            auto program = compiler.compile(ast.get());
-
-            std::filesystem::remove(tempFile);
-
-            // Step 2: Serialize bytecode to a memory buffer
+            // Serialize bytecode to a memory buffer
             std::ostringstream bytecodeStream;
             program.serialize(bytecodeStream);
             std::string bytecodeBlob = bytecodeStream.str();
 
             reportProgress(2, 2, "Embedding bytecode...");
 
-            // Step 3: Ensure output directory exists
+            // Ensure output directory exists
             std::filesystem::path outPath(outputPath);
             if (outPath.has_parent_path() && !std::filesystem::exists(outPath.parent_path()))
             {
                 std::filesystem::create_directories(outPath.parent_path());
             }
 
-            // Step 4: Copy launcher binary to output path
+            // Copy launcher binary to output path
             std::filesystem::copy_file(launcherPath, outputPath,
                                        std::filesystem::copy_options::overwrite_existing);
 
-            // Step 5: Append bytecode blob + size footer + magic
+            // Append bytecode blob + size footer + magic
             std::ofstream outFile(outputPath, std::ios::binary | std::ios::app);
             if (!outFile)
             {
                 throw std::runtime_error("Could not open output file for appending: " + outputPath);
             }
 
-            // Write bytecode blob
             outFile.write(bytecodeBlob.data(), static_cast<std::streamsize>(bytecodeBlob.size()));
 
-            // Write 8-byte blob size (little-endian)
+            // Write 8-byte blob size (little-endian native — see static_assert in Launcher.cpp)
             uint64_t blobSize = bytecodeBlob.size();
             outFile.write(reinterpret_cast<const char*>(&blobSize), sizeof(blobSize));
 
-            // Write 4-byte magic footer "MTEX"
             const char magic[4] = { 'M', 'T', 'E', 'X' };
             outFile.write(magic, 4);
 
@@ -364,6 +236,9 @@ namespace project
         {
             result.success = false;
             result.errors.push_back(e.what());
+
+            // Remove partially written output to avoid leaving a corrupt exe (#3)
+            try { std::filesystem::remove(outputPath); } catch (...) {}
         }
 
         auto endTime = std::chrono::steady_clock::now();
@@ -469,6 +344,91 @@ namespace project
         }
 
         importManager.setPathAliases(buildMergedAliases(config));
+    }
+
+    vm::bytecode::BytecodeProgram ProjectBuilder::compileToProgram(
+        const ProjectConfig& config,
+        std::shared_ptr<environment::Environment> environment)
+    {
+        const auto& sourceFiles = config.resolvedSourceFiles;
+
+        // Build virtual source that imports all project files
+        std::string virtualSource;
+        for (const auto& sourceFile : sourceFiles)
+        {
+            std::filesystem::path srcPath(sourceFile);
+            std::filesystem::path projRoot(config.projectRoot);
+            std::filesystem::path relativePath = std::filesystem::relative(srcPath, projRoot);
+            virtualSource += "import * from \"" + relativePath.string() + "\";\n";
+        }
+
+        // Write virtual source to a uniquely named temp file (PID avoids race conditions)
+        std::filesystem::path tempDir = std::filesystem::temp_directory_path();
+        std::string tempName = "_mtype_bundle_" + config.name + "_"
+                             + std::to_string(getpid()) + ".mt";
+        std::filesystem::path tempFile = tempDir / tempName;
+
+        // RAII guard: remove temp file on scope exit even if compilation throws
+        struct TempFileGuard {
+            std::filesystem::path path;
+            ~TempFileGuard() { std::filesystem::remove(path); }
+        } tempGuard{tempFile};
+
+        {
+            std::ofstream out(tempFile);
+            out << virtualSource;
+        }
+
+        // Configure search paths
+        std::vector<std::string> absoluteSearchPaths;
+        for (const auto& searchPath : config.imports.searchPaths)
+        {
+            std::filesystem::path absPath = std::filesystem::path(config.projectRoot) / searchPath;
+            absoluteSearchPaths.push_back(absPath.string());
+        }
+
+        // Create import manager with project settings
+        auto importManager = std::make_unique<services::ImportManager>();
+        importManager->setBaseDirectory(config.projectRoot);
+        importManager->setProjectRoot(config.projectRoot);
+
+        for (const auto& root : workspaceAdditionalRoots)
+        {
+            importManager->addAllowedRoot(root);
+        }
+
+        importManager->setSearchPaths(absoluteSearchPaths);
+        importManager->setPathAliases(buildMergedAliases(config));
+        importManager->setCurrentFilePath(tempFile.string());
+
+        // Allow imports from search path directories (they may be outside project root)
+        for (const auto& absSearchPath : absoluteSearchPaths)
+        {
+            importManager->addAllowedRoot(absSearchPath);
+        }
+
+        services::ImportManager* importMgrPtr = importManager.get();
+
+        // Create environment if not provided
+        if (!environment)
+        {
+            environment::EnvironmentBuilder envBuilder;
+            environment = envBuilder.build();
+        }
+
+        // Parse, resolve imports, optimize, compile
+        lexer::Lexer lex(tempFile.string());
+        parser::Parser parser(lex, std::move(importManager));
+        auto ast = parser.parseProgram();
+
+        environment->setImportManager(importMgrPtr);
+        importMgrPtr->resolveAllImports(ast.get());
+
+        services::OptimizationService optimizationService;
+        ast = optimizationService.applyOptimizations(std::move(ast), environment);
+
+        vm::compiler::BytecodeCompiler compiler(environment, true);
+        return compiler.compile(ast.get());
     }
 
     void ProjectBuilder::reportProgress(size_t current, size_t total, const std::string& file)
