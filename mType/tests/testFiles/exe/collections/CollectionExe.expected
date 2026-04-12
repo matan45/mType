@@ -1,0 +1,13 @@
+ArrayList size: 3
+ArrayList[1]: 20
+HashMap size: 3
+HashMap[b]: 2
+HashSet size: 2
+HashSet contains x: true
+Stack peek: 300
+Stack pop: 300
+Stack size after pop: 2
+Queue peek: 1
+Queue dequeue: 1
+Queue size after dequeue: 2
+Collections test passed

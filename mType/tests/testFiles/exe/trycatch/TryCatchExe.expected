@@ -1,0 +1,7 @@
+Success with code 0
+Caught validation: Invalid input
+Caught not found: Item not found
+Inner catch: Inner error
+Outer catch: Converted to not found
+Propagated: Invalid input
+Try/Catch test passed

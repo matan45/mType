@@ -94,8 +94,86 @@
     <Filter Include="testFiles\exe">
       <UniqueIdentifier>{C90EED9F-35CF-68D6-FE09-B2536A89ADB2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\exe\arrays">
+      <UniqueIdentifier>{6A1826F9-56A7-AFC2-FFC5-C3BDEB33C068}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\arrays\src">
+      <UniqueIdentifier>{81FB0BD6-6D20-5B56-966B-40E682EF5974}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\async">
+      <UniqueIdentifier>{D62038B2-4282-15C0-CBEF-5B7237504C7F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\async\src">
+      <UniqueIdentifier>{ED598460-5991-CCF7-629B-301BCE51F3F0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\cast">
+      <UniqueIdentifier>{8329AD1C-6F0D-6E72-D86D-68C5C47058F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\cast\src">
+      <UniqueIdentifier>{1AF1779A-06EB-A0EC-EF57-37FDDBF00659}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\classes">
+      <UniqueIdentifier>{C6CEB4A8-323B-70A3-FB2E-0801675A920B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\classes\src">
+      <UniqueIdentifier>{DD7F8680-4942-BA0A-92F2-4897FEF392E8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\collections">
+      <UniqueIdentifier>{576D0ADE-C32F-3E68-0CE0-CCF478E11646}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\collections\src">
+      <UniqueIdentifier>{EEFEBA8D-5A17-A2B7-23C4-31518F9B3651}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\generics">
+      <UniqueIdentifier>{E88DD372-D487-FCC4-BDF4-92D5A98D6231}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\generics\src">
+      <UniqueIdentifier>{FFFF53AC-EB0F-007D-54C9-649B40F8EE15}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports">
+      <UniqueIdentifier>{A69FF479-120C-B074-DBFF-47D2472BD2DC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\src">
+      <UniqueIdentifier>{BDC0039D-2983-3727-7233-C6B3DE341005}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\interfaces">
+      <UniqueIdentifier>{9C27B71F-884C-06A0-B197-EB2F9D1B05BE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\interfaces\src">
+      <UniqueIdentifier>{B35315F0-9F0E-059C-48C6-7DE634604F2C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\lambda">
+      <UniqueIdentifier>{597A9811-4509-22DB-EE27-36D6DA953281}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\lambda\src">
+      <UniqueIdentifier>{F0BCABC3-DCE1-FA43-052D-E0D3F1B0F961}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\nullsafety">
+      <UniqueIdentifier>{FF8C191E-EBB1-689E-14FD-4D2E008167BC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\nullsafety\src">
+      <UniqueIdentifier>{96B2217A-826D-1126-2B25-8A7017BF5BB6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\exe\src">
       <UniqueIdentifier>{600915DA-CC1F-1370-1597-9E9181ECE3F7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\streams">
+      <UniqueIdentifier>{97872D8C-03F4-E886-CCE7-80E438130BEF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\streams\src">
+      <UniqueIdentifier>{2E396170-9AFB-94FA-E3AB-23874FAD6DD8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\trycatch">
+      <UniqueIdentifier>{5ADD5B74-46D7-84C6-2F44-1BD71BDDEA32}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\trycatch\src">
+      <UniqueIdentifier>{71B87ACF-5DC8-26A0-C681-8BBEB2B01539}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\typeof">
+      <UniqueIdentifier>{CFBEF525-BB4D-7FEF-646C-93EA50DA8F95}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\typeof\src">
+      <UniqueIdentifier>{664C6295-5271-B115-7BBC-96A56740B033}</UniqueIdentifier>
     </Filter>
     <Filter Include="testFiles\gc">
       <UniqueIdentifier>{11D292ED-FD34-2292-A6BA-5A4892FCED14}</UniqueIdentifier>
@@ -501,6 +579,9 @@
     <ClInclude Include="tests\suites\ErrorTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\ExeTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\GCTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -603,6 +684,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ErrorTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ExeTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\GCTestSuite.cpp">
@@ -4960,8 +5044,92 @@
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\exe\ExeTest.expected">
+      <Filter>testFiles\exe</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\arrays\ArrayExe.expected">
+      <Filter>testFiles\exe\arrays</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\arrays\src\Main.mt">
+      <Filter>testFiles\exe\arrays\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\async\AsyncExe.expected">
+      <Filter>testFiles\exe\async</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\async\src\Main.mt">
+      <Filter>testFiles\exe\async\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\cast\CastExe.expected">
+      <Filter>testFiles\exe\cast</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\cast\src\Main.mt">
+      <Filter>testFiles\exe\cast\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\classes\ClassExe.expected">
+      <Filter>testFiles\exe\classes</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\classes\src\Main.mt">
+      <Filter>testFiles\exe\classes\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\collections\CollectionExe.expected">
+      <Filter>testFiles\exe\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\collections\src\Main.mt">
+      <Filter>testFiles\exe\collections\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\generics\GenericExe.expected">
+      <Filter>testFiles\exe\generics</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\generics\src\Main.mt">
+      <Filter>testFiles\exe\generics\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\ImportExe.expected">
+      <Filter>testFiles\exe\imports</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\src\Main.mt">
+      <Filter>testFiles\exe\imports\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\src\Utils.mt">
+      <Filter>testFiles\exe\imports\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\interfaces\InterfaceExe.expected">
+      <Filter>testFiles\exe\interfaces</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\interfaces\src\Main.mt">
+      <Filter>testFiles\exe\interfaces\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\lambda\LambdaExe.expected">
+      <Filter>testFiles\exe\lambda</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\lambda\src\Main.mt">
+      <Filter>testFiles\exe\lambda\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\nullsafety\NullSafetyExe.expected">
+      <Filter>testFiles\exe\nullsafety</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\nullsafety\src\Main.mt">
+      <Filter>testFiles\exe\nullsafety\src</Filter>
+    </None>
     <None Include="tests\testFiles\exe\src\Main.mt">
       <Filter>testFiles\exe\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\streams\StreamExe.expected">
+      <Filter>testFiles\exe\streams</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\streams\src\Main.mt">
+      <Filter>testFiles\exe\streams\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\trycatch\TryCatchExe.expected">
+      <Filter>testFiles\exe\trycatch</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\trycatch\src\Main.mt">
+      <Filter>testFiles\exe\trycatch\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\typeof\TypeOfExe.expected">
+      <Filter>testFiles\exe\typeof</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\typeof\src\Main.mt">
+      <Filter>testFiles\exe\typeof\src</Filter>
     </None>
     <None Include="tests\testFiles\gc\pass\deepCycle.expected">
       <Filter>testFiles\gc\pass</Filter>

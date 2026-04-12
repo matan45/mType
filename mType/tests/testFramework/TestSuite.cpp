@@ -84,6 +84,11 @@ namespace tests::testFramework
         testCases.emplace_back(name, filePath, TestType::SCRIPT_INTEROP);
     }
 
+    void TestSuite::addExeTest(const std::string& name, const std::string& mtprojPath)
+    {
+        testCases.emplace_back(name, mtprojPath, TestType::EXE_TEST);
+    }
+
     void TestSuite::addCallbackTest(const std::string& name,
                                     const std::string& bootstrapFilePath,
                                     NativeCallback callback)

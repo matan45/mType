@@ -59,6 +59,7 @@ namespace tests::testFramework
         // Helper methods
         bool verifyOutputAgainstExpected() const;
         void executeNativeCallback();
+        void executeExeTest();
         // MYT-38 — after an ERROR_EXPECTED catch block has provisionally set
         // status=PASSED, demote to FAILED if expectedErrorSubstring is set
         // and the thrown exception's message does not contain it.

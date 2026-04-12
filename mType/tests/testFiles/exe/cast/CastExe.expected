@@ -1,0 +1,6 @@
+Upcast make: Toyota
+Downcast doors: 4
+Correctly identified: not a Truck
+Total doors: 6
+Total payload: 5.0
+Cast test passed
