@@ -34,6 +34,8 @@ namespace project
 
     std::optional<std::string> WorkspaceConfigParser::findWorkspace(const std::string& startDir)
     {
+        // Walk up directories looking ONLY for .mtworkspace files,
+        // skipping any .mtproj files along the way.
         std::filesystem::path current = std::filesystem::absolute(startDir);
 
         while (true)

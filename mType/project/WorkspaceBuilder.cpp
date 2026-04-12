@@ -81,11 +81,13 @@ namespace project
             nameToIndex[config.members[i].getName()] = i;
         }
 
-        // Build adjacency list by scanning source files for @projectName/ imports
-        std::vector<std::vector<size_t>> dependsOn(n);
+        // Build adjacency list by scanning source files for @projectName/ imports.
+        // Edge direction: if project i depends on project j (i imports from @j/),
+        // j must be built before i. So edges go j -> i, and i's inDegree increments.
+        std::vector<std::vector<size_t>> adj(n);
         std::vector<size_t> inDegree(n, 0);
 
-        std::regex importPattern(R"(from\s+"@(\w+)/)");
+        std::regex importPattern(R"(from\s+"@([\w\-]+)/)");
 
         for (size_t i = 0; i < n; ++i)
         {
@@ -124,32 +126,15 @@ namespace project
 
             for (size_t dep : deps)
             {
-                dependsOn[i].push_back(dep);
-                ++inDegree[dep]; // dep is depended upon, but for topo sort we need
-                                 // to track incoming edges correctly
-            }
-        }
-
-        // Kahn's algorithm — build dependencies first
-        // Edge direction: if project i depends on project j,
-        // j must be built before i. So edges go j -> i.
-        // Rebuild with correct edge direction.
-        std::vector<std::vector<size_t>> adj(n);
-        std::vector<size_t> correctedInDegree(n, 0);
-
-        for (size_t i = 0; i < n; ++i)
-        {
-            for (size_t dep : dependsOn[i])
-            {
                 adj[dep].push_back(i);
-                ++correctedInDegree[i];
+                ++inDegree[i];
             }
         }
 
         std::queue<size_t> ready;
         for (size_t i = 0; i < n; ++i)
         {
-            if (correctedInDegree[i] == 0)
+            if (inDegree[i] == 0)
             {
                 ready.push(i);
             }
@@ -166,7 +151,7 @@ namespace project
 
             for (size_t next : adj[current])
             {
-                if (--correctedInDegree[next] == 0)
+                if (--inDegree[next] == 0)
                 {
                     ready.push(next);
                 }

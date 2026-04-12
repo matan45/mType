@@ -199,6 +199,29 @@ namespace tests::testSuite
                 throw std::runtime_error("Expected at least 2 files compiled, got " + std::to_string(result.totalFilesCompiled));
         });
 
+        addCallbackTest("Cross-project @alias import resolves end-to-end", "", [](services::ScriptAPI&) {
+            project::WorkspaceConfigParser parser;
+            auto config = parser.parse("mType/tests/testFiles/workspace/crossImport/CrossImport.mtworkspace");
+
+            project::WorkspaceBuilder builder;
+            auto result = builder.build(*config);
+
+            if (!result.success)
+            {
+                std::string errors;
+                for (const auto& e : result.errors) errors += e + "; ";
+                throw std::runtime_error("Cross-project build failed: " + errors);
+            }
+
+            // The app project imports from @lib/ — if alias injection works,
+            // both projects compile successfully
+            if (result.projectsBuilt != 2)
+                throw std::runtime_error("Expected 2 projects built, got " + std::to_string(result.projectsBuilt));
+
+            // Clean up build artifacts
+            builder.clean(*config);
+        });
+
         addCallbackTest("Workspace clean removes build artifacts", "", [](services::ScriptAPI&) {
             project::WorkspaceConfigParser parser;
             auto config = parser.parse("mType/tests/testFiles/workspace/basic/TestWorkspace.mtworkspace");

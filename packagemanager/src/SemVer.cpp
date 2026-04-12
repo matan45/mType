@@ -26,7 +26,17 @@ namespace packagemanager
         ver.minor = std::stoi(str.substr(pos, dotPos - pos));
         pos = dotPos + 1;
 
-        ver.patch = std::stoi(str.substr(pos));
+        // Extract patch — reject pre-release suffixes (e.g., "3-alpha")
+        std::string patchStr = str.substr(pos);
+        for (char c : patchStr)
+        {
+            if (c != '.' && (c < '0' || c > '9'))
+            {
+                throw std::runtime_error(
+                    "Invalid semver (pre-release suffixes not supported): " + str);
+            }
+        }
+        ver.patch = std::stoi(patchStr);
 
         return ver;
     }

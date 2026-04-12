@@ -8,7 +8,8 @@ namespace packagemanager
     class GitSource
     {
     public:
-        // Parse a source string like "github:user/repo" into a clone URL
+        // Parse a source string like "github:user/repo" into a clone URL.
+        // Validates the URL contains only safe characters.
         static std::string toCloneUrl(const std::string& source);
 
         // Check if a source string is a git source
@@ -25,10 +26,15 @@ namespace packagemanager
                                               const std::string& registryRoot);
 
     private:
-        // Run a shell command and capture stdout
-        static std::string runCommand(const std::string& command);
+        // Validate a URL/string contains only safe characters for git operations.
+        // Rejects shell metacharacters: & | ; $ ` ( ) { } ! # etc.
+        static void validateSafeString(const std::string& str, const std::string& context);
 
-        // Run a shell command, return exit code
-        static int runCommandStatus(const std::string& command);
+        // Run git with an argument list (no shell interpolation).
+        // Returns stdout. Throws on non-zero exit.
+        static std::string runGit(const std::vector<std::string>& args);
+
+        // Run git with an argument list, return exit code (no throw).
+        static int runGitStatus(const std::vector<std::string>& args);
     };
 }

@@ -50,72 +50,45 @@ static std::vector<packagemanager::PackageDependency> parseDependenciesFromMtpro
 {
     std::vector<packagemanager::PackageDependency> deps;
 
-    std::ifstream file(mtprojPath);
-    if (!file.is_open()) return deps;
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    std::string content = buffer.str();
-
-    // Parse <Package Name="x" Version="y" /> entries from <Dependencies> section
-    size_t depsStart = content.find("<Dependencies>");
-    size_t depsEnd = content.find("</Dependencies>");
-    if (depsStart == std::string::npos || depsEnd == std::string::npos) return deps;
-
-    std::string depsSection = content.substr(depsStart, depsEnd - depsStart);
-
-    size_t pos = 0;
-    while ((pos = depsSection.find("<Package", pos)) != std::string::npos)
+    try
     {
-        size_t tagEnd = depsSection.find("/>", pos);
-        if (tagEnd == std::string::npos) break;
+        project::ProjectConfigParser parser;
+        auto config = parser.parse(mtprojPath);
 
-        std::string tag = depsSection.substr(pos, tagEnd - pos);
-
-        packagemanager::PackageDependency dep;
-
-        size_t namePos = tag.find("Name=\"");
-        if (namePos != std::string::npos)
+        for (const auto& projDep : config->dependencies.packages)
         {
-            namePos += 6;
-            size_t nameEnd = tag.find("\"", namePos);
-            if (nameEnd != std::string::npos)
-            {
-                dep.name = tag.substr(namePos, nameEnd - namePos);
-            }
-        }
-
-        size_t verPos = tag.find("Version=\"");
-        if (verPos != std::string::npos)
-        {
-            verPos += 9;
-            size_t verEnd = tag.find("\"", verPos);
-            if (verEnd != std::string::npos)
-            {
-                dep.versionRange = tag.substr(verPos, verEnd - verPos);
-            }
-        }
-
-        size_t srcPos = tag.find("Source=\"");
-        if (srcPos != std::string::npos)
-        {
-            srcPos += 8;
-            size_t srcEnd = tag.find("\"", srcPos);
-            if (srcEnd != std::string::npos)
-            {
-                dep.source = tag.substr(srcPos, srcEnd - srcPos);
-            }
-        }
-
-        if (!dep.name.empty() && !dep.versionRange.empty())
-        {
+            packagemanager::PackageDependency dep;
+            dep.name = projDep.name;
+            dep.versionRange = projDep.versionRange;
+            dep.source = projDep.source;
             deps.push_back(dep);
         }
-
-        pos = tagEnd + 2;
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Warning: Failed to parse .mtproj dependencies: " << e.what() << "\n";
     }
 
     return deps;
+}
+
+static std::string escapeXmlAttr(const std::string& str)
+{
+    std::string result;
+    result.reserve(str.size());
+    for (char c : str)
+    {
+        switch (c)
+        {
+            case '&':  result += "&amp;";  break;
+            case '<':  result += "&lt;";   break;
+            case '>':  result += "&gt;";   break;
+            case '"':  result += "&quot;"; break;
+            case '\'': result += "&apos;"; break;
+            default:   result += c;        break;
+        }
+    }
+    return result;
 }
 
 static void insertDependencyIntoMtproj(const std::string& mtprojPath,
@@ -146,10 +119,11 @@ static void insertDependencyIntoMtproj(const std::string& mtprojPath,
     size_t pos = content.find("</Dependencies>");
     if (pos != std::string::npos)
     {
-        std::string entry = "    <Package Name=\"" + name + "\" Version=\"" + version + "\"";
+        std::string entry = "    <Package Name=\"" + escapeXmlAttr(name) +
+                            "\" Version=\"" + escapeXmlAttr(version) + "\"";
         if (!source.empty())
         {
-            entry += " Source=\"" + source + "\"";
+            entry += " Source=\"" + escapeXmlAttr(source) + "\"";
         }
         entry += " />\n  ";
         content.insert(pos, entry);
@@ -168,23 +142,43 @@ static void removeDependencyFromMtproj(const std::string& mtprojPath,
     std::string content = buffer.str();
     inFile.close();
 
-    std::string searchPattern = "Name=\"" + name + "\"";
-    size_t pos = content.find(searchPattern);
-    if (pos == std::string::npos)
+    // Find each <Package .../> tag and check if it contains Name="name"
+    std::string nameAttr = "Name=\"" + name + "\"";
+    size_t searchPos = 0;
+    bool found = false;
+
+    while ((searchPos = content.find("<Package", searchPos)) != std::string::npos)
+    {
+        size_t tagEnd = content.find("/>", searchPos);
+        if (tagEnd == std::string::npos) break;
+
+        std::string tag = content.substr(searchPos, tagEnd + 2 - searchPos);
+        if (tag.find(nameAttr) != std::string::npos)
+        {
+            // Found the right tag — remove it including surrounding whitespace/newline
+            size_t removeStart = searchPos;
+            size_t removeEnd = tagEnd + 2;
+
+            // Extend backward to consume leading whitespace on the line
+            while (removeStart > 0 && (content[removeStart - 1] == ' ' || content[removeStart - 1] == '\t'))
+            {
+                --removeStart;
+            }
+            // Extend forward to consume trailing newline
+            if (removeEnd < content.size() && content[removeEnd] == '\n') ++removeEnd;
+
+            content.erase(removeStart, removeEnd - removeStart);
+            found = true;
+            break;
+        }
+
+        searchPos = tagEnd + 2;
+    }
+
+    if (!found)
     {
         std::cerr << "Package '" << name << "' not found in .mtproj\n";
         return;
-    }
-
-    // Find the whole <Package .../> line
-    size_t lineStart = content.rfind('<', pos);
-    size_t lineEnd = content.find("/>", pos);
-    if (lineStart != std::string::npos && lineEnd != std::string::npos)
-    {
-        lineEnd += 2;
-        // Remove trailing newline if present
-        if (lineEnd < content.size() && content[lineEnd] == '\n') ++lineEnd;
-        content.erase(lineStart, lineEnd - lineStart);
     }
 
     std::ofstream outFile(mtprojPath);

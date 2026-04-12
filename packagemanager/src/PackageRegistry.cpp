@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <iterator>
 #include <stdexcept>
 #include <cstdlib>  // _dupenv_s on Windows, getenv on POSIX
 
@@ -121,35 +122,21 @@ namespace packagemanager
 
     std::vector<SemVer> PackageRegistry::getAvailableVersionsWithFetch(const std::string& packageName)
     {
-        // First check local cache
         auto localVersions = getAvailableVersions(packageName);
 
-        // If we have a git source and no local versions, query remote
         auto it = gitSources.find(packageName);
         if (it != gitSources.end())
         {
             std::string cloneUrl = GitSource::toCloneUrl(it->second);
             auto remoteTags = GitSource::listRemoteTags(cloneUrl);
 
-            // Merge: add remote versions not already cached locally
-            for (const auto& remoteVer : remoteTags)
-            {
-                bool alreadyCached = false;
-                for (const auto& localVer : localVersions)
-                {
-                    if (localVer == remoteVer)
-                    {
-                        alreadyCached = true;
-                        break;
-                    }
-                }
-                if (!alreadyCached)
-                {
-                    localVersions.push_back(remoteVer);
-                }
-            }
-
-            std::sort(localVersions.begin(), localVersions.end());
+            // Both lists are already sorted — merge with set_union (O(n log n) total)
+            std::vector<SemVer> merged;
+            merged.reserve(localVersions.size() + remoteTags.size());
+            std::set_union(localVersions.begin(), localVersions.end(),
+                           remoteTags.begin(), remoteTags.end(),
+                           std::back_inserter(merged));
+            return merged;
         }
 
         return localVersions;

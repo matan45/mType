@@ -1,6 +1,7 @@
 #pragma once
 #include "WorkspaceConfig.hpp"
 #include "ProjectConfigParser.hpp"
+#include "ProjectDiscovery.hpp"
 #include "XmlParser.hpp"
 #include <memory>
 #include <optional>

@@ -80,6 +80,10 @@ namespace project
         void configureImportManager(services::ImportManager& importManager,
                                     const ProjectConfig& config);
 
+        // Merge workspace aliases with project aliases (project takes priority)
+        std::unordered_map<std::string, std::string> buildMergedAliases(
+            const ProjectConfig& config) const;
+
         void reportProgress(size_t current, size_t total, const std::string& file);
     };
 }
