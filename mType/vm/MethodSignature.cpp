@@ -15,12 +15,24 @@ namespace vm {
         std::string name = method->getName();
         std::vector<std::string> paramTypes;
 
-        // Use unifiedParameters which does NOT include 'this' for instance methods
+        // Use unifiedParameters which does NOT include 'this' for instance methods.
+        // For bytecode-deserialized methods unifiedParameters is empty — fall back
+        // to the regular parameter list, skipping the prepended 'this'.
         const auto& uParams = method->getUnifiedParameters();
-        paramTypes.reserve(uParams.size());
-
-        for (const auto& param : uParams) {
-            paramTypes.push_back(param.second ? param.second->toString() : "void");
+        if (!uParams.empty())
+        {
+            paramTypes.reserve(uParams.size());
+            for (const auto& param : uParams) {
+                paramTypes.push_back(param.second ? param.second->toString() : "void");
+            }
+        }
+        else
+        {
+            const auto& params = method->getParameters();
+            for (const auto& [pname, ptype] : params) {
+                if (pname == "this") continue;
+                paramTypes.push_back(ptype.toString());
+            }
         }
 
         return MethodSignature(name, paramTypes);

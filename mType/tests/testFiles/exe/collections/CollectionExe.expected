@@ -4,8 +4,8 @@ ArrayList contents:
   10
   20
   30
-HashSet size: 3
-HashSet contains x: false
+HashSet size: 2
+HashSet contains x: true
 Stack peek: 300
 Stack pop: 300
 Stack size after pop: 2

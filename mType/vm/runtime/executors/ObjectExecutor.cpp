@@ -543,6 +543,25 @@ namespace vm::runtime
         }
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
+
+        // Fallback: generic type erasure may produce a mangled name like
+        // "String::equals/object" when the compiled function is "String::equals/String".
+        // Search by class::method prefix to find the correct overload.
+        if (!funcMetadata)
+        {
+            std::string prefix = definingClassName + "::" + simpleMethodName;
+            for (const auto& [fname, fmeta] : context.program->getFunctions())
+            {
+                if (fname.rfind(prefix, 0) == 0 &&
+                    (fname.size() == prefix.size() || fname[prefix.size()] == '/'))
+                {
+                    funcMetadata = &fmeta;
+                    qualifiedName = fname;
+                    break;
+                }
+            }
+        }
+
         if (!funcMetadata && (simpleMethodName == "toString" || simpleMethodName == "equals" ||
                               simpleMethodName == "hashCode" || simpleMethodName == "getClass")) {
             // Native Object method fallback — when no bytecode exists for an Object method,

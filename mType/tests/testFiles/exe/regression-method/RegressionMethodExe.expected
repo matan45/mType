@@ -2,8 +2,8 @@ PASS: ArrayList size = 3
 PASS: get(1) = 20
 PASS: Stack peek = 200
 PASS: Stack size = 2
-PASS: iteration:
-  10
-  20
-  30
+PASS: HashSet size = 2
+PASS: contains a = true
+PASS: HashMap size = 2
+PASS: get key1 = 100
 Regression method test passed
