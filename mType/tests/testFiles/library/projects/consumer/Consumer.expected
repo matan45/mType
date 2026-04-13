@@ -1,0 +1,10 @@
+max(3,7) = 7
+min(3,7) = 3
+abs(-5) = 5
+clamp(15,0,10) = 10
+Vector add: Vector2(4.0, 6.0)
+Dot product: 11.0
+Circle: Circle with area 78.5
+Rectangle: Rectangle with area 24.0
+Polymorphic: Circle with area 78.5
+Consumer test passed
