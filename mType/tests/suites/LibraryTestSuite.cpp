@@ -661,6 +661,98 @@ namespace tests::testSuite
                 fs::remove(libPath);
                 fs::remove_all(outputDir);
             });
+
+        addCallbackTest("Import with alias registers under alias name",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // Build MathLib
+                std::string mtprojPath = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser parser;
+                auto config = parser.parse(mtprojPath);
+
+                fs::path outputDir = fs::path(config->projectRoot) / config->output.directory;
+                fs::create_directories(outputDir);
+                std::string libPath = (outputDir / (config->name + ".mtcLib")).string();
+
+                project::ProjectBuilder builder;
+                auto result = builder.buildLibrary(*config, libPath);
+                require(result.success, "Build failed");
+
+                std::ifstream inFile(libPath, std::ios::binary);
+                auto lib = project::mtclib::MtcLibSerializer::deserialize(inFile);
+                inFile.close();
+
+                // Register with aliases: Vector2 as Vec2, MathUtils as Math
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+
+                std::unordered_map<std::string, std::string> aliases = {
+                    {"Vector2", "Vec2"},
+                    {"MathUtils", "Math"}
+                };
+
+                project::mtclib::LibrarySymbolProvider::registerLibrarySymbols(
+                    lib, env, {"Vector2", "MathUtils"}, aliases);
+
+                // Should be registered under alias names
+                require(env->findClass("Vec2") != nullptr, "Vec2 (alias for Vector2) should be registered");
+                require(env->findClass("Math") != nullptr, "Math (alias for MathUtils) should be registered");
+
+                // Original names should NOT be registered
+                require(env->findClass("Vector2") == nullptr, "Vector2 should NOT be registered (aliased to Vec2)");
+                require(env->findClass("MathUtils") == nullptr, "MathUtils should NOT be registered (aliased to Math)");
+
+                // Cleanup
+                fs::remove(libPath);
+                fs::remove_all(outputDir);
+            });
+
+        addCallbackTest("Alias resolves name collision between two libraries",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // Build MathLib twice (simulating two different libs with same class names)
+                std::string mtprojPath = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser parser;
+                auto config = parser.parse(mtprojPath);
+
+                fs::path outputDir = fs::path(config->projectRoot) / config->output.directory;
+                fs::create_directories(outputDir);
+                std::string libPath = (outputDir / (config->name + ".mtcLib")).string();
+
+                project::ProjectBuilder builder;
+                auto result = builder.buildLibrary(*config, libPath);
+                require(result.success, "Build failed");
+
+                std::ifstream inFile(libPath, std::ios::binary);
+                auto lib = project::mtclib::MtcLibSerializer::deserialize(inFile);
+                inFile.close();
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+
+                // First import: Vector2 as MathVector
+                project::mtclib::LibrarySymbolProvider::registerLibrarySymbols(
+                    lib, env, {"Vector2"}, {{"Vector2", "MathVector"}});
+
+                // Second import of same lib: Vector2 as PhysicsVector (no collision!)
+                project::mtclib::LibrarySymbolProvider::registerLibrarySymbols(
+                    lib, env, {"Vector2"}, {{"Vector2", "PhysicsVector"}});
+
+                // Both aliases should exist
+                require(env->findClass("MathVector") != nullptr, "MathVector should be registered");
+                require(env->findClass("PhysicsVector") != nullptr, "PhysicsVector should be registered");
+
+                // Original name should NOT exist
+                require(env->findClass("Vector2") == nullptr, "Vector2 original should NOT be registered");
+
+                // Cleanup
+                fs::remove(libPath);
+                fs::remove_all(outputDir);
+            });
     }
 
     // =========================================================================

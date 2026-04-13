@@ -205,6 +205,7 @@ namespace vm::compiler
         void registerClassesForBytecode(ast::ASTNode* node);
         void linkParentClasses(ast::ASTNode* node);
         void extractInterfaceMetadata(ast::ASTNode* node);
+        void applyImportAliases(ast::ASTNode* node);
     };
 }
 

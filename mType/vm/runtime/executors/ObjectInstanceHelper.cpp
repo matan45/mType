@@ -695,8 +695,11 @@ namespace vm::runtime
         // Normal object creation path (non-cached or cache miss)
         auto instance = createObjectInstance(baseClassName, genericTypeBindings);
 
-        // Invoke constructor
-        invokeConstructor(instance, baseClassName, args);
+        // Invoke constructor using the class definition's actual name
+        // (handles aliases: "MyInt" resolves to same ClassDef as "Int",
+        //  but constructor bytecode is registered under "Int::<init>")
+        std::string actualClassName = instance->getClassDefinition()->getName();
+        invokeConstructor(instance, actualClassName, args);
     }
 
     std::string ObjectInstanceHelper::getCurrentClassName() {

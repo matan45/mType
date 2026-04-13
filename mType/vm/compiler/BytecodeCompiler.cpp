@@ -1,6 +1,7 @@
 #include "BytecodeCompiler.hpp"
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include <unordered_set>
+#include <fstream>
 #include "../../ast/nodes/statements/ImportNode.hpp"
 #include "../../services/ImportManager.hpp"
 #include "../../environment/registry/ExportRegistry.hpp"
@@ -348,7 +349,15 @@ namespace vm::compiler
     {
         // Register interfaces FIRST, then classes can validate against them
         interfaceRegistrar.registerInterfaces(node);
+
+        // Apply aliases after interfaces registered (so "implements Cmp" works)
+        applyImportAliases(node);
+
+        // Register classes (may reference aliased interfaces)
         classRegistrar.registerClasses(node);
+
+        // Apply aliases again after classes registered (so "MyInt" class alias works)
+        applyImportAliases(node);
 
         // Extract interface metadata for bytecode serialization
         extractInterfaceMetadata(node);
@@ -431,6 +440,61 @@ namespace vm::compiler
     {
         // Delegate to ClassRegistrar
         classRegistrar.linkParentClasses(node);
+    }
+
+    void BytecodeCompiler::applyImportAliases(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            if ((importNode->isSelective() || importNode->isLibrarySelective())
+                && !importNode->getSymbolAliases().empty())
+            {
+                auto classRegistry = environment->getClassRegistry();
+                auto ifaceRegistry = environment->getInterfaceRegistry();
+                auto funcRegistry = environment->getFunctionRegistry();
+
+                for (const auto& [original, alias] : importNode->getSymbolAliases()) {
+                    // Register alias as additional name (keep original for bytecode lookup)
+                    if (classRegistry) {
+                        auto classDef = classRegistry->findClass(original);
+                        if (classDef) {
+                            classRegistry->registerClass(alias, classDef);
+                        }
+                    }
+                    if (ifaceRegistry && ifaceRegistry->hasInterface(original)) {
+                        auto ifaceDef = ifaceRegistry->findInterface(original);
+                        if (ifaceDef) {
+                            ifaceRegistry->registerInterface(alias, ifaceDef);
+                        }
+                    }
+                    if (funcRegistry && funcRegistry->hasFunction(original)) {
+                        auto funcDef = funcRegistry->findFunction(original);
+                        if (funcDef) {
+                            funcRegistry->registerFunction(alias, funcDef);
+                        }
+                    }
+                }
+            }
+
+            // Recurse into imported AST
+            if (importNode->isResolved() && importNode->getImportedAST()) {
+                applyImportAliases(importNode->getImportedAST());
+            }
+            return;
+        }
+
+        // Recurse into child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node)) {
+            for (const auto& stmt : programNode->getStatements()) {
+                applyImportAliases(stmt.get());
+            }
+        } else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node)) {
+            for (const auto& stmt : blockNode->getStatements()) {
+                applyImportAliases(stmt.get());
+            }
+        }
     }
 
     // ==================== AST Visitor Implementations (all delegated) ====================
@@ -787,6 +851,31 @@ namespace vm::compiler
             // Compile the imported file to generate bytecode for functions and methods
             // This will register all functions/methods in the BytecodeProgram
             importedAST->accept(*this);
+
+            // Register bytecode function aliases for constructors/methods
+            // Must happen AFTER compilation (importedAST->accept) so constructors exist
+            if ((node->isSelective() || node->isLibrarySelective())
+                && !node->getSymbolAliases().empty())
+            {
+                for (const auto& [original, alias] : node->getSymbolAliases()) {
+                    std::string origPrefix = original + "::";
+                    std::string aliasPrefix = alias + "::";
+                    // Collect names first to avoid modifying map during iteration
+                    std::vector<std::pair<std::string, bytecode::BytecodeProgram::FunctionMetadata>> toAdd;
+                    for (const auto& [funcName, funcMeta] : program.getFunctions()) {
+                        if (funcName.size() > origPrefix.size() &&
+                            funcName.substr(0, origPrefix.size()) == origPrefix) {
+                            std::string aliasedName = aliasPrefix + funcName.substr(origPrefix.size());
+                            if (!program.getFunction(aliasedName)) {
+                                toAdd.emplace_back(aliasedName, funcMeta);
+                            }
+                        }
+                    }
+                    for (auto& [name, meta] : toAdd) {
+                        program.registerFunction(name, meta);
+                    }
+                }
+            }
 
             // Note: Global variables from imported files are registered in globalRegistry during compilation
             // and persist across file boundaries (see GlobalVariableRegistry::removeVariablesOutOfScope)

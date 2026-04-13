@@ -50,21 +50,31 @@ namespace project::mtclib
         std::shared_ptr<environment::Environment> environment,
         const std::vector<std::string>& selectedSymbols)
     {
+        registerLibrarySymbols(library, environment, selectedSymbols, {});
+    }
+
+    void LibrarySymbolProvider::registerLibrarySymbols(
+        const MtcLibProgram& library,
+        std::shared_ptr<environment::Environment> environment,
+        const std::vector<std::string>& selectedSymbols,
+        const std::unordered_map<std::string, std::string>& aliases)
+    {
         const auto& program = library.bytecodeProgram;
 
         // Build filter set (empty = allow all)
         std::unordered_set<std::string> filter(selectedSymbols.begin(), selectedSymbols.end());
 
         // Register in order: interfaces first (classes may implement them)
-        registerInterfaceStubs(program, environment, filter);
-        registerClassStubs(program, environment, filter);
-        registerFunctionStubs(program, environment, filter);
+        registerInterfaceStubs(program, environment, filter, aliases);
+        registerClassStubs(program, environment, filter, aliases);
+        registerFunctionStubs(program, environment, filter, aliases);
     }
 
     void LibrarySymbolProvider::registerClassStubs(
         const vm::bytecode::BytecodeProgram& program,
         std::shared_ptr<environment::Environment> environment,
-        const std::unordered_set<std::string>& filter)
+        const std::unordered_set<std::string>& filter,
+        const std::unordered_map<std::string, std::string>& aliases)
     {
         using namespace runtimeTypes::klass;
 
@@ -176,8 +186,12 @@ namespace project::mtclib
                 classDef->addConstructor(ctorDef);
             }
 
+            // Resolve alias: register under alias name if provided
+            auto aliasIt = aliases.find(classMeta.name);
+            std::string registrationName = (aliasIt != aliases.end()) ? aliasIt->second : classMeta.name;
+
             classMap[classMeta.name] = classDef;
-            classRegistry->registerClass(classMeta.name, classDef);
+            classRegistry->registerClass(registrationName, classDef);
         }
 
         // === Pass 2: Link parent classes ===
@@ -206,7 +220,8 @@ namespace project::mtclib
     void LibrarySymbolProvider::registerInterfaceStubs(
         const vm::bytecode::BytecodeProgram& program,
         std::shared_ptr<environment::Environment> environment,
-        const std::unordered_set<std::string>& filter)
+        const std::unordered_set<std::string>& filter,
+        const std::unordered_map<std::string, std::string>& aliases)
     {
         auto interfaceRegistry = environment->getInterfaceRegistry();
         if (!interfaceRegistry) return;
@@ -242,14 +257,17 @@ namespace project::mtclib
                 interfaceDef->addMethodSignature(sig);
             }
 
-            interfaceRegistry->registerInterface(ifaceMeta.name, interfaceDef);
+            auto ifaceAliasIt = aliases.find(ifaceMeta.name);
+            std::string ifaceRegName = (ifaceAliasIt != aliases.end()) ? ifaceAliasIt->second : ifaceMeta.name;
+            interfaceRegistry->registerInterface(ifaceRegName, interfaceDef);
         }
     }
 
     void LibrarySymbolProvider::registerFunctionStubs(
         const vm::bytecode::BytecodeProgram& program,
         std::shared_ptr<environment::Environment> environment,
-        const std::unordered_set<std::string>& filter)
+        const std::unordered_set<std::string>& filter,
+        const std::unordered_map<std::string, std::string>& aliases)
     {
         auto functionRegistry = environment->getFunctionRegistry();
         if (!functionRegistry) return;
@@ -284,7 +302,9 @@ namespace project::mtclib
                 funcDef->setGenericTypeParameters(genParams);
             }
 
-            functionRegistry->registerFunction(name, funcDef);
+            auto funcAliasIt = aliases.find(name);
+            std::string funcRegName = (funcAliasIt != aliases.end()) ? funcAliasIt->second : name;
+            functionRegistry->registerFunction(funcRegName, funcDef);
         }
     }
 }

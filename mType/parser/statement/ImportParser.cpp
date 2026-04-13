@@ -62,8 +62,9 @@ namespace parser::statement
         expectToken(TokenType::LBRACE); // {
 
         std::vector<std::string> symbols;
+        std::unordered_map<std::string, std::string> aliases;  // original -> alias
 
-        // Parse symbol list: A, B, C
+        // Parse symbol list: A, B, C  or  A as X, B as Y
         while (!tokenStream.check(TokenType::RBRACE))
         {
             if (!tokenStream.check(TokenType::IDENTIFIER))
@@ -80,13 +81,30 @@ namespace parser::statement
             symbols.push_back(symbolName);
             tokenStream.advance();
 
+            // Check for "as" alias: import {MyClass as Alias} from "file.mt"
+            if (tokenStream.check(TokenType::IDENTIFIER) &&
+                std::string(tokenStream.current().stringValue.getString()) == std::string("as"))
+            {
+                tokenStream.advance(); // consume "as"
+
+                if (!tokenStream.check(TokenType::IDENTIFIER))
+                {
+                    throw ParseException("Expected alias name after 'as'", tokenStream.current().location);
+                }
+
+                std::string aliasName = tokenStream.current().stringValue.getString();
+                ParserUtils::validateIdentifierName(aliasName, "Import alias", tokenStream.current().location);
+                aliases[symbolName] = aliasName;
+                tokenStream.advance();
+            }
+
             if (tokenStream.check(TokenType::COMMA))
             {
                 tokenStream.advance(); // consume comma
             }
             else if (!tokenStream.check(TokenType::RBRACE))
             {
-                throw ParseException("Expected ',' or '}' in import list", tokenStream.current().location);
+                throw ParseException("Expected ',', 'as', or '}' in import list", tokenStream.current().location);
             }
         }
 
@@ -114,7 +132,11 @@ namespace parser::statement
         expectToken(TokenType::SEMICOLON);
 
         // Create selective import node
-        return std::make_unique<ImportNode>(filePath, ImportType::SELECTIVE, symbols, loc);
+        auto node = std::make_unique<ImportNode>(filePath, ImportType::SELECTIVE, symbols, loc);
+        for (const auto& [original, alias] : aliases) {
+            node->addSymbolAlias(original, alias);
+        }
+        return node;
     }
 
     std::unique_ptr<ASTNode> ImportParser::parseWildcardImport(const SourceLocation& loc)
@@ -147,6 +169,8 @@ namespace parser::statement
             expectToken(TokenType::LBRACE);
 
             std::vector<std::string> symbols;
+            std::unordered_map<std::string, std::string> aliases;  // original -> alias
+
             while (!tokenStream.check(TokenType::RBRACE))
             {
                 if (!tokenStream.check(TokenType::IDENTIFIER))
@@ -160,13 +184,30 @@ namespace parser::statement
                 symbols.push_back(symbolName);
                 tokenStream.advance();
 
+                // Check for "as" alias: import lib {Vector2 as Vec2} from "lib"
+                if (tokenStream.check(TokenType::IDENTIFIER) &&
+                    tokenStream.current().stringValue.getString() == "as")
+                {
+                    tokenStream.advance(); // consume "as"
+
+                    if (!tokenStream.check(TokenType::IDENTIFIER))
+                    {
+                        throw ParseException("Expected alias name after 'as'", tokenStream.current().location);
+                    }
+
+                    std::string aliasName = tokenStream.current().stringValue.getString();
+                    ParserUtils::validateIdentifierName(aliasName, "Import alias", tokenStream.current().location);
+                    aliases[symbolName] = aliasName;
+                    tokenStream.advance();
+                }
+
                 if (tokenStream.check(TokenType::COMMA))
                 {
                     tokenStream.advance();
                 }
                 else if (!tokenStream.check(TokenType::RBRACE))
                 {
-                    throw ParseException("Expected ',' or '}' in library import list", tokenStream.current().location);
+                    throw ParseException("Expected ',', 'as', or '}' in library import list", tokenStream.current().location);
                 }
             }
 
@@ -196,6 +237,9 @@ namespace parser::statement
 
             auto node = std::make_unique<ImportNode>(libraryName, ImportType::LIBRARY_SELECTIVE, symbols, loc);
             node->setLibraryName(libraryName);
+            for (const auto& [original, alias] : aliases) {
+                node->addSymbolAlias(original, alias);
+            }
             return node;
         }
 

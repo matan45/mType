@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <unordered_map>
 #include <filesystem>
 
 namespace ast::nodes::statements
@@ -24,6 +25,7 @@ namespace ast::nodes::statements
         std::string filePath;
         ImportType importType;
         std::vector<std::string> importedSymbols;  // For selective imports
+        std::unordered_map<std::string, std::string> symbolAliases;  // original -> alias (for "X as Y")
         std::string libraryName;  // For library imports (LIBRARY, LIBRARY_SELECTIVE)
         ASTNode* importedAST; // Non-owning reference to cached AST in ImportManager
         std::vector<std::unique_ptr<ASTNode>> importedDeclarations; // Extracted declarations
@@ -52,6 +54,9 @@ namespace ast::nodes::statements
 
         const std::string& getLibraryName() const;
         void setLibraryName(const std::string& name);
+
+        const std::unordered_map<std::string, std::string>& getSymbolAliases() const;
+        void addSymbolAlias(const std::string& original, const std::string& alias);
 
         ASTNode* getImportedAST() const;
         const std::vector<std::unique_ptr<ASTNode>>& getImportedDeclarations() const;

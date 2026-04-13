@@ -71,6 +71,16 @@ namespace ast::nodes::statements
         libraryName = name;
     }
 
+    const std::unordered_map<std::string, std::string>& ImportNode::getSymbolAliases() const
+    {
+        return symbolAliases;
+    }
+
+    void ImportNode::addSymbolAlias(const std::string& original, const std::string& alias)
+    {
+        symbolAliases[original] = alias;
+    }
+
     ASTNode* ImportNode::getImportedAST() const
     {
         return importedAST;
@@ -139,6 +149,12 @@ namespace ast::nodes::statements
 
         // Set the imported AST (non-owning pointer, just copy)
         clonedImport->setImportedAST(importedAST);
+
+        // Copy library name and symbol aliases
+        clonedImport->setLibraryName(libraryName);
+        for (const auto& [original, alias] : symbolAliases) {
+            clonedImport->addSymbolAlias(original, alias);
+        }
 
         // Move cloned declarations
         for (auto& decl : clonedDeclarations) {
