@@ -3,7 +3,6 @@
 #include "../../../errors/ParseException.hpp"
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
-#include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
@@ -616,18 +615,10 @@ namespace vm::compiler::visitors
             if (auto* defaultCase = dynamic_cast<ast::DefaultCaseNode*>(cases[i].get())) {
                 for (const auto& stmt : defaultCase->getStatements()) {
                     stmt->accept(ctx.visitor);  // Will need delegation
-                    // Pop unused return values from function call expression statements
-                    if (dynamic_cast<ast::nodes::functions::FunctionCallNode*>(stmt.get())) {
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::POP, stmt.get());
-                    }
                 }
             } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get())) {
                 for (const auto& stmt : regularCase->getStatements()) {
                     stmt->accept(ctx.visitor);  // Will need delegation
-                    // Pop unused return values from function call expression statements
-                    if (dynamic_cast<ast::nodes::functions::FunctionCallNode*>(stmt.get())) {
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::POP, stmt.get());
-                    }
                 }
             }
         }
