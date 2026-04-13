@@ -197,8 +197,12 @@ if (conditionalPerson != null && conditionalPerson.address != null) {
 }
 
 Person? conditionalNull = null;
-if (conditionalNull != null && conditionalNull.address != null) {
-    print("Has address: " + conditionalNull.address.city);
+if (conditionalNull != null) {
+    if (conditionalNull.address != null) {
+        print("Has address: " + conditionalNull.address.city);
+    } else {
+        print("No address available");
+    }
 } else {
     print("No address available");
 }
