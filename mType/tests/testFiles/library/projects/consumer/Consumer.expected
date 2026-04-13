@@ -7,4 +7,16 @@ Dot product: 11.0
 Circle: Circle with area 78.5
 Rectangle: Rectangle with area 24.0
 Polymorphic: Circle with area 78.5
+Container<Int>: 42
+Container<String>: hello
+Updated container: 99
+10 / 2 = 5
+Caught: Division by zero
+Caught: Cannot compute square root of negative number
+Class name: Vector2
+Field count: 2
+Method count: 4
+Is Circle: true
+Is Shape: true
+Cast radius: 3.0
 Consumer test passed

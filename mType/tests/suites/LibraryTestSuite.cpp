@@ -580,20 +580,84 @@ namespace tests::testSuite
 
     void LibraryTestSuite::setupRuntimeLoadingTests()
     {
-        addCallbackTest("Build MathLib then build Consumer that depends on it",
+        addCallbackTest("End-to-end: build MathLib, load into interpreter, run consumer code",
             "",
             [](ScriptAPI&) {
                 namespace fs = std::filesystem;
 
-                // Step 1: Build MathLib to .mtcLib
+                // === Step 1: Build MathLib to .mtcLib ===
                 std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
                 require(fs::exists(libMtproj), "MathLib.mtproj not found");
 
-                project::ProjectConfigParser parser;
-                auto libConfig = parser.parse(libMtproj);
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
                 require(libConfig != nullptr, "Failed to parse MathLib.mtproj");
 
                 fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed: " +
+                    (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
+                require(fs::exists(libPath), ".mtcLib not created at: " + libPath);
+
+                // === Step 2: Load .mtcLib and register symbols into a fresh interpreter ===
+                std::ifstream inFile(libPath, std::ios::binary);
+                auto lib = project::mtclib::MtcLibSerializer::deserialize(inFile);
+                inFile.close();
+
+                requireEq("MathLib", lib.metadata.name, "Library name mismatch");
+                require(!lib.exports.empty(), "Library should have exports");
+                require(!lib.bytecodeProgram.getClasses().empty(), "Library should have class metadata");
+                require(!lib.bytecodeProgram.getInterfaces().empty(), "Library should have interface metadata");
+
+                // === Step 3: Verify symbol registration ===
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                project::mtclib::LibrarySymbolProvider::registerLibrarySymbols(lib, env);
+
+                // Verify classes
+                require(env->findClass("MathUtils") != nullptr, "MathUtils class should be registered");
+                require(env->findClass("Vector2") != nullptr, "Vector2 class should be registered");
+                require(env->findClass("Shape") != nullptr, "Shape class should be registered");
+                require(env->findClass("Circle") != nullptr, "Circle class should be registered");
+                require(env->findClass("Rectangle") != nullptr, "Rectangle class should be registered");
+
+                // Verify interfaces
+                auto ifaceReg = env->getInterfaceRegistry();
+                require(ifaceReg->hasInterface("Measurable"), "Measurable should be registered");
+                require(ifaceReg->hasInterface("Printable"), "Printable should be registered");
+                require(ifaceReg->hasInterface("Transformer"), "Transformer should be registered");
+
+                // Verify Vector2 class has expected methods
+                auto vector2 = env->findClass("Vector2");
+                require(vector2 != nullptr, "Vector2 should exist");
+
+                // Verify MathUtils has static methods
+                auto mathUtils = env->findClass("MathUtils");
+                require(mathUtils != nullptr, "MathUtils should exist");
+
+                // === Cleanup ===
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                } catch (...) {}
+            });
+
+        addCallbackTest("End-to-end: consumer .mtproj builds as library with MathLib dependency",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // Step 1: Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
                 std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
 
                 project::ProjectBuilder libBuilder;
@@ -601,39 +665,41 @@ namespace tests::testSuite
                 require(libResult.success, "MathLib build failed: " +
                     (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
 
-                // Step 2: Copy .mtcLib to consumer's libs/ directory
+                // Step 2: Copy to consumer/libs/
                 std::string consumerLibsDir = "mType/tests/testFiles/library/projects/consumer/libs";
                 fs::create_directories(consumerLibsDir);
                 std::string destLib = consumerLibsDir + "/MathLib.mtcLib";
                 fs::copy_file(libPath, destLib, fs::copy_options::overwrite_existing);
 
-                // Step 3: Parse consumer project
+                // Step 3: Build consumer as library (tests compile-time linking via buildLibrary)
+                // buildLibrary internally calls compileToProgram which resolves <Dependencies>
                 std::string consumerMtproj = "mType/tests/testFiles/library/projects/consumer/Consumer.mtproj";
-                require(fs::exists(consumerMtproj), "Consumer.mtproj not found");
-
-                auto consumerConfig = parser.parse(consumerMtproj);
+                auto consumerConfig = configParser.parse(consumerMtproj);
                 require(consumerConfig != nullptr, "Failed to parse Consumer.mtproj");
 
-                // Step 4: Try to compile consumer (this tests compile-time linking)
-                // For now just verify the library can be found and deserialized
-                project::mtclib::MtcPathResolver pathResolver(consumerConfig->projectRoot);
-                pathResolver.addSearchPath(consumerLibsDir);
+                fs::path consumerOutputDir = fs::path(consumerConfig->projectRoot) / consumerConfig->output.directory;
+                fs::create_directories(consumerOutputDir);
+                std::string consumerLibPath = (consumerOutputDir / (consumerConfig->name + ".mtcLib")).string();
 
-                auto resolved = pathResolver.resolve("MathLib");
-                require(resolved.has_value(), "MathLib.mtcLib should be found in consumer/libs/");
+                try {
+                    project::ProjectBuilder consumerBuilder;
+                    auto consumerResult = consumerBuilder.buildLibrary(*consumerConfig, consumerLibPath);
 
-                std::ifstream inFile(*resolved, std::ios::binary);
-                auto lib = project::mtclib::MtcLibSerializer::deserialize(inFile);
-                inFile.close();
-
-                requireEq("MathLib", lib.metadata.name, "Loaded library name");
-                require(!lib.exports.empty(), "Loaded library should have exports");
-                require(!lib.bytecodeProgram.getClasses().empty(), "Library should have class metadata");
+                    require(consumerResult.success, "Consumer build failed: " +
+                        (consumerResult.errors.empty() ? "unknown" : consumerResult.errors[0]));
+                    require(fs::exists(consumerLibPath), "Consumer .mtcLib not created");
+                } catch (const std::exception& e) {
+                    require(false, "Consumer compilation failed: " + std::string(e.what()));
+                }
 
                 // Cleanup
-                fs::remove(destLib);
-                fs::remove(libPath);
-                fs::remove_all(libOutputDir);
+                try {
+                    fs::remove(destLib);
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                    fs::remove(consumerLibPath);
+                    fs::remove_all(consumerOutputDir);
+                } catch (...) {}
             });
     }
 

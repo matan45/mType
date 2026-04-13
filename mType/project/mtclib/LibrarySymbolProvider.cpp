@@ -14,6 +14,29 @@
 
 namespace project::mtclib
 {
+    namespace
+    {
+        value::ParameterType stringToParameterType(const std::string& typeName)
+        {
+            if (typeName == "int") return value::ParameterType(value::ValueType::INT);
+            if (typeName == "float") return value::ParameterType(value::ValueType::FLOAT);
+            if (typeName == "bool") return value::ParameterType(value::ValueType::BOOL);
+            if (typeName == "string") return value::ParameterType(value::ValueType::STRING);
+            if (typeName == "void") return value::ParameterType(value::ValueType::VOID);
+            return value::ParameterType::forClass(typeName);
+        }
+
+        value::ValueType stringToValueType(const std::string& typeName)
+        {
+            if (typeName == "int") return value::ValueType::INT;
+            if (typeName == "float") return value::ValueType::FLOAT;
+            if (typeName == "bool") return value::ValueType::BOOL;
+            if (typeName == "string") return value::ValueType::STRING;
+            if (typeName == "void") return value::ValueType::VOID;
+            return value::ValueType::OBJECT;
+        }
+    }
+
     void LibrarySymbolProvider::registerLibrarySymbols(
         const MtcLibProgram& library,
         std::shared_ptr<environment::Environment> environment)
@@ -35,6 +58,10 @@ namespace project::mtclib
         auto classRegistry = environment->getClassRegistry();
         if (!classRegistry) return;
 
+        // Two-pass approach: first create all stubs, then link parent classes
+        std::unordered_map<std::string, std::shared_ptr<ClassDefinition>> classMap;
+
+        // === Pass 1: Create all ClassDefinition stubs ===
         for (const auto& classMeta : program.getClasses()) {
             // Skip if already registered
             if (classRegistry->findClass(classMeta.name)) continue;
@@ -84,12 +111,12 @@ namespace project::mtclib
             // Add method stubs (no bytecode body — stubs only for type checking)
             auto addMethods = [&](const std::vector<vm::bytecode::BytecodeProgram::MethodMetadata>& methods, bool isStatic) {
                 for (const auto& methodMeta : methods) {
-                    // Build parameter list as ValueType pairs
+                    // Build parameter list with correct ValueType for primitives
                     std::vector<std::pair<std::string, value::ValueType>> params;
                     for (size_t i = 0; i < methodMeta.parameterTypes.size(); ++i) {
                         std::string pName = (i < methodMeta.parameterNames.size())
                             ? methodMeta.parameterNames[i] : "p" + std::to_string(i);
-                        params.emplace_back(pName, value::ValueType::OBJECT);
+                        params.emplace_back(pName, stringToValueType(methodMeta.parameterTypes[i]));
                     }
 
                     ast::AccessModifier access = methodMeta.isPrivate ? ast::AccessModifier::PRIVATE
@@ -97,7 +124,7 @@ namespace project::mtclib
 
                     auto methodDef = std::make_shared<MethodDefinition>(
                         methodMeta.name,
-                        value::ValueType::OBJECT,
+                        stringToValueType(methodMeta.returnType),
                         params,
                         nullptr,  // no body — stub only
                         isStatic,
@@ -119,14 +146,37 @@ namespace project::mtclib
                 for (size_t i = 0; i < ctorMeta.parameterTypes.size(); ++i) {
                     std::string pName = (i < ctorMeta.parameterNames.size())
                         ? ctorMeta.parameterNames[i] : "p" + std::to_string(i);
-                    params.emplace_back(pName, value::ParameterType::forClass(ctorMeta.parameterTypes[i]));
+                    params.emplace_back(pName, stringToParameterType(ctorMeta.parameterTypes[i]));
                 }
 
                 auto ctorDef = std::make_shared<ConstructorDefinition>(params, nullptr);
                 classDef->addConstructor(ctorDef);
             }
 
+            classMap[classMeta.name] = classDef;
             classRegistry->registerClass(classMeta.name, classDef);
+        }
+
+        // === Pass 2: Link parent classes ===
+        for (const auto& classMeta : program.getClasses()) {
+            if (classMeta.parentClassName.empty()) continue;
+
+            auto it = classMap.find(classMeta.name);
+            if (it == classMap.end()) continue;
+
+            auto& classDef = it->second;
+
+            // Try library-internal parent first
+            auto parentIt = classMap.find(classMeta.parentClassName);
+            if (parentIt != classMap.end()) {
+                classDef->setParentClass(parentIt->second);
+            } else {
+                // Fall back to environment (e.g., Object, Exception from stdlib)
+                auto parentDef = classRegistry->findClass(classMeta.parentClassName);
+                if (parentDef) {
+                    classDef->setParentClass(parentDef);
+                }
+            }
         }
     }
 
@@ -185,17 +235,17 @@ namespace project::mtclib
             // Skip if already registered
             if (functionRegistry->hasFunction(name)) continue;
 
-            // Build parameter list with ParameterType
+            // Build parameter list with correct ParameterType for primitives
             std::vector<std::pair<std::string, value::ParameterType>> params;
             for (size_t i = 0; i < funcMeta.parameterTypes.size(); ++i) {
                 std::string pName = (i < funcMeta.parameterNames.size())
                     ? funcMeta.parameterNames[i] : "p" + std::to_string(i);
-                params.emplace_back(pName, value::ParameterType::forClass(funcMeta.parameterTypes[i]));
+                params.emplace_back(pName, stringToParameterType(funcMeta.parameterTypes[i]));
             }
 
             // Create FunctionDefinition stub
             auto funcDef = std::make_shared<runtimeTypes::global::FunctionDefinition>(
-                name, value::ValueType::OBJECT, funcMeta.returnType, params);
+                name, stringToValueType(funcMeta.returnType), funcMeta.returnType, params);
             funcDef->setIsAsync(funcMeta.isAsync);
 
             // Set generic type parameters

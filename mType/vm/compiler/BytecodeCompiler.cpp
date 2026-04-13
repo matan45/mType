@@ -698,6 +698,11 @@ namespace vm::compiler
 
     value::Value BytecodeCompiler::visitImportNode(ast::ImportNode* node)
     {
+        // Library imports are resolved by LibraryLinker at project build time, not here
+        if (node->isLibraryImport()) {
+            return std::monostate{};
+        }
+
         // Handle imports at compile time
         std::string filePath = node->getFilePath();
 

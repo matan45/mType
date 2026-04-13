@@ -3,6 +3,9 @@
     <Include>src/**/*.mt</Include>
   </Source>
   <Output Directory="build" />
+  <Imports>
+    <SearchPath>../../../lib</SearchPath>
+  </Imports>
   <Dependencies>
     <Package Name="MathLib" Version="1.0.0" />
   </Dependencies>
