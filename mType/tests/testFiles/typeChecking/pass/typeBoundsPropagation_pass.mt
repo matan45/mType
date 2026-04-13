@@ -105,14 +105,14 @@ class Repository<T extends Identifiable, T extends Named> {
         count = count + 1;
     }
 
-    public function get(int index): T {
+    public function get(int index): T? {
         if (index >= 0 && index < count) {
             return wrappers[index].unwrap();
         }
         return null;
     }
 
-    public function findById(int searchId): T {
+    public function findById(int searchId): T? {
         int i = 0;
         while (i < count) {
             T item = wrappers[i].unwrap();
@@ -124,7 +124,7 @@ class Repository<T extends Identifiable, T extends Named> {
         return null;
     }
 
-    public function findByName(string searchName): T {
+    public function findByName(string searchName): T? {
         int i = 0;
         while (i < count) {
             T item = wrappers[i].unwrap();
@@ -168,12 +168,12 @@ function main(): void {
 
     print("Entity repository count: " + entityRepo.getCount());
 
-    Entity found1 = entityRepo.findById(1);
+    Entity? found1 = entityRepo.findById(1);
     if (found1 != null) {
         print("Found entity by ID 1: " + found1.describe());
     }
 
-    Entity found2 = entityRepo.findByName("Second Entity");
+    Entity? found2 = entityRepo.findByName("Second Entity");
     if (found2 != null) {
         print("Found entity by name: " + found2.describe());
     }
@@ -185,12 +185,12 @@ function main(): void {
 
     print("Document repository count: " + docRepo.getCount());
 
-    Document foundDoc = docRepo.findById(10);
+    Document? foundDoc = docRepo.findById(10);
     if (foundDoc != null) {
         print("Found document by ID 10: " + foundDoc.describe());
     }
 
-    Document foundDocByName = docRepo.findByName("Document B");
+    Document? foundDocByName = docRepo.findByName("Document B");
     if (foundDocByName != null) {
         print("Found document by name: " + foundDocByName.describe());
     }

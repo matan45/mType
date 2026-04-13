@@ -199,7 +199,6 @@ function async main(): Promise<void> {
 
     print("");
     print("Finally block test completed");
-    return null;
 }
 
 main();

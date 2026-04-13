@@ -14,7 +14,7 @@ class Address {
 
 class Person {
     string name;
-    Address address;
+    Address? address;
 
     constructor(string n) {
         name = n;
@@ -25,7 +25,7 @@ class Person {
         address = addr;
     }
 
-    public function getAddress(): Address {
+    public function getAddress(): Address? {
         return address;
     }
 

@@ -17,7 +17,7 @@ class Box<T> {
 
 // Test class: Container<T> with default value
 class Container<T> {
-    T data;
+    T? data;
 
     constructor() {
         // Null initialization for testing
@@ -28,26 +28,26 @@ class Container<T> {
         data = val;
     }
 
-    public function getData(): T {
+    public function getData(): T? {
         return data;
     }
 }
 
 // PHASE 3 TEST: Return type inference - type parameter only in return type
-function <T> createBox(): Box<T> {
+function <T> createBox(): Box<T>? {
     // For testing, we'll create empty box (would need default values in real impl)
     // This is just to test type inference works
     return null;  // Placeholder for test compilation
 }
 
 // PHASE 3 TEST: Return type inference with explicit parameter
-function <T> createBoxFrom(int dummy): Box<T> {
+function <T> createBoxFrom(int dummy): Box<T>? {
     // Parameter doesn't help with inference, only return type matters
     return null;  // Placeholder
 }
 
 // PHASE 3 TEST: Return type inference - Container
-function <T> createContainer(): Container<T> {
+function <T> createContainer(): Container<T>? {
     return null;  // Placeholder
 }
 
@@ -72,9 +72,9 @@ function <T> createContainer(): Container<T> {
 // Should infer T=Int
 
 // Currently these would work with explicit type arguments:
-Box<Int> explicitInt = createBox<Int>();
-Box<String> explicitString = createBox<String>();
-Container<Bool> explicitBool = createContainer<Bool>();
+Box<Int>? explicitInt = createBox<Int>();
+Box<String>? explicitString = createBox<String>();
+Container<Bool>? explicitBool = createContainer<Bool>();
 
 print("Return type inference compilation test passed!");
 print("Note: Actual return type inference from assignment requires Phase 3 integration");

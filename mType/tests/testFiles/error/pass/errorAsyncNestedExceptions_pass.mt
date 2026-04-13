@@ -133,7 +133,6 @@ function async main(): Promise<void> {
 
     print("");
     print("Nested exception test completed");
-    return null;
 }
 
 main();

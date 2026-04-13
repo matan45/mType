@@ -12,6 +12,7 @@ namespace value {
         ValueType basicType;                    // INT, FLOAT, BOOL, STRING, OBJECT, etc.
         std::optional<std::string> interfaceName;  // Interface name if basicType is OBJECT
         std::optional<std::string> className;      // Class name if basicType is OBJECT
+        bool nullable = false;                     // Whether this parameter accepts null
 
         // Default constructor for basic types
         explicit ParameterType(ValueType type)
@@ -61,34 +62,40 @@ namespace value {
             return className.value();
         }
 
+        // Fluent setter for nullable
+        ParameterType& withNullable(bool n) { nullable = n; return *this; }
+
         // Convert to string for error messages
         std::string toString() const {
+            std::string base;
             if (isInterface()) {
-                return interfaceName.value();
+                base = interfaceName.value();
             } else if (isClass()) {
-                return className.value();
+                base = className.value();
             } else {
-                // Return basic type name
                 switch (basicType) {
-                    case ValueType::INT: return "int";
-                    case ValueType::FLOAT: return "float";
-                    case ValueType::BOOL: return "bool";
-                    case ValueType::STRING: return "string";
-                    case ValueType::VOID: return "void";
-                    case ValueType::LAMBDA: return "lambda";
-                    case ValueType::NULL_TYPE: return "null";
-                    case ValueType::OBJECT: return "object";
-                    case ValueType::ARRAY: return "array";
-                    default: return "unknown";
+                    case ValueType::INT: base = "int"; break;
+                    case ValueType::FLOAT: base = "float"; break;
+                    case ValueType::BOOL: base = "bool"; break;
+                    case ValueType::STRING: base = "string"; break;
+                    case ValueType::VOID: base = "void"; break;
+                    case ValueType::LAMBDA: base = "lambda"; break;
+                    case ValueType::NULL_TYPE: base = "null"; break;
+                    case ValueType::OBJECT: base = "object"; break;
+                    case ValueType::ARRAY: base = "array"; break;
+                    default: base = "unknown"; break;
                 }
             }
+            if (nullable) base += "?";
+            return base;
         }
 
         // Equality comparison
         bool operator==(const ParameterType& other) const {
             return basicType == other.basicType &&
                    interfaceName == other.interfaceName &&
-                   className == other.className;
+                   className == other.className &&
+                   nullable == other.nullable;
         }
 
         // Implicit conversion to ValueType for backward compatibility

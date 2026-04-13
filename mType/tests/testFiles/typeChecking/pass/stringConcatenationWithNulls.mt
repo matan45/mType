@@ -34,7 +34,7 @@ print("Complex null concatenation: " + result3);
 
 // Test 3: Null object concatenation in conditional expressions
 bool useNull = true;
-TestObject obj = useNull ? null : new TestObject("test", 42);
+TestObject? obj = useNull ? null : new TestObject("test", 42);
 string result4 = "Selected object: " + obj;
 print("Conditional null: " + result4);
 
@@ -48,11 +48,11 @@ string result6 = nullObj + " and " + nullObj2;
 print("Multiple nulls: " + result6);
 
 // Test 6: Null object concatenation with function calls
-function getNullObject(): TestObject {
+function getNullObject(): TestObject? {
     return null;
 }
 
-function getTestString(TestObject obj): string {
+function getTestString(TestObject? obj): string {
     return "Function result: " + obj;
 }
 
@@ -89,11 +89,11 @@ print("Accumulated string: " + accumulated);
 
 // Test 9: Null object concatenation in class methods
 class StringProcessor {
-    public function process(TestObject obj): string {
+    public function process(TestObject? obj): string {
         return "Processed: " + obj;
     }
 
-    public function combineObjects(TestObject obj1, TestObject obj2): string {
+    public function combineObjects(TestObject? obj1, TestObject? obj2): string {
         return obj1 + " combined with " + obj2;
     }
 }
@@ -126,7 +126,7 @@ string safeResult = potentialNull != null ?
 print("Safe null handling: " + safeResult);
 
 // Test 13: Null object concatenation in switch-like logic
-function processObjectType(TestObject obj): string {
+function processObjectType(TestObject? obj): string {
     if (obj == null) {
         return "Type: null object - " + obj;
     } else {
@@ -140,11 +140,11 @@ print(processObjectType(new TestObject("switch", 123)));
 
 // Test 14: Null object concatenation with static methods
 class StaticStringUtils {
-    public static function formatObject(TestObject obj): string {
+    public static function formatObject(TestObject? obj): string {
         return "[" + obj + "]";
     }
 
-    public static function combineWithPrefix(string prefix, TestObject obj): string {
+    public static function combineWithPrefix(string prefix, TestObject? obj): string {
         return prefix + obj;
     }
 }
@@ -162,9 +162,9 @@ print("Null array concatenation: " + arrayResult);
 
 // Test 16: Complex nested null scenarios
 class Container {
-    public TestObject inner;
+    public TestObject? inner;
 
-    constructor(TestObject obj) {
+    constructor(TestObject? obj) {
         inner = obj;
     }
 

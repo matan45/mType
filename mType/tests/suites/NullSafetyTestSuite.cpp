@@ -33,5 +33,34 @@ namespace tests::testSuite
         addTestFromFile("Nullable Primitive Type",
                         errorPath + "nullablePrimitiveType_error.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === COMPILE-TIME NULL SAFETY ENFORCEMENT ===
+        addTestFromFile("Member Access on Nullable Receiver",
+                        errorPath + "memberAccessOnNullable_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Method Call on Nullable Receiver",
+                        errorPath + "methodCallOnNullable_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Member Assignment on Nullable Receiver",
+                        errorPath + "memberAssignOnNullable_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Chained Access Through Nullable Field",
+                        errorPath + "chainedAccessThroughNullable_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Null Arg to Non-Null Parameter",
+                        errorPath + "nullArgToNonNullParam_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Nullable Arg to Non-Null Parameter",
+                        errorPath + "nullableArgToNonNullParam_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Null Arg to Non-Null Constructor Parameter",
+                        errorPath + "nullArgToNonNullCtorParam_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Return Null from Non-Null Function",
+                        errorPath + "returnNullFromNonNull_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Nullable Parameter Not Narrowed",
+                        errorPath + "nullableParamNotNarrowed_error.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

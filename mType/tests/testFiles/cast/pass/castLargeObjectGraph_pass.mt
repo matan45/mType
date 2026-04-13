@@ -32,7 +32,7 @@ class TreeNode extends Node {
 }
 
 // Create a large binary tree (depth 8 = 255 nodes)
-function createTree(int depth, int currentDepth, TreeNode parent): TreeNode {
+function createTree(int depth, int currentDepth, TreeNode parent): TreeNode? {
     if (currentDepth > depth) {
         return null;
     }

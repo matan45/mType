@@ -68,7 +68,6 @@ function async main(): Promise<void> {
     print("Expected: 10 + 20 + 30 + 40 = 100");
 
     print("Nested async operations complete");
-    return null;
 }
 
 main();

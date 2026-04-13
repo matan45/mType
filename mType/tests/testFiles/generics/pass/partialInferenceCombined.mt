@@ -29,7 +29,7 @@ class Result<T> {
 }
 
 // PHASE 3 TEST: Partial inference - T from argument, R from return type
-function <R, T> transform(Box<T> input): Result<R> {
+function <R, T> transform(Box<T> input): Result<R>? {
     // Transform Box<T> to Result<R>
     // In real impl, would convert T to R somehow
     // For testing: just create a result (would need proper conversion)
@@ -37,20 +37,20 @@ function <R, T> transform(Box<T> input): Result<R> {
 }
 
 // PHASE 3 TEST: Partial inference - multiple sources
-function <R, T> convert(T value): Box<R> {
+function <R, T> convert(T value): Box<R>? {
     // T inferred from argument, R from return type
     return null;  // Placeholder
 }
 
 // PHASE 3 TEST: Partial inference with nested generics
-function <R, S, T> complexTransform(Box<T> input, S extra): Result<R> {
+function <R, S, T> complexTransform(Box<T> input, S extra): Result<R>? {
     // T from Box<T>, S from second parameter, R from return type
     return null;  // Placeholder
 }
 
 // Test with explicit type arguments (always works)
 Box<Int> inputBox = new Box<Int>(new Int(42));
-Result<String> result1 = transform<String, Int>(inputBox);
+Result<String>? result1 = transform<String, Int>(inputBox);
 
 // Test with partial inference (T=Int from Box<Int>, R=String from Result<String>)
 // Result<String> result2 = transform(inputBox);

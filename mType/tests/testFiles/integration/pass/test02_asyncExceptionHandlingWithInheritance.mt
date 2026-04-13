@@ -156,7 +156,6 @@ function async main(): Promise<void> {
     print("Polymorphic result: " + r6.getValue());
 
     print("=== Test 02 Complete ===");
-    return null;
 }
 
 main();

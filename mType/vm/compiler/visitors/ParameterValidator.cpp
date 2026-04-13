@@ -143,6 +143,28 @@ namespace vm::compiler::visitors
             return;
         }
 
+        // Null safety enforcement: reject nullable values passed to non-nullable parameters
+        bool expectedIsNullable = !resolvedExpectedType.empty() && resolvedExpectedType.back() == '?';
+        if (!expectedIsNullable)
+        {
+            bool argIsNullable = ctx.typeInference.inferExpressionNullable(argument);
+            if (argIsNullable)
+            {
+                throw errors::TypeException(
+                    "Cannot pass nullable value to non-nullable parameter " + std::to_string(paramIndex + 1) +
+                    " of '" + methodName + "'. Parameter type is '" + resolvedExpectedType +
+                    "', use '" + resolvedExpectedType + "?' to allow null.",
+                    location
+                );
+            }
+        }
+
+        // Strip nullable suffix for remaining type checks
+        if (expectedIsNullable)
+        {
+            resolvedExpectedType = resolvedExpectedType.substr(0, resolvedExpectedType.size() - 1);
+        }
+
         // Skip validation for array types (like T[], E[], Array<T>, int[], etc.)
         if (resolvedExpectedType == "Array" || resolvedExpectedType.find("Array<") == 0 ||
             resolvedExpectedType.find("[]") != std::string::npos)
@@ -170,7 +192,6 @@ namespace vm::compiler::visitors
             // For primitive types, check exact match
             if (argType != value::ValueType::OBJECT && argTypeStr != resolvedExpectedType)
             {
-                // Allow null for any type
                 if (!dynamic_cast<ast::NullNode*>(argument))
                 {
                     throw errors::TypeException(
@@ -186,7 +207,6 @@ namespace vm::compiler::visitors
             // Expected type is an object/class
             if (argType != value::ValueType::OBJECT)
             {
-                // null can be passed to object types
                 if (!dynamic_cast<ast::NullNode*>(argument))
                 {
                     // Check if auto-boxing can handle this (primitive -> boxed type)
@@ -326,6 +346,21 @@ namespace vm::compiler::visitors
             if (argType == value::ValueType::VOID)
             {
                 continue;
+            }
+
+            // Null safety enforcement for constructor parameters
+            if (!paramType.nullable)
+            {
+                if (ctx.typeInference.inferExpressionNullable(arguments[i].get()))
+                {
+                    std::string expectedTypeStr = paramType.toString();
+                    throw errors::TypeException(
+                        "Cannot pass nullable value to non-nullable constructor parameter " +
+                        std::to_string(i + 1) + ". Parameter type is '" + expectedTypeStr +
+                        "', use '" + expectedTypeStr + "?' to allow null.",
+                        location
+                    );
+                }
             }
 
             // For object types and array types, check class names

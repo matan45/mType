@@ -319,14 +319,16 @@ namespace vm::compiler::visitors
             if (param.second->isGenericParameter())
             {
                 // Generic type parameter (like T, E) - treat as object for now
-                ctx.variableTracker.declareLocal(param.first, value::ValueType::OBJECT, param.second->toString());
+                ctx.variableTracker.declareLocal(param.first, value::ValueType::OBJECT,
+                                                 param.second->toString(), param.second->isNullable());
             }
             else
             {
                 // Concrete type
                 value::ValueType concreteType = param.second->getConcreteType();
                 std::string className = (concreteType == value::ValueType::OBJECT) ? param.second->toString() : "";
-                ctx.variableTracker.declareLocal(param.first, concreteType, className);
+                ctx.variableTracker.declareLocal(param.first, concreteType, className,
+                                                 param.second->isNullable());
             }
         }
 

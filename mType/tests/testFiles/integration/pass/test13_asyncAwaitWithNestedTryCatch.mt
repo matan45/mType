@@ -214,7 +214,6 @@ function async main(): Promise<void> {
     print("Result: " + r10.getValue());
 
     print("=== Test 13 Complete ===");
-    return null;
 }
 
 main();

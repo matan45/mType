@@ -86,34 +86,27 @@ namespace ast::nodes::functions
 
     ParameterType FunctionNode::classifyParameterType(const std::shared_ptr<GenericType>& paramType) const
     {
+        ParameterType result(ValueType::VOID);
+
         if (paramType->isGenericParameter()) {
-            // Check if it's a real generic parameter (single letter like T, K, V)
-            // or a class/interface name (like Vehicle, Animal, GenericContainer<Int>)
             std::string typeName = paramType->getGenericName();
             if (typeName.length() == 1 && std::isupper(typeName[0])) {
-                // PHASE 2 FIX: Real generic parameter - store the type parameter name (e.g., "T", "K", "V")
-                // This preserves the type information for generic type inference
-                return ParameterType::forClass(typeName);
+                result = ParameterType::forClass(typeName);
             } else {
-                // PHASE 2 FIX: Class or interface name - check if it has type arguments
-                // For "Pair<K, V>", we need to use toString() to preserve the type arguments
-                // For "Pair", we can just use the typeName
                 if (paramType->isParameterized()) {
-                    // Has type arguments like "Pair<K, V>" - use toString()
-                    return ParameterType::forClass(paramType->toString());
+                    result = ParameterType::forClass(paramType->toString());
                 } else {
-                    // No type arguments like "Pair" - use typeName
-                    return ParameterType::forClass(typeName);
+                    result = ParameterType::forClass(typeName);
                 }
             }
         } else if (paramType->getConcreteType() == ValueType::OBJECT) {
-            // Object type (class or interface) - store as class type with full type info
-            // Use toString() to preserve generic type arguments
-            return ParameterType::forClass(paramType->toString());
+            result = ParameterType::forClass(paramType->toString());
         } else {
-            // Basic type (int, string, bool, etc.)
-            return ParameterType(paramType->getConcreteType());
+            result = ParameterType(paramType->getConcreteType());
         }
+
+        result.nullable = paramType->isNullable();
+        return result;
     }
 
     std::shared_ptr<ASTNode> FunctionNode::getBody() const noexcept

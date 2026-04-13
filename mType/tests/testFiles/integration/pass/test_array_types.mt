@@ -110,7 +110,7 @@ function testArraysWithObjects():void {
     }
 
     // Test null handling in object arrays
-    Person[] nullableArray = new Person[2];
+    Person?[] nullableArray = new Person[2];
     nullableArray[0] = new Person("David", 40);
     nullableArray[1] = null;
 

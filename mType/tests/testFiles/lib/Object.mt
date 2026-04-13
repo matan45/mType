@@ -35,7 +35,7 @@ public class Object {
     // Returns the runtime Class of this instance, including parameterized
     // type arguments for generic instances. Equivalent to native-level
     // ScriptAPI::getClass(value) — single implementation, two surfaces.
-    public function getClass(): Class{
+    public function getClass(): Class?{
 	return null;
 	}
 }

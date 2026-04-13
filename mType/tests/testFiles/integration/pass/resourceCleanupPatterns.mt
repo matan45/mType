@@ -142,7 +142,7 @@ function testExceptionSafeResource(): void {
         activeResources = 3;
         }
         
-        public function getAvailableResource(): FileHandle {
+        public function getAvailableResource(): FileHandle? {
         // Simple round-robin allocation
         if (resource1.isFileOpen()) {
             return resource1;
@@ -156,7 +156,7 @@ function testExceptionSafeResource(): void {
         return null;
         }
         
-        public function releaseResource(FileHandle resource): void {
+        public function releaseResource(FileHandle? resource): void {
         if (resource != null) {
             resource.close();
             activeResources = activeResources - 1;

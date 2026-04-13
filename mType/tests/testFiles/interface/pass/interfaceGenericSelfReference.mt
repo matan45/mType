@@ -45,7 +45,7 @@ class Ranking<T extends Comparable<T>> {
         this.items.add(item);
     }
 
-    public function findHighest(): T {
+    public function findHighest(): T? {
         if (this.items.size() == 0) {
             return null;
         }

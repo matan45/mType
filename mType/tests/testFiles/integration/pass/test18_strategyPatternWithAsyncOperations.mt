@@ -239,7 +239,6 @@ function async main(): Promise<void> {
     print(seq2.getValue());
 
     print("=== Test 18 Complete ===");
-    return null;
 }
 
 main();

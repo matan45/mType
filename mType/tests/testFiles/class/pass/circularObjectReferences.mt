@@ -6,18 +6,18 @@ print("Testing simple circular reference:");
 
 class Node {
     public string name;
-    public Node next;
+    public Node? next;
 
     public constructor(string n) {
         name = n;
         next = null;
     }
 
-    public function setNext(Node n): void {
+    public function setNext(Node? n): void {
         next = n;
     }
 
-    public function getNext(): Node {
+    public function getNext(): Node? {
         return next;
     }
 
@@ -45,7 +45,7 @@ print("\nTesting self-reference:");
 
 class SelfRef {
     public string value;
-    public SelfRef self;
+    public SelfRef? self;
 
     public constructor(string v) {
         value = v;
@@ -56,7 +56,7 @@ class SelfRef {
         self = this;
     }
 
-    public function getSelf(): SelfRef {
+    public function getSelf(): SelfRef? {
         return self;
     }
 
@@ -78,7 +78,7 @@ print("\nTesting complex circular chain:");
 
 class ChainNode {
     public string id;
-    public ChainNode link;
+    public ChainNode? link;
     public int data;
 
     public constructor(string i, int d) {
@@ -91,7 +91,7 @@ class ChainNode {
         link = n;
     }
 
-    public function getLink(): ChainNode {
+    public function getLink(): ChainNode? {
         return link;
     }
 
@@ -131,7 +131,7 @@ print("\nTesting parent-child circular reference:");
 
 class Parent {
     public string name;
-    public Child child;
+    public Child? child;
 
     public constructor(string n) {
         name = n;
@@ -142,7 +142,7 @@ class Parent {
         child = c;
     }
 
-    public function getChild(): Child {
+    public function getChild(): Child? {
         return child;
     }
 
@@ -153,7 +153,7 @@ class Parent {
 
 class Child {
     public string name;
-    public Parent parent;
+    public Parent? parent;
 
     public constructor(string n) {
         name = n;
@@ -164,7 +164,7 @@ class Child {
         parent = p;
     }
 
-    public function getParent(): Parent {
+    public function getParent(): Parent? {
         return parent;
     }
 
@@ -192,8 +192,8 @@ print("\nTesting doubly linked circular structure:");
 
 class DNode {
     public string data;
-    public DNode prev;
-    public DNode next;
+    public DNode? prev;
+    public DNode? next;
 
     public constructor(string d) {
         data = d;
@@ -209,11 +209,11 @@ class DNode {
         next = n;
     }
 
-    public function getPrev(): DNode {
+    public function getPrev(): DNode? {
         return prev;
     }
 
-    public function getNext(): DNode {
+    public function getNext(): DNode? {
         return next;
     }
 
@@ -246,8 +246,8 @@ print("\nTesting graph-like circular references:");
 
 class GraphNode {
     public string label;
-    public GraphNode neighbor1;
-    public GraphNode neighbor2;
+    public GraphNode? neighbor1;
+    public GraphNode? neighbor2;
 
     public constructor(string l) {
         label = l;
@@ -260,11 +260,11 @@ class GraphNode {
         neighbor2 = n2;
     }
 
-    public function getNeighbor1(): GraphNode {
+    public function getNeighbor1(): GraphNode? {
         return neighbor1;
     }
 
-    public function getNeighbor2(): GraphNode {
+    public function getNeighbor2(): GraphNode? {
         return neighbor2;
     }
 
@@ -313,9 +313,9 @@ print("\nTesting multiple circular references:");
 
 class MultiRef {
     public string name;
-    public MultiRef ref1;
-    public MultiRef ref2;
-    public MultiRef ref3;
+    public MultiRef? ref1;
+    public MultiRef? ref2;
+    public MultiRef? ref3;
 
     public constructor(string n) {
         name = n;
@@ -334,15 +334,15 @@ class MultiRef {
         return name;
     }
 
-    public function getRef1(): MultiRef {
+    public function getRef1(): MultiRef? {
         return ref1;
     }
 
-    public function getRef2(): MultiRef {
+    public function getRef2(): MultiRef? {
         return ref2;
     }
 
-    public function getRef3(): MultiRef {
+    public function getRef3(): MultiRef? {
         return ref3;
     }
 }
@@ -362,7 +362,7 @@ print("\nTesting indirect circular references:");
 
 class IndirectRef {
     public string id;
-    public IndirectRef partner;
+    public IndirectRef? partner;
 
     public constructor(string i) {
         id = i;
@@ -373,11 +373,11 @@ class IndirectRef {
         partner = p;
     }
 
-    public function getPartner(): IndirectRef {
+    public function getPartner(): IndirectRef? {
         return partner;
     }
 
-    public function getPartnerOfPartner(): IndirectRef {
+    public function getPartnerOfPartner(): IndirectRef? {
         if (partner != null) {
             return partner.getPartner();
         }
@@ -403,7 +403,7 @@ print("\nTesting circular reference with modification:");
 class ModNode {
     public string value;
     public int counter;
-    public ModNode next;
+    public ModNode? next;
 
     public constructor(string v, int c) {
         value = v;
@@ -423,7 +423,7 @@ class ModNode {
         return value + "(" + counter + ")";
     }
 
-    public function getNext(): ModNode {
+    public function getNext(): ModNode? {
         return next;
     }
 }

@@ -11,8 +11,8 @@ import * from "../../lib/utils/SortUtils.mt";
 
 class LinkedList<T> implements List<T>, Deque<T> {
 
-    Node<T> head;
-    Node<T> tail;
+    Node<T>? head;
+    Node<T>? tail;
     int count;
 
     constructor() {
@@ -85,12 +85,15 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return;
         }
 
-        Node<T> current = this.getNodeAt(index);
-        Node<T> newNode = new Node<T>(item, current.prev, current);
-
-        current.prev.next = newNode;
-        current.prev = newNode;
-        this.count++;
+        Node<T>? current = this.getNodeAt(index);
+        if (current != null) {
+            Node<T> newNode = new Node<T>(item, current.prev, current);
+            if (current.prev != null) {
+                current.prev.next = newNode;
+            }
+            current.prev = newNode;
+            this.count++;
+        }
     }
 
     public function get(int index): T {
@@ -99,8 +102,11 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return null;
         }
 
-        Node<T> node = this.getNodeAt(index);
-        return node.data;
+        Node<T>? node = this.getNodeAt(index);
+        if (node != null) {
+            return node.data;
+        }
+        return null;
     }
 
     public function set(int index, T item): void {
@@ -114,8 +120,10 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return;
         }
 
-        Node<T> node = this.getNodeAt(index);
-        node.data = item;
+        Node<T>? node = this.getNodeAt(index);
+        if (node != null) {
+            node.data = item;
+        }
     }
 
     public function removeAt(int index): bool {
@@ -124,7 +132,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return false;
         }
 
-        Node<T> nodeToRemove = this.getNodeAt(index);
+        Node<T>? nodeToRemove = this.getNodeAt(index);
         this.removeNode(nodeToRemove);
         return true;
     }
@@ -135,7 +143,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return false;
         }
 
-        Node<T> current = this.head;
+        Node<T>? current = this.head;
         while (current != null) {
             if (current.data != null && current.data.equals(item)) {
                 this.removeNode(current);
@@ -174,7 +182,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return false;
         }
 
-        Node<T> current = this.head;
+        Node<T>? current = this.head;
         while (current != null) {
             if (current.data != null && current.data.equals(item)) {
                 return true;
@@ -190,7 +198,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return -1;
         }
 
-        Node<T> current = this.head;
+        Node<T>? current = this.head;
         int index = 0;
         while (current != null) {
             if (current.data != null && current.data.equals(item)) {
@@ -207,7 +215,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return -1;
         }
 
-        Node<T> current = this.tail;
+        Node<T>? current = this.tail;
         int index = this.count - 1;
         while (current != null) {
             if (current.data != null && current.data.equals(item)) {
@@ -249,7 +257,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
 
     public function toArray(): T[] {
         T[] result = new T[this.count];
-        Node<T> current = this.head;
+        Node<T>? current = this.head;
         int index = 0;
 
         while (current != null && index < this.count) {
@@ -262,7 +270,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
 
     public function hashCode(): int {
         int hash = 1;
-        Node<T> current = this.head;
+        Node<T>? current = this.head;
 
         while (current != null) {
             if (current.data != null) {
@@ -280,7 +288,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
             return;
         }
 
-        Node<T> current = this.head;
+        Node<T>? current = this.head;
         Node<T>? temp = null;
 
         while (current != null) {
@@ -308,10 +316,10 @@ class LinkedList<T> implements List<T>, Deque<T> {
         }
 
         int removedCount = 0;
-        Node<T> current = this.head;
+        Node<T>? current = this.head;
 
         while (current != null) {
-            Node<T> next = current.next;
+            Node<T>? next = current.next;
             if (current.data != null && current.data.equals(item)) {
                 this.removeNode(current);
                 removedCount++;
@@ -329,7 +337,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
         }
 
         LinkedList<T> result = new LinkedList<T>();
-        Node<T> current = this.getNodeAt(fromIndex);
+        Node<T>? current = this.getNodeAt(fromIndex);
 
         for (int i = fromIndex; i < toIndex && current != null; i++) {
             result.add(current.data);
@@ -385,12 +393,12 @@ class LinkedList<T> implements List<T>, Deque<T> {
         return this.removeFirst();
     }
 
-    private function getNodeAt(int index): Node<T> {
+    private function getNodeAt(int index): Node<T>? {
         if (index < 0 || index >= this.count) {
             return null;
         }
 
-        Node<T> current;
+        Node<T>? current;
 
         if (index < this.count / 2) {
             current = this.head;
@@ -407,7 +415,7 @@ class LinkedList<T> implements List<T>, Deque<T> {
         return current;
     }
 
-    private function removeNode(Node<T> node): void {
+    private function removeNode(Node<T>? node): void {
         if (node == null) {
             return;
         }

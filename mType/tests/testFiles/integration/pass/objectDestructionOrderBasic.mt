@@ -46,7 +46,7 @@ function testSequentialDestruction(): void {
     
     // Create objects sequentially
     DestructionTracker a = new DestructionTracker("A");
-    DestructionTracker b = new DestructionTracker("B"); 
+    DestructionTracker? b = new DestructionTracker("B");
     DestructionTracker c = new DestructionTracker("C");
     
     // Reassign to trigger potential cleanup

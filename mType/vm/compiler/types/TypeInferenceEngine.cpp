@@ -15,6 +15,7 @@
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../../ast/nodes/classes/SuperMemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../token/TokenType.hpp"
@@ -1238,5 +1239,200 @@ namespace vm::compiler::types
 
         // Not a generic type parameter, return as-is
         return typeName;
+    }
+
+    void TypeInferenceEngine::setNullNarrowingTracker(const NullNarrowingTracker* tracker)
+    {
+        nullNarrowingTracker = tracker;
+    }
+
+    bool TypeInferenceEngine::inferExpressionNullable(ast::ASTNode* node) const
+    {
+        if (!node) return false;
+
+        // Null literal is always nullable
+        if (dynamic_cast<ast::NullNode*>(node))
+        {
+            return true;
+        }
+
+        // Primitive literals are never nullable
+        if (dynamic_cast<ast::IntegerNode*>(node) ||
+            dynamic_cast<ast::FloatNode*>(node) ||
+            dynamic_cast<ast::StringNode*>(node) ||
+            dynamic_cast<ast::BoolNode*>(node))
+        {
+            return false;
+        }
+
+        // New object creation is never nullable
+        if (dynamic_cast<ast::NewNode*>(node))
+        {
+            return false;
+        }
+
+        // Lambda expressions are never nullable
+        if (dynamic_cast<ast::LambdaNode*>(node))
+        {
+            return false;
+        }
+
+        // Array literals are never nullable
+        if (dynamic_cast<ast::ArrayLiteralNode*>(node))
+        {
+            return false;
+        }
+
+        // Super member access is never nullable (super is like this)
+        if (dynamic_cast<ast::SuperMemberAccessNode*>(node))
+        {
+            return false;
+        }
+
+        // Binary/unary operations produce primitives, never nullable
+        if (dynamic_cast<ast::BinaryOpNode*>(node) ||
+            dynamic_cast<ast::UnaryOpNode*>(node))
+        {
+            return false;
+        }
+
+        // Variable references
+        if (auto* varNode = dynamic_cast<ast::VariableNode*>(node))
+        {
+            const std::string& varName = varNode->getName();
+
+            // 'this' is always non-null
+            if (varName == "this")
+            {
+                return false;
+            }
+
+            // Check if null-narrowed via smart cast
+            if (nullNarrowingTracker && nullNarrowingTracker->isNarrowedNonNull(varName))
+            {
+                return false;
+            }
+
+            // Check local variable nullability
+            if (variableTracker.existsInFunction(varName))
+            {
+                return variableTracker.getLocalNullableByName(varName);
+            }
+
+            // Check global variable nullability
+            if (globalRegistry.exists(varName))
+            {
+                return globalRegistry.isNullable(varName);
+            }
+
+            return false;
+        }
+
+        // Cast expression - nullable depends on target type
+        if (auto* castExpr = dynamic_cast<ast::CastExpression*>(node))
+        {
+            if (castExpr->getTargetType())
+            {
+                return castExpr->getTargetType()->isNullable();
+            }
+            return false;
+        }
+
+        // Function call - check return type from metadata
+        if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node))
+        {
+            const std::string& funcName = funcCall->getFunctionName();
+            const auto* funcMeta = program.getFunction(funcName);
+            if (funcMeta && !funcMeta->returnType.empty())
+            {
+                return funcMeta->returnType.back() == '?';
+            }
+            return false;
+        }
+
+        // Method call - check return type from metadata
+        if (auto* methodCall = dynamic_cast<ast::MethodCallNode*>(node))
+        {
+            std::string className = inferExpressionClassName(methodCall->getObject());
+            if (!className.empty())
+            {
+                std::string qualifiedName = className + "::" + methodCall->getMethodName();
+                const auto* funcMeta = program.getFunction(qualifiedName);
+
+                // Try prefix matching for overloaded methods
+                if (!funcMeta)
+                {
+                    const auto& allFunctions = program.getFunctions();
+                    std::string prefix = qualifiedName + "/";
+                    for (const auto& [name, metadata] : allFunctions)
+                    {
+                        if (name.find(prefix) == 0 || name == qualifiedName)
+                        {
+                            funcMeta = &metadata;
+                            break;
+                        }
+                    }
+                }
+
+                if (funcMeta && !funcMeta->returnType.empty())
+                {
+                    return funcMeta->returnType.back() == '?';
+                }
+            }
+
+            // Also check class definition for the method return type
+            if (!className.empty())
+            {
+                auto classDef = environment->findClass(className);
+                if (classDef)
+                {
+                    auto method = classDef->getMethod(methodCall->getMethodName());
+                    if (method && method->getUnifiedReturnType())
+                    {
+                        return method->getUnifiedReturnType()->isNullable();
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // Member access - check field nullability in class definition
+        if (auto* memberAccess = dynamic_cast<ast::MemberAccessNode*>(node))
+        {
+            std::string className = inferExpressionClassName(memberAccess->getObject());
+            if (!className.empty())
+            {
+                auto classDef = environment->findClass(className);
+                if (classDef)
+                {
+                    auto field = classDef->getField(memberAccess->getMemberName());
+                    if (field && field->hasUnifiedType())
+                    {
+                        return field->getUnifiedType()->isNullable();
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Await expression - check inner expression's return type
+        if (auto* awaitExpr = dynamic_cast<ast::nodes::expressions::AwaitExpression*>(node))
+        {
+            auto* innerExpr = awaitExpr->getExpressionPtr();
+            if (innerExpr)
+            {
+                return inferExpressionNullable(innerExpr);
+            }
+        }
+
+        // Index access - could be nullable depending on element type, conservative: false
+        if (dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(node))
+        {
+            return false;
+        }
+
+        // Default: conservative, assume non-nullable to avoid false positives
+        return false;
     }
 }

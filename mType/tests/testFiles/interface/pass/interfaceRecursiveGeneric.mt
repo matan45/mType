@@ -4,22 +4,22 @@
 import * from "../../lib/primitives/String.mt";
 
 interface Tree<T, N extends TreeNode<T, N>> {
-    function getRoot(): N;
+    function getRoot(): N?;
     function add(T value): void;
 }
 
 interface TreeNode<T, N extends TreeNode<T, N>> {
     function getValue(): T;
-    function getLeft(): N;
-    function getRight(): N;
+    function getLeft(): N?;
+    function getRight(): N?;
     function setLeft(N node): void;
     function setRight(N node): void;
 }
 
 class BinaryNode<T> implements TreeNode<T, BinaryNode<T>> {
     private T value;
-    private BinaryNode<T> left;
-    private BinaryNode<T> right;
+    private BinaryNode<T>? left;
+    private BinaryNode<T>? right;
 
     public constructor(T value) {
         this.value = value;
@@ -31,11 +31,11 @@ class BinaryNode<T> implements TreeNode<T, BinaryNode<T>> {
         return this.value;
     }
 
-    public function getLeft(): BinaryNode<T> {
+    public function getLeft(): BinaryNode<T>? {
         return this.left;
     }
 
-    public function getRight(): BinaryNode<T> {
+    public function getRight(): BinaryNode<T>? {
         return this.right;
     }
 
@@ -49,13 +49,13 @@ class BinaryNode<T> implements TreeNode<T, BinaryNode<T>> {
 }
 
 class BinaryTree<T> implements Tree<T, BinaryNode<T>> {
-    private BinaryNode<T> root;
+    private BinaryNode<T>? root;
 
     public constructor() {
         this.root = null;
     }
 
-    public function getRoot(): BinaryNode<T> {
+    public function getRoot(): BinaryNode<T>? {
         return this.root;
     }
 

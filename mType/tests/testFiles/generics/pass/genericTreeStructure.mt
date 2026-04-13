@@ -4,8 +4,8 @@ import * from "../../lib/primitives/String.mt";
 // Test self-referential generic types (Tree<T> contains Tree<T> children)
 class TreeNode<T> {
     T value;
-    TreeNode<T> left;
-    TreeNode<T> right;
+    TreeNode<T>? left;
+    TreeNode<T>? right;
 
     constructor(T val) {
         value = val;
@@ -29,11 +29,11 @@ class TreeNode<T> {
         right = node;
     }
 
-    public function getLeft(): TreeNode<T> {
+    public function getLeft(): TreeNode<T>? {
         return left;
     }
 
-    public function getRight(): TreeNode<T> {
+    public function getRight(): TreeNode<T>? {
         return right;
     }
 

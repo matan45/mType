@@ -168,7 +168,6 @@ function async main(): Promise<void> {
     print("Second operation: " + seq2.getValue());
 
     print("=== Test 05 Complete ===");
-    return null;
 }
 
 main();

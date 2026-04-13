@@ -5,7 +5,7 @@ import * from "../../lib/collections/ArrayList.mt";
 
 interface Repository<T> {
     function findAll(): ArrayList<T>;
-    function findById(int id): T;
+    function findById(int id): T?;
     function save(T item): void;
 }
 
@@ -30,7 +30,7 @@ class UserRepository implements Repository<User> {
         return this.users;
     }
 
-    public function findById(int id): User {
+    public function findById(int id): User? {
         for (int i = 0; i < this.users.size(); i++) {
             User user = this.users.get(i);
             if (user.id == id) {

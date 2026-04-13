@@ -68,7 +68,6 @@ function async main(): Promise<void> {
 
     print("");
     print("Unhandled exception test completed");
-    return null;
 }
 
 main();

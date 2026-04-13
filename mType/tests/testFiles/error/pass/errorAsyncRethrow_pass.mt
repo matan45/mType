@@ -233,7 +233,6 @@ function async main(): Promise<void> {
 
     print("");
     print("Rethrow test completed");
-    return null;
 }
 
 main();

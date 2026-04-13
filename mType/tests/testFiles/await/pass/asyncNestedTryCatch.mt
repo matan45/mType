@@ -114,7 +114,6 @@ print("Result: " + result4.toString());
 print("");
 
 print("All nested try-catch tests completed");
-return null;
 }
 
 main();

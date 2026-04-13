@@ -63,7 +63,7 @@ class SomeClass {
 }
 
 // Create Base object
-Base base1 = new Base(10, "First");
+Base? base1 = new Base(10, "First");
 
 // Access static member
 print(Base::counter);  // 1

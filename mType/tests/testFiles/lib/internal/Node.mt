@@ -3,8 +3,8 @@
 
 class Node<T> {
     public T data;
-    public Node<T> next;
-    public Node<T> prev;
+    public Node<T>? next;
+    public Node<T>? prev;
 
     constructor(T data) {
         this.data = data;
@@ -12,7 +12,7 @@ class Node<T> {
         this.prev = null;
     }
 
-    constructor(T data, Node<T> prev, Node<T> next) {
+    constructor(T data, Node<T>? prev, Node<T>? next) {
         this.data = data;
         this.prev = prev;
         this.next = next;

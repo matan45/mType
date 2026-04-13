@@ -5,9 +5,9 @@ import * from "../Iterator.mt";
 import * from "../internal/Node.mt";
 
 class LinkedListIterator<T> implements Iterator<T> {
-    private Node<T> currentNode;
+    private Node<T>? currentNode;
 
-    public constructor(Node<T> headNode) {
+    public constructor(Node<T>? headNode) {
         this.currentNode = headNode;
     }
 

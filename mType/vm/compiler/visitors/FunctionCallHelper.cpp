@@ -374,6 +374,30 @@ namespace vm::compiler::visitors
                 continue; // Can't validate - inference failed or expression is void
             }
 
+            // Null safety enforcement: reject nullable values passed to non-nullable parameters
+            bool expectedIsNullable = !expectedType.empty() && expectedType.back() == '?';
+            if (!expectedIsNullable)
+            {
+                // Skip check for generic type parameters (T, K, V, etc.)
+                bool isGenericParam = (expectedType.length() <= 2 && !expectedType.empty()
+                                       && std::isupper(expectedType[0]));
+                if (!isGenericParam && ctx.typeInference.inferExpressionNullable(arguments[i].get()))
+                {
+                    throw errors::TypeException(
+                        "Cannot pass nullable value to non-nullable parameter " + std::to_string(i + 1) +
+                        " of '" + functionName + "'. Parameter type is '" + expectedType +
+                        "', use '" + expectedType + "?' to allow null.",
+                        node->getLocation()
+                    );
+                }
+            }
+
+            // Strip nullable suffix for remaining type checks
+            if (expectedIsNullable)
+            {
+                expectedType = expectedType.substr(0, expectedType.size() - 1);
+            }
+
             // Convert argType to string for comparison
             std::string argTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(argType);
 

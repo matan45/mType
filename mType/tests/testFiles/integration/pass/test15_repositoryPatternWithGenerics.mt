@@ -91,7 +91,7 @@ class RepositoryException extends Exception {
 // Generic repository interface
 interface Repository<T extends Entity> {
     function save(T entity): T;
-    function findById(int id): T;
+    function findById(int id): T?;
     function findAll(): ArrayList<T>;
     function delete(int id): bool;
     function count(): int;
@@ -125,8 +125,8 @@ class InMemoryRepository<T extends Entity> implements Repository<T> {
         return entity;
     }
 
-    public function findById(int id): T {
-        T result = this.storage.get(new Int(id));
+    public function findById(int id): T? {
+        T? result = this.storage.get(new Int(id));
 
         if (result == null) {
             print("Entity not found with ID: " + id);
@@ -152,7 +152,7 @@ class InMemoryRepository<T extends Entity> implements Repository<T> {
         }
 
         for (int i = 0; i < keys.length; i = i + 1) {
-            T entity = this.storage.get(keys[i]);
+            T? entity = this.storage.get(keys[i]);
             if (entity != null) {
                 result.add(entity);
             }
@@ -162,7 +162,7 @@ class InMemoryRepository<T extends Entity> implements Repository<T> {
     }
 
     public function delete(int id): bool {
-        T removed = this.storage.remove(new Int(id));
+        T? removed = this.storage.remove(new Int(id));
 
         if (removed != null) {
             print("Deleted entity with ID: " + id);
@@ -186,7 +186,7 @@ class UserService {
         this.repository = repo;
     }
 
-    public function createUser(string username, string email): User {
+    public function createUser(string username, string email): User? {
         try {
             User user = new User(username, email);
             User saved = this.repository.save(user);
@@ -198,7 +198,7 @@ class UserService {
         }
     }
 
-    public function getUserById(int id): User {
+    public function getUserById(int id): User? {
         User user = this.repository.findById(id);
 
         if (user != null) {

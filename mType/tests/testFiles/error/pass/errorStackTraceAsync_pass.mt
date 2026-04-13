@@ -27,7 +27,6 @@ function async testAsyncException(): Promise<void> {
         }
         print("Async exception handled");
     }
-    return null;
 }
 
 // Test 2: Multiple awaits with exception in middle
@@ -70,7 +69,6 @@ function async testMultipleAwaits(): Promise<void> {
         }
         print("Multiple await exception handled");
     }
-    return null;
 }
 
 // Test 3: Nested async calls with exception
@@ -102,7 +100,6 @@ function async topAsync(): Promise<void> {
         }
         print("Nested async exception handled");
     }
-    return null;
 }
 
 // Test 4: Await in loop with exception
@@ -135,7 +132,6 @@ function async testAwaitLoop(): Promise<void> {
         }
         print("Loop exception handled");
     }
-    return null;
 }
 
 // Test 5: Async method with exception
@@ -173,7 +169,6 @@ function async testAsyncMethod(): Promise<void> {
         }
         print("Async method exception handled");
     }
-    return null;
 }
 
 // Test 6: Await with conditional and exception
@@ -213,7 +208,6 @@ function async testConditionalAwait(): Promise<void> {
         }
         print("Conditional exception handled");
     }
-    return null;
 }
 
 // Test 7: Await with finally and exception
@@ -221,7 +215,6 @@ function async throwingAsync(): Promise<void> {
     print("Function about to throw");
     RuntimeException e = new RuntimeException("Finally test error");
     throw e;
-    return null;
 }
 
 function async testAwaitFinally(): Promise<void> {
@@ -247,7 +240,6 @@ function async testAwaitFinally(): Promise<void> {
         print("Finally was called: true");
     }
     print("Finally test completed");
-    return null;
 }
 
 // Main async entry point
@@ -281,7 +273,6 @@ function async main(): Promise<void> {
     print("");
 
     print("Async stack trace test completed");
-    return null;
 }
 
 main();

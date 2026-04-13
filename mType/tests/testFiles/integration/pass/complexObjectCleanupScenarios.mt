@@ -33,7 +33,7 @@ class ResourceManager {
 }
 class Node {
     string data;
-    Node next;
+    Node? next;
     ResourceManager resource;
 
     public constructor(string nodeData) {
@@ -42,7 +42,7 @@ class Node {
         resource = new ResourceManager(nodeData + "_Resource", 10);
     }
 
-    public function setNext(Node nextNode): void {
+    public function setNext(Node? nextNode): void {
         next = nextNode;
     }
 
@@ -50,7 +50,7 @@ class Node {
         return data;
     }
 
-    public function getNext(): Node {
+    public function getNext(): Node? {
         return next;
     }
 
@@ -117,7 +117,7 @@ function testObjectReassignmentCleanup(): void {
     ResourceManager::resetStats();
     print("=== Object Reassignment Cleanup Test ===");
     
-    ResourceManager manager = new ResourceManager("Original", 75);
+    ResourceManager? manager = new ResourceManager("Original", 75);
     print("Original manager: " + manager.getResourceInfo());
     
     // Reassign to new object (old object should be cleaned up)

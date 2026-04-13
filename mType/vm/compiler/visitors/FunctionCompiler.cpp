@@ -71,6 +71,10 @@ namespace vm::compiler::visitors
             {
                 paramTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
             }
+            if (paramType.nullable)
+            {
+                paramTypeStr += "?";
+            }
             paramTypes.push_back(paramTypeStr);
 
             // Validate parameter type exists
@@ -131,11 +135,12 @@ namespace vm::compiler::visitors
             pushedGenericBindings = true;
         }
 
-        // Track parameters as locals
+        // Track parameters as locals (preserving nullable status)
         for (const auto& param : paramTypesVec)
         {
             ctx.variableTracker.declareLocal(param.first, param.second.basicType,
-                                             param.second.className.value_or(""));
+                                             param.second.className.value_or(""),
+                                             param.second.nullable);
         }
 
         // Update max local slot after parameters
@@ -276,8 +281,28 @@ namespace vm::compiler::visitors
             return;
         }
 
+        // Determine if return type is nullable, then strip suffix for type matching
+        bool returnTypeNullable = !expectedReturnType.empty() && expectedReturnType.back() == '?';
+        if (returnTypeNullable)
+        {
+            expectedReturnType = expectedReturnType.substr(0, expectedReturnType.size() - 1);
+        }
+
         if (returnValue)
         {
+            // Null safety enforcement: reject nullable returns from non-nullable return types
+            // Skip for generic type parameters (T, K, V, etc.) since they may be nullable at instantiation
+            bool isGenericReturnType = (expectedReturnType.length() <= 2 && !expectedReturnType.empty()
+                                        && std::isupper(expectedReturnType[0]));
+            if (!returnTypeNullable && !isGenericReturnType && ctx.typeInference.inferExpressionNullable(returnValue))
+            {
+                throw errors::TypeException(
+                    "Cannot return nullable value from function with non-nullable return type '" +
+                    expectedReturnType + "'. Use '" + expectedReturnType + "?' to allow null returns.",
+                    node->getLocation()
+                );
+            }
+
             // Function has a return value
             value::ValueType actualType = ctx.typeInference.inferExpressionType(returnValue);
 
@@ -788,7 +813,7 @@ namespace vm::compiler::visitors
         // Add captured variables as locals (they occupy slots after parameters)
         for (const auto& capture : capturedVars)
         {
-            ctx.variableTracker.declareLocal(capture.name, capture.type, capture.className);
+            ctx.variableTracker.declareLocal(capture.name, capture.type, capture.className, capture.isNullable);
         }
 
         // Update max local slot

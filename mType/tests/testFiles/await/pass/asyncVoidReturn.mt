@@ -5,7 +5,7 @@ print("=== Async Void Return Test ===");
 // Async function returning Promise<void> with return null;
 function async doWork1(): Promise<void> {
     print("Doing async work 1...");
-    return null;  // explicit return null
+    // void functions don't need explicit return
 }
 
 // Async function returning Promise<void> with return;

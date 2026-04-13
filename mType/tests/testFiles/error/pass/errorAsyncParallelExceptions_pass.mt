@@ -289,7 +289,6 @@ function async main(): Promise<void> {
 
     print("");
     print("Parallel exception test completed");
-    return null;
 }
 
 main();

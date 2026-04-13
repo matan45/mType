@@ -12,7 +12,7 @@ class ConsoleLogger implements Logger {
 }
 
 class Application {
-    private Logger logger;
+    private Logger? logger;
 
     public function init() {
         this.logger = null;

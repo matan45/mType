@@ -2,7 +2,7 @@
 // Expected: Pass - demonstrates singleton pattern with private constructor
 
 class Database {
-    private static Database instance;
+    private static Database? instance;
     private string connectionString;
     private int connectionCount;
 

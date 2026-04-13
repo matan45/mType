@@ -242,6 +242,9 @@ namespace vm::compiler
         // PHASE 3: Set up type inference engine to use context's resolved function call types cache
         typeInference.setResolvedFunctionCallTypes(&context.resolvedFunctionCallTypes);
 
+        // Wire null narrowing tracker for nullable expression inference
+        typeInference.setNullNarrowingTracker(&context.nullNarrowing);
+
         // Set up compile-time validator in context and registrar
         context.compileTimeValidator = compileTimeValidator.get();
         classRegistrar.setCompileTimeValidator(compileTimeValidator.get());

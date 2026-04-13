@@ -50,7 +50,6 @@ function async testBasicCatch(): Promise<void> {
     } catch (Exception e) {
         print("Caught exception: " + e.getMessage());
     }
-    return null;
 }
 
 // Test 2: Catching exceptions from async
@@ -63,7 +62,6 @@ function async testCatchException(): Promise<void> {
     } catch (Exception e) {
         print("Caught exception: " + e.getMessage());
     }
-    return null;
 }
 
 // Test 3: Finally block with async
@@ -78,7 +76,6 @@ function async testFinally(): Promise<void> {
     } finally {
         print("Finally block executed");
     }
-    return null;
 }
 
 // Test 4: Exception propagation through async chain
@@ -107,7 +104,6 @@ function async testPropagation(): Promise<void> {
     } catch (Exception e) {
         print("Caught as base Exception: " + e.getMessage());
     }
-    return null;
 }
 
 // Test 5: Multiple catch blocks with async
@@ -124,7 +120,6 @@ function async testMultipleCatch(): Promise<void> {
     } finally {
         print("Cleanup in finally");
     }
-    return null;
 }
 
 // Main function
@@ -137,7 +132,6 @@ function async main(): Promise<void> {
 
     print("");
     print("All async exception handling tests complete");
-    return null;
 }
 
 main();

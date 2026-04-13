@@ -63,7 +63,7 @@ print("Sum of array: " + arraySum.apply(nums));
 print("Sum of null: " + arraySum.apply(null));
 
 // Lambda returning null or value
-Function<Bool, String> conditionalString = flag -> {
+Function<Bool, String?> conditionalString = flag -> {
     if (flag) {
         return "Not null";
     } else {
@@ -71,8 +71,8 @@ Function<Bool, String> conditionalString = flag -> {
     }
 };
 
-String r1 = conditionalString.apply(true);
-String r2 = conditionalString.apply(false);
+String? r1 = conditionalString.apply(true);
+String? r2 = conditionalString.apply(false);
 print("True result: " + (r1 == null ? "null" : r1));
 print("False result: " + (r2 == null ? "null" : r2));
 

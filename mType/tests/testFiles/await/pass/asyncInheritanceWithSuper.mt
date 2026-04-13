@@ -155,7 +155,6 @@ function async main(): Promise<void> {
     print("Final result: " + complex.getMessage() + " = " + complex.getValue());
 
     print("\nAll async inheritance tests completed");
-    return null;
 }
 
 main();

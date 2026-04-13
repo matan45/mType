@@ -4,13 +4,13 @@
 class Object{}
 
 class Container {
-    private Object value;
+    private Object? value;
 
     public constructor() {
         this.value = null;
     }
 
-    public function setValue(Object value):void {
+    public function setValue(Object? value):void {
         this.value = value;
         if (value == null) {
             print("Value set to null");
@@ -19,7 +19,7 @@ class Container {
         }
     }
 
-    public function getValue(): Object {
+    public function getValue(): Object? {
         return this.value;
     }
 

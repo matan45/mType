@@ -10,7 +10,7 @@ class Point {
         this.y = y;
     }
 
-    public function equals(Point other): bool {
+    public function equals(Point? other): bool {
         if (other == null) {
             return false;
         }

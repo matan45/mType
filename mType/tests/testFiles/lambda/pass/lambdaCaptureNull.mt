@@ -2,7 +2,7 @@
 // Expected: Pass - null values should be properly captured and accessible
 
 interface Supplier {
-    function get(): Object;
+    function get(): Object?;
 }
 
 interface Consumer {
@@ -10,9 +10,9 @@ interface Consumer {
 }
 
 class Container {
-    public Object value;
+    public Object? value;
 
-    constructor(Object v) {
+    constructor(Object? v) {
         this.value = v;
     }
 }
@@ -25,7 +25,7 @@ function main(): void {
     // Test 1: Capture explicitly null variable
     Object? nullObj = null;
     Supplier getNullObj = () -> nullObj;
-    Object result1 = getNullObj.get();
+    Object? result1 = getNullObj.get();
     if (result1 == null) {
         print("Test 1 PASS: Captured null variable correctly");
     } else {
@@ -51,7 +51,7 @@ function main(): void {
     }
 
     // Test 4: Assign non-null, then null, then capture
-    Object changingObj = new Object();
+    Object? changingObj = new Object();
     changingObj = null;
     Supplier getChanging = () -> changingObj;
     if (getChanging.get() == null) {

@@ -25,7 +25,7 @@ class Location {
 
 class Company {
     string name;
-    Location location;
+    Location? location;
 
     constructor(string n) {
         name = n;
@@ -36,7 +36,7 @@ class Company {
         location = loc;
     }
 
-    public function getLocation(): Location {
+    public function getLocation(): Location? {
         return location;
     }
 
@@ -55,7 +55,7 @@ class Company {
 
 class Employee {
     string name;
-    Company company;
+    Company? company;
 
     constructor(string n) {
         name = n;
@@ -66,7 +66,7 @@ class Employee {
         company = c;
     }
 
-    public function getCompany(): Company {
+    public function getCompany(): Company? {
         return company;
     }
 

@@ -5,7 +5,7 @@ interface Function {
 
 print("=== Null Lambda Variable Test ===");
 
-Function func = x -> x * 2;
+Function? func = x -> x * 2;
 print("Initial: " + func.apply(5));
 
 // Assign null to lambda variable
@@ -40,7 +40,7 @@ for (int i = 0; i < 5; i = i + 1) {
 
 // Conditional lambda assignment
 bool useMultiply = false;
-Function conditional = useMultiply ? (x -> x * 3) : null;
+Function? conditional = useMultiply ? (x -> x * 3) : null;
 
 if (conditional == null) {
     print("Conditional is null");

@@ -27,7 +27,7 @@ Point? p1 = null;
 print("p1 is null: " + (p1 == null));
 
 // Assign value object to nullable
-Point? p2 = new Point(3, 4);
+Point p2 = new Point(3, 4);
 print("p2: " + p2.toString());
 
 // Non-nullable value class
