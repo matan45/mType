@@ -26,6 +26,10 @@ namespace vm::compiler::types
         // Check if a variable has been narrowed to non-null
         bool isNarrowedNonNull(const std::string& varName) const;
 
+        // Ensure at least one scope exists on the stack (for guard-clause narrowing
+        // at function-body level where no explicit scope has been pushed)
+        void ensureScope();
+
     private:
         struct NarrowingScope {
             std::unordered_set<std::string> narrowedToNonNull;

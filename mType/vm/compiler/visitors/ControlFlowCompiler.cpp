@@ -7,6 +7,7 @@
 #include "../../../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../token/TokenType.hpp"
+#include "../validation/ReturnPathValidator.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -111,6 +112,17 @@ namespace vm::compiler::visitors
         } else {
             // No else branch, patch jump to end
             ctx.emitter.patchJump(elseJump);
+        }
+
+        // Guard-clause narrowing: if (x == null) { return/throw; }
+        // Narrow x to non-null for all subsequent code in the enclosing scope
+        if (!narrowVarName.empty() && narrowInElse && !node->getElseStatement())
+        {
+            if (validation::ReturnPathValidator::pathAlwaysReturns(node->getThenStatement()))
+            {
+                ctx.nullNarrowing.ensureScope();
+                ctx.nullNarrowing.narrowToNonNull(narrowVarName);
+            }
         }
 
         return std::monostate{};

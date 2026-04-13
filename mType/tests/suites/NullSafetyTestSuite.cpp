@@ -30,6 +30,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Null Safe Param and Return",
                         passPath + "nullSafeParamAndReturn.mt");
 
+        // === GUARD CLAUSE NARROWING ===
+        addOutputVerificationTest("Guard Clause Narrowing",
+                        passPath + "guardClauseNarrowing.mt");
+
         // === ERROR TESTS ===
         addTestFromFile("Null to Non-Nullable Assignment",
                         errorPath + "nullToNonNullable_error.mt",
@@ -65,6 +69,9 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Nullable Parameter Not Narrowed",
                         errorPath + "nullableParamNotNarrowed_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Guard Clause Without Exit Not Narrowed",
+                        errorPath + "guardClauseNoExit_error.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

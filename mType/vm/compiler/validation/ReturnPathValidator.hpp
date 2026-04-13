@@ -35,13 +35,15 @@ namespace vm::compiler::validation
             const errors::SourceLocation& location
         );
 
-    private:
         /**
-         * Checks if a code path definitely returns
+         * Checks if a code path definitely returns or throws.
+         * Used by guard-clause narrowing to detect early-exit patterns.
          * @param node The AST node to check
          * @return true if this path always returns or throws
          */
         static bool pathAlwaysReturns(ast::ASTNode* node);
+
+    private:
 
         /**
          * Checks if a block always returns

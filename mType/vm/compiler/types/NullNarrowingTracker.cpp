@@ -23,6 +23,14 @@ namespace vm::compiler::types
         }
     }
 
+    void NullNarrowingTracker::ensureScope()
+    {
+        if (scopeStack.empty())
+        {
+            scopeStack.emplace_back();
+        }
+    }
+
     bool NullNarrowingTracker::isNarrowedNonNull(const std::string& varName) const
     {
         // Search from innermost scope outward

@@ -428,20 +428,22 @@ class LinkedList<T> implements List<T>, Deque<T> {
     }
 
     private function removeNode(Node<T>? node): void {
-        if (node != null) {
-            if (node.prev != null) {
-                node.prev.next = node.next;
-            } else {
-                this.head = node.next;
-            }
-
-            if (node.next != null) {
-                node.next.prev = node.prev;
-            } else {
-                this.tail = node.prev;
-            }
-
-            this.count--;
+        if (node == null) {
+            return;
         }
+
+        if (node.prev != null) {
+            node.prev.next = node.next;
+        } else {
+            this.head = node.next;
+        }
+
+        if (node.next != null) {
+            node.next.prev = node.prev;
+        } else {
+            this.tail = node.prev;
+        }
+
+        this.count--;
     }
 }
