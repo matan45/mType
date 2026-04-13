@@ -8,7 +8,7 @@ class SimpleFactory {
     }
 
     // Return null for any type
-    public static function <T> createNull(): T {
+    public static function <T> createNull(): T? {
         return null;
     }
 
@@ -31,10 +31,10 @@ Int echoInt = SimpleFactory::echo<Int>(new Int(42));
 print("Echo int: " + echoInt);
 
 // Test null returns
-String nullString = SimpleFactory::createNull<String>();
+String? nullString = SimpleFactory::createNull<String>();
 print("Null string: " + nullString);
 
-Int nullInt = SimpleFactory::createNull<Int>();
+Int? nullInt = SimpleFactory::createNull<Int>();
 print("Null int: " + nullInt);
 
 // Test multiple type parameters

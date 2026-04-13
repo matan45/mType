@@ -3,13 +3,13 @@ import * from "../../lib/primitives/Bool.mt";
 
 // Generic class with null handling
 class Optional<T> {
-    T value;
+    T? value;
 
     public function setValue(T newValue): void {
         value = newValue;
     }
 
-    public function getValue(): T {
+    public function getValue(): T? {
         return value;
     }
 

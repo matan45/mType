@@ -134,7 +134,7 @@ class ContainerCollection<T extends Comparable<T>> {
         this.containers.add(container);
     }
 
-    public function findMax(): T {
+    public function findMax(): T? {
         if (this.containers.size() == 0) {
             return null;
         }

@@ -11,11 +11,7 @@ class Point {
     }
 
     public function equals(Point other): bool {
-        if (other == null) {
-            return false;
-        }
-        Point otherPoint = other;
-        return this.x == otherPoint.x && this.y == otherPoint.y;
+        return this.x == other.x && this.y == other.y;
     }
 
     public function getX(): int {
@@ -46,7 +42,12 @@ print("p3: " + p3.toString());
 print("p1.equals(p3): " + p1.equals(p3));
 
 print("\nTest 3: Null comparison");
-print("p1.equals(null): " + p1.equals(null));
+Point? nullPoint = null;
+bool nullResult = false;
+if (nullPoint != null) {
+    nullResult = p1.equals(nullPoint);
+}
+print("p1.equals(null): " + nullResult);
 
 print("\nTest 4: Same reference");
 Point p4 = p1;

@@ -128,10 +128,15 @@ namespace vm::compiler::visitors
 
     void ParameterValidator::validateSingleParameterType(const std::string& methodName, size_t paramIndex,
                                                          const std::string& expectedType, ast::ASTNode* argument,
-                                                         const ast::SourceLocation& location)
+                                                         const ast::SourceLocation& location,
+                                                         bool isNullable)
     {
         // Resolve generic type parameters if present
         std::string resolvedExpectedType = ctx.resolveGenericType(expectedType);
+
+        // Strip nullable suffix for type compatibility checks
+        // Non-nullable values are always assignable to nullable parameters
+        resolvedExpectedType = ::types::TypeConversionUtils::stripNullable(resolvedExpectedType);
 
         // Infer argument type early for validation checks
         value::ValueType argType = ctx.typeInference.inferExpressionType(argument);
@@ -141,6 +146,21 @@ namespace vm::compiler::visitors
         if (validateGenericParameter(methodName, resolvedExpectedType, argType, argTypeStr, paramIndex, location))
         {
             return;
+        }
+
+        // Null safety enforcement: reject nullable values passed to non-nullable parameters
+        if (!isNullable)
+        {
+            bool argIsNullable = ctx.typeInference.inferExpressionNullable(argument);
+            if (argIsNullable)
+            {
+                throw errors::TypeException(
+                    "Cannot pass nullable value to non-nullable parameter " + std::to_string(paramIndex + 1) +
+                    " of '" + methodName + "'. Parameter type is '" + resolvedExpectedType +
+                    "', use '" + resolvedExpectedType + "?' to allow null.",
+                    location
+                );
+            }
         }
 
         // Skip validation for array types (like T[], E[], Array<T>, int[], etc.)
@@ -170,7 +190,6 @@ namespace vm::compiler::visitors
             // For primitive types, check exact match
             if (argType != value::ValueType::OBJECT && argTypeStr != resolvedExpectedType)
             {
-                // Allow null for any type
                 if (!dynamic_cast<ast::NullNode*>(argument))
                 {
                     throw errors::TypeException(
@@ -186,7 +205,6 @@ namespace vm::compiler::visitors
             // Expected type is an object/class
             if (argType != value::ValueType::OBJECT)
             {
-                // null can be passed to object types
                 if (!dynamic_cast<ast::NullNode*>(argument))
                 {
                     // Check if auto-boxing can handle this (primitive -> boxed type)
@@ -299,7 +317,9 @@ namespace vm::compiler::visitors
             }
 
             std::string expectedType = methodMetadata->parameterTypes[i + parameterTypeOffset];
-            validateSingleParameterType(methodName, i, expectedType, arguments[i].get(), location);
+            bool paramNullable = (i + parameterTypeOffset < methodMetadata->parameterNullable.size())
+                                 ? methodMetadata->parameterNullable[i + parameterTypeOffset] : false;
+            validateSingleParameterType(methodName, i, expectedType, arguments[i].get(), location, paramNullable);
         }
     }
 
@@ -328,6 +348,21 @@ namespace vm::compiler::visitors
                 continue;
             }
 
+            // Null safety enforcement for constructor parameters
+            if (!paramType.nullable)
+            {
+                if (ctx.typeInference.inferExpressionNullable(arguments[i].get()))
+                {
+                    std::string expectedTypeStr = paramType.toString();
+                    throw errors::TypeException(
+                        "Cannot pass nullable value to non-nullable constructor parameter " +
+                        std::to_string(i + 1) + ". Parameter type is '" + expectedTypeStr +
+                        "', use '" + expectedTypeStr + "?' to allow null.",
+                        location
+                    );
+                }
+            }
+
             // For object types and array types, check class names
             if ((paramType.basicType == value::ValueType::OBJECT || paramType.basicType == value::ValueType::ARRAY)
                 && paramType.className.has_value())
@@ -342,7 +377,7 @@ namespace vm::compiler::visitors
                 }
 
                 // Skip generic type parameters (single uppercase letters) that weren't resolved
-                if (expectedClass.length() <= 2 && std::isupper(expectedClass[0]))
+                if (::types::TypeConversionUtils::isGenericTypeParameter(expectedClass))
                 {
                     continue;
                 }

@@ -160,13 +160,7 @@ namespace vm::compiler::visitors
     bool MethodCompilerHelper::isValidTypeName(const std::string& typeName,
                                                 const std::vector<std::string>& validGenericParams)
     {
-        std::string baseTypeName = typeName;
-
-        // Strip nullable suffix '?'
-        if (!baseTypeName.empty() && baseTypeName.back() == '?')
-        {
-            baseTypeName.pop_back();
-        }
+        std::string baseTypeName = ::types::TypeConversionUtils::stripNullable(typeName);
 
         // Handle array types: int[], Item[][], etc.
         // Strip all array brackets to get the element type
@@ -246,15 +240,20 @@ namespace vm::compiler::visitors
         {
             result.paramNames.push_back("this");
             result.paramTypes.push_back(ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "object");
+            result.paramNullable.push_back(false); // 'this' is never nullable
         }
 
         // Add method parameters with full type names (including class names for objects)
         for (const auto& param : genericParams)
         {
             result.paramNames.push_back(param.first);
-            // Use toString() to get the full type name (e.g., "int", "string", "MyClass", "List<int>")
+            // Use toString() to get the full type name, then strip nullable suffix
             std::string paramTypeStr = param.second->toString();
+            bool paramIsNullable = param.second->isNullable();
+            // Strip '?' from type string - nullable tracked separately
+            paramTypeStr = ::types::TypeConversionUtils::stripNullable(paramTypeStr);
             result.paramTypes.push_back(paramTypeStr);
+            result.paramNullable.push_back(paramIsNullable);
 
             // Validate parameter type exists
             if (!isValidTypeName(paramTypeStr, validGenericParams))
@@ -319,14 +318,19 @@ namespace vm::compiler::visitors
             if (param.second->isGenericParameter())
             {
                 // Generic type parameter (like T, E) - treat as object for now
-                ctx.variableTracker.declareLocal(param.first, value::ValueType::OBJECT, param.second->toString());
+                // Strip nullable suffix '?' from className - nullability is tracked separately
+                std::string paramClassName = ::types::TypeConversionUtils::stripNullable(param.second->toString());
+                ctx.variableTracker.declareLocal(param.first, value::ValueType::OBJECT,
+                                                 paramClassName, param.second->isNullable());
             }
             else
             {
                 // Concrete type
                 value::ValueType concreteType = param.second->getConcreteType();
-                std::string className = (concreteType == value::ValueType::OBJECT) ? param.second->toString() : "";
-                ctx.variableTracker.declareLocal(param.first, concreteType, className);
+                std::string className = (concreteType == value::ValueType::OBJECT)
+                    ? ::types::TypeConversionUtils::stripNullable(param.second->toString()) : "";
+                ctx.variableTracker.declareLocal(param.first, concreteType, className,
+                                                 param.second->isNullable());
             }
         }
 
@@ -442,6 +446,7 @@ namespace vm::compiler::visitors
         metadata.parameterCount = params.paramNames.size();
         metadata.parameterNames = params.paramNames;
         metadata.parameterTypes = params.paramTypes;
+        metadata.parameterNullable = params.paramNullable;
         metadata.returnType = params.returnTypeStr;
         metadata.isStatic = isStatic;
         metadata.isNative = false;
@@ -558,6 +563,7 @@ namespace vm::compiler::visitors
         tempMetadata.parameterCount = params.paramNames.size();  // Set correct count now
         tempMetadata.parameterNames = params.paramNames;
         tempMetadata.parameterTypes = params.paramTypes;
+        tempMetadata.parameterNullable = params.paramNullable;
         tempMetadata.returnType = params.returnTypeStr;
         tempMetadata.isAsync = node->getIsAsync();
         tempMetadata.isStatic = isStatic;

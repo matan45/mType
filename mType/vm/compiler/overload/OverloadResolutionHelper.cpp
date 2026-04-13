@@ -147,12 +147,12 @@ namespace vm::compiler::overload
         bool hasGenericTypeArgs,
         size_t genericTypeArgCount)
     {
-        // Extract base class name (without generic parameters)
-        std::string baseClassName = className;
-        size_t anglePos = className.find('<');
+        // Extract base class name (without nullable suffix or generic parameters)
+        std::string baseClassName = ::types::TypeConversionUtils::stripNullable(className);
+        size_t anglePos = baseClassName.find('<');
         if (anglePos != std::string::npos)
         {
-            baseClassName = className.substr(0, anglePos);
+            baseClassName = baseClassName.substr(0, anglePos);
         }
 
         // Get class definition
@@ -375,12 +375,12 @@ namespace vm::compiler::overload
         const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
         const ast::SourceLocation& location)
     {
-        // Extract base class name (without generic parameters)
-        std::string baseClassName = className;
-        size_t anglePos = className.find('<');
+        // Extract base class name (without nullable suffix or generic parameters)
+        std::string baseClassName = ::types::TypeConversionUtils::stripNullable(className);
+        size_t anglePos = baseClassName.find('<');
         if (anglePos != std::string::npos)
         {
-            baseClassName = className.substr(0, anglePos);
+            baseClassName = baseClassName.substr(0, anglePos);
         }
 
         // Get class definition

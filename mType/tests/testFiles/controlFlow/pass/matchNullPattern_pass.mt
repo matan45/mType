@@ -6,7 +6,7 @@ class User {
     public function getName(): string { return this.name; }
 }
 
-function greet(User user): void {
+function greet(User? user): void {
     match (user) {
         case null -> print("No user provided");
         case User u -> print("Hello, " + u.getName());

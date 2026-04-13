@@ -26,7 +26,7 @@ class Circle implements Drawable {
 
 class ShapeProcessor {
     // Interface as data member
-    private Drawable currentShape;
+    private Drawable? currentShape;
 
     public constructor() {
         this.currentShape = null;

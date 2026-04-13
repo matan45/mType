@@ -7,8 +7,8 @@ interface INode {
 
 class GraphNode implements INode {
     public int id;
-    public GraphNode next;
-    public GraphNode prev;
+    public GraphNode? next;
+    public GraphNode? prev;
 
     public constructor(int nodeId) {
         this.id = nodeId;
@@ -20,11 +20,11 @@ class GraphNode implements INode {
         return this.id;
     }
 
-    public function setNext(GraphNode n): void {
+    public function setNext(GraphNode? n): void {
         this.next = n;
     }
 
-    public function setPrev(GraphNode p): void {
+    public function setPrev(GraphNode? p): void {
         this.prev = p;
     }
 }

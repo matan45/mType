@@ -2,7 +2,7 @@
 // Expected: Pass - demonstrates singleton design pattern
 
 class Logger {
-    private static Logger instance;
+    private static Logger? instance;
     private int messageCount;
     private string logLevel;
 

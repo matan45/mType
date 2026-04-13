@@ -46,7 +46,7 @@ class Class {
     }
 
     // Get the superclass Class object (or null if no parent)
-    public function getSuperclass(): Class {
+    public function getSuperclass(): Class? {
         int parentHandle = __reflect_getSuperclass(this._nativeHandle);
         if (parentHandle == 0) {
             return null;
@@ -239,7 +239,7 @@ class Class {
     }
 
     // Get a specific annotation by name
-    public function getAnnotation(string name): Annotation {
+    public function getAnnotation(string name): Annotation? {
         int annotationHandle = __reflect_getClassAnnotation(this._nativeHandle, name);
         if (annotationHandle == 0) {
             return null;

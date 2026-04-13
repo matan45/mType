@@ -8362,9 +8362,6 @@
     <None Include="tests\testFiles\lib\Iterator.mt">
       <Filter>testFiles\lib</Filter>
     </None>
-    <None Include="tests\testFiles\lib\Object.mt">
-      <Filter>testFiles\lib</Filter>
-    </None>
     <None Include="tests\testFiles\lib\collections\ArrayList.mt">
       <Filter>testFiles\lib\collections</Filter>
     </None>
@@ -8519,6 +8516,9 @@
       <Filter>testFiles\lib\reflect</Filter>
     </None>
     <None Include="tests\testFiles\lib\reflect\Field.mt">
+      <Filter>testFiles\lib\reflect</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\reflect\Library.mt">
       <Filter>testFiles\lib\reflect</Filter>
     </None>
     <None Include="tests\testFiles\lib\reflect\Method.mt">
@@ -8845,16 +8845,58 @@
     <None Include="tests\testFiles\modifiers\pass\publicStaticMembers.mt">
       <Filter>testFiles\modifiers\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\error\chainedAccessThroughNullable_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\guardClauseNoExit_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\memberAccessOnNullable_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\memberAssignOnNullable_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\methodCallOnNullable_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\nullArgToNonNullCtorParam_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\nullArgToNonNullParam_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\error\nullToNonNullable_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\nullableArgToNonNullParam_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\nullableParamNotNarrowed_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\error\nullablePrimitiveType_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\error\returnNullFromNonNull_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\guardClauseNarrowing.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\guardClauseNarrowing.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\pass\jitNullCheckElimination.expected">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\jitNullCheckElimination.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullSafeParamAndReturn.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullSafeParamAndReturn.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\nullableFunctionParams.expected">

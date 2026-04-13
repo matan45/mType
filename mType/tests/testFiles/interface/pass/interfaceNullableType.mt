@@ -14,7 +14,7 @@ class EmailValidator implements Validator {
 }
 
 class ValidationService {
-    private Validator validator;
+    private Validator? validator;
 
     public constructor() {
         this.validator = null;  // Explicitly nullable

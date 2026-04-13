@@ -21,7 +21,7 @@ class Box {
 print("=== Null Return Test ===");
 
 // Lambda returning null for object type
-Function<Int, String> nullReturner = x -> {
+Function<Int, String?> nullReturner = x -> {
     if (x < 0) {
         return null;
     } else {
@@ -29,14 +29,14 @@ Function<Int, String> nullReturner = x -> {
     }
 };
 
-String result1 = nullReturner.apply(5);
-String result2 = nullReturner.apply(-1);
+String? result1 = nullReturner.apply(5);
+String? result2 = nullReturner.apply(-1);
 
 print("Result for 5: " + (result1 == null ? "null" : result1));
 print("Result for -1: " + (result2 == null ? "null" : result2));
 
 // Lambda returning null objects
-Function<Int, Box> boxCreator = x -> {
+Function<Int, Box?> boxCreator = x -> {
     if (x.getValue() == 0) {
         return null;
     } else {
@@ -44,10 +44,14 @@ Function<Int, Box> boxCreator = x -> {
     }
 };
 
-Box b1 = boxCreator.apply(10);
-Box b2 = boxCreator.apply(0);
+Box? b1 = boxCreator.apply(10);
+Box? b2 = boxCreator.apply(0);
 
-print("Box for 10: " + (b1 == null ? "null" : b1.getValue()));
+string b1Str = "null";
+if (b1 != null) {
+    b1Str = "" + b1.getValue();
+}
+print("Box for 10: " + b1Str);
 print("Box for 0: " + (b2 == null ? "null" : "not null"));
 
 // Lambda with null check

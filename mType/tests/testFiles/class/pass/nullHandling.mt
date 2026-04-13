@@ -1,6 +1,6 @@
 class Node {
     public int value;
-    public Node next;
+    public Node? next;
 
     public constructor(int val) {
         value = val;

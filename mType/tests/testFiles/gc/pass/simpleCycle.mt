@@ -2,7 +2,7 @@
 // Purpose: Verify that GC can detect and handle A -> B -> A cycles
 
 class Node {
-    private Node next;
+    private Node? next;
     private string name;
 
     constructor(string n) {
@@ -10,7 +10,7 @@ class Node {
         this.next = null;
     }
 
-    public function setNext(Node n): void {
+    public function setNext(Node? n): void {
         this.next = n;
     }
 

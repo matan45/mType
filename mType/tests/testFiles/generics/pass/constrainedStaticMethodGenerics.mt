@@ -34,7 +34,7 @@ class Item implements Comparable<Item> {
 
 class Utilities {
     // Static method with constraint
-    public static function <T extends Comparable<T>> findMax(ArrayList<T> items): T {
+    public static function <T extends Comparable<T>> findMax(ArrayList<T> items): T? {
         if (items.size() == 0) {
             return null;
         }
@@ -50,7 +50,7 @@ class Utilities {
     }
 
     // Static method with constraint
-    public static function <T extends Comparable<T>> findMin(ArrayList<T> items): T {
+    public static function <T extends Comparable<T>> findMin(ArrayList<T> items): T? {
         if (items.size() == 0) {
             return null;
         }
@@ -78,10 +78,14 @@ items.add(new Item(5));
 items.add(new Item(20));
 items.add(new Item(3));
 
-Item maxItem = Utilities::findMax<Item>(items);
-Item minItem = Utilities::findMin<Item>(items);
+Item? maxItem = Utilities::findMax<Item>(items);
+Item? minItem = Utilities::findMin<Item>(items);
 
-print("Max value: " + maxItem.getValue());
-print("Min value: " + minItem.getValue());
+if (maxItem != null) {
+    print("Max value: " + maxItem.getValue());
+}
+if (minItem != null) {
+    print("Min value: " + minItem.getValue());
+}
 
 print("Constrained static method generics test passed!");

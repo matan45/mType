@@ -86,7 +86,8 @@ namespace vm::bytecode
             size_t localCount;
             size_t parameterCount;
             std::vector<std::string> parameterNames;
-            std::vector<std::string> parameterTypes; // Added for type checking
+            std::vector<std::string> parameterTypes; // Added for type checking (without ? suffix)
+            std::vector<bool> parameterNullable;    // Per-parameter nullable flags
             std::string returnType;
             bool isStatic = false;
             bool isNative = false;

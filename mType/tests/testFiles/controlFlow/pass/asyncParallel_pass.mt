@@ -65,7 +65,6 @@ function async runParallel(): Promise<void> {
     int total = r1.getValue() + r2.getValue() + r3.getValue();
     print("Total from parallel operations: " + total);
 
-    return null;
 }
 
 // Test sequential vs parallel patterns
@@ -80,7 +79,6 @@ function async comparePatterns(): Promise<void> {
     int sequentialTotal = s1.getValue() + s2.getValue() + s3.getValue();
     print("Sequential total: " + sequentialTotal);
 
-    return null;
 }
 
 // Main function
@@ -90,7 +88,6 @@ function async main(): Promise<void> {
 
     print("");
     print("Parallel operations test complete");
-    return null;
 }
 
 main();

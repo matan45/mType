@@ -11,7 +11,7 @@ class TestClass {
     }
 
     // Method that explicitly returns null
-    public function getNull(): Object {
+    public function getNull(): Object? {
         return null;
     }
 
@@ -21,7 +21,7 @@ class TestClass {
     }
 
     // Method that conditionally returns null or object
-    public function getMaybe(bool returnNull): Object {
+    public function getMaybe(bool returnNull): Object? {
         if (returnNull) {
             return null;
         }
@@ -34,7 +34,7 @@ function voidFunction(): void {
     // Implicit void return
 }
 
-function nullFunction(): Object {
+function nullFunction(): Object? {
     return null;
 }
 
@@ -50,7 +50,7 @@ function main(): void {
 
     // Test 2: Null return is an actual value
     print("Test 2: Calling null-returning method");
-    Object nullResult = t.getNull();
+    Object? nullResult = t.getNull();
     if (nullResult == null) {
         print("Test 2 PASS: Got null as expected");
     } else {
@@ -68,8 +68,8 @@ function main(): void {
 
     // Test 4: Conditional null vs object
     print("Test 4: Conditional returns");
-    Object maybe1 = t.getMaybe(true);
-    Object maybe2 = t.getMaybe(false);
+    Object? maybe1 = t.getMaybe(true);
+    Object? maybe2 = t.getMaybe(false);
     if (maybe1 == null && maybe2 != null) {
         print("Test 4 PASS: Conditional returns work correctly");
     } else {
@@ -83,7 +83,7 @@ function main(): void {
 
     // Test 6: Global null-returning function
     print("Test 6: Global null function");
-    Object globalNull = nullFunction();
+    Object? globalNull = nullFunction();
     if (globalNull == null) {
         print("Test 6 PASS: Global function returned null");
     } else {

@@ -43,7 +43,6 @@ function async testForLoop(): Promise<void> {
 
     print("Total sum: " + total);
     print("Expected: 1 + 4 + 9 + 16 + 25 = 55");
-    return null;
 }
 
 // Test 2: Await in while loop
@@ -61,7 +60,6 @@ function async testWhileLoop(): Promise<void> {
     }
 
     print("While loop sum: " + sum);
-    return null;
 }
 
 // Test 3: Conditional await in loop
@@ -85,7 +83,6 @@ function async testConditionalInLoop(): Promise<void> {
 
     print("Even sum: " + evenSum);
     print("Odd sum: " + oddSum);
-    return null;
 }
 
 // Test 4: Break with await in loop
@@ -102,7 +99,6 @@ function async testBreakInLoop(): Promise<void> {
             break;
         }
     }
-    return null;
 }
 
 // Test 5: Continue with await in loop
@@ -125,7 +121,6 @@ function async testContinueInLoop(): Promise<void> {
     }
 
     print("Processed " + processedCount + " even-indexed items");
-    return null;
 }
 
 // Test 6: Nested loops with await
@@ -142,7 +137,6 @@ function async testNestedLoops(): Promise<void> {
             print("  Inner [" + i + "," + j + "]: " + item.getValue());
         }
     }
-    return null;
 }
 
 // Main function
@@ -156,7 +150,6 @@ function async main(): Promise<void> {
 
     print("");
     print("All async in loop tests complete");
-    return null;
 }
 
 main();

@@ -2,7 +2,7 @@ import * from "../../lib/primitives/String.mt";
 
 // Test: Generic instance methods with null values
 class Container {
-    public function <T> store(T value): void {
+    public function <T> store(T? value): void {
         if (value == null) {
             print("Stored null value");
         } else {

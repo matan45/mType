@@ -79,7 +79,6 @@ function async main(): Promise<void> {
     print("Expected: ((10 * 3) + 100) - 50 = 80");
 
     print("Promise chain complete");
-    return null;
 }
 
 main();

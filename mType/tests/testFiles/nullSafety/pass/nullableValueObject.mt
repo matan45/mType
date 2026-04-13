@@ -27,7 +27,7 @@ Point? p1 = null;
 print("p1 is null: " + (p1 == null));
 
 // Assign value object to nullable
-Point? p2 = new Point(3, 4);
+Point p2 = new Point(3, 4);
 print("p2: " + p2.toString());
 
 // Non-nullable value class
@@ -69,7 +69,9 @@ print("missing is null: " + (missing == null));
 
 // Reassign nullable value class
 p1 = new Point(7, 8);
-print("p1 after assign: " + p1.toString());
+if (p1 != null) {
+    print("p1 after assign: " + p1.toString());
+}
 p1 = null;
 print("p1 after null: " + (p1 == null));
 

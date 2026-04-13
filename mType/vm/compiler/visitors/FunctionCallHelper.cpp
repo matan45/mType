@@ -374,6 +374,23 @@ namespace vm::compiler::visitors
                 continue; // Can't validate - inference failed or expression is void
             }
 
+            // Null safety enforcement: reject nullable values passed to non-nullable parameters
+            bool expectedIsNullable = (i < funcMetadata->parameterNullable.size() && funcMetadata->parameterNullable[i]);
+            if (!expectedIsNullable)
+            {
+                // Skip check for generic type parameters (T, K, V, etc.)
+                bool isGenericParam = ::types::TypeConversionUtils::isGenericTypeParameter(expectedType);
+                if (!isGenericParam && ctx.typeInference.inferExpressionNullable(arguments[i].get()))
+                {
+                    throw errors::TypeException(
+                        "Cannot pass nullable value to non-nullable parameter " + std::to_string(i + 1) +
+                        " of '" + functionName + "'. Parameter type is '" + expectedType +
+                        "', use '" + expectedType + "?' to allow null.",
+                        node->getLocation()
+                    );
+                }
+            }
+
             // Convert argType to string for comparison
             std::string argTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(argType);
 
@@ -447,6 +464,10 @@ namespace vm::compiler::visitors
                     std::string normalizedArgClassName = normalizeArrayType(argClassName);
                     std::string normalizedExpectedType = normalizeArrayType(expectedType);
 
+                    // Strip nullable suffix for type compatibility checks
+                    // Non-nullable values are always assignable to nullable parameters
+                    normalizedExpectedType = ::types::TypeConversionUtils::stripNullable(normalizedExpectedType);
+
                     if (!argClassName.empty() && normalizedArgClassName != normalizedExpectedType)
                     {
                         // Check if both are generic types with the same base
@@ -470,7 +491,9 @@ namespace vm::compiler::visitors
                         if (!isGenericMatch)
                         {
                             // Check if argClassName is assignable to expectedType (inheritance/polymorphism)
-                            if (!ctx.typeValidator.isClassCompatible(argClassName, expectedType))
+                            // Strip nullable suffix - non-null is always compatible with nullable
+                            std::string resolvedExpected = ::types::TypeConversionUtils::stripNullable(expectedType);
+                            if (!ctx.typeValidator.isClassCompatible(argClassName, resolvedExpected))
                             {
                                 // null can be passed to any object type
                                 if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))

@@ -81,7 +81,6 @@ print("Returned: " + result4.toString());
 print("");
 
 print("All finally-return-order tests completed");
-return null;
 }
 
 main();

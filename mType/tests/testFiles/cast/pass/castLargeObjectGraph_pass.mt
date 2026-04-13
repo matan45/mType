@@ -3,9 +3,9 @@
 
 class Node {
     public int value;
-    public Node left;
-    public Node right;
-    public Node parent;
+    public Node? left;
+    public Node? right;
+    public Node? parent;
 
     public constructor(int v) {
         this.value = v;
@@ -32,7 +32,7 @@ class TreeNode extends Node {
 }
 
 // Create a large binary tree (depth 8 = 255 nodes)
-function createTree(int depth, int currentDepth, TreeNode parent): TreeNode {
+function createTree(int depth, int currentDepth, TreeNode? parent): TreeNode? {
     if (currentDepth > depth) {
         return null;
     }
@@ -49,29 +49,31 @@ function createTree(int depth, int currentDepth, TreeNode parent): TreeNode {
 }
 
 // Traverse tree and cast nodes
-function traverseAndCast(TreeNode node, int count): int {
+function traverseAndCast(TreeNode? node, int count): int {
     if (node == null) {
         return count;
     }
 
-    // Cast TreeNode to Node (upcast)
-    Node baseNode = (Node)node;
-    baseNode.setValue(baseNode.value + 1);
+    if (node != null) {
+        // Cast TreeNode to Node (upcast)
+        Node baseNode = (Node)node;
+        baseNode.setValue(baseNode.value + 1);
 
-    // Cast back to TreeNode (downcast)
-    TreeNode treeNode = (TreeNode)baseNode;
-    if (treeNode != null) {
-        count = count + 1;
+        // Cast back to TreeNode (downcast)
+        TreeNode treeNode = (TreeNode)baseNode;
+        if (treeNode != null) {
+            count = count + 1;
+        }
+
+        count = traverseAndCast((TreeNode)node.left, count);
+        count = traverseAndCast((TreeNode)node.right, count);
     }
-
-    count = traverseAndCast((TreeNode)node.left, count);
-    count = traverseAndCast((TreeNode)node.right, count);
 
     return count;
 }
 
 print("Creating large object graph...");
-TreeNode root = createTree(7, 0, null);
+TreeNode? root = createTree(7, 0, null);
 print("Tree created");
 
 print("Starting traversal with casting...");

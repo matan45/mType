@@ -27,7 +27,7 @@ function getDefaultPort(): int {
     return 8080;
 }
 
-function getConfigOrDefault(Configuration config): string {
+function getConfigOrDefault(Configuration? config): string {
     if (config != null) {
         return config.getHost();
     } else {
@@ -35,7 +35,7 @@ function getConfigOrDefault(Configuration config): string {
     }
 }
 
-function getPortOrDefault(Configuration config): int {
+function getPortOrDefault(Configuration? config): int {
     if (config != null) {
         return config.getPort();
     } else {
@@ -64,7 +64,10 @@ function main(): void {
     print("Port 2: " + port2);
 
     // Type checking with fallback values
-    string finalHost = config1 != null ? config1.getHost() : "default.com";
+    string finalHost = "default.com";
+    if (config1 != null) {
+        finalHost = config1.getHost();
+    }
     print("Final host: " + finalHost);
 
     int finalPort = config2 != null ? config2.getPort() : 9000;

@@ -4,7 +4,7 @@ import * from "../../lib/primitives/String.mt";
 
 interface Container<T> {
     function add(T item): bool;
-    function get(int index): T;
+    function get(int index): T?;
     function size(): int;
 }
 
@@ -21,7 +21,7 @@ class GenericList<T> implements Container<T> {
         return true;
     }
 
-    public function get(int index): T {
+    public function get(int index): T? {
         return null; // Simplified implementation
     }
 

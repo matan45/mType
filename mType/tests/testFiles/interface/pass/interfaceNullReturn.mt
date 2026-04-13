@@ -23,7 +23,7 @@ class ShapeFactory {
     public constructor() {
     }
 
-    public function createShape(bool valid): Shape {
+    public function createShape(bool valid): Shape? {
         if (valid) {
             return new Rectangle(10, 20);
         }

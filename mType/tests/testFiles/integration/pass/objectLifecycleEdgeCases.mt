@@ -69,14 +69,16 @@ function testObjectArrayLifecycle(): void {
     // This test focuses on multiple object variables
     LifecycleCounter obj1 = new LifecycleCounter();
     LifecycleCounter obj2 = new LifecycleCounter();
-    LifecycleCounter obj3 = new LifecycleCounter();
-    
+    LifecycleCounter? obj3 = new LifecycleCounter();
+
     print("Created 3 objects: " + LifecycleCounter::getCurrentCount());
-    
+
     obj1.setPhase("Active");
     obj2.setPhase("Inactive");
-    obj3.setPhase("Pending");
-    
+    if (obj3 != null) {
+        obj3.setPhase("Pending");
+    }
+
     // Reassign some objects
     obj1 = obj2; // Original obj1 should be destroyed
     obj3 = null; // obj3 should be destroyed
@@ -152,20 +154,26 @@ function testObjectSharingScenario(): void {
     LifecycleCounter shared = new LifecycleCounter();
     shared.setPhase("Shared");
     
-    LifecycleCounter ref1 = shared;
-    LifecycleCounter ref2 = shared;
-    LifecycleCounter ref3 = shared;
+    LifecycleCounter? ref1 = shared;
+    LifecycleCounter? ref2 = shared;
+    LifecycleCounter? ref3 = shared;
     
     print("After sharing: " + LifecycleCounter::getCurrentCount());
     print("Shared object phase: " + shared.getPhase());
     
     // Modify through one reference
-    ref1.setPhase("Modified");
-    
+    if (ref1 != null) {
+        ref1.setPhase("Modified");
+    }
+
     print("After modification through ref1:");
     print("  shared.phase: " + shared.getPhase());
-    print("  ref2.phase: " + ref2.getPhase());
-    print("  ref3.phase: " + ref3.getPhase());
+    if (ref2 != null) {
+        print("  ref2.phase: " + ref2.getPhase());
+    }
+    if (ref3 != null) {
+        print("  ref3.phase: " + ref3.getPhase());
+    }
     
     // Clear references
     ref1 = null;

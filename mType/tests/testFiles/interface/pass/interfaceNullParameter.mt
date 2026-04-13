@@ -12,12 +12,14 @@ class DataProcessor implements Processor {
 }
 
 class Service {
-    public function execute(Processor processor): void {
+    public function execute(Processor? processor): void {
         if (processor == null) {
             print("No processor provided");
             return;
         }
-        processor.process("test data");
+        if (processor != null) {
+            processor.process("test data");
+        }
     }
 }
 

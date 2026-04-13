@@ -2,11 +2,11 @@
 // Purpose: Create so many interconnected objects that a single collection exceeds 5ms
 
 class Node {
-    private Node n1;
-    private Node n2;
-    private Node n3;
-    private Node n4;
-    private Node n5;
+    private Node? n1;
+    private Node? n2;
+    private Node? n3;
+    private Node? n4;
+    private Node? n5;
     private int id;
 
     constructor(int i) {
@@ -18,11 +18,11 @@ class Node {
         this.n5 = null;
     }
 
-    public function setN1(Node n): void { this.n1 = n; }
-    public function setN2(Node n): void { this.n2 = n; }
-    public function setN3(Node n): void { this.n3 = n; }
-    public function setN4(Node n): void { this.n4 = n; }
-    public function setN5(Node n): void { this.n5 = n; }
+    public function setN1(Node? n): void { this.n1 = n; }
+    public function setN2(Node? n): void { this.n2 = n; }
+    public function setN3(Node? n): void { this.n3 = n; }
+    public function setN4(Node? n): void { this.n4 = n; }
+    public function setN5(Node? n): void { this.n5 = n; }
 }
 
 function main(): void {

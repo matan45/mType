@@ -7,6 +7,7 @@
 #include "../../../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../token/TokenType.hpp"
+#include "../validation/ReturnPathValidator.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -113,6 +114,17 @@ namespace vm::compiler::visitors
             ctx.emitter.patchJump(elseJump);
         }
 
+        // Guard-clause narrowing: if (x == null) { return/throw; }
+        // Narrow x to non-null for all subsequent code in the enclosing scope
+        if (!narrowVarName.empty() && narrowInElse && !node->getElseStatement())
+        {
+            if (validation::ReturnPathValidator::pathAlwaysReturns(node->getThenStatement()))
+            {
+                ctx.nullNarrowing.ensureScope();
+                ctx.nullNarrowing.narrowToNonNull(narrowVarName);
+            }
+        }
+
         return std::monostate{};
     }
 
@@ -148,9 +160,37 @@ namespace vm::compiler::visitors
         // Enter loop context
         ctx.loopManager.enterLoop(loopStart);
 
+        // Analyze condition for null narrowing in while body
+        // while (x != null) { ... } narrows x to non-null inside the body
+        std::string whileNarrowVar;
+        if (auto* binExpr = dynamic_cast<ast::nodes::expressions::BinaryExpNode*>(node->getCondition()))
+        {
+            auto* left = binExpr->getLeft();
+            auto* right = binExpr->getRight();
+            token::TokenType op = binExpr->getOperator();
+            auto* leftVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(left);
+            auto* rightVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(right);
+            bool leftIsNull = dynamic_cast<ast::NullNode*>(left) != nullptr;
+            bool rightIsNull = dynamic_cast<ast::NullNode*>(right) != nullptr;
+            if (op == token::TokenType::NOT_EQUALS)
+            {
+                if (rightIsNull && leftVar) { whileNarrowVar = leftVar->getName(); }
+                else if (leftIsNull && rightVar) { whileNarrowVar = rightVar->getName(); }
+            }
+        }
+
         // Compile body with its own scope
         ctx.variableTracker.beginScope();
+        if (!whileNarrowVar.empty())
+        {
+            ctx.nullNarrowing.enterScope();
+            ctx.nullNarrowing.narrowToNonNull(whileNarrowVar);
+        }
         node->getBody()->accept(ctx.visitor);  // Will need delegation
+        if (!whileNarrowVar.empty())
+        {
+            ctx.nullNarrowing.exitScope();
+        }
         ctx.variableTracker.endScope();
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 

@@ -239,7 +239,6 @@ function async main(): Promise<void> {
 
     print("");
     print("Await exception test completed");
-    return null;
 }
 
 main();

@@ -80,10 +80,8 @@ After removeAll:
 
 === Test 7: Null Validation ===
 Testing null validation:
-Error: LinkedList.add() - item cannot be null
-Error: LinkedList.contains() - item cannot be null
-Contains null result: false
-List size after null error and valid add: 1
-Valid item: Valid Item
+Contains test result: true
+List size after valid adds: 2
+First item: NullTest
 
 LinkedList tests completed successfully!

@@ -30,14 +30,17 @@ class GenericProcessor<T> {
     }
 
     // Test 1: Generic method with try-catch-finally and return
-    public function processWithFinally(T input): Result<T> {
+    public function processWithFinally(T? input): Result<T> {
         try {
             print("Processing input");
             if (input == null) {
                 Exception e = new Exception("Null input");
                 throw e;
             }
-            return new Result<T>(input, false, new String(""));
+            if (input != null) {
+                return new Result<T>(input, false, new String(""));
+            }
+            return new Result<T>(this.data, false, new String(""));
         } catch (Exception e) {
             print("Error: " + e.getMessage());
             return new Result<T>(this.data, true, new String(e.getMessage()));

@@ -94,9 +94,12 @@ function main(): void {
     }
 
     // Use only a few
-    int result1 = massiveArray[10].execute(5);
-    int result2 = massiveArray[50].execute(5);
-    int result3 = massiveArray[90].execute(5);
+    Callback cb1 = massiveArray[10];
+    Callback cb2 = massiveArray[50];
+    Callback cb3 = massiveArray[90];
+    int result1 = cb1.execute(5);
+    int result2 = cb2.execute(5);
+    int result3 = cb3.execute(5);
 
     print("Massive array results: " + result1 + ", " + result2 + ", " + result3);
 

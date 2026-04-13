@@ -59,7 +59,6 @@ function async main(): Promise<void> {
     print("Data saved: " + saved.toString());
     print("Total calls: " + provider.getCallCount());
 
-    return null;
 }
 
 main();

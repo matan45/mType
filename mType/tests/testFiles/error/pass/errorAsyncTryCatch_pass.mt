@@ -117,7 +117,6 @@ function async main(): Promise<void> {
 
     print("");
     print("Async try-catch test completed");
-    return null;
 }
 
 main();

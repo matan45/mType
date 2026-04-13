@@ -1,5 +1,6 @@
 #include "ClassCompiler.hpp"
 #include "../validation/CompileTimeValidator.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../optimization/PrimitiveMethodOptimizer.hpp"
 #include "../../../errors/TypeException.hpp"
@@ -255,12 +256,12 @@ namespace vm::compiler::visitors
             bool hasMethodGenericBindings = false;
             std::unordered_map<std::string, std::string> methodGenericBindings;
 
-            // Extract base class name (without generic parameters) for method lookup
-            std::string baseClassName = objectClassName;
-            size_t anglePos = objectClassName.find('<');
+            // Extract base class name (without nullable suffix or generic parameters) for method lookup
+            std::string baseClassName = ::types::TypeConversionUtils::stripNullable(objectClassName);
+            size_t anglePos = baseClassName.find('<');
             if (anglePos != std::string::npos)
             {
-                baseClassName = objectClassName.substr(0, anglePos);
+                baseClassName = baseClassName.substr(0, anglePos);
             }
 
             // Build qualified method name for metadata lookup
@@ -418,12 +419,12 @@ namespace vm::compiler::visitors
             // Validate instance method exists at compile time
             if (!objectClassName.empty() && ctx.compileTimeValidator)
             {
-                // Extract base class name (without generic parameters)
-                std::string baseClassName = objectClassName;
-                size_t anglePos = objectClassName.find('<');
+                // Extract base class name (without nullable suffix or generic parameters)
+                std::string baseClassName = ::types::TypeConversionUtils::stripNullable(objectClassName);
+                size_t anglePos = baseClassName.find('<');
                 if (anglePos != std::string::npos)
                 {
-                    baseClassName = objectClassName.substr(0, anglePos);
+                    baseClassName = baseClassName.substr(0, anglePos);
                 }
                 ctx.compileTimeValidator->validateInstanceMethodExists(baseClassName, methodName, arguments.size(), node->getLocation());
             }
@@ -437,7 +438,17 @@ namespace vm::compiler::visitors
 
             // First, compile the object expression
             bool nonNullReceiver = isReceiverNonNullable(node->getObject());
-            node->getObject()->accept(ctx.visitor); // Will need delegation
+
+            if (!nonNullReceiver)
+            {
+                throw errors::TypeException(
+                    "Cannot call method '" + methodName + "' on nullable receiver. "
+                    "Add a null check (if (x != null) { ... }) or change the receiver's declared type to non-nullable.",
+                    node->getLocation()
+                );
+            }
+
+            node->getObject()->accept(ctx.visitor);
 
             // Push all arguments onto stack with auto-boxing if needed
             // If no methodMetadata, try looking up interface definition
@@ -605,10 +616,7 @@ namespace vm::compiler::visitors
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
                                  static_cast<uint64_t>(methodNameIndex),
                                  static_cast<uint64_t>(arguments.size()), node);
-                if (nonNullReceiver)
-                {
-                    ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
-                }
+                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
             }
         }
     }

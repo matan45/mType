@@ -158,7 +158,7 @@ class Person {
             }
         }
 
-        public function get(int index):T {
+        public function get(int index):T? {
             if (index >= 0 && index < this.count) {
                 return this.members[index];
             }

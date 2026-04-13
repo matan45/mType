@@ -65,25 +65,27 @@ class Product {
     }
 }
 
-function getProductStatus(Product product): string {
+function getProductStatus(Product? product): string {
     // Early return for null
     if (product == null) {
         return "invalid";
     }
 
-    // Early return for out of stock
-    if (product.stock == 0) {
-        return "out-of-stock";
-    }
+    if (product != null) {
+        // Early return for out of stock
+        if (product.stock == 0) {
+            return "out-of-stock";
+        }
 
-    // Early return for low stock
-    if (product.stock < 5) {
-        return "low-stock";
-    }
+        // Early return for low stock
+        if (product.stock < 5) {
+            return "low-stock";
+        }
 
-    // Early return for expensive items
-    if (product.price > 100.0) {
-        return "premium";
+        // Early return for expensive items
+        if (product.price > 100.0) {
+            return "premium";
+        }
     }
 
     // Default case
@@ -221,24 +223,28 @@ class Order {
     }
 }
 
-function canCancelOrder(Order order): string {
+function canCancelOrder(Order? order): string {
     // Early return for null order
     if (order == null) {
         return "Cannot cancel: Order not found";
     }
 
-    // Early return if already shipped
-    if (order.isShipped) {
-        return "Cannot cancel: Order already shipped";
+    if (order != null) {
+        // Early return if already shipped
+        if (order.isShipped) {
+            return "Cannot cancel: Order already shipped";
+        }
+
+        // Early return if not paid (can cancel easily)
+        if (!order.isPaid) {
+            return "Cancellation allowed: Unpaid order";
+        }
+
+        // Paid but not shipped - requires refund
+        return "Cancellation requires refund";
     }
 
-    // Early return if not paid (can cancel easily)
-    if (!order.isPaid) {
-        return "Cancellation allowed: Unpaid order";
-    }
-
-    // Paid but not shipped - requires refund
-    return "Cancellation requires refund";
+    return "Cannot cancel: Order not found";
 }
 
 print("Test 7: Early return in business logic");

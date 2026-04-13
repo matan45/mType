@@ -1,4 +1,5 @@
 #include "TypeInferenceEngine.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include "../../../ast/nodes/expressions/IntegerNode.hpp"
 #include "../../../ast/nodes/expressions/FloatNode.hpp"
 #include "../../../ast/nodes/expressions/StringNode.hpp"
@@ -15,6 +16,7 @@
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../../ast/nodes/classes/SuperMemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../token/TokenType.hpp"
@@ -667,7 +669,8 @@ namespace vm::compiler::types
                         // Return the field's generic type
                         auto genericType = fieldNode->getGenericType();
                         if (genericType) {
-                            return genericType->toString();
+                            // Strip nullable suffix '?' - class names should not include it
+                            return ::types::TypeConversionUtils::stripNullable(genericType->toString());
                         }
                     }
                 }
@@ -685,7 +688,8 @@ namespace vm::compiler::types
                         if (accessMod != ast::AccessModifier::PRIVATE) {
                             auto uType = parentField->getUnifiedType();
                             if (uType) {
-                                return uType->toString();
+                                // Strip nullable suffix '?' - class names should not include it
+                                return ::types::TypeConversionUtils::stripNullable(uType->toString());
                             }
                         }
                     }
@@ -728,7 +732,7 @@ namespace vm::compiler::types
                 funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
                 funcMetadata->returnType != "void" && funcMetadata->returnType != "object") {
                 // Resolve generic type if applicable (from context stack)
-                return resolveGenericType(funcMetadata->returnType);
+                return ::types::TypeConversionUtils::stripNullable(resolveGenericType(funcMetadata->returnType));
             }
         }
 
@@ -737,8 +741,7 @@ namespace vm::compiler::types
         if (funcDef) {
             std::string returnClassName = funcDef->getReturnClassName();
             if (!returnClassName.empty()) {
-                // Resolve generic type if applicable
-                return resolveGenericType(returnClassName);
+                return ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnClassName));
             }
         }
         return "";
@@ -789,7 +792,7 @@ namespace vm::compiler::types
         // Get the object's class name
         std::string className = inferExpressionClassName(memberAccess->getObject());
         if (!className.empty()) {
-            // Look up the class definition
+            // Look up the class definition (className is already stripped of '?')
             auto classDef = environment->findClass(className);
             if (classDef) {
                 std::string memberName = memberAccess->getMemberName();
@@ -798,7 +801,8 @@ namespace vm::compiler::types
                 auto field = classDef->getField(memberName);
                 if (field) {
                     if (field->hasUnifiedType()) {
-                        std::string fieldTypeName = field->getUnifiedType()->toString();
+                        std::string fieldTypeName = ::types::TypeConversionUtils::stripNullable(
+                            field->getUnifiedType()->toString());
                         // Don't return primitive type names as class names
                         if (fieldTypeName != "int" && fieldTypeName != "float" &&
                             fieldTypeName != "string" && fieldTypeName != "bool" &&
@@ -812,7 +816,8 @@ namespace vm::compiler::types
                 auto method = classDef->getMethod(memberName);
                 if (method) {
                     if (method->getUnifiedReturnType()) {
-                        std::string returnTypeName = method->getUnifiedReturnType()->toString();
+                        std::string returnTypeName = ::types::TypeConversionUtils::stripNullable(
+                            method->getUnifiedReturnType()->toString());
                         // Don't return primitive type names as class names
                         if (returnTypeName != "int" && returnTypeName != "float" &&
                             returnTypeName != "string" && returnTypeName != "bool" &&
@@ -990,7 +995,9 @@ namespace vm::compiler::types
                     funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
                     funcMetadata->returnType != "void") {
                     // Resolve generic type if applicable (from context stack)
-                    return resolveGenericType(funcMetadata->returnType);
+                    std::string resolved = ::types::TypeConversionUtils::stripNullable(
+                        resolveGenericType(funcMetadata->returnType));
+                    return resolved;
                 }
             }
         }
@@ -1238,5 +1245,208 @@ namespace vm::compiler::types
 
         // Not a generic type parameter, return as-is
         return typeName;
+    }
+
+    void TypeInferenceEngine::setNullNarrowingTracker(const NullNarrowingTracker* tracker)
+    {
+        nullNarrowingTracker = tracker;
+    }
+
+    bool TypeInferenceEngine::inferExpressionNullable(ast::ASTNode* node) const
+    {
+        if (!node) return false;
+
+        // Null literal is always nullable
+        if (dynamic_cast<ast::NullNode*>(node))
+        {
+            return true;
+        }
+
+        // Primitive literals are never nullable
+        if (dynamic_cast<ast::IntegerNode*>(node) ||
+            dynamic_cast<ast::FloatNode*>(node) ||
+            dynamic_cast<ast::StringNode*>(node) ||
+            dynamic_cast<ast::BoolNode*>(node))
+        {
+            return false;
+        }
+
+        // New object creation is never nullable
+        if (dynamic_cast<ast::NewNode*>(node))
+        {
+            return false;
+        }
+
+        // Lambda expressions are never nullable
+        if (dynamic_cast<ast::LambdaNode*>(node))
+        {
+            return false;
+        }
+
+        // Array literals are never nullable
+        if (dynamic_cast<ast::ArrayLiteralNode*>(node))
+        {
+            return false;
+        }
+
+        // Super member access is never nullable (super is like this)
+        if (dynamic_cast<ast::SuperMemberAccessNode*>(node))
+        {
+            return false;
+        }
+
+        // Binary/unary operations produce primitives, never nullable
+        if (dynamic_cast<ast::BinaryOpNode*>(node) ||
+            dynamic_cast<ast::UnaryOpNode*>(node))
+        {
+            return false;
+        }
+
+        // Variable references
+        if (auto* varNode = dynamic_cast<ast::VariableNode*>(node))
+        {
+            const std::string& varName = varNode->getName();
+
+            // 'this' is always non-null
+            if (varName == "this")
+            {
+                return false;
+            }
+
+            // Check if null-narrowed via smart cast
+            if (nullNarrowingTracker && nullNarrowingTracker->isNarrowedNonNull(varName))
+            {
+                return false;
+            }
+
+            // Check local variable nullability
+            if (variableTracker.existsInFunction(varName))
+            {
+                return variableTracker.getLocalNullableByName(varName);
+            }
+
+            // Check global variable nullability
+            if (globalRegistry.exists(varName))
+            {
+                return globalRegistry.isNullable(varName);
+            }
+
+            return false;
+        }
+
+        // Cast expression - nullable depends on target type
+        if (auto* castExpr = dynamic_cast<ast::CastExpression*>(node))
+        {
+            if (castExpr->getTargetType())
+            {
+                return castExpr->getTargetType()->isNullable();
+            }
+            return false;
+        }
+
+        // Function call - check return type from metadata
+        if (auto* funcCall = dynamic_cast<ast::FunctionCallNode*>(node))
+        {
+            const std::string& funcName = funcCall->getFunctionName();
+            const auto* funcMeta = program.getFunction(funcName);
+            if (funcMeta && !funcMeta->returnType.empty())
+            {
+                return ::types::TypeConversionUtils::isNullableType(funcMeta->returnType);
+            }
+            return false;
+        }
+
+        // Method call - check return type from metadata
+        if (auto* methodCall = dynamic_cast<ast::MethodCallNode*>(node))
+        {
+            std::string className = inferExpressionClassName(methodCall->getObject());
+            if (!className.empty())
+            {
+                std::string qualifiedName = className + "::" + methodCall->getMethodName();
+                const auto* funcMeta = program.getFunction(qualifiedName);
+
+                // Try prefix matching for overloaded methods
+                // Conservative: if any overload returns nullable, treat as nullable
+                if (!funcMeta)
+                {
+                    const auto& allFunctions = program.getFunctions();
+                    std::string prefix = qualifiedName + "/";
+                    for (const auto& [name, metadata] : allFunctions)
+                    {
+                        if (name.find(prefix) == 0 || name == qualifiedName)
+                        {
+                            if (!funcMeta)
+                            {
+                                funcMeta = &metadata;
+                            }
+                            else if (!::types::TypeConversionUtils::isNullableType(funcMeta->returnType)
+                                     && ::types::TypeConversionUtils::isNullableType(metadata.returnType))
+                            {
+                                funcMeta = &metadata; // prefer nullable overload (conservative)
+                            }
+                        }
+                    }
+                }
+
+                if (funcMeta && !funcMeta->returnType.empty())
+                {
+                    return ::types::TypeConversionUtils::isNullableType(funcMeta->returnType);
+                }
+            }
+
+            // Also check class definition for the method return type
+            if (!className.empty())
+            {
+                auto classDef = environment->findClass(className);
+                if (classDef)
+                {
+                    auto method = classDef->getMethod(methodCall->getMethodName());
+                    if (method && method->getUnifiedReturnType())
+                    {
+                        return method->getUnifiedReturnType()->isNullable();
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // Member access - check field nullability in class definition
+        if (auto* memberAccess = dynamic_cast<ast::MemberAccessNode*>(node))
+        {
+            std::string className = inferExpressionClassName(memberAccess->getObject());
+            if (!className.empty())
+            {
+                auto classDef = environment->findClass(className);
+                if (classDef)
+                {
+                    auto field = classDef->getField(memberAccess->getMemberName());
+                    if (field && field->hasUnifiedType())
+                    {
+                        return field->getUnifiedType()->isNullable();
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Await expression - check inner expression's return type
+        if (auto* awaitExpr = dynamic_cast<ast::nodes::expressions::AwaitExpression*>(node))
+        {
+            auto* innerExpr = awaitExpr->getExpressionPtr();
+            if (innerExpr)
+            {
+                return inferExpressionNullable(innerExpr);
+            }
+        }
+
+        // Index access - could be nullable depending on element type, conservative: false
+        if (dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(node))
+        {
+            return false;
+        }
+
+        // Default: conservative, assume non-nullable to avoid false positives
+        return false;
     }
 }

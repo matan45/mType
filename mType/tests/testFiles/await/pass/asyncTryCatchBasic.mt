@@ -79,7 +79,6 @@ print("Result: " + result4.toString());
 
 print("");
 print("All async try-catch tests completed");
-return null;
 }
 
 main();

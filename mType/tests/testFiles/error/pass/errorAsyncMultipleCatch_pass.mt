@@ -177,7 +177,6 @@ function async main(): Promise<void> {
 
     print("");
     print("Multiple catch test completed");
-    return null;
 }
 
 main();

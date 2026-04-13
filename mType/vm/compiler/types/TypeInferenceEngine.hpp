@@ -6,6 +6,7 @@
 #include "../../../environment/Environment.hpp"
 #include "../variables/VariableTracker.hpp"
 #include "../variables/GlobalVariableRegistry.hpp"
+#include "NullNarrowingTracker.hpp"
 #include <string>
 #include <memory>
 #include <unordered_map>
@@ -33,6 +34,12 @@ namespace vm::compiler::types
         value::ValueType inferExpressionType(ast::ASTNode* node) const;
         std::string inferExpressionClassName(ast::ASTNode* node) const;
 
+        // Nullability inference - returns true if expression may evaluate to null
+        bool inferExpressionNullable(ast::ASTNode* node) const;
+
+        // Set null narrowing tracker for smart cast awareness
+        void setNullNarrowingTracker(const NullNarrowingTracker* tracker);
+
         // Set generic type bindings stack (reference to context's stack)
         void setGenericTypeBindingsStack(const std::vector<std::unordered_map<std::string, std::string>>* stack);
 
@@ -47,6 +54,7 @@ namespace vm::compiler::types
         std::shared_ptr<environment::Environment> environment;
         const variables::VariableTracker& variableTracker;
         const variables::GlobalVariableRegistry& globalRegistry;
+        const NullNarrowingTracker* nullNarrowingTracker = nullptr;
         const std::vector<std::unordered_map<std::string, std::string>>* genericTypeBindingsStack = nullptr;
         const std::unordered_map<const ast::ASTNode*, std::string>* resolvedFunctionCallTypes = nullptr;  // PHASE 3
         ast::ClassNode* currentClassNode = nullptr;  // Current class context for field lookup

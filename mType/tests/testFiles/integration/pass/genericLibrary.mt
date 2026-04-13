@@ -30,7 +30,7 @@ class GenericContainer<T> {
         return new Bool(false);
     }
 
-    public function getFirst(): T {
+    public function getFirst(): T? {
         // Get first item from ArrayList (maintains insertion order)
         if (this.items.size() > 0) {
             return this.items.get(0);

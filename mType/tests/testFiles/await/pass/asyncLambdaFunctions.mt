@@ -130,7 +130,6 @@ function async main(): Promise<void> {
     Int r6 = await testInlineMultiParamLambda();
 
     print("All async lambda tests completed");
-    return null;
 }
 
 main();

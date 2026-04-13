@@ -5,7 +5,7 @@ import { Int } from "../../lib/primitives/Int.mt";
 print("=== Async Promise in Class Field Test ===");
 
 class DataLoader {
-    Promise<Int> pendingData;
+    Promise<Int>? pendingData;
     int loadCount;
 
     public constructor() {

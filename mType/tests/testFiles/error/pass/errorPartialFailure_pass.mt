@@ -20,10 +20,10 @@ class ProcessingException extends Exception {
 // Result wrapper for partial operations
 class OperationResult<T> {
     public bool success;
-    public T value;
-    public Exception error;
+    public T? value;
+    public Exception? error;
 
-    public constructor(bool s, T v, Exception e) {
+    public constructor(bool s, T? v, Exception? e) {
         success = s;
         value = v;
         error = e;
@@ -33,11 +33,11 @@ class OperationResult<T> {
         return success;
     }
 
-    public function getValue(): T {
+    public function getValue(): T? {
         return value;
     }
 
-    public function getError(): Exception {
+    public function getError(): Exception? {
         return error;
     }
 }
@@ -113,14 +113,16 @@ print("\n=== Test 2: Collect all results ===");
 
 OperationResult<String>[] results = new OperationResult<String>[5];
 
+Exception? noError = null;
+String? noValue = null;
 int j = 0;
 while (j < 5) {
     int itemId = j + 1;
     try {
         string processed = processItem(itemId);
-        results[j] = new OperationResult<String>(true, processed, null);
+        results[j] = new OperationResult<String>(true, processed, noError);
     } catch (ProcessingException e) {
-        results[j] = new OperationResult<String>(false, null, e);
+        results[j] = new OperationResult<String>(false, noValue, e);
     }
     j = j + 1;
 }
@@ -133,7 +135,10 @@ while (k < 5) {
     if (result.isSuccess()) {
         print("Item " + k + ": SUCCESS - " + result.getValue());
     } else {
-        print("Item " + k + ": FAILURE - " + result.getError().getMessage());
+        Exception? err = result.getError();
+        if (err != null) {
+            print("Item " + k + ": FAILURE - " + err.getMessage());
+        }
     }
     k = k + 1;
 }

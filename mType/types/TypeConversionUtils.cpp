@@ -341,4 +341,23 @@ namespace types {
         return 1.0 - static_cast<double>(distance) / longerLen;
     }
 
+    std::string TypeConversionUtils::stripNullable(const std::string& typeName)
+    {
+        if (!typeName.empty() && typeName.back() == '?')
+        {
+            return typeName.substr(0, typeName.size() - 1);
+        }
+        return typeName;
+    }
+
+    bool TypeConversionUtils::isNullableType(const std::string& typeName)
+    {
+        return !typeName.empty() && typeName.back() == '?';
+    }
+
+    bool TypeConversionUtils::isGenericTypeParameter(const std::string& typeName)
+    {
+        return typeName.length() == 1 && std::isupper(typeName[0]);
+    }
+
 } // namespace types

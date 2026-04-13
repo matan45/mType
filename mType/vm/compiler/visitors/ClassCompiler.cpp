@@ -443,15 +443,22 @@ namespace vm::compiler::visitors
                 // First, compile the object expression
                 ast::ASTNode* receiverNode = node->getObject();
                 bool nonNullReceiver = isReceiverNonNullable(receiverNode);
-                receiverNode->accept(ctx.visitor); // Will need delegation
+
+                if (!nonNullReceiver)
+                {
+                    throw errors::TypeException(
+                        "Cannot access field '" + memberName + "' on nullable receiver. "
+                        "Add a null check (if (x != null) { ... }) or change the receiver's declared type to non-nullable.",
+                        node->getLocation()
+                    );
+                }
+
+                receiverNode->accept(ctx.visitor);
 
                 // Regular field access - emit GET_FIELD instruction
                 size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
-                if (nonNullReceiver)
-                {
-                    ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
-                }
+                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
             }
         }
 
@@ -487,18 +494,25 @@ namespace vm::compiler::visitors
             // Compile the object expression
             ast::ASTNode* receiverNode = node->getObject();
             bool nonNullReceiver = isReceiverNonNullable(receiverNode);
-            receiverNode->accept(ctx.visitor); // Will need delegation
+
+            if (!nonNullReceiver)
+            {
+                throw errors::TypeException(
+                    "Cannot assign field '" + memberName + "' on nullable receiver. "
+                    "Add a null check (if (x != null) { ... }) or change the receiver's declared type to non-nullable.",
+                    node->getLocation()
+                );
+            }
+
+            receiverNode->accept(ctx.visitor);
 
             // Compile the value to assign
-            node->getValue()->accept(ctx.visitor); // Will need delegation
+            node->getValue()->accept(ctx.visitor);
 
             // Emit SET_FIELD instruction (object and value are on stack)
             size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
-            if (nonNullReceiver)
-            {
-                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
-            }
+            ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
         }
 
         return std::monostate{};
@@ -774,51 +788,6 @@ namespace vm::compiler::visitors
 
     bool ClassCompiler::isReceiverNonNullable(ast::ASTNode* receiverNode)
     {
-        // Check if receiver is a simple variable reference
-        if (auto* varNode = dynamic_cast<ast::VariableNode*>(receiverNode))
-        {
-            const std::string& varName = varNode->getName();
-
-            // 'this' is always non-null
-            if (varName == "this")
-            {
-                return true;
-            }
-
-            // Check if null-narrowed via smart cast
-            if (ctx.nullNarrowing.isNarrowedNonNull(varName))
-            {
-                return true;
-            }
-
-            // Check local variable nullability
-            if (ctx.variableTracker.existsInFunction(varName))
-            {
-                return !ctx.variableTracker.getLocalNullableByName(varName);
-            }
-
-            // Check global variable nullability
-            if (ctx.globalRegistry.exists(varName))
-            {
-                return !ctx.globalRegistry.isNullable(varName);
-            }
-        }
-
-        // NewNode always produces non-null
-        if (dynamic_cast<ast::NewNode*>(receiverNode))
-        {
-            return true;
-        }
-
-        // Cast to non-nullable type succeeds or throws
-        if (auto* castExpr = dynamic_cast<ast::nodes::expressions::CastExpression*>(receiverNode))
-        {
-            if (castExpr->getTargetType() && !castExpr->getTargetType()->isNullable())
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return !ctx.typeInference.inferExpressionNullable(receiverNode);
     }
 }

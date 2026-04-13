@@ -6,18 +6,18 @@ print("Testing simple circular reference:");
 
 class Node {
     public string name;
-    public Node next;
+    public Node? next;
 
     public constructor(string n) {
         name = n;
         next = null;
     }
 
-    public function setNext(Node n): void {
+    public function setNext(Node? n): void {
         next = n;
     }
 
-    public function getNext(): Node {
+    public function getNext(): Node? {
         return next;
     }
 
@@ -33,19 +33,23 @@ Node nodeB = new Node("B");
 nodeA.setNext(nodeB);
 nodeB.setNext(nodeA);
 
-print("NodeA -> " + nodeA.getNext().getName());
-print("NodeB -> " + nodeB.getNext().getName());
+Node nextOfA = nodeA.getNext();
+print("NodeA -> " + nextOfA.getName());
+Node nextOfB = nodeB.getNext();
+print("NodeB -> " + nextOfB.getName());
 Node tempA = nodeA.getNext();
-print("NodeA -> NodeB -> " + tempA.getNext().getName());
+Node tempANext = tempA.getNext();
+print("NodeA -> NodeB -> " + tempANext.getName());
 Node tempB = nodeB.getNext();
-print("NodeB -> NodeA -> " + tempB.getNext().getName());
+Node tempBNext = tempB.getNext();
+print("NodeB -> NodeA -> " + tempBNext.getName());
 
 // Test 2: Self-reference
 print("\nTesting self-reference:");
 
 class SelfRef {
     public string value;
-    public SelfRef self;
+    public SelfRef? self;
 
     public constructor(string v) {
         value = v;
@@ -56,7 +60,7 @@ class SelfRef {
         self = this;
     }
 
-    public function getSelf(): SelfRef {
+    public function getSelf(): SelfRef? {
         return self;
     }
 
@@ -69,16 +73,18 @@ SelfRef selfObj = new SelfRef("SelfReference");
 selfObj.setSelf();
 
 print("Object value: " + selfObj.getValue());
-print("Self reference value: " + selfObj.getSelf().getValue());
+SelfRef selfRef1 = selfObj.getSelf();
+print("Self reference value: " + selfRef1.getValue());
 SelfRef tempSelf = selfObj.getSelf();
-print("Self->Self value: " + tempSelf.getSelf().getValue());
+SelfRef tempSelfSelf = tempSelf.getSelf();
+print("Self->Self value: " + tempSelfSelf.getValue());
 
 // Test 3: Complex circular chain (A -> B -> C -> A)
 print("\nTesting complex circular chain:");
 
 class ChainNode {
     public string id;
-    public ChainNode link;
+    public ChainNode? link;
     public int data;
 
     public constructor(string i, int d) {
@@ -91,7 +97,7 @@ class ChainNode {
         link = n;
     }
 
-    public function getLink(): ChainNode {
+    public function getLink(): ChainNode? {
         return link;
     }
 
@@ -115,15 +121,19 @@ node3.setLink(node1);
 
 // Traverse the circular chain
 print("Chain traversal:");
-print(node1.getId() + " -> " + node1.getLink().getId());
-print(node2.getId() + " -> " + node2.getLink().getId());
-print(node3.getId() + " -> " + node3.getLink().getId());
+ChainNode link1 = node1.getLink();
+print(node1.getId() + " -> " + link1.getId());
+ChainNode link2 = node2.getLink();
+print(node2.getId() + " -> " + link2.getId());
+ChainNode link3 = node3.getLink();
+print(node3.getId() + " -> " + link3.getId());
 
 // Full circle traversal
 ChainNode current = node1;
 for (int i = 0; i < 6; i++) {
     print("Step " + i + ": " + current.getId() + " (data=" + current.getData() + ")");
-    current = current.getLink();
+    ChainNode nextLink = current.getLink();
+    current = nextLink;
 }
 
 // Test 4: Parent-child circular reference
@@ -131,7 +141,7 @@ print("\nTesting parent-child circular reference:");
 
 class Parent {
     public string name;
-    public Child child;
+    public Child? child;
 
     public constructor(string n) {
         name = n;
@@ -142,7 +152,7 @@ class Parent {
         child = c;
     }
 
-    public function getChild(): Child {
+    public function getChild(): Child? {
         return child;
     }
 
@@ -153,7 +163,7 @@ class Parent {
 
 class Child {
     public string name;
-    public Parent parent;
+    public Parent? parent;
 
     public constructor(string n) {
         name = n;
@@ -164,7 +174,7 @@ class Child {
         parent = p;
     }
 
-    public function getParent(): Parent {
+    public function getParent(): Parent? {
         return parent;
     }
 
@@ -180,20 +190,24 @@ Child childObj = new Child("ChildObject");
 parentObj.setChild(childObj);
 childObj.setParent(parentObj);
 
-print("Parent -> Child: " + parentObj.getChild().getName());
-print("Child -> Parent: " + childObj.getParent().getName());
+Child pChild = parentObj.getChild();
+print("Parent -> Child: " + pChild.getName());
+Parent cParent = childObj.getParent();
+print("Child -> Parent: " + cParent.getName());
 Child tempChild2 = parentObj.getChild();
-print("Parent -> Child -> Parent: " + tempChild2.getParent().getName());
+Parent tempChild2Parent = tempChild2.getParent();
+print("Parent -> Child -> Parent: " + tempChild2Parent.getName());
 Parent tempParent2 = childObj.getParent();
-print("Child -> Parent -> Child: " + tempParent2.getChild().getName());
+Child tempParent2Child = tempParent2.getChild();
+print("Child -> Parent -> Child: " + tempParent2Child.getName());
 
 // Test 5: Doubly linked circular structure
 print("\nTesting doubly linked circular structure:");
 
 class DNode {
     public string data;
-    public DNode prev;
-    public DNode next;
+    public DNode? prev;
+    public DNode? next;
 
     public constructor(string d) {
         data = d;
@@ -209,11 +223,11 @@ class DNode {
         next = n;
     }
 
-    public function getPrev(): DNode {
+    public function getPrev(): DNode? {
         return prev;
     }
 
-    public function getNext(): DNode {
+    public function getNext(): DNode? {
         return next;
     }
 
@@ -237,17 +251,23 @@ dnode3.setNext(dnode1);
 dnode3.setPrev(dnode2);
 
 print("Doubly linked circular traversal:");
-print(dnode1.getData() + " -> next: " + dnode1.getNext().getData() + ", prev: " + dnode1.getPrev().getData());
-print(dnode2.getData() + " -> next: " + dnode2.getNext().getData() + ", prev: " + dnode2.getPrev().getData());
-print(dnode3.getData() + " -> next: " + dnode3.getNext().getData() + ", prev: " + dnode3.getPrev().getData());
+DNode d1next = dnode1.getNext();
+DNode d1prev = dnode1.getPrev();
+print(dnode1.getData() + " -> next: " + d1next.getData() + ", prev: " + d1prev.getData());
+DNode d2next = dnode2.getNext();
+DNode d2prev = dnode2.getPrev();
+print(dnode2.getData() + " -> next: " + d2next.getData() + ", prev: " + d2prev.getData());
+DNode d3next = dnode3.getNext();
+DNode d3prev = dnode3.getPrev();
+print(dnode3.getData() + " -> next: " + d3next.getData() + ", prev: " + d3prev.getData());
 
 // Test 6: Graph-like circular references
 print("\nTesting graph-like circular references:");
 
 class GraphNode {
     public string label;
-    public GraphNode neighbor1;
-    public GraphNode neighbor2;
+    public GraphNode? neighbor1;
+    public GraphNode? neighbor2;
 
     public constructor(string l) {
         label = l;
@@ -260,11 +280,11 @@ class GraphNode {
         neighbor2 = n2;
     }
 
-    public function getNeighbor1(): GraphNode {
+    public function getNeighbor1(): GraphNode? {
         return neighbor1;
     }
 
-    public function getNeighbor2(): GraphNode {
+    public function getNeighbor2(): GraphNode? {
         return neighbor2;
     }
 
@@ -283,9 +303,15 @@ gnode2.setNeighbors(gnode3, gnode1);
 gnode3.setNeighbors(gnode1, gnode2);
 
 print("Graph structure:");
-print(gnode1.getLabel() + " -> " + gnode1.getNeighbor1().getLabel() + ", " + gnode1.getNeighbor2().getLabel());
-print(gnode2.getLabel() + " -> " + gnode2.getNeighbor1().getLabel() + ", " + gnode2.getNeighbor2().getLabel());
-print(gnode3.getLabel() + " -> " + gnode3.getNeighbor1().getLabel() + ", " + gnode3.getNeighbor2().getLabel());
+GraphNode g1n1 = gnode1.getNeighbor1();
+GraphNode g1n2 = gnode1.getNeighbor2();
+print(gnode1.getLabel() + " -> " + g1n1.getLabel() + ", " + g1n2.getLabel());
+GraphNode g2n1 = gnode2.getNeighbor1();
+GraphNode g2n2 = gnode2.getNeighbor2();
+print(gnode2.getLabel() + " -> " + g2n1.getLabel() + ", " + g2n2.getLabel());
+GraphNode g3n1 = gnode3.getNeighbor1();
+GraphNode g3n2 = gnode3.getNeighbor2();
+print(gnode3.getLabel() + " -> " + g3n1.getLabel() + ", " + g3n2.getLabel());
 
 // Test 7: Circular reference with null breaking
 print("\nTesting circular reference with null breaking:");
@@ -297,14 +323,16 @@ breakNode1.setNext(breakNode2);
 breakNode2.setNext(breakNode1);
 
 Node bn1Next = breakNode1.getNext();
-print("Before breaking: " + bn1Next.getName() + " -> " + bn1Next.getNext().getName());
+Node bn1NextNext = bn1Next.getNext();
+print("Before breaking: " + bn1Next.getName() + " -> " + bn1NextNext.getName());
 
 // Break the circular reference
 breakNode2.setNext(null);
 
 Node afterBreak = breakNode1.getNext();
 print("After breaking: " + afterBreak.getName());
-if (afterBreak.getNext() == null) {
+Node? afterBreakNext = afterBreak.getNext();
+if (afterBreakNext == null) {
     print("Circular reference successfully broken");
 }
 
@@ -313,9 +341,9 @@ print("\nTesting multiple circular references:");
 
 class MultiRef {
     public string name;
-    public MultiRef ref1;
-    public MultiRef ref2;
-    public MultiRef ref3;
+    public MultiRef? ref1;
+    public MultiRef? ref2;
+    public MultiRef? ref3;
 
     public constructor(string n) {
         name = n;
@@ -334,15 +362,15 @@ class MultiRef {
         return name;
     }
 
-    public function getRef1(): MultiRef {
+    public function getRef1(): MultiRef? {
         return ref1;
     }
 
-    public function getRef2(): MultiRef {
+    public function getRef2(): MultiRef? {
         return ref2;
     }
 
-    public function getRef3(): MultiRef {
+    public function getRef3(): MultiRef? {
         return ref3;
     }
 }
@@ -354,15 +382,21 @@ MultiRef multi2 = new MultiRef("Multi2");
 multi1.setRefs(multi2, multi1, multi2);
 multi2.setRefs(multi1, multi2, multi1);
 
-print("Multi1 refs: " + multi1.getRef1().getName() + ", " + multi1.getRef2().getName() + ", " + multi1.getRef3().getName());
-print("Multi2 refs: " + multi2.getRef1().getName() + ", " + multi2.getRef2().getName() + ", " + multi2.getRef3().getName());
+MultiRef m1r1 = multi1.getRef1();
+MultiRef m1r2 = multi1.getRef2();
+MultiRef m1r3 = multi1.getRef3();
+print("Multi1 refs: " + m1r1.getName() + ", " + m1r2.getName() + ", " + m1r3.getName());
+MultiRef m2r1 = multi2.getRef1();
+MultiRef m2r2 = multi2.getRef2();
+MultiRef m2r3 = multi2.getRef3();
+print("Multi2 refs: " + m2r1.getName() + ", " + m2r2.getName() + ", " + m2r3.getName());
 
 // Test 9: Indirect circular reference through method returns
 print("\nTesting indirect circular references:");
 
 class IndirectRef {
     public string id;
-    public IndirectRef partner;
+    public IndirectRef? partner;
 
     public constructor(string i) {
         id = i;
@@ -373,13 +407,14 @@ class IndirectRef {
         partner = p;
     }
 
-    public function getPartner(): IndirectRef {
+    public function getPartner(): IndirectRef? {
         return partner;
     }
 
-    public function getPartnerOfPartner(): IndirectRef {
+    public function getPartnerOfPartner(): IndirectRef? {
         if (partner != null) {
-            return partner.getPartner();
+            IndirectRef p = partner;
+            return p.getPartner();
         }
         return null;
     }
@@ -395,7 +430,8 @@ IndirectRef ind2 = new IndirectRef("Indirect2");
 ind1.setPartner(ind2);
 ind2.setPartner(ind1);
 
-print("Indirect reference: " + ind1.getId() + " -> partner's partner: " + ind1.getPartnerOfPartner().getId());
+IndirectRef ind1PP = ind1.getPartnerOfPartner();
+print("Indirect reference: " + ind1.getId() + " -> partner's partner: " + ind1PP.getId());
 
 // Test 10: Circular reference with modification
 print("\nTesting circular reference with modification:");
@@ -403,7 +439,7 @@ print("\nTesting circular reference with modification:");
 class ModNode {
     public string value;
     public int counter;
-    public ModNode next;
+    public ModNode? next;
 
     public constructor(string v, int c) {
         value = v;
@@ -423,7 +459,7 @@ class ModNode {
         return value + "(" + counter + ")";
     }
 
-    public function getNext(): ModNode {
+    public function getNext(): ModNode? {
         return next;
     }
 }
@@ -438,11 +474,11 @@ print("Initial state: " + mod1.getValue() + " -> " + mod2.getValue());
 
 // Modify through circular reference
 mod1.increment();
-ModNode next1 = mod1.getNext();
-next1.increment();
+ModNode modNext1 = mod1.getNext();
+modNext1.increment();
 ModNode tempMod = mod1.getNext();
-ModNode next2 = tempMod.getNext();
-next2.increment();
+ModNode modNext2 = tempMod.getNext();
+modNext2.increment();
 
 print("After modifications: " + mod1.getValue() + " -> " + mod2.getValue());
 

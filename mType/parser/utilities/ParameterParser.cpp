@@ -147,10 +147,11 @@ namespace parser
             TypeInfo typeInfo = TypeParser::parseTypeInfo(stream);
 
             // Convert TypeInfo to ParameterType - single construction for efficiency
-            const ParameterType paramType =
+            ParameterType paramType =
                 (typeInfo.baseType == ValueType::OBJECT && !typeInfo.className.empty())
                     ? ParameterType::forClass(typeInfo.className)
                     : ParameterType(typeInfo.baseType);
+            paramType.nullable = typeInfo.isNullable;
 
             // Expect parameter name
             if (stream.current().type != TokenType::IDENTIFIER) {

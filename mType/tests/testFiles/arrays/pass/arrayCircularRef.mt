@@ -3,14 +3,14 @@ print("Testing circular references");
 
 class Node {
     public int value;
-    public Node next;
+    public Node? next;
 
     constructor(int v) {
         value = v;
         next = null;
     }
 
-    public function setNext(Node n): void {
+    public function setNext(Node? n): void {
         next = n;
     }
 

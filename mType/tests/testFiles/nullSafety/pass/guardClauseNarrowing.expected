@@ -1,0 +1,11 @@
+Test 1: Guard with return
+null
+value: 42
+Test 2: Multiple guards
+30
+-1
+-2
+Test 3: Field access after guard
+0
+99
+Guard clause tests passed!

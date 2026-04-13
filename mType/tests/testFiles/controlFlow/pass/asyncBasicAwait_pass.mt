@@ -46,7 +46,6 @@ function async main(): Promise<void> {
     print("Final message: " + result.getMessage());
 
     print("Async operation complete");
-    return null;
 }
 
 main();

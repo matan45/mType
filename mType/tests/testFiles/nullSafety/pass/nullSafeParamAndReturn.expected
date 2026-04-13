@@ -1,0 +1,10 @@
+Box(10)
+null
+process: 42
+found: 5
+missing is null: true
+narrowed: value=99
+created: 7
+Box(3)
+null
+Null safe param and return tests passed!

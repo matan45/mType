@@ -5,8 +5,10 @@ interface Function {
 
 print("=== Null Lambda Variable Test ===");
 
-Function func = x -> x * 2;
-print("Initial: " + func.apply(5));
+Function? func = x -> x * 2;
+if (func != null) {
+    print("Initial: " + func.apply(5));
+}
 
 // Assign null to lambda variable
 func = null;
@@ -20,7 +22,9 @@ if (maybeNull == null) {
     maybeNull = x -> x + 10;
 }
 
-print("Result: " + maybeNull.apply(5));
+if (maybeNull != null) {
+    print("Result: " + maybeNull.apply(5));
+}
 
 // Array of lambdas with null
 Function[] funcs = new Function[5];
@@ -40,13 +44,15 @@ for (int i = 0; i < 5; i = i + 1) {
 
 // Conditional lambda assignment
 bool useMultiply = false;
-Function conditional = useMultiply ? (x -> x * 3) : null;
+Function? conditional = useMultiply ? (x -> x * 3) : null;
 
 if (conditional == null) {
     print("Conditional is null");
     conditional = x -> x + 5;
 }
 
-print("Conditional result: " + conditional.apply(10));
+if (conditional != null) {
+    print("Conditional result: " + conditional.apply(10));
+}
 
 print("Null lambda variable complete");

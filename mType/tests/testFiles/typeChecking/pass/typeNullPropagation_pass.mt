@@ -25,7 +25,7 @@ class Location {
 
 class Company {
     string name;
-    Location location;
+    Location? location;
 
     constructor(string n) {
         name = n;
@@ -36,7 +36,7 @@ class Company {
         location = loc;
     }
 
-    public function getLocation(): Location {
+    public function getLocation(): Location? {
         return location;
     }
 
@@ -55,7 +55,7 @@ class Company {
 
 class Employee {
     string name;
-    Company company;
+    Company? company;
 
     constructor(string n) {
         name = n;
@@ -66,7 +66,7 @@ class Employee {
         company = c;
     }
 
-    public function getCompany(): Company {
+    public function getCompany(): Company? {
         return company;
     }
 
@@ -119,7 +119,10 @@ function main(): void {
     // Test null propagation in conditional chains
     Employee? emp4 = null;
     if (emp4 != null) {
-        print("Employee 4 company: " + emp4.getCompany().getName());
+        Company? emp4Company = emp4.getCompany();
+        if (emp4Company != null) {
+            print("Employee 4 company: " + emp4Company.getName());
+        }
     } else {
         print("Employee 4 is null");
     }

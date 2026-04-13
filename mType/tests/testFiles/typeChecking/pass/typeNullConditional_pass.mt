@@ -20,7 +20,7 @@ class Product {
 }
 
 class Order {
-    Product product;
+    Product? product;
 
     constructor() {
         product = null;
@@ -30,7 +30,7 @@ class Order {
         product = p;
     }
 
-    public function getProduct(): Product {
+    public function getProduct(): Product? {
         return product;
     }
 
