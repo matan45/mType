@@ -90,8 +90,9 @@ function main(): void {
         throw new Exception("Test exception for lambda");
     } catch (Exception e) {
         capturedException = e;
+        Exception capturedRef = e;
         Processor errorFormatter = msg -> {
-            return "Error [" + capturedException.getMessage() + "]: " + msg;
+            return "Error [" + capturedRef.getMessage() + "]: " + msg;
         };
 
         string formatted = errorFormatter.process("Additional context");

@@ -6,7 +6,7 @@ class Data {
     }
 }
 
-function processData(Data d): void {
+function processData(Data? d): void {
     if (d != null) {
         print("Data value: " + d.value);
     } else {

@@ -39,15 +39,15 @@ function testNestedAcquisitionSuccess(): void {
 
     try {
         r1 = new ResourceHandle("Lock_A", 1);
-        r1.acquire();
+        if (r1 != null) { r1.acquire(); }
 
         try {
             r2 = new ResourceHandle("Lock_B", 2);
-            r2.acquire();
+            if (r2 != null) { r2.acquire(); }
 
             try {
                 r3 = new ResourceHandle("Lock_C", 3);
-                r3.acquire();
+                if (r3 != null) { r3.acquire(); }
 
                 print("All resources acquired - performing work");
             } finally {
@@ -76,15 +76,15 @@ function testNestedAcquisitionWithException(): void {
 
     try {
         r1 = new ResourceHandle("Database", 1);
-        r1.acquire();
+        if (r1 != null) { r1.acquire(); }
 
         try {
             r2 = new ResourceHandle("Connection", 2);
-            r2.acquire();
+            if (r2 != null) { r2.acquire(); }
 
             try {
                 r3 = new ResourceHandle("Transaction", 3);
-                r3.acquire();
+                if (r3 != null) { r3.acquire(); }
 
                 print("Simulating error during transaction");
                 throw new AcquisitionException("Transaction validation failed");
@@ -120,16 +120,16 @@ function testPartialAcquisitionFailure(): void {
 
     try {
         r1 = new ResourceHandle("Resource_1", 1);
-        r1.acquire();
+        if (r1 != null) { r1.acquire(); }
 
         try {
             r2 = new ResourceHandle("Resource_2", 2);
             throw new AcquisitionException("Failed to acquire Resource_2");
-            r2.acquire();
+            if (r2 != null) { r2.acquire(); }
 
             try {
                 r3 = new ResourceHandle("Resource_3", 3);
-                r3.acquire();
+                if (r3 != null) { r3.acquire(); }
             } finally {
                 if (r3 != null) {
                     r3.release();
@@ -160,23 +160,23 @@ function testDeepNesting(): void {
 
     try {
         r1 = new ResourceHandle("L1", 1);
-        r1.acquire();
+        if (r1 != null) { r1.acquire(); }
 
         try {
             r2 = new ResourceHandle("L2", 2);
-            r2.acquire();
+            if (r2 != null) { r2.acquire(); }
 
             try {
                 r3 = new ResourceHandle("L3", 3);
-                r3.acquire();
+                if (r3 != null) { r3.acquire(); }
 
                 try {
                     r4 = new ResourceHandle("L4", 4);
-                    r4.acquire();
+                    if (r4 != null) { r4.acquire(); }
 
                     try {
                         r5 = new ResourceHandle("L5", 5);
-                        r5.acquire();
+                        if (r5 != null) { r5.acquire(); }
 
                         print("Deepest level - throwing exception");
                         throw new Exception("Error at deepest level");

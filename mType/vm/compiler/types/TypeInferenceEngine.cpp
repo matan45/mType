@@ -668,7 +668,12 @@ namespace vm::compiler::types
                         // Return the field's generic type
                         auto genericType = fieldNode->getGenericType();
                         if (genericType) {
-                            return genericType->toString();
+                            // Strip nullable suffix '?' - class names should not include it
+                            std::string typeName = genericType->toString();
+                            if (!typeName.empty() && typeName.back() == '?') {
+                                typeName.pop_back();
+                            }
+                            return typeName;
                         }
                     }
                 }
@@ -686,7 +691,12 @@ namespace vm::compiler::types
                         if (accessMod != ast::AccessModifier::PRIVATE) {
                             auto uType = parentField->getUnifiedType();
                             if (uType) {
-                                return uType->toString();
+                                // Strip nullable suffix '?' - class names should not include it
+                                std::string typeName = uType->toString();
+                                if (!typeName.empty() && typeName.back() == '?') {
+                                    typeName.pop_back();
+                                }
+                                return typeName;
                             }
                         }
                     }
@@ -729,7 +739,12 @@ namespace vm::compiler::types
                 funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
                 funcMetadata->returnType != "void" && funcMetadata->returnType != "object") {
                 // Resolve generic type if applicable (from context stack)
-                return resolveGenericType(funcMetadata->returnType);
+                std::string resolved = resolveGenericType(funcMetadata->returnType);
+                // Strip nullable suffix '?' - class names should not include it
+                if (!resolved.empty() && resolved.back() == '?') {
+                    resolved.pop_back();
+                }
+                return resolved;
             }
         }
 
@@ -739,7 +754,12 @@ namespace vm::compiler::types
             std::string returnClassName = funcDef->getReturnClassName();
             if (!returnClassName.empty()) {
                 // Resolve generic type if applicable
-                return resolveGenericType(returnClassName);
+                std::string resolved = resolveGenericType(returnClassName);
+                // Strip nullable suffix '?' - class names should not include it
+                if (!resolved.empty() && resolved.back() == '?') {
+                    resolved.pop_back();
+                }
+                return resolved;
             }
         }
         return "";
@@ -790,7 +810,7 @@ namespace vm::compiler::types
         // Get the object's class name
         std::string className = inferExpressionClassName(memberAccess->getObject());
         if (!className.empty()) {
-            // Look up the class definition
+            // Look up the class definition (className is already stripped of '?')
             auto classDef = environment->findClass(className);
             if (classDef) {
                 std::string memberName = memberAccess->getMemberName();
@@ -800,6 +820,10 @@ namespace vm::compiler::types
                 if (field) {
                     if (field->hasUnifiedType()) {
                         std::string fieldTypeName = field->getUnifiedType()->toString();
+                        // Strip nullable suffix '?' - class names should not include it
+                        if (!fieldTypeName.empty() && fieldTypeName.back() == '?') {
+                            fieldTypeName.pop_back();
+                        }
                         // Don't return primitive type names as class names
                         if (fieldTypeName != "int" && fieldTypeName != "float" &&
                             fieldTypeName != "string" && fieldTypeName != "bool" &&
@@ -814,6 +838,10 @@ namespace vm::compiler::types
                 if (method) {
                     if (method->getUnifiedReturnType()) {
                         std::string returnTypeName = method->getUnifiedReturnType()->toString();
+                        // Strip nullable suffix '?' - class names should not include it
+                        if (!returnTypeName.empty() && returnTypeName.back() == '?') {
+                            returnTypeName.pop_back();
+                        }
                         // Don't return primitive type names as class names
                         if (returnTypeName != "int" && returnTypeName != "float" &&
                             returnTypeName != "string" && returnTypeName != "bool" &&
@@ -991,7 +1019,12 @@ namespace vm::compiler::types
                     funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
                     funcMetadata->returnType != "void") {
                     // Resolve generic type if applicable (from context stack)
-                    return resolveGenericType(funcMetadata->returnType);
+                    std::string resolved = resolveGenericType(funcMetadata->returnType);
+                    // Strip nullable suffix '?' - class names should not include it
+                    if (!resolved.empty() && resolved.back() == '?') {
+                        resolved.pop_back();
+                    }
+                    return resolved;
                 }
             }
         }

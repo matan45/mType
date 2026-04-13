@@ -45,8 +45,10 @@ function testRAIISuccess(): void {
 
     try {
         resource = new ScopedResource("data.txt");
-        string data = resource.read();
-        print("Read: " + data);
+        if (resource != null) {
+            string data = resource.read();
+            print("Read: " + data);
+        }
     } finally {
         if (resource != null) {
             resource.dispose();
@@ -61,8 +63,10 @@ function testRAIIWithException(): void {
 
     try {
         resource = new ScopedResource("config.json");
-        string data = resource.read();
-        print("Read: " + data);
+        if (resource != null) {
+            string data = resource.read();
+            print("Read: " + data);
+        }
         throw new Exception("Processing error");
     } catch (Exception e) {
         print("Caught exception: " + e.getMessage());

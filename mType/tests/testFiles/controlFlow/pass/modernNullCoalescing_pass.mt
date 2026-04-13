@@ -53,7 +53,10 @@ print(result5.toString());
 print("Test 4: String null coalescing");
 String? s1 = null;
 string defaultString = "default value";
-string strResult1 = s1 != null ? s1.toString() : defaultString;
+string strResult1 = defaultString;
+if (s1 != null) {
+    strResult1 = s1.toString();
+}
 print(strResult1);
 
 String s2 = new String("actual value");

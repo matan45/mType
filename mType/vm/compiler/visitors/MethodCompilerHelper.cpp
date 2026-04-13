@@ -327,14 +327,25 @@ namespace vm::compiler::visitors
             if (param.second->isGenericParameter())
             {
                 // Generic type parameter (like T, E) - treat as object for now
+                // Strip nullable suffix '?' from className - nullability is tracked separately
+                std::string paramClassName = param.second->toString();
+                if (!paramClassName.empty() && paramClassName.back() == '?')
+                {
+                    paramClassName.pop_back();
+                }
                 ctx.variableTracker.declareLocal(param.first, value::ValueType::OBJECT,
-                                                 param.second->toString(), param.second->isNullable());
+                                                 paramClassName, param.second->isNullable());
             }
             else
             {
                 // Concrete type
                 value::ValueType concreteType = param.second->getConcreteType();
                 std::string className = (concreteType == value::ValueType::OBJECT) ? param.second->toString() : "";
+                // Strip nullable suffix '?' from className - nullability is tracked separately
+                if (!className.empty() && className.back() == '?')
+                {
+                    className.pop_back();
+                }
                 ctx.variableTracker.declareLocal(param.first, concreteType, className,
                                                  param.second->isNullable());
             }

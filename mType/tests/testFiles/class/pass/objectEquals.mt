@@ -43,7 +43,11 @@ print("p1.equals(p3): " + p1.equals(p3));
 
 print("\nTest 3: Null comparison");
 Point? nullPoint = null;
-print("p1.equals(nullPoint): " + (nullPoint == null));
+bool nullResult = false;
+if (nullPoint != null) {
+    nullResult = p1.equals(nullPoint);
+}
+print("p1.equals(null): " + nullResult);
 
 print("\nTest 4: Same reference");
 Point p4 = p1;

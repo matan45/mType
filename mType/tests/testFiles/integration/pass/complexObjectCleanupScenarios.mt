@@ -118,11 +118,15 @@ function testObjectReassignmentCleanup(): void {
     print("=== Object Reassignment Cleanup Test ===");
     
     ResourceManager? manager = new ResourceManager("Original", 75);
-    print("Original manager: " + manager.getResourceInfo());
-    
+    if (manager != null) {
+        print("Original manager: " + manager.getResourceInfo());
+    }
+
     // Reassign to new object (old object should be cleaned up)
     manager = new ResourceManager("Replacement", 150);
-    print("After reassignment: " + manager.getResourceInfo());
+    if (manager != null) {
+        print("After reassignment: " + manager.getResourceInfo());
+    }
     
     // Assign to null
     manager = null;

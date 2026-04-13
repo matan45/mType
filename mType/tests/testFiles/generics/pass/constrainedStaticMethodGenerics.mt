@@ -81,7 +81,11 @@ items.add(new Item(3));
 Item? maxItem = Utilities::findMax<Item>(items);
 Item? minItem = Utilities::findMin<Item>(items);
 
-print("Max value: " + maxItem.getValue());
-print("Min value: " + minItem.getValue());
+if (maxItem != null) {
+    print("Max value: " + maxItem.getValue());
+}
+if (minItem != null) {
+    print("Min value: " + minItem.getValue());
+}
 
 print("Constrained static method generics test passed!");

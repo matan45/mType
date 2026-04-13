@@ -69,7 +69,9 @@ print("missing is null: " + (missing == null));
 
 // Reassign nullable value class
 p1 = new Point(7, 8);
-print("p1 after assign: " + p1.toString());
+if (p1 != null) {
+    print("p1 after assign: " + p1.toString());
+}
 p1 = null;
 print("p1 after null: " + (p1 == null));
 

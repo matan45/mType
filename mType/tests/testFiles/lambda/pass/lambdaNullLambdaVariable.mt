@@ -23,7 +23,7 @@ if (maybeNull == null) {
 print("Result: " + maybeNull.apply(5));
 
 // Array of lambdas with null
-Function?[] funcs = new Function[5];
+Function[] funcs = new Function[5];
 funcs[0] = x -> x + 1;
 funcs[1] = null;
 funcs[2] = x -> x * 2;

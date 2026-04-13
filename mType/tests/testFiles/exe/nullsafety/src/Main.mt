@@ -34,7 +34,9 @@ class App {
 
         // Reassign back to value
         nullable2 = new Container("world");
-        print("nullable2 restored: " + nullable2.getValue());
+        if (nullable2 != null) {
+            print("nullable2 restored: " + nullable2.getValue());
+        }
 
         // Non-nullable always has value
         Container nonNull = new Container("always here");

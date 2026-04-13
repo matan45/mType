@@ -74,23 +74,30 @@ namespace vm::compiler::validation
                                                          size_t argCount,
                                                          const ast::SourceLocation& location)
     {
+        // Strip nullable suffix '?' for class lookup
+        std::string baseName = className;
+        if (!baseName.empty() && baseName.back() == '?')
+        {
+            baseName.pop_back();
+        }
+
         // Skip validation for generic type parameters (T, K, V, E, etc.)
         // Though static methods on generic types are unusual, we handle it consistently
-        if (className.length() == 1 && std::isupper(className[0]))
+        if (baseName.length() == 1 && std::isupper(baseName[0]))
         {
             return; // Generic type parameter - skip validation
         }
 
         // Validate class exists first
-        validateClassExists(className, location);
+        validateClassExists(baseName, location);
 
         // Get class definition
         auto classRegistry = environment->getClassRegistry();
-        auto classDef = classRegistry->findClass(className);
+        auto classDef = classRegistry->findClass(baseName);
         if (!classDef)
         {
             throw errors::TypeException(
-                "Class '" + className + "' not found for static method call",
+                "Class '" + baseName + "' not found for static method call",
                 location
             );
         }
@@ -124,7 +131,7 @@ namespace vm::compiler::validation
         }
 
         throw errors::TypeException(
-            "Static method '" + methodName + "' not found in class '" + className + "' or its parent classes",
+            "Static method '" + methodName + "' not found in class '" + baseName + "' or its parent classes",
             location
         );
     }
@@ -134,19 +141,26 @@ namespace vm::compiler::validation
                                                            size_t argCount,
                                                            const ast::SourceLocation& location)
     {
+        // Strip nullable suffix '?' for class lookup
+        std::string baseName = className;
+        if (!baseName.empty() && baseName.back() == '?')
+        {
+            baseName.pop_back();
+        }
+
         // Skip validation for generic type parameters (T, K, V, E, etc.)
         // Generic types will be validated at runtime when instantiated
-        if (className.length() == 1 && std::isupper(className[0]))
+        if (baseName.length() == 1 && std::isupper(baseName[0]))
         {
             return; // Generic type parameter - skip validation
         }
 
         // Validate class/interface exists first
-        validateClassExists(className, location);
+        validateClassExists(baseName, location);
 
         // Check if it's a class
         auto classRegistry = environment->getClassRegistry();
-        auto classDef = classRegistry->findClass(className);
+        auto classDef = classRegistry->findClass(baseName);
         if (classDef)
         {
             // For overload-aware validation, check if ANY instance method with this name exists
@@ -188,20 +202,20 @@ namespace vm::compiler::validation
             }
 
             throw errors::TypeException(
-                "Instance method '" + methodName + "' not found in class '" + className + "' or its parent classes",
+                "Instance method '" + methodName + "' not found in class '" + baseName + "' or its parent classes",
                 location
             );
         }
 
         // Check if it's an interface
-        auto interfaceDef = environment->findInterface(className);
+        auto interfaceDef = environment->findInterface(baseName);
         if (interfaceDef)
         {
             // For interfaces, check if the method exists in this interface or any parent interfaces
             if (!hasMethodInInterfaceHierarchy(interfaceDef, methodName))
             {
                 throw errors::TypeException(
-                    "Method '" + methodName + "' not found in interface '" + className + "' or its parent interfaces",
+                    "Method '" + methodName + "' not found in interface '" + baseName + "' or its parent interfaces",
                     location
                 );
             }
@@ -210,7 +224,7 @@ namespace vm::compiler::validation
 
         // This should never happen since validateClassExists would have thrown
         throw errors::TypeException(
-            "Type '" + className + "' not found for instance method call",
+            "Type '" + baseName + "' not found for instance method call",
             location
         );
     }
@@ -219,23 +233,30 @@ namespace vm::compiler::validation
                                                         size_t argCount,
                                                         const ast::SourceLocation& location)
     {
+        // Strip nullable suffix '?' for class lookup
+        std::string baseName = className;
+        if (!baseName.empty() && baseName.back() == '?')
+        {
+            baseName.pop_back();
+        }
+
         // Skip validation for generic type parameters (T, K, V, E, etc.)
         // Generic types will be validated at runtime when instantiated
-        if (className.length() == 1 && std::isupper(className[0]))
+        if (baseName.length() == 1 && std::isupper(baseName[0]))
         {
             return; // Generic type parameter - skip validation
         }
 
         // Validate class exists first
-        validateClassExists(className, location);
+        validateClassExists(baseName, location);
 
         // Get class definition
         auto classRegistry = environment->getClassRegistry();
-        auto classDef = classRegistry->findClass(className);
+        auto classDef = classRegistry->findClass(baseName);
         if (!classDef)
         {
             throw errors::TypeException(
-                "Class '" + className + "' not found for constructor call",
+                "Class '" + baseName + "' not found for constructor call",
                 location
             );
         }
@@ -252,7 +273,7 @@ namespace vm::compiler::validation
             }
 
             throw errors::TypeException(
-                "Constructor for class '" + className + "' with " + std::to_string(argCount) +
+                "Constructor for class '" + baseName + "' with " + std::to_string(argCount) +
                 " parameters not found",
                 location
             );
@@ -270,9 +291,16 @@ namespace vm::compiler::validation
     void CompileTimeValidator::validateClassExists(const std::string& className,
                                                   const ast::SourceLocation& location)
     {
+        // Strip nullable suffix '?' - e.g. "Address?" -> "Address"
+        std::string baseName = className;
+        if (!baseName.empty() && baseName.back() == '?')
+        {
+            baseName.pop_back();
+        }
+
         // Skip validation for generic type parameters (T, K, V, E, etc.)
         // Generic type parameters are typically single uppercase letters
-        if (className.length() == 1 && std::isupper(className[0]))
+        if (baseName.length() == 1 && std::isupper(baseName[0]))
         {
             return; // Assume it's a generic type parameter
         }
@@ -287,14 +315,14 @@ namespace vm::compiler::validation
         }
 
         // Check if it's a class
-        auto classDef = classRegistry->findClass(className);
+        auto classDef = classRegistry->findClass(baseName);
         if (classDef)
         {
             return; // Found as class
         }
 
         // Check if it's an interface
-        auto interfaceDef = environment->findInterface(className);
+        auto interfaceDef = environment->findInterface(baseName);
         if (interfaceDef)
         {
             return; // Found as interface
@@ -302,7 +330,7 @@ namespace vm::compiler::validation
 
         // Not found as class or interface
         throw errors::TypeException(
-            "Class or interface '" + className + "' not found. Did you forget to import it?",
+            "Class or interface '" + baseName + "' not found. Did you forget to import it?",
             location
         );
     }

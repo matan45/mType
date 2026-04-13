@@ -32,7 +32,7 @@ print(result1);
 
 // Test with null in middle
 Level1 level1Null = new Level1(null);
-Level2 l2Null = (Level2)level1Null.next;
+Level2? l2Null = (Level2?)level1Null.next;
 Level3 l3Null = l2Null != null ? (Level3)l2Null.next : null;
 int result2 = l3Null != null ? l3Null.value : -1;
 print(result2);

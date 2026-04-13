@@ -71,19 +71,21 @@ function getProductStatus(Product? product): string {
         return "invalid";
     }
 
-    // Early return for out of stock
-    if (product.stock == 0) {
-        return "out-of-stock";
-    }
+    if (product != null) {
+        // Early return for out of stock
+        if (product.stock == 0) {
+            return "out-of-stock";
+        }
 
-    // Early return for low stock
-    if (product.stock < 5) {
-        return "low-stock";
-    }
+        // Early return for low stock
+        if (product.stock < 5) {
+            return "low-stock";
+        }
 
-    // Early return for expensive items
-    if (product.price > 100.0) {
-        return "premium";
+        // Early return for expensive items
+        if (product.price > 100.0) {
+            return "premium";
+        }
     }
 
     // Default case

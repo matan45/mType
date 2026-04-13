@@ -57,7 +57,9 @@ function testNullHandling(): void {
 
 
     nullObj = new NullTestClass(50);
-    print("Object assigned: " + nullObj.data);
+    if (nullObj != null) {
+        print("Object assigned: " + nullObj.data);
+    }
 }
 
 function main(): void {

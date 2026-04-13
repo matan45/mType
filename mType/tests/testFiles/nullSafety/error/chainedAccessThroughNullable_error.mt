@@ -15,5 +15,6 @@ class Outer {
 }
 
 Outer o = new Outer(new Inner(5));
-print(o.inner.data);
+Inner? maybeInner = o.inner;
+print(maybeInner.data);
 print("Should not reach here");

@@ -42,7 +42,8 @@ function main(): void {
     }
 
     // Test 3: Capture null in a container context
-    Container container = new Container(null);
+    Object? noObj = null;
+    Container container = new Container(noObj);
     Supplier getContainerValue = () -> container.value;
     if (getContainerValue.get() == null) {
         print("Test 3 PASS: Captured null field through object");

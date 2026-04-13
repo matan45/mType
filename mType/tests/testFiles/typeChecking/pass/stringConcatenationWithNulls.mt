@@ -39,7 +39,11 @@ string result4 = "Selected object: " + obj;
 print("Conditional null: " + result4);
 
 // Test 4: Null object in ternary expression concatenation
-string result5 = "Value: " + (obj != null ? obj.toString() : "null");
+string objStr = "null";
+if (obj != null) {
+    objStr = obj.toString();
+}
+string result5 = "Value: " + objStr;
 print("Ternary null check: " + result5);
 
 // Test 5: Multiple null objects in concatenation
@@ -120,9 +124,10 @@ print("Mixed types with null: " + mixedResult);
 
 // Test 12: Null object concatenation error handling (should not crash)
 TestObject? potentialNull = null;
-string safeResult = potentialNull != null ?
-                   "Object exists: " + potentialNull.toString() :
-                   "Object is null: " + potentialNull;
+string safeResult = "Object is null: " + potentialNull;
+if (potentialNull != null) {
+    safeResult = "Object exists: " + potentialNull.toString();
+}
 print("Safe null handling: " + safeResult);
 
 // Test 13: Null object concatenation in switch-like logic

@@ -14,7 +14,7 @@ class Person {
 }
 
 // Create array of Person objects
-Person?[] people = new Person[4];
+Person[] people = new Person[4];
 print("Created Person array with length: " + people.length);
 
 // Assign some Person objects

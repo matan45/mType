@@ -68,18 +68,20 @@ function validateUser(User? user): ValidationResult {
         return new ValidationResult(false, "User cannot be null");
     }
 
-    // Guard: empty username
-    if (user.username == null) {
-        return new ValidationResult(false, "Username cannot be null");
-    }
+    if (user != null) {
+        // Guard: empty username
+        if (user.username == null) {
+            return new ValidationResult(false, "Username cannot be null");
+        }
 
-    // Guard: age validation
-    if (user.age < 18) {
-        return new ValidationResult(false, "User must be 18 or older");
-    }
+        // Guard: age validation
+        if (user.age < 18) {
+            return new ValidationResult(false, "User must be 18 or older");
+        }
 
-    if (user.age > 120) {
-        return new ValidationResult(false, "Invalid age");
+        if (user.age > 120) {
+            return new ValidationResult(false, "Invalid age");
+        }
     }
 
     // Main logic - user is valid
@@ -319,14 +321,18 @@ function withdraw(Account? account, int amount): string {
         return "Error: Amount must be positive";
     }
 
-    // Guard: insufficient funds
-    if (account.balance < amount) {
-        return "Error: Insufficient funds";
+    if (account != null) {
+        // Guard: insufficient funds
+        if (account.balance < amount) {
+            return "Error: Insufficient funds";
+        }
+
+        // Process withdrawal
+        account.balance = account.balance - amount;
+        return "Withdrawal successful: " + account.balance;
     }
 
-    // Process withdrawal
-    account.balance = account.balance - amount;
-    return "Withdrawal successful: " + account.balance;
+    return "Error: Account is null";
 }
 
 print("Test 10: Guard clauses in account operations");

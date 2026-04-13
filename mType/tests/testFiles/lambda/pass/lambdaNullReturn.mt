@@ -47,7 +47,11 @@ Function<Int, Box?> boxCreator = x -> {
 Box? b1 = boxCreator.apply(10);
 Box? b2 = boxCreator.apply(0);
 
-print("Box for 10: " + (b1 == null ? "null" : b1.getValue()));
+string b1Str = "null";
+if (b1 != null) {
+    b1Str = "" + b1.getValue();
+}
+print("Box for 10: " + b1Str);
 print("Box for 0: " + (b2 == null ? "null" : "not null"));
 
 // Lambda with null check

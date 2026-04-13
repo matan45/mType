@@ -14,7 +14,7 @@ class Box<T> {
         return value;
     }
 
-    public function setValue(T v): void {
+    public function setValue(T? v): void {
         value = v;
     }
 
@@ -30,7 +30,7 @@ class Container<T> {
         item = null;
     }
 
-    public function set(T i): void {
+    public function set(T? i): void {
         item = i;
     }
 

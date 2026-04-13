@@ -25,7 +25,8 @@ class Profile {
 }
 
 // Serialize with null field
-Profile p = new Profile("Alice", 25, null);
+Address? noAddress = null;
+Profile p = new Profile("Alice", 25, noAddress);
 string json = Json::serialize(p);
 print(json);
 

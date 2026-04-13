@@ -122,7 +122,9 @@ function testExceptionNoLeak(): void {
         r1 = new TrackedResource("SafeResource1");
         r2 = new TrackedResource("SafeResource2");
 
-        r1.use();
+        if (r1 != null) {
+            r1.use();
+        }
         throw new Exception("Operation failed");
     } catch (Exception e) {
         print("Caught: " + e.getMessage());
@@ -175,18 +177,26 @@ function testNestedLeakTracking(): void {
             inner1 = new TrackedResource("InnerResource1");
             inner2 = new TrackedResource("InnerResource2");
 
-            inner1.use();
-            inner2.use();
+            if (inner1 != null) {
+                inner1.use();
+            }
+            if (inner2 != null) {
+                inner2.use();
+            }
 
             // Release only inner1
-            inner1.release();
+            if (inner1 != null) {
+                inner1.release();
+            }
             // inner2 leaks
         } finally {
             // Note: inner2 not released here
         }
 
-        outer.use();
-        outer.release();
+        if (outer != null) {
+            outer.use();
+            outer.release();
+        }
     } catch (Exception e) {
         print("Error: " + e.getMessage());
     }

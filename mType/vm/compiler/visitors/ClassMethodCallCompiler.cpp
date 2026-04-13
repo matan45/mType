@@ -255,12 +255,16 @@ namespace vm::compiler::visitors
             bool hasMethodGenericBindings = false;
             std::unordered_map<std::string, std::string> methodGenericBindings;
 
-            // Extract base class name (without generic parameters) for method lookup
+            // Extract base class name (without nullable suffix or generic parameters) for method lookup
             std::string baseClassName = objectClassName;
-            size_t anglePos = objectClassName.find('<');
+            if (!baseClassName.empty() && baseClassName.back() == '?')
+            {
+                baseClassName.pop_back();
+            }
+            size_t anglePos = baseClassName.find('<');
             if (anglePos != std::string::npos)
             {
-                baseClassName = objectClassName.substr(0, anglePos);
+                baseClassName = baseClassName.substr(0, anglePos);
             }
 
             // Build qualified method name for metadata lookup
@@ -418,12 +422,16 @@ namespace vm::compiler::visitors
             // Validate instance method exists at compile time
             if (!objectClassName.empty() && ctx.compileTimeValidator)
             {
-                // Extract base class name (without generic parameters)
+                // Extract base class name (without nullable suffix or generic parameters)
                 std::string baseClassName = objectClassName;
-                size_t anglePos = objectClassName.find('<');
+                if (!baseClassName.empty() && baseClassName.back() == '?')
+                {
+                    baseClassName.pop_back();
+                }
+                size_t anglePos = baseClassName.find('<');
                 if (anglePos != std::string::npos)
                 {
-                    baseClassName = objectClassName.substr(0, anglePos);
+                    baseClassName = baseClassName.substr(0, anglePos);
                 }
                 ctx.compileTimeValidator->validateInstanceMethodExists(baseClassName, methodName, arguments.size(), node->getLocation());
             }

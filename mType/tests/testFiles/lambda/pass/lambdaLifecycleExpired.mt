@@ -87,7 +87,7 @@ function main(): void {
 
     // Test massive callback creation and cleanup
     print("=== Testing massive callback cleanup ===");
-    Callback?[] massiveArray = new Callback?[100];
+    Callback[] massiveArray = new Callback[100];
     for (int i = 0; i < 100; i++) {
         int multiplier = i;
         massiveArray[i] = x -> x * multiplier;

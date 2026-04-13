@@ -20,10 +20,10 @@ class ProcessingException extends Exception {
 // Result wrapper for partial operations
 class OperationResult<T> {
     public bool success;
-    public T value;
-    public Exception error;
+    public T? value;
+    public Exception? error;
 
-    public constructor(bool s, T v, Exception e) {
+    public constructor(bool s, T? v, Exception? e) {
         success = s;
         value = v;
         error = e;
@@ -33,11 +33,11 @@ class OperationResult<T> {
         return success;
     }
 
-    public function getValue(): T {
+    public function getValue(): T? {
         return value;
     }
 
-    public function getError(): Exception {
+    public function getError(): Exception? {
         return error;
     }
 }
@@ -133,7 +133,10 @@ while (k < 5) {
     if (result.isSuccess()) {
         print("Item " + k + ": SUCCESS - " + result.getValue());
     } else {
-        print("Item " + k + ": FAILURE - " + result.getError().getMessage());
+        Exception? err = result.getError();
+        if (err != null) {
+            print("Item " + k + ": FAILURE - " + err.getMessage());
+        }
     }
     k = k + 1;
 }

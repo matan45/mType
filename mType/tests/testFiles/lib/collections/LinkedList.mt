@@ -403,12 +403,16 @@ class LinkedList<T> implements List<T>, Deque<T> {
         if (index < this.count / 2) {
             current = this.head;
             for (int i = 0; i < index; i++) {
-                current = current.next;
+                if (current != null) {
+                    current = current.next;
+                }
             }
         } else {
             current = this.tail;
             for (int i = this.count - 1; i > index; i--) {
-                current = current.prev;
+                if (current != null) {
+                    current = current.prev;
+                }
             }
         }
 

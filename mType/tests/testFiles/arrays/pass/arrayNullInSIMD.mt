@@ -14,7 +14,7 @@ class Item {
 }
 
 // Create array with SIMD threshold (16 elements)
-Item?[] items = new Item[16];
+Item[] items = new Item[16];
 print("Created Item array with length: " + items.length);
 
 // Initialize first half with objects, second half with null
