@@ -26,8 +26,8 @@ namespace project::mtclib
         currentEnvironment = env;
         auto nativeRegistry = env->getNativeRegistry();
 
-        nativeRegistry->registerNativeFunction("loadLibrary", __lib_loadLibrary);
-        nativeRegistry->registerNativeFunction("unloadLibrary", __lib_unloadLibrary);
+        nativeRegistry->registerNativeFunction("loadLibrary", nativeLoadLibrary);
+        nativeRegistry->registerNativeFunction("unloadLibrary", nativeUnloadLibrary);
     }
 
     void LibraryNatives::cleanup()
@@ -37,7 +37,7 @@ namespace project::mtclib
         currentLoader = nullptr;
     }
 
-    value::Value LibraryNatives::__lib_loadLibrary(const std::vector<value::Value>& args)
+    value::Value LibraryNatives::nativeLoadLibrary(const std::vector<value::Value>& args)
     {
         if (args.size() != 1) {
             throw errors::RuntimeException(
@@ -63,7 +63,7 @@ namespace project::mtclib
         return std::monostate{};
     }
 
-    value::Value LibraryNatives::__lib_unloadLibrary(const std::vector<value::Value>& args)
+    value::Value LibraryNatives::nativeUnloadLibrary(const std::vector<value::Value>& args)
     {
         if (args.size() != 1) {
             throw errors::RuntimeException(

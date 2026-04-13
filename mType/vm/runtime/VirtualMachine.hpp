@@ -199,10 +199,13 @@ namespace vm::runtime
         void addLoadedProgram(const bytecode::BytecodeProgram* prog) {
             loadedPrograms.push_back(prog);
         }
-        bool removeLoadedProgram(const bytecode::BytecodeProgram* prog) {
+        [[nodiscard]] bool removeLoadedProgram(const bytecode::BytecodeProgram* prog) {
+            // Never remove the main program
+            if (prog == program) {
+                return false;
+            }
             auto it = std::find(loadedPrograms.begin(), loadedPrograms.end(), prog);
-            if (it != loadedPrograms.end() && it != loadedPrograms.begin()) {
-                // Never remove index 0 (main program)
+            if (it != loadedPrograms.end()) {
                 loadedPrograms.erase(it);
                 return true;
             }

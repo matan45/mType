@@ -511,33 +511,16 @@ namespace services
 
     void ScriptInterpreter::loadLibraryWithDependencies(const std::string& mtcLibPath)
     {
-        if (!transitiveDependencyLoader) {
-            transitiveDependencyLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
-        }
         transitiveDependencyLoader->loadLibraryWithDependencies(mtcLibPath, *vm, environment);
     }
 
     void ScriptInterpreter::loadLibrariesWithDependencies(const std::vector<std::string>& paths)
     {
-        if (!transitiveDependencyLoader) {
-            transitiveDependencyLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
-        }
         transitiveDependencyLoader->loadLibrariesWithDependencies(paths, *vm, environment);
     }
 
     void ScriptInterpreter::addLibrarySearchPath(const std::string& path)
     {
-        if (!transitiveDependencyLoader) {
-            transitiveDependencyLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
-        }
         transitiveDependencyLoader->addSearchPath(path);
-    }
-
-    std::shared_ptr<project::mtclib::TransitiveDependencyLoader> ScriptInterpreter::getTransitiveDependencyLoader()
-    {
-        if (!transitiveDependencyLoader) {
-            transitiveDependencyLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
-        }
-        return transitiveDependencyLoader;
     }
 }

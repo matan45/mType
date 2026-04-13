@@ -61,6 +61,10 @@ namespace project::mtclib
         // reference-based loadLibrary overload does not take ownership.
         std::vector<std::unique_ptr<MtcLibProgram>> ownedPrograms;
 
+        // Maps library name -> the raw pointer that was passed to vm.addLoadedProgram().
+        // Needed because the pointer identity must match exactly for removal.
+        std::unordered_map<std::string, const vm::bytecode::BytecodeProgram*> vmProgramPointers;
+
         // Collect a library and its transitive deps into the map (by name)
         void collectDependencies(
             const std::string& libraryName,

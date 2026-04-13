@@ -60,7 +60,7 @@ namespace environment::registry
             size_t argCount) const;
 
         // Remove all overloads for a function name
-        bool removeFunction(const std::string& name);
+        [[nodiscard]] bool removeFunction(const std::string& name);
 
         // Clear all script-defined functions
         void clearAllFunctions();

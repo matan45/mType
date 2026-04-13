@@ -71,8 +71,14 @@ namespace project::mtclib
             }
         }
 
-        // Remove bytecode program from VM
-        vm.removeLoadedProgram(&targetLib->bytecodeProgram);
+        // Remove bytecode program from VM using the exact pointer that was registered.
+        auto ptrIt = vmProgramPointers.find(libraryName);
+        if (ptrIt == vmProgramPointers.end() || !vm.removeLoadedProgram(ptrIt->second)) {
+            throw std::runtime_error(
+                "Cannot unload library '" + libraryName +
+                "': failed to remove bytecode program from VM");
+        }
+        vmProgramPointers.erase(ptrIt);
 
         // Unmark from environment
         env->unmarkLibraryLoaded(libraryName);
@@ -95,7 +101,8 @@ namespace project::mtclib
         MtcLibProgram lib = MtcLibSerializer::deserialize(inFile);
         inFile.close();
 
-        const std::string& libName = lib.metadata.name;
+        // Copy the name before moving — the reference would dangle after std::move
+        const std::string libName = lib.metadata.name;
         if (env->isLibraryLoaded(libName)) {
             return;
         }
@@ -129,7 +136,7 @@ namespace project::mtclib
             MtcLibProgram lib = MtcLibSerializer::deserialize(inFile);
             inFile.close();
 
-            const std::string& libName = lib.metadata.name;
+            const std::string libName = lib.metadata.name;
             if (env->isLibraryLoaded(libName) || collected.count(libName)) {
                 continue;
             }
@@ -209,7 +216,10 @@ namespace project::mtclib
             auto it = collected.find(name);
             if (it != collected.end()) {
                 auto owned = std::make_unique<MtcLibProgram>(std::move(it->second));
+                // Capture the pointer BEFORE loadLibrary, since that's what addLoadedProgram stores
+                const vm::bytecode::BytecodeProgram* progPtr = &owned->bytecodeProgram;
                 libraryLoader.loadLibrary(*owned, vm, env);
+                vmProgramPointers[owned->metadata.name] = progPtr;
                 ownedPrograms.push_back(std::move(owned));
             }
         }

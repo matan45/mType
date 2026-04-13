@@ -1555,6 +1555,86 @@ namespace tests::testSuite
                 LibraryNatives::cleanup();
             });
 
+        addCallbackTest("unloadLibrary blocks when another loaded library depends on it",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Step 1: Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed");
+
+                // Step 2: Copy MathLib to consumer/libs/ and build Consumer
+                std::string consumerLibsDir = "mType/tests/testFiles/library/projects/consumer/libs";
+                fs::create_directories(consumerLibsDir);
+                std::string destLib = consumerLibsDir + "/MathLib.mtcLib";
+                fs::copy_file(libPath, destLib, fs::copy_options::overwrite_existing);
+
+                std::string consumerMtproj = "mType/tests/testFiles/library/projects/consumer/Consumer.mtproj";
+                auto consumerConfig = configParser.parse(consumerMtproj);
+                require(consumerConfig != nullptr, "Failed to parse Consumer.mtproj");
+
+                fs::path consumerOutputDir = fs::path(consumerConfig->projectRoot) / consumerConfig->output.directory;
+                fs::create_directories(consumerOutputDir);
+                std::string consumerLibPath = (consumerOutputDir / (consumerConfig->name + ".mtcLib")).string();
+
+                // Remove stale output to defeat incremental build cache
+                try { fs::remove(consumerLibPath); } catch (...) {}
+
+                project::ProjectBuilder consumerBuilder;
+                auto consumerResult = consumerBuilder.buildLibrary(*consumerConfig, consumerLibPath);
+                require(consumerResult.success, "Consumer build failed: " +
+                    (consumerResult.errors.empty() ? "unknown" : consumerResult.errors[0]));
+
+                // Step 3: Load both via transitive loader
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                TransitiveDependencyLoader loader;
+                loader.addSearchPath(libOutputDir.string());
+                loader.addSearchPath(consumerLibsDir);
+
+                loader.loadLibraryWithDependencies(consumerLibPath, *vm, env);
+
+                require(env->isLibraryLoaded("MathLib"), "MathLib should be loaded transitively");
+                require(env->isLibraryLoaded("Consumer"), "Consumer should be loaded");
+
+                // Step 4: Try to unload MathLib — should fail because Consumer depends on it
+                bool threw = false;
+                try {
+                    loader.unloadLibrary("MathLib", *vm, env);
+                } catch (const std::runtime_error& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("Consumer") != std::string::npos,
+                        "Error should name the dependent library, got: " + msg);
+                }
+                require(threw, "Should refuse to unload MathLib while Consumer depends on it");
+
+                // Verify MathLib is still loaded
+                require(env->isLibraryLoaded("MathLib"), "MathLib should still be loaded after failed unload");
+
+                // Cleanup
+                try {
+                    fs::remove(destLib);
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                    fs::remove(consumerLibPath);
+                    fs::remove_all(consumerOutputDir);
+                } catch (...) {}
+            });
+
         addCallbackTest("unloadLibrary allows re-load after unload",
             "",
             [](ScriptAPI&) {
