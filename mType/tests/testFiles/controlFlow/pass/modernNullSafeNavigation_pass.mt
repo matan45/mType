@@ -50,7 +50,8 @@ if (p1 != null) {
 }
 print(name1);
 
-Person p2 = new Person("Alice", null);
+Address? noAddr = null;
+Person p2 = new Person("Alice", noAddr);
 string name2 = p2 != null ? p2.name : "Unknown";
 print(name2);
 
@@ -60,7 +61,7 @@ Person p3 = new Person("Bob", new Address("Main St", "NYC"));
 string city1 = p3 != null ? (p3.address != null ? p3.address.city : "No city") : "No person";
 print(city1);
 
-Person p4 = new Person("Charlie", null);
+Person p4 = new Person("Charlie", noAddr);
 string city2 = p4 != null ? (p4.address != null ? p4.address.city : "No city") : "No person";
 print(city2);
 
@@ -80,14 +81,15 @@ string ceoCity1 = company1 != null ?
                     company1.ceo.address.city : "No address") : "No CEO") : "No company";
 print(ceoCity1);
 
-Company company2 = new Company(new Person("CEO2", null));
+Company company2 = new Company(new Person("CEO2", noAddr));
 string ceoCity2 = company2 != null ?
                   (company2.ceo != null ?
                    (company2.ceo.address != null ?
                     company2.ceo.address.city : "No address") : "No CEO") : "No company";
 print(ceoCity2);
 
-Company company3 = new Company(null);
+Person? noCeo = null;
+Company company3 = new Company(noCeo);
 string ceoCity3 = company3 != null ?
                   (company3.ceo != null ?
                    (company3.ceo.address != null ?
@@ -109,7 +111,7 @@ Person p6 = new Person("David", new Address("Elm St", "Boston"));
 string addressStr1 = p6 != null ? p6.getAddressString() : "No person";
 print(addressStr1);
 
-Person p7 = new Person("Eve", null);
+Person p7 = new Person("Eve", noAddr);
 string addressStr2 = p7 != null ? p7.getAddressString() : "No person";
 print(addressStr2);
 
@@ -144,7 +146,7 @@ print(funcCeoName2);
 print("Test 6: Null-safe navigation in loops");
 Person p9 = new Person("Loop1", new Address("First", "City1"));
 Person? p10 = null;
-Person p11 = new Person("Loop3", null);
+Person p11 = new Person("Loop3", noAddr);
 
 for (int i = 0; i < 3; i++) {
     Person? current = null;

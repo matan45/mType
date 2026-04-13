@@ -84,7 +84,8 @@ class Container {
 
 print("Test 6: Nested null coalescing");
 Container? c1 = null;
-Container c2 = new Container(null);
+Person? noOne = null;
+Container c2 = new Container(noOne);
 Container c3 = new Container(new Person("Nested", 28));
 Person safeDefault = new Person("Safe", 100);
 

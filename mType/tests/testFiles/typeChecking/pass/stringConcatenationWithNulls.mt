@@ -39,10 +39,7 @@ string result4 = "Selected object: " + obj;
 print("Conditional null: " + result4);
 
 // Test 4: Null object in ternary expression concatenation
-string objStr = "null";
-if (obj != null) {
-    objStr = obj.toString();
-}
+string objStr = "" + obj;
 string result5 = "Value: " + objStr;
 print("Ternary null check: " + result5);
 

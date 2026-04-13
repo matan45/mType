@@ -65,8 +65,8 @@ function traverseAndCast(TreeNode? node, int count): int {
             count = count + 1;
         }
 
-        count = traverseAndCast((TreeNode?)node.left, count);
-        count = traverseAndCast((TreeNode?)node.right, count);
+        count = traverseAndCast((TreeNode)node.left, count);
+        count = traverseAndCast((TreeNode)node.right, count);
     }
 
     return count;

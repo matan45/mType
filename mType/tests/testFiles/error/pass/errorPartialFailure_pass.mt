@@ -113,14 +113,16 @@ print("\n=== Test 2: Collect all results ===");
 
 OperationResult<String>[] results = new OperationResult<String>[5];
 
+Exception? noError = null;
+String? noValue = null;
 int j = 0;
 while (j < 5) {
     int itemId = j + 1;
     try {
         string processed = processItem(itemId);
-        results[j] = new OperationResult<String>(true, processed, null);
+        results[j] = new OperationResult<String>(true, processed, noError);
     } catch (ProcessingException e) {
-        results[j] = new OperationResult<String>(false, null, e);
+        results[j] = new OperationResult<String>(false, noValue, e);
     }
     j = j + 1;
 }

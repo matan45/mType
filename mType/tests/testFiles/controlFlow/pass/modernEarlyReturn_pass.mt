@@ -229,18 +229,22 @@ function canCancelOrder(Order? order): string {
         return "Cannot cancel: Order not found";
     }
 
-    // Early return if already shipped
-    if (order.isShipped) {
-        return "Cannot cancel: Order already shipped";
+    if (order != null) {
+        // Early return if already shipped
+        if (order.isShipped) {
+            return "Cannot cancel: Order already shipped";
+        }
+
+        // Early return if not paid (can cancel easily)
+        if (!order.isPaid) {
+            return "Cancellation allowed: Unpaid order";
+        }
+
+        // Paid but not shipped - requires refund
+        return "Cancellation requires refund";
     }
 
-    // Early return if not paid (can cancel easily)
-    if (!order.isPaid) {
-        return "Cancellation allowed: Unpaid order";
-    }
-
-    // Paid but not shipped - requires refund
-    return "Cancellation requires refund";
+    return "Cannot cancel: Order not found";
 }
 
 print("Test 7: Early return in business logic");

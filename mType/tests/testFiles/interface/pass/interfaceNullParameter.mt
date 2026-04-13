@@ -17,7 +17,9 @@ class Service {
             print("No processor provided");
             return;
         }
-        processor.process("test data");
+        if (processor != null) {
+            processor.process("test data");
+        }
     }
 }
 

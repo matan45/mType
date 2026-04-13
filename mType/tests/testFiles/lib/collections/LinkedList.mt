@@ -260,7 +260,10 @@ class LinkedList<T> implements List<T>, Deque<T> {
         Node<T>? current = this.head;
         int index = 0;
 
-        while (current != null && index < this.count) {
+        while (current != null) {
+            if (index >= this.count) {
+                return result;
+            }
             result[index] = current.data;
             current = current.next;
             index++;
@@ -339,9 +342,14 @@ class LinkedList<T> implements List<T>, Deque<T> {
         LinkedList<T> result = new LinkedList<T>();
         Node<T>? current = this.getNodeAt(fromIndex);
 
-        for (int i = fromIndex; i < toIndex && current != null; i++) {
+        int i = fromIndex;
+        while (current != null) {
+            if (i >= toIndex) {
+                return result;
+            }
             result.add(current.data);
             current = current.next;
+            i++;
         }
 
         return result;
