@@ -319,10 +319,14 @@ namespace vm::runtime
             return std::to_string(std::get<int64_t>(val));
         }
         if (std::holds_alternative<double>(val)) {
-            // Format float to match interpreter behavior (remove trailing zeros)
+            // Format float: preserve at least one decimal place (e.g., 4.0 not 4)
             std::ostringstream oss;
             oss << std::get<double>(val);
-            return oss.str();
+            std::string result = oss.str();
+            if (result.find('.') == std::string::npos && result.find('e') == std::string::npos) {
+                result += ".0";
+            }
+            return result;
         }
         if (std::holds_alternative<bool>(val)) {
             return std::get<bool>(val) ? "true" : "false";

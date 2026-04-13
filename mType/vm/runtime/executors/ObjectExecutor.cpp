@@ -553,7 +553,9 @@ namespace vm::runtime
         }
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
-        size_t targetProgramIndex = 0;
+        // Initialize from current call frame's program index (not hardcoded 0)
+        // so that if we're already executing in a library, the index is correct
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // Fallback: generic type erasure may produce a mangled name like

@@ -277,7 +277,9 @@ namespace vm::runtime
             ? baseParentClassName + "::<init>"
             : baseParentClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
-        size_t targetProgramIndex = 0;
+        // Initialize from current call frame's program index (not hardcoded 0)
+        // so that if we're already executing in a library, the index is correct
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // If not found in current program, search loaded library programs
@@ -384,7 +386,9 @@ namespace vm::runtime
             ? currentClassName + "::<init>"
             : currentClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
-        size_t targetProgramIndex = 0;
+        // Initialize from current call frame's program index (not hardcoded 0)
+        // so that if we're already executing in a library, the index is correct
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // If not found in current program, search loaded library programs
@@ -511,7 +515,9 @@ namespace vm::runtime
         std::string qualifiedName = signature.toMangledName(baseParentClassName, false);  // false = not static
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
-        size_t targetProgramIndex = 0;
+        // Initialize from current call frame's program index (not hardcoded 0)
+        // so that if we're already executing in a library, the index is correct
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // If not found in current program, search loaded library programs
@@ -674,7 +680,9 @@ namespace vm::runtime
             ? baseClassName + "::<init>"
             : baseClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
-        size_t targetProgramIndex = 0;
+        // Initialize from current call frame's program index (not hardcoded 0)
+        // so that if we're already executing in a library, the index is correct
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // If not found in current program, search loaded library programs
@@ -747,6 +755,7 @@ namespace vm::runtime
 
         const std::string& fullClassName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
+
 
         // Parse generic type arguments and extract base class name
         std::unordered_map<std::string, std::string> genericTypeBindings;

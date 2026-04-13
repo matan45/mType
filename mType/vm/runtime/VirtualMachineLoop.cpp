@@ -73,8 +73,10 @@ namespace vm::runtime
             inlineCacheExecutor->setFunctionExecutor(functionExecutor.get());
         }
 
-        // Initialize exception handler
-        exceptionHandler = std::make_unique<utils::ExceptionHandler>(program, stackManager, callStack);
+        // Initialize exception handler — pass executionCtx->program by reference so it
+        // tracks cross-library program switches during exception handling
+        exceptionHandler = std::make_unique<utils::ExceptionHandler>(
+            executionCtx->program, stackManager, callStack, executionCtx->loadedPrograms);
     }
 
     value::Value VirtualMachine::interpretLoop()

@@ -57,7 +57,7 @@ namespace vm::runtime
 
         // Try to find user-defined function in bytecode
         auto funcMetadata = context.program->getFunction(functionName);
-        size_t targetProgramIndex = 0;
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // If not found in current program, search loaded library programs
@@ -301,7 +301,7 @@ namespace vm::runtime
         }
 
         // Search loaded library programs if not found in current program
-        size_t targetProgramIndex = 0;
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
         if (!funcMetadata && context.loadedPrograms) {
             for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
