@@ -16,7 +16,6 @@
 
 #include "../services/ScriptInterpreter.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
-#include "../vm/runtime/LibraryLoader.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../value/NativeArray.hpp"
 #include "../gc/GC.hpp"
@@ -139,17 +138,20 @@ static void loadSidecarLibraries(
         return;  // No libs directory — nothing to load
     }
 
-    // Collect and sort library paths for deterministic load order across platforms
-    std::vector<fs::path> libs;
+    // Add exe directory as a search path for transitive dependency resolution
+    interpreter.addLibrarySearchPath(exeDir.string());
+
+    // Collect and sort library paths for deterministic discovery across platforms
+    std::vector<std::string> libs;
     for (const auto& entry : fs::directory_iterator(libsDir)) {
         if (entry.is_regular_file() && entry.path().extension() == ".mtcLib") {
-            libs.push_back(entry.path());
+            libs.push_back(entry.path().string());
         }
     }
     std::sort(libs.begin(), libs.end());
-    for (const auto& p : libs) {
-        interpreter.loadLibrary(p.string());
-    }
+
+    // Load all libraries with transitive dependency resolution
+    interpreter.loadLibrariesWithDependencies(libs);
 }
 
 static std::string findEntryPointClass(

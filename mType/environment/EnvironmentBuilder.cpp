@@ -2,6 +2,7 @@
 #include "../runtimeTypes/global/ArrayOperationsNative.hpp"
 #include "../reflection/ReflectionNatives.hpp"
 #include "../json/JsonNatives.hpp"
+#include "../project/mtclib/LibraryNatives.hpp"
 #include "registry/builtin/ObjectClassBootstrap.hpp"
 
 namespace environment
@@ -81,6 +82,9 @@ namespace environment
 
         // Register JSON serialization native functions
         json::JsonNatives::registerAll(environment);
+
+        // Register library loading native functions
+        project::mtclib::LibraryNatives::registerAll(environment);
 
         return environment;
     }

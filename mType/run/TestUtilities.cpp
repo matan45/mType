@@ -40,6 +40,7 @@
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../reflection/ReflectionNatives.hpp"
 #include "../json/JsonNatives.hpp"
+#include "../project/mtclib/LibraryNatives.hpp"
 
 #include <vector>
 #include <memory>
@@ -254,6 +255,7 @@ void runSpecificTestSuite(const std::string& suiteName,
     // Cleanup reflection static state to avoid static destruction order issues
     reflection::ReflectionNatives::cleanup();
     json::JsonNatives::cleanup();
+    project::mtclib::LibraryNatives::cleanup();
 }
 
 void runAllTests(constants::ExecutionMode execMode)
@@ -306,6 +308,7 @@ void runAllTests(constants::ExecutionMode execMode)
     // Cleanup reflection static state to avoid static destruction order issues
     reflection::ReflectionNatives::cleanup();
     json::JsonNatives::cleanup();
+    project::mtclib::LibraryNatives::cleanup();
 
     // Print final summary
     std::cout << "\n" << std::string(80, '=') << std::endl;

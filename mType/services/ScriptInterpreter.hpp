@@ -9,6 +9,7 @@
 #include "../constants/ExecutionMode.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
 #include "../vm/runtime/LibraryLoader.hpp"
+#include "../project/mtclib/TransitiveDependencyLoader.hpp"
 #include "../diagnostics/Diagnostic.hpp"
 
 // Forward declarations
@@ -50,6 +51,7 @@ namespace services
         std::unique_ptr<ExecutionStrategy> executionStrategy;
         std::unique_ptr<vm::bytecode::BytecodeProgram> cachedBytecodeProgram;  // Keep compiled program alive for C++ API calls
         std::unique_ptr<vm::runtime::LibraryLoader> libraryLoader;  // Library loading support
+        std::shared_ptr<project::mtclib::TransitiveDependencyLoader> transitiveDependencyLoader;
 
         // Execution mode
         constants::ExecutionMode executionMode;
@@ -78,6 +80,10 @@ namespace services
         void loadFromProgram(vm::bytecode::BytecodeProgram program);  // Load from in-memory program
         void runFromProgram(vm::bytecode::BytecodeProgram program);   // Load and execute in-memory program
         void loadLibrary(const std::string& mtcLibPath);             // Load a .mtcLib library
+        void loadLibraryWithDependencies(const std::string& mtcLibPath);  // Load with transitive deps
+        void loadLibrariesWithDependencies(const std::vector<std::string>& paths);  // Batch load with transitive deps
+        void addLibrarySearchPath(const std::string& path);              // Add search path for dep resolution
+        std::shared_ptr<project::mtclib::TransitiveDependencyLoader> getTransitiveDependencyLoader();
 
         // Execution mode control
         void setExecutionMode(constants::ExecutionMode mode);
