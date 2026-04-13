@@ -528,7 +528,10 @@ namespace vm::compiler::visitors
             }
             else
             {
-                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
+                // Push null for void return to keep stack consistent —
+                // all calls leave exactly one value on the stack
+                ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             }
         }
     }
@@ -588,7 +591,9 @@ namespace vm::compiler::visitors
             }
             else
             {
-                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN, node);
+                // Push null for void return to keep stack consistent
+                ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             }
         }
 

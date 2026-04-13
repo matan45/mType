@@ -11,6 +11,7 @@
 #include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
+#include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include  <iostream>
 namespace vm::compiler::visitors
@@ -920,6 +921,13 @@ namespace vm::compiler::visitors
         for (auto& stmt : statements)
         {
             stmt->accept(ctx.visitor); // Will need delegation
+
+            // Expression statements (function calls, method calls) leave a return value
+            // on the stack that is not consumed. Emit POP to discard it.
+            if (isExpressionStatement(stmt.get()))
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::POP, stmt.get());
+            }
         }
 
         if (shouldManageScope)
@@ -949,6 +957,13 @@ namespace vm::compiler::visitors
         for (auto& stmt : statements)
         {
             stmt->accept(ctx.visitor); // Will need delegation
+
+            // Expression statements (function calls, method calls) leave a return value
+            // on the stack that is not consumed. Emit POP to discard it.
+            if (isExpressionStatement(stmt.get()))
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::POP, stmt.get());
+            }
         }
 
         if (shouldManageScope) {
@@ -1027,5 +1042,19 @@ namespace vm::compiler::visitors
         }
 
         return true;  // Auto-boxing was applied
+    }
+
+    bool StatementCompiler::isExpressionStatement(ast::ASTNode* node) const
+    {
+        using namespace ast::nodes::functions;
+
+        // Top-level function calls (e.g., print(...), ClassName::method(...))
+        // leave a return value on the stack that must be discarded.
+        // Native functions always push a result; bytecode functions push via RETURN_VALUE.
+        // Note: MethodCallNode (instance method calls like obj.method()) are NOT included
+        // because their stack effect is already balanced by the receiver pop/push pattern.
+        if (dynamic_cast<FunctionCallNode*>(node)) return true;
+
+        return false;
     }
 }

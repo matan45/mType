@@ -47,5 +47,8 @@ namespace vm::compiler::visitors
         // Phase 4: Auto-boxing helper
         // Returns true if auto-boxing was applied and bytecode was emitted
         bool tryEmitAutoBoxing(ast::ASTNode* valueNode, const std::string& targetClassName);
+
+        // Check if a statement node is an expression that leaves a value on the stack
+        bool isExpressionStatement(ast::ASTNode* node) const;
     };
 }

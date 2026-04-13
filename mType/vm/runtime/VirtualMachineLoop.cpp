@@ -107,7 +107,11 @@ namespace vm::runtime
         bool profilerFull = vm::profiler::ProfilerHookHelper::isProfilingEnabled()
                             && vm::profiler::ProfilerContext::getInstance().isFullMode();
 
-        while (instructionPointer < program->getInstructionCount())
+        // Use executionCtx->program for instruction fetch so cross-library calls
+        // (which switch executionCtx->program to a library) fetch from the correct bytecode.
+        auto& currentProgram = executionCtx->program;
+
+        while (instructionPointer < currentProgram->getInstructionCount())
         {
             // Check for pending rejection from an awaited promise
             // This is set by the catch_ callback when a suspended task resumes after rejection
@@ -128,7 +132,7 @@ namespace vm::runtime
                 gc::GC::maybeCollect();
             }
 
-            const auto& instr = program->getInstruction(instructionPointer);
+            const auto& instr = currentProgram->getInstruction(instructionPointer);
 
             // Check if we have a pending exception and we're hitting RETURN
             // According to Java/C# semantics: a return in finally SUPPRESSES the pending exception

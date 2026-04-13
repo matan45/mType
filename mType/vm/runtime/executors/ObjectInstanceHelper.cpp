@@ -277,6 +277,22 @@ namespace vm::runtime
             ? baseParentClassName + "::<init>"
             : baseParentClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
+        size_t targetProgramIndex = 0;
+        const bytecode::BytecodeProgram* targetProgram = context.program;
+
+        // If not found in current program, search loaded library programs
+        if (!funcMetadata && context.loadedPrograms) {
+            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                auto libFunc = (*context.loadedPrograms)[i]->getFunction(constructorName);
+                if (libFunc) {
+                    funcMetadata = libFunc;
+                    targetProgramIndex = i;
+                    targetProgram = (*context.loadedPrograms)[i];
+                    break;
+                }
+            }
+        }
+
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
 
@@ -293,9 +309,15 @@ namespace vm::runtime
             frame.functionName = constructorName;  // Use qualified name for proper exception handling
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for constructor
+            frame.programIndex = targetProgramIndex;
 
             context.pushCallFrame(frame);
             context.stats.functionCalls++;
+
+            // Switch to the target program if it's from a library
+            if (targetProgram != context.program) {
+                context.program = targetProgram;
+            }
 
             // Notify debugger of parent constructor entry
             if (debugger::DebugHookHelper::isDebuggingEnabled()) {
@@ -362,6 +384,22 @@ namespace vm::runtime
             ? currentClassName + "::<init>"
             : currentClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
+        size_t targetProgramIndex = 0;
+        const bytecode::BytecodeProgram* targetProgram = context.program;
+
+        // If not found in current program, search loaded library programs
+        if (!funcMetadata && context.loadedPrograms) {
+            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                auto libFunc = (*context.loadedPrograms)[i]->getFunction(constructorName);
+                if (libFunc) {
+                    funcMetadata = libFunc;
+                    targetProgramIndex = i;
+                    targetProgram = (*context.loadedPrograms)[i];
+                    break;
+                }
+            }
+        }
+
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
 
@@ -378,9 +416,15 @@ namespace vm::runtime
             frame.functionName = constructorName;  // Use qualified name for proper exception handling
             frame.thisInstance = instance;
             frame.definingClassName = currentClassName;  // Same class as defining class
+            frame.programIndex = targetProgramIndex;
 
             context.pushCallFrame(frame);
             context.stats.functionCalls++;
+
+            // Switch to the target program if it's from a library
+            if (targetProgram != context.program) {
+                context.program = targetProgram;
+            }
 
             // Notify debugger of constructor delegation entry
             if (debugger::DebugHookHelper::isDebuggingEnabled()) {
@@ -467,6 +511,22 @@ namespace vm::runtime
         std::string qualifiedName = signature.toMangledName(baseParentClassName, false);  // false = not static
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
+        size_t targetProgramIndex = 0;
+        const bytecode::BytecodeProgram* targetProgram = context.program;
+
+        // If not found in current program, search loaded library programs
+        if (!funcMetadata && context.loadedPrograms) {
+            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                auto libFunc = (*context.loadedPrograms)[i]->getFunction(qualifiedName);
+                if (libFunc) {
+                    funcMetadata = libFunc;
+                    targetProgramIndex = i;
+                    targetProgram = (*context.loadedPrograms)[i];
+                    break;
+                }
+            }
+        }
+
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
 
@@ -483,9 +543,15 @@ namespace vm::runtime
             frame.functionName = qualifiedName;
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for access control
+            frame.programIndex = targetProgramIndex;
 
             context.pushCallFrame(frame);
             context.stats.functionCalls++;
+
+            // Switch to the target program if it's from a library
+            if (targetProgram != context.program) {
+                context.program = targetProgram;
+            }
 
             // Notify debugger of super method entry
             if (debugger::DebugHookHelper::isDebuggingEnabled()) {
@@ -608,6 +674,22 @@ namespace vm::runtime
             ? baseClassName + "::<init>"
             : baseClassName + "::<init>/" + typeSignature;
         auto funcMetadata = context.program->getFunction(constructorName);
+        size_t targetProgramIndex = 0;
+        const bytecode::BytecodeProgram* targetProgram = context.program;
+
+        // If not found in current program, search loaded library programs
+        if (!funcMetadata && context.loadedPrograms) {
+            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                auto libFunc = (*context.loadedPrograms)[i]->getFunction(constructorName);
+                if (libFunc) {
+                    funcMetadata = libFunc;
+                    targetProgramIndex = i;
+                    targetProgram = (*context.loadedPrograms)[i];
+                    break;
+                }
+            }
+        }
+
         if (!funcMetadata) {
             throw errors::RuntimeException("Constructor '" + constructorName + "' for class '" + baseClassName +
                                          "' has no bytecode. All constructors must be compiled to bytecode for VM execution.");
@@ -620,9 +702,15 @@ namespace vm::runtime
         frame.functionName = constructorName;  // Use qualified name for proper exception handling
         frame.thisInstance = instance;
         frame.definingClassName = baseClassName;  // Set class as defining class for its own constructor
+        frame.programIndex = targetProgramIndex;
 
         context.pushCallFrame(frame);
         context.stats.functionCalls++;
+
+        // Switch to the target program if it's from a library
+        if (targetProgram != context.program) {
+            context.program = targetProgram;
+        }
 
         vm::profiler::ProfilerHookHelper::onFunctionEntry(constructorName);
 

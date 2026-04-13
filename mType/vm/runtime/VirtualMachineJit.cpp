@@ -56,14 +56,16 @@ namespace vm::runtime
 
         // Run interpreter until this call frame is popped
         // Use post-increment to match interpretLoop pattern (executors set IP = target - 1)
+        // Use executionCtx->program so cross-library calls fetch from the correct bytecode
+        auto& jitCurrentProgram = executionCtx->program;
         while (callStack.size() > savedCallStackDepth)
         {
-            if (instructionPointer >= program->getInstructionCount())
+            if (instructionPointer >= jitCurrentProgram->getInstructionCount())
             {
                 break;
             }
 
-            const auto& instr = program->getInstruction(instructionPointer);
+            const auto& instr = jitCurrentProgram->getInstruction(instructionPointer);
 
             try
             {
@@ -209,14 +211,16 @@ namespace vm::runtime
 
         // Run interpreter until this call frame is popped
         // Use post-increment to match interpretLoop pattern (executors set IP = target - 1)
+        // Use executionCtx->program so cross-library calls fetch from the correct bytecode
+        auto& jitCurrentProgram2 = executionCtx->program;
         while (callStack.size() > savedCallStackDepth)
         {
-            if (instructionPointer >= program->getInstructionCount())
+            if (instructionPointer >= jitCurrentProgram2->getInstructionCount())
             {
                 break;
             }
 
-            const auto& instr = program->getInstruction(instructionPointer);
+            const auto& instr = jitCurrentProgram2->getInstruction(instructionPointer);
 
             try
             {

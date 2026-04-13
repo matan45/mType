@@ -553,6 +553,8 @@ namespace vm::runtime
         }
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
+        size_t targetProgramIndex = 0;
+        const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // Fallback: generic type erasure may produce a mangled name like
         // "String::equals/object" when the compiled function is "String::equals/String".
@@ -569,6 +571,34 @@ namespace vm::runtime
                     qualifiedName = fname;
                     break;
                 }
+            }
+        }
+
+        // If not found in current program, search loaded library programs
+        if (!funcMetadata && context.loadedPrograms) {
+            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                auto libFunc = (*context.loadedPrograms)[i]->getFunction(qualifiedName);
+                if (libFunc) {
+                    funcMetadata = libFunc;
+                    targetProgramIndex = i;
+                    targetProgram = (*context.loadedPrograms)[i];
+                    break;
+                }
+                // Also try prefix-based fallback in each library program
+                if (!funcMetadata) {
+                    std::string prefix = definingClassName + "::" + simpleMethodName;
+                    for (const auto& [fname, fmeta] : (*context.loadedPrograms)[i]->getFunctions()) {
+                        if (fname.rfind(prefix, 0) == 0 &&
+                            (fname.size() == prefix.size() || fname[prefix.size()] == '/')) {
+                            funcMetadata = &fmeta;
+                            qualifiedName = fname;
+                            targetProgramIndex = i;
+                            targetProgram = (*context.loadedPrograms)[i];
+                            break;
+                        }
+                    }
+                }
+                if (funcMetadata) break;
             }
         }
 
@@ -645,9 +675,15 @@ namespace vm::runtime
         frame.functionName = qualifiedName;
         frame.thisInstance = instance;
         frame.definingClassName = definingClassName;  // Store the class that defines this method
+        frame.programIndex = targetProgramIndex;
 
         context.pushCallFrame(frame);
         context.stats.functionCalls++;
+
+        // Switch to the target program if it's from a library
+        if (targetProgram != context.program) {
+            context.program = targetProgram;
+        }
 
         vm::profiler::ProfilerHookHelper::onFunctionEntry(qualifiedName);
 

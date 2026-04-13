@@ -146,6 +146,13 @@ namespace project::mtclib
                 for (const auto& methodMeta : methods) {
                     // Build parameter list with correct ValueType for primitives
                     std::vector<std::pair<std::string, value::ValueType>> params;
+
+                    // Instance methods need implicit 'this' parameter to match how
+                    // ObjectClassBootstrap and the compiler register methods
+                    if (!isStatic) {
+                        params.emplace_back("this", value::ValueType::OBJECT);
+                    }
+
                     for (size_t i = 0; i < methodMeta.parameterTypes.size(); ++i) {
                         std::string pName = (i < methodMeta.parameterNames.size())
                             ? methodMeta.parameterNames[i] : "p" + std::to_string(i);
