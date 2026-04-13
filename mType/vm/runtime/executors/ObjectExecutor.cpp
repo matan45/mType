@@ -95,10 +95,19 @@ namespace vm::runtime
                 throw errors::FieldNotFoundException(fieldName, valueObj->getClassName());
             }
 
-            auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
-            std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
-            auto accessContext = createAccessContext(targetClassName, false);
-            validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+            // For auto-boxed primitives (Int, Float, Bool, String), skip access check
+            // when accessing internal "value" field — auto-boxing is a VM-internal operation
+            // and shouldn't be restricted by the calling context
+            bool isAutoBoxedPrimitive = (valueObj->getClassName() == "Int" ||
+                                          valueObj->getClassName() == "Float" ||
+                                          valueObj->getClassName() == "Bool" ||
+                                          valueObj->getClassName() == "String");
+            if (!isAutoBoxedPrimitive || fieldName != "value") {
+                auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+                std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+                auto accessContext = createAccessContext(targetClassName, false);
+                validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+            }
 
             value::Value fieldValue = valueObj->getFieldValue(fieldName);
             context.stackManager->push(fieldValue);
@@ -124,6 +133,7 @@ namespace vm::runtime
         std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
 
         auto accessContext = createAccessContext(targetClassName, false);
+
         validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
 
         value::Value fieldValue = instance->getFieldValue(fieldName);

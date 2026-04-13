@@ -16,6 +16,7 @@
 
 #include "../services/ScriptInterpreter.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
+#include "../vm/runtime/LibraryLoader.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../value/NativeArray.hpp"
 #include "../gc/GC.hpp"
@@ -27,6 +28,7 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include <filesystem>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -124,6 +126,26 @@ static std::vector<char> readAppendedBytecode(const std::string& exePath)
     return blob;
 }
 
+static void loadSidecarLibraries(
+    const std::string& exePath,
+    services::ScriptInterpreter& interpreter)
+{
+    namespace fs = std::filesystem;
+
+    fs::path exeDir = fs::path(exePath).parent_path();
+    fs::path libsDir = exeDir / "libs";
+
+    if (!fs::exists(libsDir) || !fs::is_directory(libsDir)) {
+        return;  // No libs directory — nothing to load
+    }
+
+    for (const auto& entry : fs::directory_iterator(libsDir)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".mtcLib") {
+            interpreter.loadLibrary(entry.path().string());
+        }
+    }
+}
+
 static std::string findEntryPointClass(
     std::shared_ptr<environment::Environment> env)
 {
@@ -170,9 +192,13 @@ int main(int argc, char* argv[])
         std::istream stream(&buf);
         auto program = vm::bytecode::BytecodeProgram::deserialize(stream);
 
-        // Boot interpreter and execute program (registers functions + runs top-level code)
+        // Boot interpreter: load main program (registers classes, does NOT execute yet)
         services::ScriptInterpreter interpreter;
-        interpreter.runFromProgram(std::move(program));
+        interpreter.loadFromProgram(std::move(program));
+
+        // Load .mtcLib files from libs/ directory next to the exe
+        // (must happen after main program is set so loadedPrograms[0] = main)
+        loadSidecarLibraries(exePath, interpreter);
 
         // Find @EntryPoint class
         auto env = interpreter.getEnvironment();

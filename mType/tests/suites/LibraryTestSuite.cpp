@@ -882,6 +882,142 @@ namespace tests::testSuite
                     fs::remove_all(consumerOutputDir);
                 } catch (...) {}
             });
+
+        addCallbackTest("End-to-end exe: build MathLib, build Consumer exe, run and verify output",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // === Step 1: Build MathLib .mtcLib ===
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                require(fs::exists(libMtproj), "MathLib.mtproj not found");
+
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed: " +
+                    (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
+
+                // === Step 2: Copy .mtcLib to consumer/libs/ ===
+                std::string consumerLibsDir = "mType/tests/testFiles/library/projects/consumer/libs";
+                fs::create_directories(consumerLibsDir);
+                std::string destLib = consumerLibsDir + "/MathLib.mtcLib";
+                fs::copy_file(libPath, destLib, fs::copy_options::overwrite_existing);
+
+                // === Step 3: Find launcher binary ===
+#ifdef _WIN32
+                std::string launcherName = "mtype-launcher.exe";
+#else
+                std::string launcherName = "mtype-launcher";
+#endif
+                std::string launcherPath;
+                std::vector<std::string> searchPaths = {
+                    "bin/mType/Debug/x64/" + launcherName,
+                    "bin/mType/Release/x64/" + launcherName,
+                    "bin/mtype-launcher/Debug/x64/" + launcherName,
+                    "bin/mtype-launcher/Release/x64/" + launcherName
+                };
+                for (const auto& candidate : searchPaths) {
+                    if (fs::exists(candidate)) {
+                        launcherPath = candidate;
+                        break;
+                    }
+                }
+                if (launcherPath.empty()) {
+                    // Skip exe test if launcher not built
+                    throw std::runtime_error("SKIP: mtype-launcher not found (build it first)");
+                }
+
+                // === Step 4: Build consumer exe ===
+                std::string consumerMtproj = "mType/tests/testFiles/library/projects/consumer/Consumer.mtproj";
+                auto consumerConfig = configParser.parse(consumerMtproj);
+                require(consumerConfig != nullptr, "Failed to parse Consumer.mtproj");
+
+                fs::path consumerOutputDir = fs::path(consumerConfig->projectRoot) / consumerConfig->output.directory;
+#ifdef _WIN32
+                std::string exeName = consumerConfig->name + ".exe";
+#else
+                std::string exeName = consumerConfig->name;
+#endif
+                std::string exePath = (consumerOutputDir / exeName).string();
+
+                project::ProjectBuilder consumerBuilder;
+                auto consumerResult = consumerBuilder.buildExecutable(
+                    *consumerConfig, exePath, launcherPath);
+                require(consumerResult.success, "Consumer exe build failed: " +
+                    (consumerResult.errors.empty() ? "unknown" : consumerResult.errors[0]));
+                require(fs::exists(exePath), "Consumer exe not created");
+
+                // Verify libs/ was copied next to exe
+                fs::path exeLibsDir = consumerOutputDir / "libs";
+                require(fs::exists(exeLibsDir / "MathLib.mtcLib"),
+                    "MathLib.mtcLib should be copied to exe's libs/ directory");
+
+                // === Step 5: Run the exe and capture output ===
+                std::string command = "\"" + exePath + "\" 2>&1";
+#ifdef _WIN32
+                FILE* pipe = _popen(command.c_str(), "r");
+#else
+                FILE* pipe = popen(command.c_str(), "r");
+#endif
+                require(pipe != nullptr, "Failed to run consumer exe");
+
+                std::string output;
+                char buffer[256];
+                while (fgets(buffer, sizeof(buffer), pipe)) {
+                    output += buffer;
+                }
+#ifdef _WIN32
+                int exitCode = _pclose(pipe);
+#else
+                int exitCode = pclose(pipe);
+#endif
+
+                // === Step 6: Verify output ===
+                std::string expectedPath = "mType/tests/testFiles/library/projects/consumer/Consumer.expected";
+                require(fs::exists(expectedPath), "Consumer.expected not found");
+
+                std::ifstream expectedFile(expectedPath);
+                std::string expected((std::istreambuf_iterator<char>(expectedFile)),
+                                     std::istreambuf_iterator<char>());
+                expectedFile.close();
+
+                // Normalize line endings
+                auto normalize = [](std::string s) {
+                    std::string result;
+                    for (char c : s) {
+                        if (c != '\r') result += c;
+                    }
+                    while (!result.empty() && (result.back() == '\n' || result.back() == ' ')) {
+                        result.pop_back();
+                    }
+                    return result;
+                };
+
+                std::string normOutput = normalize(output);
+                std::string normExpected = normalize(expected);
+
+                require(normOutput == normExpected,
+                    "Output mismatch.\n\nExpected:\n" + normExpected +
+                    "\n\nActual:\n" + normOutput);
+
+                require(exitCode == 0,
+                    "Consumer exe exited with code " + std::to_string(exitCode));
+
+                // === Cleanup ===
+                try {
+                    fs::remove(destLib);
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                    fs::remove_all(consumerOutputDir);
+                } catch (...) {}
+            });
     }
 
     // =========================================================================

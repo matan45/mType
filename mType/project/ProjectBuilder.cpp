@@ -239,6 +239,28 @@ namespace project
 
             outFile.close();
 
+            // Copy dependency .mtcLib files alongside the exe
+            if (!config.dependencies.packages.empty())
+            {
+                std::filesystem::path libsDir = outPath.parent_path() / "libs";
+                std::filesystem::create_directories(libsDir);
+
+                mtclib::LibraryLinker linker(config.projectRoot);
+                for (const auto& sp : config.imports.searchPaths) {
+                    auto absPath = std::filesystem::path(config.projectRoot) / sp;
+                    linker.addSearchPath(absPath.string());
+                }
+
+                for (const auto& dep : config.dependencies.packages) {
+                    auto resolved = linker.getPathResolver().resolve(dep.name);
+                    if (resolved) {
+                        std::filesystem::path destLib = libsDir / (dep.name + ".mtcLib");
+                        std::filesystem::copy_file(*resolved, destLib,
+                            std::filesystem::copy_options::overwrite_existing);
+                    }
+                }
+            }
+
             result.filesCompiled = sourceFiles.size();
         }
         catch (const std::exception& e)
