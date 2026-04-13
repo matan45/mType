@@ -148,9 +148,37 @@ namespace vm::compiler::visitors
         // Enter loop context
         ctx.loopManager.enterLoop(loopStart);
 
+        // Analyze condition for null narrowing in while body
+        // while (x != null) { ... } narrows x to non-null inside the body
+        std::string whileNarrowVar;
+        if (auto* binExpr = dynamic_cast<ast::nodes::expressions::BinaryExpNode*>(node->getCondition()))
+        {
+            auto* left = binExpr->getLeft();
+            auto* right = binExpr->getRight();
+            token::TokenType op = binExpr->getOperator();
+            auto* leftVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(left);
+            auto* rightVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(right);
+            bool leftIsNull = dynamic_cast<ast::NullNode*>(left) != nullptr;
+            bool rightIsNull = dynamic_cast<ast::NullNode*>(right) != nullptr;
+            if (op == token::TokenType::NOT_EQUALS)
+            {
+                if (rightIsNull && leftVar) { whileNarrowVar = leftVar->getName(); }
+                else if (leftIsNull && rightVar) { whileNarrowVar = rightVar->getName(); }
+            }
+        }
+
         // Compile body with its own scope
         ctx.variableTracker.beginScope();
+        if (!whileNarrowVar.empty())
+        {
+            ctx.nullNarrowing.enterScope();
+            ctx.nullNarrowing.narrowToNonNull(whileNarrowVar);
+        }
         node->getBody()->accept(ctx.visitor);  // Will need delegation
+        if (!whileNarrowVar.empty())
+        {
+            ctx.nullNarrowing.exitScope();
+        }
         ctx.variableTracker.endScope();
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 

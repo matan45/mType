@@ -128,7 +128,8 @@ namespace vm::compiler::visitors
 
     void ParameterValidator::validateSingleParameterType(const std::string& methodName, size_t paramIndex,
                                                          const std::string& expectedType, ast::ASTNode* argument,
-                                                         const ast::SourceLocation& location)
+                                                         const ast::SourceLocation& location,
+                                                         bool isNullable)
     {
         // Resolve generic type parameters if present
         std::string resolvedExpectedType = ctx.resolveGenericType(expectedType);
@@ -144,8 +145,7 @@ namespace vm::compiler::visitors
         }
 
         // Null safety enforcement: reject nullable values passed to non-nullable parameters
-        bool expectedIsNullable = !resolvedExpectedType.empty() && resolvedExpectedType.back() == '?';
-        if (!expectedIsNullable)
+        if (!isNullable)
         {
             bool argIsNullable = ctx.typeInference.inferExpressionNullable(argument);
             if (argIsNullable)
@@ -157,12 +157,6 @@ namespace vm::compiler::visitors
                     location
                 );
             }
-        }
-
-        // Strip nullable suffix for remaining type checks
-        if (expectedIsNullable)
-        {
-            resolvedExpectedType = resolvedExpectedType.substr(0, resolvedExpectedType.size() - 1);
         }
 
         // Skip validation for array types (like T[], E[], Array<T>, int[], etc.)
@@ -319,7 +313,9 @@ namespace vm::compiler::visitors
             }
 
             std::string expectedType = methodMetadata->parameterTypes[i + parameterTypeOffset];
-            validateSingleParameterType(methodName, i, expectedType, arguments[i].get(), location);
+            bool paramNullable = (i + parameterTypeOffset < methodMetadata->parameterNullable.size())
+                                 ? methodMetadata->parameterNullable[i + parameterTypeOffset] : false;
+            validateSingleParameterType(methodName, i, expectedType, arguments[i].get(), location, paramNullable);
         }
     }
 

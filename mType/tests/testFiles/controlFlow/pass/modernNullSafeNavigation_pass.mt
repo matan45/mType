@@ -17,9 +17,9 @@ class Address {
 
 class Person {
     public string name;
-    public Address address;
+    public Address? address;
 
-    constructor(string n, Address a) {
+    constructor(string n, Address? a) {
         name = n;
         address = a;
     }
@@ -30,9 +30,9 @@ class Person {
 }
 
 class Company {
-    public Person ceo;
+    public Person? ceo;
 
-    constructor(Person c) {
+    constructor(Person? c) {
         ceo = c;
     }
 
@@ -44,7 +44,10 @@ class Company {
 // Test 1: Simple null-safe property access
 print("Test 1: Simple null-safe property access");
 Person? p1 = null;
-string name1 = p1 != null ? p1.name : "Unknown";
+string name1 = "Unknown";
+if (p1 != null) {
+    name1 = p1.name;
+}
 print(name1);
 
 Person p2 = new Person("Alice", null);
@@ -62,7 +65,10 @@ string city2 = p4 != null ? (p4.address != null ? p4.address.city : "No city") :
 print(city2);
 
 Person? p5 = null;
-string city3 = p5 != null ? (p5.address != null ? p5.address.city : "No city") : "No person";
+string city3 = "No person";
+if (p5 != null) {
+    city3 = p5.address != null ? p5.address.city : "No city";
+}
 print(city3);
 
 // Test 3: Deep null-safe navigation chain
@@ -89,10 +95,12 @@ string ceoCity3 = company3 != null ?
 print(ceoCity3);
 
 Company? company4 = null;
-string ceoCity4 = company4 != null ?
-                  (company4.ceo != null ?
-                   (company4.ceo.address != null ?
-                    company4.ceo.address.city : "No address") : "No CEO") : "No company";
+string ceoCity4 = "No company";
+if (company4 != null) {
+    ceoCity4 = company4.ceo != null ?
+               (company4.ceo.address != null ?
+                company4.ceo.address.city : "No address") : "No CEO";
+}
 print(ceoCity4);
 
 // Test 4: Null-safe method invocation
@@ -106,21 +114,30 @@ string addressStr2 = p7 != null ? p7.getAddressString() : "No person";
 print(addressStr2);
 
 Person? p8 = null;
-string addressStr3 = p8 != null ? p8.getAddressString() : "No person";
+string addressStr3 = "No person";
+if (p8 != null) {
+    addressStr3 = p8.getAddressString();
+}
 print(addressStr3);
 
 // Test 5: Null-safe navigation with function returns
-function getCompany(bool returnNull): Company {
+function getCompany(bool returnNull): Company? {
     return returnNull ? null : new Company(new Person("ReturnedCEO", new Address("Pine St", "Seattle")));
 }
 
 print("Test 5: Null-safe navigation with function returns");
-Company funcCompany1 = getCompany(false);
-string funcCeoName1 = funcCompany1 != null ? funcCompany1.getCeoName() : "No company returned";
+Company? funcCompany1 = getCompany(false);
+string funcCeoName1 = "No company returned";
+if (funcCompany1 != null) {
+    funcCeoName1 = funcCompany1.getCeoName();
+}
 print(funcCeoName1);
 
-Company funcCompany2 = getCompany(true);
-string funcCeoName2 = funcCompany2 != null ? funcCompany2.getCeoName() : "No company returned";
+Company? funcCompany2 = getCompany(true);
+string funcCeoName2 = "No company returned";
+if (funcCompany2 != null) {
+    funcCeoName2 = funcCompany2.getCeoName();
+}
 print(funcCeoName2);
 
 // Test 6: Null-safe navigation in loops
@@ -139,9 +156,10 @@ for (int i = 0; i < 3; i++) {
         current = p11;
     }
 
-    string result = current != null ?
-                    (current.address != null ?
-                     current.address.city : "No address") : "No person";
+    string result = "No person";
+    if (current != null) {
+        result = current.address != null ? current.address.city : "No address";
+    }
     print("Iteration " + i + ": " + result);
 }
 
@@ -156,9 +174,15 @@ print("Test 8: Multiple null-safe navigations");
 Person left = new Person("Left", new Address("Left St", "LeftCity"));
 Person? right = null;
 
-string combined = (left != null ? (left.address != null ? left.address.city : "N/A") : "N/A") +
-                  " and " +
-                  (right != null ? (right.address != null ? right.address.city : "N/A") : "N/A");
+string leftCity = "N/A";
+if (left != null) {
+    leftCity = left.address != null ? left.address.city : "N/A";
+}
+string rightCity = "N/A";
+if (right != null) {
+    rightCity = right.address != null ? right.address.city : "N/A";
+}
+string combined = leftCity + " and " + rightCity;
 print(combined);
 
 // Test 9: Null-safe navigation with conditional execution

@@ -1,20 +1,20 @@
 // Test circular dependency in type checking - should pass
 class Node {
     int value;
-    public Node next;
+    public Node? next;
 
     constructor(int v) {
         value = v;
         next = null;
     }
 
-    public function setNext(Node n): void {
+    public function setNext(Node? n): void {
         next = n;
     }
 }
 
 class LinkedList {
-    Node head;
+    Node? head;
 
     constructor() {
         head = null;

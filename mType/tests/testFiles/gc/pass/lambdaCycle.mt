@@ -7,14 +7,14 @@ interface Action {
 
 class Handler {
     private string name;
-    private Action callback;
+    private Action? callback;
 
     constructor(string n) {
         this.name = n;
         this.callback = null;
     }
 
-    public function setCallback(Action cb): void {
+    public function setCallback(Action? cb): void {
         this.callback = cb;
     }
 
@@ -23,7 +23,9 @@ class Handler {
     }
 
     public function run(): void {
-        this.callback.execute();
+        if (this.callback != null) {
+            this.callback.execute();
+        }
     }
 }
 

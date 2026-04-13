@@ -23,6 +23,7 @@ namespace vm::compiler::visitors
         struct MethodParameters {
             std::vector<std::string> paramNames;
             std::vector<std::string> paramTypes;
+            std::vector<bool> paramNullable;
             std::string returnTypeStr;
         };
 

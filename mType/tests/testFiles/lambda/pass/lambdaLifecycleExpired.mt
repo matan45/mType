@@ -87,16 +87,19 @@ function main(): void {
 
     // Test massive callback creation and cleanup
     print("=== Testing massive callback cleanup ===");
-    Callback[] massiveArray = new Callback[100];
+    Callback?[] massiveArray = new Callback?[100];
     for (int i = 0; i < 100; i++) {
         int multiplier = i;
         massiveArray[i] = x -> x * multiplier;
     }
 
     // Use only a few
-    int result1 = massiveArray[10].execute(5);
-    int result2 = massiveArray[50].execute(5);
-    int result3 = massiveArray[90].execute(5);
+    Callback cb1 = massiveArray[10];
+    Callback cb2 = massiveArray[50];
+    Callback cb3 = massiveArray[90];
+    int result1 = cb1.execute(5);
+    int result2 = cb2.execute(5);
+    int result3 = cb3.execute(5);
 
     print("Massive array results: " + result1 + ", " + result2 + ", " + result3);
 

@@ -2,7 +2,7 @@
 // Purpose: Verify that GC can handle objects that reference themselves
 
 class SelfRef {
-    private SelfRef self;
+    private SelfRef? self;
     private int value;
 
     constructor(int v) {

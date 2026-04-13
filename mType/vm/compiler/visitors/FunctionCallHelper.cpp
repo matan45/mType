@@ -375,7 +375,7 @@ namespace vm::compiler::visitors
             }
 
             // Null safety enforcement: reject nullable values passed to non-nullable parameters
-            bool expectedIsNullable = !expectedType.empty() && expectedType.back() == '?';
+            bool expectedIsNullable = (i < funcMetadata->parameterNullable.size() && funcMetadata->parameterNullable[i]);
             if (!expectedIsNullable)
             {
                 // Skip check for generic type parameters (T, K, V, etc.)
@@ -390,12 +390,6 @@ namespace vm::compiler::visitors
                         node->getLocation()
                     );
                 }
-            }
-
-            // Strip nullable suffix for remaining type checks
-            if (expectedIsNullable)
-            {
-                expectedType = expectedType.substr(0, expectedType.size() - 1);
             }
 
             // Convert argType to string for comparison

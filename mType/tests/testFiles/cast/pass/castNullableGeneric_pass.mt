@@ -20,7 +20,7 @@ print(nonNullContainer != null);
 
 // Test with null value
 Container<Base>? nullContainer = null;
-Base result = nullContainer == null ? null : (Base)nullContainer.getValue();
+Base? result = nullContainer == null ? null : (Base)nullContainer.getValue();
 print(result == null);
 
 // Expected output:

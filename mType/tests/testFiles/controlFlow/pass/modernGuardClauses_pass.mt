@@ -62,7 +62,7 @@ class User {
     }
 }
 
-function validateUser(User user): ValidationResult {
+function validateUser(User? user): ValidationResult {
     // Guard: null check
     if (user == null) {
         return new ValidationResult(false, "User cannot be null");
@@ -308,7 +308,7 @@ class Account {
     }
 }
 
-function withdraw(Account account, int amount): string {
+function withdraw(Account? account, int amount): string {
     // Guard: null account
     if (account == null) {
         return "Error: Account is null";

@@ -1,5 +1,6 @@
 // Modern null coalescing patterns using ternary operators
 // Tests null-safe value selection and default value assignment
+import { String } from "../../lib/primitives/String.mt";
 
 class Person {
     public string name;
@@ -37,7 +38,7 @@ Person result3 = primary != null ? primary : (secondary != null ? secondary : (t
 print(result3.toString());
 
 // Test 4: Null coalescing with function returns
-function getPerson(bool shouldReturnNull): Person {
+function getPerson(bool shouldReturnNull): Person? {
     return shouldReturnNull ? null : new Person("Function Person", 45);
 }
 
@@ -50,13 +51,13 @@ print(result5.toString());
 
 // Test 5: Null coalescing with string values
 print("Test 4: String null coalescing");
-string s1 = null;
+String? s1 = null;
 string defaultString = "default value";
-string strResult1 = s1 != null ? s1 : defaultString;
+string strResult1 = s1 != null ? s1.toString() : defaultString;
 print(strResult1);
 
-string s2 = "actual value";
-string strResult2 = s2 != null ? s2 : defaultString;
+String s2 = new String("actual value");
+string strResult2 = s2 != null ? s2.toString() : defaultString;
 print(strResult2);
 
 // Test 6: Null coalescing in assignments
@@ -67,13 +68,13 @@ print(assigned.toString());
 
 // Test 7: Nested null coalescing with method calls
 class Container {
-    public Person person;
+    public Person? person;
 
-    constructor(Person p) {
+    constructor(Person? p) {
         person = p;
     }
 
-    public function getPerson(): Person {
+    public function getPerson(): Person? {
         return person;
     }
 }
@@ -84,7 +85,11 @@ Container c2 = new Container(null);
 Container c3 = new Container(new Person("Nested", 28));
 Person safeDefault = new Person("Safe", 100);
 
-Person result6 = c1 != null ? (c1.getPerson() != null ? c1.getPerson() : safeDefault) : safeDefault;
+Person result6 = safeDefault;
+if (c1 != null) {
+    Person? cp1 = c1.getPerson();
+    result6 = cp1 != null ? cp1 : safeDefault;
+}
 print(result6.toString());
 
 Person result7 = c2 != null ? (c2.getPerson() != null ? c2.getPerson() : safeDefault) : safeDefault;
@@ -107,7 +112,10 @@ Counter? cnt1 = null;
 Counter cnt2 = new Counter(42);
 int defaultValue = -1;
 
-int countResult1 = cnt1 != null ? cnt1.value : defaultValue;
+int countResult1 = defaultValue;
+if (cnt1 != null) {
+    countResult1 = cnt1.value;
+}
 print(countResult1);
 
 int countResult2 = cnt2 != null ? cnt2.value : defaultValue;
@@ -126,7 +134,11 @@ Person? first = null;
 Person second = new Person("Second", 20);
 Person third = new Person("Third", 30);
 
-string combined = (first != null ? first.name : "null") + " | " +
+string firstName = "null";
+if (first != null) {
+    firstName = first.name;
+}
+string combined = firstName + " | " +
                   (second != null ? second.name : "null") + " | " +
                   (third != null ? third.name : "null");
 print(combined);

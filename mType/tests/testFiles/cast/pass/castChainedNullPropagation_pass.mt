@@ -1,16 +1,16 @@
 // Test: Chained casts with null intermediate values
 class Level1 {
-    public Level2 next;
+    public Level2? next;
 
-    constructor(Level2 n) {
+    constructor(Level2? n) {
         this.next = n;
     }
 }
 
 class Level2 {
-    public Level3 next;
+    public Level3? next;
 
-    constructor(Level3 n) {
+    constructor(Level3? n) {
         this.next = n;
     }
 }

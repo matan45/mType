@@ -63,7 +63,7 @@ class SomeClass {
 }
 
 // Create Base object
-Base? base1 = new Base(10, "First");
+Base base1 = new Base(10, "First");
 
 // Access static member
 print(Base::counter);  // 1
@@ -75,7 +75,8 @@ base1.display();  // 10
 
 // Assign Base to null
 Base base2 = base1;
-base1 = null;  // Now base1 is null, but base2 still points to the object
+Base? nullableBase = base1;
+nullableBase = null;  // Now nullableBase is null, but base2 still points to the object
 base2.display();  // 10
 
 // Create SomeClass instance

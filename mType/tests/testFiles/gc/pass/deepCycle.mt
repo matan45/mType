@@ -2,7 +2,7 @@
 // Purpose: Verify that GC can detect cycles longer than A -> B -> A
 
 class ChainNode {
-    private ChainNode next;
+    private ChainNode? next;
     private int id;
 
     constructor(int nodeId) {
@@ -10,7 +10,7 @@ class ChainNode {
         this.next = null;
     }
 
-    public function setNext(ChainNode n): void {
+    public function setNext(ChainNode? n): void {
         this.next = n;
     }
 

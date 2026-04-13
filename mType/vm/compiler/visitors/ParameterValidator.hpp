@@ -53,7 +53,8 @@ namespace vm::compiler::visitors
             size_t paramIndex,
             const std::string& expectedType,
             ast::ASTNode* argument,
-            const ast::SourceLocation& location);
+            const ast::SourceLocation& location,
+            bool isNullable = false);
 
         bool validateGenericParameter(
             const std::string& methodName,

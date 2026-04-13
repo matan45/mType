@@ -26,6 +26,10 @@ namespace tests::testSuite
         addOutputVerificationTest("JIT Null Check Elimination",
                         passPath + "jitNullCheckElimination.mt");
 
+        // === NULL SAFE PARAM AND RETURN ===
+        addOutputVerificationTest("Null Safe Param and Return",
+                        passPath + "nullSafeParamAndReturn.mt");
+
         // === ERROR TESTS ===
         addTestFromFile("Null to Non-Nullable Assignment",
                         errorPath + "nullToNonNullable_error.mt",

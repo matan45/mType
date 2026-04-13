@@ -246,15 +246,23 @@ namespace vm::compiler::visitors
         {
             result.paramNames.push_back("this");
             result.paramTypes.push_back(ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "object");
+            result.paramNullable.push_back(false); // 'this' is never nullable
         }
 
         // Add method parameters with full type names (including class names for objects)
         for (const auto& param : genericParams)
         {
             result.paramNames.push_back(param.first);
-            // Use toString() to get the full type name (e.g., "int", "string", "MyClass", "List<int>")
+            // Use toString() to get the full type name, then strip nullable suffix
             std::string paramTypeStr = param.second->toString();
+            bool paramIsNullable = param.second->isNullable();
+            // Strip '?' from type string - nullable tracked separately
+            if (!paramTypeStr.empty() && paramTypeStr.back() == '?')
+            {
+                paramTypeStr.pop_back();
+            }
             result.paramTypes.push_back(paramTypeStr);
+            result.paramNullable.push_back(paramIsNullable);
 
             // Validate parameter type exists
             if (!isValidTypeName(paramTypeStr, validGenericParams))
@@ -444,6 +452,7 @@ namespace vm::compiler::visitors
         metadata.parameterCount = params.paramNames.size();
         metadata.parameterNames = params.paramNames;
         metadata.parameterTypes = params.paramTypes;
+        metadata.parameterNullable = params.paramNullable;
         metadata.returnType = params.returnTypeStr;
         metadata.isStatic = isStatic;
         metadata.isNative = false;
@@ -560,6 +569,7 @@ namespace vm::compiler::visitors
         tempMetadata.parameterCount = params.paramNames.size();  // Set correct count now
         tempMetadata.parameterNames = params.paramNames;
         tempMetadata.parameterTypes = params.paramTypes;
+        tempMetadata.parameterNullable = params.paramNullable;
         tempMetadata.returnType = params.returnTypeStr;
         tempMetadata.isAsync = node->getIsAsync();
         tempMetadata.isStatic = isStatic;

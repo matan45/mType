@@ -3,14 +3,14 @@
 
 class Item {
     private string name;
-    private Item link;
+    private Item? link;
 
     constructor(string n) {
         this.name = n;
         this.link = null;
     }
 
-    public function setLink(Item other): void {
+    public function setLink(Item? other): void {
         this.link = other;
     }
 

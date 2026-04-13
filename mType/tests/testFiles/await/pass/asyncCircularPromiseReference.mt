@@ -6,7 +6,7 @@ print("=== Async Circular Promise Reference Test ===");
 
 class Node {
     int value;
-    Node next;
+    Node? next;
 
     public constructor(int val) {
         this.value = val;
@@ -17,7 +17,7 @@ class Node {
         return this.value;
     }
 
-    public function setNext(Node n): void {
+    public function setNext(Node? n): void {
         this.next = n;
     }
 

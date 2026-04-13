@@ -71,10 +71,6 @@ namespace vm::compiler::visitors
             {
                 paramTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
             }
-            if (paramType.nullable)
-            {
-                paramTypeStr += "?";
-            }
             paramTypes.push_back(paramTypeStr);
 
             // Validate parameter type exists
@@ -219,6 +215,11 @@ namespace vm::compiler::visitors
         metadata.parameterCount = paramTypesVec.size();
         metadata.parameterNames = paramNames;
         metadata.parameterTypes = paramTypes;
+        // Build per-parameter nullable flags
+        for (const auto& param : paramTypesVec)
+        {
+            metadata.parameterNullable.push_back(param.second.nullable);
+        }
         metadata.returnType = returnTypeStr;
         metadata.isNative = false;
         metadata.isAsync = node->getIsAsync(); // NEW: Copy async flag from AST

@@ -65,7 +65,7 @@ class Product {
     }
 }
 
-function getProductStatus(Product product): string {
+function getProductStatus(Product? product): string {
     // Early return for null
     if (product == null) {
         return "invalid";
@@ -221,7 +221,7 @@ class Order {
     }
 }
 
-function canCancelOrder(Order order): string {
+function canCancelOrder(Order? order): string {
     // Early return for null order
     if (order == null) {
         return "Cannot cancel: Order not found";

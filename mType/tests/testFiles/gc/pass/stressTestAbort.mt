@@ -2,8 +2,8 @@
 // Purpose: Create many interconnected objects to exceed MAX_CYCLE_DETECTION_TIME_MS (5ms)
 
 class Node {
-    private Node next;
-    private Node prev;
+    private Node? next;
+    private Node? prev;
     private int id;
 
     constructor(int i) {
@@ -12,11 +12,11 @@ class Node {
         this.prev = null;
     }
 
-    public function setNext(Node n): void {
+    public function setNext(Node? n): void {
         this.next = n;
     }
 
-    public function setPrev(Node n): void {
+    public function setPrev(Node? n): void {
         this.prev = n;
     }
 

@@ -3,8 +3,8 @@
 
 class ListNode {
     private string value;
-    private ListNode next;
-    private ListNode prev;
+    private ListNode? next;
+    private ListNode? prev;
 
     constructor(string v) {
         this.value = v;
@@ -12,11 +12,11 @@ class ListNode {
         this.prev = null;
     }
 
-    public function setNext(ListNode n): void {
+    public function setNext(ListNode? n): void {
         this.next = n;
     }
 
-    public function setPrev(ListNode p): void {
+    public function setPrev(ListNode? p): void {
         this.prev = p;
     }
 

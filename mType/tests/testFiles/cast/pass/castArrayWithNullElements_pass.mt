@@ -20,7 +20,7 @@ function testArrayWithNullElements(): void {
 
     // Create Entity array and populate with Player instances (and nulls)
     // Individual element assignment allows upcasting Player -> Entity
-    Entity[] entities = new Entity[5];
+    Entity?[] entities = new Entity[5];
     entities[0] = new Player(1, "Alice");
     entities[1] = null;  // Null element
     entities[2] = new Player(3, "Bob");
