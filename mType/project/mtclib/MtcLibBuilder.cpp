@@ -1,4 +1,6 @@
 #include "MtcLibBuilder.hpp"
+#include "ContentHash.hpp"
+#include "MtcPathResolver.hpp"
 #include "../../types/TypeSignature.hpp"
 
 namespace project::mtclib
@@ -38,18 +40,28 @@ namespace project::mtclib
         metadata.name = config.name;
         metadata.version = config.version;
         metadata.mtypeVersion = "0.2.0";  // Current mType version
-        metadata.sourceHash = 0;          // TODO: compute hash from source files
+        metadata.sourceHash = ContentHash::hashFiles(config.resolvedSourceFiles);
         return metadata;
     }
 
     std::vector<MtcLibDependency> MtcLibBuilder::buildDependencies(const ProjectConfig& config)
     {
+        // Set up path resolver for locating dependency .mtcLib files
+        MtcPathResolver resolver(config.projectRoot);
+        for (const auto& searchPath : config.imports.searchPaths) {
+            resolver.addSearchPath(searchPath);
+        }
+
         std::vector<MtcLibDependency> deps;
         for (const auto& pkg : config.dependencies.packages) {
             MtcLibDependency dep;
             dep.name = pkg.name;
             dep.versionConstraint = pkg.versionRange;
-            dep.contentHash = 0;  // TODO: compute from dependency content
+
+            // Compute content hash from the resolved .mtcLib file
+            auto resolvedPath = resolver.resolve(pkg.name);
+            dep.contentHash = resolvedPath ? ContentHash::hashFile(*resolvedPath) : 0;
+
             deps.push_back(dep);
         }
         return deps;

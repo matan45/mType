@@ -162,6 +162,9 @@
     <ClInclude Include="project\XmlParser.hpp">
       <Filter>project</Filter>
     </ClInclude>
+    <ClInclude Include="project\mtclib\ContentHash.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
     <ClInclude Include="project\mtclib\DependencyResolver.hpp">
       <Filter>project\mtclib</Filter>
     </ClInclude>

@@ -489,6 +489,7 @@ namespace tests::testSuite
                 verifyFile.close();
 
                 requireEq("MathLib", lib.metadata.name, "Library name");
+                require(lib.metadata.sourceHash != 0, "Source hash should be computed (non-zero)");
                 require(!lib.exports.empty(), "Library should have exports");
 
                 // Check that key symbols are exported

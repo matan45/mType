@@ -1,6 +1,7 @@
 #include "ProjectBuilder.hpp"
 #include "mtclib/MtcLibBuilder.hpp"
 #include "mtclib/MtcLibSerializer.hpp"
+#include "mtclib/ContentHash.hpp"
 #include "mtclib/LibraryLinker.hpp"
 #include "mtclib/LibrarySymbolProvider.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -130,6 +131,33 @@ namespace project
 
         try
         {
+            // Incremental build: skip recompilation if source files haven't changed
+            uint64_t currentSourceHash = mtclib::ContentHash::hashFiles(sourceFiles);
+            if (std::filesystem::exists(outputPath))
+            {
+                std::ifstream existingFile(outputPath, std::ios::binary);
+                if (existingFile.good())
+                {
+                    try
+                    {
+                        auto existingLib = mtclib::MtcLibSerializer::deserialize(existingFile);
+                        existingFile.close();
+                        if (existingLib.metadata.sourceHash == currentSourceHash && currentSourceHash != 0)
+                        {
+                            // Source unchanged — skip rebuild
+                            result.filesCompiled = 0;
+                            auto endTime = std::chrono::steady_clock::now();
+                            result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+                            return result;
+                        }
+                    }
+                    catch (...)
+                    {
+                        // Existing file is corrupt or incompatible — rebuild
+                    }
+                }
+            }
+
             reportProgress(1, 1, "Building library...");
 
             auto program = compileToProgram(config, environment);
