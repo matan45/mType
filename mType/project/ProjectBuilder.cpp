@@ -423,6 +423,24 @@ namespace project
             environment = envBuilder.build();
         }
 
+        // Resolve library dependencies before compilation
+        if (!config.dependencies.packages.empty())
+        {
+            mtclib::LibraryLinker linker(config.projectRoot);
+
+            // Add import search paths as library search paths too
+            for (const auto& sp : absoluteSearchPaths)
+            {
+                linker.addSearchPath(sp);
+            }
+
+            auto libraries = linker.linkDependencies(config);
+            for (const auto& lib : libraries)
+            {
+                mtclib::LibrarySymbolProvider::registerLibrarySymbols(lib, environment);
+            }
+        }
+
         // Parse, resolve imports, optimize, compile
         lexer::Lexer lex(tempFile.string());
         parser::Parser parser(lex, std::move(importManager));
