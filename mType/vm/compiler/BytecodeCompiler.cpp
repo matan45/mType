@@ -8,6 +8,8 @@
 #include "../runtime/optimization/LoopOptimizer.hpp"
 #include "../optimization/PeepholeOptimizer.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../../types/TypeConversionUtils.hpp"
+#include "../../types/TypeConversionBridge.hpp"
 #include <stdexcept>
 #include <iostream>
 
@@ -347,6 +349,82 @@ namespace vm::compiler
         // Register interfaces FIRST, then classes can validate against them
         interfaceRegistrar.registerInterfaces(node);
         classRegistrar.registerClasses(node);
+
+        // Extract interface metadata for bytecode serialization
+        extractInterfaceMetadata(node);
+    }
+
+    void BytecodeCompiler::extractInterfaceMetadata(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        if (auto interfaceNode = dynamic_cast<ast::nodes::classes::InterfaceNode*>(node))
+        {
+            bytecode::BytecodeProgram::InterfaceMetadata meta;
+            meta.name = interfaceNode->getName();
+            meta.isFinal = interfaceNode->isFinal();
+
+            // Extract generic parameters
+            const auto& genericParams = interfaceNode->getGenericParameters();
+            for (const auto& param : genericParams) {
+                meta.genericParameters.push_back(param.name);
+            }
+
+            // Extract extended interfaces
+            meta.extendsInterfaces = interfaceNode->getExtendedInterfaces();
+
+            // Extract method signatures
+            for (const auto& method : interfaceNode->getMethods()) {
+                if (auto* funcNode = dynamic_cast<ast::FunctionNode*>(method.get())) {
+                    bytecode::BytecodeProgram::InterfaceMethodSignature sig;
+                    sig.name = funcNode->getName();
+                    sig.returnType = ::types::TypeConversionUtils::getTypeDisplayName(funcNode->getReturnType());
+
+                    // Extract parameter types and names
+                    const auto& params = funcNode->getGenericParameters();
+                    for (const auto& [paramName, genType] : params) {
+                        value::ValueType vType = value::ValueType::VOID;
+                        if (genType) {
+                            auto uType = ::types::TypeConversionBridge::toUnifiedType(genType);
+                            vType = uType->isGenericParameter() ? value::ValueType::OBJECT : uType->toValueType();
+                        }
+                        sig.parameterTypes.push_back(::types::TypeConversionUtils::getTypeDisplayName(vType));
+                        sig.parameterNames.push_back(paramName);
+                    }
+
+                    // Extract generic type parameters of the method itself
+                    const auto& methodGenericParams = funcNode->getGenericTypeParameters();
+                    for (const auto& gp : methodGenericParams) {
+                        sig.genericTypeParameters.push_back(gp.name);
+                    }
+
+                    meta.methods.push_back(sig);
+                }
+            }
+
+            program.addInterface(meta);
+            return;
+        }
+
+        // Recurse into child nodes
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements()) {
+                extractInterfaceMetadata(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements()) {
+                extractInterfaceMetadata(statement.get());
+            }
+        }
+        else if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            if (importNode->isResolved() && importNode->getImportedAST()) {
+                extractInterfaceMetadata(importNode->getImportedAST());
+            }
+        }
     }
 
     void BytecodeCompiler::linkParentClasses(ast::ASTNode* node)

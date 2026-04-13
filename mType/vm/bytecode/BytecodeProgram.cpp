@@ -547,7 +547,7 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
         // Write version
-        uint32_t version = 3;  // Version 3: instruction flags for null check elimination
+        uint32_t version = 4;  // Version 4: isAbstract serialization + interface metadata
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
         // Write entry point
@@ -567,6 +567,9 @@ namespace vm::bytecode
 
         // Write class metadata
         writeClasses(out);
+
+        // Write interface metadata
+        writeInterfaces(out);
 
         // Write global exception table
         writeGlobalExceptionTable(out);
@@ -590,12 +593,12 @@ namespace vm::bytecode
         // Read version
         uint32_t version;
         in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version < 3) {
+        if (version < 4) {
             throw std::runtime_error(
                 "Bytecode file uses an outdated format (version " + std::to_string(version) + "). "
                 "Please recompile from source using the current compiler.");
         }
-        if (version != 3) {
+        if (version != 4) {
             throw std::runtime_error("Unsupported bytecode version: " + std::to_string(version));
         }
 
@@ -616,6 +619,9 @@ namespace vm::bytecode
 
         // Read class metadata
         program.readClasses(in);
+
+        // Read interface metadata
+        program.readInterfaces(in);
 
         // Read global exception table
         program.readGlobalExceptionTable(in);
@@ -963,6 +969,14 @@ namespace vm::bytecode
         return classes;
     }
 
+    void BytecodeProgram::addInterface(const InterfaceMetadata& interfaceMeta) {
+        interfaces.push_back(interfaceMeta);
+    }
+
+    const std::vector<BytecodeProgram::InterfaceMetadata>& BytecodeProgram::getInterfaces() const {
+        return interfaces;
+    }
+
     bool BytecodeProgram::hasAsyncFunctions() const {
         // Check all functions (global functions, instance methods, static methods, constructors)
         // All are registered in the functions map with their fully qualified names
@@ -1005,6 +1019,7 @@ namespace vm::bytecode
         BytecodeIOHelper::writePrimitive(out, method.isFinal);
         BytecodeIOHelper::writePrimitive(out, method.isPrivate);
         BytecodeIOHelper::writePrimitive(out, method.isProtected);
+        BytecodeIOHelper::writePrimitive(out, method.isAbstract);
         BytecodeIOHelper::writePrimitive(out, method.startOffset);
     }
 
@@ -1115,6 +1130,7 @@ namespace vm::bytecode
         method.isFinal = BytecodeIOHelper::readPrimitive<bool>(in);
         method.isPrivate = BytecodeIOHelper::readPrimitive<bool>(in);
         method.isProtected = BytecodeIOHelper::readPrimitive<bool>(in);
+        method.isAbstract = BytecodeIOHelper::readPrimitive<bool>(in);
         method.startOffset = BytecodeIOHelper::readPrimitive<size_t>(in);
     }
 
@@ -1213,6 +1229,73 @@ namespace vm::bytecode
         classes.resize(count);
         for (size_t i = 0; i < count; ++i) {
             readClassMetadata(in, classes[i]);
+        }
+    }
+
+    // === Interface Metadata Serialization ===
+
+    void BytecodeProgram::writeInterfaceMethodSignature(std::ostream& out, const InterfaceMethodSignature& sig) const {
+        BytecodeIOHelper::writeString(out, sig.name);
+        BytecodeIOHelper::writeString(out, sig.returnType);
+        BytecodeIOHelper::writeStringVector(out, sig.parameterTypes);
+        BytecodeIOHelper::writeStringVector(out, sig.parameterNames);
+        BytecodeIOHelper::writeStringVector(out, sig.genericTypeParameters);
+    }
+
+    void BytecodeProgram::readInterfaceMethodSignature(std::istream& in, InterfaceMethodSignature& sig) {
+        sig.name = BytecodeIOHelper::readString(in);
+        sig.returnType = BytecodeIOHelper::readString(in);
+        sig.parameterTypes = BytecodeIOHelper::readStringVector(in);
+        sig.parameterNames = BytecodeIOHelper::readStringVector(in);
+        sig.genericTypeParameters = BytecodeIOHelper::readStringVector(in);
+    }
+
+    void BytecodeProgram::writeInterfaceMetadata(std::ostream& out, const InterfaceMetadata& meta) const {
+        BytecodeIOHelper::writeString(out, meta.name);
+        BytecodeIOHelper::writeStringVector(out, meta.genericParameters);
+        BytecodeIOHelper::writeStringVector(out, meta.extendsInterfaces);
+        BytecodeIOHelper::writePrimitive(out, meta.isFinal);
+
+        size_t methodCount = meta.methods.size();
+        out.write(reinterpret_cast<const char*>(&methodCount), sizeof(methodCount));
+        for (const auto& method : meta.methods) {
+            writeInterfaceMethodSignature(out, method);
+        }
+    }
+
+    void BytecodeProgram::readInterfaceMetadata(std::istream& in, InterfaceMetadata& meta) {
+        meta.name = BytecodeIOHelper::readString(in);
+        meta.genericParameters = BytecodeIOHelper::readStringVector(in);
+        meta.extendsInterfaces = BytecodeIOHelper::readStringVector(in);
+        meta.isFinal = BytecodeIOHelper::readPrimitive<bool>(in);
+
+        size_t methodCount;
+        in.read(reinterpret_cast<char*>(&methodCount), sizeof(methodCount));
+        meta.methods.resize(methodCount);
+        for (auto& method : meta.methods) {
+            readInterfaceMethodSignature(in, method);
+        }
+    }
+
+    void BytecodeProgram::writeInterfaces(std::ostream& out) const {
+        size_t count = interfaces.size();
+        out.write(reinterpret_cast<const char*>(&count), sizeof(count));
+        for (const auto& iface : interfaces) {
+            writeInterfaceMetadata(out, iface);
+        }
+    }
+
+    void BytecodeProgram::readInterfaces(std::istream& in) {
+        size_t count;
+        in.read(reinterpret_cast<char*>(&count), sizeof(count));
+
+        if (count > constants::security::MAX_FUNCTION_COUNT) {
+            throw std::runtime_error("Interface count exceeds security limit");
+        }
+
+        interfaces.resize(count);
+        for (size_t i = 0; i < count; ++i) {
+            readInterfaceMetadata(in, interfaces[i]);
         }
     }
 

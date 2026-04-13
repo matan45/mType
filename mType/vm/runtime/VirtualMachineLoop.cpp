@@ -41,6 +41,9 @@ namespace vm::runtime
             environment, stackManager, stats, executionStart,
             debuggingEnabled, currentSourceFile, currentSourceLine, this);
 
+        // Wire up loaded library programs for cross-program function resolution
+        executionCtx->loadedPrograms = &loadedPrograms;
+
         stackOpsExecutor = std::make_unique<StackOperationsExecutor>(*executionCtx);
         comparisonExecutor = std::make_unique<ComparisonExecutor>(*executionCtx);
         logicalExecutor = std::make_unique<LogicalExecutor>(*executionCtx);

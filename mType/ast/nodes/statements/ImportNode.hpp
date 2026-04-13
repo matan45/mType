@@ -12,8 +12,10 @@ namespace ast::nodes::statements
      */
     enum class ImportType
     {
-        SELECTIVE,  // import {A, B, C} from "file.mt"
-        WILDCARD    // import * from "file.mt"
+        SELECTIVE,           // import {A, B, C} from "file.mt"
+        WILDCARD,            // import * from "file.mt"
+        LIBRARY,             // import lib "collections"
+        LIBRARY_SELECTIVE    // import lib {List, HashMap} from "collections"
     };
 
     class ImportNode : public ASTNode
@@ -22,6 +24,7 @@ namespace ast::nodes::statements
         std::string filePath;
         ImportType importType;
         std::vector<std::string> importedSymbols;  // For selective imports
+        std::string libraryName;  // For library imports (LIBRARY, LIBRARY_SELECTIVE)
         ASTNode* importedAST; // Non-owning reference to cached AST in ImportManager
         std::vector<std::unique_ptr<ASTNode>> importedDeclarations; // Extracted declarations
 
@@ -44,6 +47,11 @@ namespace ast::nodes::statements
         const std::vector<std::string>& getImportedSymbols() const;
         bool isWildcard() const;
         bool isSelective() const;
+        bool isLibraryImport() const;
+        bool isLibrarySelective() const;
+
+        const std::string& getLibraryName() const;
+        void setLibraryName(const std::string& name);
 
         ASTNode* getImportedAST() const;
         const std::vector<std::unique_ptr<ASTNode>>& getImportedDeclarations() const;

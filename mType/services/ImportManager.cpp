@@ -368,6 +368,12 @@ namespace services
         // Handle ImportNode
         if (auto importNode = dynamic_cast<ast::ImportNode*>(node))
         {
+            // Library imports are resolved by LibraryLinker, not ImportManager
+            if (importNode->isLibraryImport()) {
+                markLibraryLoaded(importNode->getLibraryName());
+                return;
+            }
+
             std::string filePath = importNode->getFilePath();
 
             // If already resolved, just recurse into imported AST
@@ -503,5 +509,15 @@ namespace services
         {
             return fs::canonical(normalized);
         }
+    }
+
+    bool ImportManager::isLibraryLoaded(const std::string& libraryName) const
+    {
+        return loadedLibraries.count(libraryName) > 0;
+    }
+
+    void ImportManager::markLibraryLoaded(const std::string& libraryName)
+    {
+        loadedLibraries.insert(libraryName);
     }
 }

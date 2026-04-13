@@ -204,6 +204,7 @@ namespace vm::compiler
         // Helper methods for coordination
         void registerClassesForBytecode(ast::ASTNode* node);
         void linkParentClasses(ast::ASTNode* node);
+        void extractInterfaceMetadata(ast::ASTNode* node);
     };
 }
 

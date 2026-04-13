@@ -37,6 +37,9 @@ namespace services
         // Register classes from bytecode metadata into environment
         void registerClassesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes);
 
+        // Register interfaces from bytecode metadata into environment
+        void registerInterfacesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::InterfaceMetadata>& interfaces);
+
         // Helper functions for class registration
         void createClassDefinitionsFirstPass(
             const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes,

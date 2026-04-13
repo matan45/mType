@@ -1,4 +1,6 @@
 #include "ProjectBuilder.hpp"
+#include "mtclib/MtcLibBuilder.hpp"
+#include "mtclib/MtcLibSerializer.hpp"
 #include "../services/ScriptInterpreter.hpp"
 #include "../services/ImportManager.hpp"
 #include "../lexer/Lexer.hpp"
@@ -137,13 +139,18 @@ namespace project
                 std::filesystem::create_directories(outPath.parent_path());
             }
 
-            // Serialize to library file
+            // Build .mtcLib from compilation results
+            auto exportRegistry = environment->getExportRegistry();
+            auto mtcLib = mtclib::MtcLibBuilder::build(
+                program, config, exportRegistry ? *exportRegistry : environment::registry::ExportRegistry{});
+
+            // Serialize to .mtcLib file
             std::ofstream outFile(outputPath, std::ios::binary);
             if (!outFile)
             {
                 throw std::runtime_error("Could not create output file: " + outputPath);
             }
-            program.serialize(outFile);
+            mtclib::MtcLibSerializer::serialize(mtcLib, outFile);
             outFile.close();
 
             result.filesCompiled = sourceFiles.size();

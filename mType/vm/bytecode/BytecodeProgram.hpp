@@ -190,12 +190,31 @@ namespace vm::bytecode
             std::vector<ConstructorMetadata> constructors;
         };
 
+        struct InterfaceMethodSignature
+        {
+            std::string name;
+            std::string returnType;
+            std::vector<std::string> parameterTypes;
+            std::vector<std::string> parameterNames;
+            std::vector<std::string> genericTypeParameters;
+        };
+
+        struct InterfaceMetadata
+        {
+            std::string name;
+            std::vector<std::string> genericParameters;
+            std::vector<InterfaceMethodSignature> methods;
+            std::vector<std::string> extendsInterfaces;
+            bool isFinal = false;
+        };
+
     private:
         std::vector<Instruction> instructions;
         ConstantPool constantPool;
         std::unordered_map<std::string, FunctionMetadata> functions;
         std::unordered_map<size_t, SourceLocation> sourceLocations;
         std::vector<ClassMetadata> classes; // Class metadata for cached bytecode
+        std::vector<InterfaceMetadata> interfaces; // Interface metadata for cached bytecode
         std::vector<GlobalVariableMetadata> globalVariables; // Global variables for debugging
         ExceptionTable globalExceptionTable; // Exception table for global scope (try-catch-finally outside functions)
         size_t entryPoint;
@@ -260,6 +279,10 @@ namespace vm::bytecode
         void registerClass(const ClassMetadata& classMeta);
         const std::vector<ClassMetadata>& getClasses() const;
 
+        // Interface Metadata Management
+        void addInterface(const InterfaceMetadata& interfaceMeta);
+        const std::vector<InterfaceMetadata>& getInterfaces() const;
+
         // Async Detection
         bool hasAsyncFunctions() const;
         bool hasAwaitInstructions() const;
@@ -281,6 +304,8 @@ namespace vm::bytecode
         void readSourceLocations(std::istream& in);
         void writeClasses(std::ostream& out) const;
         void readClasses(std::istream& in);
+        void writeInterfaces(std::ostream& out) const;
+        void readInterfaces(std::istream& in);
         void writeGlobalExceptionTable(std::ostream& out) const;
         void readGlobalExceptionTable(std::istream& in);
 
@@ -298,5 +323,11 @@ namespace vm::bytecode
         void readMethodMetadata(std::istream& in, MethodMetadata& method);
         void readConstructorMetadata(std::istream& in, ConstructorMetadata& ctor);
         void readClassMetadata(std::istream& in, ClassMetadata& classMeta);
+
+        // Helper methods for interfaces
+        void writeInterfaceMethodSignature(std::ostream& out, const InterfaceMethodSignature& sig) const;
+        void readInterfaceMethodSignature(std::istream& in, InterfaceMethodSignature& sig);
+        void writeInterfaceMetadata(std::ostream& out, const InterfaceMetadata& meta) const;
+        void readInterfaceMetadata(std::istream& in, InterfaceMetadata& meta);
     };
 }

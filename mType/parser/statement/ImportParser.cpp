@@ -37,6 +37,14 @@ namespace parser::statement
             return parseWildcardImport(loc);
         }
 
+        // Check for library import: import lib "name" or import lib {A, B} from "name"
+        if (tokenStream.check(TokenType::IDENTIFIER) &&
+            tokenStream.current().stringValue.getString() == "lib")
+        {
+            tokenStream.advance(); // consume 'lib'
+            return parseLibraryImport(loc);
+        }
+
         // Check for selective import: import { A, B, C } from "file.mt"
         if (tokenStream.check(TokenType::LBRACE))
         {
@@ -44,8 +52,8 @@ namespace parser::statement
         }
 
         throw ParseException(
-            "Expected '{' for selective import or '*' for wildcard import after 'import' keyword. "
-            "New syntax: 'import {Symbol} from \"file.mt\"' or 'import * from \"file.mt\"'",
+            "Expected '{' for selective import, '*' for wildcard import, or 'lib' for library import after 'import' keyword. "
+            "Syntax: 'import {Symbol} from \"file.mt\"', 'import * from \"file.mt\"', or 'import lib \"name\"'",
             tokenStream.current().location);
     }
 
@@ -129,6 +137,87 @@ namespace parser::statement
 
         // Create wildcard import node
         return std::make_unique<ImportNode>(filePath, ImportType::WILDCARD, loc);
+    }
+
+    std::unique_ptr<ASTNode> ImportParser::parseLibraryImport(const SourceLocation& loc)
+    {
+        // import lib {A, B} from "name";
+        if (tokenStream.check(TokenType::LBRACE))
+        {
+            expectToken(TokenType::LBRACE);
+
+            std::vector<std::string> symbols;
+            while (!tokenStream.check(TokenType::RBRACE))
+            {
+                if (!tokenStream.check(TokenType::IDENTIFIER))
+                {
+                    throw ParseException("Expected identifier in library import list", tokenStream.current().location);
+                }
+
+                std::string symbolName = tokenStream.current().stringValue.getString();
+                SourceLocation symbolLocation = tokenStream.current().location;
+                ParserUtils::validateIdentifierName(symbolName, "Library import symbol", symbolLocation);
+                symbols.push_back(symbolName);
+                tokenStream.advance();
+
+                if (tokenStream.check(TokenType::COMMA))
+                {
+                    tokenStream.advance();
+                }
+                else if (!tokenStream.check(TokenType::RBRACE))
+                {
+                    throw ParseException("Expected ',' or '}' in library import list", tokenStream.current().location);
+                }
+            }
+
+            expectToken(TokenType::RBRACE);
+
+            if (symbols.empty())
+            {
+                throw ParseException("Library import list cannot be empty", loc);
+            }
+
+            expectToken(TokenType::FROM);
+
+            if (!tokenStream.check(TokenType::STRING_LITERAL))
+            {
+                throw ParseException("Expected library name string after 'from'", tokenStream.current().location);
+            }
+
+            std::string libraryName = tokenStream.current().stringValue.getString();
+            tokenStream.advance();
+
+            if (libraryName.empty())
+            {
+                throw ParseException("Library name cannot be empty", tokenStream.current().location);
+            }
+
+            expectToken(TokenType::SEMICOLON);
+
+            auto node = std::make_unique<ImportNode>(libraryName, ImportType::LIBRARY_SELECTIVE, symbols, loc);
+            node->setLibraryName(libraryName);
+            return node;
+        }
+
+        // import lib "name";
+        if (!tokenStream.check(TokenType::STRING_LITERAL))
+        {
+            throw ParseException("Expected library name string or '{' after 'lib'", tokenStream.current().location);
+        }
+
+        std::string libraryName = tokenStream.current().stringValue.getString();
+        tokenStream.advance();
+
+        if (libraryName.empty())
+        {
+            throw ParseException("Library name cannot be empty", tokenStream.current().location);
+        }
+
+        expectToken(TokenType::SEMICOLON);
+
+        auto node = std::make_unique<ImportNode>(libraryName, ImportType::LIBRARY, loc);
+        node->setLibraryName(libraryName);
+        return node;
     }
 
     bool ImportParser::isImportToken(TokenType type) const noexcept

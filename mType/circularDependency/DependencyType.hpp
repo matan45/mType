@@ -9,6 +9,7 @@ namespace circularDependency
         INTERFACE_INHERITANCE,
         CLASS_INHERITANCE,
         METHOD_OVERLOAD,
-        STATIC_FIELD_INITIALIZATION
+        STATIC_FIELD_INITIALIZATION,
+        LIBRARY_DEPENDENCY
     };
 }

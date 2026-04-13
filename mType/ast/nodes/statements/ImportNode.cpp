@@ -51,6 +51,26 @@ namespace ast::nodes::statements
         return importType == ImportType::SELECTIVE;
     }
 
+    bool ImportNode::isLibraryImport() const
+    {
+        return importType == ImportType::LIBRARY || importType == ImportType::LIBRARY_SELECTIVE;
+    }
+
+    bool ImportNode::isLibrarySelective() const
+    {
+        return importType == ImportType::LIBRARY_SELECTIVE;
+    }
+
+    const std::string& ImportNode::getLibraryName() const
+    {
+        return libraryName;
+    }
+
+    void ImportNode::setLibraryName(const std::string& name)
+    {
+        libraryName = name;
+    }
+
     ASTNode* ImportNode::getImportedAST() const
     {
         return importedAST;
@@ -93,6 +113,8 @@ namespace ast::nodes::statements
 
     bool ImportNode::isResolved() const
     {
+        // Library imports are resolved via LibraryLinker, not AST
+        if (isLibraryImport()) return true;
         return importedAST != nullptr;
     }
 

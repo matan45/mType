@@ -8,6 +8,7 @@
 #include "../ast/ASTNode.hpp"
 #include "../constants/ExecutionMode.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
+#include "../vm/runtime/LibraryLoader.hpp"
 #include "../diagnostics/Diagnostic.hpp"
 
 // Forward declarations
@@ -48,6 +49,7 @@ namespace services
         std::unique_ptr<ScriptAPI> scriptAPI;
         std::unique_ptr<ExecutionStrategy> executionStrategy;
         std::unique_ptr<vm::bytecode::BytecodeProgram> cachedBytecodeProgram;  // Keep compiled program alive for C++ API calls
+        std::unique_ptr<vm::runtime::LibraryLoader> libraryLoader;  // Library loading support
 
         // Execution mode
         constants::ExecutionMode executionMode;
@@ -75,6 +77,7 @@ namespace services
         void loadCompiledBytecode(const std::string& bytecodeFile);  // Load without executing
         void loadFromProgram(vm::bytecode::BytecodeProgram program);  // Load from in-memory program
         void runFromProgram(vm::bytecode::BytecodeProgram program);   // Load and execute in-memory program
+        void loadLibrary(const std::string& mtcLibPath);             // Load a .mtcLib library
 
         // Execution mode control
         void setExecutionMode(constants::ExecutionMode mode);

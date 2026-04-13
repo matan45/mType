@@ -56,6 +56,22 @@ namespace vm::runtime
 
         // Try to find user-defined function in bytecode
         auto funcMetadata = context.program->getFunction(functionName);
+        size_t targetProgramIndex = 0;
+        const bytecode::BytecodeProgram* targetProgram = context.program;
+
+        // If not found in current program, search loaded library programs
+        if (!funcMetadata && context.loadedPrograms) {
+            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                auto libFunc = (*context.loadedPrograms)[i]->getFunction(functionName);
+                if (libFunc) {
+                    funcMetadata = libFunc;
+                    targetProgramIndex = i;
+                    targetProgram = (*context.loadedPrograms)[i];
+                    break;
+                }
+            }
+        }
+
         if (funcMetadata)
         {
             // Convert lambda arguments to interface implementations if needed
@@ -68,6 +84,12 @@ namespace vm::runtime
             frame.localBase = context.stackManager->size(); // Locals start after arguments (which are now popped)
             frame.functionName = functionName;
             frame.thisInstance = nullptr;
+            frame.programIndex = targetProgramIndex;
+
+            // Switch to the target program if it's from a library
+            if (targetProgram != context.program) {
+                context.program = targetProgram;
+            }
 
             context.pushCallFrame(frame);
             context.stats.functionCalls++;

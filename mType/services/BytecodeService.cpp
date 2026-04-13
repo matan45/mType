@@ -12,6 +12,9 @@
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../runtimeTypes/klass/InterfaceRegistry.hpp"
+#include "../types/UnifiedType.hpp"
 #include "../ast/GenericType.hpp"
 #include "../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
@@ -179,8 +182,9 @@ namespace services
         std::cout << "  Classes: " << program.getClasses().size() << "\n";
         std::cout << "\nExecuting bytecode...\n\n";
 
-        // Register classes from metadata
+        // Register classes and interfaces from metadata
         registerClassesFromMetadata(program.getClasses());
+        registerInterfacesFromMetadata(program.getInterfaces());
 
         // Set bytecode program on ScriptAPI for C++ interop
         if (scriptAPI)
@@ -224,8 +228,9 @@ namespace services
         auto program = std::make_unique<BytecodeProgram>(BytecodeProgram::deserialize(inFile));
         inFile.close();
 
-        // Register classes from metadata
+        // Register classes and interfaces from metadata
         registerClassesFromMetadata(program->getClasses());
+        registerInterfacesFromMetadata(program->getInterfaces());
 
         // Set program on VM for C++ API methods
         if (vm)
@@ -248,8 +253,9 @@ namespace services
     {
         auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
 
-        // Register classes from metadata
+        // Register classes and interfaces from metadata
         registerClassesFromMetadata(result->getClasses());
+        registerInterfacesFromMetadata(result->getInterfaces());
 
         // Set program on VM and ScriptAPI
         if (vm)
@@ -273,8 +279,9 @@ namespace services
     {
         auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
 
-        // Register classes from metadata
+        // Register classes and interfaces from metadata
         registerClassesFromMetadata(result->getClasses());
+        registerInterfacesFromMetadata(result->getInterfaces());
 
         // Set program on VM for C++ API methods
         if (vm)
@@ -320,6 +327,57 @@ namespace services
 
             // Register the class
             classRegistry->registerClass(classMeta.name, classDef);
+        }
+    }
+
+    void BytecodeService::registerInterfacesFromMetadata(
+        const std::vector<vm::bytecode::BytecodeProgram::InterfaceMetadata>& interfaces)
+    {
+        auto interfaceRegistry = environment->getInterfaceRegistry();
+        if (!interfaceRegistry) return;
+
+        for (const auto& ifaceMeta : interfaces)
+        {
+            // Skip if already registered
+            if (interfaceRegistry->hasInterface(ifaceMeta.name)) continue;
+
+            // Create generic parameters
+            std::vector<ast::GenericTypeParameter> genericParams;
+            for (const auto& paramName : ifaceMeta.genericParameters) {
+                genericParams.push_back(ast::GenericTypeParameter(paramName));
+            }
+
+            // Create InterfaceDefinition
+            auto interfaceDef = std::make_shared<runtimeTypes::klass::InterfaceDefinition>(
+                ifaceMeta.name, genericParams, ifaceMeta.extendsInterfaces);
+
+            interfaceDef->setFinal(ifaceMeta.isFinal);
+
+            // Add method signatures
+            for (const auto& methodMeta : ifaceMeta.methods) {
+                runtimeTypes::klass::MethodSignature sig;
+                sig.name = methodMeta.name;
+
+                // Convert return type string to UnifiedType
+                sig.returnType = ::types::UnifiedType::classType(methodMeta.returnType);
+
+                // Convert parameters
+                for (size_t i = 0; i < methodMeta.parameterTypes.size(); ++i) {
+                    std::string paramName = (i < methodMeta.parameterNames.size())
+                        ? methodMeta.parameterNames[i] : "p" + std::to_string(i);
+                    auto paramType = ::types::UnifiedType::classType(methodMeta.parameterTypes[i]);
+                    sig.parameters.emplace_back(paramName, paramType);
+                }
+
+                // Convert generic type parameters
+                for (const auto& gp : methodMeta.genericTypeParameters) {
+                    sig.genericParameters.push_back(ast::GenericTypeParameter(gp));
+                }
+
+                interfaceDef->addMethodSignature(sig);
+            }
+
+            interfaceRegistry->registerInterface(ifaceMeta.name, interfaceDef);
         }
     }
 

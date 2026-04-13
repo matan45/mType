@@ -47,6 +47,9 @@ namespace services
         // Path aliases (e.g., @core -> lib/core)
         std::unordered_map<std::string, std::string> pathAliases;
 
+        // Loaded library names (for deduplication)
+        std::unordered_set<std::string> loadedLibraries;
+
     public:
         explicit ImportManager();
 
@@ -111,6 +114,10 @@ namespace services
 
         // Recursively resolve all imports in an AST
         void resolveAllImports(ast::ASTNode* root);
+
+        // Library tracking
+        bool isLibraryLoaded(const std::string& libraryName) const;
+        void markLibraryLoaded(const std::string& libraryName);
 
     private:
         // Import resolution helpers

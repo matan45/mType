@@ -261,6 +261,9 @@
     <ClInclude Include="vm\profiler\ProfilerReport.hpp">
       <Filter>vm\profiler</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\LibraryLoader.hpp">
+      <Filter>vm\runtime</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\VirtualMachine.hpp">
       <Filter>vm\runtime</Filter>
     </ClInclude>
@@ -523,6 +526,9 @@
     </ClCompile>
     <ClCompile Include="vm\profiler\ProfilerReport.cpp">
       <Filter>vm\profiler</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\LibraryLoader.cpp">
+      <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachine.cpp">
       <Filter>vm\runtime</Filter>

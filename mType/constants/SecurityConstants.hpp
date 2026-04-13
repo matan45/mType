@@ -46,5 +46,10 @@ namespace constants
 
         // === Array dimension caps ===
         constexpr size_t MAX_ARRAY_DIMENSION_PRODUCT = 100'000'000;
+
+        // === .mtcLib library caps ===
+        constexpr size_t MAX_MTCLIB_DEPENDENCIES = 1'000;
+        constexpr size_t MAX_MTCLIB_EXPORTS      = 100'000;
+        constexpr size_t MAX_MTCLIB_IMPORTS       = 100'000;
     }
 }
