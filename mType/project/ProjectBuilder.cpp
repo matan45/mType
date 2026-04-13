@@ -1,6 +1,8 @@
 #include "ProjectBuilder.hpp"
 #include "mtclib/MtcLibBuilder.hpp"
 #include "mtclib/MtcLibSerializer.hpp"
+#include "mtclib/LibraryLinker.hpp"
+#include "mtclib/LibrarySymbolProvider.hpp"
 #include "../services/ScriptInterpreter.hpp"
 #include "../services/ImportManager.hpp"
 #include "../lexer/Lexer.hpp"
