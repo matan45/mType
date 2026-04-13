@@ -572,6 +572,95 @@ namespace tests::testSuite
                 fs::remove(libPath);
                 fs::remove_all(outputDir);
             });
+
+        addCallbackTest("Selective import registers only selected symbols",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // Build MathLib
+                std::string mtprojPath = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser parser;
+                auto config = parser.parse(mtprojPath);
+
+                fs::path outputDir = fs::path(config->projectRoot) / config->output.directory;
+                fs::create_directories(outputDir);
+                std::string libPath = (outputDir / (config->name + ".mtcLib")).string();
+
+                project::ProjectBuilder builder;
+                auto result = builder.buildLibrary(*config, libPath);
+                require(result.success, "Build failed");
+
+                // Load library
+                std::ifstream inFile(libPath, std::ios::binary);
+                auto lib = project::mtclib::MtcLibSerializer::deserialize(inFile);
+                inFile.close();
+
+                // Register with selective filter: only Vector2 and MathUtils
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+
+                project::mtclib::LibrarySymbolProvider::registerLibrarySymbols(
+                    lib, env, {"Vector2", "MathUtils"});
+
+                // Vector2 and MathUtils should be registered
+                require(env->findClass("Vector2") != nullptr, "Vector2 should be registered");
+                require(env->findClass("MathUtils") != nullptr, "MathUtils should be registered");
+
+                // Shape, Circle, Rectangle should NOT be registered
+                require(env->findClass("Shape") == nullptr, "Shape should NOT be registered");
+                require(env->findClass("Circle") == nullptr, "Circle should NOT be registered");
+                require(env->findClass("Rectangle") == nullptr, "Rectangle should NOT be registered");
+
+                // Cleanup
+                fs::remove(libPath);
+                fs::remove_all(outputDir);
+            });
+
+        addCallbackTest("Selective import detects name collision",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // Build MathLib
+                std::string mtprojPath = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser parser;
+                auto config = parser.parse(mtprojPath);
+
+                fs::path outputDir = fs::path(config->projectRoot) / config->output.directory;
+                fs::create_directories(outputDir);
+                std::string libPath = (outputDir / (config->name + ".mtcLib")).string();
+
+                project::ProjectBuilder builder;
+                auto result = builder.buildLibrary(*config, libPath);
+                require(result.success, "Build failed");
+
+                std::ifstream inFile(libPath, std::ios::binary);
+                auto lib = project::mtclib::MtcLibSerializer::deserialize(inFile);
+                inFile.close();
+
+                // Register all symbols first
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                project::mtclib::LibrarySymbolProvider::registerLibrarySymbols(lib, env);
+
+                // Now try selective import of same symbol — should detect conflict
+                bool threw = false;
+                try {
+                    project::mtclib::LibrarySymbolProvider::registerLibrarySymbols(
+                        lib, env, {"Vector2"});
+                } catch (const std::runtime_error& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("conflict") != std::string::npos,
+                        "Error should mention conflict, got: " + msg);
+                }
+                require(threw, "Should throw on name collision with selective import");
+
+                // Cleanup
+                fs::remove(libPath);
+                fs::remove_all(outputDir);
+            });
     }
 
     // =========================================================================

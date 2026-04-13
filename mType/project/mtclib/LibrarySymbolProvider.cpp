@@ -41,17 +41,30 @@ namespace project::mtclib
         const MtcLibProgram& library,
         std::shared_ptr<environment::Environment> environment)
     {
+        // No filter — register everything
+        registerLibrarySymbols(library, environment, {});
+    }
+
+    void LibrarySymbolProvider::registerLibrarySymbols(
+        const MtcLibProgram& library,
+        std::shared_ptr<environment::Environment> environment,
+        const std::vector<std::string>& selectedSymbols)
+    {
         const auto& program = library.bytecodeProgram;
 
+        // Build filter set (empty = allow all)
+        std::unordered_set<std::string> filter(selectedSymbols.begin(), selectedSymbols.end());
+
         // Register in order: interfaces first (classes may implement them)
-        registerInterfaceStubs(program, environment);
-        registerClassStubs(program, environment);
-        registerFunctionStubs(program, environment);
+        registerInterfaceStubs(program, environment, filter);
+        registerClassStubs(program, environment, filter);
+        registerFunctionStubs(program, environment, filter);
     }
 
     void LibrarySymbolProvider::registerClassStubs(
         const vm::bytecode::BytecodeProgram& program,
-        std::shared_ptr<environment::Environment> environment)
+        std::shared_ptr<environment::Environment> environment,
+        const std::unordered_set<std::string>& filter)
     {
         using namespace runtimeTypes::klass;
 
@@ -63,8 +76,18 @@ namespace project::mtclib
 
         // === Pass 1: Create all ClassDefinition stubs ===
         for (const auto& classMeta : program.getClasses()) {
-            // Skip if already registered
-            if (classRegistry->findClass(classMeta.name)) continue;
+            // Skip if not in filter (when filter is active)
+            if (!filter.empty() && filter.find(classMeta.name) == filter.end()) continue;
+            // Detect name collision with already-registered class from another library
+            if (classRegistry->findClass(classMeta.name)) {
+                // If filter is active, user explicitly asked for this symbol — report conflict
+                if (!filter.empty()) {
+                    throw std::runtime_error(
+                        "Symbol conflict: class '" + classMeta.name +
+                        "' is already defined. Use selective import to choose which library to use.");
+                }
+                continue;  // Wildcard import: skip silently (first-loaded wins)
+            }
 
             // Create generic parameters
             std::vector<ast::GenericTypeParameter> genericParams;
@@ -182,12 +205,14 @@ namespace project::mtclib
 
     void LibrarySymbolProvider::registerInterfaceStubs(
         const vm::bytecode::BytecodeProgram& program,
-        std::shared_ptr<environment::Environment> environment)
+        std::shared_ptr<environment::Environment> environment,
+        const std::unordered_set<std::string>& filter)
     {
         auto interfaceRegistry = environment->getInterfaceRegistry();
         if (!interfaceRegistry) return;
 
         for (const auto& ifaceMeta : program.getInterfaces()) {
+            if (!filter.empty() && filter.find(ifaceMeta.name) == filter.end()) continue;
             if (interfaceRegistry->hasInterface(ifaceMeta.name)) continue;
 
             std::vector<ast::GenericTypeParameter> genericParams;
@@ -223,7 +248,8 @@ namespace project::mtclib
 
     void LibrarySymbolProvider::registerFunctionStubs(
         const vm::bytecode::BytecodeProgram& program,
-        std::shared_ptr<environment::Environment> environment)
+        std::shared_ptr<environment::Environment> environment,
+        const std::unordered_set<std::string>& filter)
     {
         auto functionRegistry = environment->getFunctionRegistry();
         if (!functionRegistry) return;
@@ -231,7 +257,8 @@ namespace project::mtclib
         for (const auto& [name, funcMeta] : program.getFunctions()) {
             // Skip internal/compiler-generated functions
             if (name.find("__") == 0) continue;
-
+            // Skip if not in filter (when filter is active)
+            if (!filter.empty() && filter.find(name) == filter.end()) continue;
             // Skip if already registered
             if (functionRegistry->hasFunction(name)) continue;
 
