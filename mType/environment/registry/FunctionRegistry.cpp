@@ -115,6 +115,16 @@ namespace environment::registry
         return nullptr;
     }
 
+    bool FunctionRegistry::removeFunction(const std::string& name)
+    {
+        auto it = functionOverloads.find(name);
+        if (it == functionOverloads.end()) {
+            return false;
+        }
+        functionOverloads.erase(it);
+        return true;
+    }
+
     void FunctionRegistry::clearAllFunctions()
     {
         functionOverloads.clear();

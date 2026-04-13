@@ -8,7 +8,11 @@
 #include "../../project/mtclib/DependencyResolver.hpp"
 #include "../../project/mtclib/LibraryLinker.hpp"
 #include "../../project/mtclib/LibrarySymbolProvider.hpp"
+#include "../../project/mtclib/TransitiveDependencyLoader.hpp"
+#include "../../project/mtclib/LibraryNatives.hpp"
 #include "../../vm/bytecode/BytecodeProgram.hpp"
+#include "../../vm/runtime/VirtualMachine.hpp"
+#include "../../errors/RuntimeException.hpp"
 #include "../../project/ProjectConfig.hpp"
 #include "../../project/ProjectBuilder.hpp"
 #include "../../project/ProjectConfigParser.hpp"
@@ -47,6 +51,9 @@ namespace tests::testSuite
         setupBuildTests();
         setupLinkingTests();
         setupRuntimeLoadingTests();
+        setupTransitiveDependencyTests();
+        setupNativeLoadLibraryTests();
+        setupUnloadLibraryTests();
         setupClassTests();
         setupInterfaceTests();
         setupGenericsTests();
@@ -1017,6 +1024,658 @@ namespace tests::testSuite
                     fs::remove(libPath);
                     fs::remove_all(libOutputDir);
                     fs::remove_all(consumerOutputDir);
+                } catch (...) {}
+            });
+    }
+
+    // =========================================================================
+    // MYT-100: Transitive dependency loading at runtime
+    // =========================================================================
+
+    void LibraryTestSuite::setupTransitiveDependencyTests()
+    {
+        addCallbackTest("TransitiveDependencyLoader loads single library with no deps",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                require(fs::exists(libMtproj), "MathLib.mtproj not found");
+
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed: " +
+                    (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
+
+                // Load via TransitiveDependencyLoader
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                TransitiveDependencyLoader loader;
+                loader.loadLibraryWithDependencies(libPath, *vm, env);
+
+                // Verify symbols were registered
+                require(env->isLibraryLoaded("MathLib"), "MathLib should be marked as loaded");
+                require(env->findClass("MathUtils") != nullptr, "MathUtils should be registered");
+                require(env->findClass("Vector2") != nullptr, "Vector2 should be registered");
+
+                // Cleanup
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                } catch (...) {}
+            });
+
+        addCallbackTest("TransitiveDependencyLoader skips already-loaded libraries",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed");
+
+                // Load twice — second should be a no-op
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                TransitiveDependencyLoader loader;
+                loader.loadLibraryWithDependencies(libPath, *vm, env);
+                size_t countAfterFirst = vm->getLoadedProgramCount();
+
+                loader.loadLibraryWithDependencies(libPath, *vm, env);
+                size_t countAfterSecond = vm->getLoadedProgramCount();
+
+                require(countAfterFirst == countAfterSecond,
+                    "Loading same library twice should not add duplicate programs");
+
+                // Cleanup
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                } catch (...) {}
+            });
+
+        addCallbackTest("TransitiveDependencyLoader batch loads multiple libraries",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed");
+
+                // Load via batch method
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                TransitiveDependencyLoader loader;
+                std::vector<std::string> paths = { libPath };
+                loader.loadLibrariesWithDependencies(paths, *vm, env);
+
+                require(env->isLibraryLoaded("MathLib"), "MathLib should be loaded via batch");
+                require(env->findClass("MathUtils") != nullptr, "MathUtils should be registered");
+
+                // Cleanup
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                } catch (...) {}
+            });
+
+        addCallbackTest("TransitiveDependencyLoader throws on missing file",
+            "",
+            [](ScriptAPI&) {
+                using namespace project::mtclib;
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                TransitiveDependencyLoader loader;
+                bool threw = false;
+                try {
+                    loader.loadLibraryWithDependencies("nonexistent/path/Fake.mtcLib", *vm, env);
+                } catch (const std::runtime_error& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("Could not open") != std::string::npos,
+                        "Error should mention file open failure, got: " + msg);
+                }
+                require(threw, "Should throw on missing file");
+            });
+    }
+
+    // =========================================================================
+    // MYT-101: Native loadLibrary API tests
+    // =========================================================================
+
+    void LibraryTestSuite::setupNativeLoadLibraryTests()
+    {
+        addCallbackTest("LibraryNatives validates empty path",
+            "",
+            [](ScriptAPI&) {
+                using namespace project::mtclib;
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+
+                LibraryNatives::setVM(vm);
+                LibraryNatives::setLoader(loader);
+
+                // Call the native function with empty path
+                auto nativeRegistry = env->getNativeRegistry();
+                require(nativeRegistry->hasNativeFunction("loadLibrary"),
+                    "loadLibrary should be registered as a native function");
+
+                auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
+                require(loadLibFunc != nullptr, "loadLibrary function should be found");
+
+                bool threw = false;
+                try {
+                    loadLibFunc({ std::string("") });
+                } catch (const errors::RuntimeException& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("empty") != std::string::npos,
+                        "Error should mention empty path, got: " + msg);
+                }
+                require(threw, "Should throw on empty path");
+
+                LibraryNatives::cleanup();
+            });
+
+        addCallbackTest("LibraryNatives validates nonexistent file",
+            "",
+            [](ScriptAPI&) {
+                using namespace project::mtclib;
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+
+                LibraryNatives::setVM(vm);
+                LibraryNatives::setLoader(loader);
+
+                auto nativeRegistry = env->getNativeRegistry();
+                auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
+
+                bool threw = false;
+                try {
+                    loadLibFunc({ std::string("nonexistent/Fake.mtcLib") });
+                } catch (const errors::RuntimeException& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("not found") != std::string::npos,
+                        "Error should mention file not found, got: " + msg);
+                }
+                require(threw, "Should throw on nonexistent file");
+
+                LibraryNatives::cleanup();
+            });
+
+        addCallbackTest("LibraryNatives validates wrong extension",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Create a temporary file with wrong extension
+                std::string tempPath = "mType/tests/testFiles/library/libs/test_wrong_ext.txt";
+                fs::create_directories("mType/tests/testFiles/library/libs");
+                {
+                    std::ofstream out(tempPath);
+                    out << "not a library";
+                }
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+
+                LibraryNatives::setVM(vm);
+                LibraryNatives::setLoader(loader);
+
+                auto nativeRegistry = env->getNativeRegistry();
+                auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
+
+                bool threw = false;
+                try {
+                    loadLibFunc({ std::string(tempPath) });
+                } catch (const errors::RuntimeException& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find(".mtcLib") != std::string::npos,
+                        "Error should mention .mtcLib extension, got: " + msg);
+                }
+                require(threw, "Should throw on wrong extension");
+
+                // Cleanup
+                LibraryNatives::cleanup();
+                try { fs::remove(tempPath); } catch (...) {}
+            });
+
+        addCallbackTest("LibraryNatives validates wrong argument count",
+            "",
+            [](ScriptAPI&) {
+                using namespace project::mtclib;
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+
+                LibraryNatives::setVM(vm);
+                LibraryNatives::setLoader(loader);
+
+                auto nativeRegistry = env->getNativeRegistry();
+                auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
+
+                bool threw = false;
+                try {
+                    loadLibFunc({});  // No arguments
+                } catch (const errors::RuntimeException& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("1 argument") != std::string::npos,
+                        "Error should mention argument count, got: " + msg);
+                }
+                require(threw, "Should throw on wrong argument count");
+
+                LibraryNatives::cleanup();
+            });
+
+        addCallbackTest("LibraryNatives validates non-string argument",
+            "",
+            [](ScriptAPI&) {
+                using namespace project::mtclib;
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+
+                LibraryNatives::setVM(vm);
+                LibraryNatives::setLoader(loader);
+
+                auto nativeRegistry = env->getNativeRegistry();
+                auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
+
+                bool threw = false;
+                try {
+                    loadLibFunc({ int64_t(42) });  // Integer instead of string
+                } catch (const errors::RuntimeException& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("string") != std::string::npos,
+                        "Error should mention string type, got: " + msg);
+                }
+                require(threw, "Should throw on non-string argument");
+
+                LibraryNatives::cleanup();
+            });
+
+        addCallbackTest("LibraryNatives loads valid .mtcLib via native function",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                require(fs::exists(libMtproj), "MathLib.mtproj not found");
+
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed");
+
+                // Create fresh environment and call native function
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+
+                LibraryNatives::setVM(vm);
+                LibraryNatives::setLoader(loader);
+
+                auto nativeRegistry = env->getNativeRegistry();
+                auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
+
+                // Load library via native function
+                auto result = loadLibFunc({ std::string(libPath) });
+                require(std::holds_alternative<std::monostate>(result),
+                    "loadLibrary should return void");
+
+                // Verify library was loaded
+                require(env->isLibraryLoaded("MathLib"), "MathLib should be loaded");
+                require(env->findClass("MathUtils") != nullptr, "MathUtils should be registered");
+                require(env->findClass("Vector2") != nullptr, "Vector2 should be registered");
+
+                // Cleanup
+                LibraryNatives::cleanup();
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                } catch (...) {}
+            });
+    }
+
+    // =========================================================================
+    // Unload library tests
+    // =========================================================================
+
+    void LibraryTestSuite::setupUnloadLibraryTests()
+    {
+        addCallbackTest("unloadLibrary removes symbols and unmarks library",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed");
+
+                // Load it
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                TransitiveDependencyLoader loader;
+                loader.loadLibraryWithDependencies(libPath, *vm, env);
+
+                require(env->isLibraryLoaded("MathLib"), "MathLib should be loaded");
+                require(env->findClass("MathUtils") != nullptr, "MathUtils should exist");
+                require(env->findClass("Vector2") != nullptr, "Vector2 should exist");
+
+                // Unload it
+                loader.unloadLibrary("MathLib", *vm, env);
+
+                require(!env->isLibraryLoaded("MathLib"), "MathLib should no longer be loaded");
+                require(env->findClass("MathUtils") == nullptr, "MathUtils should be removed");
+                require(env->findClass("Vector2") == nullptr, "Vector2 should be removed");
+
+                // Cleanup
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                } catch (...) {}
+            });
+
+        addCallbackTest("unloadLibrary throws on unknown library",
+            "",
+            [](ScriptAPI&) {
+                using namespace project::mtclib;
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                TransitiveDependencyLoader loader;
+                bool threw = false;
+                try {
+                    loader.unloadLibrary("NonExistent", *vm, env);
+                } catch (const std::runtime_error& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("not loaded") != std::string::npos,
+                        "Error should mention not loaded, got: " + msg);
+                }
+                require(threw, "Should throw on unknown library");
+            });
+
+        addCallbackTest("unloadLibrary via native function",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed");
+
+                // Create fresh environment and load via native function
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+
+                LibraryNatives::setVM(vm);
+                LibraryNatives::setLoader(loader);
+
+                auto nativeRegistry = env->getNativeRegistry();
+                auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
+                auto unloadLibFunc = nativeRegistry->findNativeFunction("unloadLibrary");
+
+                require(unloadLibFunc != nullptr, "unloadLibrary should be registered");
+
+                // Load then unload
+                loadLibFunc({ std::string(libPath) });
+                require(env->isLibraryLoaded("MathLib"), "MathLib should be loaded");
+
+                unloadLibFunc({ std::string("MathLib") });
+                require(!env->isLibraryLoaded("MathLib"), "MathLib should be unloaded");
+                require(env->findClass("MathUtils") == nullptr, "MathUtils should be gone");
+
+                // Cleanup
+                LibraryNatives::cleanup();
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                } catch (...) {}
+            });
+
+        addCallbackTest("unloadLibrary native throws on not-loaded library",
+            "",
+            [](ScriptAPI&) {
+                using namespace project::mtclib;
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+
+                LibraryNatives::setVM(vm);
+                LibraryNatives::setLoader(loader);
+
+                auto nativeRegistry = env->getNativeRegistry();
+                auto unloadLibFunc = nativeRegistry->findNativeFunction("unloadLibrary");
+
+                bool threw = false;
+                try {
+                    unloadLibFunc({ std::string("NotLoaded") });
+                } catch (const errors::RuntimeException& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("not loaded") != std::string::npos,
+                        "Error should mention not loaded, got: " + msg);
+                }
+                require(threw, "Should throw on not-loaded library");
+
+                LibraryNatives::cleanup();
+            });
+
+        addCallbackTest("unloadLibrary blocks when another loaded library depends on it",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Step 1: Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed");
+
+                // Step 2: Copy MathLib to consumer/libs/ and build Consumer
+                std::string consumerLibsDir = "mType/tests/testFiles/library/projects/consumer/libs";
+                fs::create_directories(consumerLibsDir);
+                std::string destLib = consumerLibsDir + "/MathLib.mtcLib";
+                fs::copy_file(libPath, destLib, fs::copy_options::overwrite_existing);
+
+                std::string consumerMtproj = "mType/tests/testFiles/library/projects/consumer/Consumer.mtproj";
+                auto consumerConfig = configParser.parse(consumerMtproj);
+                require(consumerConfig != nullptr, "Failed to parse Consumer.mtproj");
+
+                fs::path consumerOutputDir = fs::path(consumerConfig->projectRoot) / consumerConfig->output.directory;
+                fs::create_directories(consumerOutputDir);
+                std::string consumerLibPath = (consumerOutputDir / (consumerConfig->name + ".mtcLib")).string();
+
+                // Remove stale output to defeat incremental build cache
+                try { fs::remove(consumerLibPath); } catch (...) {}
+
+                project::ProjectBuilder consumerBuilder;
+                auto consumerResult = consumerBuilder.buildLibrary(*consumerConfig, consumerLibPath);
+                require(consumerResult.success, "Consumer build failed: " +
+                    (consumerResult.errors.empty() ? "unknown" : consumerResult.errors[0]));
+
+                // Step 3: Load both via transitive loader
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                TransitiveDependencyLoader loader;
+                loader.addSearchPath(libOutputDir.string());
+                loader.addSearchPath(consumerLibsDir);
+
+                loader.loadLibraryWithDependencies(consumerLibPath, *vm, env);
+
+                require(env->isLibraryLoaded("MathLib"), "MathLib should be loaded transitively");
+                require(env->isLibraryLoaded("Consumer"), "Consumer should be loaded");
+
+                // Step 4: Try to unload MathLib — should fail because Consumer depends on it
+                bool threw = false;
+                try {
+                    loader.unloadLibrary("MathLib", *vm, env);
+                } catch (const std::runtime_error& e) {
+                    threw = true;
+                    std::string msg = e.what();
+                    require(msg.find("Consumer") != std::string::npos,
+                        "Error should name the dependent library, got: " + msg);
+                }
+                require(threw, "Should refuse to unload MathLib while Consumer depends on it");
+
+                // Verify MathLib is still loaded
+                require(env->isLibraryLoaded("MathLib"), "MathLib should still be loaded after failed unload");
+
+                // Cleanup
+                try {
+                    fs::remove(destLib);
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                    fs::remove(consumerLibPath);
+                    fs::remove_all(consumerOutputDir);
+                } catch (...) {}
+            });
+
+        addCallbackTest("unloadLibrary allows re-load after unload",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                using namespace project::mtclib;
+
+                // Build MathLib
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed");
+
+                environment::EnvironmentBuilder envBuilder;
+                auto env = envBuilder.build();
+                auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                TransitiveDependencyLoader loader;
+
+                // Load -> unload -> reload
+                loader.loadLibraryWithDependencies(libPath, *vm, env);
+                require(env->isLibraryLoaded("MathLib"), "Should be loaded");
+
+                loader.unloadLibrary("MathLib", *vm, env);
+                require(!env->isLibraryLoaded("MathLib"), "Should be unloaded");
+                require(env->findClass("MathUtils") == nullptr, "MathUtils should be gone");
+
+                loader.loadLibraryWithDependencies(libPath, *vm, env);
+                require(env->isLibraryLoaded("MathLib"), "Should be re-loaded");
+                require(env->findClass("MathUtils") != nullptr, "MathUtils should be back");
+
+                // Cleanup
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
                 } catch (...) {}
             });
     }

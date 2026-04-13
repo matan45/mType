@@ -92,6 +92,7 @@ namespace environment
         // Library loading tracking
         bool isLibraryLoaded(const std::string& name) const { return loadedLibraryNames.count(name) > 0; }
         void markLibraryLoaded(const std::string& name) { loadedLibraryNames.insert(name); }
+        [[nodiscard]] bool unmarkLibraryLoaded(const std::string& name) { return loadedLibraryNames.erase(name) > 0; }
 
         void registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition);
         void registerFunction(const std::string& name, std::shared_ptr<FunctionDefinition> functionDefinition);

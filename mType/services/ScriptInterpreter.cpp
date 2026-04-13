@@ -15,6 +15,7 @@
 #include "ExecutionStrategy.hpp"
 #include "BytecodeExecutionStrategy.hpp"
 #include "../reflection/ReflectionNatives.hpp"
+#include "../project/mtclib/LibraryNatives.hpp"
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
@@ -80,10 +81,18 @@ namespace services
 
         // Set VM reference for reflection method/constructor invocation
         reflection::ReflectionNatives::setVM(vm);
+
+        // Set VM and loader for runtime library loading native functions
+        transitiveDependencyLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
+        project::mtclib::LibraryNatives::setVM(vm);
+        project::mtclib::LibraryNatives::setLoader(transitiveDependencyLoader);
     }
 
     ScriptInterpreter::~ScriptInterpreter()
     {
+        // Clean up static native function state
+        project::mtclib::LibraryNatives::cleanup();
+
         // Clean up registries to prevent memory leaks in long-running programs
         cleanupRegistries();
     }
@@ -490,5 +499,28 @@ namespace services
             libraryLoader = std::make_unique<vm::runtime::LibraryLoader>();
         }
         libraryLoader->loadLibrary(mtcLibPath, *vm, environment);
+    }
+
+    void ScriptInterpreter::unloadLibrary(const std::string& libraryName)
+    {
+        if (!transitiveDependencyLoader) {
+            throw std::runtime_error("Cannot unload library: no libraries have been loaded");
+        }
+        transitiveDependencyLoader->unloadLibrary(libraryName, *vm, environment);
+    }
+
+    void ScriptInterpreter::loadLibraryWithDependencies(const std::string& mtcLibPath)
+    {
+        transitiveDependencyLoader->loadLibraryWithDependencies(mtcLibPath, *vm, environment);
+    }
+
+    void ScriptInterpreter::loadLibrariesWithDependencies(const std::vector<std::string>& paths)
+    {
+        transitiveDependencyLoader->loadLibrariesWithDependencies(paths, *vm, environment);
+    }
+
+    void ScriptInterpreter::addLibrarySearchPath(const std::string& path)
+    {
+        transitiveDependencyLoader->addSearchPath(path);
     }
 }

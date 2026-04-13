@@ -32,6 +32,13 @@ namespace tests::testSuite
         void setupLinkingTests();
         void setupRuntimeLoadingTests();
 
+        // MYT-100: Transitive dependency loading tests
+        void setupTransitiveDependencyTests();
+
+        // MYT-101: Native loadLibrary/unloadLibrary API tests
+        void setupNativeLoadLibraryTests();
+        void setupUnloadLibraryTests();
+
         // Feature tests across library boundaries
         void setupClassTests();
         void setupInterfaceTests();

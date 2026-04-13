@@ -2,6 +2,7 @@
 #include <vector>
 #include <memory>
 #include <optional>
+#include <algorithm>
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../environment/Environment.hpp"
@@ -197,6 +198,18 @@ namespace vm::runtime
         // Multi-program support (library loading)
         void addLoadedProgram(const bytecode::BytecodeProgram* prog) {
             loadedPrograms.push_back(prog);
+        }
+        [[nodiscard]] bool removeLoadedProgram(const bytecode::BytecodeProgram* prog) {
+            // Never remove the main program
+            if (prog == program) {
+                return false;
+            }
+            auto it = std::find(loadedPrograms.begin(), loadedPrograms.end(), prog);
+            if (it != loadedPrograms.end()) {
+                loadedPrograms.erase(it);
+                return true;
+            }
+            return false;
         }
         size_t getLoadedProgramCount() const { return loadedPrograms.size(); }
         const std::vector<const bytecode::BytecodeProgram*>& getLoadedPrograms() const {

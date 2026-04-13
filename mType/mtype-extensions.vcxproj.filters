@@ -171,6 +171,9 @@
     <ClInclude Include="project\mtclib\LibraryLinker.hpp">
       <Filter>project\mtclib</Filter>
     </ClInclude>
+    <ClInclude Include="project\mtclib\LibraryNatives.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
     <ClInclude Include="project\mtclib\LibrarySymbolProvider.hpp">
       <Filter>project\mtclib</Filter>
     </ClInclude>
@@ -184,6 +187,9 @@
       <Filter>project\mtclib</Filter>
     </ClInclude>
     <ClInclude Include="project\mtclib\MtcPathResolver.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
+    <ClInclude Include="project\mtclib\TransitiveDependencyLoader.hpp">
       <Filter>project\mtclib</Filter>
     </ClInclude>
     <ClInclude Include="reflection\ReflectionHandle.hpp">
@@ -344,6 +350,9 @@
     <ClCompile Include="project\mtclib\LibraryLinker.cpp">
       <Filter>project\mtclib</Filter>
     </ClCompile>
+    <ClCompile Include="project\mtclib\LibraryNatives.cpp">
+      <Filter>project\mtclib</Filter>
+    </ClCompile>
     <ClCompile Include="project\mtclib\LibrarySymbolProvider.cpp">
       <Filter>project\mtclib</Filter>
     </ClCompile>
@@ -354,6 +363,9 @@
       <Filter>project\mtclib</Filter>
     </ClCompile>
     <ClCompile Include="project\mtclib\MtcPathResolver.cpp">
+      <Filter>project\mtclib</Filter>
+    </ClCompile>
+    <ClCompile Include="project\mtclib\TransitiveDependencyLoader.cpp">
       <Filter>project\mtclib</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionHandle.cpp">
