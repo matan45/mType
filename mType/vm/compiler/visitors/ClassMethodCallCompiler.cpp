@@ -1,5 +1,6 @@
 #include "ClassCompiler.hpp"
 #include "../validation/CompileTimeValidator.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../optimization/PrimitiveMethodOptimizer.hpp"
 #include "../../../errors/TypeException.hpp"
@@ -256,11 +257,7 @@ namespace vm::compiler::visitors
             std::unordered_map<std::string, std::string> methodGenericBindings;
 
             // Extract base class name (without nullable suffix or generic parameters) for method lookup
-            std::string baseClassName = objectClassName;
-            if (!baseClassName.empty() && baseClassName.back() == '?')
-            {
-                baseClassName.pop_back();
-            }
+            std::string baseClassName = ::types::TypeConversionUtils::stripNullable(objectClassName);
             size_t anglePos = baseClassName.find('<');
             if (anglePos != std::string::npos)
             {
@@ -423,11 +420,7 @@ namespace vm::compiler::visitors
             if (!objectClassName.empty() && ctx.compileTimeValidator)
             {
                 // Extract base class name (without nullable suffix or generic parameters)
-                std::string baseClassName = objectClassName;
-                if (!baseClassName.empty() && baseClassName.back() == '?')
-                {
-                    baseClassName.pop_back();
-                }
+                std::string baseClassName = ::types::TypeConversionUtils::stripNullable(objectClassName);
                 size_t anglePos = baseClassName.find('<');
                 if (anglePos != std::string::npos)
                 {
@@ -450,7 +443,7 @@ namespace vm::compiler::visitors
             {
                 throw errors::TypeException(
                     "Cannot call method '" + methodName + "' on nullable receiver. "
-                    "Add a null check (if (x != null) { ... }) or remove '?' from the declaration.",
+                    "Add a null check (if (x != null) { ... }) or change the receiver's declared type to non-nullable.",
                     node->getLocation()
                 );
             }

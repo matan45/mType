@@ -379,8 +379,7 @@ namespace vm::compiler::visitors
             if (!expectedIsNullable)
             {
                 // Skip check for generic type parameters (T, K, V, etc.)
-                bool isGenericParam = (expectedType.length() <= 2 && !expectedType.empty()
-                                       && std::isupper(expectedType[0]));
+                bool isGenericParam = ::types::TypeConversionUtils::isGenericTypeParameter(expectedType);
                 if (!isGenericParam && ctx.typeInference.inferExpressionNullable(arguments[i].get()))
                 {
                     throw errors::TypeException(
@@ -467,8 +466,7 @@ namespace vm::compiler::visitors
 
                     // Strip nullable suffix for type compatibility checks
                     // Non-nullable values are always assignable to nullable parameters
-                    if (!normalizedExpectedType.empty() && normalizedExpectedType.back() == '?')
-                        normalizedExpectedType.pop_back();
+                    normalizedExpectedType = ::types::TypeConversionUtils::stripNullable(normalizedExpectedType);
 
                     if (!argClassName.empty() && normalizedArgClassName != normalizedExpectedType)
                     {
@@ -494,9 +492,7 @@ namespace vm::compiler::visitors
                         {
                             // Check if argClassName is assignable to expectedType (inheritance/polymorphism)
                             // Strip nullable suffix - non-null is always compatible with nullable
-                            std::string resolvedExpected = expectedType;
-                            if (!resolvedExpected.empty() && resolvedExpected.back() == '?')
-                                resolvedExpected.pop_back();
+                            std::string resolvedExpected = ::types::TypeConversionUtils::stripNullable(expectedType);
                             if (!ctx.typeValidator.isClassCompatible(argClassName, resolvedExpected))
                             {
                                 // null can be passed to any object type

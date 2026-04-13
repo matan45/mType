@@ -136,8 +136,7 @@ namespace vm::compiler::visitors
 
         // Strip nullable suffix for type compatibility checks
         // Non-nullable values are always assignable to nullable parameters
-        if (!resolvedExpectedType.empty() && resolvedExpectedType.back() == '?')
-            resolvedExpectedType.pop_back();
+        resolvedExpectedType = ::types::TypeConversionUtils::stripNullable(resolvedExpectedType);
 
         // Infer argument type early for validation checks
         value::ValueType argType = ctx.typeInference.inferExpressionType(argument);
@@ -378,7 +377,7 @@ namespace vm::compiler::visitors
                 }
 
                 // Skip generic type parameters (single uppercase letters) that weren't resolved
-                if (expectedClass.length() <= 2 && std::isupper(expectedClass[0]))
+                if (::types::TypeConversionUtils::isGenericTypeParameter(expectedClass))
                 {
                     continue;
                 }

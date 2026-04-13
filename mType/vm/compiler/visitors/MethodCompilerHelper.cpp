@@ -160,13 +160,7 @@ namespace vm::compiler::visitors
     bool MethodCompilerHelper::isValidTypeName(const std::string& typeName,
                                                 const std::vector<std::string>& validGenericParams)
     {
-        std::string baseTypeName = typeName;
-
-        // Strip nullable suffix '?'
-        if (!baseTypeName.empty() && baseTypeName.back() == '?')
-        {
-            baseTypeName.pop_back();
-        }
+        std::string baseTypeName = ::types::TypeConversionUtils::stripNullable(typeName);
 
         // Handle array types: int[], Item[][], etc.
         // Strip all array brackets to get the element type
@@ -257,10 +251,7 @@ namespace vm::compiler::visitors
             std::string paramTypeStr = param.second->toString();
             bool paramIsNullable = param.second->isNullable();
             // Strip '?' from type string - nullable tracked separately
-            if (!paramTypeStr.empty() && paramTypeStr.back() == '?')
-            {
-                paramTypeStr.pop_back();
-            }
+            paramTypeStr = ::types::TypeConversionUtils::stripNullable(paramTypeStr);
             result.paramTypes.push_back(paramTypeStr);
             result.paramNullable.push_back(paramIsNullable);
 
@@ -328,11 +319,7 @@ namespace vm::compiler::visitors
             {
                 // Generic type parameter (like T, E) - treat as object for now
                 // Strip nullable suffix '?' from className - nullability is tracked separately
-                std::string paramClassName = param.second->toString();
-                if (!paramClassName.empty() && paramClassName.back() == '?')
-                {
-                    paramClassName.pop_back();
-                }
+                std::string paramClassName = ::types::TypeConversionUtils::stripNullable(param.second->toString());
                 ctx.variableTracker.declareLocal(param.first, value::ValueType::OBJECT,
                                                  paramClassName, param.second->isNullable());
             }
@@ -340,12 +327,8 @@ namespace vm::compiler::visitors
             {
                 // Concrete type
                 value::ValueType concreteType = param.second->getConcreteType();
-                std::string className = (concreteType == value::ValueType::OBJECT) ? param.second->toString() : "";
-                // Strip nullable suffix '?' from className - nullability is tracked separately
-                if (!className.empty() && className.back() == '?')
-                {
-                    className.pop_back();
-                }
+                std::string className = (concreteType == value::ValueType::OBJECT)
+                    ? ::types::TypeConversionUtils::stripNullable(param.second->toString()) : "";
                 ctx.variableTracker.declareLocal(param.first, concreteType, className,
                                                  param.second->isNullable());
             }

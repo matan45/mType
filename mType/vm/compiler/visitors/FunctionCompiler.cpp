@@ -283,18 +283,14 @@ namespace vm::compiler::visitors
         }
 
         // Determine if return type is nullable, then strip suffix for type matching
-        bool returnTypeNullable = !expectedReturnType.empty() && expectedReturnType.back() == '?';
-        if (returnTypeNullable)
-        {
-            expectedReturnType = expectedReturnType.substr(0, expectedReturnType.size() - 1);
-        }
+        bool returnTypeNullable = ::types::TypeConversionUtils::isNullableType(expectedReturnType);
+        expectedReturnType = ::types::TypeConversionUtils::stripNullable(expectedReturnType);
 
         if (returnValue)
         {
             // Null safety enforcement: reject nullable returns from non-nullable return types
             // Skip for generic type parameters (T, K, V, etc.) since they may be nullable at instantiation
-            bool isGenericReturnType = (expectedReturnType.length() <= 2 && !expectedReturnType.empty()
-                                        && std::isupper(expectedReturnType[0]));
+            bool isGenericReturnType = ::types::TypeConversionUtils::isGenericTypeParameter(expectedReturnType);
             if (!returnTypeNullable && !isGenericReturnType && ctx.typeInference.inferExpressionNullable(returnValue))
             {
                 throw errors::TypeException(
@@ -1030,10 +1026,7 @@ namespace vm::compiler::visitors
         std::string baseTypeName = typeName;
 
         // Strip nullable suffix '?'
-        if (!baseTypeName.empty() && baseTypeName.back() == '?')
-        {
-            baseTypeName.pop_back();
-        }
+        baseTypeName = ::types::TypeConversionUtils::stripNullable(baseTypeName);
 
         // Handle array types: int[], T[], Item[][], etc.
         // Strip all array brackets to get the element type

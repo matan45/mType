@@ -62,9 +62,6 @@ namespace value {
             return className.value();
         }
 
-        // Fluent setter for nullable
-        ParameterType& withNullable(bool n) { nullable = n; return *this; }
-
         // Convert to string for error messages
         std::string toString() const {
             std::string base;

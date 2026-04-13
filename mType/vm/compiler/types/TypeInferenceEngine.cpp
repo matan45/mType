@@ -1,4 +1,5 @@
 #include "TypeInferenceEngine.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
 #include "../../../ast/nodes/expressions/IntegerNode.hpp"
 #include "../../../ast/nodes/expressions/FloatNode.hpp"
 #include "../../../ast/nodes/expressions/StringNode.hpp"
@@ -669,11 +670,7 @@ namespace vm::compiler::types
                         auto genericType = fieldNode->getGenericType();
                         if (genericType) {
                             // Strip nullable suffix '?' - class names should not include it
-                            std::string typeName = genericType->toString();
-                            if (!typeName.empty() && typeName.back() == '?') {
-                                typeName.pop_back();
-                            }
-                            return typeName;
+                            return ::types::TypeConversionUtils::stripNullable(genericType->toString());
                         }
                     }
                 }
@@ -692,11 +689,7 @@ namespace vm::compiler::types
                             auto uType = parentField->getUnifiedType();
                             if (uType) {
                                 // Strip nullable suffix '?' - class names should not include it
-                                std::string typeName = uType->toString();
-                                if (!typeName.empty() && typeName.back() == '?') {
-                                    typeName.pop_back();
-                                }
-                                return typeName;
+                                return ::types::TypeConversionUtils::stripNullable(uType->toString());
                             }
                         }
                     }
@@ -739,12 +732,7 @@ namespace vm::compiler::types
                 funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
                 funcMetadata->returnType != "void" && funcMetadata->returnType != "object") {
                 // Resolve generic type if applicable (from context stack)
-                std::string resolved = resolveGenericType(funcMetadata->returnType);
-                // Strip nullable suffix '?' - class names should not include it
-                if (!resolved.empty() && resolved.back() == '?') {
-                    resolved.pop_back();
-                }
-                return resolved;
+                return ::types::TypeConversionUtils::stripNullable(resolveGenericType(funcMetadata->returnType));
             }
         }
 
@@ -753,13 +741,7 @@ namespace vm::compiler::types
         if (funcDef) {
             std::string returnClassName = funcDef->getReturnClassName();
             if (!returnClassName.empty()) {
-                // Resolve generic type if applicable
-                std::string resolved = resolveGenericType(returnClassName);
-                // Strip nullable suffix '?' - class names should not include it
-                if (!resolved.empty() && resolved.back() == '?') {
-                    resolved.pop_back();
-                }
-                return resolved;
+                return ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnClassName));
             }
         }
         return "";
@@ -819,11 +801,8 @@ namespace vm::compiler::types
                 auto field = classDef->getField(memberName);
                 if (field) {
                     if (field->hasUnifiedType()) {
-                        std::string fieldTypeName = field->getUnifiedType()->toString();
-                        // Strip nullable suffix '?' - class names should not include it
-                        if (!fieldTypeName.empty() && fieldTypeName.back() == '?') {
-                            fieldTypeName.pop_back();
-                        }
+                        std::string fieldTypeName = ::types::TypeConversionUtils::stripNullable(
+                            field->getUnifiedType()->toString());
                         // Don't return primitive type names as class names
                         if (fieldTypeName != "int" && fieldTypeName != "float" &&
                             fieldTypeName != "string" && fieldTypeName != "bool" &&
@@ -837,11 +816,8 @@ namespace vm::compiler::types
                 auto method = classDef->getMethod(memberName);
                 if (method) {
                     if (method->getUnifiedReturnType()) {
-                        std::string returnTypeName = method->getUnifiedReturnType()->toString();
-                        // Strip nullable suffix '?' - class names should not include it
-                        if (!returnTypeName.empty() && returnTypeName.back() == '?') {
-                            returnTypeName.pop_back();
-                        }
+                        std::string returnTypeName = ::types::TypeConversionUtils::stripNullable(
+                            method->getUnifiedReturnType()->toString());
                         // Don't return primitive type names as class names
                         if (returnTypeName != "int" && returnTypeName != "float" &&
                             returnTypeName != "string" && returnTypeName != "bool" &&
@@ -1019,11 +995,8 @@ namespace vm::compiler::types
                     funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
                     funcMetadata->returnType != "void") {
                     // Resolve generic type if applicable (from context stack)
-                    std::string resolved = resolveGenericType(funcMetadata->returnType);
-                    // Strip nullable suffix '?' - class names should not include it
-                    if (!resolved.empty() && resolved.back() == '?') {
-                        resolved.pop_back();
-                    }
+                    std::string resolved = ::types::TypeConversionUtils::stripNullable(
+                        resolveGenericType(funcMetadata->returnType));
                     return resolved;
                 }
             }
@@ -1378,7 +1351,7 @@ namespace vm::compiler::types
             const auto* funcMeta = program.getFunction(funcName);
             if (funcMeta && !funcMeta->returnType.empty())
             {
-                return funcMeta->returnType.back() == '?';
+                return ::types::TypeConversionUtils::isNullableType(funcMeta->returnType);
             }
             return false;
         }
@@ -1393,6 +1366,7 @@ namespace vm::compiler::types
                 const auto* funcMeta = program.getFunction(qualifiedName);
 
                 // Try prefix matching for overloaded methods
+                // Conservative: if any overload returns nullable, treat as nullable
                 if (!funcMeta)
                 {
                     const auto& allFunctions = program.getFunctions();
@@ -1401,15 +1375,22 @@ namespace vm::compiler::types
                     {
                         if (name.find(prefix) == 0 || name == qualifiedName)
                         {
-                            funcMeta = &metadata;
-                            break;
+                            if (!funcMeta)
+                            {
+                                funcMeta = &metadata;
+                            }
+                            else if (!::types::TypeConversionUtils::isNullableType(funcMeta->returnType)
+                                     && ::types::TypeConversionUtils::isNullableType(metadata.returnType))
+                            {
+                                funcMeta = &metadata; // prefer nullable overload (conservative)
+                            }
                         }
                     }
                 }
 
                 if (funcMeta && !funcMeta->returnType.empty())
                 {
-                    return funcMeta->returnType.back() == '?';
+                    return ::types::TypeConversionUtils::isNullableType(funcMeta->returnType);
                 }
             }
 

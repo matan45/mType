@@ -448,7 +448,7 @@ namespace vm::compiler::visitors
                 {
                     throw errors::TypeException(
                         "Cannot access field '" + memberName + "' on nullable receiver. "
-                        "Add a null check (if (x != null) { ... }) or remove '?' from the declaration.",
+                        "Add a null check (if (x != null) { ... }) or change the receiver's declared type to non-nullable.",
                         node->getLocation()
                     );
                 }
@@ -499,7 +499,7 @@ namespace vm::compiler::visitors
             {
                 throw errors::TypeException(
                     "Cannot assign field '" + memberName + "' on nullable receiver. "
-                    "Add a null check (if (x != null) { ... }) or remove '?' from the declaration.",
+                    "Add a null check (if (x != null) { ... }) or change the receiver's declared type to non-nullable.",
                     node->getLocation()
                 );
             }

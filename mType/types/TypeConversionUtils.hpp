@@ -90,6 +90,25 @@ namespace types {
          */
         static std::string extractBaseTypeName(const std::string& typeName);
 
+        /**
+         * Strip the trailing '?' nullable suffix from a type name.
+         * Returns the input unchanged if it does not end with '?'.
+         * @param typeName Type name potentially ending with '?' (e.g., "Box?")
+         * @return Type name without nullable suffix (e.g., "Box")
+         */
+        static std::string stripNullable(const std::string& typeName);
+
+        /**
+         * Check whether a type name ends with the nullable '?' suffix.
+         */
+        static bool isNullableType(const std::string& typeName);
+
+        /**
+         * Check whether a type name represents a generic type parameter
+         * (single uppercase letter like T, K, V, E, R).
+         */
+        static bool isGenericTypeParameter(const std::string& typeName);
+
     private:
         /**
          * Handle conversion of generic type parameters

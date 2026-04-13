@@ -75,11 +75,7 @@ namespace vm::compiler::validation
                                                          const ast::SourceLocation& location)
     {
         // Strip nullable suffix '?' for class lookup
-        std::string baseName = className;
-        if (!baseName.empty() && baseName.back() == '?')
-        {
-            baseName.pop_back();
-        }
+        std::string baseName = ::types::TypeConversionUtils::stripNullable(className);
 
         // Skip validation for generic type parameters (T, K, V, E, etc.)
         // Though static methods on generic types are unusual, we handle it consistently
@@ -142,11 +138,7 @@ namespace vm::compiler::validation
                                                            const ast::SourceLocation& location)
     {
         // Strip nullable suffix '?' for class lookup
-        std::string baseName = className;
-        if (!baseName.empty() && baseName.back() == '?')
-        {
-            baseName.pop_back();
-        }
+        std::string baseName = ::types::TypeConversionUtils::stripNullable(className);
 
         // Skip validation for generic type parameters (T, K, V, E, etc.)
         // Generic types will be validated at runtime when instantiated
@@ -234,11 +226,7 @@ namespace vm::compiler::validation
                                                         const ast::SourceLocation& location)
     {
         // Strip nullable suffix '?' for class lookup
-        std::string baseName = className;
-        if (!baseName.empty() && baseName.back() == '?')
-        {
-            baseName.pop_back();
-        }
+        std::string baseName = ::types::TypeConversionUtils::stripNullable(className);
 
         // Skip validation for generic type parameters (T, K, V, E, etc.)
         // Generic types will be validated at runtime when instantiated
@@ -292,11 +280,7 @@ namespace vm::compiler::validation
                                                   const ast::SourceLocation& location)
     {
         // Strip nullable suffix '?' - e.g. "Address?" -> "Address"
-        std::string baseName = className;
-        if (!baseName.empty() && baseName.back() == '?')
-        {
-            baseName.pop_back();
-        }
+        std::string baseName = ::types::TypeConversionUtils::stripNullable(className);
 
         // Skip validation for generic type parameters (T, K, V, E, etc.)
         // Generic type parameters are typically single uppercase letters

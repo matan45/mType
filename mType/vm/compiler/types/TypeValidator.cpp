@@ -192,12 +192,8 @@ namespace vm::compiler::types
     {
         // Strip nullable suffix for compatibility check:
         // Non-nullable T is always assignable to nullable T?
-        std::string varClass = varClassName;
-        std::string valueClass = valueClassName;
-        if (!varClass.empty() && varClass.back() == '?')
-            varClass.pop_back();
-        if (!valueClass.empty() && valueClass.back() == '?')
-            valueClass.pop_back();
+        std::string varClass = ::types::TypeConversionUtils::stripNullable(varClassName);
+        std::string valueClass = ::types::TypeConversionUtils::stripNullable(valueClassName);
 
         // If base types match after stripping nullable, assignment is valid
         if (varClass == valueClass)

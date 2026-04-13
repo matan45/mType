@@ -148,11 +148,7 @@ namespace vm::compiler::overload
         size_t genericTypeArgCount)
     {
         // Extract base class name (without nullable suffix or generic parameters)
-        std::string baseClassName = className;
-        if (!baseClassName.empty() && baseClassName.back() == '?')
-        {
-            baseClassName.pop_back();
-        }
+        std::string baseClassName = ::types::TypeConversionUtils::stripNullable(className);
         size_t anglePos = baseClassName.find('<');
         if (anglePos != std::string::npos)
         {
@@ -380,11 +376,7 @@ namespace vm::compiler::overload
         const ast::SourceLocation& location)
     {
         // Extract base class name (without nullable suffix or generic parameters)
-        std::string baseClassName = className;
-        if (!baseClassName.empty() && baseClassName.back() == '?')
-        {
-            baseClassName.pop_back();
-        }
+        std::string baseClassName = ::types::TypeConversionUtils::stripNullable(className);
         size_t anglePos = baseClassName.find('<');
         if (anglePos != std::string::npos)
         {
