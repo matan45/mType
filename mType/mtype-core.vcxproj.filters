@@ -201,6 +201,9 @@
     <ClInclude Include="types\TypeRegistry.hpp">
       <Filter>types</Filter>
     </ClInclude>
+    <ClInclude Include="types\TypeSignature.hpp">
+      <Filter>types</Filter>
+    </ClInclude>
     <ClInclude Include="types\TypeSubstitutionService.hpp">
       <Filter>types</Filter>
     </ClInclude>
@@ -438,6 +441,9 @@
       <Filter>types</Filter>
     </ClCompile>
     <ClCompile Include="types\TypeRegistry.cpp">
+      <Filter>types</Filter>
+    </ClCompile>
+    <ClCompile Include="types\TypeSignature.cpp">
       <Filter>types</Filter>
     </ClCompile>
     <ClCompile Include="types\TypeSubstitutionService.cpp">

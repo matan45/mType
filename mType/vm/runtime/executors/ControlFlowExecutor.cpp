@@ -127,6 +127,15 @@ namespace vm::runtime
 
             context.callStack.pop_back();
             context.instructionPointer = frame.returnAddress;
+
+            // Restore caller's program if returning across library boundary
+            if (!context.callStack.empty() && context.loadedPrograms) {
+                const auto& callerFrame = context.callStack.back();
+                if (callerFrame.programIndex < context.loadedPrograms->size()) {
+                    context.program = (*context.loadedPrograms)[callerFrame.programIndex];
+                }
+            }
+
             // Exit function scope (to clean up parameters and local variables)
             context.environment->exitScope();
             // Restore stack

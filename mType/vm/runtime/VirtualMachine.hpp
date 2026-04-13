@@ -77,6 +77,9 @@ namespace vm::runtime
         // Program data
         const bytecode::BytecodeProgram* program;
 
+        // Multi-program support: loaded library programs (index 0 = main)
+        std::vector<const bytecode::BytecodeProgram*> loadedPrograms;
+
         // Execution state
         std::shared_ptr<StackManager> stackManager;
         std::vector<CallFrame> callStack;
@@ -183,6 +186,21 @@ namespace vm::runtime
         void setProgram(const bytecode::BytecodeProgram* prog) {
             program = prog;
             if (executionCtx) { executionCtx->program = prog; }
+            // Ensure main program is at index 0 in loadedPrograms
+            if (loadedPrograms.empty()) {
+                loadedPrograms.push_back(prog);
+            } else {
+                loadedPrograms[0] = prog;
+            }
+        }
+
+        // Multi-program support (library loading)
+        void addLoadedProgram(const bytecode::BytecodeProgram* prog) {
+            loadedPrograms.push_back(prog);
+        }
+        size_t getLoadedProgramCount() const { return loadedPrograms.size(); }
+        const std::vector<const bytecode::BytecodeProgram*>& getLoadedPrograms() const {
+            return loadedPrograms;
         }
 
         // Event loop integration (lazy initialization)

@@ -33,7 +33,9 @@ namespace environment::registry
         std::string name;
         ExportedSymbolType type;
         VisibilityModifier visibility;
-        std::string sourceFile;  // File where the symbol is defined
+        std::string sourceFile;       // File where the symbol is defined
+        std::string typeSignature;    // Canonical type signature (for library builds)
+        std::string sourceLibrary;    // Library name (empty for symbols defined in source)
 
         // Default constructor for std::unordered_map
         ExportedSymbol()

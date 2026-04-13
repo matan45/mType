@@ -1,5 +1,6 @@
 #include "FunctionExecutor.hpp"
 #include "../../../errors/SourceLocation.hpp"
+#include <fstream>
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
@@ -56,6 +57,22 @@ namespace vm::runtime
 
         // Try to find user-defined function in bytecode
         auto funcMetadata = context.program->getFunction(functionName);
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
+        const bytecode::BytecodeProgram* targetProgram = context.program;
+
+        // If not found in current program, search loaded library programs
+        if (!funcMetadata && context.loadedPrograms) {
+            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                auto libFunc = (*context.loadedPrograms)[i]->getFunction(functionName);
+                if (libFunc) {
+                    funcMetadata = libFunc;
+                    targetProgramIndex = i;
+                    targetProgram = (*context.loadedPrograms)[i];
+                    break;
+                }
+            }
+        }
+
         if (funcMetadata)
         {
             // Convert lambda arguments to interface implementations if needed
@@ -68,6 +85,12 @@ namespace vm::runtime
             frame.localBase = context.stackManager->size(); // Locals start after arguments (which are now popped)
             frame.functionName = functionName;
             frame.thisInstance = nullptr;
+            frame.programIndex = targetProgramIndex;
+
+            // Switch to the target program if it's from a library
+            if (targetProgram != context.program) {
+                context.program = targetProgram;
+            }
 
             context.pushCallFrame(frame);
             context.stats.functionCalls++;
@@ -276,6 +299,24 @@ namespace vm::runtime
         {
             funcMetadata = context.program->getFunction(staticQualifiedName);
         }
+
+        // Search loaded library programs if not found in current program
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
+        const bytecode::BytecodeProgram* targetProgram = context.program;
+        if (!funcMetadata && context.loadedPrograms) {
+            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                funcMetadata = (*context.loadedPrograms)[i]->getFunction(signedQualifiedName);
+                if (!funcMetadata) {
+                    funcMetadata = (*context.loadedPrograms)[i]->getFunction(staticQualifiedName);
+                }
+                if (funcMetadata) {
+                    targetProgramIndex = i;
+                    targetProgram = (*context.loadedPrograms)[i];
+                    break;
+                }
+            }
+        }
+
         if (funcMetadata)
         {
             // Convert lambda arguments to interface implementations if needed
@@ -288,6 +329,27 @@ namespace vm::runtime
             frame.localBase = context.stackManager->size(); // Locals start after arguments (which are now popped)
             frame.functionName = staticQualifiedName; // Use $static suffix for proper async method detection
             frame.thisInstance = nullptr; // No 'this' for static methods
+            frame.programIndex = targetProgramIndex;
+
+            // Switch to library program if function is from a library
+            if (targetProgram != context.program) {
+                context.program = targetProgram;
+            }
+
+            // Debug: log cross-library static calls
+            {
+                std::ofstream dbg("call_debug.log", std::ios::app);
+                dbg << "CALL_STATIC: " << staticQualifiedName
+                    << " progIdx=" << targetProgramIndex
+                    << " argCount=" << argCount
+                    << " localCount=" << funcMetadata->localCount
+                    << " startOffset=" << funcMetadata->startOffset
+                    << " frameBase=" << frameBase
+                    << " localBase=" << frame.localBase
+                    << " stackSize=" << context.stackManager->size()
+                    << "\n";
+                dbg.close();
+            }
 
             context.pushCallFrame(frame);
             context.stats.functionCalls++;

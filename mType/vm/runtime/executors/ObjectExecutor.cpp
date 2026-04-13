@@ -95,10 +95,19 @@ namespace vm::runtime
                 throw errors::FieldNotFoundException(fieldName, valueObj->getClassName());
             }
 
-            auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
-            std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
-            auto accessContext = createAccessContext(targetClassName, false);
-            validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+            // For auto-boxed primitives (Int, Float, Bool, String), skip access check
+            // when accessing internal "value" field — auto-boxing is a VM-internal operation
+            // and shouldn't be restricted by the calling context
+            bool isAutoBoxedPrimitive = (valueObj->getClassName() == "Int" ||
+                                          valueObj->getClassName() == "Float" ||
+                                          valueObj->getClassName() == "Bool" ||
+                                          valueObj->getClassName() == "String");
+            if (!isAutoBoxedPrimitive || fieldName != "value") {
+                auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+                std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+                auto accessContext = createAccessContext(targetClassName, false);
+                validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+            }
 
             value::Value fieldValue = valueObj->getFieldValue(fieldName);
             context.stackManager->push(fieldValue);
@@ -124,6 +133,7 @@ namespace vm::runtime
         std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
 
         auto accessContext = createAccessContext(targetClassName, false);
+
         validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
 
         value::Value fieldValue = instance->getFieldValue(fieldName);
@@ -543,6 +553,10 @@ namespace vm::runtime
         }
 
         auto funcMetadata = context.program->getFunction(qualifiedName);
+        // Initialize from current call frame's program index (not hardcoded 0)
+        // so that if we're already executing in a library, the index is correct
+        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
+        const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // Fallback: generic type erasure may produce a mangled name like
         // "String::equals/object" when the compiled function is "String::equals/String".
@@ -559,6 +573,34 @@ namespace vm::runtime
                     qualifiedName = fname;
                     break;
                 }
+            }
+        }
+
+        // If not found in current program, search loaded library programs
+        if (!funcMetadata && context.loadedPrograms) {
+            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                auto libFunc = (*context.loadedPrograms)[i]->getFunction(qualifiedName);
+                if (libFunc) {
+                    funcMetadata = libFunc;
+                    targetProgramIndex = i;
+                    targetProgram = (*context.loadedPrograms)[i];
+                    break;
+                }
+                // Also try prefix-based fallback in each library program
+                if (!funcMetadata) {
+                    std::string prefix = definingClassName + "::" + simpleMethodName;
+                    for (const auto& [fname, fmeta] : (*context.loadedPrograms)[i]->getFunctions()) {
+                        if (fname.rfind(prefix, 0) == 0 &&
+                            (fname.size() == prefix.size() || fname[prefix.size()] == '/')) {
+                            funcMetadata = &fmeta;
+                            qualifiedName = fname;
+                            targetProgramIndex = i;
+                            targetProgram = (*context.loadedPrograms)[i];
+                            break;
+                        }
+                    }
+                }
+                if (funcMetadata) break;
             }
         }
 
@@ -635,9 +677,15 @@ namespace vm::runtime
         frame.functionName = qualifiedName;
         frame.thisInstance = instance;
         frame.definingClassName = definingClassName;  // Store the class that defines this method
+        frame.programIndex = targetProgramIndex;
 
         context.pushCallFrame(frame);
         context.stats.functionCalls++;
+
+        // Switch to the target program if it's from a library
+        if (targetProgram != context.program) {
+            context.program = targetProgram;
+        }
 
         vm::profiler::ProfilerHookHelper::onFunctionEntry(qualifiedName);
 

@@ -1,0 +1,22 @@
+max(3,7) = 7
+min(3,7) = 3
+abs(-5) = 5
+clamp(15,0,10) = 10
+Vector add: Vector2(4, 6)
+Dot product: 11
+Circle: Circle with area 78.5
+Rectangle: Rectangle with area 24
+Polymorphic: Circle with area 78.5
+Container<Int>: 42
+Container<String>: hello
+Updated container: 99
+10 / 2 = 5
+Caught: Division by zero
+Caught: Cannot compute square root of negative number
+Class name: Vector2
+Field count: 2
+Method count: 4
+Is Circle: true
+Is Shape: true
+Cast radius: 3
+Consumer test passed

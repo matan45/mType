@@ -26,9 +26,10 @@ namespace vm::runtime::utils
             bool jumpedToFinally;       // True if jumped to FINALLY (needs re-throw after), false if jumped to CATCH
         };
 
-        explicit ExceptionHandler(const bytecode::BytecodeProgram* program,
+        explicit ExceptionHandler(const bytecode::BytecodeProgram*& programRef,
                                  std::shared_ptr<StackManager> stackMgr,
-                                 std::vector<CallFrame>& callStack);
+                                 std::vector<CallFrame>& callStack,
+                                 std::vector<const bytecode::BytecodeProgram*>* loadedProgs = nullptr);
         ~ExceptionHandler() = default;
 
         /**
@@ -43,9 +44,13 @@ namespace vm::runtime::utils
                                           size_t currentFinallyOffset);
 
     private:
-        const bytecode::BytecodeProgram* program;
+        const bytecode::BytecodeProgram*& program;  // Reference to executionCtx->program for cross-library support
         std::shared_ptr<StackManager> stackManager;
         std::vector<CallFrame>& callStack;
+        std::vector<const bytecode::BytecodeProgram*>* loadedPrograms;
+
+        // Restore program pointer when unwinding across library boundaries
+        void restoreProgramForCurrentFrame();
 
         // Helper methods
         /**

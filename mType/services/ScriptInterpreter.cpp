@@ -483,4 +483,12 @@ namespace services
         // Load and execute an already-deserialized bytecode program, keep it alive
         cachedBytecodeProgram = bytecodeService->runFromProgram(std::move(program));
     }
+
+    void ScriptInterpreter::loadLibrary(const std::string& mtcLibPath)
+    {
+        if (!libraryLoader) {
+            libraryLoader = std::make_unique<vm::runtime::LibraryLoader>();
+        }
+        libraryLoader->loadLibrary(mtcLibPath, *vm, environment);
+    }
 }

@@ -247,5 +247,35 @@ namespace tests::testSuite
                         "mType/tests/testFiles/import/error/importGenericMismatch.mt",
                         TestType::ERROR_EXPECTED);
         */
+
+        // ====================================
+        // Library Import (import lib) Tests
+        // ====================================
+        addOutputVerificationTest("Import Lib - Wildcard Syntax",
+                        "mType/tests/testFiles/import/pass/library/importLibWildcard.mt");
+        addOutputVerificationTest("Import Lib - Selective Syntax",
+                        "mType/tests/testFiles/import/pass/library/importLibSelective.mt");
+        addOutputVerificationTest("Import Lib - Mixed With Source Imports",
+                        "mType/tests/testFiles/import/pass/library/importLibMixedWithSource.mt");
+
+        addOutputVerificationTest("Import Lib - Alias Syntax",
+                        "mType/tests/testFiles/import/pass/library/importLibAlias.mt");
+        addOutputVerificationTest("Import Source - Alias Syntax",
+                        "mType/tests/testFiles/import/pass/library/importSourceAlias.mt");
+        addOutputVerificationTest("Import Source - Multi Alias",
+                        "mType/tests/testFiles/import/pass/library/importSourceMultiAlias.mt");
+        addOutputVerificationTest("Import Interface - Alias Syntax",
+                        "mType/tests/testFiles/import/pass/library/importInterfaceAlias.mt");
+
+        // Library Import Error Tests
+        addTestFromFile("Import Lib - Empty Name Error",
+                        "mType/tests/testFiles/import/error/library/importLibEmptyName.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Import Lib - Empty Selective List Error",
+                        "mType/tests/testFiles/import/error/library/importLibSelectiveEmpty.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Import Lib - Missing Semicolon Error",
+                        "mType/tests/testFiles/import/error/library/importLibMissingSemicolon.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

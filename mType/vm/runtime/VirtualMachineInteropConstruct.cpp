@@ -95,12 +95,14 @@ namespace vm::runtime
             instructionPointer = ctorMetadata->startOffset;
             if (controlFlowExecutor)
             {
+                // Use executionCtx->program so cross-library calls fetch from the correct bytecode
+                auto& ctorCurrentProgram = executionCtx->program;
                 size_t targetDepth = savedCallStack.size();
                 while (callStack.size() > targetDepth)
                 {
-                    if (instructionPointer >= program->getInstructionCount())
+                    if (instructionPointer >= ctorCurrentProgram->getInstructionCount())
                         break;
-                    const auto& instr = program->getInstruction(instructionPointer);
+                    const auto& instr = ctorCurrentProgram->getInstruction(instructionPointer);
                     executeInstruction(instr);
                     instructionPointer++;
                 }
@@ -240,12 +242,14 @@ namespace vm::runtime
             value::Value result = std::monostate{};
             if (controlFlowExecutor)
             {
+                // Use executionCtx->program so cross-library calls fetch from the correct bytecode
+                auto& lambdaCurrentProgram = executionCtx->program;
                 size_t targetDepth = savedCallStack.size();
                 while (callStack.size() > targetDepth)
                 {
-                    if (instructionPointer >= program->getInstructionCount())
+                    if (instructionPointer >= lambdaCurrentProgram->getInstructionCount())
                         break;
-                    const auto& instr = program->getInstruction(instructionPointer);
+                    const auto& instr = lambdaCurrentProgram->getInstruction(instructionPointer);
                     executeInstruction(instr);
                     instructionPointer++;
                 }

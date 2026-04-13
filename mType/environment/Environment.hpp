@@ -13,6 +13,7 @@
 #include "../circularDependency/CircularDependencyDetector.hpp"
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 // Forward declaration for clean architecture
@@ -47,6 +48,9 @@ namespace environment
 
         // Enhanced circular dependency detection for imports
         std::shared_ptr<circularDependency::CircularDependencyDetector> importDependencyDetector;
+
+        // Loaded library tracking (for deduplication)
+        std::unordered_set<std::string> loadedLibraryNames;
 
     public:
         explicit Environment(
@@ -84,6 +88,10 @@ namespace environment
         // Configuration for import dependency limits
         void setImportDependencyConfig(const circularDependency::CircularDependencyConfig& config);
         circularDependency::CircularDependencyConfig getImportDependencyConfig() const;
+
+        // Library loading tracking
+        bool isLibraryLoaded(const std::string& name) const { return loadedLibraryNames.count(name) > 0; }
+        void markLibraryLoaded(const std::string& name) { loadedLibraryNames.insert(name); }
 
         void registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition);
         void registerFunction(const std::string& name, std::shared_ptr<FunctionDefinition> functionDefinition);

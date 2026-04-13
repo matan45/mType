@@ -99,6 +99,7 @@ namespace vm::runtime
         std::shared_ptr<BytecodeLambda> originatingLambda;  // If this frame is for a lambda, reference to it (for debugging)
         std::string definingClassName;           // Class that defines the method (for access control in inheritance)
         std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for closure capture (if this function creates lambdas)
+        size_t programIndex = 0;                 // Which program in loadedPrograms this frame belongs to
     };
 
     /**
@@ -120,6 +121,9 @@ namespace vm::runtime
     public:
         // Program data
         const bytecode::BytecodeProgram* program;
+
+        // Multi-program support: loaded library programs (index 0 = main)
+        std::vector<const bytecode::BytecodeProgram*>* loadedPrograms = nullptr;
 
         // Execution state
         size_t& instructionPointer;

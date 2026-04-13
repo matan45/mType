@@ -27,6 +27,9 @@ namespace parser::statement
         // Parse wildcard import: import * from "file.mt"
         std::unique_ptr<ASTNode> parseWildcardImport(const SourceLocation& loc);
 
+        // Parse library import: import lib "name" or import lib {A,B} from "name"
+        std::unique_ptr<ASTNode> parseLibraryImport(const SourceLocation& loc);
+
         bool isImportToken(TokenType type) const noexcept;
         void validateImportPath(const std::string& path);
     };

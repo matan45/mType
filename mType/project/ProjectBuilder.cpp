@@ -1,4 +1,9 @@
 #include "ProjectBuilder.hpp"
+#include "mtclib/MtcLibBuilder.hpp"
+#include "mtclib/MtcLibSerializer.hpp"
+#include "mtclib/ContentHash.hpp"
+#include "mtclib/LibraryLinker.hpp"
+#include "mtclib/LibrarySymbolProvider.hpp"
 #include "../services/ScriptInterpreter.hpp"
 #include "../services/ImportManager.hpp"
 #include "../lexer/Lexer.hpp"
@@ -126,6 +131,33 @@ namespace project
 
         try
         {
+            // Incremental build: skip recompilation if source files haven't changed
+            uint64_t currentSourceHash = mtclib::ContentHash::hashFiles(sourceFiles);
+            if (std::filesystem::exists(outputPath))
+            {
+                std::ifstream existingFile(outputPath, std::ios::binary);
+                if (existingFile.good())
+                {
+                    try
+                    {
+                        auto existingLib = mtclib::MtcLibSerializer::deserialize(existingFile);
+                        existingFile.close();
+                        if (existingLib.metadata.sourceHash == currentSourceHash && currentSourceHash != 0)
+                        {
+                            // Source unchanged — skip rebuild
+                            result.filesCompiled = 0;
+                            auto endTime = std::chrono::steady_clock::now();
+                            result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+                            return result;
+                        }
+                    }
+                    catch (...)
+                    {
+                        // Existing file is corrupt or incompatible — rebuild
+                    }
+                }
+            }
+
             reportProgress(1, 1, "Building library...");
 
             auto program = compileToProgram(config, environment);
@@ -137,13 +169,18 @@ namespace project
                 std::filesystem::create_directories(outPath.parent_path());
             }
 
-            // Serialize to library file
+            // Build .mtcLib from compilation results
+            auto exportRegistry = environment->getExportRegistry();
+            auto mtcLib = mtclib::MtcLibBuilder::build(
+                program, config, exportRegistry ? *exportRegistry : environment::registry::ExportRegistry{});
+
+            // Serialize to .mtcLib file
             std::ofstream outFile(outputPath, std::ios::binary);
             if (!outFile)
             {
                 throw std::runtime_error("Could not create output file: " + outputPath);
             }
-            program.serialize(outFile);
+            mtclib::MtcLibSerializer::serialize(mtcLib, outFile);
             outFile.close();
 
             result.filesCompiled = sourceFiles.size();
@@ -229,6 +266,28 @@ namespace project
             outFile.write(magic, 4);
 
             outFile.close();
+
+            // Copy dependency .mtcLib files alongside the exe
+            if (!config.dependencies.packages.empty())
+            {
+                std::filesystem::path libsDir = outPath.parent_path() / "libs";
+                std::filesystem::create_directories(libsDir);
+
+                mtclib::LibraryLinker linker(config.projectRoot);
+                for (const auto& sp : config.imports.searchPaths) {
+                    auto absPath = std::filesystem::path(config.projectRoot) / sp;
+                    linker.addSearchPath(absPath.string());
+                }
+
+                for (const auto& dep : config.dependencies.packages) {
+                    auto resolved = linker.getPathResolver().resolve(dep.name);
+                    if (resolved) {
+                        std::filesystem::path destLib = libsDir / (dep.name + ".mtcLib");
+                        std::filesystem::copy_file(*resolved, destLib,
+                            std::filesystem::copy_options::overwrite_existing);
+                    }
+                }
+            }
 
             result.filesCompiled = sourceFiles.size();
         }
@@ -414,6 +473,24 @@ namespace project
         {
             environment::EnvironmentBuilder envBuilder;
             environment = envBuilder.build();
+        }
+
+        // Resolve library dependencies before compilation
+        if (!config.dependencies.packages.empty())
+        {
+            mtclib::LibraryLinker linker(config.projectRoot);
+
+            // Add import search paths as library search paths too
+            for (const auto& sp : absoluteSearchPaths)
+            {
+                linker.addSearchPath(sp);
+            }
+
+            auto libraries = linker.linkDependencies(config);
+            for (const auto& lib : libraries)
+            {
+                mtclib::LibrarySymbolProvider::registerLibrarySymbols(lib, environment);
+            }
         }
 
         // Parse, resolve imports, optimize, compile

@@ -226,6 +226,9 @@
     <Filter Include="testFiles\import\error\indirectcircular">
       <UniqueIdentifier>{912EFB82-FDBD-BC6D-06BA-9D8572C8F779}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\import\error\library">
+      <UniqueIdentifier>{9FCF2EFE-8BF5-F864-743B-7E3060001E31}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\import\error\mixedcircular">
       <UniqueIdentifier>{56A92AE7-4290-ECDE-EBE0-52FCD7A66545}</UniqueIdentifier>
     </Filter>
@@ -252,6 +255,9 @@
     </Filter>
     <Filter Include="testFiles\import\pass\diamond">
       <UniqueIdentifier>{936DB1DA-FF85-9804-C832-289E340A2D9E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\import\pass\library">
+      <UniqueIdentifier>{0CEF9742-7807-7F6C-41B4-0E06AD8B1306}</UniqueIdentifier>
     </Filter>
     <Filter Include="testFiles\import\pass\models">
       <UniqueIdentifier>{BB86FDDD-A741-ED89-50F9-65D43C93371A}</UniqueIdentifier>
@@ -366,6 +372,30 @@
     </Filter>
     <Filter Include="testFiles\lib\utils">
       <UniqueIdentifier>{9E3A3F24-0A9C-1C32-9309-63E4FF6953F1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library">
+      <UniqueIdentifier>{9C78DDD1-088F-DB67-5106-6789BD5BACEF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\error">
+      <UniqueIdentifier>{F5149BAD-614C-E344-6A56-4768D60C0A3E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\pass">
+      <UniqueIdentifier>{22D07EDE-0ECA-A730-F736-3E41E3CF0D9D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\projects">
+      <UniqueIdentifier>{B5B1ADB6-A1C1-5987-0A7B-BEA5F6A94820}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\projects\consumer">
+      <UniqueIdentifier>{D053E6DC-3C0D-5187-C56C-6B61312507F7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\projects\consumer\src">
+      <UniqueIdentifier>{E779A7CC-5309-69B7-5C05-4ACFC813A4C3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\projects\mathlib">
+      <UniqueIdentifier>{65EA1E8B-5126-22F5-BA38-3AECA693CA0F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\projects\mathlib\src">
+      <UniqueIdentifier>{FC52C37B-E8A4-9A6B-D1C3-D77BBDB4B354}</UniqueIdentifier>
     </Filter>
     <Filter Include="testFiles\modifiers">
       <UniqueIdentifier>{E9CE7042-5530-4E50-DE9D-94024AFE840F}</UniqueIdentifier>
@@ -633,6 +663,9 @@
     <ClInclude Include="tests\suites\LambdaTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\LibraryTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ModifiersTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -741,6 +774,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\LambdaTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\LibraryTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ModifiersTestSuite.cpp">
@@ -6268,6 +6304,18 @@
     <None Include="tests\testFiles\import\error\indirectcircular\IndirectC.mt">
       <Filter>testFiles\import\error\indirectcircular</Filter>
     </None>
+    <None Include="tests\testFiles\import\error\library\importLibEmptyName.mt">
+      <Filter>testFiles\import\error\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\library\importLibMissingLibrary.mt">
+      <Filter>testFiles\import\error\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\library\importLibMissingSemicolon.mt">
+      <Filter>testFiles\import\error\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\error\library\importLibSelectiveEmpty.mt">
+      <Filter>testFiles\import\error\library</Filter>
+    </None>
     <None Include="tests\testFiles\import\error\mixedcircular\MixedA.mt">
       <Filter>testFiles\import\error\mixedcircular</Filter>
     </None>
@@ -6519,6 +6567,48 @@
     </None>
     <None Include="tests\testFiles\import\pass\importWithDotSlash.mt">
       <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importInterfaceAlias.expected">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importInterfaceAlias.mt">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importLibAlias.expected">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importLibAlias.mt">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importLibMixedWithSource.expected">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importLibMixedWithSource.mt">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importLibSelective.expected">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importLibSelective.mt">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importLibWildcard.expected">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importLibWildcard.mt">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importSourceAlias.expected">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importSourceAlias.mt">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importSourceMultiAlias.expected">
+      <Filter>testFiles\import\pass\library</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\library\importSourceMultiAlias.mt">
+      <Filter>testFiles\import\pass\library</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\models\DataProcessor.mt">
       <Filter>testFiles\import\pass\models</Filter>
@@ -8454,6 +8544,147 @@
     </None>
     <None Include="tests\testFiles\lib\utils\SortUtils.mt">
       <Filter>testFiles\lib\utils</Filter>
+    </None>
+    <None Include="tests\testFiles\library\error\classAccessPrivate.mt">
+      <Filter>testFiles\library\error</Filter>
+    </None>
+    <None Include="tests\testFiles\library\error\importLibMissing.mt">
+      <Filter>testFiles\library\error</Filter>
+    </None>
+    <None Include="tests\testFiles\library\error\inheritanceFinalClass.mt">
+      <Filter>testFiles\library\error</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\arrayReturnType.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\arrayReturnType.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\asyncLibraryFunction.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\asyncLibraryFunction.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\castInstanceof.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\castInstanceof.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\classBasicDefinition.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\classBasicDefinition.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\collectionUsage.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\collectionUsage.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\forEachLibrary.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\forEachLibrary.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\genericsLibraryClass.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\genericsLibraryClass.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\importLibSyntax.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\importLibSyntax.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\inheritanceExtendLibrary.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\inheritanceExtendLibrary.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\interfaceImplementation.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\interfaceImplementation.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\lambdaFunctionalInterface.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\lambdaFunctionalInterface.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\modifierAccessControl.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\modifierAccessControl.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\patternMatchLibrary.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\patternMatchLibrary.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\reflectionLibraryType.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\reflectionLibraryType.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\staticMethodCall.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\staticMethodCall.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\streamLibraryOps.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\streamLibraryOps.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\tryCatchLibrary.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\tryCatchLibrary.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\valueClassCopy.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\valueClassCopy.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\consumer\Consumer.expected">
+      <Filter>testFiles\library\projects\consumer</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\consumer\src\Main.mt">
+      <Filter>testFiles\library\projects\consumer\src</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\mathlib\src\Container.mt">
+      <Filter>testFiles\library\projects\mathlib\src</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\mathlib\src\Errors.mt">
+      <Filter>testFiles\library\projects\mathlib\src</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\mathlib\src\Interfaces.mt">
+      <Filter>testFiles\library\projects\mathlib\src</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\mathlib\src\MathUtils.mt">
+      <Filter>testFiles\library\projects\mathlib\src</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\mathlib\src\Shape.mt">
+      <Filter>testFiles\library\projects\mathlib\src</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\mathlib\src\Vector2.mt">
+      <Filter>testFiles\library\projects\mathlib\src</Filter>
     </None>
     <None Include="tests\testFiles\modifiers\error\interfacePrivateField.mt">
       <Filter>testFiles\modifiers\error</Filter>

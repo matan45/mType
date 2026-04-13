@@ -4,13 +4,24 @@
 
 namespace vm::runtime::utils
 {
-    ExceptionHandler::ExceptionHandler(const bytecode::BytecodeProgram* prog,
+    ExceptionHandler::ExceptionHandler(const bytecode::BytecodeProgram*& progRef,
                                        std::shared_ptr<StackManager> stackMgr,
-                                       std::vector<CallFrame>& callStack)
-        : program(prog)
+                                       std::vector<CallFrame>& callStack,
+                                       std::vector<const bytecode::BytecodeProgram*>* loadedProgs)
+        : program(progRef)
           , stackManager(stackMgr)
           , callStack(callStack)
+          , loadedPrograms(loadedProgs)
     {
+    }
+
+    void ExceptionHandler::restoreProgramForCurrentFrame()
+    {
+        if (!loadedPrograms || callStack.empty()) return;
+        const auto& frame = callStack.back();
+        if (frame.programIndex < loadedPrograms->size()) {
+            program = (*loadedPrograms)[frame.programIndex];
+        }
     }
 
     size_t ExceptionHandler::determineSearchLimit(size_t currentIP) const
@@ -143,6 +154,9 @@ namespace vm::runtime::utils
 
             // Clean up the stack
             cleanupStack(frame.frameBase);
+
+            // Restore program pointer when unwinding across library boundaries
+            restoreProgramForCurrentFrame();
         }
     }
 
@@ -282,6 +296,9 @@ namespace vm::runtime::utils
 
             callStack.pop_back();
             cleanupStack(currentFrame.frameBase);
+
+            // Restore program pointer when unwinding across library boundaries
+            restoreProgramForCurrentFrame();
         }
 
         // Check if the call site where the exception occurred is covered by the caller's exception table

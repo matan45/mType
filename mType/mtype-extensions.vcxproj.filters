@@ -19,6 +19,9 @@
     <Filter Include="project">
       <UniqueIdentifier>{7CC43AC3-E8A3-B95E-F1BB-44355D1A20C0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="project\mtclib">
+      <UniqueIdentifier>{4612789D-32E0-6BA3-1B74-DCC907E14708}</UniqueIdentifier>
+    </Filter>
     <Filter Include="reflection">
       <UniqueIdentifier>{30732186-1C2B-63D3-8532-3C2F7109FEC3}</UniqueIdentifier>
     </Filter>
@@ -158,6 +161,30 @@
     </ClInclude>
     <ClInclude Include="project\XmlParser.hpp">
       <Filter>project</Filter>
+    </ClInclude>
+    <ClInclude Include="project\mtclib\ContentHash.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
+    <ClInclude Include="project\mtclib\DependencyResolver.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
+    <ClInclude Include="project\mtclib\LibraryLinker.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
+    <ClInclude Include="project\mtclib\LibrarySymbolProvider.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
+    <ClInclude Include="project\mtclib\MtcLibBuilder.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
+    <ClInclude Include="project\mtclib\MtcLibFormat.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
+    <ClInclude Include="project\mtclib\MtcLibSerializer.hpp">
+      <Filter>project\mtclib</Filter>
+    </ClInclude>
+    <ClInclude Include="project\mtclib\MtcPathResolver.hpp">
+      <Filter>project\mtclib</Filter>
     </ClInclude>
     <ClInclude Include="reflection\ReflectionHandle.hpp">
       <Filter>reflection</Filter>
@@ -310,6 +337,24 @@
     </ClCompile>
     <ClCompile Include="project\XmlParser.cpp">
       <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\mtclib\DependencyResolver.cpp">
+      <Filter>project\mtclib</Filter>
+    </ClCompile>
+    <ClCompile Include="project\mtclib\LibraryLinker.cpp">
+      <Filter>project\mtclib</Filter>
+    </ClCompile>
+    <ClCompile Include="project\mtclib\LibrarySymbolProvider.cpp">
+      <Filter>project\mtclib</Filter>
+    </ClCompile>
+    <ClCompile Include="project\mtclib\MtcLibBuilder.cpp">
+      <Filter>project\mtclib</Filter>
+    </ClCompile>
+    <ClCompile Include="project\mtclib\MtcLibSerializer.cpp">
+      <Filter>project\mtclib</Filter>
+    </ClCompile>
+    <ClCompile Include="project\mtclib\MtcPathResolver.cpp">
+      <Filter>project\mtclib</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionHandle.cpp">
       <Filter>reflection</Filter>
