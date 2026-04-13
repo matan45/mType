@@ -35,6 +35,9 @@ namespace project::mtclib
         // Native function: loadLibrary(path: string): void
         static value::Value __lib_loadLibrary(const std::vector<value::Value>& args);
 
+        // Native function: unloadLibrary(name: string): void
+        static value::Value __lib_unloadLibrary(const std::vector<value::Value>& args);
+
         // Validate library path for security and correctness
         static void validateLibraryPath(const std::string& path);
 

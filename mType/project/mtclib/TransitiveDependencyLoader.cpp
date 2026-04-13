@@ -15,6 +15,72 @@ namespace project::mtclib
         pathResolver.addSearchPath(path);
     }
 
+    void TransitiveDependencyLoader::unloadLibrary(
+        const std::string& libraryName,
+        vm::runtime::VirtualMachine& vm,
+        std::shared_ptr<environment::Environment> env)
+    {
+        // Find the owned program by name
+        MtcLibProgram* targetLib = nullptr;
+        size_t targetIndex = 0;
+        for (size_t i = 0; i < ownedPrograms.size(); ++i) {
+            if (ownedPrograms[i] && ownedPrograms[i]->metadata.name == libraryName) {
+                targetLib = ownedPrograms[i].get();
+                targetIndex = i;
+                break;
+            }
+        }
+
+        if (!targetLib) {
+            throw std::runtime_error(
+                "Cannot unload library '" + libraryName + "': not loaded by this loader");
+        }
+
+        // Check if any other loaded library depends on this one
+        for (const auto& prog : ownedPrograms) {
+            if (!prog || prog->metadata.name == libraryName) continue;
+            if (!env->isLibraryLoaded(prog->metadata.name)) continue;
+
+            for (const auto& dep : prog->dependencies) {
+                if (dep.name == libraryName) {
+                    throw std::runtime_error(
+                        "Cannot unload library '" + libraryName +
+                        "': library '" + prog->metadata.name + "' depends on it");
+                }
+            }
+        }
+
+        // Remove exported symbols from registries
+        auto classRegistry = env->getClassRegistry();
+        auto functionRegistry = env->getFunctionRegistry();
+        auto interfaceRegistry = env->getInterfaceRegistry();
+
+        for (const auto& exp : targetLib->exports) {
+            switch (exp.kind) {
+                case SymbolKind::CLASS:
+                    classRegistry->removeItem(exp.name);
+                    break;
+                case SymbolKind::INTERFACE:
+                    interfaceRegistry->removeInterface(exp.name);
+                    break;
+                case SymbolKind::FUNCTION:
+                    functionRegistry->removeFunction(exp.name);
+                    break;
+                case SymbolKind::VARIABLE:
+                    break;
+            }
+        }
+
+        // Remove bytecode program from VM
+        vm.removeLoadedProgram(&targetLib->bytecodeProgram);
+
+        // Unmark from environment
+        env->unmarkLibraryLoaded(libraryName);
+
+        // Release ownership (destroys the MtcLibProgram)
+        ownedPrograms.erase(ownedPrograms.begin() + static_cast<std::ptrdiff_t>(targetIndex));
+    }
+
     void TransitiveDependencyLoader::loadLibraryWithDependencies(
         const std::string& path,
         vm::runtime::VirtualMachine& vm,

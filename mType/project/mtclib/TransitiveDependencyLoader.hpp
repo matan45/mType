@@ -36,6 +36,14 @@ namespace project::mtclib
             vm::runtime::VirtualMachine& vm,
             std::shared_ptr<environment::Environment> env);
 
+        // Unload a previously loaded library by name.
+        // Removes symbols from registries, removes bytecode from VM, frees ownership.
+        // Throws if other loaded libraries depend on this one.
+        void unloadLibrary(
+            const std::string& libraryName,
+            vm::runtime::VirtualMachine& vm,
+            std::shared_ptr<environment::Environment> env);
+
         // Add additional search path for transitive dependency resolution
         void addSearchPath(const std::string& path);
 

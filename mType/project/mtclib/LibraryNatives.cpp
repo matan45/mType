@@ -27,6 +27,7 @@ namespace project::mtclib
         auto nativeRegistry = env->getNativeRegistry();
 
         nativeRegistry->registerNativeFunction("loadLibrary", __lib_loadLibrary);
+        nativeRegistry->registerNativeFunction("unloadLibrary", __lib_unloadLibrary);
     }
 
     void LibraryNatives::cleanup()
@@ -57,6 +58,39 @@ namespace project::mtclib
         catch (const std::exception& e) {
             throw errors::RuntimeException(
                 "loadLibrary failed: " + std::string(e.what()));
+        }
+
+        return std::monostate{};
+    }
+
+    value::Value LibraryNatives::__lib_unloadLibrary(const std::vector<value::Value>& args)
+    {
+        if (args.size() != 1) {
+            throw errors::RuntimeException(
+                "unloadLibrary expects 1 argument, got " + std::to_string(args.size()));
+        }
+
+        std::string name = extractString(args[0], "unloadLibrary", "name");
+
+        if (name.empty()) {
+            throw errors::RuntimeException("unloadLibrary: library name cannot be empty");
+        }
+
+        if (!currentVM || !currentLoader || !currentEnvironment) {
+            throw errors::RuntimeException("unloadLibrary: runtime not initialized");
+        }
+
+        if (!currentEnvironment->isLibraryLoaded(name)) {
+            throw errors::RuntimeException(
+                "unloadLibrary: library '" + name + "' is not loaded");
+        }
+
+        try {
+            currentLoader->unloadLibrary(name, *currentVM, currentEnvironment);
+        }
+        catch (const std::exception& e) {
+            throw errors::RuntimeException(
+                "unloadLibrary failed: " + std::string(e.what()));
         }
 
         return std::monostate{};

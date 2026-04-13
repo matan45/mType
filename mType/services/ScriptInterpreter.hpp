@@ -81,6 +81,7 @@ namespace services
         void runFromProgram(vm::bytecode::BytecodeProgram program);   // Load and execute in-memory program
         void loadLibrary(const std::string& mtcLibPath);             // Load a .mtcLib library
         void loadLibraryWithDependencies(const std::string& mtcLibPath);  // Load with transitive deps
+        void unloadLibrary(const std::string& libraryName);              // Unload a loaded library
         void loadLibrariesWithDependencies(const std::vector<std::string>& paths);  // Batch load with transitive deps
         void addLibrarySearchPath(const std::string& path);              // Add search path for dep resolution
         std::shared_ptr<project::mtclib::TransitiveDependencyLoader> getTransitiveDependencyLoader();

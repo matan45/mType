@@ -501,6 +501,14 @@ namespace services
         libraryLoader->loadLibrary(mtcLibPath, *vm, environment);
     }
 
+    void ScriptInterpreter::unloadLibrary(const std::string& libraryName)
+    {
+        if (!transitiveDependencyLoader) {
+            throw std::runtime_error("Cannot unload library: no libraries have been loaded");
+        }
+        transitiveDependencyLoader->unloadLibrary(libraryName, *vm, environment);
+    }
+
     void ScriptInterpreter::loadLibraryWithDependencies(const std::string& mtcLibPath)
     {
         if (!transitiveDependencyLoader) {
