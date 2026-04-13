@@ -64,7 +64,7 @@ namespace project::mtclib
                     interfaceRegistry->removeInterface(exp.name);
                     break;
                 case SymbolKind::FUNCTION:
-                    functionRegistry->removeFunction(exp.name);
+                    (void)functionRegistry->removeFunction(exp.name);
                     break;
                 case SymbolKind::VARIABLE:
                     break;
@@ -81,7 +81,7 @@ namespace project::mtclib
         vmProgramPointers.erase(ptrIt);
 
         // Unmark from environment
-        env->unmarkLibraryLoaded(libraryName);
+        (void)env->unmarkLibraryLoaded(libraryName);
 
         // Release ownership (destroys the MtcLibProgram)
         ownedPrograms.erase(ownedPrograms.begin() + static_cast<std::ptrdiff_t>(targetIndex));

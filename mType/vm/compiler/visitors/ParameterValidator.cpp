@@ -134,6 +134,11 @@ namespace vm::compiler::visitors
         // Resolve generic type parameters if present
         std::string resolvedExpectedType = ctx.resolveGenericType(expectedType);
 
+        // Strip nullable suffix for type compatibility checks
+        // Non-nullable values are always assignable to nullable parameters
+        if (!resolvedExpectedType.empty() && resolvedExpectedType.back() == '?')
+            resolvedExpectedType.pop_back();
+
         // Infer argument type early for validation checks
         value::ValueType argType = ctx.typeInference.inferExpressionType(argument);
         std::string argTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(argType);

@@ -465,6 +465,11 @@ namespace vm::compiler::visitors
                     std::string normalizedArgClassName = normalizeArrayType(argClassName);
                     std::string normalizedExpectedType = normalizeArrayType(expectedType);
 
+                    // Strip nullable suffix for type compatibility checks
+                    // Non-nullable values are always assignable to nullable parameters
+                    if (!normalizedExpectedType.empty() && normalizedExpectedType.back() == '?')
+                        normalizedExpectedType.pop_back();
+
                     if (!argClassName.empty() && normalizedArgClassName != normalizedExpectedType)
                     {
                         // Check if both are generic types with the same base
@@ -488,7 +493,11 @@ namespace vm::compiler::visitors
                         if (!isGenericMatch)
                         {
                             // Check if argClassName is assignable to expectedType (inheritance/polymorphism)
-                            if (!ctx.typeValidator.isClassCompatible(argClassName, expectedType))
+                            // Strip nullable suffix - non-null is always compatible with nullable
+                            std::string resolvedExpected = expectedType;
+                            if (!resolvedExpected.empty() && resolvedExpected.back() == '?')
+                                resolvedExpected.pop_back();
+                            if (!ctx.typeValidator.isClassCompatible(argClassName, resolvedExpected))
                             {
                                 // null can be passed to any object type
                                 if (!dynamic_cast<ast::NullNode*>(arguments[i].get()))
