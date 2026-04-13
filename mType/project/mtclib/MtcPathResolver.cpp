@@ -68,9 +68,16 @@ namespace project::mtclib
             // Try: {searchDir}/{name}.mtcLib
             auto path = std::filesystem::path(searchDir) / (libraryName + ".mtcLib");
             if (std::filesystem::exists(path)) {
-                std::string resolved = std::filesystem::canonical(path).string();
-                cache[libraryName] = resolved;
-                return resolved;
+                auto resolved = std::filesystem::canonical(path);
+                auto base = std::filesystem::canonical(searchDir);
+                // Containment check: ensure resolved path is inside the search directory
+                auto resolvedStr = resolved.string();
+                auto baseStr = base.string();
+                if (resolvedStr.rfind(baseStr, 0) != 0) {
+                    continue;  // Path escapes search directory — skip
+                }
+                cache[libraryName] = resolvedStr;
+                return resolvedStr;
             }
         }
 

@@ -139,10 +139,16 @@ static void loadSidecarLibraries(
         return;  // No libs directory — nothing to load
     }
 
+    // Collect and sort library paths for deterministic load order across platforms
+    std::vector<fs::path> libs;
     for (const auto& entry : fs::directory_iterator(libsDir)) {
         if (entry.is_regular_file() && entry.path().extension() == ".mtcLib") {
-            interpreter.loadLibrary(entry.path().string());
+            libs.push_back(entry.path());
         }
+    }
+    std::sort(libs.begin(), libs.end());
+    for (const auto& p : libs) {
+        interpreter.loadLibrary(p.string());
     }
 }
 

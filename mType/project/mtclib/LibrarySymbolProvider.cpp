@@ -88,9 +88,14 @@ namespace project::mtclib
         for (const auto& classMeta : program.getClasses()) {
             // Skip if not in filter (when filter is active)
             if (!filter.empty() && filter.find(classMeta.name) == filter.end()) continue;
-            // Detect name collision with already-registered class from another library
+            // Detect name collision with already-registered class from another library.
+            // Design choice: selective imports (user explicitly named the symbol) throw on
+            // conflict so the user gets a clear error. Wildcard imports silently skip
+            // duplicates ("first-loaded wins") because transitive stdlib classes like
+            // Object/Exception commonly appear in multiple libraries — erroring on those
+            // would break every multi-library project. A future improvement could emit a
+            // diagnostic warning for non-stdlib wildcard collisions.
             if (classRegistry->findClass(classMeta.name)) {
-                // If filter is active, user explicitly asked for this symbol — report conflict
                 if (!filter.empty()) {
                     throw std::runtime_error(
                         "Symbol conflict: class '" + classMeta.name +

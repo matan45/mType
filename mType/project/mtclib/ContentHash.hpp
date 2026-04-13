@@ -26,11 +26,12 @@ namespace project::mtclib
             return hash;
         }
 
-        // Hash the contents of a single file (returns 0 if file cannot be read)
+        // Hash the contents of a single file.
+        // Returns 0 if file cannot be read (caller should treat 0 as "hash unavailable").
         static uint64_t hashFile(const std::string& path)
         {
             std::ifstream file(path, std::ios::binary);
-            if (!file) return 0;
+            if (!file) return 0;  // File not found or unreadable — sentinel value
 
             std::string content(
                 (std::istreambuf_iterator<char>(file)),

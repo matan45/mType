@@ -131,6 +131,7 @@ namespace project::mtclib
         metadata.version = BytecodeIOHelper::readString(in);
         metadata.mtypeVersion = BytecodeIOHelper::readString(in);
         in.read(reinterpret_cast<char*>(&metadata.sourceHash), sizeof(metadata.sourceHash));
+        if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream in metadata");
         return metadata;
     }
 
@@ -138,6 +139,7 @@ namespace project::mtclib
     {
         uint32_t count;
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream in dependencies");
 
         if (count > constants::security::MAX_MTCLIB_DEPENDENCIES) {
             throw std::runtime_error("Library dependency count (" + std::to_string(count) +
@@ -149,6 +151,7 @@ namespace project::mtclib
             dep.name = BytecodeIOHelper::readString(in);
             dep.versionConstraint = BytecodeIOHelper::readString(in);
             in.read(reinterpret_cast<char*>(&dep.contentHash), sizeof(dep.contentHash));
+            if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream in dependency entry");
         }
         return deps;
     }
@@ -157,6 +160,7 @@ namespace project::mtclib
     {
         uint32_t count;
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream in exports");
 
         if (count > constants::security::MAX_MTCLIB_EXPORTS) {
             throw std::runtime_error("Library export count (" + std::to_string(count) +
@@ -167,12 +171,20 @@ namespace project::mtclib
         for (auto& exp : exports) {
             uint8_t kind;
             in.read(reinterpret_cast<char*>(&kind), sizeof(kind));
+            if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream in export entry");
+            if (kind > static_cast<uint8_t>(SymbolKind::VARIABLE)) {
+                throw std::runtime_error("Invalid SymbolKind in library: " + std::to_string(kind));
+            }
             exp.kind = static_cast<SymbolKind>(kind);
             exp.name = BytecodeIOHelper::readString(in);
             exp.signature = BytecodeIOHelper::readString(in);
             in.read(reinterpret_cast<char*>(&exp.bytecodeOffset), sizeof(exp.bytecodeOffset));
             uint8_t vis;
             in.read(reinterpret_cast<char*>(&vis), sizeof(vis));
+            if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream in export entry");
+            if (vis > static_cast<uint8_t>(SymbolVisibility::PROTECTED)) {
+                throw std::runtime_error("Invalid SymbolVisibility in library: " + std::to_string(vis));
+            }
             exp.visibility = static_cast<SymbolVisibility>(vis);
         }
         return exports;
@@ -182,6 +194,7 @@ namespace project::mtclib
     {
         uint32_t count;
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream in imports");
 
         if (count > constants::security::MAX_MTCLIB_IMPORTS) {
             throw std::runtime_error("Library import count (" + std::to_string(count) +
@@ -192,6 +205,10 @@ namespace project::mtclib
         for (auto& imp : imports) {
             uint8_t kind;
             in.read(reinterpret_cast<char*>(&kind), sizeof(kind));
+            if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream in import entry");
+            if (kind > static_cast<uint8_t>(SymbolKind::VARIABLE)) {
+                throw std::runtime_error("Invalid SymbolKind in library import: " + std::to_string(kind));
+            }
             imp.kind = static_cast<SymbolKind>(kind);
             imp.name = BytecodeIOHelper::readString(in);
             imp.signature = BytecodeIOHelper::readString(in);
@@ -204,10 +221,17 @@ namespace project::mtclib
     {
         uint64_t payloadSize;
         in.read(reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize));
+        if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream in bytecode payload header");
+
+        if (payloadSize > constants::security::MAX_MTCLIB_PAYLOAD_SIZE) {
+            throw std::runtime_error("Bytecode payload size (" + std::to_string(payloadSize) +
+                ") exceeds security limit (" + std::to_string(constants::security::MAX_MTCLIB_PAYLOAD_SIZE) + ")");
+        }
 
         // Read the raw payload bytes
-        std::string payload(payloadSize, '\0');
+        std::string payload(static_cast<size_t>(payloadSize), '\0');
         in.read(&payload[0], static_cast<std::streamsize>(payloadSize));
+        if (!in) throw std::runtime_error("Unexpected end of .mtcLib stream: bytecode payload truncated");
 
         // Deserialize BytecodeProgram from the payload
         std::istringstream payloadStream(payload);
