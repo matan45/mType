@@ -75,10 +75,23 @@ namespace vm::compiler::registration
         // and in bytecode. SOURCE-retention annotations are dropped before
         // class registration so they are invisible to reflection and are not
         // serialized into the .mtc file.
+        //
+        // `@Retention(SOURCE)` may land in the AnnotationNode under any of
+        // three keys depending on parser disambiguation:
+        //   * "policy" — explicit named arg `@Retention(policy = SOURCE)`
+        //   * "__positional__" — positional shorthand (only when followed by
+        //     something that defeats the legacy-list heuristic)
+        //   * "exceptions" — legacy bare-identifier list form, which the
+        //     parser still selects for a single IDENT before RPAREN.
+        // We probe all three and accept either CLASS_REF or single-element
+        // CLASS_ARRAY carrying "SOURCE".
         bool shouldRetainAnnotation(
             const ast::nodes::annotations::AnnotationNode& annotation,
             const std::shared_ptr<environment::Environment>& environment)
         {
+            using ast::nodes::annotations::AnnotationValueType;
+            using ast::nodes::annotations::TypedAnnotationValue;
+
             if (!environment) return true;
             auto registry = environment->getAnnotationRegistry();
             if (!registry) return true;
@@ -86,14 +99,27 @@ namespace vm::compiler::registration
             if (!def) return true; // unknown annotation — leave the validator to report it
             auto retention = def->getMetaAnnotation("Retention");
             if (!retention) return true; // default retention is RUNTIME
-            const ast::nodes::annotations::TypedAnnotationValue* policy =
-                retention->getTypedParameter("policy");
-            if (!policy) policy = retention->getTypedParameter("__positional__");
-            if (!policy) return true;
-            if (policy->getType() == ast::nodes::annotations::AnnotationValueType::CLASS_REF)
+
+            auto isSourceClass = [](const TypedAnnotationValue& v) -> bool {
+                if (v.getType() == AnnotationValueType::CLASS_REF)
+                    return v.asClassRef() == "SOURCE";
+                if (v.getType() == AnnotationValueType::CLASS_ARRAY)
+                {
+                    const auto& arr = v.asClassArray();
+                    return arr.size() == 1 && arr[0] == "SOURCE";
+                }
+                return false;
+            };
+
+            for (const char* key : {"policy", "__positional__", "exceptions"})
             {
-                return policy->asClassRef() != "SOURCE";
+                if (const auto* v = retention->getTypedParameter(key))
+                {
+                    if (isSourceClass(*v)) return false;
+                    return true;
+                }
             }
+            // No payload on @Retention — treat as RUNTIME (default).
             return true;
         }
     }
