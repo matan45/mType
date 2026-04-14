@@ -78,15 +78,10 @@ namespace reflection
     {
         const auto* v = fetchTypedParam(args, "__reflect_getAnnotationClass");
         requireType(v, AnnotationValueType::CLASS_REF, "__reflect_getAnnotationClass", "Class");
-        // Resolve the textual class name to a class handle. Returns null if the
-        // class isn't registered so callers can distinguish missing-class from
-        // wrong-type errors.
-        if (!currentEnvironment) throw errors::RuntimeException("ReflectionNatives: environment not initialized");
-        auto reg = currentEnvironment->getClassRegistry();
-        if (!reg) return std::monostate{};
-        auto def = reg->findClass(v->asClassRef());
-        if (!def) return std::monostate{};
-        return ReflectionHandleRegistry::instance().getOrCreateClassHandle(def);
+        // Return the textual class name; mType-side callers pipe this through
+        // Class::forName() to obtain a Class instance. Keeps reflection.mt
+        // using only public Class APIs (ctor is private).
+        return v->asClassRef();
     }
 
     Value ReflectionNatives::__reflect_getAnnotationClassArray(const std::vector<Value>& args)
@@ -122,6 +117,41 @@ namespace reflection
         const auto* v = fetchTypedParam(args, "__reflect_isAnnotationParamNull");
         if (!v) return true;
         return v->isNull();
+    }
+
+    Value ReflectionNatives::__reflect_getMethodAnnotation(const std::vector<Value>& args)
+    {
+        if (args.size() != 2) throw errors::RuntimeException("__reflect_getMethodAnnotation requires 2 arguments");
+        if (!std::holds_alternative<int64_t>(args[0]))
+            throw errors::RuntimeException("__reflect_getMethodAnnotation requires methodHandle:int");
+        int64_t methodHandle = std::get<int64_t>(args[0]);
+        std::string name;
+        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
+        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        else throw errors::RuntimeException("__reflect_getMethodAnnotation requires annotationName:string");
+
+        auto& reg = ReflectionHandleRegistry::instance();
+        auto info = reg.getMethod(methodHandle);
+        if (!info.method) throw errors::RuntimeException("Invalid method handle");
+        auto annotation = info.method->getAnnotation(name);
+        if (!annotation) return std::monostate{};
+        return reg.registerAnnotation(annotation, name);
+    }
+
+    Value ReflectionNatives::__reflect_hasMethodAnnotation(const std::vector<Value>& args)
+    {
+        if (args.size() != 2) throw errors::RuntimeException("__reflect_hasMethodAnnotation requires 2 arguments");
+        if (!std::holds_alternative<int64_t>(args[0]))
+            throw errors::RuntimeException("__reflect_hasMethodAnnotation requires methodHandle:int");
+        int64_t methodHandle = std::get<int64_t>(args[0]);
+        std::string name;
+        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
+        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        else throw errors::RuntimeException("__reflect_hasMethodAnnotation requires annotationName:string");
+
+        auto info = ReflectionHandleRegistry::instance().getMethod(methodHandle);
+        if (!info.method) throw errors::RuntimeException("Invalid method handle");
+        return info.method->hasAnnotation(name);
     }
 
     Value ReflectionNatives::__reflect_getFieldAnnotation(const std::vector<Value>& args)

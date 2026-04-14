@@ -3,6 +3,7 @@
 #include "../../AccessModifier.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../value/ParameterType.hpp"
+#include "../annotations/AnnotationNode.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -20,6 +21,7 @@ namespace ast::nodes::classes
         std::shared_ptr<ASTNode> body;
         std::unique_ptr<SuperConstructorCallNode> superInitializer;
         AccessModifier accessModifier;
+        std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;
 
     public:
         // Constructor with ParameterType (preserves class/interface information)
@@ -54,6 +56,16 @@ namespace ast::nodes::classes
         void setAccessModifier(AccessModifier modifier);
 
         size_t getParameterCount() const;
+
+        // MYT-108: per-constructor annotations
+        void addAnnotation(std::shared_ptr<annotations::AnnotationNode> annotation)
+        {
+            annotations.push_back(std::move(annotation));
+        }
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getAnnotations() const
+        {
+            return annotations;
+        }
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

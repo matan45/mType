@@ -11,6 +11,8 @@
 #include "../services/ImportManager.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
 #include "../ast/nodes/classes/MethodNode.hpp"
+#include "../ast/nodes/classes/ConstructorNode.hpp"
+#include "../ast/nodes/classes/FieldNode.hpp"
 #include "../errors/ParseException.hpp"
 #include "../errors/DuplicateDeclarationException.hpp"
 #include <unordered_set>
@@ -168,6 +170,14 @@ namespace parser
                 auto constructor = constructorParser->parseConstructor();
                 if (constructor)
                 {
+                    // MYT-108: attach pending annotations to the constructor.
+                    if (auto* ctorNode = dynamic_cast<ast::nodes::classes::ConstructorNode*>(constructor.get()))
+                    {
+                        for (auto& annotation : annotations)
+                        {
+                            ctorNode->addAnnotation(annotation);
+                        }
+                    }
                     classNodePtr->addConstructor(std::move(constructor));
                 }
             }
@@ -203,6 +213,14 @@ namespace parser
                 auto field = fieldParser->parseField();
                 if (field)
                 {
+                    // MYT-108: attach pending annotations to the field.
+                    if (auto* fieldNode = dynamic_cast<ast::nodes::classes::FieldNode*>(field.get()))
+                    {
+                        for (auto& annotation : annotations)
+                        {
+                            fieldNode->addAnnotation(annotation);
+                        }
+                    }
                     classNodePtr->addField(std::move(field));
                 }
             }

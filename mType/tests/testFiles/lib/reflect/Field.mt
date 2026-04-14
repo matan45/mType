@@ -3,6 +3,7 @@
 
 import * from "AccessibleObject.mt";
 import * from "Modifier.mt";
+import * from "Annotation.mt";
 
 class Field extends AccessibleObject {
     private int _nativeHandle;
@@ -98,7 +99,7 @@ class Field extends AccessibleObject {
         return __reflect_hasFieldAnnotation(this._nativeHandle, name);
     }
 
-    public function getAnnotation(string name): Annotation {
+    public function getAnnotation(string name): Annotation? {
         int handle = __reflect_getFieldAnnotation(this._nativeHandle, name);
         if (handle == 0) {
             return null;

@@ -20,6 +20,15 @@ namespace tests::testSuite
         addOutputVerificationTest("Annotation Declaration - Partial Defaults",
                                   passPath + "annotation_defaults_partial_pass.mt");
 
+        addOutputVerificationTest("Annotation On Field (instance + static)",
+                                  passPath + "annotation_on_field_pass.mt");
+
+        addOutputVerificationTest("Annotation On Constructor",
+                                  passPath + "annotation_on_constructor_pass.mt");
+
+        addOutputVerificationTest("Annotation On Top-Level Function",
+                                  passPath + "annotation_on_top_function_pass.mt");
+
         // ===== USER-DEFINED ANNOTATIONS (MYT-108) - ERROR TESTS =====
 
         addTestFromFile("Annotation Usage - Unknown Annotation",
@@ -41,6 +50,11 @@ namespace tests::testSuite
                         errorPath + "unknown_param_name_error.mt",
                         TestType::ERROR_EXPECTED,
                         "Unknown parameter");
+
+        addTestFromFile("Annotation Usage - Unknown Annotation On Function",
+                        errorPath + "unknown_annotation_on_function_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Unknown annotation");
 
         // ===== @Override ANNOTATION - PASS TESTS =====
         // Tests for valid @Override usage with parent classes and interfaces

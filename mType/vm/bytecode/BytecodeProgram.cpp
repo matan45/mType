@@ -1007,6 +1007,58 @@ namespace vm::bytecode
 
     // Helper functions now provided by BytecodeIOHelper utility class
 
+    void BytecodeProgram::writeAnnotationList(std::ostream& out, const std::vector<AnnotationData>& list) {
+        size_t count = list.size();
+        out.write(reinterpret_cast<const char*>(&count), sizeof(count));
+        for (const auto& annot : list) {
+            BytecodeIOHelper::writeString(out, annot.name);
+            int line   = annot.location.getLine();
+            int column = annot.location.getColumn();
+            out.write(reinterpret_cast<const char*>(&line),   sizeof(line));
+            out.write(reinterpret_cast<const char*>(&column), sizeof(column));
+            BytecodeIOHelper::writeString(out, annot.location.getFilename());
+            size_t argCount = annot.typedArguments.size();
+            out.write(reinterpret_cast<const char*>(&argCount), sizeof(argCount));
+            for (const auto& arg : annot.typedArguments) {
+                BytecodeIOHelper::writeString(out, arg.key);
+                BytecodeIOHelper::writePrimitive(out, arg.valueType);
+                BytecodeIOHelper::writePrimitive(out, arg.intVal);
+                BytecodeIOHelper::writePrimitive(out, arg.floatVal);
+                BytecodeIOHelper::writePrimitive(out, arg.boolVal);
+                BytecodeIOHelper::writeString(out, arg.stringVal);
+                BytecodeIOHelper::writeStringVector(out, arg.arrayVal);
+            }
+        }
+    }
+
+    void BytecodeProgram::readAnnotationList(std::istream& in, std::vector<AnnotationData>& list) {
+        size_t count;
+        in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        list.resize(count);
+        for (auto& annot : list) {
+            annot.name = BytecodeIOHelper::readString(in);
+            int line, column;
+            in.read(reinterpret_cast<char*>(&line),   sizeof(line));
+            in.read(reinterpret_cast<char*>(&column), sizeof(column));
+            std::string filename = BytecodeIOHelper::readString(in);
+            annot.location.setLine(line);
+            annot.location.setColumn(column);
+            annot.location.setFilename(filename);
+            size_t argCount;
+            in.read(reinterpret_cast<char*>(&argCount), sizeof(argCount));
+            annot.typedArguments.resize(argCount);
+            for (auto& arg : annot.typedArguments) {
+                arg.key       = BytecodeIOHelper::readString(in);
+                arg.valueType = BytecodeIOHelper::readPrimitive<uint8_t>(in);
+                arg.intVal    = BytecodeIOHelper::readPrimitive<int64_t>(in);
+                arg.floatVal  = BytecodeIOHelper::readPrimitive<double>(in);
+                arg.boolVal   = BytecodeIOHelper::readPrimitive<bool>(in);
+                arg.stringVal = BytecodeIOHelper::readString(in);
+                arg.arrayVal  = BytecodeIOHelper::readStringVector(in);
+            }
+        }
+    }
+
     void BytecodeProgram::writeFieldMetadata(std::ostream& out, const FieldMetadata& field) const {
         BytecodeIOHelper::writeString(out, field.name);
         BytecodeIOHelper::writeString(out, field.type);
@@ -1014,6 +1066,7 @@ namespace vm::bytecode
         BytecodeIOHelper::writePrimitive(out, field.isFinal);
         BytecodeIOHelper::writePrimitive(out, field.isPrivate);
         BytecodeIOHelper::writePrimitive(out, field.isProtected);
+        writeAnnotationList(out, field.annotations);
     }
 
     void BytecodeProgram::writeMethodMetadata(std::ostream& out, const MethodMetadata& method) const {
@@ -1027,12 +1080,14 @@ namespace vm::bytecode
         BytecodeIOHelper::writePrimitive(out, method.isProtected);
         BytecodeIOHelper::writePrimitive(out, method.isAbstract);
         BytecodeIOHelper::writePrimitive(out, method.startOffset);
+        writeAnnotationList(out, method.annotations);
     }
 
     void BytecodeProgram::writeConstructorMetadata(std::ostream& out, const ConstructorMetadata& ctor) const {
         BytecodeIOHelper::writeStringVector(out, ctor.parameterTypes);
         BytecodeIOHelper::writeStringVector(out, ctor.parameterNames);
         BytecodeIOHelper::writePrimitive(out, ctor.startOffset);
+        writeAnnotationList(out, ctor.annotations);
     }
 
     void BytecodeProgram::writeClassMetadata(std::ostream& out, const ClassMetadata& classMeta) const {
@@ -1051,27 +1106,8 @@ namespace vm::bytecode
         BytecodeIOHelper::writePrimitive(out, classMeta.isFinal);
         BytecodeIOHelper::writePrimitive(out, classMeta.isValueClass);
 
-        // Write annotations
-        size_t annotCount = classMeta.annotations.size();
-        out.write(reinterpret_cast<const char*>(&annotCount), sizeof(annotCount));
-        for (const auto& annot : classMeta.annotations) {
-            BytecodeIOHelper::writeString(out, annot.name);
-
-            // Write source location using public getters
-            int line = annot.location.getLine();
-            int column = annot.location.getColumn();
-            out.write(reinterpret_cast<const char*>(&line), sizeof(line));
-            out.write(reinterpret_cast<const char*>(&column), sizeof(column));
-            BytecodeIOHelper::writeString(out, annot.location.getFilename());
-
-            // Write arguments
-            size_t argCount = annot.arguments.size();
-            out.write(reinterpret_cast<const char*>(&argCount), sizeof(argCount));
-            for (const auto& [key, value] : annot.arguments) {
-                BytecodeIOHelper::writeString(out, key);
-                BytecodeIOHelper::writeString(out, value);
-            }
-        }
+        // Write annotations (MYT-108 typed-args format, via shared helper)
+        writeAnnotationList(out, classMeta.annotations);
 
         // Write instance fields
         size_t fieldCount = classMeta.instanceFields.size();
@@ -1182,6 +1218,7 @@ namespace vm::bytecode
         field.isFinal = BytecodeIOHelper::readPrimitive<bool>(in);
         field.isPrivate = BytecodeIOHelper::readPrimitive<bool>(in);
         field.isProtected = BytecodeIOHelper::readPrimitive<bool>(in);
+        readAnnotationList(in, field.annotations);
     }
 
     void BytecodeProgram::readMethodMetadata(std::istream& in, MethodMetadata& method) {
@@ -1195,12 +1232,14 @@ namespace vm::bytecode
         method.isProtected = BytecodeIOHelper::readPrimitive<bool>(in);
         method.isAbstract = BytecodeIOHelper::readPrimitive<bool>(in);
         method.startOffset = BytecodeIOHelper::readPrimitive<size_t>(in);
+        readAnnotationList(in, method.annotations);
     }
 
     void BytecodeProgram::readConstructorMetadata(std::istream& in, ConstructorMetadata& ctor) {
         ctor.parameterTypes = BytecodeIOHelper::readStringVector(in);
         ctor.parameterNames = BytecodeIOHelper::readStringVector(in);
         ctor.startOffset = BytecodeIOHelper::readPrimitive<size_t>(in);
+        readAnnotationList(in, ctor.annotations);
     }
 
     void BytecodeProgram::readClassMetadata(std::istream& in, ClassMetadata& classMeta) {
@@ -1219,32 +1258,8 @@ namespace vm::bytecode
         classMeta.isFinal = BytecodeIOHelper::readPrimitive<bool>(in);
         classMeta.isValueClass = BytecodeIOHelper::readPrimitive<bool>(in);
 
-        // Read annotations
-        size_t annotCount;
-        in.read(reinterpret_cast<char*>(&annotCount), sizeof(annotCount));
-        classMeta.annotations.resize(annotCount);
-        for (auto& annot : classMeta.annotations) {
-            annot.name = BytecodeIOHelper::readString(in);
-
-            // Read source location using public setters
-            int line, column;
-            in.read(reinterpret_cast<char*>(&line), sizeof(line));
-            in.read(reinterpret_cast<char*>(&column), sizeof(column));
-            std::string filename = BytecodeIOHelper::readString(in);
-            annot.location.setLine(line);
-            annot.location.setColumn(column);
-            annot.location.setFilename(filename);
-
-            // Read arguments
-            size_t argCount;
-            in.read(reinterpret_cast<char*>(&argCount), sizeof(argCount));
-            annot.arguments.resize(argCount);
-            for (size_t i = 0; i < argCount; ++i) {
-                std::string key = BytecodeIOHelper::readString(in);
-                std::string value = BytecodeIOHelper::readString(in);
-                annot.arguments[i] = {key, value};
-            }
-        }
+        // Read annotations (MYT-108 typed-args format, via shared helper)
+        readAnnotationList(in, classMeta.annotations);
 
         // Read instance fields
         size_t fieldCount;

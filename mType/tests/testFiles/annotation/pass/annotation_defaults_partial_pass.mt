@@ -1,8 +1,8 @@
 // MYT-108 §7a case 10: mix of defaulted + required parameters; caller
 // overrides a subset and the validator fills in the remaining defaults.
-import * from "lib/reflect/Class.mt";
-import * from "lib/reflect/Method.mt";
-import * from "lib/reflect/Annotation.mt";
+import * from "../../lib/reflect/Class.mt";
+import * from "../../lib/reflect/Method.mt";
+import * from "../../lib/reflect/Annotation.mt";
 
 annotation Retry {
     int times = 3;
@@ -17,7 +17,9 @@ class Net {
 }
 
 Class c = Class::forName("Net");
-Method m = c.getDeclaredMethod("call");
-Annotation r = m.getAnnotation("Retry");
-print(r.getInt("times"));
-print(r.getInt("delay"));
+Method m = c.getDeclaredMethod("call", 0);
+Annotation? r = m.getAnnotation("Retry");
+if (r != null) {
+    print(r.getInt("times"));
+    print(r.getInt("delay"));
+}

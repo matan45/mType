@@ -236,12 +236,20 @@ namespace ast::nodes::classes
         {
             if (annotation)
             {
-                // Safely reconstruct annotation using make_shared to avoid unsafe cast
+                // Reconstruct via typed parameters so MYT-108 typed values
+                // (CLASS_ARRAY etc.) survive AST cloning. The legacy string
+                // ctor would collapse all values to STRING via toDisplayString.
                 auto clonedAnnotation = std::make_shared<annotations::AnnotationNode>(
                     annotation->getName(),
-                    annotation->getParameters(),
                     annotation->getLocation()
                 );
+                for (const auto& key : annotation->getKeyOrder())
+                {
+                    if (auto* v = annotation->getTypedParameter(key))
+                    {
+                        clonedAnnotation->setTypedParameter(key, *v);
+                    }
+                }
                 cloned->addAnnotation(clonedAnnotation);
             }
         }

@@ -51,9 +51,12 @@ class Annotation {
         return __reflect_getAnnotationString(this._nativeHandle, key);
     }
 
-    public function getClass(string key): Class {
-        int handle = __reflect_getAnnotationClass(this._nativeHandle, key);
-        return new Class(handle);
+    // Returns the class name declared on this parameter. Callers pipe through
+    // Class::forName() when they need a Class handle. Kept as string-returning
+    // here to avoid a circular import between Annotation.mt and Class.mt
+    // (Class.mt itself imports Annotation.mt for getAnnotations()).
+    public function getClassName(string key): string {
+        return __reflect_getAnnotationClass(this._nativeHandle, key);
     }
 
     public function isNull(string key): bool {

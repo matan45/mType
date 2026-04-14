@@ -22,10 +22,54 @@
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
+#include "../../../ast/nodes/annotations/TypedAnnotationValue.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
 {
+    namespace
+    {
+        using ast::nodes::annotations::AnnotationValueType;
+        using ast::nodes::annotations::TypedAnnotationValue;
+
+        // Convert an AST-level TypedAnnotationValue into a bytecode-level
+        // TypedAnnotationArg for .mtc serialization. Only the payload field
+        // matching `valueType` carries meaningful data.
+        bytecode::BytecodeProgram::TypedAnnotationArg
+            toTypedArg(const std::string& key, const TypedAnnotationValue& v)
+        {
+            bytecode::BytecodeProgram::TypedAnnotationArg arg;
+            arg.key = key;
+            arg.valueType = static_cast<uint8_t>(v.getType());
+            switch (v.getType())
+            {
+            case AnnotationValueType::INT:         arg.intVal    = v.asInt(); break;
+            case AnnotationValueType::FLOAT:       arg.floatVal  = v.asFloat(); break;
+            case AnnotationValueType::BOOL:        arg.boolVal   = v.asBool(); break;
+            case AnnotationValueType::STRING:      arg.stringVal = v.asString(); break;
+            case AnnotationValueType::CLASS_REF:   arg.stringVal = v.asClassRef(); break;
+            case AnnotationValueType::CLASS_ARRAY: arg.arrayVal  = v.asClassArray(); break;
+            case AnnotationValueType::NULL_VALUE:  break;
+            }
+            return arg;
+        }
+
+        void populateAnnotationData(
+            bytecode::BytecodeProgram::AnnotationData& out,
+            const ast::nodes::annotations::AnnotationNode& node)
+        {
+            out.name = node.getName();
+            out.location = node.getLocation();
+            for (const auto& key : node.getKeyOrder())
+            {
+                if (const auto* v = node.getTypedParameter(key))
+                {
+                    out.typedArguments.push_back(toTypedArg(key, *v));
+                }
+            }
+        }
+    }
+
     ClassRegistrar::ClassRegistrar(
         std::shared_ptr<environment::Environment> environment,
         bytecode::BytecodeProgram& program,
@@ -137,6 +181,10 @@ namespace vm::compiler::registration
                         ctorNode->getBody(),
                         ctorNode->getAccessModifier()
                     );
+                    // MYT-108: copy constructor annotations to runtime definition
+                    for (const auto& annotation : ctorNode->getAnnotations()) {
+                        ctorDef->addAnnotation(annotation);
+                    }
                     classDef->addConstructor(ctorDef);
                 }
             }
@@ -355,6 +403,11 @@ namespace vm::compiler::registration
                     fieldNode->getIsFinal(),
                     fieldNode->getAccessModifier()
                 );
+
+                // MYT-108: copy field annotations to runtime definition
+                for (const auto& annotation : fieldNode->getAnnotations()) {
+                    fieldDef->addAnnotation(annotation);
+                }
 
                 if (fieldNode->getIsStatic()) {
                     classDef->addStaticField(fieldNode->getName(), fieldDef);
@@ -655,20 +708,11 @@ namespace vm::compiler::registration
             metadata.genericParameters.push_back(param.name);
         }
 
-        // Extract annotations
-        const auto& annotations = classNode->getAnnotations();
-        for (const auto& annotationNode : annotations) {
+        // Extract annotations (MYT-108 typed-args)
+        for (const auto& annotationNode : classNode->getAnnotations()) {
             bytecode::BytecodeProgram::AnnotationData annot;
-            annot.name = annotationNode->getName();
-            annot.location = annotationNode->getLocation();
-
-            // Extract annotation parameters if present
-            const auto& params = annotationNode->getParameters();
-            for (const auto& [key, value] : params) {
-                annot.arguments.push_back({key, value});
-            }
-
-            metadata.annotations.push_back(annot);
+            populateAnnotationData(annot, *annotationNode);
+            metadata.annotations.push_back(std::move(annot));
         }
 
         // Extract fields
@@ -687,6 +731,13 @@ namespace vm::compiler::registration
             auto accessMod = field->getAccessModifier();
             fieldMeta.isPrivate = (accessMod == ast::AccessModifier::PRIVATE);
             fieldMeta.isProtected = (accessMod == ast::AccessModifier::PROTECTED);
+
+            // MYT-108: copy field annotations into metadata (typed-args)
+            for (const auto& annotationNode : field->getAnnotations()) {
+                bytecode::BytecodeProgram::AnnotationData annot;
+                populateAnnotationData(annot, *annotationNode);
+                fieldMeta.annotations.push_back(std::move(annot));
+            }
 
             if (field->getIsStatic()) {
                 metadata.staticFields.push_back(fieldMeta);
@@ -726,6 +777,13 @@ namespace vm::compiler::registration
                 methodMeta.parameterNames.push_back(paramName);
             }
 
+            // MYT-108: copy method annotations into metadata (typed-args)
+            for (const auto& annotationNode : method->getAnnotations()) {
+                bytecode::BytecodeProgram::AnnotationData annot;
+                populateAnnotationData(annot, *annotationNode);
+                methodMeta.annotations.push_back(std::move(annot));
+            }
+
             if (method->getIsStatic()) {
                 metadata.staticMethods.push_back(methodMeta);
             } else {
@@ -747,6 +805,13 @@ namespace vm::compiler::registration
             for (const auto& param : params) {
                 ctorMeta.parameterNames.push_back(param.first);
                 ctorMeta.parameterTypes.push_back(param.second.toString());
+            }
+
+            // MYT-108: copy constructor annotations into metadata (typed-args)
+            for (const auto& annotationNode : ctor->getAnnotations()) {
+                bytecode::BytecodeProgram::AnnotationData annot;
+                populateAnnotationData(annot, *annotationNode);
+                ctorMeta.annotations.push_back(std::move(annot));
             }
 
             metadata.constructors.push_back(ctorMeta);

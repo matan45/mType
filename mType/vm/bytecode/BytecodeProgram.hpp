@@ -133,11 +133,28 @@ namespace vm::bytecode
         /**
          * Annotation metadata for bytecode serialization
          */
+        /// MYT-108: a single typed annotation argument (`key = literal`).
+        /// Payload interpretation depends on `valueType`, matching
+        /// ast::nodes::annotations::AnnotationValueType. Only the relevant
+        /// payload field is meaningful for a given valueType.
+        struct TypedAnnotationArg
+        {
+            std::string key;
+            uint8_t valueType;              // AnnotationValueType
+            int64_t intVal = 0;             // INT
+            double  floatVal = 0.0;         // FLOAT
+            bool    boolVal = false;        // BOOL
+            std::string stringVal;          // STRING / CLASS_REF
+            std::vector<std::string> arrayVal; // CLASS_ARRAY
+        };
+
         struct AnnotationData
         {
             std::string name;
-            std::vector<std::pair<std::string, std::string>> arguments; // key-value pairs
-            errors::SourceLocation location; // Source location for error reporting (using errors::SourceLocation for compatibility)
+            // Typed args survive full .mtc round-trip (MYT-108 v5+). Empty on
+            // annotations that have no supplied parameters.
+            std::vector<TypedAnnotationArg> typedArguments;
+            errors::SourceLocation location; // Source location for error reporting
         };
 
         /// MYT-108: serialized annotation type declaration. Lives in the new
@@ -177,6 +194,9 @@ namespace vm::bytecode
             bool isFinal;
             bool isPrivate;
             bool isProtected;
+            // MYT-108: per-field annotations (string-pair fidelity; typed values
+            // survive at runtime via the AnnotationRegistry schema lookup).
+            std::vector<AnnotationData> annotations;
         };
 
         struct MethodMetadata
@@ -191,6 +211,8 @@ namespace vm::bytecode
             bool isProtected;
             bool isAbstract; // NEW: Abstract method flag
             size_t startOffset; // Where the method bytecode starts
+            // MYT-108: per-method annotations
+            std::vector<AnnotationData> annotations;
         };
 
         struct ConstructorMetadata
@@ -198,6 +220,8 @@ namespace vm::bytecode
             std::vector<std::string> parameterTypes;
             std::vector<std::string> parameterNames;
             size_t startOffset; // Where the constructor bytecode starts
+            // MYT-108: per-constructor annotations
+            std::vector<AnnotationData> annotations;
         };
 
         struct ClassMetadata
@@ -342,6 +366,9 @@ namespace vm::bytecode
         void readGlobalExceptionTable(std::istream& in);
         void writeAnnotationDeclarations(std::ostream& out) const;
         void readAnnotationDeclarations(std::istream& in);
+        // MYT-108: reusable (de)serialization for per-target annotation lists.
+        static void writeAnnotationList(std::ostream& out, const std::vector<AnnotationData>& list);
+        static void readAnnotationList(std::istream& in, std::vector<AnnotationData>& list);
 
         // Source location update helper
         void updateSourceLocationsAfterOffset(size_t afterOffset, int delta);

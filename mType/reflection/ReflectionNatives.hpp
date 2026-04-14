@@ -473,6 +473,12 @@ namespace reflection
         /// args: (annotationHandle:int, paramKey:string) -> bool
         static value::Value __reflect_isAnnotationParamNull(const std::vector<value::Value>& args);
 
+        // Method-level annotation reflection (singular accessors, MYT-108)
+        /// args: (methodHandle:int, annotationName:string) -> Annotation handle or null
+        static value::Value __reflect_getMethodAnnotation(const std::vector<value::Value>& args);
+        /// args: (methodHandle:int, annotationName:string) -> bool
+        static value::Value __reflect_hasMethodAnnotation(const std::vector<value::Value>& args);
+
         // Field-level annotation reflection (MYT-108 M5)
         /// args: (fieldHandle:int, annotationName:string) -> Annotation handle or null
         static value::Value __reflect_getFieldAnnotation(const std::vector<value::Value>& args);

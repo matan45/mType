@@ -101,6 +101,8 @@ namespace reflection
         nativeRegistry->registerNativeFunction("__reflect_getAnnotationClass",   __reflect_getAnnotationClass);
         nativeRegistry->registerNativeFunction("__reflect_getAnnotationClassArray", __reflect_getAnnotationClassArray);
         nativeRegistry->registerNativeFunction("__reflect_isAnnotationParamNull", __reflect_isAnnotationParamNull);
+        nativeRegistry->registerNativeFunction("__reflect_getMethodAnnotation",  __reflect_getMethodAnnotation);
+        nativeRegistry->registerNativeFunction("__reflect_hasMethodAnnotation",  __reflect_hasMethodAnnotation);
         nativeRegistry->registerNativeFunction("__reflect_getFieldAnnotation",   __reflect_getFieldAnnotation);
         nativeRegistry->registerNativeFunction("__reflect_hasFieldAnnotation",   __reflect_hasFieldAnnotation);
         nativeRegistry->registerNativeFunction("__reflect_getAnnotationObject",  __reflect_getAnnotationObject);

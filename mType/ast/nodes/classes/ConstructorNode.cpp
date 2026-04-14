@@ -105,6 +105,19 @@ namespace ast::nodes::classes
             clonedConstructor->setSuperInitializer(std::move(clonedSuper));
         }
 
+        // MYT-108: clone annotations via typed-parameter path
+        for (const auto& annotation : annotations) {
+            if (!annotation) continue;
+            auto cloned = std::make_shared<annotations::AnnotationNode>(
+                annotation->getName(), annotation->getLocation());
+            for (const auto& key : annotation->getKeyOrder()) {
+                if (auto* v = annotation->getTypedParameter(key)) {
+                    cloned->setTypedParameter(key, *v);
+                }
+            }
+            clonedConstructor->addAnnotation(cloned);
+        }
+
         return clonedConstructor;
     }
 }

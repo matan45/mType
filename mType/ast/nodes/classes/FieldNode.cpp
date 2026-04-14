@@ -132,6 +132,22 @@ namespace ast::nodes::classes
             location
         );
 
+        // MYT-108: clone annotations via typed-parameter path so CLASS_ARRAY etc. survive.
+        for (const auto& annotation : annotations)
+        {
+            if (!annotation) continue;
+            auto cloned = std::make_shared<annotations::AnnotationNode>(
+                annotation->getName(), annotation->getLocation());
+            for (const auto& key : annotation->getKeyOrder())
+            {
+                if (auto* v = annotation->getTypedParameter(key))
+                {
+                    cloned->setTypedParameter(key, *v);
+                }
+            }
+            clonedField->addAnnotation(cloned);
+        }
+
         return clonedField;
     }
 }

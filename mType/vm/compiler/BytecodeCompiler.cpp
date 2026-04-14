@@ -283,6 +283,10 @@ namespace vm::compiler
         // Second, pre-register all function signatures (allows forward references and mutual recursion)
         functionRegistrar.registerFunctionSignatures(root);
 
+        // MYT-108: pre-register annotation type declarations so usage validation
+        // (which runs inside class registration) can resolve user-defined annotations.
+        preRegisterAnnotationDeclarations(root);
+
         // Third, register all classes and interfaces using registrars
         registerClassesForBytecode(root);
 
@@ -350,6 +354,42 @@ namespace vm::compiler
         fuseLocalArrayOps(program);
 
         return std::move(program);
+    }
+
+    void BytecodeCompiler::preRegisterAnnotationDeclarations(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // If this node is itself an annotation declaration, register it.
+        if (auto* declNode = dynamic_cast<ast::AnnotationDeclarationNode*>(node))
+        {
+            visitAnnotationDeclarationNode(declNode);
+            return;
+        }
+
+        // Otherwise recurse through container nodes that may hold top-level
+        // declarations (the annotation keyword is only legal at top level).
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                preRegisterAnnotationDeclarations(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                preRegisterAnnotationDeclarations(statement.get());
+            }
+        }
+        else if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                preRegisterAnnotationDeclarations(importNode->getImportedAST());
+            }
+        }
     }
 
     void BytecodeCompiler::registerClassesForBytecode(ast::ASTNode* node)

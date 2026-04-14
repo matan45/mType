@@ -835,6 +835,9 @@
     <None Include="tests\testFiles\annotation\error\invalid_exception_class_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\missing_required_param_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\non_exception_class_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -871,6 +874,18 @@
     <None Include="tests\testFiles\annotation\error\script_annotation_wrong_update_signature_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\unknown_annotation_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\unknown_annotation_on_function_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\unknown_param_name_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\wrong_param_type_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\annotation_declare_empty_pass.expected">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
@@ -881,6 +896,36 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_declare_int_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_string_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_string_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_defaults_partial_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_defaults_partial_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_constructor_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_constructor_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_field_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_field_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_top_function_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_top_function_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\combined_annotations_pass.expected">
