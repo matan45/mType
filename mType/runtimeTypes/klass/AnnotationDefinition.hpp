@@ -2,6 +2,7 @@
 
 #include "AnnotationParamSchema.hpp"
 #include "../Definition.hpp"
+#include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -35,9 +36,31 @@ namespace runtimeTypes::klass
         void setSyntheticClass(std::shared_ptr<ClassDefinition> cls) { syntheticClass_ = std::move(cls); }
         std::shared_ptr<ClassDefinition> getSyntheticClass() const { return syntheticClass_; }
 
+        // Meta-annotations (`@X` applied to this annotation's declaration).
+        void addMetaAnnotation(std::shared_ptr<ast::nodes::annotations::AnnotationNode> annotation)
+        {
+            metaAnnotations_.push_back(std::move(annotation));
+        }
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>&
+            getMetaAnnotations() const { return metaAnnotations_; }
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode>
+            getMetaAnnotation(const std::string& annotationName) const
+        {
+            for (const auto& m : metaAnnotations_)
+            {
+                if (m && m->getName() == annotationName) return m;
+            }
+            return nullptr;
+        }
+        bool hasMetaAnnotation(const std::string& annotationName) const
+        {
+            return getMetaAnnotation(annotationName) != nullptr;
+        }
+
     private:
         std::vector<AnnotationParamSchema> params_;
         bool builtin_;
         std::shared_ptr<ClassDefinition> syntheticClass_;
+        std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> metaAnnotations_;
     };
 }

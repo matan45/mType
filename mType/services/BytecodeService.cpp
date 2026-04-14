@@ -397,6 +397,12 @@ namespace services
                 }
                 def->addParam(std::move(schema));
             }
+            // MYT-109: rebuild meta-annotation AST nodes from serialized form
+            // so reflection / @Retention / @Target enforcement work after load.
+            for (const auto& metaData : decl.metaAnnotations)
+            {
+                def->addMetaAnnotation(buildAnnotationNodeFromMetadata(metaData));
+            }
             annotationRegistry->registerAnnotation(decl.name, def);
         }
     }

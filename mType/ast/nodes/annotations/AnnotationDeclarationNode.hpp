@@ -1,5 +1,6 @@
 #pragma once
 #include "../../ASTNode.hpp"
+#include "AnnotationNode.hpp"
 #include "TypedAnnotationValue.hpp"
 #include <string>
 #include <memory>
@@ -25,6 +26,9 @@ namespace ast::nodes::annotations
     private:
         std::string name;
         std::vector<AnnotationParamDecl> params;
+        // Meta-annotations applied to this annotation declaration
+        // (e.g. `@Retention(RUNTIME) @Target([METHOD]) annotation Foo { }`).
+        std::vector<std::shared_ptr<AnnotationNode>> metaAnnotations;
 
     public:
         explicit AnnotationDeclarationNode(const std::string& annotationName,
@@ -34,6 +38,11 @@ namespace ast::nodes::annotations
 
         void addParam(AnnotationParamDecl decl);
         const std::vector<AnnotationParamDecl>& getParams() const;
+
+        void addMetaAnnotation(std::shared_ptr<AnnotationNode> annotation);
+        const std::vector<std::shared_ptr<AnnotationNode>>& getMetaAnnotations() const;
+        std::shared_ptr<AnnotationNode> getMetaAnnotation(const std::string& annotationName) const;
+        bool hasMetaAnnotation(const std::string& annotationName) const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

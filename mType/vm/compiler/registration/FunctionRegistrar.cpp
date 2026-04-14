@@ -318,7 +318,8 @@ namespace vm::compiler::registration
         {
             if (!annotation) continue;
             ::validation::AnnotationUsageValidator::validate(
-                annotation, environment, annotation->getLocation());
+                annotation, environment, annotation->getLocation(),
+                ::validation::AnnotationHostKind::FUNCTION);
         }
 
         // Validate @Throw annotation if present

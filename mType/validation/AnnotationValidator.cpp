@@ -27,7 +27,8 @@ namespace validation
         for (const auto& annotation : classDefinition->getAnnotations())
         {
             AnnotationUsageValidator::validate(
-                annotation, environment, annotation->getLocation());
+                annotation, environment, annotation->getLocation(),
+                AnnotationHostKind::CLASS);
         }
         for (const auto& [methodName, methodOverloads] : classDefinition->getInstanceMethods())
         {
@@ -36,7 +37,8 @@ namespace validation
                 for (const auto& ann : methodDef->getAnnotations())
                 {
                     AnnotationUsageValidator::validate(
-                        ann, environment, ann->getLocation());
+                        ann, environment, ann->getLocation(),
+                        AnnotationHostKind::METHOD);
                 }
             }
         }
@@ -47,7 +49,8 @@ namespace validation
                 for (const auto& ann : methodDef->getAnnotations())
                 {
                     AnnotationUsageValidator::validate(
-                        ann, environment, ann->getLocation());
+                        ann, environment, ann->getLocation(),
+                        AnnotationHostKind::METHOD);
                 }
             }
         }
@@ -58,7 +61,29 @@ namespace validation
             for (const auto& ann : ctorDef->getAnnotations())
             {
                 AnnotationUsageValidator::validate(
-                    ann, environment, ann->getLocation());
+                    ann, environment, ann->getLocation(),
+                    AnnotationHostKind::CONSTRUCTOR);
+            }
+        }
+        // Validate annotations on fields (MYT-109 @Target enforcement)
+        for (const auto& [fieldName, fieldDef] : classDefinition->getInstanceFields())
+        {
+            if (!fieldDef) continue;
+            for (const auto& ann : fieldDef->getAnnotations())
+            {
+                AnnotationUsageValidator::validate(
+                    ann, environment, ann->getLocation(),
+                    AnnotationHostKind::FIELD);
+            }
+        }
+        for (const auto& [fieldName, fieldDef] : classDefinition->getStaticFields())
+        {
+            if (!fieldDef) continue;
+            for (const auto& ann : fieldDef->getAnnotations())
+            {
+                AnnotationUsageValidator::validate(
+                    ann, environment, ann->getLocation(),
+                    AnnotationHostKind::FIELD);
             }
         }
 

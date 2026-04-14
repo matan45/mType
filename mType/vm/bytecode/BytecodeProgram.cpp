@@ -547,7 +547,7 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
         // Write version
-        uint32_t version = 5;  // Version 5: MYT-108 annotation declarations + typed parameters
+        uint32_t version = 6;  // Version 6: MYT-109 meta-annotations on annotation declarations
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
         // Write entry point
@@ -596,12 +596,12 @@ namespace vm::bytecode
         // Read version
         uint32_t version;
         in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version < 5) {
+        if (version < 6) {
             throw std::runtime_error(
                 "Bytecode file uses an outdated format (version " + std::to_string(version) + "). "
                 "Please recompile from source using the current compiler.");
         }
-        if (version != 5) {
+        if (version != 6) {
             throw std::runtime_error("Unsupported bytecode version: " + std::to_string(version));
         }
 
@@ -1175,6 +1175,8 @@ namespace vm::bytecode
                     BytecodeIOHelper::writeStringVector(out, p.defaultStringArray);
                 }
             }
+            // MYT-109 (.mtc v6+): meta-annotations on the annotation declaration.
+            writeAnnotationList(out, decl.metaAnnotations);
         }
     }
 
@@ -1199,6 +1201,8 @@ namespace vm::bytecode
                     p.defaultStringArray = BytecodeIOHelper::readStringVector(in);
                 }
             }
+            // MYT-109 (.mtc v6+): meta-annotations on the annotation declaration.
+            readAnnotationList(in, decl.metaAnnotations);
         }
     }
 

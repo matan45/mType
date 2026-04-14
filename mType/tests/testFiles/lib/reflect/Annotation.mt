@@ -67,4 +67,20 @@ class Annotation {
     public function getNativeHandle(): int {
         return this._nativeHandle;
     }
+
+    // MYT-109: meta-annotations on the annotation's declaration.
+    // Returns the Annotation for meta-annotation `metaName` applied to this
+    // annotation's declaration (e.g. @Retention, @Target). Null when absent.
+    public function getMeta(string metaName): Annotation? {
+        int handle = __reflect_getAnnotationMeta(this._nativeHandle, metaName);
+        if (handle == 0) {
+            return null;
+        }
+        return new Annotation(handle);
+    }
+
+    public function hasMeta(string metaName): bool {
+        int handle = __reflect_getAnnotationMeta(this._nativeHandle, metaName);
+        return handle != 0;
+    }
 }

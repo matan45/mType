@@ -194,5 +194,23 @@ namespace tests::testSuite
         addTestFromFile("Throw Empty Parameter List",
                         errorPath + "empty_throw_error.mt",
                         TestType::ERROR_EXPECTED);
+
+        // ===== MYT-109 (3a): META-ANNOTATIONS - PASS TESTS =====
+
+        addOutputVerificationTest("Meta-annotation Declaration Parses",
+                                  passPath + "meta_annotation_decl_pass.mt");
+
+        addOutputVerificationTest("Meta-annotation @Retention(SOURCE) Stripped",
+                                  passPath + "meta_retention_source_stripped_pass.mt");
+
+        addOutputVerificationTest("Constructor Annotation Reflection",
+                                  passPath + "annotation_on_ctor_reflection_pass.mt");
+
+        // ===== MYT-109 (3a): META-ANNOTATIONS - ERROR TESTS =====
+
+        addTestFromFile("Meta-annotation @Target Violation",
+                        errorPath + "meta_target_violation_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
     }
 }

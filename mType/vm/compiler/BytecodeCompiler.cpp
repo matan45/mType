@@ -986,6 +986,10 @@ namespace vm::compiler
             schema.isArray       = declParam.isArray;
             def->addParam(std::move(schema));
         }
+        for (const auto& meta : node->getMetaAnnotations())
+        {
+            if (meta) def->addMetaAnnotation(meta);
+        }
         annotationRegistry->registerAnnotation(node->getName(), def);
 
         // Also serialize into the bytecode program (.mtc v5+ section) so the
@@ -1015,6 +1019,37 @@ namespace vm::compiler
                 }
             }
             declData.params.push_back(std::move(p));
+        }
+        // MYT-109 (.mtc v6+): serialize meta-annotations applied to this
+        // annotation declaration so `@Retention` / `@Target` / user-defined
+        // meta-annotations survive a compile-to-file round-trip.
+        for (const auto& meta : node->getMetaAnnotations())
+        {
+            if (!meta) continue;
+            bytecode::BytecodeProgram::AnnotationData annot;
+            annot.name = meta->getName();
+            annot.location = meta->getLocation();
+            for (const auto& key : meta->getKeyOrder())
+            {
+                if (const auto* v = meta->getTypedParameter(key))
+                {
+                    bytecode::BytecodeProgram::TypedAnnotationArg arg;
+                    arg.key = key;
+                    arg.valueType = static_cast<uint8_t>(v->getType());
+                    switch (v->getType())
+                    {
+                    case AnnotationValueType::INT:         arg.intVal    = v->asInt(); break;
+                    case AnnotationValueType::FLOAT:       arg.floatVal  = v->asFloat(); break;
+                    case AnnotationValueType::BOOL:        arg.boolVal   = v->asBool(); break;
+                    case AnnotationValueType::STRING:      arg.stringVal = v->asString(); break;
+                    case AnnotationValueType::CLASS_REF:   arg.stringVal = v->asClassRef(); break;
+                    case AnnotationValueType::CLASS_ARRAY: arg.arrayVal  = v->asClassArray(); break;
+                    case AnnotationValueType::NULL_VALUE:  break;
+                    }
+                    annot.typedArguments.push_back(std::move(arg));
+                }
+            }
+            declData.metaAnnotations.push_back(std::move(annot));
         }
         program.addAnnotationDeclaration(std::move(declData));
         return value::Value();

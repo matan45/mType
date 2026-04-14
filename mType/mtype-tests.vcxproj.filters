@@ -337,6 +337,9 @@
     <Filter Include="testFiles\lib">
       <UniqueIdentifier>{9E2AED9F-0AEB-68D6-D325-B2533FA5ADB2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\lib\annotations">
+      <UniqueIdentifier>{BB93170B-2756-4B95-7006-DA21DC072473}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\lib\collections">
       <UniqueIdentifier>{ACF01DEE-18B3-5178-6163-E004CD642A56}</UniqueIdentifier>
     </Filter>
@@ -835,6 +838,9 @@
     <None Include="tests\testFiles\annotation\error\invalid_exception_class_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\meta_target_violation_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\missing_required_param_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -916,6 +922,12 @@
     <None Include="tests\testFiles\annotation\pass\annotation_on_constructor_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_ctor_reflection_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_ctor_reflection_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_field_pass.expected">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
@@ -944,6 +956,18 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\entrypoint_print_args_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\meta_annotation_decl_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\meta_annotation_decl_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\meta_retention_source_stripped_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\meta_retention_source_stripped_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\method_throw_pass.expected">
@@ -8418,6 +8442,12 @@
     </None>
     <None Include="tests\testFiles\lib\Iterator.mt">
       <Filter>testFiles\lib</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\annotations\Retention.mt">
+      <Filter>testFiles\lib\annotations</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\annotations\Targets.mt">
+      <Filter>testFiles\lib\annotations</Filter>
     </None>
     <None Include="tests\testFiles\lib\collections\ArrayList.mt">
       <Filter>testFiles\lib\collections</Filter>

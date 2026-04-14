@@ -189,6 +189,90 @@ namespace reflection
         return info.field->hasAnnotation(name);
     }
 
+    Value ReflectionNatives::__reflect_getConstructorAnnotations(const std::vector<Value>& args)
+    {
+        if (args.size() != 1) throw errors::RuntimeException("__reflect_getConstructorAnnotations requires 1 argument");
+        if (!std::holds_alternative<int64_t>(args[0]))
+            throw errors::RuntimeException("__reflect_getConstructorAnnotations requires ctorHandle:int");
+        int64_t ctorHandle = std::get<int64_t>(args[0]);
+
+        auto& reg = ReflectionHandleRegistry::instance();
+        auto info = reg.getConstructor(ctorHandle);
+        if (!info.constructor) throw errors::RuntimeException("Invalid constructor handle");
+
+        const auto& annotations = info.constructor->getAnnotations();
+        std::vector<int> handles;
+        handles.reserve(annotations.size());
+        for (const auto& ann : annotations)
+        {
+            if (!ann) continue;
+            int64_t h = reg.registerAnnotation(ann, ann->getName());
+            handles.push_back(static_cast<int>(h));
+        }
+        auto result = std::make_shared<NativeArray>(handles.size(), ValueType::INT);
+        for (size_t i = 0; i < handles.size(); ++i) result->set(static_cast<int>(i), handles[i]);
+        return result;
+    }
+
+    Value ReflectionNatives::__reflect_getConstructorAnnotation(const std::vector<Value>& args)
+    {
+        if (args.size() != 2) throw errors::RuntimeException("__reflect_getConstructorAnnotation requires 2 arguments");
+        if (!std::holds_alternative<int64_t>(args[0]))
+            throw errors::RuntimeException("__reflect_getConstructorAnnotation requires ctorHandle:int");
+        int64_t ctorHandle = std::get<int64_t>(args[0]);
+        std::string name;
+        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
+        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        else throw errors::RuntimeException("__reflect_getConstructorAnnotation requires annotationName:string");
+
+        auto& reg = ReflectionHandleRegistry::instance();
+        auto info = reg.getConstructor(ctorHandle);
+        if (!info.constructor) throw errors::RuntimeException("Invalid constructor handle");
+        auto annotation = info.constructor->getAnnotation(name);
+        if (!annotation) return std::monostate{};
+        return reg.registerAnnotation(annotation, name);
+    }
+
+    Value ReflectionNatives::__reflect_hasConstructorAnnotation(const std::vector<Value>& args)
+    {
+        if (args.size() != 2) throw errors::RuntimeException("__reflect_hasConstructorAnnotation requires 2 arguments");
+        if (!std::holds_alternative<int64_t>(args[0]))
+            throw errors::RuntimeException("__reflect_hasConstructorAnnotation requires ctorHandle:int");
+        int64_t ctorHandle = std::get<int64_t>(args[0]);
+        std::string name;
+        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
+        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        else throw errors::RuntimeException("__reflect_hasConstructorAnnotation requires annotationName:string");
+
+        auto info = ReflectionHandleRegistry::instance().getConstructor(ctorHandle);
+        if (!info.constructor) throw errors::RuntimeException("Invalid constructor handle");
+        return info.constructor->hasAnnotation(name);
+    }
+
+    Value ReflectionNatives::__reflect_getAnnotationMeta(const std::vector<Value>& args)
+    {
+        if (args.size() != 2) throw errors::RuntimeException("__reflect_getAnnotationMeta requires 2 arguments");
+        if (!std::holds_alternative<int64_t>(args[0]))
+            throw errors::RuntimeException("__reflect_getAnnotationMeta requires annotationHandle:int");
+        int64_t handle = std::get<int64_t>(args[0]);
+        std::string metaName;
+        if (std::holds_alternative<std::string>(args[1])) metaName = std::get<std::string>(args[1]);
+        else if (std::holds_alternative<InternedString>(args[1])) metaName = std::get<InternedString>(args[1]).getString();
+        else throw errors::RuntimeException("__reflect_getAnnotationMeta requires metaAnnotationName:string");
+
+        auto& reg = ReflectionHandleRegistry::instance();
+        auto info = reg.getAnnotation(handle);
+        if (!info.annotation) return std::monostate{};
+        if (!currentEnvironment) return std::monostate{};
+        auto annRegistry = currentEnvironment->getAnnotationRegistry();
+        if (!annRegistry) return std::monostate{};
+        auto def = annRegistry->findAnnotation(info.annotationName);
+        if (!def) return std::monostate{};
+        auto meta = def->getMetaAnnotation(metaName);
+        if (!meta) return std::monostate{};
+        return reg.registerAnnotation(meta, metaName);
+    }
+
     Value ReflectionNatives::__reflect_getAnnotationObject(const std::vector<Value>& args)
     {
         if (args.size() != 2)

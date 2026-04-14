@@ -181,6 +181,9 @@ namespace vm::bytecode
         {
             std::string name;
             std::vector<AnnotationParamSchemaData> params;
+            // MYT-109 (.mtc v6+): meta-annotations applied to this annotation
+            // declaration, e.g. `@Retention(RUNTIME) @Target([METHOD])`.
+            std::vector<AnnotationData> metaAnnotations;
         };
 
         /**

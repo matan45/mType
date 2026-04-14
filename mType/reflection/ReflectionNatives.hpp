@@ -485,6 +485,18 @@ namespace reflection
         /// args: (fieldHandle:int, annotationName:string) -> bool
         static value::Value __reflect_hasFieldAnnotation(const std::vector<value::Value>& args);
 
+        // Constructor-level annotation reflection (MYT-109)
+        /// args: (ctorHandle:int) -> int[] (Annotation handles)
+        static value::Value __reflect_getConstructorAnnotations(const std::vector<value::Value>& args);
+        /// args: (ctorHandle:int, annotationName:string) -> Annotation handle or null
+        static value::Value __reflect_getConstructorAnnotation(const std::vector<value::Value>& args);
+        /// args: (ctorHandle:int, annotationName:string) -> bool
+        static value::Value __reflect_hasConstructorAnnotation(const std::vector<value::Value>& args);
+
+        // Meta-annotation reflection (MYT-109 3a)
+        /// args: (annotationHandle:int, metaAnnotationName:string) -> Annotation handle or null
+        static value::Value __reflect_getAnnotationMeta(const std::vector<value::Value>& args);
+
         // Object-style annotation access (MYT-108 M6)
         /// args: (target:int, annotationClassHandle:int) -> ObjectInstance or null
         static value::Value __reflect_getAnnotationObject(const std::vector<value::Value>& args);

@@ -36,12 +36,30 @@ namespace validation
             if (schema.declaredType == AnnotationValueType::CLASS_ARRAY && actual == AnnotationValueType::CLASS_REF) return true;
             return false;
         }
+
+        // Map an AnnotationHostKind to the marker-class name used inside
+        // @Target([...]) arrays. Names match lib/annotations/Targets.mt.
+        const char* hostKindMarker(AnnotationHostKind kind)
+        {
+            switch (kind)
+            {
+            case AnnotationHostKind::CLASS:                  return "CLASS";
+            case AnnotationHostKind::METHOD:                 return "METHOD";
+            case AnnotationHostKind::FIELD:                  return "FIELD";
+            case AnnotationHostKind::CONSTRUCTOR:            return "CONSTRUCTOR";
+            case AnnotationHostKind::FUNCTION:               return "FUNCTION";
+            case AnnotationHostKind::ANNOTATION_DECLARATION: return "ANNOTATION";
+            case AnnotationHostKind::UNSPECIFIED:            return nullptr;
+            }
+            return nullptr;
+        }
     }
 
     void AnnotationUsageValidator::validate(
         std::shared_ptr<AnnotationNode> annotation,
         std::shared_ptr<environment::Environment> environment,
-        const errors::SourceLocation& location)
+        const errors::SourceLocation& location,
+        AnnotationHostKind hostKind)
     {
         if (!annotation || !environment) return;
         auto registry = environment->getAnnotationRegistry();
@@ -53,6 +71,57 @@ namespace validation
             std::ostringstream oss;
             oss << "Unknown annotation '@" << annotation->getName() << "' — no annotation type with this name has been declared.";
             throw errors::TypeException(oss.str(), location);
+        }
+
+        // MYT-109: enforce @Target if the annotation's declaration carries one
+        // and the caller supplied a host kind to check against.
+        if (const char* marker = hostKindMarker(hostKind))
+        {
+            if (auto targetMeta = def->getMetaAnnotation("Target"))
+            {
+                const TypedAnnotationValue* targets =
+                    targetMeta->getTypedParameter("targets");
+                // Accept positional shorthand (`@Target([METHOD])`) which is
+                // parsed under "__positional__" until AnnotationUsageValidator
+                // rebinds it; meta-annotations themselves aren't re-validated
+                // through this path, so read both keys.
+                if (!targets) targets = targetMeta->getTypedParameter("__positional__");
+                if (targets && targets->getType() == AnnotationValueType::CLASS_ARRAY)
+                {
+                    const auto& allowed = targets->asClassArray();
+                    bool permitted = false;
+                    for (const auto& t : allowed)
+                    {
+                        if (t == marker) { permitted = true; break; }
+                    }
+                    if (!permitted)
+                    {
+                        std::ostringstream oss;
+                        oss << "Annotation '@" << annotation->getName()
+                            << "' cannot be applied to a " << marker
+                            << " — allowed targets: [";
+                        for (size_t i = 0; i < allowed.size(); ++i)
+                        {
+                            if (i) oss << ", ";
+                            oss << allowed[i];
+                        }
+                        oss << "].";
+                        throw errors::TypeException(oss.str(), location);
+                    }
+                }
+                else if (targets && targets->getType() == AnnotationValueType::CLASS_REF)
+                {
+                    // Single-class shorthand: `@Target(METHOD)`.
+                    if (targets->asClassRef() != marker)
+                    {
+                        std::ostringstream oss;
+                        oss << "Annotation '@" << annotation->getName()
+                            << "' cannot be applied to a " << marker
+                            << " — allowed target: " << targets->asClassRef() << ".";
+                        throw errors::TypeException(oss.str(), location);
+                    }
+                }
+            }
         }
 
         // Resolve positional shorthand → bind to sole declared param.

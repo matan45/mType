@@ -1,4 +1,5 @@
 #include "AnnotationDeclarationParser.hpp"
+#include "utilities/AnnotationParser.hpp"
 #include "../token/TokenType.hpp"
 #include "../errors/ParseException.hpp"
 #include "../errors/DuplicateDeclarationException.hpp"
@@ -21,12 +22,47 @@ namespace parser
 
     bool AnnotationDeclarationParser::canParse(const TokenStream& stream) const
     {
-        return stream.current().type == TokenType::ANNOTATION;
+        if (stream.current().type == TokenType::ANNOTATION) return true;
+
+        // Also accept `@X ... annotation Name` — skip the leading annotation
+        // chain and check whether it lands on the ANNOTATION keyword.
+        if (stream.current().type != TokenType::AT) return false;
+
+        size_t lookAhead = 0;
+        while (stream.peekAhead(lookAhead).type == TokenType::AT)
+        {
+            lookAhead++; // '@'
+            if (stream.peekAhead(lookAhead).type != TokenType::IDENTIFIER) return false;
+            lookAhead++; // name
+
+            if (stream.peekAhead(lookAhead).type == TokenType::LPAREN)
+            {
+                lookAhead++;
+                int depth = 1;
+                while (depth > 0 && stream.peekAhead(lookAhead).type != TokenType::END)
+                {
+                    TokenType t = stream.peekAhead(lookAhead).type;
+                    if (t == TokenType::LPAREN) depth++;
+                    else if (t == TokenType::RPAREN) depth--;
+                    lookAhead++;
+                }
+                if (depth != 0) return false;
+            }
+        }
+        return stream.peekAhead(lookAhead).type == TokenType::ANNOTATION;
     }
 
     std::unique_ptr<AnnotationDeclarationNode> AnnotationDeclarationParser::parseAnnotationDeclaration()
     {
         validateDeclarationContext();
+
+        // Consume any leading meta-annotation chain (`@Retention(RUNTIME)
+        // @Target([METHOD]) annotation Foo { ... }`).
+        std::vector<std::shared_ptr<AnnotationNode>> metaAnnotations;
+        if (tokenStream.check(TokenType::AT))
+        {
+            metaAnnotations = utilities::AnnotationParser::parseAnnotations(tokenStream);
+        }
 
         SourceLocation declLocation = tokenStream.current().location;
         expectToken(TokenType::ANNOTATION);
@@ -56,6 +92,11 @@ namespace parser
         expectToken(TokenType::LBRACE);
 
         auto node = std::make_unique<AnnotationDeclarationNode>(annotationName, declLocation);
+
+        for (auto& meta : metaAnnotations)
+        {
+            node->addMetaAnnotation(std::move(meta));
+        }
 
         // Field declaration loop: `Type[?] name [= literal];` repeated.
         while (!tokenStream.check(TokenType::RBRACE) && !tokenStream.isAtEnd())

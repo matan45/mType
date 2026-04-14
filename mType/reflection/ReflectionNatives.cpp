@@ -105,6 +105,11 @@ namespace reflection
         nativeRegistry->registerNativeFunction("__reflect_hasMethodAnnotation",  __reflect_hasMethodAnnotation);
         nativeRegistry->registerNativeFunction("__reflect_getFieldAnnotation",   __reflect_getFieldAnnotation);
         nativeRegistry->registerNativeFunction("__reflect_hasFieldAnnotation",   __reflect_hasFieldAnnotation);
+        // MYT-109: constructor-annotation reflection + meta-annotation query
+        nativeRegistry->registerNativeFunction("__reflect_getConstructorAnnotations", __reflect_getConstructorAnnotations);
+        nativeRegistry->registerNativeFunction("__reflect_getConstructorAnnotation",  __reflect_getConstructorAnnotation);
+        nativeRegistry->registerNativeFunction("__reflect_hasConstructorAnnotation",  __reflect_hasConstructorAnnotation);
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationMeta",         __reflect_getAnnotationMeta);
         nativeRegistry->registerNativeFunction("__reflect_getAnnotationObject",  __reflect_getAnnotationObject);
 
         // Parameter reflection

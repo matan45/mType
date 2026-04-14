@@ -52,5 +52,48 @@ namespace validation::builtins
             def->addParam(std::move(schema));
             registry->registerAnnotation("Throw", def);
         }
+
+        // MYT-109 (3a) — meta-annotations.
+
+        // @Retention(policy: Class) — controls whether the annotation survives
+        // into bytecode. Policy is one of the marker classes SOURCE / RUNTIME
+        // (lib/annotations/RetentionPolicy.mt). Positional shorthand is
+        // accepted: `@Retention(RUNTIME)`.
+        if (!registry->hasAnnotation("Retention"))
+        {
+            auto def = std::make_shared<AnnotationDefinition>("Retention", true);
+            AnnotationParamSchema schema;
+            schema.name         = "policy";
+            schema.declaredType = AnnotationValueType::CLASS_REF;
+            schema.nullable     = false;
+            schema.isArray      = false;
+            def->addParam(std::move(schema));
+            registry->registerAnnotation("Retention", def);
+        }
+
+        // @Target(targets: Class[]) — restricts the host kinds an annotation
+        // may be applied to. Values are marker classes from lib/annotations/
+        // (Method, Field, Constructor, ClassTarget, FunctionTarget,
+        // AnnotationTarget). Positional shorthand: `@Target([METHOD])`.
+        if (!registry->hasAnnotation("Target"))
+        {
+            auto def = std::make_shared<AnnotationDefinition>("Target", true);
+            AnnotationParamSchema schema;
+            schema.name         = "targets";
+            schema.declaredType = AnnotationValueType::CLASS_ARRAY;
+            schema.nullable     = false;
+            schema.isArray      = true;
+            def->addParam(std::move(schema));
+            registry->registerAnnotation("Target", def);
+        }
+
+        // @Inherited — zero-parameter marker. When applied to an annotation
+        // declaration, class-level instances of that annotation are inherited
+        // by subclasses.
+        if (!registry->hasAnnotation("Inherited"))
+        {
+            auto def = std::make_shared<AnnotationDefinition>("Inherited", true);
+            registry->registerAnnotation("Inherited", def);
+        }
     }
 }

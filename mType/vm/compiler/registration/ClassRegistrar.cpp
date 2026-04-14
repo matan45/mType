@@ -23,6 +23,8 @@
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
 #include "../../../ast/nodes/annotations/TypedAnnotationValue.hpp"
+#include "../../../environment/registry/AnnotationRegistry.hpp"
+#include "../../../runtimeTypes/klass/AnnotationDefinition.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration
@@ -67,6 +69,32 @@ namespace vm::compiler::registration
                     out.typedArguments.push_back(toTypedArg(key, *v));
                 }
             }
+        }
+
+        // MYT-109: returns true if the annotation should be retained at runtime
+        // and in bytecode. SOURCE-retention annotations are dropped before
+        // class registration so they are invisible to reflection and are not
+        // serialized into the .mtc file.
+        bool shouldRetainAnnotation(
+            const ast::nodes::annotations::AnnotationNode& annotation,
+            const std::shared_ptr<environment::Environment>& environment)
+        {
+            if (!environment) return true;
+            auto registry = environment->getAnnotationRegistry();
+            if (!registry) return true;
+            auto def = registry->findAnnotation(annotation.getName());
+            if (!def) return true; // unknown annotation — leave the validator to report it
+            auto retention = def->getMetaAnnotation("Retention");
+            if (!retention) return true; // default retention is RUNTIME
+            const ast::nodes::annotations::TypedAnnotationValue* policy =
+                retention->getTypedParameter("policy");
+            if (!policy) policy = retention->getTypedParameter("__positional__");
+            if (!policy) return true;
+            if (policy->getType() == ast::nodes::annotations::AnnotationValueType::CLASS_REF)
+            {
+                return policy->asClassRef() != "SOURCE";
+            }
+            return true;
         }
     }
 
@@ -148,8 +176,10 @@ namespace vm::compiler::registration
         // Set value class modifier
         classDef->setValueClass(classNode->isValueClass());
 
-        // Copy annotations from AST to runtime definition
+        // Copy annotations from AST to runtime definition (drop SOURCE-retention).
         for (const auto& annotation : classNode->getAnnotations()) {
+            if (!annotation) continue;
+            if (!shouldRetainAnnotation(*annotation, environment)) continue;
             classDef->addAnnotation(annotation);
         }
 
@@ -182,7 +212,10 @@ namespace vm::compiler::registration
                         ctorNode->getAccessModifier()
                     );
                     // MYT-108: copy constructor annotations to runtime definition
+                    // (drop SOURCE-retention annotations per MYT-109).
                     for (const auto& annotation : ctorNode->getAnnotations()) {
+                        if (!annotation) continue;
+                        if (!shouldRetainAnnotation(*annotation, environment)) continue;
                         ctorDef->addAnnotation(annotation);
                     }
                     classDef->addConstructor(ctorDef);
@@ -312,7 +345,10 @@ namespace vm::compiler::registration
                 methodDef->setFinal(methodNode->isFinal());
 
                 // Copy annotations from AST to runtime definition
+                // (drop SOURCE-retention per MYT-109).
                 for (const auto& annotation : methodNode->getAnnotations()) {
+                    if (!annotation) continue;
+                    if (!shouldRetainAnnotation(*annotation, environment)) continue;
                     methodDef->addAnnotation(annotation);
                 }
 
@@ -405,7 +441,10 @@ namespace vm::compiler::registration
                 );
 
                 // MYT-108: copy field annotations to runtime definition
+                // (drop SOURCE-retention per MYT-109).
                 for (const auto& annotation : fieldNode->getAnnotations()) {
+                    if (!annotation) continue;
+                    if (!shouldRetainAnnotation(*annotation, environment)) continue;
                     fieldDef->addAnnotation(annotation);
                 }
 
@@ -708,8 +747,10 @@ namespace vm::compiler::registration
             metadata.genericParameters.push_back(param.name);
         }
 
-        // Extract annotations (MYT-108 typed-args)
+        // Extract annotations (MYT-108 typed-args; SOURCE-retention stripped per MYT-109)
         for (const auto& annotationNode : classNode->getAnnotations()) {
+            if (!annotationNode) continue;
+            if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
             bytecode::BytecodeProgram::AnnotationData annot;
             populateAnnotationData(annot, *annotationNode);
             metadata.annotations.push_back(std::move(annot));
@@ -733,7 +774,10 @@ namespace vm::compiler::registration
             fieldMeta.isProtected = (accessMod == ast::AccessModifier::PROTECTED);
 
             // MYT-108: copy field annotations into metadata (typed-args)
+            // SOURCE-retention annotations are stripped per MYT-109.
             for (const auto& annotationNode : field->getAnnotations()) {
+                if (!annotationNode) continue;
+                if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
                 bytecode::BytecodeProgram::AnnotationData annot;
                 populateAnnotationData(annot, *annotationNode);
                 fieldMeta.annotations.push_back(std::move(annot));
@@ -778,7 +822,10 @@ namespace vm::compiler::registration
             }
 
             // MYT-108: copy method annotations into metadata (typed-args)
+            // SOURCE-retention annotations are stripped per MYT-109.
             for (const auto& annotationNode : method->getAnnotations()) {
+                if (!annotationNode) continue;
+                if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
                 bytecode::BytecodeProgram::AnnotationData annot;
                 populateAnnotationData(annot, *annotationNode);
                 methodMeta.annotations.push_back(std::move(annot));
@@ -808,7 +855,10 @@ namespace vm::compiler::registration
             }
 
             // MYT-108: copy constructor annotations into metadata (typed-args)
+            // SOURCE-retention annotations are stripped per MYT-109.
             for (const auto& annotationNode : ctor->getAnnotations()) {
+                if (!annotationNode) continue;
+                if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
                 bytecode::BytecodeProgram::AnnotationData annot;
                 populateAnnotationData(annot, *annotationNode);
                 ctorMeta.annotations.push_back(std::move(annot));

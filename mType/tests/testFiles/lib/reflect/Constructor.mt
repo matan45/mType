@@ -3,6 +3,7 @@
 
 import * from "AccessibleObject.mt";
 import * from "Modifier.mt";
+import * from "Annotation.mt";
 
 class Constructor extends AccessibleObject {
     private int _nativeHandle;
@@ -67,5 +68,28 @@ class Constructor extends AccessibleObject {
     // Get the native handle
     public function getNativeHandle(): int {
         return this._nativeHandle;
+    }
+
+    // MYT-109: annotation reflection on constructors.
+
+    public function getAnnotations(): Annotation[] {
+        int[] handles = __reflect_getConstructorAnnotations(this._nativeHandle);
+        Annotation[] result = new Annotation[handles.length];
+        for (int i = 0; i < handles.length; i = i + 1) {
+            result[i] = new Annotation(handles[i]);
+        }
+        return result;
+    }
+
+    public function getAnnotation(string annotationName): Annotation? {
+        int handle = __reflect_getConstructorAnnotation(this._nativeHandle, annotationName);
+        if (handle == 0) {
+            return null;
+        }
+        return new Annotation(handle);
+    }
+
+    public function hasAnnotation(string annotationName): bool {
+        return __reflect_hasConstructorAnnotation(this._nativeHandle, annotationName);
     }
 }
