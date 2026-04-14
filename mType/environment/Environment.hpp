@@ -3,6 +3,7 @@
 #include "registry/FunctionRegistry.hpp"
 #include "registry/NativeRegistry.hpp"
 #include "registry/ExportRegistry.hpp"
+#include "registry/AnnotationRegistry.hpp"
 #include "manager/VariableManager.hpp"
 #include "manager/ScopeManager.hpp"
 
@@ -39,6 +40,7 @@ namespace environment
         std::shared_ptr<NativeRegistry> nativeRegistry;
         std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> interfaceRegistry;
         std::shared_ptr<ExportRegistry> exportRegistry;
+        std::shared_ptr<AnnotationRegistry> annotationRegistry;
 
         // Import evaluation tracking
         bool importEvaluationActive;
@@ -74,6 +76,7 @@ namespace environment
         std::shared_ptr<NativeRegistry> getNativeRegistry() const;
         std::shared_ptr<runtimeTypes::klass::InterfaceRegistry> getInterfaceRegistry() const;
         std::shared_ptr<ExportRegistry> getExportRegistry() const;
+        std::shared_ptr<AnnotationRegistry> getAnnotationRegistry() const;
 
         // Import management
         void setImportManager(services::ImportManager* importManager);

@@ -182,7 +182,8 @@ namespace services
         std::cout << "  Classes: " << program.getClasses().size() << "\n";
         std::cout << "\nExecuting bytecode...\n\n";
 
-        // Register classes and interfaces from metadata
+        // Register classes, interfaces, and annotation declarations from metadata
+        registerAnnotationsFromMetadata(program.getAnnotationDeclarations());
         registerClassesFromMetadata(program.getClasses());
         registerInterfacesFromMetadata(program.getInterfaces());
 
@@ -228,7 +229,8 @@ namespace services
         auto program = std::make_unique<BytecodeProgram>(BytecodeProgram::deserialize(inFile));
         inFile.close();
 
-        // Register classes and interfaces from metadata
+        // Register classes, interfaces, and annotation declarations from metadata
+        registerAnnotationsFromMetadata(program->getAnnotationDeclarations());
         registerClassesFromMetadata(program->getClasses());
         registerInterfacesFromMetadata(program->getInterfaces());
 
@@ -253,7 +255,8 @@ namespace services
     {
         auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
 
-        // Register classes and interfaces from metadata
+        // Register classes, interfaces, and annotation declarations from metadata
+        registerAnnotationsFromMetadata(result->getAnnotationDeclarations());
         registerClassesFromMetadata(result->getClasses());
         registerInterfacesFromMetadata(result->getInterfaces());
 
@@ -279,7 +282,8 @@ namespace services
     {
         auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
 
-        // Register classes and interfaces from metadata
+        // Register classes, interfaces, and annotation declarations from metadata
+        registerAnnotationsFromMetadata(result->getAnnotationDeclarations());
         registerClassesFromMetadata(result->getClasses());
         registerInterfacesFromMetadata(result->getInterfaces());
 
@@ -327,6 +331,45 @@ namespace services
 
             // Register the class
             classRegistry->registerClass(classMeta.name, classDef);
+        }
+    }
+
+    void BytecodeService::registerAnnotationsFromMetadata(
+        const std::vector<vm::bytecode::BytecodeProgram::AnnotationDeclData>& declarations)
+    {
+        using ast::nodes::annotations::AnnotationValueType;
+        using ast::nodes::annotations::TypedAnnotationValue;
+
+        auto annotationRegistry = environment->getAnnotationRegistry();
+        if (!annotationRegistry) return;
+
+        for (const auto& decl : declarations)
+        {
+            if (annotationRegistry->hasAnnotation(decl.name)) continue;
+            auto def = std::make_shared<runtimeTypes::klass::AnnotationDefinition>(decl.name, false);
+            for (const auto& p : decl.params)
+            {
+                runtimeTypes::klass::AnnotationParamSchema schema;
+                schema.name         = p.name;
+                schema.declaredType = static_cast<AnnotationValueType>(p.declaredType);
+                schema.nullable     = p.nullable;
+                schema.isArray      = p.isArray;
+                if (p.hasDefault)
+                {
+                    switch (schema.declaredType)
+                    {
+                    case AnnotationValueType::INT:         schema.defaultValue = TypedAnnotationValue::makeInt(p.defaultInt); break;
+                    case AnnotationValueType::FLOAT:       schema.defaultValue = TypedAnnotationValue::makeFloat(p.defaultFloat); break;
+                    case AnnotationValueType::BOOL:        schema.defaultValue = TypedAnnotationValue::makeBool(p.defaultBool); break;
+                    case AnnotationValueType::STRING:      schema.defaultValue = TypedAnnotationValue::makeString(p.defaultString); break;
+                    case AnnotationValueType::CLASS_REF:   schema.defaultValue = TypedAnnotationValue::makeClassRef(p.defaultString); break;
+                    case AnnotationValueType::CLASS_ARRAY: schema.defaultValue = TypedAnnotationValue::makeClassArray(p.defaultStringArray); break;
+                    case AnnotationValueType::NULL_VALUE:  schema.defaultValue = TypedAnnotationValue::makeNull(); break;
+                    }
+                }
+                def->addParam(std::move(schema));
+            }
+            annotationRegistry->registerAnnotation(decl.name, def);
         }
     }
 

@@ -8,6 +8,7 @@
 #include "ExpressionParser.hpp"
 #include "ClassParser.hpp"
 #include "InterfaceParser.hpp"
+#include "AnnotationDeclarationParser.hpp"
 #include <memory>
 
 namespace services
@@ -29,6 +30,7 @@ namespace parser
         std::unique_ptr<ExpressionParser> expressionParser;
         std::unique_ptr<ClassParser> classParser;
         std::unique_ptr<InterfaceParser> interfaceParser;
+        std::unique_ptr<AnnotationDeclarationParser> annotationDeclarationParser;
         std::unique_ptr<ParseContext> context;
     };
 
@@ -46,6 +48,7 @@ namespace parser
         std::unique_ptr<ExpressionParser> expressionParser;
         std::unique_ptr<ClassParser> classParser;
         std::unique_ptr<InterfaceParser> interfaceParser;
+        std::unique_ptr<AnnotationDeclarationParser> annotationDeclarationParser;
 
         static ParserComponents createComponents(Lexer& lex);
 

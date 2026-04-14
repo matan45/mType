@@ -1,4 +1,5 @@
 #include "AnnotationValidator.hpp"
+#include "AnnotationUsageValidator.hpp"
 #include "../errors/InheritanceException.hpp"
 #include "../errors/TypeException.hpp"
 #include "../runtimeTypes/klass/InterfaceDefinition.hpp"
@@ -17,6 +18,48 @@ namespace validation
         if (!classDefinition || !environment)
         {
             return;
+        }
+
+        // First pass: run the typed usage validator on every annotation present
+        // on this class and on every method. Catches unknown annotations,
+        // wrong-type/missing/unknown params, and fills in defaults so the
+        // built-in validators below see a complete value set.
+        for (const auto& annotation : classDefinition->getAnnotations())
+        {
+            AnnotationUsageValidator::validate(
+                annotation, environment, annotation->getLocation());
+        }
+        for (const auto& [methodName, methodOverloads] : classDefinition->getInstanceMethods())
+        {
+            for (const auto& methodDef : methodOverloads)
+            {
+                for (const auto& ann : methodDef->getAnnotations())
+                {
+                    AnnotationUsageValidator::validate(
+                        ann, environment, ann->getLocation());
+                }
+            }
+        }
+        for (const auto& [methodName, methodOverloads] : classDefinition->getStaticMethods())
+        {
+            for (const auto& methodDef : methodOverloads)
+            {
+                for (const auto& ann : methodDef->getAnnotations())
+                {
+                    AnnotationUsageValidator::validate(
+                        ann, environment, ann->getLocation());
+                }
+            }
+        }
+        // Validate annotations on constructors (MYT-108)
+        for (const auto& ctorDef : classDefinition->getConstructors())
+        {
+            if (!ctorDef) continue;
+            for (const auto& ann : ctorDef->getAnnotations())
+            {
+                AnnotationUsageValidator::validate(
+                    ann, environment, ann->getLocation());
+            }
         }
 
         // Validate @Script annotation on class

@@ -14,6 +14,7 @@ namespace parser
     class ExpressionParser;
     class ClassParser;
     class InterfaceParser;
+    class AnnotationDeclarationParser;
     class TokenStream;
 
     using namespace ast;
@@ -27,6 +28,7 @@ namespace parser
         std::optional<std::reference_wrapper<ExpressionParser>> expressionParser;
         std::optional<std::reference_wrapper<ClassParser>> classParser;
         std::optional<std::reference_wrapper<InterfaceParser>> interfaceParser;
+        std::optional<std::reference_wrapper<AnnotationDeclarationParser>> annotationDeclarationParser;
         std::optional<std::reference_wrapper<TokenStream>> tokenStream;
 
         // Composed components following SRP
@@ -55,6 +57,9 @@ namespace parser
         /// @brief Parse an interface using InterfaceParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseInterface();
 
+        /// @brief Parse an annotation type declaration using AnnotationDeclarationParser
+        [[nodiscard]] std::unique_ptr<ASTNode> parseAnnotationDeclaration();
+
         /// @brief Parse a new expression using ClassParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseNewExpression();
 
@@ -63,6 +68,7 @@ namespace parser
         void setExpressionParser(ExpressionParser& parser);
         void setClassParser(ClassParser& parser);
         void setInterfaceParser(InterfaceParser& parser);
+        void setAnnotationDeclarationParser(AnnotationDeclarationParser& parser);
         void setTokenStream(TokenStream& stream);
 
         // Context state delegation (delegates to ParserContextState)

@@ -140,6 +140,32 @@ namespace vm::bytecode
             errors::SourceLocation location; // Source location for error reporting (using errors::SourceLocation for compatibility)
         };
 
+        /// MYT-108: serialized annotation type declaration. Lives in the new
+        /// top-level `annotationDeclarations` section of the .mtc file; on
+        /// load, registered into Environment::annotationRegistry so that
+        /// reflection getAnnotation() can resolve user-defined annotations.
+        struct AnnotationParamSchemaData
+        {
+            std::string name;
+            uint8_t declaredType;     // matches ast::nodes::annotations::AnnotationValueType
+            bool nullable;
+            bool isArray;
+            bool hasDefault;
+            // Default-value payload reuses the same valueType encoding as
+            // declaredType, but is only present when hasDefault is true.
+            int64_t defaultInt = 0;
+            double  defaultFloat = 0.0;
+            bool    defaultBool = false;
+            std::string defaultString;          // STRING / CLASS_REF
+            std::vector<std::string> defaultStringArray; // CLASS_ARRAY
+        };
+
+        struct AnnotationDeclData
+        {
+            std::string name;
+            std::vector<AnnotationParamSchemaData> params;
+        };
+
         /**
          * Class metadata for registration when loading cached bytecode
          */
@@ -216,6 +242,7 @@ namespace vm::bytecode
         std::unordered_map<size_t, SourceLocation> sourceLocations;
         std::vector<ClassMetadata> classes; // Class metadata for cached bytecode
         std::vector<InterfaceMetadata> interfaces; // Interface metadata for cached bytecode
+        std::vector<AnnotationDeclData> annotationDeclarations; // MYT-108 (.mtc v5+)
         std::vector<GlobalVariableMetadata> globalVariables; // Global variables for debugging
         ExceptionTable globalExceptionTable; // Exception table for global scope (try-catch-finally outside functions)
         size_t entryPoint;
@@ -284,6 +311,10 @@ namespace vm::bytecode
         void addInterface(const InterfaceMetadata& interfaceMeta);
         const std::vector<InterfaceMetadata>& getInterfaces() const;
 
+        // Annotation Declaration Metadata Management (MYT-108)
+        void addAnnotationDeclaration(const AnnotationDeclData& declData);
+        const std::vector<AnnotationDeclData>& getAnnotationDeclarations() const;
+
         // Async Detection
         bool hasAsyncFunctions() const;
         bool hasAwaitInstructions() const;
@@ -309,6 +340,8 @@ namespace vm::bytecode
         void readInterfaces(std::istream& in);
         void writeGlobalExceptionTable(std::ostream& out) const;
         void readGlobalExceptionTable(std::istream& in);
+        void writeAnnotationDeclarations(std::ostream& out) const;
+        void readAnnotationDeclarations(std::istream& in);
 
         // Source location update helper
         void updateSourceLocationsAfterOffset(size_t afterOffset, int delta);

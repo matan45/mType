@@ -6,6 +6,42 @@ namespace tests::testSuite
 
     void AnnotationTestSuite::setupTests()
     {
+        // ===== USER-DEFINED ANNOTATIONS (MYT-108) - PASS TESTS =====
+
+        addOutputVerificationTest("Annotation Declaration - Empty Body",
+                                  passPath + "annotation_declare_empty_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - Int Param + Reflection",
+                                  passPath + "annotation_declare_int_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - String Positional Shorthand",
+                                  passPath + "annotation_declare_string_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - Partial Defaults",
+                                  passPath + "annotation_defaults_partial_pass.mt");
+
+        // ===== USER-DEFINED ANNOTATIONS (MYT-108) - ERROR TESTS =====
+
+        addTestFromFile("Annotation Usage - Unknown Annotation",
+                        errorPath + "unknown_annotation_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Unknown annotation");
+
+        addTestFromFile("Annotation Usage - Wrong Param Type",
+                        errorPath + "wrong_param_type_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "expects int");
+
+        addTestFromFile("Annotation Usage - Missing Required Param",
+                        errorPath + "missing_required_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "missing required parameter");
+
+        addTestFromFile("Annotation Usage - Unknown Param Name",
+                        errorPath + "unknown_param_name_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Unknown parameter");
+
         // ===== @Override ANNOTATION - PASS TESTS =====
         // Tests for valid @Override usage with parent classes and interfaces
 

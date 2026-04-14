@@ -547,7 +547,7 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
         // Write version
-        uint32_t version = 4;  // Version 4: isAbstract serialization + interface metadata
+        uint32_t version = 5;  // Version 5: MYT-108 annotation declarations + typed parameters
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
         // Write entry point
@@ -574,6 +574,9 @@ namespace vm::bytecode
         // Write global exception table
         writeGlobalExceptionTable(out);
 
+        // Write annotation declarations (MYT-108, .mtc v5+)
+        writeAnnotationDeclarations(out);
+
         // Write source file path
         size_t len = sourceFilePath.size();
         out.write(reinterpret_cast<const char*>(&len), sizeof(len));
@@ -593,12 +596,12 @@ namespace vm::bytecode
         // Read version
         uint32_t version;
         in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version < 4) {
+        if (version < 5) {
             throw std::runtime_error(
                 "Bytecode file uses an outdated format (version " + std::to_string(version) + "). "
                 "Please recompile from source using the current compiler.");
         }
-        if (version != 4) {
+        if (version != 5) {
             throw std::runtime_error("Unsupported bytecode version: " + std::to_string(version));
         }
 
@@ -625,6 +628,9 @@ namespace vm::bytecode
 
         // Read global exception table
         program.readGlobalExceptionTable(in);
+
+        // Read annotation declarations (MYT-108, .mtc v5+)
+        program.readAnnotationDeclarations(in);
 
         // Read source file path
         size_t len;
@@ -1110,6 +1116,63 @@ namespace vm::bytecode
         for (const auto& classMeta : classes) {
             writeClassMetadata(out, classMeta);
         }
+    }
+
+    void BytecodeProgram::writeAnnotationDeclarations(std::ostream& out) const {
+        size_t declCount = annotationDeclarations.size();
+        out.write(reinterpret_cast<const char*>(&declCount), sizeof(declCount));
+        for (const auto& decl : annotationDeclarations) {
+            BytecodeIOHelper::writeString(out, decl.name);
+            size_t paramCount = decl.params.size();
+            out.write(reinterpret_cast<const char*>(&paramCount), sizeof(paramCount));
+            for (const auto& p : decl.params) {
+                BytecodeIOHelper::writeString(out, p.name);
+                BytecodeIOHelper::writePrimitive(out, p.declaredType);
+                BytecodeIOHelper::writePrimitive(out, p.nullable);
+                BytecodeIOHelper::writePrimitive(out, p.isArray);
+                BytecodeIOHelper::writePrimitive(out, p.hasDefault);
+                if (p.hasDefault) {
+                    BytecodeIOHelper::writePrimitive(out, p.defaultInt);
+                    BytecodeIOHelper::writePrimitive(out, p.defaultFloat);
+                    BytecodeIOHelper::writePrimitive(out, p.defaultBool);
+                    BytecodeIOHelper::writeString(out, p.defaultString);
+                    BytecodeIOHelper::writeStringVector(out, p.defaultStringArray);
+                }
+            }
+        }
+    }
+
+    void BytecodeProgram::readAnnotationDeclarations(std::istream& in) {
+        size_t declCount = BytecodeIOHelper::readPrimitive<size_t>(in);
+        annotationDeclarations.resize(declCount);
+        for (auto& decl : annotationDeclarations) {
+            decl.name = BytecodeIOHelper::readString(in);
+            size_t paramCount = BytecodeIOHelper::readPrimitive<size_t>(in);
+            decl.params.resize(paramCount);
+            for (auto& p : decl.params) {
+                p.name         = BytecodeIOHelper::readString(in);
+                p.declaredType = BytecodeIOHelper::readPrimitive<uint8_t>(in);
+                p.nullable     = BytecodeIOHelper::readPrimitive<bool>(in);
+                p.isArray      = BytecodeIOHelper::readPrimitive<bool>(in);
+                p.hasDefault   = BytecodeIOHelper::readPrimitive<bool>(in);
+                if (p.hasDefault) {
+                    p.defaultInt         = BytecodeIOHelper::readPrimitive<int64_t>(in);
+                    p.defaultFloat       = BytecodeIOHelper::readPrimitive<double>(in);
+                    p.defaultBool        = BytecodeIOHelper::readPrimitive<bool>(in);
+                    p.defaultString      = BytecodeIOHelper::readString(in);
+                    p.defaultStringArray = BytecodeIOHelper::readStringVector(in);
+                }
+            }
+        }
+    }
+
+    void BytecodeProgram::addAnnotationDeclaration(const AnnotationDeclData& declData) {
+        annotationDeclarations.push_back(declData);
+    }
+
+    const std::vector<BytecodeProgram::AnnotationDeclData>&
+        BytecodeProgram::getAnnotationDeclarations() const {
+        return annotationDeclarations;
     }
 
     void BytecodeProgram::readFieldMetadata(std::istream& in, FieldMetadata& field) {

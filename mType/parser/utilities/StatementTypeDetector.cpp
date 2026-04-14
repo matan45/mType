@@ -304,6 +304,8 @@ namespace parser::utilities
             return StatementType::CLASS;
         case TokenType::INTERFACE:
             return StatementType::INTERFACE;
+        case TokenType::ANNOTATION:
+            return StatementType::ANNOTATION_DECLARATION;
         case TokenType::LBRACE:
             return StatementType::BLOCK;
         case TokenType::SEMICOLON:

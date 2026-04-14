@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
+#include "../../ast/nodes/annotations/TypedAnnotationValue.hpp"
 #include "../TokenStream.hpp"
 #include "../../token/TokenType.hpp"
 #include "../../errors/SourceLocation.hpp"
@@ -13,56 +14,30 @@ namespace parser::utilities
     using namespace token;
     using namespace errors;
 
-    /**
-     * @brief Utility class for parsing annotations from token streams
-     *
-     * Provides centralized logic for detecting and parsing @AnnotationName syntax
-     * in class and method definitions.
-     */
+    /// Parses `@AnnotationName[(args)]` annotation usages.
+    /// `args` accepts:
+    ///   * named pairs: `key = literal, key2 = literal2`
+    ///   * positional shorthand: a single bare literal — semantically bound to
+    ///     the sole declared parameter (validator enforces arity)
+    ///   * legacy bare-identifier list — preserved for the @Throw migration
+    ///     path; identifiers parsed as an ordered list of CLASS_REF values.
+    /// Literal types: int, float, bool (true/false), string, identifier
+    /// (treated as a Class reference), null, array literal `[Id, Id, ...]`.
     class AnnotationParser
     {
     public:
-        /**
-         * @brief Parse a single annotation at current token position
-         *
-         * Expects current token to be '@', followed by an identifier.
-         * Returns nullptr if current token is not '@'.
-         *
-         * @param tokenStream The token stream to parse from
-         * @return Shared pointer to AnnotationNode, or nullptr if no annotation present
-         */
         static std::shared_ptr<AnnotationNode> parseAnnotation(TokenStream& tokenStream);
-
-        /**
-         * @brief Parse all consecutive annotations at current position
-         *
-         * Continues parsing annotations while the current token is '@'.
-         * Returns empty vector if no annotations are present.
-         *
-         * @param tokenStream The token stream to parse from
-         * @return Vector of AnnotationNode pointers (may be empty)
-         */
         static std::vector<std::shared_ptr<AnnotationNode>> parseAnnotations(TokenStream& tokenStream);
-
-        /**
-         * @brief Check if current token is the start of an annotation (@)
-         *
-         * @param type The token type to check
-         * @return true if token is AT (@)
-         */
         static bool isAnnotation(TokenType type);
 
     private:
-        /**
-         * @brief Parse annotation parameters enclosed in parentheses
-         *
-         * Expects current token to be '(', followed by comma-separated identifiers,
-         * and ending with ')'. Returns a parameters map with the parsed exception list.
-         *
-         * @param tokenStream The token stream to parse from
-         * @return Map containing "exceptions" key with comma-separated exception class names
-         * @throws ParseException if syntax is invalid
-         */
-        static std::unordered_map<std::string, std::string> parseAnnotationParameters(TokenStream& tokenStream);
+        // Top-level argument parser — handles `(key = lit, ...)` or shorthand.
+        static void parseAnnotationArguments(TokenStream& tokenStream, AnnotationNode& target);
+
+        // Parses a single literal value at the current token, advancing past it.
+        static TypedAnnotationValue parseLiteral(TokenStream& tokenStream);
+
+        // Parses an array literal `[Id, Id, ...]` (Class[] only in v1).
+        static TypedAnnotationValue parseArrayLiteral(TokenStream& tokenStream);
     };
 }

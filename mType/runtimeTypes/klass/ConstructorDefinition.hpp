@@ -9,6 +9,7 @@
 #include "../../ast/AccessModifier.hpp"
 #include "../../types/UnifiedType.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
+#include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../Definition.hpp"
 
 namespace runtimeTypes::klass
@@ -31,6 +32,9 @@ namespace runtimeTypes::klass
 
         // Unified type parameter information for precise type handling
         std::vector<std::pair<std::string, ::types::UnifiedTypePtr>> unifiedParameters;
+
+        // MYT-108: per-constructor annotations populated by ClassRegistrar.
+        std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
 
       public:
        // Legacy constructor with ParameterType (preserves class/interface information)
@@ -91,6 +95,26 @@ namespace runtimeTypes::klass
             unifiedParameters = uParams;
         }
         bool hasUnifiedParameters() const { return !unifiedParameters.empty(); }
+
+        // MYT-108: annotation accessors mirror MethodDefinition's API.
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>& getAnnotations() const
+        {
+            return annotations;
+        }
+        void addAnnotation(std::shared_ptr<ast::nodes::annotations::AnnotationNode> annotation)
+        {
+            annotations.push_back(std::move(annotation));
+        }
+        bool hasAnnotation(const std::string& name) const
+        {
+            for (const auto& a : annotations) if (a && a->getName() == name) return true;
+            return false;
+        }
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode> getAnnotation(const std::string& name) const
+        {
+            for (const auto& a : annotations) if (a && a->getName() == name) return a;
+            return nullptr;
+        }
 
         // Reflection support: get modifier flags as bitmask
         // PUBLIC=1, PRIVATE=2, PROTECTED=4

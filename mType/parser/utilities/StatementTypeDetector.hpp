@@ -16,6 +16,7 @@ namespace parser::utilities
         IMPORT,
         CLASS,
         INTERFACE,
+        ANNOTATION_DECLARATION,
         EXCEPTION,
         BLOCK,
         EXPRESSION,

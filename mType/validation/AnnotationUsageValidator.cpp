@@ -1,0 +1,133 @@
+#include "AnnotationUsageValidator.hpp"
+#include "../runtimeTypes/klass/AnnotationDefinition.hpp"
+#include "../errors/TypeException.hpp"
+#include <sstream>
+
+namespace validation
+{
+    using namespace ast::nodes::annotations;
+    using runtimeTypes::klass::AnnotationDefinition;
+    using runtimeTypes::klass::AnnotationParamSchema;
+
+    namespace
+    {
+        const char* typeName(AnnotationValueType t)
+        {
+            switch (t)
+            {
+            case AnnotationValueType::NULL_VALUE:  return "null";
+            case AnnotationValueType::INT:         return "int";
+            case AnnotationValueType::FLOAT:       return "float";
+            case AnnotationValueType::BOOL:        return "bool";
+            case AnnotationValueType::STRING:      return "string";
+            case AnnotationValueType::CLASS_REF:   return "Class";
+            case AnnotationValueType::CLASS_ARRAY: return "Class[]";
+            }
+            return "<unknown>";
+        }
+
+        // Allow some forgiving conversions:
+        //   * INT literal accepted where FLOAT declared
+        //   * CLASS_REF accepted where CLASS_ARRAY declared (single-element shorthand)
+        bool isAssignable(AnnotationValueType actual, const AnnotationParamSchema& schema)
+        {
+            if (actual == schema.declaredType) return true;
+            if (schema.declaredType == AnnotationValueType::FLOAT && actual == AnnotationValueType::INT) return true;
+            if (schema.declaredType == AnnotationValueType::CLASS_ARRAY && actual == AnnotationValueType::CLASS_REF) return true;
+            return false;
+        }
+    }
+
+    void AnnotationUsageValidator::validate(
+        std::shared_ptr<AnnotationNode> annotation,
+        std::shared_ptr<environment::Environment> environment,
+        const errors::SourceLocation& location)
+    {
+        if (!annotation || !environment) return;
+        auto registry = environment->getAnnotationRegistry();
+        if (!registry) return;
+
+        auto def = registry->findAnnotation(annotation->getName());
+        if (!def)
+        {
+            std::ostringstream oss;
+            oss << "Unknown annotation '@" << annotation->getName() << "' — no annotation type with this name has been declared.";
+            throw errors::TypeException(oss.str(), location);
+        }
+
+        // Resolve positional shorthand → bind to sole declared param.
+        if (annotation->hasParameter("__positional__"))
+        {
+            const auto& params = def->getParams();
+            if (params.size() != 1)
+            {
+                std::ostringstream oss;
+                oss << "Positional shorthand only allowed on annotations with exactly 1 declared parameter; "
+                    << "'@" << annotation->getName() << "' declares " << params.size() << ".";
+                throw errors::TypeException(oss.str(), location);
+            }
+            const TypedAnnotationValue* posValue = annotation->getTypedParameter("__positional__");
+            // Re-bind under the param's actual name. We can't remove the
+            // positional key (no removeParameter API), but the validator can
+            // keep behaving by reading the named binding in subsequent passes.
+            if (posValue) annotation->setTypedParameter(params[0].name, *posValue);
+        }
+
+        // Migrate legacy @Throw bare-list — parser stores under "exceptions"
+        // already, so nothing to do for the named case. But if the legacy
+        // form was used and the schema's param name differs (shouldn't, since
+        // built-in @Throw uses "exceptions"), the validator below will catch.
+
+        // Walk every supplied parameter and check name + type.
+        for (const auto& key : annotation->getKeyOrder())
+        {
+            if (key == "__positional__") continue; // synthetic key
+            const TypedAnnotationValue* value = annotation->getTypedParameter(key);
+            if (!value) continue;
+
+            const AnnotationParamSchema* schema = def->findParam(key);
+            if (!schema)
+            {
+                std::ostringstream oss;
+                oss << "Unknown parameter '" << key << "' for annotation '@" << annotation->getName() << "'.";
+                throw errors::TypeException(oss.str(), location);
+            }
+
+            if (value->isNull())
+            {
+                if (!schema->nullable)
+                {
+                    std::ostringstream oss;
+                    oss << "Annotation '@" << annotation->getName() << "' parameter '" << key
+                        << "' is not nullable but received null.";
+                    throw errors::TypeException(oss.str(), location);
+                }
+                continue;
+            }
+
+            if (!isAssignable(value->getType(), *schema))
+            {
+                std::ostringstream oss;
+                oss << "Annotation '@" << annotation->getName() << "' parameter '" << key
+                    << "' expects " << typeName(schema->declaredType)
+                    << " but received " << typeName(value->getType()) << ".";
+                throw errors::TypeException(oss.str(), location);
+            }
+        }
+
+        // Fill defaults + check missing required.
+        for (const auto& schema : def->getParams())
+        {
+            if (annotation->hasParameter(schema.name)) continue;
+            if (schema.defaultValue.has_value())
+            {
+                annotation->setTypedParameter(schema.name, *schema.defaultValue);
+                continue;
+            }
+            std::ostringstream oss;
+            oss << "Annotation '@" << annotation->getName() << "' is missing required parameter '"
+                << schema.name << "'.";
+            throw errors::TypeException(oss.str(), location);
+        }
+    }
+}

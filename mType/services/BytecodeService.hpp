@@ -40,6 +40,10 @@ namespace services
         // Register interfaces from bytecode metadata into environment
         void registerInterfacesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::InterfaceMetadata>& interfaces);
 
+        // Register annotation type declarations from bytecode metadata (MYT-108)
+        void registerAnnotationsFromMetadata(
+            const std::vector<vm::bytecode::BytecodeProgram::AnnotationDeclData>& declarations);
+
         // Helper functions for class registration
         void createClassDefinitionsFirstPass(
             const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes,

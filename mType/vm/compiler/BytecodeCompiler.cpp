@@ -1,5 +1,9 @@
 #include "BytecodeCompiler.hpp"
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
+#include "../../ast/nodes/annotations/AnnotationDeclarationNode.hpp"
+#include "../../runtimeTypes/klass/AnnotationDefinition.hpp"
+#include "../../runtimeTypes/klass/AnnotationParamSchema.hpp"
+#include "../../environment/registry/AnnotationRegistry.hpp"
 #include <unordered_set>
 #include <fstream>
 #include "../../ast/nodes/statements/ImportNode.hpp"
@@ -915,6 +919,64 @@ namespace vm::compiler
     {
         // Annotations are metadata only - no bytecode generation needed
         // They are processed during semantic analysis phase, not compilation
+        return value::Value();
+    }
+
+    value::Value BytecodeCompiler::visitAnnotationDeclarationNode(ast::AnnotationDeclarationNode* node)
+    {
+        using ast::nodes::annotations::AnnotationValueType;
+
+        auto annotationRegistry = environment->getAnnotationRegistry();
+        if (!annotationRegistry) return value::Value();
+
+        // Don't shadow built-ins (Override/Script/EntryPoint/Throw) — they're
+        // pre-registered at Environment::initialize() and re-defining them is
+        // caught earlier by the duplicate-type-name check in the parser.
+        if (annotationRegistry->hasAnnotation(node->getName())) return value::Value();
+
+        // Register at runtime for the validation/reflection passes.
+        auto def = std::make_shared<runtimeTypes::klass::AnnotationDefinition>(node->getName(), false);
+        for (const auto& declParam : node->getParams())
+        {
+            runtimeTypes::klass::AnnotationParamSchema schema;
+            schema.name          = declParam.name;
+            schema.declaredType  = declParam.declaredType;
+            schema.defaultValue  = declParam.defaultValue;
+            schema.nullable      = declParam.nullable;
+            schema.isArray       = declParam.isArray;
+            def->addParam(std::move(schema));
+        }
+        annotationRegistry->registerAnnotation(node->getName(), def);
+
+        // Also serialize into the bytecode program (.mtc v5+ section) so the
+        // declaration survives compile-to-file round-trips.
+        bytecode::BytecodeProgram::AnnotationDeclData declData;
+        declData.name = node->getName();
+        for (const auto& declParam : node->getParams())
+        {
+            bytecode::BytecodeProgram::AnnotationParamSchemaData p;
+            p.name         = declParam.name;
+            p.declaredType = static_cast<uint8_t>(declParam.declaredType);
+            p.nullable     = declParam.nullable;
+            p.isArray      = declParam.isArray;
+            p.hasDefault   = declParam.defaultValue.has_value();
+            if (p.hasDefault)
+            {
+                const auto& dv = *declParam.defaultValue;
+                switch (dv.getType())
+                {
+                case AnnotationValueType::INT:         p.defaultInt = dv.asInt(); break;
+                case AnnotationValueType::FLOAT:       p.defaultFloat = dv.asFloat(); break;
+                case AnnotationValueType::BOOL:        p.defaultBool = dv.asBool(); break;
+                case AnnotationValueType::STRING:      p.defaultString = dv.asString(); break;
+                case AnnotationValueType::CLASS_REF:   p.defaultString = dv.asClassRef(); break;
+                case AnnotationValueType::CLASS_ARRAY: p.defaultStringArray = dv.asClassArray(); break;
+                case AnnotationValueType::NULL_VALUE:  break; // no payload needed
+                }
+            }
+            declData.params.push_back(std::move(p));
+        }
+        program.addAnnotationDeclaration(std::move(declData));
         return value::Value();
     }
 

@@ -7,7 +7,7 @@ class ValidationException extends Exception {
 }
 
 class UserService {
-    @Throw(ValidationException)
+    @Throw(exceptions = [ValidationException])
     public function validateUser(string username): bool {
         // Method declares it may throw ValidationException
         if (username == "") {

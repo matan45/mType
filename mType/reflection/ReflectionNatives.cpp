@@ -93,6 +93,18 @@ namespace reflection
         nativeRegistry->registerNativeFunction("__reflect_hasAnnotationParam", __reflect_hasAnnotationParam);
         nativeRegistry->registerNativeFunction("__reflect_getAnnotationParams", __reflect_getAnnotationParams);
 
+        // MYT-108 typed annotation parameter accessors
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationInt",     __reflect_getAnnotationInt);
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationFloat",   __reflect_getAnnotationFloat);
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationBool",    __reflect_getAnnotationBool);
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationString",  __reflect_getAnnotationString);
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationClass",   __reflect_getAnnotationClass);
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationClassArray", __reflect_getAnnotationClassArray);
+        nativeRegistry->registerNativeFunction("__reflect_isAnnotationParamNull", __reflect_isAnnotationParamNull);
+        nativeRegistry->registerNativeFunction("__reflect_getFieldAnnotation",   __reflect_getFieldAnnotation);
+        nativeRegistry->registerNativeFunction("__reflect_hasFieldAnnotation",   __reflect_hasFieldAnnotation);
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationObject",  __reflect_getAnnotationObject);
+
         // Parameter reflection
         nativeRegistry->registerNativeFunction("__reflect_getMethodParameters", __reflect_getMethodParameters);
         nativeRegistry->registerNativeFunction("__reflect_getConstructorParameters", __reflect_getConstructorParameters);

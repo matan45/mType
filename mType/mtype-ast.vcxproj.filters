@@ -32,7 +32,13 @@
     <ClInclude Include="ast\GenericTypeSubstitutionContext.hpp" />
     <ClInclude Include="ast\NodeClassesDeclaration.hpp" />
     <ClInclude Include="ast\VisibilityModifier.hpp" />
+    <ClInclude Include="ast\nodes\annotations\AnnotationDeclarationNode.hpp">
+      <Filter>nodes\annotations</Filter>
+    </ClInclude>
     <ClInclude Include="ast\nodes\annotations\AnnotationNode.hpp">
+      <Filter>nodes\annotations</Filter>
+    </ClInclude>
+    <ClInclude Include="ast\nodes\annotations\TypedAnnotationValue.hpp">
       <Filter>nodes\annotations</Filter>
     </ClInclude>
     <ClInclude Include="ast\nodes\classes\ClassNode.hpp">
@@ -214,6 +220,9 @@
     <ClCompile Include="ast\GenericTypeParameter.cpp" />
     <ClCompile Include="ast\GenericTypeSubstitutionContext.cpp" />
     <ClCompile Include="ast\VisibilityModifier.cpp" />
+    <ClCompile Include="ast\nodes\annotations\AnnotationDeclarationNode.cpp">
+      <Filter>nodes\annotations</Filter>
+    </ClCompile>
     <ClCompile Include="ast\nodes\annotations\AnnotationNode.cpp">
       <Filter>nodes\annotations</Filter>
     </ClCompile>

@@ -871,6 +871,18 @@
     <None Include="tests\testFiles\annotation\error\script_annotation_wrong_update_signature_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_empty_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_empty_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_int_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_int_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\combined_annotations_pass.expected">
       <Filter>testFiles\annotation\pass</Filter>
     </None>

@@ -3,6 +3,7 @@
 #include "ExpressionParser.hpp"
 #include "ClassParser.hpp"
 #include "InterfaceParser.hpp"
+#include "AnnotationDeclarationParser.hpp"
 #include "TokenStream.hpp"
 #include "../errors/ParseException.hpp"
 
@@ -60,6 +61,16 @@ namespace parser
         return interfaceParser->get().parseInterface();
     }
 
+    std::unique_ptr<ASTNode> ParseContext::parseAnnotationDeclaration()
+    {
+        if (!annotationDeclarationParser.has_value())
+        {
+            auto location = tokenStream.has_value() ? tokenStream->get().location() : errors::SourceLocation{};
+            throw ParseException("AnnotationDeclarationParser not initialized", location);
+        }
+        return annotationDeclarationParser->get().parseAnnotationDeclaration();
+    }
+
     std::unique_ptr<ASTNode> ParseContext::parseNewExpression()
     {
         if (!classParser.has_value())
@@ -88,6 +99,11 @@ namespace parser
     void ParseContext::setInterfaceParser(InterfaceParser& parser)
     {
         interfaceParser = std::ref(parser);
+    }
+
+    void ParseContext::setAnnotationDeclarationParser(AnnotationDeclarationParser& parser)
+    {
+        annotationDeclarationParser = std::ref(parser);
     }
 
     void ParseContext::setTokenStream(TokenStream& stream)
