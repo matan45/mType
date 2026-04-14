@@ -40,6 +40,11 @@ namespace ast::nodes::annotations
         const TypedAnnotationValue* getTypedParameter(const std::string& key) const;
         const std::unordered_map<std::string, TypedAnnotationValue>& getTypedParameters() const;
         const std::vector<std::string>& getKeyOrder() const { return keyOrder; }
+        // Removes a typed parameter (from both map and keyOrder).
+        // Returns true if the key was present. Used by the usage validator to
+        // erase the synthetic "__positional__" key after binding it to the
+        // sole declared parameter name.
+        bool removeTypedParameter(const std::string& key);
 
         // Legacy string-only API — preserved so unmigrated code paths keep
         // building. Reads format the typed value via `toDisplayString()`;

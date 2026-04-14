@@ -136,10 +136,12 @@ namespace validation
                 throw errors::TypeException(oss.str(), location);
             }
             const TypedAnnotationValue* posValue = annotation->getTypedParameter("__positional__");
-            // Re-bind under the param's actual name. We can't remove the
-            // positional key (no removeParameter API), but the validator can
-            // keep behaving by reading the named binding in subsequent passes.
-            if (posValue) annotation->setTypedParameter(params[0].name, *posValue);
+            if (posValue)
+            {
+                TypedAnnotationValue copy = *posValue;
+                annotation->setTypedParameter(params[0].name, std::move(copy));
+                annotation->removeTypedParameter("__positional__");
+            }
         }
 
         // Migrate legacy @Throw bare-list — parser stores under "exceptions"

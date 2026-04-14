@@ -66,16 +66,23 @@ namespace parser::utilities
         }
 
         // Disambiguate:
-        //   IDENT = literal       -> named argument
-        //   IDENT , IDENT [, ...] -> legacy bare-identifier list (e.g. @Throw(IO,Net))
-        //   anything else         -> positional shorthand (single literal)
+        //   IDENT = literal             -> named argument
+        //   IDENT , IDENT [, ...]       -> legacy bare-identifier list (@Throw(IO,Net))
+        //   anything else (incl. lone   -> positional shorthand (single literal)
+        //   IDENT before RPAREN)
+        //
+        // The legacy form requires AT LEAST two identifiers separated by a
+        // comma — a lone `IDENT RPAREN` would otherwise collide with the
+        // single-arg positional form (`@Retention(SOURCE)`, `@Throw(IOExc)`),
+        // which is a more natural spelling for one-shot Class-ref
+        // annotations. A single bare IDENT still reaches @Throw via the
+        // CLASS_REF → CLASS_ARRAY widening in the usage validator.
         bool firstIsIdent  = (tokenStream.current().type == TokenType::IDENTIFIER);
         bool secondIsAssign =
             firstIsIdent && (tokenStream.peek().type == TokenType::ASSIGN);
         bool legacyIdentList =
             firstIsIdent && !secondIsAssign &&
-            (tokenStream.peek().type == TokenType::COMMA ||
-             tokenStream.peek().type == TokenType::RPAREN);
+            tokenStream.peek().type == TokenType::COMMA;
 
         if (legacyIdentList)
         {

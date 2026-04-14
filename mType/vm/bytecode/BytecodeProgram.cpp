@@ -1032,8 +1032,19 @@ namespace vm::bytecode
     }
 
     void BytecodeProgram::readAnnotationList(std::istream& in, std::vector<AnnotationData>& list) {
+        // Defensive caps: guards against corrupted/truncated .mtc files resizing
+        // vectors to absurd sizes from garbage bytes. Real annotations rarely
+        // exceed a few dozen per host, let alone the caps below.
+        constexpr size_t MAX_ANNOTATIONS_PER_HOST = 4096;
+        constexpr size_t MAX_ARGS_PER_ANNOTATION  = 256;
+
         size_t count;
         in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        if (!in) throw std::runtime_error("Malformed bytecode: failed to read annotation count");
+        if (count > MAX_ANNOTATIONS_PER_HOST)
+            throw std::runtime_error("Malformed bytecode: annotation count " +
+                std::to_string(count) + " exceeds cap " +
+                std::to_string(MAX_ANNOTATIONS_PER_HOST));
         list.resize(count);
         for (auto& annot : list) {
             annot.name = BytecodeIOHelper::readString(in);
@@ -1046,6 +1057,11 @@ namespace vm::bytecode
             annot.location.setFilename(filename);
             size_t argCount;
             in.read(reinterpret_cast<char*>(&argCount), sizeof(argCount));
+            if (!in) throw std::runtime_error("Malformed bytecode: failed to read annotation arg count");
+            if (argCount > MAX_ARGS_PER_ANNOTATION)
+                throw std::runtime_error("Malformed bytecode: annotation arg count " +
+                    std::to_string(argCount) + " exceeds cap " +
+                    std::to_string(MAX_ARGS_PER_ANNOTATION));
             annot.typedArguments.resize(argCount);
             for (auto& arg : annot.typedArguments) {
                 arg.key       = BytecodeIOHelper::readString(in);
@@ -1181,11 +1197,26 @@ namespace vm::bytecode
     }
 
     void BytecodeProgram::readAnnotationDeclarations(std::istream& in) {
+        // Sanity cap — a single .mtc with more than a few thousand annotation
+        // types is almost certainly corrupted.
+        constexpr size_t MAX_ANNOTATION_DECLS = 4096;
+        constexpr size_t MAX_PARAMS_PER_DECL  = 256;
+
         size_t declCount = BytecodeIOHelper::readPrimitive<size_t>(in);
+        if (!in) throw std::runtime_error("Malformed bytecode: failed to read annotation decl count");
+        if (declCount > MAX_ANNOTATION_DECLS)
+            throw std::runtime_error("Malformed bytecode: annotation decl count " +
+                std::to_string(declCount) + " exceeds cap " +
+                std::to_string(MAX_ANNOTATION_DECLS));
         annotationDeclarations.resize(declCount);
         for (auto& decl : annotationDeclarations) {
             decl.name = BytecodeIOHelper::readString(in);
             size_t paramCount = BytecodeIOHelper::readPrimitive<size_t>(in);
+            if (!in) throw std::runtime_error("Malformed bytecode: failed to read annotation param count");
+            if (paramCount > MAX_PARAMS_PER_DECL)
+                throw std::runtime_error("Malformed bytecode: annotation param count " +
+                    std::to_string(paramCount) + " exceeds cap " +
+                    std::to_string(MAX_PARAMS_PER_DECL));
             decl.params.resize(paramCount);
             for (auto& p : decl.params) {
                 p.name         = BytecodeIOHelper::readString(in);

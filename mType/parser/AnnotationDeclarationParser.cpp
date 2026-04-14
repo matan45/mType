@@ -26,6 +26,12 @@ namespace parser
 
         // Also accept `@X ... annotation Name` — skip the leading annotation
         // chain and check whether it lands on the ANNOTATION keyword.
+        //
+        // This operates on the already-lexed token stream, so string literals
+        // and comments cannot corrupt the scan: string contents arrive as a
+        // single STRING_LITERAL token, comments are dropped by the lexer. The
+        // only tokens we look at here are AT, IDENTIFIER, LPAREN, RPAREN,
+        // ANNOTATION, and END — no surface-level ambiguity with source text.
         if (stream.current().type != TokenType::AT) return false;
 
         size_t lookAhead = 0;

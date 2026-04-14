@@ -1,4 +1,5 @@
 #include "AnnotationNode.hpp"
+#include <algorithm>
 
 namespace ast::nodes::annotations
 {
@@ -40,6 +41,16 @@ namespace ast::nodes::annotations
     const std::unordered_map<std::string, TypedAnnotationValue>& AnnotationNode::getTypedParameters() const
     {
         return typedParameters;
+    }
+
+    bool AnnotationNode::removeTypedParameter(const std::string& key)
+    {
+        auto it = typedParameters.find(key);
+        if (it == typedParameters.end()) return false;
+        typedParameters.erase(it);
+        auto ki = std::find(keyOrder.begin(), keyOrder.end(), key);
+        if (ki != keyOrder.end()) keyOrder.erase(ki);
+        return true;
     }
 
     std::unordered_map<std::string, std::string> AnnotationNode::getParameters() const
