@@ -180,7 +180,8 @@ namespace parser::utilities
         Token afterAnnotationsToken = getTokenAt(lookAheadIndex);
         TokenType afterAnnotations = afterAnnotationsToken.type;
 
-        // Annotations can precede: classes, interfaces, functions, or methods
+        // Annotations can precede: classes, interfaces, annotation declarations,
+        // functions, or methods.
         if (afterAnnotations == TokenType::CLASS)
         {
             return StatementType::CLASS;
@@ -188,6 +189,10 @@ namespace parser::utilities
         else if (afterAnnotations == TokenType::INTERFACE)
         {
             return StatementType::INTERFACE;
+        }
+        else if (afterAnnotations == TokenType::ANNOTATION)
+        {
+            return StatementType::ANNOTATION_DECLARATION;
         }
         else if (afterAnnotations == TokenType::FUNCTION)
         {
@@ -304,6 +309,8 @@ namespace parser::utilities
             return StatementType::CLASS;
         case TokenType::INTERFACE:
             return StatementType::INTERFACE;
+        case TokenType::ANNOTATION:
+            return StatementType::ANNOTATION_DECLARATION;
         case TokenType::LBRACE:
             return StatementType::BLOCK;
         case TokenType::SEMICOLON:

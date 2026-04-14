@@ -29,12 +29,15 @@ namespace parser
         components.expressionParser = std::make_unique<ExpressionParser>(*components.tokenStream, *components.context);
         components.classParser = std::make_unique<ClassParser>(*components.tokenStream, *components.context);
         components.interfaceParser = std::make_unique<InterfaceParser>(*components.tokenStream, *components.context);
+        components.annotationDeclarationParser =
+            std::make_unique<AnnotationDeclarationParser>(*components.tokenStream, *components.context);
 
         // Step 4: Atomically set all parser references in context
         components.context->setStatementParser(*components.statementParser);
         components.context->setExpressionParser(*components.expressionParser);
         components.context->setClassParser(*components.classParser);
         components.context->setInterfaceParser(*components.interfaceParser);
+        components.context->setAnnotationDeclarationParser(*components.annotationDeclarationParser);
         components.context->setTokenStream(*components.tokenStream);
 
         // Step 5: Set ExpressionParser reference in StatementParser to break circular dependency
@@ -56,6 +59,7 @@ namespace parser
         expressionParser = std::move(components.expressionParser);
         classParser = std::move(components.classParser);
         interfaceParser = std::move(components.interfaceParser);
+        annotationDeclarationParser = std::move(components.annotationDeclarationParser);
     }
 
     std::unique_ptr<services::ImportManager> Parser::getImportManager()

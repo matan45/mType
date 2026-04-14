@@ -1,6 +1,7 @@
 ﻿#include "Environment.hpp"
 #include "../circularDependency/TrueCyclicException.hpp"
 #include "../circularDependency/DepthLimitException.hpp"
+#include "../validation/builtins/BuiltInAnnotations.hpp"
 namespace environment
 {
     Environment::Environment(
@@ -16,6 +17,7 @@ namespace environment
         nativeRegistry(nativeReg),
         interfaceRegistry(std::make_shared<runtimeTypes::klass::InterfaceRegistry>()),
         exportRegistry(std::make_shared<ExportRegistry>()),
+        annotationRegistry(std::make_shared<AnnotationRegistry>()),
         importEvaluationActive(false),
         importManager(nullptr)
     {
@@ -32,6 +34,10 @@ namespace environment
     {
         if (scopeManager) scopeManager->initialize();
         if (nativeRegistry) nativeRegistry->initialize();
+        if (annotationRegistry)
+        {
+            validation::builtins::BuiltInAnnotations::registerAll(annotationRegistry);
+        }
     }
 
     void Environment::cleanup()
@@ -96,6 +102,11 @@ namespace environment
     std::shared_ptr<ExportRegistry> Environment::getExportRegistry() const
     {
         return exportRegistry;
+    }
+
+    std::shared_ptr<AnnotationRegistry> Environment::getAnnotationRegistry() const
+    {
+        return annotationRegistry;
     }
 
     void Environment::registerClass(const std::string& name, std::shared_ptr<ClassDefinition> classDefinition)

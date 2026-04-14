@@ -1,4 +1,5 @@
 #include "AnnotationValidator.hpp"
+#include "AnnotationUsageValidator.hpp"
 #include "../errors/InheritanceException.hpp"
 #include "../errors/TypeException.hpp"
 #include "../runtimeTypes/klass/InterfaceDefinition.hpp"
@@ -17,6 +18,73 @@ namespace validation
         if (!classDefinition || !environment)
         {
             return;
+        }
+
+        // First pass: run the typed usage validator on every annotation present
+        // on this class and on every method. Catches unknown annotations,
+        // wrong-type/missing/unknown params, and fills in defaults so the
+        // built-in validators below see a complete value set.
+        for (const auto& annotation : classDefinition->getAnnotations())
+        {
+            AnnotationUsageValidator::validate(
+                annotation, environment, annotation->getLocation(),
+                AnnotationHostKind::CLASS);
+        }
+        for (const auto& [methodName, methodOverloads] : classDefinition->getInstanceMethods())
+        {
+            for (const auto& methodDef : methodOverloads)
+            {
+                for (const auto& ann : methodDef->getAnnotations())
+                {
+                    AnnotationUsageValidator::validate(
+                        ann, environment, ann->getLocation(),
+                        AnnotationHostKind::METHOD);
+                }
+            }
+        }
+        for (const auto& [methodName, methodOverloads] : classDefinition->getStaticMethods())
+        {
+            for (const auto& methodDef : methodOverloads)
+            {
+                for (const auto& ann : methodDef->getAnnotations())
+                {
+                    AnnotationUsageValidator::validate(
+                        ann, environment, ann->getLocation(),
+                        AnnotationHostKind::METHOD);
+                }
+            }
+        }
+        // Validate annotations on constructors (MYT-108)
+        for (const auto& ctorDef : classDefinition->getConstructors())
+        {
+            if (!ctorDef) continue;
+            for (const auto& ann : ctorDef->getAnnotations())
+            {
+                AnnotationUsageValidator::validate(
+                    ann, environment, ann->getLocation(),
+                    AnnotationHostKind::CONSTRUCTOR);
+            }
+        }
+        // Validate annotations on fields (MYT-109 @Target enforcement)
+        for (const auto& [fieldName, fieldDef] : classDefinition->getInstanceFields())
+        {
+            if (!fieldDef) continue;
+            for (const auto& ann : fieldDef->getAnnotations())
+            {
+                AnnotationUsageValidator::validate(
+                    ann, environment, ann->getLocation(),
+                    AnnotationHostKind::FIELD);
+            }
+        }
+        for (const auto& [fieldName, fieldDef] : classDefinition->getStaticFields())
+        {
+            if (!fieldDef) continue;
+            for (const auto& ann : fieldDef->getAnnotations())
+            {
+                AnnotationUsageValidator::validate(
+                    ann, environment, ann->getLocation(),
+                    AnnotationHostKind::FIELD);
+            }
         }
 
         // Validate @Script annotation on class

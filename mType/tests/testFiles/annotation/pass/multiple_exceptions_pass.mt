@@ -11,7 +11,7 @@ class NetworkException extends Exception {
     }
 }
 
-@Throw(IOException, NetworkException)
+@Throw(exceptions = [IOException, NetworkException])
 function fetchData(string url): string {
     // This function declares it may throw either IOException or NetworkException
     return "data";

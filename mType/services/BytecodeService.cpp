@@ -182,7 +182,8 @@ namespace services
         std::cout << "  Classes: " << program.getClasses().size() << "\n";
         std::cout << "\nExecuting bytecode...\n\n";
 
-        // Register classes and interfaces from metadata
+        // Register classes, interfaces, and annotation declarations from metadata
+        registerAnnotationsFromMetadata(program.getAnnotationDeclarations());
         registerClassesFromMetadata(program.getClasses());
         registerInterfacesFromMetadata(program.getInterfaces());
 
@@ -228,7 +229,8 @@ namespace services
         auto program = std::make_unique<BytecodeProgram>(BytecodeProgram::deserialize(inFile));
         inFile.close();
 
-        // Register classes and interfaces from metadata
+        // Register classes, interfaces, and annotation declarations from metadata
+        registerAnnotationsFromMetadata(program->getAnnotationDeclarations());
         registerClassesFromMetadata(program->getClasses());
         registerInterfacesFromMetadata(program->getInterfaces());
 
@@ -253,7 +255,8 @@ namespace services
     {
         auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
 
-        // Register classes and interfaces from metadata
+        // Register classes, interfaces, and annotation declarations from metadata
+        registerAnnotationsFromMetadata(result->getAnnotationDeclarations());
         registerClassesFromMetadata(result->getClasses());
         registerInterfacesFromMetadata(result->getInterfaces());
 
@@ -279,7 +282,8 @@ namespace services
     {
         auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
 
-        // Register classes and interfaces from metadata
+        // Register classes, interfaces, and annotation declarations from metadata
+        registerAnnotationsFromMetadata(result->getAnnotationDeclarations());
         registerClassesFromMetadata(result->getClasses());
         registerInterfacesFromMetadata(result->getInterfaces());
 
@@ -327,6 +331,79 @@ namespace services
 
             // Register the class
             classRegistry->registerClass(classMeta.name, classDef);
+        }
+    }
+
+    std::shared_ptr<ast::nodes::annotations::AnnotationNode>
+        BytecodeService::buildAnnotationNodeFromMetadata(
+            const vm::bytecode::BytecodeProgram::AnnotationData& annotData)
+    {
+        using ast::nodes::annotations::AnnotationValueType;
+        using ast::nodes::annotations::TypedAnnotationValue;
+
+        auto node = std::make_shared<ast::nodes::annotations::AnnotationNode>(
+            annotData.name, annotData.location);
+        for (const auto& arg : annotData.typedArguments)
+        {
+            auto t = static_cast<AnnotationValueType>(arg.valueType);
+            TypedAnnotationValue v;
+            switch (t)
+            {
+            case AnnotationValueType::INT:         v = TypedAnnotationValue::makeInt(arg.intVal); break;
+            case AnnotationValueType::FLOAT:       v = TypedAnnotationValue::makeFloat(arg.floatVal); break;
+            case AnnotationValueType::BOOL:        v = TypedAnnotationValue::makeBool(arg.boolVal); break;
+            case AnnotationValueType::STRING:      v = TypedAnnotationValue::makeString(arg.stringVal); break;
+            case AnnotationValueType::CLASS_REF:   v = TypedAnnotationValue::makeClassRef(arg.stringVal); break;
+            case AnnotationValueType::CLASS_ARRAY: v = TypedAnnotationValue::makeClassArray(arg.arrayVal); break;
+            case AnnotationValueType::NULL_VALUE:  v = TypedAnnotationValue::makeNull(); break;
+            }
+            node->setTypedParameter(arg.key, std::move(v));
+        }
+        return node;
+    }
+
+    void BytecodeService::registerAnnotationsFromMetadata(
+        const std::vector<vm::bytecode::BytecodeProgram::AnnotationDeclData>& declarations)
+    {
+        using ast::nodes::annotations::AnnotationValueType;
+        using ast::nodes::annotations::TypedAnnotationValue;
+
+        auto annotationRegistry = environment->getAnnotationRegistry();
+        if (!annotationRegistry) return;
+
+        for (const auto& decl : declarations)
+        {
+            if (annotationRegistry->hasAnnotation(decl.name)) continue;
+            auto def = std::make_shared<runtimeTypes::klass::AnnotationDefinition>(decl.name, false);
+            for (const auto& p : decl.params)
+            {
+                runtimeTypes::klass::AnnotationParamSchema schema;
+                schema.name         = p.name;
+                schema.declaredType = static_cast<AnnotationValueType>(p.declaredType);
+                schema.nullable     = p.nullable;
+                schema.isArray      = p.isArray;
+                if (p.hasDefault)
+                {
+                    switch (schema.declaredType)
+                    {
+                    case AnnotationValueType::INT:         schema.defaultValue = TypedAnnotationValue::makeInt(p.defaultInt); break;
+                    case AnnotationValueType::FLOAT:       schema.defaultValue = TypedAnnotationValue::makeFloat(p.defaultFloat); break;
+                    case AnnotationValueType::BOOL:        schema.defaultValue = TypedAnnotationValue::makeBool(p.defaultBool); break;
+                    case AnnotationValueType::STRING:      schema.defaultValue = TypedAnnotationValue::makeString(p.defaultString); break;
+                    case AnnotationValueType::CLASS_REF:   schema.defaultValue = TypedAnnotationValue::makeClassRef(p.defaultString); break;
+                    case AnnotationValueType::CLASS_ARRAY: schema.defaultValue = TypedAnnotationValue::makeClassArray(p.defaultStringArray); break;
+                    case AnnotationValueType::NULL_VALUE:  schema.defaultValue = TypedAnnotationValue::makeNull(); break;
+                    }
+                }
+                def->addParam(std::move(schema));
+            }
+            // MYT-109: rebuild meta-annotation AST nodes from serialized form
+            // so reflection / @Retention / @Target enforcement work after load.
+            for (const auto& metaData : decl.metaAnnotations)
+            {
+                def->addMetaAnnotation(buildAnnotationNodeFromMetadata(metaData));
+            }
+            annotationRegistry->registerAnnotation(decl.name, def);
         }
     }
 
@@ -411,23 +488,10 @@ namespace services
             classDef->setFinal(classMeta.isFinal);
             classDef->setValueClass(classMeta.isValueClass);
 
-            // Restore annotations from bytecode metadata
+            // Restore annotations from bytecode metadata (MYT-108 typed-args)
             for (const auto& annotData : classMeta.annotations)
             {
-                // Create annotation node from metadata
-                // Convert argument pairs back to parameter map
-                std::unordered_map<std::string, std::string> params;
-                for (const auto& [key, value] : annotData.arguments)
-                {
-                    params[key] = value;
-                }
-
-                auto annotNode = std::make_shared<ast::nodes::annotations::AnnotationNode>(
-                    annotData.name,
-                    params,
-                    annotData.location  // Use deserialized source location
-                );
-                classDef->addAnnotation(annotNode);
+                classDef->addAnnotation(buildAnnotationNodeFromMetadata(annotData));
             }
 
             classMap[classMeta.name] = classDef;
@@ -524,6 +588,11 @@ namespace services
                 accessMod
             );
 
+            // MYT-108: restore field annotations from bytecode metadata
+            for (const auto& annotData : fieldMeta.annotations) {
+                fieldDef->addAnnotation(buildAnnotationNodeFromMetadata(annotData));
+            }
+
             if (isStatic)
             {
                 classDef->addStaticField(fieldMeta.name, fieldDef);
@@ -595,6 +664,11 @@ namespace services
                 classDef->addAbstractMethod(methodMeta.name);
             }
 
+            // MYT-108: restore method annotations from bytecode metadata
+            for (const auto& annotData : methodMeta.annotations) {
+                methodDef->addAnnotation(buildAnnotationNodeFromMetadata(annotData));
+            }
+
             if (isStatic)
             {
                 classDef->addStaticMethod(methodMeta.name, methodDef);
@@ -637,6 +711,11 @@ namespace services
                 nullptr, // No body for bytecode constructors
                 ast::AccessModifier::PUBLIC
             );
+
+            // MYT-108: restore constructor annotations from bytecode metadata
+            for (const auto& annotData : ctorMeta.annotations) {
+                ctorDef->addAnnotation(buildAnnotationNodeFromMetadata(annotData));
+            }
             classDef->addConstructor(ctorDef);
         }
     }

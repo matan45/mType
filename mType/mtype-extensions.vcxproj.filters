@@ -34,6 +34,9 @@
     <Filter Include="validation">
       <UniqueIdentifier>{10E17C64-FC98-BEB1-65A0-970D517759A2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="validation\builtins">
+      <UniqueIdentifier>{497E6EB9-B5DF-4BC7-3E4D-9279AAAD8286}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\packagemanager\src\DependencyResolver.hpp">
@@ -192,6 +195,9 @@
     <ClInclude Include="project\mtclib\TransitiveDependencyLoader.hpp">
       <Filter>project\mtclib</Filter>
     </ClInclude>
+    <ClInclude Include="reflection\AnnotationInstanceFactory.hpp">
+      <Filter>reflection</Filter>
+    </ClInclude>
     <ClInclude Include="reflection\ReflectionHandle.hpp">
       <Filter>reflection</Filter>
     </ClInclude>
@@ -234,8 +240,14 @@
     <ClInclude Include="services\api\Class.hpp">
       <Filter>services\api</Filter>
     </ClInclude>
+    <ClInclude Include="validation\AnnotationUsageValidator.hpp">
+      <Filter>validation</Filter>
+    </ClInclude>
     <ClInclude Include="validation\AnnotationValidator.hpp">
       <Filter>validation</Filter>
+    </ClInclude>
+    <ClInclude Include="validation\builtins\BuiltInAnnotations.hpp">
+      <Filter>validation\builtins</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -368,6 +380,9 @@
     <ClCompile Include="project\mtclib\TransitiveDependencyLoader.cpp">
       <Filter>project\mtclib</Filter>
     </ClCompile>
+    <ClCompile Include="reflection\AnnotationInstanceFactory.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
     <ClCompile Include="reflection\ReflectionHandle.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
@@ -384,6 +399,9 @@
       <Filter>reflection</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives_Method.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\ReflectionNatives_TypedAnnotation.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
     <ClCompile Include="services\BytecodeExecutionStrategy.cpp">
@@ -416,8 +434,14 @@
     <ClCompile Include="services\ScriptInterpreter.cpp">
       <Filter>services</Filter>
     </ClCompile>
+    <ClCompile Include="validation\AnnotationUsageValidator.cpp">
+      <Filter>validation</Filter>
+    </ClCompile>
     <ClCompile Include="validation\AnnotationValidator.cpp">
       <Filter>validation</Filter>
+    </ClCompile>
+    <ClCompile Include="validation\builtins\BuiltInAnnotations.cpp">
+      <Filter>validation\builtins</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

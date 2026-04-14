@@ -1,9 +1,11 @@
 #pragma once
 #include "../../value/ValueType.hpp"
 #include "../../ast/AccessModifier.hpp"
+#include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../../types/UnifiedType.hpp"
 #include "../Definition.hpp"
 #include <memory>
+#include <vector>
 
 namespace runtimeTypes::klass
 {
@@ -21,6 +23,9 @@ namespace runtimeTypes::klass
 
         // Type information for precise type handling (UnifiedType)
         ::types::UnifiedTypePtr unifiedType;
+
+        // MYT-108: per-field annotations populated by ClassRegistrar.
+        std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
 
     public:
         // Legacy constructor for backward compatibility
@@ -71,6 +76,26 @@ namespace runtimeTypes::klass
         ::types::UnifiedTypePtr getUnifiedType() const { return unifiedType; }
         void setUnifiedType(::types::UnifiedTypePtr type) { unifiedType = std::move(type); }
         bool hasUnifiedType() const { return unifiedType != nullptr; }
+
+        // MYT-108: annotation accessors mirror MethodDefinition's API.
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>& getAnnotations() const
+        {
+            return annotations;
+        }
+        void addAnnotation(std::shared_ptr<ast::nodes::annotations::AnnotationNode> annotation)
+        {
+            annotations.push_back(std::move(annotation));
+        }
+        bool hasAnnotation(const std::string& name) const
+        {
+            for (const auto& a : annotations) if (a && a->getName() == name) return true;
+            return false;
+        }
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode> getAnnotation(const std::string& name) const
+        {
+            for (const auto& a : annotations) if (a && a->getName() == name) return a;
+            return nullptr;
+        }
 
         // Reflection support: get modifier flags as bitmask
         // PUBLIC=1, PRIVATE=2, PROTECTED=4, STATIC=8, FINAL=16

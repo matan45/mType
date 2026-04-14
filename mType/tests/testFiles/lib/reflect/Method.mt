@@ -3,6 +3,7 @@
 
 import * from "AccessibleObject.mt";
 import * from "Modifier.mt";
+import * from "Annotation.mt";
 
 class Method extends AccessibleObject {
     private int _nativeHandle;
@@ -104,5 +105,18 @@ class Method extends AccessibleObject {
     // Get the native handle
     public function getNativeHandle(): int {
         return this._nativeHandle;
+    }
+
+    // ===== MYT-108: per-method annotation reflection =====
+    public function hasAnnotation(string name): bool {
+        return __reflect_hasMethodAnnotation(this._nativeHandle, name);
+    }
+
+    public function getAnnotation(string name): Annotation? {
+        int handle = __reflect_getMethodAnnotation(this._nativeHandle, name);
+        if (handle == 0) {
+            return null;
+        }
+        return new Annotation(handle);
     }
 }

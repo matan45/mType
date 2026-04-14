@@ -9,12 +9,12 @@ class IOException extends Exception {
 }
 
 class FileReader {
-    @Throw(IOException)
+    @Throw(exceptions = [IOException])
     public function read(string path): string {
         return "default content";
     }
 
-    @Throw(IOException, RuntimeException)
+    @Throw(exceptions = [IOException, RuntimeException])
     public static function read2(string path): string {
         return "default content";
     }
@@ -22,7 +22,7 @@ class FileReader {
 
 class BufferedFileReader extends FileReader {
     @Override
-    @Throw(IOException)
+    @Throw(exceptions = [IOException])
     public function read(string path): string {
         // Override with same exception declaration
         return "buffered content";

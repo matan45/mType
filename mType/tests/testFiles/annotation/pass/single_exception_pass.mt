@@ -6,7 +6,7 @@ class IOException extends Exception {
     }
 }
 
-@Throw(IOException)
+@Throw(exceptions = [IOException])
 function readFile(string path): string {
     // This is valid - function declares it may throw IOException
     return "file contents";

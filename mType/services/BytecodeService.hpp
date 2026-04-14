@@ -40,6 +40,16 @@ namespace services
         // Register interfaces from bytecode metadata into environment
         void registerInterfacesFromMetadata(const std::vector<vm::bytecode::BytecodeProgram::InterfaceMetadata>& interfaces);
 
+        // Register annotation type declarations from bytecode metadata (MYT-108)
+        void registerAnnotationsFromMetadata(
+            const std::vector<vm::bytecode::BytecodeProgram::AnnotationDeclData>& declarations);
+
+        // Reconstruct a typed AnnotationNode from serialized bytecode metadata.
+        // Preserves full type fidelity across .mtc round-trip (MYT-108).
+        static std::shared_ptr<ast::nodes::annotations::AnnotationNode>
+            buildAnnotationNodeFromMetadata(
+                const vm::bytecode::BytecodeProgram::AnnotationData& annotData);
+
         // Helper functions for class registration
         void createClassDefinitionsFirstPass(
             const std::vector<vm::bytecode::BytecodeProgram::ClassMetadata>& classes,

@@ -547,7 +547,7 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
         // Write version
-        uint32_t version = 4;  // Version 4: isAbstract serialization + interface metadata
+        uint32_t version = 6;  // Version 6: MYT-109 meta-annotations on annotation declarations
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
         // Write entry point
@@ -574,6 +574,9 @@ namespace vm::bytecode
         // Write global exception table
         writeGlobalExceptionTable(out);
 
+        // Write annotation declarations (MYT-108, .mtc v5+)
+        writeAnnotationDeclarations(out);
+
         // Write source file path
         size_t len = sourceFilePath.size();
         out.write(reinterpret_cast<const char*>(&len), sizeof(len));
@@ -593,12 +596,12 @@ namespace vm::bytecode
         // Read version
         uint32_t version;
         in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version < 4) {
+        if (version < 6) {
             throw std::runtime_error(
                 "Bytecode file uses an outdated format (version " + std::to_string(version) + "). "
                 "Please recompile from source using the current compiler.");
         }
-        if (version != 4) {
+        if (version != 6) {
             throw std::runtime_error("Unsupported bytecode version: " + std::to_string(version));
         }
 
@@ -625,6 +628,9 @@ namespace vm::bytecode
 
         // Read global exception table
         program.readGlobalExceptionTable(in);
+
+        // Read annotation declarations (MYT-108, .mtc v5+)
+        program.readAnnotationDeclarations(in);
 
         // Read source file path
         size_t len;
@@ -1001,6 +1007,74 @@ namespace vm::bytecode
 
     // Helper functions now provided by BytecodeIOHelper utility class
 
+    void BytecodeProgram::writeAnnotationList(std::ostream& out, const std::vector<AnnotationData>& list) {
+        size_t count = list.size();
+        out.write(reinterpret_cast<const char*>(&count), sizeof(count));
+        for (const auto& annot : list) {
+            BytecodeIOHelper::writeString(out, annot.name);
+            int line   = annot.location.getLine();
+            int column = annot.location.getColumn();
+            out.write(reinterpret_cast<const char*>(&line),   sizeof(line));
+            out.write(reinterpret_cast<const char*>(&column), sizeof(column));
+            BytecodeIOHelper::writeString(out, annot.location.getFilename());
+            size_t argCount = annot.typedArguments.size();
+            out.write(reinterpret_cast<const char*>(&argCount), sizeof(argCount));
+            for (const auto& arg : annot.typedArguments) {
+                BytecodeIOHelper::writeString(out, arg.key);
+                BytecodeIOHelper::writePrimitive(out, arg.valueType);
+                BytecodeIOHelper::writePrimitive(out, arg.intVal);
+                BytecodeIOHelper::writePrimitive(out, arg.floatVal);
+                BytecodeIOHelper::writePrimitive(out, arg.boolVal);
+                BytecodeIOHelper::writeString(out, arg.stringVal);
+                BytecodeIOHelper::writeStringVector(out, arg.arrayVal);
+            }
+        }
+    }
+
+    void BytecodeProgram::readAnnotationList(std::istream& in, std::vector<AnnotationData>& list) {
+        // Defensive caps: guards against corrupted/truncated .mtc files resizing
+        // vectors to absurd sizes from garbage bytes. Real annotations rarely
+        // exceed a few dozen per host, let alone the caps below.
+        constexpr size_t MAX_ANNOTATIONS_PER_HOST = 4096;
+        constexpr size_t MAX_ARGS_PER_ANNOTATION  = 256;
+
+        size_t count;
+        in.read(reinterpret_cast<char*>(&count), sizeof(count));
+        if (!in) throw std::runtime_error("Malformed bytecode: failed to read annotation count");
+        if (count > MAX_ANNOTATIONS_PER_HOST)
+            throw std::runtime_error("Malformed bytecode: annotation count " +
+                std::to_string(count) + " exceeds cap " +
+                std::to_string(MAX_ANNOTATIONS_PER_HOST));
+        list.resize(count);
+        for (auto& annot : list) {
+            annot.name = BytecodeIOHelper::readString(in);
+            int line, column;
+            in.read(reinterpret_cast<char*>(&line),   sizeof(line));
+            in.read(reinterpret_cast<char*>(&column), sizeof(column));
+            std::string filename = BytecodeIOHelper::readString(in);
+            annot.location.setLine(line);
+            annot.location.setColumn(column);
+            annot.location.setFilename(filename);
+            size_t argCount;
+            in.read(reinterpret_cast<char*>(&argCount), sizeof(argCount));
+            if (!in) throw std::runtime_error("Malformed bytecode: failed to read annotation arg count");
+            if (argCount > MAX_ARGS_PER_ANNOTATION)
+                throw std::runtime_error("Malformed bytecode: annotation arg count " +
+                    std::to_string(argCount) + " exceeds cap " +
+                    std::to_string(MAX_ARGS_PER_ANNOTATION));
+            annot.typedArguments.resize(argCount);
+            for (auto& arg : annot.typedArguments) {
+                arg.key       = BytecodeIOHelper::readString(in);
+                arg.valueType = BytecodeIOHelper::readPrimitive<uint8_t>(in);
+                arg.intVal    = BytecodeIOHelper::readPrimitive<int64_t>(in);
+                arg.floatVal  = BytecodeIOHelper::readPrimitive<double>(in);
+                arg.boolVal   = BytecodeIOHelper::readPrimitive<bool>(in);
+                arg.stringVal = BytecodeIOHelper::readString(in);
+                arg.arrayVal  = BytecodeIOHelper::readStringVector(in);
+            }
+        }
+    }
+
     void BytecodeProgram::writeFieldMetadata(std::ostream& out, const FieldMetadata& field) const {
         BytecodeIOHelper::writeString(out, field.name);
         BytecodeIOHelper::writeString(out, field.type);
@@ -1008,6 +1082,7 @@ namespace vm::bytecode
         BytecodeIOHelper::writePrimitive(out, field.isFinal);
         BytecodeIOHelper::writePrimitive(out, field.isPrivate);
         BytecodeIOHelper::writePrimitive(out, field.isProtected);
+        writeAnnotationList(out, field.annotations);
     }
 
     void BytecodeProgram::writeMethodMetadata(std::ostream& out, const MethodMetadata& method) const {
@@ -1021,12 +1096,14 @@ namespace vm::bytecode
         BytecodeIOHelper::writePrimitive(out, method.isProtected);
         BytecodeIOHelper::writePrimitive(out, method.isAbstract);
         BytecodeIOHelper::writePrimitive(out, method.startOffset);
+        writeAnnotationList(out, method.annotations);
     }
 
     void BytecodeProgram::writeConstructorMetadata(std::ostream& out, const ConstructorMetadata& ctor) const {
         BytecodeIOHelper::writeStringVector(out, ctor.parameterTypes);
         BytecodeIOHelper::writeStringVector(out, ctor.parameterNames);
         BytecodeIOHelper::writePrimitive(out, ctor.startOffset);
+        writeAnnotationList(out, ctor.annotations);
     }
 
     void BytecodeProgram::writeClassMetadata(std::ostream& out, const ClassMetadata& classMeta) const {
@@ -1045,27 +1122,8 @@ namespace vm::bytecode
         BytecodeIOHelper::writePrimitive(out, classMeta.isFinal);
         BytecodeIOHelper::writePrimitive(out, classMeta.isValueClass);
 
-        // Write annotations
-        size_t annotCount = classMeta.annotations.size();
-        out.write(reinterpret_cast<const char*>(&annotCount), sizeof(annotCount));
-        for (const auto& annot : classMeta.annotations) {
-            BytecodeIOHelper::writeString(out, annot.name);
-
-            // Write source location using public getters
-            int line = annot.location.getLine();
-            int column = annot.location.getColumn();
-            out.write(reinterpret_cast<const char*>(&line), sizeof(line));
-            out.write(reinterpret_cast<const char*>(&column), sizeof(column));
-            BytecodeIOHelper::writeString(out, annot.location.getFilename());
-
-            // Write arguments
-            size_t argCount = annot.arguments.size();
-            out.write(reinterpret_cast<const char*>(&argCount), sizeof(argCount));
-            for (const auto& [key, value] : annot.arguments) {
-                BytecodeIOHelper::writeString(out, key);
-                BytecodeIOHelper::writeString(out, value);
-            }
-        }
+        // Write annotations (MYT-108 typed-args format, via shared helper)
+        writeAnnotationList(out, classMeta.annotations);
 
         // Write instance fields
         size_t fieldCount = classMeta.instanceFields.size();
@@ -1112,6 +1170,82 @@ namespace vm::bytecode
         }
     }
 
+    void BytecodeProgram::writeAnnotationDeclarations(std::ostream& out) const {
+        size_t declCount = annotationDeclarations.size();
+        out.write(reinterpret_cast<const char*>(&declCount), sizeof(declCount));
+        for (const auto& decl : annotationDeclarations) {
+            BytecodeIOHelper::writeString(out, decl.name);
+            size_t paramCount = decl.params.size();
+            out.write(reinterpret_cast<const char*>(&paramCount), sizeof(paramCount));
+            for (const auto& p : decl.params) {
+                BytecodeIOHelper::writeString(out, p.name);
+                BytecodeIOHelper::writePrimitive(out, p.declaredType);
+                BytecodeIOHelper::writePrimitive(out, p.nullable);
+                BytecodeIOHelper::writePrimitive(out, p.isArray);
+                BytecodeIOHelper::writePrimitive(out, p.hasDefault);
+                if (p.hasDefault) {
+                    BytecodeIOHelper::writePrimitive(out, p.defaultInt);
+                    BytecodeIOHelper::writePrimitive(out, p.defaultFloat);
+                    BytecodeIOHelper::writePrimitive(out, p.defaultBool);
+                    BytecodeIOHelper::writeString(out, p.defaultString);
+                    BytecodeIOHelper::writeStringVector(out, p.defaultStringArray);
+                }
+            }
+            // MYT-109 (.mtc v6+): meta-annotations on the annotation declaration.
+            writeAnnotationList(out, decl.metaAnnotations);
+        }
+    }
+
+    void BytecodeProgram::readAnnotationDeclarations(std::istream& in) {
+        // Sanity cap — a single .mtc with more than a few thousand annotation
+        // types is almost certainly corrupted.
+        constexpr size_t MAX_ANNOTATION_DECLS = 4096;
+        constexpr size_t MAX_PARAMS_PER_DECL  = 256;
+
+        size_t declCount = BytecodeIOHelper::readPrimitive<size_t>(in);
+        if (!in) throw std::runtime_error("Malformed bytecode: failed to read annotation decl count");
+        if (declCount > MAX_ANNOTATION_DECLS)
+            throw std::runtime_error("Malformed bytecode: annotation decl count " +
+                std::to_string(declCount) + " exceeds cap " +
+                std::to_string(MAX_ANNOTATION_DECLS));
+        annotationDeclarations.resize(declCount);
+        for (auto& decl : annotationDeclarations) {
+            decl.name = BytecodeIOHelper::readString(in);
+            size_t paramCount = BytecodeIOHelper::readPrimitive<size_t>(in);
+            if (!in) throw std::runtime_error("Malformed bytecode: failed to read annotation param count");
+            if (paramCount > MAX_PARAMS_PER_DECL)
+                throw std::runtime_error("Malformed bytecode: annotation param count " +
+                    std::to_string(paramCount) + " exceeds cap " +
+                    std::to_string(MAX_PARAMS_PER_DECL));
+            decl.params.resize(paramCount);
+            for (auto& p : decl.params) {
+                p.name         = BytecodeIOHelper::readString(in);
+                p.declaredType = BytecodeIOHelper::readPrimitive<uint8_t>(in);
+                p.nullable     = BytecodeIOHelper::readPrimitive<bool>(in);
+                p.isArray      = BytecodeIOHelper::readPrimitive<bool>(in);
+                p.hasDefault   = BytecodeIOHelper::readPrimitive<bool>(in);
+                if (p.hasDefault) {
+                    p.defaultInt         = BytecodeIOHelper::readPrimitive<int64_t>(in);
+                    p.defaultFloat       = BytecodeIOHelper::readPrimitive<double>(in);
+                    p.defaultBool        = BytecodeIOHelper::readPrimitive<bool>(in);
+                    p.defaultString      = BytecodeIOHelper::readString(in);
+                    p.defaultStringArray = BytecodeIOHelper::readStringVector(in);
+                }
+            }
+            // MYT-109 (.mtc v6+): meta-annotations on the annotation declaration.
+            readAnnotationList(in, decl.metaAnnotations);
+        }
+    }
+
+    void BytecodeProgram::addAnnotationDeclaration(const AnnotationDeclData& declData) {
+        annotationDeclarations.push_back(declData);
+    }
+
+    const std::vector<BytecodeProgram::AnnotationDeclData>&
+        BytecodeProgram::getAnnotationDeclarations() const {
+        return annotationDeclarations;
+    }
+
     void BytecodeProgram::readFieldMetadata(std::istream& in, FieldMetadata& field) {
         field.name = BytecodeIOHelper::readString(in);
         field.type = BytecodeIOHelper::readString(in);
@@ -1119,6 +1253,7 @@ namespace vm::bytecode
         field.isFinal = BytecodeIOHelper::readPrimitive<bool>(in);
         field.isPrivate = BytecodeIOHelper::readPrimitive<bool>(in);
         field.isProtected = BytecodeIOHelper::readPrimitive<bool>(in);
+        readAnnotationList(in, field.annotations);
     }
 
     void BytecodeProgram::readMethodMetadata(std::istream& in, MethodMetadata& method) {
@@ -1132,12 +1267,14 @@ namespace vm::bytecode
         method.isProtected = BytecodeIOHelper::readPrimitive<bool>(in);
         method.isAbstract = BytecodeIOHelper::readPrimitive<bool>(in);
         method.startOffset = BytecodeIOHelper::readPrimitive<size_t>(in);
+        readAnnotationList(in, method.annotations);
     }
 
     void BytecodeProgram::readConstructorMetadata(std::istream& in, ConstructorMetadata& ctor) {
         ctor.parameterTypes = BytecodeIOHelper::readStringVector(in);
         ctor.parameterNames = BytecodeIOHelper::readStringVector(in);
         ctor.startOffset = BytecodeIOHelper::readPrimitive<size_t>(in);
+        readAnnotationList(in, ctor.annotations);
     }
 
     void BytecodeProgram::readClassMetadata(std::istream& in, ClassMetadata& classMeta) {
@@ -1156,32 +1293,8 @@ namespace vm::bytecode
         classMeta.isFinal = BytecodeIOHelper::readPrimitive<bool>(in);
         classMeta.isValueClass = BytecodeIOHelper::readPrimitive<bool>(in);
 
-        // Read annotations
-        size_t annotCount;
-        in.read(reinterpret_cast<char*>(&annotCount), sizeof(annotCount));
-        classMeta.annotations.resize(annotCount);
-        for (auto& annot : classMeta.annotations) {
-            annot.name = BytecodeIOHelper::readString(in);
-
-            // Read source location using public setters
-            int line, column;
-            in.read(reinterpret_cast<char*>(&line), sizeof(line));
-            in.read(reinterpret_cast<char*>(&column), sizeof(column));
-            std::string filename = BytecodeIOHelper::readString(in);
-            annot.location.setLine(line);
-            annot.location.setColumn(column);
-            annot.location.setFilename(filename);
-
-            // Read arguments
-            size_t argCount;
-            in.read(reinterpret_cast<char*>(&argCount), sizeof(argCount));
-            annot.arguments.resize(argCount);
-            for (size_t i = 0; i < argCount; ++i) {
-                std::string key = BytecodeIOHelper::readString(in);
-                std::string value = BytecodeIOHelper::readString(in);
-                annot.arguments[i] = {key, value};
-            }
-        }
+        // Read annotations (MYT-108 typed-args format, via shared helper)
+        readAnnotationList(in, classMeta.annotations);
 
         // Read instance fields
         size_t fieldCount;

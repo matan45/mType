@@ -5,7 +5,7 @@ class MyRegularClass {
     constructor() {}
 }
 
-@Throw(MyRegularClass)
+@Throw(exceptions = [MyRegularClass])
 function doSomething(): void {
     // MyRegularClass doesn't extend Exception, so this should fail
 }

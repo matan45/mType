@@ -45,6 +45,8 @@ namespace parser
             return context.parseClass();
         case StatementType::INTERFACE:
             return context.parseInterface();
+        case StatementType::ANNOTATION_DECLARATION:
+            return context.parseAnnotationDeclaration();
         case StatementType::BLOCK:
             return parseBlock();
         case StatementType::EMPTY:

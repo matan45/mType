@@ -1,5 +1,9 @@
 #include "BytecodeCompiler.hpp"
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
+#include "../../ast/nodes/annotations/AnnotationDeclarationNode.hpp"
+#include "../../runtimeTypes/klass/AnnotationDefinition.hpp"
+#include "../../runtimeTypes/klass/AnnotationParamSchema.hpp"
+#include "../../environment/registry/AnnotationRegistry.hpp"
 #include <unordered_set>
 #include <fstream>
 #include "../../ast/nodes/statements/ImportNode.hpp"
@@ -279,6 +283,10 @@ namespace vm::compiler
         // Second, pre-register all function signatures (allows forward references and mutual recursion)
         functionRegistrar.registerFunctionSignatures(root);
 
+        // MYT-108: pre-register annotation type declarations so usage validation
+        // (which runs inside class registration) can resolve user-defined annotations.
+        preRegisterAnnotationDeclarations(root);
+
         // Third, register all classes and interfaces using registrars
         registerClassesForBytecode(root);
 
@@ -346,6 +354,42 @@ namespace vm::compiler
         fuseLocalArrayOps(program);
 
         return std::move(program);
+    }
+
+    void BytecodeCompiler::preRegisterAnnotationDeclarations(ast::ASTNode* node)
+    {
+        if (!node) return;
+
+        // If this node is itself an annotation declaration, register it.
+        if (auto* declNode = dynamic_cast<ast::AnnotationDeclarationNode*>(node))
+        {
+            visitAnnotationDeclarationNode(declNode);
+            return;
+        }
+
+        // Otherwise recurse through container nodes that may hold top-level
+        // declarations (the annotation keyword is only legal at top level).
+        if (auto programNode = dynamic_cast<ast::ProgramNode*>(node))
+        {
+            for (const auto& statement : programNode->getStatements())
+            {
+                preRegisterAnnotationDeclarations(statement.get());
+            }
+        }
+        else if (auto blockNode = dynamic_cast<ast::BlockNode*>(node))
+        {
+            for (const auto& statement : blockNode->getStatements())
+            {
+                preRegisterAnnotationDeclarations(statement.get());
+            }
+        }
+        else if (auto importNode = dynamic_cast<ast::nodes::statements::ImportNode*>(node))
+        {
+            if (importNode->isResolved() && importNode->getImportedAST())
+            {
+                preRegisterAnnotationDeclarations(importNode->getImportedAST());
+            }
+        }
     }
 
     void BytecodeCompiler::registerClassesForBytecode(ast::ASTNode* node)
@@ -915,6 +959,99 @@ namespace vm::compiler
     {
         // Annotations are metadata only - no bytecode generation needed
         // They are processed during semantic analysis phase, not compilation
+        return value::Value();
+    }
+
+    value::Value BytecodeCompiler::visitAnnotationDeclarationNode(ast::AnnotationDeclarationNode* node)
+    {
+        using ast::nodes::annotations::AnnotationValueType;
+
+        auto annotationRegistry = environment->getAnnotationRegistry();
+        if (!annotationRegistry) return value::Value();
+
+        // Don't shadow built-ins (Override/Script/EntryPoint/Throw) — they're
+        // pre-registered at Environment::initialize() and re-defining them is
+        // caught earlier by the duplicate-type-name check in the parser.
+        if (annotationRegistry->hasAnnotation(node->getName())) return value::Value();
+
+        // Register at runtime for the validation/reflection passes.
+        auto def = std::make_shared<runtimeTypes::klass::AnnotationDefinition>(node->getName(), false);
+        for (const auto& declParam : node->getParams())
+        {
+            runtimeTypes::klass::AnnotationParamSchema schema;
+            schema.name          = declParam.name;
+            schema.declaredType  = declParam.declaredType;
+            schema.defaultValue  = declParam.defaultValue;
+            schema.nullable      = declParam.nullable;
+            schema.isArray       = declParam.isArray;
+            def->addParam(std::move(schema));
+        }
+        for (const auto& meta : node->getMetaAnnotations())
+        {
+            if (meta) def->addMetaAnnotation(meta);
+        }
+        annotationRegistry->registerAnnotation(node->getName(), def);
+
+        // Also serialize into the bytecode program (.mtc v5+ section) so the
+        // declaration survives compile-to-file round-trips.
+        bytecode::BytecodeProgram::AnnotationDeclData declData;
+        declData.name = node->getName();
+        for (const auto& declParam : node->getParams())
+        {
+            bytecode::BytecodeProgram::AnnotationParamSchemaData p;
+            p.name         = declParam.name;
+            p.declaredType = static_cast<uint8_t>(declParam.declaredType);
+            p.nullable     = declParam.nullable;
+            p.isArray      = declParam.isArray;
+            p.hasDefault   = declParam.defaultValue.has_value();
+            if (p.hasDefault)
+            {
+                const auto& dv = *declParam.defaultValue;
+                switch (dv.getType())
+                {
+                case AnnotationValueType::INT:         p.defaultInt = dv.asInt(); break;
+                case AnnotationValueType::FLOAT:       p.defaultFloat = dv.asFloat(); break;
+                case AnnotationValueType::BOOL:        p.defaultBool = dv.asBool(); break;
+                case AnnotationValueType::STRING:      p.defaultString = dv.asString(); break;
+                case AnnotationValueType::CLASS_REF:   p.defaultString = dv.asClassRef(); break;
+                case AnnotationValueType::CLASS_ARRAY: p.defaultStringArray = dv.asClassArray(); break;
+                case AnnotationValueType::NULL_VALUE:  break; // no payload needed
+                }
+            }
+            declData.params.push_back(std::move(p));
+        }
+        // MYT-109 (.mtc v6+): serialize meta-annotations applied to this
+        // annotation declaration so `@Retention` / `@Target` / user-defined
+        // meta-annotations survive a compile-to-file round-trip.
+        for (const auto& meta : node->getMetaAnnotations())
+        {
+            if (!meta) continue;
+            bytecode::BytecodeProgram::AnnotationData annot;
+            annot.name = meta->getName();
+            annot.location = meta->getLocation();
+            for (const auto& key : meta->getKeyOrder())
+            {
+                if (const auto* v = meta->getTypedParameter(key))
+                {
+                    bytecode::BytecodeProgram::TypedAnnotationArg arg;
+                    arg.key = key;
+                    arg.valueType = static_cast<uint8_t>(v->getType());
+                    switch (v->getType())
+                    {
+                    case AnnotationValueType::INT:         arg.intVal    = v->asInt(); break;
+                    case AnnotationValueType::FLOAT:       arg.floatVal  = v->asFloat(); break;
+                    case AnnotationValueType::BOOL:        arg.boolVal   = v->asBool(); break;
+                    case AnnotationValueType::STRING:      arg.stringVal = v->asString(); break;
+                    case AnnotationValueType::CLASS_REF:   arg.stringVal = v->asClassRef(); break;
+                    case AnnotationValueType::CLASS_ARRAY: arg.arrayVal  = v->asClassArray(); break;
+                    case AnnotationValueType::NULL_VALUE:  break;
+                    }
+                    annot.typedArguments.push_back(std::move(arg));
+                }
+            }
+            declData.metaAnnotations.push_back(std::move(annot));
+        }
+        program.addAnnotationDeclaration(std::move(declData));
         return value::Value();
     }
 

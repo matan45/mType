@@ -77,6 +77,7 @@ namespace ast
         namespace annotations
         {
             class AnnotationNode;
+            class AnnotationDeclarationNode;
         }
     }
 
@@ -133,6 +134,7 @@ namespace ast
     using CatchNode = nodes::statements::CatchNode;
     using ThrowNode = nodes::statements::ThrowNode;
     using AnnotationNode = nodes::annotations::AnnotationNode;
+    using AnnotationDeclarationNode = nodes::annotations::AnnotationDeclarationNode;
     using MatchNode = nodes::statements::MatchNode;
     using MatchCaseNode = nodes::statements::MatchCaseNode;
     using MatchDefaultNode = nodes::statements::MatchDefaultNode;

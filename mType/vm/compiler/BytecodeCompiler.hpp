@@ -134,6 +134,7 @@ namespace vm::compiler
 
         // Annotations (metadata only - no bytecode generation)
         value::Value visitAnnotationNode(ast::AnnotationNode* node) override;
+        value::Value visitAnnotationDeclarationNode(ast::AnnotationDeclarationNode* node) override;
 
         // MYT-35 Phase-2 follow-up — non-fatal warning sink. Compile-time
         // analyzers (e.g., MYT-50 missing-@Override checker) push
@@ -203,6 +204,7 @@ namespace vm::compiler
 
         // Helper methods for coordination
         void registerClassesForBytecode(ast::ASTNode* node);
+        void preRegisterAnnotationDeclarations(ast::ASTNode* node);
         void linkParentClasses(ast::ASTNode* node);
         void extractInterfaceMetadata(ast::ASTNode* node);
         void applyImportAliases(ast::ASTNode* node);

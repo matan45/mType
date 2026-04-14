@@ -456,6 +456,51 @@ namespace reflection
          */
         static value::Value __reflect_getAnnotationParams(const std::vector<value::Value>& args);
 
+        // ========== Typed Annotation Parameter Accessors (MYT-108) ==========
+
+        /// args: (annotationHandle:int, paramKey:string) -> int (throws on type mismatch)
+        static value::Value __reflect_getAnnotationInt(const std::vector<value::Value>& args);
+        /// args: (annotationHandle:int, paramKey:string) -> float
+        static value::Value __reflect_getAnnotationFloat(const std::vector<value::Value>& args);
+        /// args: (annotationHandle:int, paramKey:string) -> bool
+        static value::Value __reflect_getAnnotationBool(const std::vector<value::Value>& args);
+        /// args: (annotationHandle:int, paramKey:string) -> string
+        static value::Value __reflect_getAnnotationString(const std::vector<value::Value>& args);
+        /// args: (annotationHandle:int, paramKey:string) -> Class (handle)
+        static value::Value __reflect_getAnnotationClass(const std::vector<value::Value>& args);
+        /// args: (annotationHandle:int, paramKey:string) -> int[] (Class handles)
+        static value::Value __reflect_getAnnotationClassArray(const std::vector<value::Value>& args);
+        /// args: (annotationHandle:int, paramKey:string) -> bool
+        static value::Value __reflect_isAnnotationParamNull(const std::vector<value::Value>& args);
+
+        // Method-level annotation reflection (singular accessors, MYT-108)
+        /// args: (methodHandle:int, annotationName:string) -> Annotation handle or null
+        static value::Value __reflect_getMethodAnnotation(const std::vector<value::Value>& args);
+        /// args: (methodHandle:int, annotationName:string) -> bool
+        static value::Value __reflect_hasMethodAnnotation(const std::vector<value::Value>& args);
+
+        // Field-level annotation reflection (MYT-108 M5)
+        /// args: (fieldHandle:int, annotationName:string) -> Annotation handle or null
+        static value::Value __reflect_getFieldAnnotation(const std::vector<value::Value>& args);
+        /// args: (fieldHandle:int, annotationName:string) -> bool
+        static value::Value __reflect_hasFieldAnnotation(const std::vector<value::Value>& args);
+
+        // Constructor-level annotation reflection (MYT-109)
+        /// args: (ctorHandle:int) -> int[] (Annotation handles)
+        static value::Value __reflect_getConstructorAnnotations(const std::vector<value::Value>& args);
+        /// args: (ctorHandle:int, annotationName:string) -> Annotation handle or null
+        static value::Value __reflect_getConstructorAnnotation(const std::vector<value::Value>& args);
+        /// args: (ctorHandle:int, annotationName:string) -> bool
+        static value::Value __reflect_hasConstructorAnnotation(const std::vector<value::Value>& args);
+
+        // Meta-annotation reflection (MYT-109 3a)
+        /// args: (annotationHandle:int, metaAnnotationName:string) -> Annotation handle or null
+        static value::Value __reflect_getAnnotationMeta(const std::vector<value::Value>& args);
+
+        // Object-style annotation access (MYT-108 M6)
+        /// args: (target:int, annotationClassHandle:int) -> ObjectInstance or null
+        static value::Value __reflect_getAnnotationObject(const std::vector<value::Value>& args);
+
         // ========== Parameter Reflection Natives ==========
 
         /**

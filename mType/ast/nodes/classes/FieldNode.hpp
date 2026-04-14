@@ -3,8 +3,10 @@
 #include "../../GenericType.hpp"
 #include "../../AccessModifier.hpp"
 #include "../../../value/ValueType.hpp"
+#include "../annotations/AnnotationNode.hpp"
 #include <string>
 #include <memory>
+#include <vector>
 
 namespace ast::nodes::classes
 {
@@ -19,6 +21,7 @@ namespace ast::nodes::classes
         bool isStatic;
         bool isFinal;
         AccessModifier accessModifier;
+        std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;
 
     public:
         // NEW: Primary constructor with GenericType support
@@ -64,6 +67,16 @@ namespace ast::nodes::classes
         void setAccessModifier(AccessModifier modifier);
 
         bool hasInitialValue() const;
+
+        // MYT-108: per-field annotations
+        void addAnnotation(std::shared_ptr<annotations::AnnotationNode> annotation)
+        {
+            annotations.push_back(std::move(annotation));
+        }
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getAnnotations() const
+        {
+            return annotations;
+        }
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

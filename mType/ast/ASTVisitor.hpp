@@ -66,5 +66,6 @@ namespace ast
         virtual T visitCatchNode(CatchNode* node) = 0;
         virtual T visitThrowNode(ThrowNode* node) = 0;
         virtual T visitAnnotationNode(AnnotationNode* node) = 0;
+        virtual T visitAnnotationDeclarationNode(AnnotationDeclarationNode* node) = 0;
     };
 }

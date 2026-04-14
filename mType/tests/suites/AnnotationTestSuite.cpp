@@ -6,6 +6,56 @@ namespace tests::testSuite
 
     void AnnotationTestSuite::setupTests()
     {
+        // ===== USER-DEFINED ANNOTATIONS (MYT-108) - PASS TESTS =====
+
+        addOutputVerificationTest("Annotation Declaration - Empty Body",
+                                  passPath + "annotation_declare_empty_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - Int Param + Reflection",
+                                  passPath + "annotation_declare_int_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - String Positional Shorthand",
+                                  passPath + "annotation_declare_string_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - Partial Defaults",
+                                  passPath + "annotation_defaults_partial_pass.mt");
+
+        addOutputVerificationTest("Annotation On Field (instance + static)",
+                                  passPath + "annotation_on_field_pass.mt");
+
+        addOutputVerificationTest("Annotation On Constructor",
+                                  passPath + "annotation_on_constructor_pass.mt");
+
+        addOutputVerificationTest("Annotation On Top-Level Function",
+                                  passPath + "annotation_on_top_function_pass.mt");
+
+        // ===== USER-DEFINED ANNOTATIONS (MYT-108) - ERROR TESTS =====
+
+        addTestFromFile("Annotation Usage - Unknown Annotation",
+                        errorPath + "unknown_annotation_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Unknown annotation");
+
+        addTestFromFile("Annotation Usage - Wrong Param Type",
+                        errorPath + "wrong_param_type_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "expects int");
+
+        addTestFromFile("Annotation Usage - Missing Required Param",
+                        errorPath + "missing_required_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "missing required parameter");
+
+        addTestFromFile("Annotation Usage - Unknown Param Name",
+                        errorPath + "unknown_param_name_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Unknown parameter");
+
+        addTestFromFile("Annotation Usage - Unknown Annotation On Function",
+                        errorPath + "unknown_annotation_on_function_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Unknown annotation");
+
         // ===== @Override ANNOTATION - PASS TESTS =====
         // Tests for valid @Override usage with parent classes and interfaces
 
@@ -144,5 +194,23 @@ namespace tests::testSuite
         addTestFromFile("Throw Empty Parameter List",
                         errorPath + "empty_throw_error.mt",
                         TestType::ERROR_EXPECTED);
+
+        // ===== MYT-109 (3a): META-ANNOTATIONS - PASS TESTS =====
+
+        addOutputVerificationTest("Meta-annotation Declaration Parses",
+                                  passPath + "meta_annotation_decl_pass.mt");
+
+        addOutputVerificationTest("Meta-annotation @Retention(SOURCE) Stripped",
+                                  passPath + "meta_retention_source_stripped_pass.mt");
+
+        addOutputVerificationTest("Constructor Annotation Reflection",
+                                  passPath + "annotation_on_ctor_reflection_pass.mt");
+
+        // ===== MYT-109 (3a): META-ANNOTATIONS - ERROR TESTS =====
+
+        addTestFromFile("Meta-annotation @Target Violation",
+                        errorPath + "meta_target_violation_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
     }
 }

@@ -72,6 +72,9 @@
     <ClInclude Include="environment\manager\VariableManager.hpp">
       <Filter>environment\manager</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\AnnotationRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\ClassRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
@@ -161,6 +164,12 @@
     </ClInclude>
     <ClInclude Include="runtimeTypes\global\VariableDefinition.hpp">
       <Filter>runtimeTypes\global</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\AnnotationDefinition.hpp">
+      <Filter>runtimeTypes\klass</Filter>
+    </ClInclude>
+    <ClInclude Include="runtimeTypes\klass\AnnotationParamSchema.hpp">
+      <Filter>runtimeTypes\klass</Filter>
     </ClInclude>
     <ClInclude Include="runtimeTypes\klass\ClassDefinition.hpp">
       <Filter>runtimeTypes\klass</Filter>

@@ -4,6 +4,7 @@
 #include "../../../ast/nodes/statements/ImportNode.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
+#include "../../../validation/AnnotationUsageValidator.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/DuplicateSignatureException.hpp"
@@ -310,6 +311,17 @@ namespace vm::compiler::registration
 
     void FunctionRegistrar::validateSingleFunctionThrow(ast::FunctionNode* functionNode)
     {
+        // MYT-108: run the typed usage validator over every annotation on the
+        // top-level function first (catches unknown annotations, bad types,
+        // missing required params, fills in defaults).
+        for (const auto& annotation : functionNode->getAnnotations())
+        {
+            if (!annotation) continue;
+            ::validation::AnnotationUsageValidator::validate(
+                annotation, environment, annotation->getLocation(),
+                ::validation::AnnotationHostKind::FUNCTION);
+        }
+
         // Validate @Throw annotation if present
         if (auto throwAnnotation = functionNode->getAnnotation("Throw"))
         {

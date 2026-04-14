@@ -84,6 +84,9 @@
     <ClInclude Include="optimizer\passes\constant_folding\SafeArithmetic.hpp">
       <Filter>optimizer\passes\constant_folding</Filter>
     </ClInclude>
+    <ClInclude Include="parser\AnnotationDeclarationParser.hpp">
+      <Filter>parser</Filter>
+    </ClInclude>
     <ClInclude Include="parser\ClassParser.hpp">
       <Filter>parser</Filter>
     </ClInclude>
@@ -262,6 +265,9 @@
     </ClCompile>
     <ClCompile Include="optimizer\passes\constant_folding\SafeArithmetic.cpp">
       <Filter>optimizer\passes\constant_folding</Filter>
+    </ClCompile>
+    <ClCompile Include="parser\AnnotationDeclarationParser.cpp">
+      <Filter>parser</Filter>
     </ClCompile>
     <ClCompile Include="parser\ClassParser.cpp">
       <Filter>parser</Filter>
