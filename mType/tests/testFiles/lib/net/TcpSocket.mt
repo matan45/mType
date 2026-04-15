@@ -2,8 +2,16 @@ import * from "../primitives/String.mt";
 import * from "../primitives/Int.mt";
 
 // TCP client socket. Holds an integer handle into the C++ SocketRegistry; all
-// methods delegate to __net_socket_* natives. The TcpServer's onConnection
-// callback receives instances of this class wrapping accepted client FDs.
+// methods delegate to __net_socket_* natives.
+//
+// Two flavors of every I/O method are exposed:
+//   * connectAsync/sendAsync/receiveAsync — return Promise<T>; use directly
+//     from async contexts with `await`.
+//   * connect/send/receive — sync wrappers that internally `await` the async
+//     variant. Safe to call from any async function (top-level async script,
+//     async test method, or an async-lambda callback). Calling them from a
+//     non-async event-loop callback would deadlock — use the async variants
+//     in that case (and make the callback an `async` lambda).
 class TcpSocket {
     public int handle;
 

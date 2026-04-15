@@ -113,18 +113,15 @@ namespace vm::compiler::registration
             params.emplace_back(param.first, param.second);
         }
 
-        // Check in environment's function registry for existing functions with same name
+        // Check in environment's function registry for existing functions with same name.
+        // If the exact signature is already registered, this is an idempotent re-import
+        // (the same AST traversed via two import chains) — silently skip, matching the
+        // behavior of ClassRegistrar::registerSingleClass.
         auto funcRegistry = environment->getFunctionRegistry();
         if (funcRegistry) {
             auto existingFunc = funcRegistry->findFunctionBySignature(funcName, params);
             if (existingFunc) {
-                throw errors::DuplicateSignatureException(
-                    "function",
-                    funcName,
-                    runtimeTypes::klass::SignatureUtils::generateTypeSignature(params),
-                    ast::SourceLocation(),  // TODO: Get source location from existing function
-                    functionNode->getLocation()
-                );
+                return;
             }
         }
 

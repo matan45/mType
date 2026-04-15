@@ -84,14 +84,14 @@ class JsonApi {
     // Generic typed accessor: GET path and deserialize as className.
     public function async <T> getAs(string path, string className): Promise<T> {
         String body = await this.get(path);
-        T result = Json.deserializeAs(body.getValue(), className);
+        T result = Json::deserializeAs(body.getValue(), className);
         return result;
     }
 
     public function async <T> postAs(string path, T obj, string className): Promise<T> {
-        string jsonBody = Json.serialize(obj);
+        string jsonBody = Json::serialize(obj);
         String body = await this.post(path, jsonBody);
-        T result = Json.deserializeAs(body.getValue(), className);
+        T result = Json::deserializeAs(body.getValue(), className);
         return result;
     }
 }

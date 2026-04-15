@@ -72,22 +72,33 @@ namespace net
             g_serverCallbacks.erase(handle);
         }
 
-        // Invoke a stored callback value with one argument. Handles both a raw
-        // BytecodeLambda value and a wrapped Consumer/Function ObjectInstance
-        // (where the call goes through .accept()).
+        // Schedule a stored callback as a new event-loop task so its body can
+        // `await` freely. Handles both a raw BytecodeLambda value and a wrapped
+        // AsyncConsumer/Consumer ObjectInstance (call routed through .accept()).
         void invokeCallback(std::shared_ptr<vm::runtime::VirtualMachine> vm,
                             const value::Value& cb, const value::Value& arg)
         {
             if (!vm) return;
+            auto* loop = vm->getEventLoop();
+            if (!loop) return;
+
             if (std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(cb))
             {
                 auto lambda = std::get<std::shared_ptr<vm::runtime::BytecodeLambda>>(cb);
-                if (lambda) vm->invokeLambda(lambda, { arg });
+                if (!lambda) return;
+                loop->scheduleTask([vm, lambda, arg]() -> value::Value {
+                    try { return vm->invokeLambda(lambda, { arg }); }
+                    catch (...) { return std::monostate{}; }
+                });
             }
             else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(cb))
             {
                 auto inst = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(cb);
-                if (inst) vm->invokeMethod(inst, "accept", { arg });
+                if (!inst) return;
+                loop->scheduleTask([vm, inst, arg]() -> value::Value {
+                    try { return vm->invokeMethod(inst, "accept", { arg }); }
+                    catch (...) { return std::monostate{}; }
+                });
             }
         }
 
