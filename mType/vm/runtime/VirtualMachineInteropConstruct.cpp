@@ -117,10 +117,18 @@ namespace vm::runtime
                         {
                             throw;
                         }
-                        // MYT-111: handler unwound past our reflective boundary —
-                        // the catch lives in a caller frame above this invocation.
+                        // MYT-111: handler found the catch in a caller frame
+                        // above our reflective boundary. Roll back its mutations
+                        // so the outer VM loop's own handler runs fresh.
                         if (callStack.size() < targetDepth)
                         {
+                            callStack = savedCallStack;
+                            while (stackManager->size() > frameBase)
+                            {
+                                stackManager->pop();
+                            }
+                            instructionPointer = savedIP;
+                            currentFinallyOffset = savedCurrentFinallyOffset;
                             throw;
                         }
                         instructionPointer = handlerResult.newInstructionPointer;
@@ -147,13 +155,6 @@ namespace vm::runtime
             currentFinallyOffset = savedCurrentFinallyOffset;
 
             return instance;
-        }
-        catch (errors::UserException&)
-        {
-            // MYT-111: handler already adjusted callStack/IP for the caller's
-            // catch target. Do NOT restore savedCallStack — that would overwrite
-            // the handler's work. Let the outer VM loop pick up from here.
-            throw;
         }
         catch (errors::ScriptException& e)
         {
@@ -295,10 +296,18 @@ namespace vm::runtime
                         {
                             throw;
                         }
-                        // MYT-111: handler unwound past our reflective boundary —
-                        // the catch lives in a caller frame above this invocation.
+                        // MYT-111: handler found the catch in a caller frame
+                        // above our reflective boundary. Roll back its mutations
+                        // so the outer VM loop's own handler runs fresh.
                         if (callStack.size() < targetDepth)
                         {
+                            callStack = savedCallStack;
+                            while (stackManager->size() > frameBase)
+                            {
+                                stackManager->pop();
+                            }
+                            instructionPointer = savedIP;
+                            currentFinallyOffset = savedCurrentFinallyOffset;
                             throw;
                         }
                         instructionPointer = handlerResult.newInstructionPointer;
@@ -326,13 +335,6 @@ namespace vm::runtime
             currentFinallyOffset = savedCurrentFinallyOffset;
 
             return result;
-        }
-        catch (errors::UserException&)
-        {
-            // MYT-111: handler already adjusted callStack/IP for the caller's
-            // catch target. Do NOT restore savedCallStack — that would overwrite
-            // the handler's work. Let the outer VM loop pick up from here.
-            throw;
         }
         catch (errors::ScriptException& e)
         {
