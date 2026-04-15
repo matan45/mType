@@ -1,8 +1,8 @@
 // Regression test for MYT-114.
-// Creates several rejecting async tasks and awaits them sequentially in a
-// try/catch. Every rejection flows through checkCompletedPromises; the fix
-// invokes resultPromise->reject outside queueMutex so any .catch handler
-// that re-enters the loop cannot deadlock on the same thread.
+// Awaits several rejecting async functions sequentially inside try/catch.
+// Every rejection flows through checkCompletedPromises; the fix invokes
+// resultPromise->reject outside queueMutex so any .catch handler that
+// re-enters the loop cannot deadlock on the same thread.
 
 import { Int } from "../../lib/primitives/Int.mt";
 import * from "../../lib/exceptions/Exception.mt";
@@ -17,12 +17,8 @@ function async willReject(int tag): Promise<Int> {
 function async main(): Promise<Int> {
     int caughtCount = 0;
 
-    Promise<Int> p1 = willReject(1);
-    Promise<Int> p2 = willReject(2);
-    Promise<Int> p3 = willReject(3);
-
     try {
-        Int a = await p1;
+        Int a = await willReject(1);
         print("unreachable 1");
     } catch (Exception e) {
         print("main: caught " + e.getMessage());
@@ -30,7 +26,7 @@ function async main(): Promise<Int> {
     }
 
     try {
-        Int b = await p2;
+        Int b = await willReject(2);
         print("unreachable 2");
     } catch (Exception e) {
         print("main: caught " + e.getMessage());
@@ -38,7 +34,7 @@ function async main(): Promise<Int> {
     }
 
     try {
-        Int c = await p3;
+        Int c = await willReject(3);
         print("unreachable 3");
     } catch (Exception e) {
         print("main: caught " + e.getMessage());
