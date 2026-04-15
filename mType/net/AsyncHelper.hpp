@@ -4,6 +4,7 @@
 #include "../runtime/EventLoop.hpp"
 
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -11,6 +12,57 @@
 
 namespace net
 {
+    namespace detail
+    {
+        inline void settleResolve(const std::shared_ptr<value::AsyncPromiseValue>& promise,
+                                  const value::Value& v)
+        {
+            try { promise->resolve(v); }
+            catch (const std::exception& e) {
+                std::cerr << "[net] promise resolve failed: " << e.what() << std::endl;
+            }
+            catch (...) {
+                std::cerr << "[net] promise resolve failed: unknown error" << std::endl;
+            }
+        }
+
+        inline void settleReject(const std::shared_ptr<value::AsyncPromiseValue>& promise,
+                                 const std::string& msg)
+        {
+            try { promise->reject(msg); }
+            catch (const std::exception& e) {
+                std::cerr << "[net] promise reject failed: " << e.what() << std::endl;
+            }
+            catch (...) {
+                std::cerr << "[net] promise reject failed: unknown error" << std::endl;
+            }
+        }
+
+        inline void settleOnLoopOrInline(::runtime::EventLoop* loop,
+                                         const std::shared_ptr<value::AsyncPromiseValue>& promise,
+                                         const value::Value& v,
+                                         bool resolve,
+                                         const std::string& rejectMsg)
+        {
+            if (loop)
+            {
+                if (resolve)
+                {
+                    loop->post([promise, v]() { settleResolve(promise, v); });
+                }
+                else
+                {
+                    loop->post([promise, rejectMsg]() { settleReject(promise, rejectMsg); });
+                }
+            }
+            else
+            {
+                if (resolve) settleResolve(promise, v);
+                else settleReject(promise, rejectMsg);
+            }
+        }
+    }
+
     // Spawn a worker thread that performs `work()`, then posts the result back
     // to the event loop where it resolves/rejects the returned promise on the
     // VM thread. `convert` turns the worker's typed result into a value::Value.
@@ -31,30 +83,11 @@ namespace net
             {
                 T result = work();
                 value::Value v = convert(std::move(result));
-                if (eventLoop)
-                {
-                    eventLoop->post([promise, v]() {
-                        try { promise->resolve(v); } catch (...) {}
-                    });
-                }
-                else
-                {
-                    try { promise->resolve(v); } catch (...) {}
-                }
+                detail::settleOnLoopOrInline(eventLoop, promise, v, /*resolve=*/true, {});
             }
             catch (const std::exception& e)
             {
-                std::string msg = e.what();
-                if (eventLoop)
-                {
-                    eventLoop->post([promise, msg]() {
-                        try { promise->reject(msg); } catch (...) {}
-                    });
-                }
-                else
-                {
-                    try { promise->reject(msg); } catch (...) {}
-                }
+                detail::settleOnLoopOrInline(eventLoop, promise, {}, /*resolve=*/false, e.what());
             }
         }).detach();
 
@@ -73,30 +106,11 @@ namespace net
             {
                 work();
                 value::Value v = nullptr;
-                if (eventLoop)
-                {
-                    eventLoop->post([promise, v]() {
-                        try { promise->resolve(v); } catch (...) {}
-                    });
-                }
-                else
-                {
-                    try { promise->resolve(v); } catch (...) {}
-                }
+                detail::settleOnLoopOrInline(eventLoop, promise, v, /*resolve=*/true, {});
             }
             catch (const std::exception& e)
             {
-                std::string msg = e.what();
-                if (eventLoop)
-                {
-                    eventLoop->post([promise, msg]() {
-                        try { promise->reject(msg); } catch (...) {}
-                    });
-                }
-                else
-                {
-                    try { promise->reject(msg); } catch (...) {}
-                }
+                detail::settleOnLoopOrInline(eventLoop, promise, {}, /*resolve=*/false, e.what());
             }
         }).detach();
 

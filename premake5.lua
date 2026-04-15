@@ -330,6 +330,13 @@ project "mType"
    includedirs { "vendor/asmjit" }
    defines { "ASMJIT_STATIC" }
 
+   -- Suppress LNK4006: __NULL_IMPORT_DESCRIPTOR is defined by every MSVC
+   -- import library (e.g. winhttp.lib, ws2_32.lib); linking more than one
+   -- triggers a benign duplicate-definition warning.
+   filter "system:windows"
+      linkoptions { "/ignore:4006" }
+   filter {}
+
    files {
       "mType/run/**.hpp",
       "mType/run/**.cpp",
@@ -366,6 +373,11 @@ project "mtype-launcher"
 
    includedirs { "vendor/asmjit", "packagemanager/src" }
    defines { "ASMJIT_STATIC" }
+
+   -- Suppress LNK4006: see comment on mType project above.
+   filter "system:windows"
+      linkoptions { "/ignore:4006" }
+   filter {}
 
    files {
       "mType/launcher/**.hpp",

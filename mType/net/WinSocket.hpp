@@ -47,7 +47,7 @@ namespace net
         void stop();
 
     private:
-        uintptr_t listenFd;
+        std::atomic<uintptr_t> listenFd;
         std::thread acceptThread;
         std::atomic<bool> stopping;
         std::mutex stateMutex;

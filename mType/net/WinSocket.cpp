@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <string>
 #include <cstring>
+#include <algorithm>
+#include <climits>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -113,12 +115,17 @@ namespace net
             throw std::runtime_error("connection:socket not connected");
         }
         SOCKET s = static_cast<SOCKET>(fd);
-        int total = 0;
+        size_t total = 0;
         const char* buf = data.data();
-        int remaining = static_cast<int>(data.size());
+        size_t remaining = data.size();
         while (remaining > 0)
         {
-            int sent = ::send(s, buf + total, remaining, 0);
+            // Clamp each send() call to INT_MAX so payloads larger than 2GB
+            // are transmitted in multiple chunks rather than truncated.
+            int chunk = remaining > static_cast<size_t>(INT_MAX)
+                ? INT_MAX
+                : static_cast<int>(remaining);
+            int sent = ::send(s, buf + total, chunk, 0);
             if (sent == SOCKET_ERROR)
             {
                 int err = WSAGetLastError();
@@ -128,10 +135,10 @@ namespace net
                 }
                 throw std::runtime_error(lastWsaError("send failed"));
             }
-            total += sent;
-            remaining -= sent;
+            total += static_cast<size_t>(sent);
+            remaining -= static_cast<size_t>(sent);
         }
-        return total;
+        return total > static_cast<size_t>(INT_MAX) ? INT_MAX : static_cast<int>(total);
     }
 
     std::string WinSocket::recv(int maxBytes)
@@ -214,7 +221,7 @@ namespace net
     {
         std::lock_guard<std::mutex> lock(stateMutex);
 
-        if (listenFd != static_cast<uintptr_t>(INVALID_SOCKET))
+        if (listenFd.load() != static_cast<uintptr_t>(INVALID_SOCKET))
         {
             throw std::runtime_error("server already listening");
         }
@@ -247,11 +254,11 @@ namespace net
             throw std::runtime_error(lastWsaError("listen failed"));
         }
 
-        listenFd = static_cast<uintptr_t>(s);
+        listenFd.store(static_cast<uintptr_t>(s));
         stopping = false;
 
         acceptThread = std::thread([this, onAccept, onError]() {
-            SOCKET ls = static_cast<SOCKET>(listenFd);
+            SOCKET ls = static_cast<SOCKET>(listenFd.load());
             while (!stopping.load())
             {
                 sockaddr_in clientAddr{};
@@ -281,16 +288,17 @@ namespace net
     {
         {
             std::lock_guard<std::mutex> lock(stateMutex);
-            if (listenFd == static_cast<uintptr_t>(INVALID_SOCKET) && !acceptThread.joinable())
+            uintptr_t fd = listenFd.load();
+            if (fd == static_cast<uintptr_t>(INVALID_SOCKET) && !acceptThread.joinable())
             {
                 return;
             }
             stopping = true;
-            if (listenFd != static_cast<uintptr_t>(INVALID_SOCKET))
+            if (fd != static_cast<uintptr_t>(INVALID_SOCKET))
             {
                 // Close listen FD to unblock accept().
-                closesocket(static_cast<SOCKET>(listenFd));
-                listenFd = static_cast<uintptr_t>(INVALID_SOCKET);
+                closesocket(static_cast<SOCKET>(fd));
+                listenFd.store(static_cast<uintptr_t>(INVALID_SOCKET));
             }
         }
         if (acceptThread.joinable())

@@ -121,15 +121,32 @@ namespace net
     {
         std::wstring wurl = toWide(request.url);
 
-        // Crack URL into components.
+        // Crack URL into components. Two-pass: first call with zero-length
+        // buffers but non-null pointers to populate required lengths, then
+        // allocate exact-size buffers. This avoids silent truncation of long
+        // hostnames or paths that fixed buffers would cause.
+        URL_COMPONENTS ucSizing{};
+        ucSizing.dwStructSize = sizeof(ucSizing);
+        ucSizing.dwHostNameLength = static_cast<DWORD>(-1);
+        ucSizing.dwUrlPathLength = static_cast<DWORD>(-1);
+        ucSizing.dwExtraInfoLength = static_cast<DWORD>(-1);
+        ucSizing.dwUserNameLength = static_cast<DWORD>(-1);
+        ucSizing.dwPasswordLength = static_cast<DWORD>(-1);
+        ucSizing.dwSchemeLength = static_cast<DWORD>(-1);
+        if (!WinHttpCrackUrl(wurl.c_str(), 0, 0, &ucSizing))
+        {
+            throw std::runtime_error("connection:malformed URL '" + request.url + "'");
+        }
+
+        std::vector<wchar_t> hostBuf(ucSizing.dwHostNameLength + 1, L'\0');
+        std::vector<wchar_t> pathBuf(ucSizing.dwUrlPathLength + 1, L'\0');
+
         URL_COMPONENTS uc{};
         uc.dwStructSize = sizeof(uc);
-        wchar_t hostBuf[256] = {0};
-        wchar_t pathBuf[2048] = {0};
-        uc.lpszHostName = hostBuf;
-        uc.dwHostNameLength = sizeof(hostBuf) / sizeof(wchar_t);
-        uc.lpszUrlPath = pathBuf;
-        uc.dwUrlPathLength = sizeof(pathBuf) / sizeof(wchar_t);
+        uc.lpszHostName = hostBuf.data();
+        uc.dwHostNameLength = static_cast<DWORD>(hostBuf.size());
+        uc.lpszUrlPath = pathBuf.data();
+        uc.dwUrlPathLength = static_cast<DWORD>(pathBuf.size());
 
         if (!WinHttpCrackUrl(wurl.c_str(), 0, 0, &uc))
         {
@@ -155,7 +172,7 @@ namespace net
                                request.timeoutMs, request.timeoutMs);
         }
 
-        WinHttpHandle connect(WinHttpConnect(session.get(), hostBuf, port, 0));
+        WinHttpHandle connect(WinHttpConnect(session.get(), hostBuf.data(), port, 0));
         if (!connect.get())
         {
             throw std::runtime_error(lastWinHttpError("WinHttpConnect failed"));
@@ -163,7 +180,7 @@ namespace net
 
         DWORD reqFlags = isHttps ? WINHTTP_FLAG_SECURE : 0;
         std::wstring wmethod = toWide(request.method);
-        WinHttpHandle req(WinHttpOpenRequest(connect.get(), wmethod.c_str(), pathBuf,
+        WinHttpHandle req(WinHttpOpenRequest(connect.get(), wmethod.c_str(), pathBuf.data(),
                                              nullptr, WINHTTP_NO_REFERER,
                                              WINHTTP_DEFAULT_ACCEPT_TYPES, reqFlags));
         if (!req.get())

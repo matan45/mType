@@ -17,6 +17,7 @@
 #include "../vm/runtime/context/ExecutionContext.hpp"
 #include "../errors/RuntimeException.hpp"
 
+#include <iostream>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -88,13 +89,25 @@ namespace net
             {
                 auto lambda = std::get<std::shared_ptr<vm::runtime::BytecodeLambda>>(cb);
                 if (!lambda) return;
-                try { vm->invokeLambda(lambda, { arg }); } catch (...) {}
+                try { vm->invokeLambda(lambda, { arg }); }
+                catch (const std::exception& e) {
+                    std::cerr << "[net] server callback threw: " << e.what() << std::endl;
+                }
+                catch (...) {
+                    std::cerr << "[net] server callback threw: unknown error" << std::endl;
+                }
             }
             else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(cb))
             {
                 auto inst = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(cb);
                 if (!inst) return;
-                try { vm->invokeMethod(inst, "accept", { arg }); } catch (...) {}
+                try { vm->invokeMethod(inst, "accept", { arg }); }
+                catch (const std::exception& e) {
+                    std::cerr << "[net] server callback threw: " << e.what() << std::endl;
+                }
+                catch (...) {
+                    std::cerr << "[net] server callback threw: unknown error" << std::endl;
+                }
             }
         }
 
@@ -102,6 +115,8 @@ namespace net
         // the accept thread hands a new client to the user's onConnection callback.
         value::Value makeTcpSocketInstance(std::shared_ptr<environment::Environment> env, int handle)
         {
+            if (!env)
+                throw errors::RuntimeException("TcpSocket class not loaded (environment released)");
             auto classDef = env->findClass("TcpSocket");
             if (!classDef)
                 throw errors::RuntimeException("TcpSocket class not loaded");
@@ -216,6 +231,8 @@ namespace net
                 return client.send(req);
             },
             [env](HttpResponseData resp) -> value::Value {
+                if (!env)
+                    throw errors::RuntimeException("HttpResponse class not loaded (environment released)");
                 auto classDef = env->findClass("HttpResponse");
                 if (!classDef)
                     throw errors::RuntimeException("HttpResponse class not loaded");

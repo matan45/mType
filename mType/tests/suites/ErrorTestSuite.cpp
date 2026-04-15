@@ -203,9 +203,10 @@ namespace tests::testSuite
         // idempotent on re-registration to fix MYT-113-adjacent re-import
         // breakage (the same AST being traversed via two import chains was
         // throwing duplicate-signature). The trade-off is that genuine
-        // same-file duplicates also no longer error here; if strict
-        // detection comes back, restore this entry along with parser/
-        // semantic-pass duplicate detection in front of the registrar.
+        // same-file duplicates also no longer error here. Tracked in MYT-116:
+        // restore strict detection at the parser/semantic-pass layer (which
+        // can distinguish re-import from real duplicates via SourceLocation)
+        // and reintroduce this test.
 
         // === DUPLICATE METHOD DECLARATION TESTS ===
         // These tests verify that duplicate method names within a class are rejected

@@ -13,6 +13,10 @@ namespace net
     {
         std::lock_guard<std::mutex> lock(mutex);
         int handle = nextSocketHandle.fetch_add(1);
+        if (handle <= 0)
+        {
+            throw std::runtime_error("connection:socket handle counter exhausted");
+        }
         sockets[handle] = std::move(socket);
         return handle;
     }
@@ -48,6 +52,10 @@ namespace net
     {
         std::lock_guard<std::mutex> lock(mutex);
         int handle = nextServerHandle.fetch_add(1);
+        if (handle <= 0)
+        {
+            throw std::runtime_error("connection:server handle counter exhausted");
+        }
         servers[handle] = std::move(server);
         return handle;
     }
