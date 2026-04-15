@@ -82,7 +82,8 @@ namespace reflection
         size_t pi = requireIndex(paramIndexI, info.method->getParameters().size(), FN);
 
         auto annotation = info.method->getParameterAnnotation(pi, name);
-        if (!annotation) return std::monostate{};
+        // Return int 0 on not-found so mType `int handle = ...` receives a real int.
+        if (!annotation) return static_cast<int64_t>(0);
         return reg.registerAnnotation(annotation, name);
     }
 
@@ -141,7 +142,7 @@ namespace reflection
         size_t pi = requireIndex(paramIndexI, info.constructor->getParametersWithTypes().size(), FN);
 
         auto annotation = info.constructor->getParameterAnnotation(pi, name);
-        if (!annotation) return std::monostate{};
+        if (!annotation) return static_cast<int64_t>(0);
         return reg.registerAnnotation(annotation, name);
     }
 

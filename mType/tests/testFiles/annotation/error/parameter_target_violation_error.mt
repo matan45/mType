@@ -8,6 +8,5 @@ annotation MethodOnly { }
 
 class Bad {
     public function foo(@MethodOnly int x): void {
-        return;
     }
 }

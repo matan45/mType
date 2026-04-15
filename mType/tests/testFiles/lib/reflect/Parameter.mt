@@ -45,7 +45,7 @@ class Parameter {
     }
 
     public function getAnnotation(string name): Annotation? {
-        int handle;
+        int handle = 0;
         if (this._isCtor) {
             handle = __reflect_getConstructorParameterAnnotation(this._parentHandle, this._index, name);
         } else {
@@ -58,7 +58,7 @@ class Parameter {
     }
 
     public function getAnnotations(): Annotation[] {
-        int[] handles;
+        int[] handles = new int[0];
         if (this._isCtor) {
             handles = __reflect_getConstructorParameterAnnotations(this._parentHandle, this._index);
         } else {

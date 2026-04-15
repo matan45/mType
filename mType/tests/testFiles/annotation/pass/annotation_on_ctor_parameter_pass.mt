@@ -8,8 +8,10 @@ import * from "../../lib/reflect/Annotation.mt";
 annotation Inject { }
 
 class Service {
+    public int x;
+
     public constructor(@Inject string dbUrl) {
-        return;
+        this.x = 1;
     }
 }
 

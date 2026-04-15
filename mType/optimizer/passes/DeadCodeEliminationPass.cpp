@@ -329,6 +329,11 @@ namespace optimizer::passes
                 transformedFunction->addAnnotation(annotation);
             }
 
+            // MYT-110: preserve per-parameter annotations through DCE rebuild.
+            transformedFunction->setParameterAnnotations(
+                std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>>(
+                    node->getParameterAnnotations()));
+
             return transformedFunction;
         }
 
@@ -378,6 +383,11 @@ namespace optimizer::passes
                 transformedMethod->addAnnotation(annotation);
             }
 
+            // MYT-110: preserve per-parameter annotations through DCE rebuild.
+            transformedMethod->setParameterAnnotations(
+                std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>>(
+                    node->getParameterAnnotations()));
+
             return transformedMethod;
         }
 
@@ -421,6 +431,16 @@ namespace optimizer::passes
                 );
                 transformedConstructor->setSuperInitializer(std::move(clonedSuper));
             }
+
+            // MYT-110: preserve ctor-level and per-parameter annotations
+            // through DCE rebuild.
+            for (const auto& annotation : node->getAnnotations())
+            {
+                transformedConstructor->addAnnotation(annotation);
+            }
+            transformedConstructor->setParameterAnnotations(
+                std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>>(
+                    node->getParameterAnnotations()));
 
             return transformedConstructor;
         }

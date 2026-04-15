@@ -13,7 +13,6 @@ annotation Keep { }
 
 class Demo {
     public function foo(@Draft @Keep int x): void {
-        return;
     }
 }
 

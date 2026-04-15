@@ -72,15 +72,9 @@ namespace vm::compiler::registration
             }
         }
 
-        // Delegate to the shared implementation so FunctionRegistrar can use
-        // the same logic. Kept in an anonymous namespace alias to preserve
-        // existing call sites.
-        bool shouldRetainAnnotation(
-            const ast::nodes::annotations::AnnotationNode& annotation,
-            const std::shared_ptr<environment::Environment>& environment)
-        {
-            return ::vm::compiler::registration::shouldRetainAnnotation(annotation, environment);
-        }
+        // MYT-110: shouldRetainAnnotation moved to AnnotationRetention.{hpp,cpp}
+        // so FunctionRegistrar can share it. Same-namespace call sites below
+        // resolve directly to the shared symbol.
     }
 
     ClassRegistrar::ClassRegistrar(

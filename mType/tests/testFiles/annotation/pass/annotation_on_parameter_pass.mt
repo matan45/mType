@@ -15,7 +15,6 @@ annotation Email {
 
 class UserService {
     public function createUser(@NotNull string name, @Email string email): void {
-        return;
     }
 }
 
