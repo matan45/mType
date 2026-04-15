@@ -1,0 +1,4 @@
+=== Async Lambda Pre-Rejected Promise ===
+main: caught lambda-reject-7
+main: caught=1
+OK

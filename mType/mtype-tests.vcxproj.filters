@@ -1849,6 +1849,12 @@
     <None Include="tests\testFiles\await\pass\asyncLambdaFunctions.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncLambdaPreRejectedPromise.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLambdaPreRejectedPromise.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncLargePromiseChain.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
@@ -1925,6 +1931,18 @@
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncParallelRejectionFanout.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPreRejectedPromiseFanout.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPreRejectedPromiseFanout.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPreRejectedPromiseStored.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPreRejectedPromiseStored.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncPrivateMethod.expected">
@@ -4634,9 +4652,6 @@
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\duplicateClassName.mt">
-      <Filter>testFiles\error\error</Filter>
-    </None>
-    <None Include="tests\testFiles\error\error\duplicateFunctionName.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\duplicateInstanceMethodName.mt">

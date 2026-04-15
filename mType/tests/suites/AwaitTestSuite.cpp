@@ -86,6 +86,12 @@ namespace tests::testSuite
                         passPath + "asyncComplexCallStackException.mt");
         addOutputVerificationTest("Async Exception After Partial Execution",
                         passPath + "asyncExceptionAfterPartialExecution.mt");
+        addOutputVerificationTest("Async Pre-Rejected Promise Stored",
+                        passPath + "asyncPreRejectedPromiseStored.mt");
+        addOutputVerificationTest("Async Pre-Rejected Promise Fanout",
+                        passPath + "asyncPreRejectedPromiseFanout.mt");
+        addOutputVerificationTest("Async Lambda Pre-Rejected Promise",
+                        passPath + "asyncLambdaPreRejectedPromise.mt");
 
         // Complex Expression Tests (8 tests)
         addOutputVerificationTest("Await In Binary Expression",
