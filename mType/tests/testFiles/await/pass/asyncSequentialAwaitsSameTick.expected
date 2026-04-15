@@ -1,0 +1,9 @@
+=== Sequential Awaits Same Tick ===
+driver: before step 1
+driver: after step 1 value=1
+driver: before step 2
+driver: after step 2 value=2
+driver: before step 3
+driver: after step 3 value=3
+main: total=6
+OK

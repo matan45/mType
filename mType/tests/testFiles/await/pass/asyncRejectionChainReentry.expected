@@ -1,0 +1,8 @@
+=== Rejection Chain Reentry ===
+outer: before await
+middle: before await
+innermost: throwing
+middle: caught inner failure
+outer: caught middle rethrow
+main: result=7
+OK

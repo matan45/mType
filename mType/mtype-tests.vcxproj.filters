@@ -1921,6 +1921,12 @@
     <None Include="tests\testFiles\await\pass\asyncParallelPromises.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncParallelRejectionFanout.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncParallelRejectionFanout.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncPrivateMethod.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
@@ -1981,10 +1987,22 @@
     <None Include="tests\testFiles\await\pass\asyncProtectedMethod.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncRejectionChainReentry.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncRejectionChainReentry.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncRethrowException.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncRethrowException.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncSequentialAwaitsSameTick.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncSequentialAwaitsSameTick.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncStaticMethodVariant.expected">
@@ -8681,6 +8699,9 @@
       <Filter>testFiles\lib\mtest\examples</Filter>
     </None>
     <None Include="tests\testFiles\lib\mtest\examples\CalculatorTest.mt">
+      <Filter>testFiles\lib\mtest\examples</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\examples\runAsyncAwaitRunnerTest.expected">
       <Filter>testFiles\lib\mtest\examples</Filter>
     </None>
     <None Include="tests\testFiles\lib\mtest\examples\runAsyncAwaitRunnerTest.mt">

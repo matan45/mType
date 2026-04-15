@@ -1,0 +1,6 @@
+=== Parallel Rejection Fanout ===
+main: caught reject-1
+main: caught reject-2
+main: caught reject-3
+main: caughtCount=3
+OK

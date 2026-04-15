@@ -72,16 +72,13 @@ namespace net
             g_serverCallbacks.erase(handle);
         }
 
-        // Schedule a stored callback as a new event-loop task so its body can
-        // `await` freely. Handles both a raw BytecodeLambda value and a wrapped
-        // AsyncConsumer/Consumer ObjectInstance (call routed through .accept()).
-        // Invoke a stored callback directly. Runs on the VM thread from
-        // inside an event-loop post-callback (which holds queueMutex during
-        // tick processing), so we MUST NOT call EventLoop::scheduleTask /
-        // post here — both would re-lock the same mutex and deadlock. With
-        // the MYT-113 interop async path, invokeLambda / invokeMethod for
-        // an async target returns immediately on first suspension and the
-        // body resumes via promise continuations — no event-loop task wrap.
+        // Invoke a stored callback directly. Runs on the VM thread from inside
+        // an event-loop post-callback. As of MYT-114 tick() drains pendingCallbacks
+        // before invoking them, so callbacks may call EventLoop::post /
+        // scheduleTask freely without re-locking queueMutex. With the MYT-113
+        // interop async path, invokeLambda / invokeMethod for an async target
+        // returns immediately on first suspension and the body resumes via
+        // promise continuations — no event-loop task wrap needed here.
         void invokeCallback(std::shared_ptr<vm::runtime::VirtualMachine> vm,
                             const value::Value& cb, const value::Value& arg)
         {

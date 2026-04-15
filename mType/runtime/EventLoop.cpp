@@ -282,38 +282,46 @@ namespace runtime {
     }
 
     void EventLoop::checkCompletedPromises() {
-        std::lock_guard<std::mutex> lock(queueMutex);
+        // Collect rejections under the lock, then invoke promise->reject() after
+        // release. reject() synchronously runs .then/.catch handlers, which may
+        // call post() / scheduleTask() and re-lock queueMutex on this thread.
+        std::vector<std::pair<std::shared_ptr<Task>, std::string>> rejectedTasks;
 
-        // Check all suspended tasks for settled (fulfilled or rejected) promises
-        std::vector<size_t> toResume;
+        {
+            std::lock_guard<std::mutex> lock(queueMutex);
 
-        for (const auto& [taskId, task] : suspendedTasks) {
-            if (task->waitingOn && (task->waitingOn->isFulfilled() || task->waitingOn->isRejected())) {
-                toResume.push_back(taskId);
+            std::vector<size_t> toResume;
+            for (const auto& [taskId, task] : suspendedTasks) {
+                if (task->waitingOn && (task->waitingOn->isFulfilled() || task->waitingOn->isRejected())) {
+                    toResume.push_back(taskId);
+                }
+            }
+
+            for (size_t taskId : toResume) {
+                auto task = suspendedTasks[taskId];
+
+                if (task->waitingOn->isRejected()) {
+                    // Mark task as failed — the VM's pendingAwaitRejection mechanism
+                    // handles proper error propagation for tasks resumed via callbacks.
+                    // This path catches tasks waiting on plain PromiseValue (no callbacks).
+                    task->state = TaskState::FAILED;
+                    task->errorMessage = task->waitingOn->getError();
+
+                    if (task->resultPromise) {
+                        rejectedTasks.emplace_back(task, task->errorMessage);
+                    }
+                } else {
+                    task->state = TaskState::PENDING;
+                    readyQueue.push_back(task);
+                }
+
+                task->waitingOn = nullptr;
+                suspendedTasks.erase(taskId);
             }
         }
 
-        // Resume tasks whose promises are settled
-        for (size_t taskId : toResume) {
-            auto task = suspendedTasks[taskId];
-
-            if (task->waitingOn->isRejected()) {
-                // Mark task as failed — the VM's pendingAwaitRejection mechanism
-                // handles proper error propagation for tasks resumed via callbacks.
-                // This path catches tasks waiting on plain PromiseValue (no callbacks).
-                task->state = TaskState::FAILED;
-                task->errorMessage = task->waitingOn->getError();
-
-                if (task->resultPromise) {
-                    task->resultPromise->reject(task->errorMessage);
-                }
-            } else {
-                task->state = TaskState::PENDING;
-                readyQueue.push_back(task);
-            }
-
-            task->waitingOn = nullptr;
-            suspendedTasks.erase(taskId);
+        for (auto& [task, err] : rejectedTasks) {
+            task->resultPromise->reject(err);
         }
     }
 
