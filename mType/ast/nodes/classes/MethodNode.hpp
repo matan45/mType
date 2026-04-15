@@ -29,6 +29,10 @@ namespace ast::nodes::classes
         AccessModifier accessModifier;
         std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;  // NEW: Annotations for this method
 
+        // MYT-110: per-parameter annotations, indexed by parameter position.
+        // parameterAnnotations[i] holds the annotations on parameters[i].
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> parameterAnnotations;
+
         // Performance cache for legacy getParameters() - O(1) after first call
         mutable std::optional<std::vector<std::pair<std::string, ValueType>>> cachedLegacyParams;
         mutable bool paramCacheValid = false;
@@ -120,6 +124,13 @@ namespace ast::nodes::classes
         void addAnnotation(std::shared_ptr<annotations::AnnotationNode> annotation);
         bool hasAnnotation(const std::string& annotationName) const;
         std::shared_ptr<annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
+
+        // MYT-110: per-parameter annotation accessors. The outer vector is
+        // kept sized to match parameters; empty inner vectors are allowed.
+        const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>& getParameterAnnotations() const;
+        void setParameterAnnotations(
+            std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex);
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getParameterAnnotations(size_t paramIndex) const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

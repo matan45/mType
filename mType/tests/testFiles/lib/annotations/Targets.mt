@@ -15,3 +15,6 @@ class CLASS {}
 class FUNCTION {}
 
 class ANNOTATION {}
+
+// MYT-110
+class PARAMETER {}

@@ -15,7 +15,8 @@ namespace ast::nodes::classes
                            const SourceLocation& loc)
         : ASTNode(loc), name(methodName), genericParameters(generics), returnType(retType),
           parameters(params), body(std::move(methodBody)), isStatic(isStaticMethod), isAsync(async),
-          abstractMethod(false), finalMethod(false), accessModifier(modifier)
+          abstractMethod(false), finalMethod(false), accessModifier(modifier),
+          parameterAnnotations(params.size())
     {
     }
 
@@ -32,6 +33,7 @@ namespace ast::nodes::classes
     {
         returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
+        parameterAnnotations.resize(parameters.size());
     }
 
     // Backward compatibility constructor with ValueType (unique_ptr)
@@ -47,6 +49,7 @@ namespace ast::nodes::classes
     {
         returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
+        parameterAnnotations.resize(parameters.size());
     }
 
     const std::string& MethodNode::getName() const noexcept
@@ -133,6 +136,7 @@ namespace ast::nodes::classes
     {
         parameters = params;
         paramCacheValid = false; // Invalidate cache when parameters change
+        parameterAnnotations.assign(parameters.size(), {});
     }
 
     // Legacy setter for backward compatibility
@@ -146,6 +150,7 @@ namespace ast::nodes::classes
     {
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
         paramCacheValid = false; // Invalidate cache when parameters change
+        parameterAnnotations.assign(parameters.size(), {});
     }
 
     void MethodNode::setBody(std::shared_ptr<ASTNode> methodBody)
@@ -207,6 +212,27 @@ namespace ast::nodes::classes
         return nullptr;
     }
 
+    const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>&
+    MethodNode::getParameterAnnotations() const
+    {
+        return parameterAnnotations;
+    }
+
+    void MethodNode::setParameterAnnotations(
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex)
+    {
+        parameterAnnotations = std::move(annotationsByIndex);
+        parameterAnnotations.resize(parameters.size());
+    }
+
+    const std::vector<std::shared_ptr<annotations::AnnotationNode>>&
+    MethodNode::getParameterAnnotations(size_t paramIndex) const
+    {
+        static const std::vector<std::shared_ptr<annotations::AnnotationNode>> empty;
+        if (paramIndex >= parameterAnnotations.size()) return empty;
+        return parameterAnnotations[paramIndex];
+    }
+
     Value MethodNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitMethodNode(this);
@@ -232,27 +258,46 @@ namespace ast::nodes::classes
         cloned->setFinal(finalMethod);
 
         // Clone annotations
+        auto cloneAnnotation = [](const std::shared_ptr<annotations::AnnotationNode>& annotation)
+            -> std::shared_ptr<annotations::AnnotationNode>
+        {
+            if (!annotation) return nullptr;
+            // Reconstruct via typed parameters so MYT-108 typed values
+            // (CLASS_ARRAY etc.) survive AST cloning. The legacy string
+            // ctor would collapse all values to STRING via toDisplayString.
+            auto clonedAnnotation = std::make_shared<annotations::AnnotationNode>(
+                annotation->getName(),
+                annotation->getLocation()
+            );
+            for (const auto& key : annotation->getKeyOrder())
+            {
+                if (auto* v = annotation->getTypedParameter(key))
+                {
+                    clonedAnnotation->setTypedParameter(key, *v);
+                }
+            }
+            return clonedAnnotation;
+        };
+
         for (const auto& annotation : annotations)
         {
-            if (annotation)
-            {
-                // Reconstruct via typed parameters so MYT-108 typed values
-                // (CLASS_ARRAY etc.) survive AST cloning. The legacy string
-                // ctor would collapse all values to STRING via toDisplayString.
-                auto clonedAnnotation = std::make_shared<annotations::AnnotationNode>(
-                    annotation->getName(),
-                    annotation->getLocation()
-                );
-                for (const auto& key : annotation->getKeyOrder())
-                {
-                    if (auto* v = annotation->getTypedParameter(key))
-                    {
-                        clonedAnnotation->setTypedParameter(key, *v);
-                    }
-                }
-                cloned->addAnnotation(clonedAnnotation);
-            }
+            if (auto c = cloneAnnotation(annotation)) cloned->addAnnotation(c);
         }
+
+        // MYT-110: clone per-parameter annotations
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> clonedParamAnnots;
+        clonedParamAnnots.reserve(parameterAnnotations.size());
+        for (const auto& perParam : parameterAnnotations)
+        {
+            std::vector<std::shared_ptr<annotations::AnnotationNode>> out;
+            out.reserve(perParam.size());
+            for (const auto& ann : perParam)
+            {
+                if (auto c = cloneAnnotation(ann)) out.push_back(std::move(c));
+            }
+            clonedParamAnnots.push_back(std::move(out));
+        }
+        cloned->setParameterAnnotations(std::move(clonedParamAnnots));
 
         return cloned;
     }

@@ -1,5 +1,6 @@
 #include "ConstructorParser.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../utilities/ParameterParser.hpp"
 #include "../utilities/AccessModifierParser.hpp"
 #include "../../ast/nodes/classes/ConstructorNode.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
@@ -40,8 +41,17 @@ namespace parser
         auto constructorLocation = tokenStream.current().location;
         tokenStream.expect(TokenType::CONSTRUCTOR);
 
-        // Parse parameter list with full type information
-        auto parametersWithTypes = ParserUtils::parseParameterListWithTypes(tokenStream, true);
+        // Parse parameter list with full type information. MYT-110: Decl
+        // variant collects per-parameter annotations.
+        auto paramDecls = ParameterParser::parseTypedParameterDeclList(tokenStream, true);
+        std::vector<std::pair<std::string, value::ParameterType>> parametersWithTypes;
+        std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> parameterAnnotations;
+        parametersWithTypes.reserve(paramDecls.size());
+        parameterAnnotations.reserve(paramDecls.size());
+        for (auto& d : paramDecls) {
+            parametersWithTypes.emplace_back(d.name, d.type);
+            parameterAnnotations.push_back(std::move(d.annotations));
+        }
 
         // Check for super initializer: `: super(...)`
         std::unique_ptr<SuperConstructorCallNode> superInitializer = nullptr;
@@ -101,6 +111,9 @@ namespace parser
         {
             constructorNode->setSuperInitializer(std::move(superInitializer));
         }
+
+        // MYT-110: attach per-parameter annotations
+        constructorNode->setParameterAnnotations(std::move(parameterAnnotations));
 
         return constructorNode;
     }

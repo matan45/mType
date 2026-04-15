@@ -12,7 +12,8 @@ namespace ast::nodes::functions
                                bool async,
                                const SourceLocation& loc)
         : ASTNode(loc), name(funcName), genericParameters(generics), returnType(retType),
-          parameters(params), body(std::move(funcBody)), isAsync(async), visibility(VisibilityModifier::PUBLIC)
+          parameters(params), body(std::move(funcBody)), isAsync(async), visibility(VisibilityModifier::PUBLIC),
+          parameterAnnotations(params.size())
     {
     }
 
@@ -26,6 +27,7 @@ namespace ast::nodes::functions
     {
         returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
+        parameterAnnotations.resize(parameters.size());
     }
 
     // Backward compatibility constructor with ValueType (unique_ptr)
@@ -38,6 +40,7 @@ namespace ast::nodes::functions
     {
         returnType = utils::GenericTypeConversionUtils::convertValueTypeToGenericType(retType);
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
+        parameterAnnotations.resize(parameters.size());
     }
 
     const std::string& FunctionNode::getName() const noexcept
@@ -153,6 +156,7 @@ namespace ast::nodes::functions
     {
         parameters = params;
         paramCacheValid = false;  // Invalidate cache when parameters change
+        parameterAnnotations.assign(parameters.size(), {});
     }
 
     // Legacy setter for backward compatibility
@@ -166,6 +170,7 @@ namespace ast::nodes::functions
     {
         parameters = utils::GenericTypeConversionUtils::convertParametersToGenericType(params);
         paramCacheValid = false;  // Invalidate cache when parameters change
+        parameterAnnotations.assign(parameters.size(), {});
     }
 
     void FunctionNode::setBody(std::shared_ptr<ASTNode> funcBody)
@@ -232,6 +237,27 @@ namespace ast::nodes::functions
         return nullptr;
     }
 
+    const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>&
+    FunctionNode::getParameterAnnotations() const
+    {
+        return parameterAnnotations;
+    }
+
+    void FunctionNode::setParameterAnnotations(
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex)
+    {
+        parameterAnnotations = std::move(annotationsByIndex);
+        parameterAnnotations.resize(parameters.size());
+    }
+
+    const std::vector<std::shared_ptr<annotations::AnnotationNode>>&
+    FunctionNode::getParameterAnnotations(size_t paramIndex) const
+    {
+        static const std::vector<std::shared_ptr<annotations::AnnotationNode>> empty;
+        if (paramIndex >= parameterAnnotations.size()) return empty;
+        return parameterAnnotations[paramIndex];
+    }
+
     Value FunctionNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitFunctionNode(this);
@@ -255,25 +281,43 @@ namespace ast::nodes::functions
 
         clonedFunction->setVisibility(visibility);
 
+        auto cloneAnnotation = [](const std::shared_ptr<annotations::AnnotationNode>& annotation)
+            -> std::shared_ptr<annotations::AnnotationNode>
+        {
+            if (!annotation) return nullptr;
+            auto clonedAnnotation = std::make_shared<annotations::AnnotationNode>(
+                annotation->getName(),
+                annotation->getLocation()
+            );
+            for (const auto& key : annotation->getKeyOrder())
+            {
+                if (auto* v = annotation->getTypedParameter(key))
+                {
+                    clonedAnnotation->setTypedParameter(key, *v);
+                }
+            }
+            return clonedAnnotation;
+        };
+
         // Clone annotations
         for (const auto& annotation : annotations) {
-            if (annotation) {
-                // Use typed-parameter clone path so MYT-108 typed values
-                // (CLASS_ARRAY etc.) survive AST cloning.
-                auto clonedAnnotation = std::make_shared<annotations::AnnotationNode>(
-                    annotation->getName(),
-                    annotation->getLocation()
-                );
-                for (const auto& key : annotation->getKeyOrder())
-                {
-                    if (auto* v = annotation->getTypedParameter(key))
-                    {
-                        clonedAnnotation->setTypedParameter(key, *v);
-                    }
-                }
-                clonedFunction->addAnnotation(clonedAnnotation);
-            }
+            if (auto c = cloneAnnotation(annotation)) clonedFunction->addAnnotation(c);
         }
+
+        // MYT-110: clone per-parameter annotations
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> clonedParamAnnots;
+        clonedParamAnnots.reserve(parameterAnnotations.size());
+        for (const auto& perParam : parameterAnnotations)
+        {
+            std::vector<std::shared_ptr<annotations::AnnotationNode>> out;
+            out.reserve(perParam.size());
+            for (const auto& ann : perParam)
+            {
+                if (auto c = cloneAnnotation(ann)) out.push_back(std::move(c));
+            }
+            clonedParamAnnots.push_back(std::move(out));
+        }
+        clonedFunction->setParameterAnnotations(std::move(clonedParamAnnots));
 
         return clonedFunction;
     }

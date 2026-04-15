@@ -116,6 +116,14 @@ namespace reflection
         nativeRegistry->registerNativeFunction("__reflect_getMethodParameters", __reflect_getMethodParameters);
         nativeRegistry->registerNativeFunction("__reflect_getConstructorParameters", __reflect_getConstructorParameters);
         nativeRegistry->registerNativeFunction("__reflect_getParameterType", __reflect_getParameterType);
+
+        // MYT-110: parameter-level annotation reflection
+        nativeRegistry->registerNativeFunction("__reflect_getMethodParameterAnnotations", __reflect_getMethodParameterAnnotations);
+        nativeRegistry->registerNativeFunction("__reflect_getMethodParameterAnnotation",  __reflect_getMethodParameterAnnotation);
+        nativeRegistry->registerNativeFunction("__reflect_hasMethodParameterAnnotation",  __reflect_hasMethodParameterAnnotation);
+        nativeRegistry->registerNativeFunction("__reflect_getConstructorParameterAnnotations", __reflect_getConstructorParameterAnnotations);
+        nativeRegistry->registerNativeFunction("__reflect_getConstructorParameterAnnotation",  __reflect_getConstructorParameterAnnotation);
+        nativeRegistry->registerNativeFunction("__reflect_hasConstructorParameterAnnotation",  __reflect_hasConstructorParameterAnnotation);
     }
 
     // ========== Helper Methods ==========

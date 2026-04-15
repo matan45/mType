@@ -669,6 +669,25 @@ namespace services
                 methodDef->addAnnotation(buildAnnotationNodeFromMetadata(annotData));
             }
 
+            // MYT-110: restore per-parameter annotations. methodDef's params
+            // prepend `this` for instance methods; metadata does not carry
+            // that slot, so we offset by one.
+            {
+                std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> restored;
+                const size_t runtimeSize = methodDef->getParameters().size();
+                restored.reserve(runtimeSize);
+                if (!isStatic) restored.push_back({}); // `this`
+                for (const auto& perParam : methodMeta.parameterAnnotations) {
+                    std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> nodes;
+                    nodes.reserve(perParam.size());
+                    for (const auto& ad : perParam) {
+                        nodes.push_back(buildAnnotationNodeFromMetadata(ad));
+                    }
+                    restored.push_back(std::move(nodes));
+                }
+                methodDef->setParameterAnnotations(std::move(restored));
+            }
+
             if (isStatic)
             {
                 classDef->addStaticMethod(methodMeta.name, methodDef);
@@ -715,6 +734,21 @@ namespace services
             // MYT-108: restore constructor annotations from bytecode metadata
             for (const auto& annotData : ctorMeta.annotations) {
                 ctorDef->addAnnotation(buildAnnotationNodeFromMetadata(annotData));
+            }
+
+            // MYT-110: restore per-parameter annotations (1:1 with metadata)
+            {
+                std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> restored;
+                restored.reserve(ctorMeta.parameterAnnotations.size());
+                for (const auto& perParam : ctorMeta.parameterAnnotations) {
+                    std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> nodes;
+                    nodes.reserve(perParam.size());
+                    for (const auto& ad : perParam) {
+                        nodes.push_back(buildAnnotationNodeFromMetadata(ad));
+                    }
+                    restored.push_back(std::move(nodes));
+                }
+                ctorDef->setParameterAnnotations(std::move(restored));
             }
             classDef->addConstructor(ctorDef);
         }

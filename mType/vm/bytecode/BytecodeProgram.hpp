@@ -75,6 +75,32 @@ namespace vm::bytecode
             bool isFinal;
         };
 
+        /// MYT-108: a single typed annotation argument (`key = literal`).
+        /// Payload interpretation depends on `valueType`, matching
+        /// ast::nodes::annotations::AnnotationValueType. Only the relevant
+        /// payload field is meaningful for a given valueType.
+        /// Moved above FunctionMetadata for MYT-110 — FunctionMetadata now
+        /// carries AnnotationData vectors.
+        struct TypedAnnotationArg
+        {
+            std::string key;
+            uint8_t valueType;              // AnnotationValueType
+            int64_t intVal = 0;             // INT
+            double  floatVal = 0.0;         // FLOAT
+            bool    boolVal = false;        // BOOL
+            std::string stringVal;          // STRING / CLASS_REF
+            std::vector<std::string> arrayVal; // CLASS_ARRAY
+        };
+
+        struct AnnotationData
+        {
+            std::string name;
+            // Typed args survive full .mtc round-trip (MYT-108 v5+). Empty on
+            // annotations that have no supplied parameters.
+            std::vector<TypedAnnotationArg> typedArguments;
+            errors::SourceLocation location; // Source location for error reporting
+        };
+
         /**
          * Function metadata for compiled functions
          */
@@ -95,6 +121,10 @@ namespace vm::bytecode
             std::vector<std::string> genericTypeParameters; // Generic type parameter names (e.g., ["T", "K", "V"])
             std::vector<std::string> localVariableNames; // NEW: Names of all local variables (for debugging)
             ExceptionTable exceptionTable; // Exception table for this function (try-catch-finally handlers)
+
+            // MYT-110: function-level and per-parameter annotations (v7+).
+            std::vector<AnnotationData> annotations;
+            std::vector<std::vector<AnnotationData>> parameterAnnotations;
 
             // PHASE 2: Parameter patterns for nested generic type inference
             // Stores which type parameters are used in each parameter type
@@ -128,33 +158,6 @@ namespace vm::bytecode
             uint32_t line;
             uint32_t column;
             std::string filename;
-        };
-
-        /**
-         * Annotation metadata for bytecode serialization
-         */
-        /// MYT-108: a single typed annotation argument (`key = literal`).
-        /// Payload interpretation depends on `valueType`, matching
-        /// ast::nodes::annotations::AnnotationValueType. Only the relevant
-        /// payload field is meaningful for a given valueType.
-        struct TypedAnnotationArg
-        {
-            std::string key;
-            uint8_t valueType;              // AnnotationValueType
-            int64_t intVal = 0;             // INT
-            double  floatVal = 0.0;         // FLOAT
-            bool    boolVal = false;        // BOOL
-            std::string stringVal;          // STRING / CLASS_REF
-            std::vector<std::string> arrayVal; // CLASS_ARRAY
-        };
-
-        struct AnnotationData
-        {
-            std::string name;
-            // Typed args survive full .mtc round-trip (MYT-108 v5+). Empty on
-            // annotations that have no supplied parameters.
-            std::vector<TypedAnnotationArg> typedArguments;
-            errors::SourceLocation location; // Source location for error reporting
         };
 
         /// MYT-108: serialized annotation type declaration. Lives in the new
@@ -216,6 +219,8 @@ namespace vm::bytecode
             size_t startOffset; // Where the method bytecode starts
             // MYT-108: per-method annotations
             std::vector<AnnotationData> annotations;
+            // MYT-110: per-parameter annotations (v7+)
+            std::vector<std::vector<AnnotationData>> parameterAnnotations;
         };
 
         struct ConstructorMetadata
@@ -225,6 +230,8 @@ namespace vm::bytecode
             size_t startOffset; // Where the constructor bytecode starts
             // MYT-108: per-constructor annotations
             std::vector<AnnotationData> annotations;
+            // MYT-110: per-parameter annotations (v7+)
+            std::vector<std::vector<AnnotationData>> parameterAnnotations;
         };
 
         struct ClassMetadata

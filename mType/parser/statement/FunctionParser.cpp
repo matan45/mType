@@ -1,6 +1,7 @@
 #include "FunctionParser.hpp"
 #include "../TypeParser.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../utilities/ParameterParser.hpp"
 #include "../utilities/AsyncValidator.hpp"
 #include "../utilities/VisibilityParser.hpp"
 #include "../utilities/AnnotationParser.hpp"
@@ -102,8 +103,17 @@ namespace parser::statement
         // NOTE: Duplicate signature checking is done by FunctionRegistrar during registration phase
         // This allows function overloading (same name, different parameter types)
 
-        // Use generic-aware parameter parsing to preserve class/interface names
-        auto genericParameters = ParserUtils::parseGenericParameterList(tokenStream, true);
+        // Use generic-aware parameter parsing to preserve class/interface names.
+        // MYT-110: Decl variant collects per-parameter annotations.
+        auto paramDecls = ParameterParser::parseGenericParameterDeclList(tokenStream, true);
+        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> genericParameters;
+        std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> parameterAnnotations;
+        genericParameters.reserve(paramDecls.size());
+        parameterAnnotations.reserve(paramDecls.size());
+        for (auto& d : paramDecls) {
+            genericParameters.emplace_back(d.name, d.type);
+            parameterAnnotations.push_back(std::move(d.annotations));
+        }
 
         expectToken(TokenType::COLON);
 
@@ -132,6 +142,9 @@ namespace parser::statement
         {
             funcNode->addAnnotation(annotation);
         }
+
+        // MYT-110: attach per-parameter annotations
+        funcNode->setParameterAnnotations(std::move(parameterAnnotations));
 
         return funcNode;
     }

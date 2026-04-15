@@ -17,6 +17,7 @@ namespace validation
         FIELD,
         CONSTRUCTOR,
         FUNCTION,
+        PARAMETER, // MYT-110
         ANNOTATION_DECLARATION
     };
 

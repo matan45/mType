@@ -204,6 +204,9 @@
     <ClInclude Include="parser\utilities\NameValidator.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>
+    <ClInclude Include="parser\utilities\ParameterDeclaration.hpp">
+      <Filter>parser\utilities</Filter>
+    </ClInclude>
     <ClInclude Include="parser\utilities\ParameterParser.hpp">
       <Filter>parser\utilities</Filter>
     </ClInclude>

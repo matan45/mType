@@ -23,6 +23,9 @@ namespace ast::nodes::classes
         AccessModifier accessModifier;
         std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;
 
+        // MYT-110: per-parameter annotations, parallel to parametersWithTypes.
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> parameterAnnotations;
+
     public:
         // Constructor with ParameterType (preserves class/interface information)
         explicit ConstructorNode(std::vector<std::pair<std::string, ParameterType>> params,
@@ -65,6 +68,24 @@ namespace ast::nodes::classes
         const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getAnnotations() const
         {
             return annotations;
+        }
+
+        // MYT-110: per-parameter annotation accessors.
+        const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>& getParameterAnnotations() const
+        {
+            return parameterAnnotations;
+        }
+        void setParameterAnnotations(
+            std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex)
+        {
+            parameterAnnotations = std::move(annotationsByIndex);
+            parameterAnnotations.resize(parametersWithTypes.size());
+        }
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getParameterAnnotations(size_t paramIndex) const
+        {
+            static const std::vector<std::shared_ptr<annotations::AnnotationNode>> empty;
+            if (paramIndex >= parameterAnnotations.size()) return empty;
+            return parameterAnnotations[paramIndex];
         }
 
         Value accept(ASTVisitor<Value>& visitor) override;

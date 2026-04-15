@@ -4,6 +4,7 @@
 import * from "AccessibleObject.mt";
 import * from "Modifier.mt";
 import * from "Annotation.mt";
+import * from "Parameter.mt";
 
 class Constructor extends AccessibleObject {
     private int _nativeHandle;
@@ -91,5 +92,16 @@ class Constructor extends AccessibleObject {
 
     public function hasAnnotation(string annotationName): bool {
         return __reflect_hasConstructorAnnotation(this._nativeHandle, annotationName);
+    }
+
+    // MYT-110: Parameter[] with per-parameter annotation access.
+    public function getParameters(): Parameter[] {
+        string[] names = __reflect_getConstructorParameters(this._nativeHandle);
+        string[] types = __reflect_getConstructorParamTypes(this._nativeHandle);
+        Parameter[] result = new Parameter[names.length];
+        for (int i = 0; i < names.length; i = i + 1) {
+            result[i] = new Parameter(names[i], types[i], i, this._nativeHandle, true);
+        }
+        return result;
     }
 }

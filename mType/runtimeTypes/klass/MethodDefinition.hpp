@@ -59,6 +59,9 @@ namespace runtimeTypes::klass
         // NEW: Annotations for this method
         std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
 
+        // MYT-110: per-parameter annotations, parallel to `parameters`.
+        std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> parameterAnnotations;
+
         // NEW: Source location for error reporting
         ast::SourceLocation sourceLocation;
 
@@ -249,6 +252,40 @@ namespace runtimeTypes::klass
         void addAnnotation(std::shared_ptr<ast::nodes::annotations::AnnotationNode> annotation) { annotations.push_back(annotation); }
         bool hasAnnotation(const std::string& annotationName) const;
         std::shared_ptr<ast::nodes::annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
+
+        // MYT-110: per-parameter annotations
+        const std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>>&
+        getParameterAnnotations() const { return parameterAnnotations; }
+
+        void setParameterAnnotations(
+            std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> annotationsByIndex)
+        {
+            parameterAnnotations = std::move(annotationsByIndex);
+            parameterAnnotations.resize(parameters.size());
+        }
+
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>&
+        getParameterAnnotations(size_t paramIndex) const
+        {
+            static const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> empty;
+            if (paramIndex >= parameterAnnotations.size()) return empty;
+            return parameterAnnotations[paramIndex];
+        }
+
+        bool hasParameterAnnotation(size_t paramIndex, const std::string& name) const
+        {
+            for (const auto& a : getParameterAnnotations(paramIndex))
+                if (a && a->getName() == name) return true;
+            return false;
+        }
+
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode>
+        getParameterAnnotation(size_t paramIndex, const std::string& name) const
+        {
+            for (const auto& a : getParameterAnnotations(paramIndex))
+                if (a && a->getName() == name) return a;
+            return nullptr;
+        }
 
         // NEW: Source location methods
         const ast::SourceLocation& getSourceLocation() const { return sourceLocation; }

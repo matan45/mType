@@ -36,6 +36,9 @@ namespace runtimeTypes::klass
         // MYT-108: per-constructor annotations populated by ClassRegistrar.
         std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
 
+        // MYT-110: per-parameter annotations, parallel to parametersWithTypes.
+        std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> parameterAnnotations;
+
       public:
        // Legacy constructor with ParameterType (preserves class/interface information)
        explicit ConstructorDefinition(const std::vector<std::pair<std::string, ParameterType>>& params,
@@ -113,6 +116,40 @@ namespace runtimeTypes::klass
         std::shared_ptr<ast::nodes::annotations::AnnotationNode> getAnnotation(const std::string& name) const
         {
             for (const auto& a : annotations) if (a && a->getName() == name) return a;
+            return nullptr;
+        }
+
+        // MYT-110: per-parameter annotations
+        const std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>>&
+        getParameterAnnotations() const { return parameterAnnotations; }
+
+        void setParameterAnnotations(
+            std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> annotationsByIndex)
+        {
+            parameterAnnotations = std::move(annotationsByIndex);
+            parameterAnnotations.resize(parametersWithTypes.size());
+        }
+
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>&
+        getParameterAnnotations(size_t paramIndex) const
+        {
+            static const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> empty;
+            if (paramIndex >= parameterAnnotations.size()) return empty;
+            return parameterAnnotations[paramIndex];
+        }
+
+        bool hasParameterAnnotation(size_t paramIndex, const std::string& name) const
+        {
+            for (const auto& a : getParameterAnnotations(paramIndex))
+                if (a && a->getName() == name) return true;
+            return false;
+        }
+
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode>
+        getParameterAnnotation(size_t paramIndex, const std::string& name) const
+        {
+            for (const auto& a : getParameterAnnotations(paramIndex))
+                if (a && a->getName() == name) return a;
             return nullptr;
         }
 

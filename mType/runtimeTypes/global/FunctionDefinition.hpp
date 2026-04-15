@@ -24,6 +24,9 @@ namespace runtimeTypes::global
         bool isAsync;  // NEW: Flag to indicate async function
         std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;  // NEW: Annotations for this function
 
+        // MYT-110: per-parameter annotations, parallel to `parameters`.
+        std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> parameterAnnotations;
+
     public:
         explicit FunctionDefinition(const std::string& name) : Definition(name), returnType(ValueType::VOID), returnClassName(""), body(nullptr), isAsync(false) {}
 
@@ -89,6 +92,40 @@ namespace runtimeTypes::global
                     return annotation;
                 }
             }
+            return nullptr;
+        }
+
+        // MYT-110: per-parameter annotations
+        const std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>>&
+        getParameterAnnotations() const { return parameterAnnotations; }
+
+        void setParameterAnnotations(
+            std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> annotationsByIndex)
+        {
+            parameterAnnotations = std::move(annotationsByIndex);
+            parameterAnnotations.resize(parameters.size());
+        }
+
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>&
+        getParameterAnnotations(size_t paramIndex) const
+        {
+            static const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> empty;
+            if (paramIndex >= parameterAnnotations.size()) return empty;
+            return parameterAnnotations[paramIndex];
+        }
+
+        bool hasParameterAnnotation(size_t paramIndex, const std::string& name) const
+        {
+            for (const auto& a : getParameterAnnotations(paramIndex))
+                if (a && a->getName() == name) return true;
+            return false;
+        }
+
+        std::shared_ptr<ast::nodes::annotations::AnnotationNode>
+        getParameterAnnotation(size_t paramIndex, const std::string& name) const
+        {
+            for (const auto& a : getParameterAnnotations(paramIndex))
+                if (a && a->getName() == name) return a;
             return nullptr;
         }
     };

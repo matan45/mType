@@ -48,6 +48,7 @@ namespace validation
             case AnnotationHostKind::FIELD:                  return "FIELD";
             case AnnotationHostKind::CONSTRUCTOR:            return "CONSTRUCTOR";
             case AnnotationHostKind::FUNCTION:               return "FUNCTION";
+            case AnnotationHostKind::PARAMETER:              return "PARAMETER";
             case AnnotationHostKind::ANNOTATION_DECLARATION: return "ANNOTATION";
             case AnnotationHostKind::UNSPECIFIED:            return nullptr;
             }
