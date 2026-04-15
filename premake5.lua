@@ -266,6 +266,8 @@ project "mtype-extensions"
       "mType/gc/**.cpp",
       "mType/json/**.hpp",
       "mType/json/**.cpp",
+      "mType/net/**.hpp",
+      "mType/net/**.cpp",
       "mType/reflection/**.hpp",
       "mType/reflection/**.cpp",
       "mType/debugger/**.hpp",
@@ -279,6 +281,10 @@ project "mtype-extensions"
       "packagemanager/src/**.hpp",
       "packagemanager/src/**.cpp",
    }
+
+   filter "system:windows"
+      links { "winhttp", "ws2_32" }
+   filter {}
 
    -- Exclude standalone Main.cpp from library build
    removefiles { "packagemanager/src/Main.cpp" }

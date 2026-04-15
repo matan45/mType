@@ -373,6 +373,12 @@
     <Filter Include="testFiles\lib\mtest\examples">
       <UniqueIdentifier>{689DA0E2-5458-908E-FD0F-09D9E9A9DA1E}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\lib\net">
+      <UniqueIdentifier>{D4F0B8D1-4007-B767-897E-4289F5D387EF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\lib\net\exceptions">
+      <UniqueIdentifier>{656C3178-5127-2124-FADE-996EE6786BB4}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\lib\primitives">
       <UniqueIdentifier>{D92D4AA0-C552-9920-EE9D-7EB0DA21983E}</UniqueIdentifier>
     </Filter>
@@ -417,6 +423,12 @@
     </Filter>
     <Filter Include="testFiles\modifiers\pass">
       <UniqueIdentifier>{8F1E35F2-7B43-8472-A48E-690290128390}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\network">
+      <UniqueIdentifier>{1102C663-7D18-C4F9-C68F-4F1B32E59481}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\network\pass">
+      <UniqueIdentifier>{B78A1085-A384-39D7-8CF1-CFE7788A9F43}</UniqueIdentifier>
     </Filter>
     <Filter Include="testFiles\nullSafety">
       <UniqueIdentifier>{2ECE9A6B-1A5D-2435-C37B-3830AFE934DB}</UniqueIdentifier>
@@ -844,6 +856,9 @@
     <None Include="tests\testFiles\annotation\error\entrypoint_no_main_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\function_parameter_target_violation_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\invalid_exception_class_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -934,6 +949,9 @@
     <None Include="tests\testFiles\annotation\pass\annotation_on_constructor_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_ctor_parameter_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_ctor_parameter_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
@@ -949,7 +967,16 @@
     <None Include="tests\testFiles\annotation\pass\annotation_on_field_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_parameter_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_parameter_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_static_parameter_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_static_parameter_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_top_function_pass.expected">
@@ -1028,6 +1055,9 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\override_parent_class_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\parameter_retention_source_stripped_pass.expected">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\parameter_retention_source_stripped_pass.mt">
@@ -4456,10 +4486,22 @@
     <None Include="tests\testFiles\controlFlow\pass\typeScriptStyleFunctions.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\voidEarlyReturn_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\voidEarlyReturn_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\voidFunctions.expected">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\voidFunctions.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\voidReturnInCtor_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\voidReturnInCtor_pass.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\deps\chain\a.mt">
@@ -8641,6 +8683,39 @@
     <None Include="tests\testFiles\lib\mtest\examples\runCalculatorTest.mt">
       <Filter>testFiles\lib\mtest\examples</Filter>
     </None>
+    <None Include="tests\testFiles\lib\net\Http.mt">
+      <Filter>testFiles\lib\net</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\HttpRequest.mt">
+      <Filter>testFiles\lib\net</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\HttpResponse.mt">
+      <Filter>testFiles\lib\net</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\JsonApi.mt">
+      <Filter>testFiles\lib\net</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\TcpServer.mt">
+      <Filter>testFiles\lib\net</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\TcpSocket.mt">
+      <Filter>testFiles\lib\net</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\exceptions\ConnectionException.mt">
+      <Filter>testFiles\lib\net\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\exceptions\DnsException.mt">
+      <Filter>testFiles\lib\net\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\exceptions\HttpException.mt">
+      <Filter>testFiles\lib\net\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\exceptions\NetworkException.mt">
+      <Filter>testFiles\lib\net\exceptions</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\exceptions\TimeoutException.mt">
+      <Filter>testFiles\lib\net\exceptions</Filter>
+    </None>
     <None Include="tests\testFiles\lib\primitives\Bool.mt">
       <Filter>testFiles\lib\primitives</Filter>
     </None>
@@ -8997,6 +9072,21 @@
     </None>
     <None Include="tests\testFiles\modifiers\pass\publicStaticMembers.mt">
       <Filter>testFiles\modifiers\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\network\pass\HttpResponseTest.mt">
+      <Filter>testFiles\network\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\network\pass\JsonApiTest.mt">
+      <Filter>testFiles\network\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\network\pass\NetworkExceptionsTest.mt">
+      <Filter>testFiles\network\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\network\pass\TcpEchoTest.mt">
+      <Filter>testFiles\network\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\network\pass\runNetworkTests.mt">
+      <Filter>testFiles\network\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\error\chainedAccessThroughNullable_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
