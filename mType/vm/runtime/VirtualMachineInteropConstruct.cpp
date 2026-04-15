@@ -1,11 +1,13 @@
 #include "VirtualMachine.hpp"
 #include "executors/ControlFlowExecutor.hpp"
 #include "utils/InteropExceptionDecorator.hpp"
+#include "utils/ExceptionHandler.hpp"
 #include "../../errors/ClassNotFoundException.hpp"
 #include "../../errors/ConstructorNotFoundException.hpp"
 #include "../../errors/NullPointerException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/ScriptException.hpp"
+#include "../../errors/UserException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 
@@ -103,7 +105,39 @@ namespace vm::runtime
                     if (instructionPointer >= ctorCurrentProgram->getInstructionCount())
                         break;
                     const auto& instr = ctorCurrentProgram->getInstruction(instructionPointer);
-                    executeInstruction(instr);
+                    try
+                    {
+                        executeInstruction(instr);
+                    }
+                    catch (errors::UserException& e)
+                    {
+                        auto handlerResult = exceptionHandler->handleUserException(
+                            e, instructionPointer, currentFinallyOffset);
+                        if (!handlerResult.handled)
+                        {
+                            throw;
+                        }
+                        // MYT-111: handler found the catch in a caller frame
+                        // above our reflective boundary. Roll back its mutations
+                        // so the outer VM loop's own handler runs fresh.
+                        if (callStack.size() < targetDepth)
+                        {
+                            callStack = savedCallStack;
+                            while (stackManager->size() > frameBase)
+                            {
+                                stackManager->pop();
+                            }
+                            instructionPointer = savedIP;
+                            currentFinallyOffset = savedCurrentFinallyOffset;
+                            throw;
+                        }
+                        instructionPointer = handlerResult.newInstructionPointer;
+                        if (handlerResult.jumpedToFinally)
+                        {
+                            pendingException = std::make_unique<errors::UserException>(e);
+                        }
+                        continue;
+                    }
                     instructionPointer++;
                 }
                 // Clean up stack to original position
@@ -250,7 +284,39 @@ namespace vm::runtime
                     if (instructionPointer >= lambdaCurrentProgram->getInstructionCount())
                         break;
                     const auto& instr = lambdaCurrentProgram->getInstruction(instructionPointer);
-                    executeInstruction(instr);
+                    try
+                    {
+                        executeInstruction(instr);
+                    }
+                    catch (errors::UserException& e)
+                    {
+                        auto handlerResult = exceptionHandler->handleUserException(
+                            e, instructionPointer, currentFinallyOffset);
+                        if (!handlerResult.handled)
+                        {
+                            throw;
+                        }
+                        // MYT-111: handler found the catch in a caller frame
+                        // above our reflective boundary. Roll back its mutations
+                        // so the outer VM loop's own handler runs fresh.
+                        if (callStack.size() < targetDepth)
+                        {
+                            callStack = savedCallStack;
+                            while (stackManager->size() > frameBase)
+                            {
+                                stackManager->pop();
+                            }
+                            instructionPointer = savedIP;
+                            currentFinallyOffset = savedCurrentFinallyOffset;
+                            throw;
+                        }
+                        instructionPointer = handlerResult.newInstructionPointer;
+                        if (handlerResult.jumpedToFinally)
+                        {
+                            pendingException = std::make_unique<errors::UserException>(e);
+                        }
+                        continue;
+                    }
                     instructionPointer++;
                 }
                 if (stackManager->size() > frameBase)

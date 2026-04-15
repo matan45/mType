@@ -126,6 +126,24 @@ namespace vm::runtime
                         {
                             throw;
                         }
+                        // MYT-111: handler found the catch in a caller frame
+                        // above our reflective boundary and has already unwound
+                        // callStack + pushed the exception value. That state
+                        // only makes sense to the *outer* VM loop; we can't
+                        // resume from it here (IP is in a popped frame). Roll
+                        // back the handler's mutations so the outer loop sees
+                        // a pristine state and invokes its own handler fresh.
+                        if (callStack.size() < targetDepth)
+                        {
+                            callStack = savedCallStack;
+                            while (stackManager->size() > frameBase)
+                            {
+                                stackManager->pop();
+                            }
+                            instructionPointer = savedIP;
+                            currentFinallyOffset = savedCurrentFinallyOffset;
+                            throw;
+                        }
                         instructionPointer = handlerResult.newInstructionPointer;
                         if (handlerResult.jumpedToFinally)
                         {
@@ -299,6 +317,20 @@ namespace vm::runtime
                         if (!handlerResult.handled)
                         {
                             throw;  // Re-throw if no handler found
+                        }
+                        // MYT-111: see invokeMethod for the detailed comment.
+                        // Roll back handler mutations so the outer VM loop's
+                        // own handler runs fresh against our entry state.
+                        if (callStack.size() < targetDepth)
+                        {
+                            callStack = savedCallStack;
+                            while (stackManager->size() > frameBase)
+                            {
+                                stackManager->pop();
+                            }
+                            instructionPointer = savedIP;
+                            currentFinallyOffset = savedCurrentFinallyOffset;
+                            throw;
                         }
                         instructionPointer = handlerResult.newInstructionPointer;
                         if (handlerResult.jumpedToFinally)
