@@ -303,6 +303,12 @@ namespace vm::compiler::registration
                 // Set final flag
                 methodDef->setFinal(methodNode->isFinal());
 
+                // MYT-113: propagate the async flag so VM::invokeMethod /
+                // invokeStaticMethod can take the Promise-returning interop
+                // path for async targets (e.g. mtest reflectively invoking
+                // an `async function testX(): Promise<void>`).
+                methodDef->setIsAsync(methodNode->getIsAsync());
+
                 // Copy annotations from AST to runtime definition
                 // (drop SOURCE-retention per MYT-109).
                 for (const auto& annotation : methodNode->getAnnotations()) {

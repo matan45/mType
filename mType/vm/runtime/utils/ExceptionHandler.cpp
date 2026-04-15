@@ -283,6 +283,21 @@ namespace vm::runtime::utils
             }
         }
 
+        // MYT-115: an async function's body is a catch-search boundary. If no
+        // handler was found inside the async frame, leave it on the call stack
+        // so VirtualMachineLoop's async-rejection path can convert the
+        // uncaught exception into a rejection of the function's returned
+        // Promise, rather than unwinding past it.
+        auto isAsyncFrame = [&](const CallFrame& frame) -> bool {
+            const auto* fm = program->getFunction(frame.functionName);
+            return fm && fm->isAsync;
+        };
+
+        if (!callStack.empty() && isAsyncFrame(callStack.back()))
+        {
+            return result;  // handled=false, frame intact
+        }
+
         // No handler found in current scope - unwind call stack to search callers
         // IMPORTANT: Save the returnAddress BEFORE popping the frame, as it tells us where
         // the current function was called from (the call site we need to check)
@@ -345,6 +360,13 @@ namespace vm::runtime::utils
         while (!callStack.empty())
         {
             const CallFrame& frame = callStack.back();
+
+            // MYT-115: stop at async frame boundary; see comment above.
+            if (isAsyncFrame(frame))
+            {
+                return result;  // handled=false, async frame intact
+            }
+
             size_t frameCallSite = frame.returnAddress;
 
             vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);

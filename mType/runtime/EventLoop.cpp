@@ -175,14 +175,22 @@ namespace runtime {
     }
 
     bool EventLoop::tick() {
-        // Process callbacks from background threads
+        // Process callbacks from background threads. Drain the queue under
+        // the lock, then execute callbacks WITHOUT the lock held — callbacks
+        // may legitimately call post() / scheduleTask() / resumeTask() (e.g.
+        // a promise resolution that resumes a suspended task), all of which
+        // lock queueMutex themselves. Holding the lock across callback
+        // execution would re-lock it on the same thread and trigger
+        // resource_deadlock_would_occur.
+        std::deque<std::function<void()>> drained;
         {
             std::lock_guard<std::mutex> lock(queueMutex);
-            while (!pendingCallbacks.empty()) {
-                auto callback = pendingCallbacks.front();
-                pendingCallbacks.pop_front();
-                callback();
-            }
+            drained.swap(pendingCallbacks);
+        }
+        while (!drained.empty()) {
+            auto callback = std::move(drained.front());
+            drained.pop_front();
+            callback();
         }
 
         // Move delayed tasks that are ready
@@ -274,38 +282,46 @@ namespace runtime {
     }
 
     void EventLoop::checkCompletedPromises() {
-        std::lock_guard<std::mutex> lock(queueMutex);
+        // Collect rejections under the lock, then invoke promise->reject() after
+        // release. reject() synchronously runs .then/.catch handlers, which may
+        // call post() / scheduleTask() and re-lock queueMutex on this thread.
+        std::vector<std::pair<std::shared_ptr<Task>, std::string>> rejectedTasks;
 
-        // Check all suspended tasks for settled (fulfilled or rejected) promises
-        std::vector<size_t> toResume;
+        {
+            std::lock_guard<std::mutex> lock(queueMutex);
 
-        for (const auto& [taskId, task] : suspendedTasks) {
-            if (task->waitingOn && (task->waitingOn->isFulfilled() || task->waitingOn->isRejected())) {
-                toResume.push_back(taskId);
+            std::vector<size_t> toResume;
+            for (const auto& [taskId, task] : suspendedTasks) {
+                if (task->waitingOn && (task->waitingOn->isFulfilled() || task->waitingOn->isRejected())) {
+                    toResume.push_back(taskId);
+                }
+            }
+
+            for (size_t taskId : toResume) {
+                auto task = suspendedTasks[taskId];
+
+                if (task->waitingOn->isRejected()) {
+                    // Mark task as failed — the VM's pendingAwaitRejection mechanism
+                    // handles proper error propagation for tasks resumed via callbacks.
+                    // This path catches tasks waiting on plain PromiseValue (no callbacks).
+                    task->state = TaskState::FAILED;
+                    task->errorMessage = task->waitingOn->getError();
+
+                    if (task->resultPromise) {
+                        rejectedTasks.emplace_back(task, task->errorMessage);
+                    }
+                } else {
+                    task->state = TaskState::PENDING;
+                    readyQueue.push_back(task);
+                }
+
+                task->waitingOn = nullptr;
+                suspendedTasks.erase(taskId);
             }
         }
 
-        // Resume tasks whose promises are settled
-        for (size_t taskId : toResume) {
-            auto task = suspendedTasks[taskId];
-
-            if (task->waitingOn->isRejected()) {
-                // Mark task as failed — the VM's pendingAwaitRejection mechanism
-                // handles proper error propagation for tasks resumed via callbacks.
-                // This path catches tasks waiting on plain PromiseValue (no callbacks).
-                task->state = TaskState::FAILED;
-                task->errorMessage = task->waitingOn->getError();
-
-                if (task->resultPromise) {
-                    task->resultPromise->reject(task->errorMessage);
-                }
-            } else {
-                task->state = TaskState::PENDING;
-                readyQueue.push_back(task);
-            }
-
-            task->waitingOn = nullptr;
-            suspendedTasks.erase(taskId);
+        for (auto& [task, err] : rejectedTasks) {
+            task->resultPromise->reject(err);
         }
     }
 

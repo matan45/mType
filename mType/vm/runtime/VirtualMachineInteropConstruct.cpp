@@ -10,6 +10,8 @@
 #include "../../errors/UserException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../value/AsyncPromiseValue.hpp"
+#include "../../value/PromiseValue.hpp"
 
 namespace vm::runtime
 {
@@ -273,6 +275,19 @@ namespace vm::runtime
 
             // Execute lambda
             instructionPointer = lambda->instructionPointer;
+
+            // MYT-113: Async lambda -> drive via the continuation path so
+            // nested awaits work and the caller gets a Promise representing
+            // full body completion (used by TcpServer.onConnection callbacks).
+            if (lambdaMetadata && lambdaMetadata->isAsync)
+            {
+                auto outerPromise = std::make_shared<value::AsyncPromiseValue>();
+                driveAsyncInvocation(outerPromise, savedIP, savedCallStack,
+                                     savedCurrentFinallyOffset, frameBase);
+                return value::Value(
+                    std::static_pointer_cast<value::PromiseValue>(outerPromise));
+            }
+
             value::Value result = std::monostate{};
             if (controlFlowExecutor)
             {

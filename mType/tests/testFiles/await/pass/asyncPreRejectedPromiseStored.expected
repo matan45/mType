@@ -1,0 +1,4 @@
+=== Pre-Rejected Promise Stored ===
+main: caught reject-1
+main: caught=1
+OK

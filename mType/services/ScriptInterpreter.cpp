@@ -15,6 +15,7 @@
 #include "ExecutionStrategy.hpp"
 #include "BytecodeExecutionStrategy.hpp"
 #include "../reflection/ReflectionNatives.hpp"
+#include "../net/NetNatives.hpp"
 #include "../project/mtclib/LibraryNatives.hpp"
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
@@ -82,6 +83,9 @@ namespace services
         // Set VM reference for reflection method/constructor invocation
         reflection::ReflectionNatives::setVM(vm);
 
+        // Set VM reference for networking (HTTP/TCP) async natives
+        net::NetNatives::setVM(vm);
+
         // Set VM and loader for runtime library loading native functions
         transitiveDependencyLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
         project::mtclib::LibraryNatives::setVM(vm);
@@ -91,6 +95,7 @@ namespace services
     ScriptInterpreter::~ScriptInterpreter()
     {
         // Clean up static native function state
+        net::NetNatives::cleanup();
         project::mtclib::LibraryNatives::cleanup();
 
         // Clean up registries to prevent memory leaks in long-running programs

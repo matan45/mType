@@ -86,6 +86,12 @@ namespace tests::testSuite
                         passPath + "asyncComplexCallStackException.mt");
         addOutputVerificationTest("Async Exception After Partial Execution",
                         passPath + "asyncExceptionAfterPartialExecution.mt");
+        addOutputVerificationTest("Async Pre-Rejected Promise Stored",
+                        passPath + "asyncPreRejectedPromiseStored.mt");
+        addOutputVerificationTest("Async Pre-Rejected Promise Fanout",
+                        passPath + "asyncPreRejectedPromiseFanout.mt");
+        addOutputVerificationTest("Async Lambda Pre-Rejected Promise",
+                        passPath + "asyncLambdaPreRejectedPromise.mt");
 
         // Complex Expression Tests (8 tests)
         addOutputVerificationTest("Await In Binary Expression",
@@ -198,5 +204,22 @@ namespace tests::testSuite
                         passPath + "asyncMainFunction.mt");
         addOutputVerificationTest("Async Anonymous Block",
                         passPath + "asyncAnonymousBlock.mt");
+
+        // MYT-113: mtest async-test support regression suite. Drives
+        // AsyncAwaitRunnerTest via the mtest framework's async runner so
+        // a regression in invokeMethod / TestRunner await wiring is caught
+        // by the standard --tests pipeline.
+        addOutputVerificationTest("Mtest Async Runner",
+                        "mType/tests/testFiles/lib/mtest/examples/runAsyncAwaitRunnerTest.mt");
+
+        // MYT-114: EventLoop queueMutex re-entry regression suite. Pins the
+        // checkCompletedPromises drain fix so callbacks reached via promise
+        // settlement cannot deadlock the loop on the same thread.
+        addOutputVerificationTest("Async Rejection Chain Reentry",
+                        passPath + "asyncRejectionChainReentry.mt");
+        addOutputVerificationTest("Async Sequential Awaits Same Tick",
+                        passPath + "asyncSequentialAwaitsSameTick.mt");
+        addOutputVerificationTest("Async Parallel Rejection Fanout",
+                        passPath + "asyncParallelRejectionFanout.mt");
     }
 }

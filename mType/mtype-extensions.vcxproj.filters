@@ -10,6 +10,9 @@
     <Filter Include="json">
       <UniqueIdentifier>{9F27997C-8B5E-9A0D-344B-80102061160F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="net">
+      <UniqueIdentifier>{4C94880B-B89D-887C-4119-9F7CAD21947C}</UniqueIdentifier>
+    </Filter>
     <Filter Include="packagemanager">
       <UniqueIdentifier>{6CD93704-58A7-2B0A-413B-9C302DA8076F}</UniqueIdentifier>
     </Filter>
@@ -125,6 +128,36 @@
     </ClInclude>
     <ClInclude Include="json\JsonValue.hpp">
       <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="net\AsyncHelper.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
+    <ClInclude Include="net\HashMapMarshal.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
+    <ClInclude Include="net\HttpClient.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
+    <ClInclude Include="net\NetErrors.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
+    <ClInclude Include="net\NetNatives.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
+    <ClInclude Include="net\Socket.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
+    <ClInclude Include="net\SocketRegistry.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
+    <ClInclude Include="net\WinHttpClient.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
+    <ClInclude Include="net\WinSockInit.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
+    <ClInclude Include="net\WinSocket.hpp">
+      <Filter>net</Filter>
     </ClInclude>
     <ClInclude Include="project\DependencyGraph.hpp">
       <Filter>project</Filter>
@@ -328,6 +361,27 @@
     </ClCompile>
     <ClCompile Include="json\JsonValue.cpp">
       <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="net\HashMapMarshal.cpp">
+      <Filter>net</Filter>
+    </ClCompile>
+    <ClCompile Include="net\NetErrors.cpp">
+      <Filter>net</Filter>
+    </ClCompile>
+    <ClCompile Include="net\NetNatives.cpp">
+      <Filter>net</Filter>
+    </ClCompile>
+    <ClCompile Include="net\SocketRegistry.cpp">
+      <Filter>net</Filter>
+    </ClCompile>
+    <ClCompile Include="net\WinHttpClient.cpp">
+      <Filter>net</Filter>
+    </ClCompile>
+    <ClCompile Include="net\WinSockInit.cpp">
+      <Filter>net</Filter>
+    </ClCompile>
+    <ClCompile Include="net\WinSocket.cpp">
+      <Filter>net</Filter>
     </ClCompile>
     <ClCompile Include="project\DependencyGraph.cpp">
       <Filter>project</Filter>

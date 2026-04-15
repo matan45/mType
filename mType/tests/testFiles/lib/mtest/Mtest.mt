@@ -13,7 +13,7 @@
 //
 //   TestRunner r = new TestRunner();
 //   r.addClass("MyTest");
-//   r.run();
+//   await r.run();
 //
 // v1 known limitations (track in follow-ups):
 //   * @Timeout is parsed but not enforced — no timing native yet.
@@ -21,8 +21,8 @@
 //     prefix (`ClassName: msg` convention used by lib/exceptions/).
 //     Subclass matching is not supported; pass "Exception" for a
 //     permissive any-exception match.
-//   * Tests run sequentially; no parallelism. Order follows reflection
-//     order, not source order.
+//   * Tests run sequentially (each awaited before the next); no parallel
+//     test execution. Order follows reflection order, not source order.
 //   * runAndExit() returns 0/1 but does NOT terminate — mType has no
 //     exit() native. Output includes a FAILED/ALL-PASSED summary line.
 //   * Test discovery is explicit via addClass(). No auto-scan.

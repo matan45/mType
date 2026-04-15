@@ -1,0 +1,6 @@
+[AsyncAwaitRunnerTest] testAsyncPasses PASSED
+[AsyncAwaitRunnerTest] testAsyncThrowsReachesRunner PASSED  (expected=Exception)
+--- AsyncAwaitRunnerTest: 2 passed, 0 failed, 0 skipped (2 total) ---
+
+=== mtest: 2 passed, 0 failed, 0 skipped ===
+ALL PASSED
