@@ -32,49 +32,10 @@ namespace vm::compiler::registration
 {
     namespace
     {
-        using ast::nodes::annotations::AnnotationValueType;
-        using ast::nodes::annotations::TypedAnnotationValue;
-
-        // Convert an AST-level TypedAnnotationValue into a bytecode-level
-        // TypedAnnotationArg for .mtc serialization. Only the payload field
-        // matching `valueType` carries meaningful data.
-        bytecode::BytecodeProgram::TypedAnnotationArg
-            toTypedArg(const std::string& key, const TypedAnnotationValue& v)
-        {
-            bytecode::BytecodeProgram::TypedAnnotationArg arg;
-            arg.key = key;
-            arg.valueType = static_cast<uint8_t>(v.getType());
-            switch (v.getType())
-            {
-            case AnnotationValueType::INT:         arg.intVal    = v.asInt(); break;
-            case AnnotationValueType::FLOAT:       arg.floatVal  = v.asFloat(); break;
-            case AnnotationValueType::BOOL:        arg.boolVal   = v.asBool(); break;
-            case AnnotationValueType::STRING:      arg.stringVal = v.asString(); break;
-            case AnnotationValueType::CLASS_REF:   arg.stringVal = v.asClassRef(); break;
-            case AnnotationValueType::CLASS_ARRAY: arg.arrayVal  = v.asClassArray(); break;
-            case AnnotationValueType::NULL_VALUE:  break;
-            }
-            return arg;
-        }
-
-        void populateAnnotationData(
-            bytecode::BytecodeProgram::AnnotationData& out,
-            const ast::nodes::annotations::AnnotationNode& node)
-        {
-            out.name = node.getName();
-            out.location = node.getLocation();
-            for (const auto& key : node.getKeyOrder())
-            {
-                if (const auto* v = node.getTypedParameter(key))
-                {
-                    out.typedArguments.push_back(toTypedArg(key, *v));
-                }
-            }
-        }
-
-        // MYT-110: shouldRetainAnnotation moved to AnnotationRetention.{hpp,cpp}
-        // so FunctionRegistrar can share it. Same-namespace call sites below
-        // resolve directly to the shared symbol.
+        // MYT-110: shouldRetainAnnotation and populateAnnotationData live in
+        // AnnotationRetention.{hpp,cpp} — single source of truth shared with
+        // FunctionRegistrar. Same-namespace call sites below resolve directly
+        // to those symbols.
     }
 
     ClassRegistrar::ClassRegistrar(

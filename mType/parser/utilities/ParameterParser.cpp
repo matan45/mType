@@ -15,57 +15,6 @@ namespace parser
     // pair-returning methods below delegate here and discard annotations so
     // existing call sites that don't care about annotations keep compiling.
 
-    std::vector<ValueParameterDeclaration>
-    ParameterParser::parseParameterDeclList(TokenStream& stream, bool expectParentheses)
-    {
-        using namespace value;
-        using namespace errors;
-        using namespace token;
-
-        std::vector<ValueParameterDeclaration> parameters;
-
-        if (expectParentheses) {
-            stream.expect(TokenType::LPAREN);
-        }
-
-        if (stream.current().type == TokenType::RPAREN) {
-            if (expectParentheses) {
-                stream.advance();
-            }
-            return parameters;
-        }
-
-        do {
-            // MYT-110: collect per-parameter `@X` chain before the type.
-            auto paramAnnotations = utilities::AnnotationParser::parseAnnotations(stream);
-
-            ValueType paramType = TypeParser::parseType(stream);
-
-            if (stream.current().type != TokenType::IDENTIFIER) {
-                throw ParseException("Expected parameter name", stream.location());
-            }
-
-            std::string paramName = stream.current().stringValue.getString();
-            SourceLocation paramLocation = stream.location();
-            NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
-            stream.advance();
-
-            parameters.push_back({std::move(paramName), paramType, std::move(paramAnnotations)});
-
-            if (stream.current().type == TokenType::COMMA) {
-                stream.advance();
-            } else {
-                break;
-            }
-        } while (stream.current().type != TokenType::RPAREN);
-
-        if (expectParentheses) {
-            stream.expect(TokenType::RPAREN);
-        }
-
-        return parameters;
-    }
-
     std::vector<ParameterDeclaration>
     ParameterParser::parseGenericParameterDeclList(TokenStream& stream, bool expectParentheses)
     {
@@ -176,13 +125,47 @@ namespace parser
     std::vector<std::pair<std::string, value::ValueType>>
     ParameterParser::parseParameterList(TokenStream& stream, bool expectParentheses)
     {
-        auto decls = parseParameterDeclList(stream, expectParentheses);
-        std::vector<std::pair<std::string, value::ValueType>> result;
-        result.reserve(decls.size());
-        for (auto& d : decls) {
-            result.emplace_back(std::move(d.name), d.type);
+        using namespace value;
+        using namespace errors;
+        using namespace token;
+
+        std::vector<std::pair<std::string, ValueType>> parameters;
+
+        if (expectParentheses) stream.expect(TokenType::LPAREN);
+
+        if (stream.current().type == TokenType::RPAREN) {
+            if (expectParentheses) stream.advance();
+            return parameters;
         }
-        return result;
+
+        do {
+            // MYT-110: consume and discard any `@X` chain for syntactic
+            // consistency with the other parameter parsers. ValueType
+            // callers don't track annotations.
+            (void)utilities::AnnotationParser::parseAnnotations(stream);
+
+            ValueType paramType = TypeParser::parseType(stream);
+
+            if (stream.current().type != TokenType::IDENTIFIER) {
+                throw ParseException("Expected parameter name", stream.location());
+            }
+
+            std::string paramName = stream.current().stringValue.getString();
+            SourceLocation paramLocation = stream.location();
+            NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
+            stream.advance();
+
+            parameters.emplace_back(std::move(paramName), paramType);
+
+            if (stream.current().type == TokenType::COMMA) {
+                stream.advance();
+            } else {
+                break;
+            }
+        } while (stream.current().type != TokenType::RPAREN);
+
+        if (expectParentheses) stream.expect(TokenType::RPAREN);
+        return parameters;
     }
 
     std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>

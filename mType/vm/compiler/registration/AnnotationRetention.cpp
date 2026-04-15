@@ -4,7 +4,7 @@
 
 namespace vm::compiler::registration
 {
-    void populateAnnotationDataShared(
+    void populateAnnotationData(
         bytecode::BytecodeProgram::AnnotationData& out,
         const ast::nodes::annotations::AnnotationNode& node)
     {

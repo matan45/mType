@@ -81,6 +81,27 @@ namespace ast::nodes::classes
         return parametersWithTypes.size();
     }
 
+    const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>&
+    ConstructorNode::getParameterAnnotations() const
+    {
+        return parameterAnnotations;
+    }
+
+    void ConstructorNode::setParameterAnnotations(
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex)
+    {
+        parameterAnnotations = std::move(annotationsByIndex);
+        parameterAnnotations.resize(parametersWithTypes.size());
+    }
+
+    const std::vector<std::shared_ptr<annotations::AnnotationNode>>&
+    ConstructorNode::getParameterAnnotations(size_t paramIndex) const
+    {
+        static const std::vector<std::shared_ptr<annotations::AnnotationNode>> empty;
+        if (paramIndex >= parameterAnnotations.size()) return empty;
+        return parameterAnnotations[paramIndex];
+    }
+
     Value ConstructorNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitConstructorNode(this);

@@ -203,7 +203,7 @@ namespace vm::compiler::registration
             if (!annotationNode) continue;
             if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
             bytecode::BytecodeProgram::AnnotationData annot;
-            populateAnnotationDataShared(annot, *annotationNode);
+            populateAnnotationData(annot, *annotationNode);
             metadata.annotations.push_back(std::move(annot));
         }
 
@@ -219,7 +219,7 @@ namespace vm::compiler::registration
                     if (!annotationNode) continue;
                     if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
                     bytecode::BytecodeProgram::AnnotationData annot;
-                    populateAnnotationDataShared(annot, *annotationNode);
+                    populateAnnotationData(annot, *annotationNode);
                     metadata.parameterAnnotations[pi].push_back(std::move(annot));
                 }
             }

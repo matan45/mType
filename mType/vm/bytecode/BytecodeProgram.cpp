@@ -1317,8 +1317,7 @@ namespace vm::bytecode
         size_t paramCount = 0;
         in.read(reinterpret_cast<char*>(&paramCount), sizeof(paramCount));
         if (!in) throw std::runtime_error("Malformed bytecode: failed to read method parameter-annotation count");
-        if (paramCount > 4096)
-            throw std::runtime_error("Malformed bytecode: method parameter-annotation count too large");
+        validateCount(paramCount, constants::security::MAX_PARAMETERS_PER_FUNCTION, "method parameter-annotation count");
         method.parameterAnnotations.assign(paramCount, {});
         for (size_t i = 0; i < paramCount; ++i) {
             readAnnotationList(in, method.parameterAnnotations[i]);
@@ -1334,8 +1333,7 @@ namespace vm::bytecode
         size_t paramCount = 0;
         in.read(reinterpret_cast<char*>(&paramCount), sizeof(paramCount));
         if (!in) throw std::runtime_error("Malformed bytecode: failed to read constructor parameter-annotation count");
-        if (paramCount > 4096)
-            throw std::runtime_error("Malformed bytecode: constructor parameter-annotation count too large");
+        validateCount(paramCount, constants::security::MAX_PARAMETERS_PER_FUNCTION, "constructor parameter-annotation count");
         ctor.parameterAnnotations.assign(paramCount, {});
         for (size_t i = 0; i < paramCount; ++i) {
             readAnnotationList(in, ctor.parameterAnnotations[i]);

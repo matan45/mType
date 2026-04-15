@@ -38,9 +38,9 @@ namespace parser
 
         // MYT-110: annotation-aware variants. Each parameter may be preceded
         // by a chain of `@X` annotations, collected via AnnotationParser.
-        [[nodiscard]] static std::vector<ValueParameterDeclaration>
-        parseParameterDeclList(class TokenStream& stream, bool expectParentheses = true);
-
+        // Only the GenericType and ParameterType flavors are needed today —
+        // the ValueType variant is callable via parseParameterList() which
+        // tolerates but discards any `@X` chain.
         [[nodiscard]] static std::vector<ParameterDeclaration>
         parseGenericParameterDeclList(class TokenStream& stream, bool expectParentheses = true);
 

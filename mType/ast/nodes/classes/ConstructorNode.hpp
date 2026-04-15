@@ -70,23 +70,12 @@ namespace ast::nodes::classes
             return annotations;
         }
 
-        // MYT-110: per-parameter annotation accessors.
-        const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>& getParameterAnnotations() const
-        {
-            return parameterAnnotations;
-        }
+        // MYT-110: per-parameter annotation accessors (definitions in .cpp
+        // — matches MethodNode/FunctionNode convention per CLAUDE.md).
+        const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>& getParameterAnnotations() const;
         void setParameterAnnotations(
-            std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex)
-        {
-            parameterAnnotations = std::move(annotationsByIndex);
-            parameterAnnotations.resize(parametersWithTypes.size());
-        }
-        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getParameterAnnotations(size_t paramIndex) const
-        {
-            static const std::vector<std::shared_ptr<annotations::AnnotationNode>> empty;
-            if (paramIndex >= parameterAnnotations.size()) return empty;
-            return parameterAnnotations[paramIndex];
-        }
+            std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex);
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getParameterAnnotations(size_t paramIndex) const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

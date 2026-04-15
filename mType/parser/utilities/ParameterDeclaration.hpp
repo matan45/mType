@@ -31,11 +31,4 @@ namespace parser
         value::ParameterType type;
         std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
     };
-
-    struct ValueParameterDeclaration
-    {
-        std::string name;
-        value::ValueType type;
-        std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
-    };
 }

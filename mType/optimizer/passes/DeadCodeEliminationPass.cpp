@@ -433,7 +433,11 @@ namespace optimizer::passes
             }
 
             // MYT-110: preserve ctor-level and per-parameter annotations
-            // through DCE rebuild.
+            // through DCE rebuild. NOTE: before this change, DCE silently
+            // dropped constructor-level annotations when it rebuilt the
+            // node — a pre-existing bug (constructor-annotation tests
+            // happened not to exercise DCE-triggering bodies). Keep this
+            // explicit copy alongside the per-parameter loop.
             for (const auto& annotation : node->getAnnotations())
             {
                 transformedConstructor->addAnnotation(annotation);

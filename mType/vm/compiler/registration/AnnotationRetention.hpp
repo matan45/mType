@@ -7,7 +7,8 @@
 namespace vm::compiler::registration
 {
     // MYT-110: populate AnnotationData from an AST AnnotationNode (typed args).
-    void populateAnnotationDataShared(
+    // Single source of truth for ClassRegistrar and FunctionRegistrar.
+    void populateAnnotationData(
         bytecode::BytecodeProgram::AnnotationData& out,
         const ast::nodes::annotations::AnnotationNode& node);
 
