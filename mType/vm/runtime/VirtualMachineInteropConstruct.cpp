@@ -1,11 +1,13 @@
 #include "VirtualMachine.hpp"
 #include "executors/ControlFlowExecutor.hpp"
 #include "utils/InteropExceptionDecorator.hpp"
+#include "utils/ExceptionHandler.hpp"
 #include "../../errors/ClassNotFoundException.hpp"
 #include "../../errors/ConstructorNotFoundException.hpp"
 #include "../../errors/NullPointerException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/ScriptException.hpp"
+#include "../../errors/UserException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 
@@ -103,7 +105,31 @@ namespace vm::runtime
                     if (instructionPointer >= ctorCurrentProgram->getInstructionCount())
                         break;
                     const auto& instr = ctorCurrentProgram->getInstruction(instructionPointer);
-                    executeInstruction(instr);
+                    try
+                    {
+                        executeInstruction(instr);
+                    }
+                    catch (errors::UserException& e)
+                    {
+                        auto handlerResult = exceptionHandler->handleUserException(
+                            e, instructionPointer, currentFinallyOffset);
+                        if (!handlerResult.handled)
+                        {
+                            throw;
+                        }
+                        // MYT-111: handler unwound past our reflective boundary —
+                        // the catch lives in a caller frame above this invocation.
+                        if (callStack.size() < targetDepth)
+                        {
+                            throw;
+                        }
+                        instructionPointer = handlerResult.newInstructionPointer;
+                        if (handlerResult.jumpedToFinally)
+                        {
+                            pendingException = std::make_unique<errors::UserException>(e);
+                        }
+                        continue;
+                    }
                     instructionPointer++;
                 }
                 // Clean up stack to original position
@@ -121,6 +147,13 @@ namespace vm::runtime
             currentFinallyOffset = savedCurrentFinallyOffset;
 
             return instance;
+        }
+        catch (errors::UserException&)
+        {
+            // MYT-111: handler already adjusted callStack/IP for the caller's
+            // catch target. Do NOT restore savedCallStack — that would overwrite
+            // the handler's work. Let the outer VM loop pick up from here.
+            throw;
         }
         catch (errors::ScriptException& e)
         {
@@ -250,7 +283,31 @@ namespace vm::runtime
                     if (instructionPointer >= lambdaCurrentProgram->getInstructionCount())
                         break;
                     const auto& instr = lambdaCurrentProgram->getInstruction(instructionPointer);
-                    executeInstruction(instr);
+                    try
+                    {
+                        executeInstruction(instr);
+                    }
+                    catch (errors::UserException& e)
+                    {
+                        auto handlerResult = exceptionHandler->handleUserException(
+                            e, instructionPointer, currentFinallyOffset);
+                        if (!handlerResult.handled)
+                        {
+                            throw;
+                        }
+                        // MYT-111: handler unwound past our reflective boundary —
+                        // the catch lives in a caller frame above this invocation.
+                        if (callStack.size() < targetDepth)
+                        {
+                            throw;
+                        }
+                        instructionPointer = handlerResult.newInstructionPointer;
+                        if (handlerResult.jumpedToFinally)
+                        {
+                            pendingException = std::make_unique<errors::UserException>(e);
+                        }
+                        continue;
+                    }
                     instructionPointer++;
                 }
                 if (stackManager->size() > frameBase)
@@ -269,6 +326,13 @@ namespace vm::runtime
             currentFinallyOffset = savedCurrentFinallyOffset;
 
             return result;
+        }
+        catch (errors::UserException&)
+        {
+            // MYT-111: handler already adjusted callStack/IP for the caller's
+            // catch target. Do NOT restore savedCallStack — that would overwrite
+            // the handler's work. Let the outer VM loop pick up from here.
+            throw;
         }
         catch (errors::ScriptException& e)
         {

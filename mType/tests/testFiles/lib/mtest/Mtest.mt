@@ -16,12 +16,6 @@
 //   r.run();
 //
 // v1 known limitations (track in follow-ups):
-//   * @Test(expected=...) does NOT work — exceptions thrown from a
-//     reflectively-invoked test body are swallowed by the VM's state
-//     restore in Method.invoke (the handler's call-stack unwind is
-//     overwritten when invokeMethod restores its savedCallStack). Use
-//     assertThrows(name, () -> { ... }) instead; the lambda body runs
-//     inside the same reflective frame, so its try/catch works.
 //   * @Timeout is parsed but not enforced — no timing native yet.
 //   * assertThrows matches by parsing the thrown exception's toString()
 //     prefix (`ClassName: msg` convention used by lib/exceptions/).

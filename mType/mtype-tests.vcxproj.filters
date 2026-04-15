@@ -364,6 +364,15 @@
     <Filter Include="testFiles\lib\math">
       <UniqueIdentifier>{576ED608-4352-975E-ACB2-91B198B581E0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\lib\mtest">
+      <UniqueIdentifier>{7A66AE23-E6C7-8B31-6F35-D2E3DB95C2F0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\lib\mtest\annotations">
+      <UniqueIdentifier>{97793555-035D-4495-0C60-72D178C20AE6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\lib\mtest\examples">
+      <UniqueIdentifier>{689DA0E2-5458-908E-FD0F-09D9E9A9DA1E}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\lib\primitives">
       <UniqueIdentifier>{D92D4AA0-C552-9920-EE9D-7EB0DA21983E}</UniqueIdentifier>
     </Filter>
@@ -938,6 +947,12 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_top_function_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotations_demo_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotations_demo_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\combined_annotations_pass.expected">
@@ -8575,6 +8590,42 @@
     <None Include="tests\testFiles\lib\math\Vec4f.mt">
       <Filter>testFiles\lib\math</Filter>
     </None>
+    <None Include="tests\testFiles\lib\mtest\AssertionFailedException.mt">
+      <Filter>testFiles\lib\mtest</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\Assertions.mt">
+      <Filter>testFiles\lib\mtest</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\Mtest.mt">
+      <Filter>testFiles\lib\mtest</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\TestResult.mt">
+      <Filter>testFiles\lib\mtest</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\TestRunner.mt">
+      <Filter>testFiles\lib\mtest</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\TestSuite.mt">
+      <Filter>testFiles\lib\mtest</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\TestSuiteResult.mt">
+      <Filter>testFiles\lib\mtest</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\ThrowingRunnable.mt">
+      <Filter>testFiles\lib\mtest</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\annotations\Lifecycle.mt">
+      <Filter>testFiles\lib\mtest\annotations</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\annotations\Test.mt">
+      <Filter>testFiles\lib\mtest\annotations</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\examples\CalculatorTest.mt">
+      <Filter>testFiles\lib\mtest\examples</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\examples\runCalculatorTest.mt">
+      <Filter>testFiles\lib\mtest\examples</Filter>
+    </None>
     <None Include="tests\testFiles\lib\primitives\Bool.mt">
       <Filter>testFiles\lib\primitives</Filter>
     </None>
@@ -9401,6 +9452,18 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\openVsClosedNotEqual.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\reflectInvokeMethodThrowsCaughtByCaller.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\reflectInvokeMethodThrowsCaughtByCaller.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\reflectNewInstanceThrowsCaughtByCaller.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\reflectNewInstanceThrowsCaughtByCaller.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\reflectionInvocation.expected">

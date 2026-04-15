@@ -49,17 +49,9 @@ public class CalculatorTest extends TestSuite {
         assertEqual(this.calc.concat("hello", " world"), "hello world");
     }
 
-    // NOTE: use assertThrows rather than @Test(expected = ...). Exceptions
-    // thrown from a reflectively-invoked test body currently get swallowed
-    // by the VM's state-restore in Method.invoke (the handler's unwind is
-    // overwritten when invokeMethod restores the saved callStack). Wrapping
-    // the throwing code in a lambda keeps the throw inside the same
-    // invocation frame, where try/catch works correctly.
-    @Test
+    @Test(expected = "Exception")
     public function testDivideByZero(): void {
-        assertThrows("Exception", () -> {
-            int x = this.calc.divide(1, 0);
-        });
+        int x = this.calc.divide(1, 0);
     }
 
     @Disabled(reason = "pending feature")
