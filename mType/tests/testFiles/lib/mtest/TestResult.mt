@@ -1,6 +1,12 @@
-// TestResult — outcome for a single @Test method. Status is an int code:
-//   0 = pending, 1 = passed, 2 = failed, 3 = skipped.
+// TestResult — outcome for a single @Test method.
 public class TestResult {
+    // Status codes. Integer-valued because mType has no enum construct yet;
+    // access via the is*()/mark*() helpers rather than literal comparisons.
+    private static int STATUS_PENDING = 0;
+    private static int STATUS_PASSED  = 1;
+    private static int STATUS_FAILED  = 2;
+    private static int STATUS_SKIPPED = 3;
+
     private string _className;
     private string _methodName;
     private int _status;
@@ -13,7 +19,7 @@ public class TestResult {
     public constructor(string className, string methodName) {
         this._className = className;
         this._methodName = methodName;
-        this._status = 0;
+        this._status = TestResult::STATUS_PENDING;
         this._failureMessage = "";
         this._skipReason = "";
         this._expectedException = "";
@@ -23,10 +29,10 @@ public class TestResult {
 
     public function getClassName(): string { return this._className; }
     public function getMethodName(): string { return this._methodName; }
-    public function isPending(): bool { return this._status == 0; }
-    public function isPassed(): bool { return this._status == 1; }
-    public function isFailed(): bool { return this._status == 2; }
-    public function isSkipped(): bool { return this._status == 3; }
+    public function isPending(): bool { return this._status == TestResult::STATUS_PENDING; }
+    public function isPassed(): bool  { return this._status == TestResult::STATUS_PASSED;  }
+    public function isFailed(): bool  { return this._status == TestResult::STATUS_FAILED;  }
+    public function isSkipped(): bool { return this._status == TestResult::STATUS_SKIPPED; }
     public function getFailureMessage(): string { return this._failureMessage; }
     public function getSkipReason(): string { return this._skipReason; }
     public function getExpectedException(): string { return this._expectedException; }
@@ -42,28 +48,28 @@ public class TestResult {
     }
 
     public function markPassed(): void {
-        this._status = 1;
+        this._status = TestResult::STATUS_PASSED;
     }
 
     public function markFailed(string msg): void {
-        this._status = 2;
+        this._status = TestResult::STATUS_FAILED;
         this._failureMessage = msg;
     }
 
     public function markFailedWithActual(string msg, string actualExcName): void {
-        this._status = 2;
+        this._status = TestResult::STATUS_FAILED;
         this._failureMessage = msg;
         this._actualException = actualExcName;
     }
 
     public function markSkipped(string reason): void {
-        this._status = 3;
+        this._status = TestResult::STATUS_SKIPPED;
         this._skipReason = reason;
     }
 
     public function formatLine(): string {
         string head = "[" + this._className + "] " + this._methodName;
-        if (this._status == 1) {
+        if (this.isPassed()) {
             string suffix = "";
             if (this._expectedException != "") {
                 suffix = "  (expected=" + this._expectedException + ")";
@@ -73,10 +79,10 @@ public class TestResult {
             }
             return head + " PASSED" + suffix;
         }
-        if (this._status == 2) {
+        if (this.isFailed()) {
             return head + " FAILED -- " + this._failureMessage;
         }
-        if (this._status == 3) {
+        if (this.isSkipped()) {
             if (this._skipReason == "") {
                 return head + " SKIPPED";
             }

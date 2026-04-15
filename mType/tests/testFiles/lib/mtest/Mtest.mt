@@ -45,6 +45,7 @@ import * from "./annotations/Lifecycle.mt";
 import * from "./TestSuite.mt";
 import * from "./ThrowingRunnable.mt";
 import * from "./AssertionFailedException.mt";
+import * from "./ExceptionName.mt";
 import * from "./TestResult.mt";
 import * from "./TestSuiteResult.mt";
 import * from "./Assertions.mt";

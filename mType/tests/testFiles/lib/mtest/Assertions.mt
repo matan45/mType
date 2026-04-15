@@ -9,6 +9,7 @@
 // toString prefix exactly.
 import * from "./AssertionFailedException.mt";
 import * from "./ThrowingRunnable.mt";
+import * from "./ExceptionName.mt";
 import * from "../exceptions/Exception.mt";
 
 // ----- boolean -----
@@ -104,6 +105,13 @@ public function assertNotEqual(int actual, int other): void {
     }
 }
 
+public function assertNotEqual(float actual, float other): void {
+    if (actual == other) {
+        throw new AssertionFailedException(
+            "expected value different from " + other);
+    }
+}
+
 public function assertNotEqual(string actual, string other): void {
     if (actual == other) {
         throw new AssertionFailedException(
@@ -172,19 +180,10 @@ public function assertNotNull(Object value, string message): void {
 
 // ----- exception expectation -----
 //
-// Extract a best-effort class-name prefix from the exception's toString().
-// Convention across lib/exceptions/ is `<ClassName>: <message>`. If no colon
-// is present, the whole toString is returned.
-function _exceptionClassName(Exception e): string {
-    string repr = e.toString();
-    int colonIdx = indexOf(repr, ":");
-    if (colonIdx <= 0) {
-        return repr;
-    }
-    return substring(repr, 0, colonIdx);
-}
-
-public function assertThrows(string expectedExceptionName, ThrowingRunnable body): void {
+// `prefix` is prepended to the failure-message stem so the two public
+// overloads can share the same core logic. Use "" for the no-message
+// form; callers with a user message pass it + " " (with trailing space).
+function _assertThrowsImpl(string expectedExceptionName, ThrowingRunnable body, string prefix): void {
     bool threw = false;
     string actualName = "";
     string actualMsg = "";
@@ -192,47 +191,30 @@ public function assertThrows(string expectedExceptionName, ThrowingRunnable body
         body.run();
     } catch (Exception e) {
         threw = true;
-        actualName = _exceptionClassName(e);
+        actualName = ExceptionName::of(e);
         actualMsg = e.getMessage();
     }
     if (!threw) {
         throw new AssertionFailedException(
-            "expected exception " + expectedExceptionName + " but nothing was thrown");
+            prefix + "expected exception " + expectedExceptionName
+            + " but nothing was thrown");
     }
     if (expectedExceptionName == "Exception") {
         return;
     }
     if (actualName != expectedExceptionName) {
         throw new AssertionFailedException(
-            "expected exception " + expectedExceptionName
+            prefix + "expected exception " + expectedExceptionName
             + " but got " + actualName + ": " + actualMsg);
     }
 }
 
+public function assertThrows(string expectedExceptionName, ThrowingRunnable body): void {
+    _assertThrowsImpl(expectedExceptionName, body, "");
+}
+
 public function assertThrows(string expectedExceptionName, ThrowingRunnable body, string message): void {
-    bool threw = false;
-    string actualName = "";
-    string actualMsg = "";
-    try {
-        body.run();
-    } catch (Exception e) {
-        threw = true;
-        actualName = _exceptionClassName(e);
-        actualMsg = e.getMessage();
-    }
-    if (!threw) {
-        throw new AssertionFailedException(
-            message + " (expected " + expectedExceptionName
-            + " but nothing was thrown)");
-    }
-    if (expectedExceptionName == "Exception") {
-        return;
-    }
-    if (actualName != expectedExceptionName) {
-        throw new AssertionFailedException(
-            message + " (expected " + expectedExceptionName
-            + " but got " + actualName + ": " + actualMsg + ")");
-    }
+    _assertThrowsImpl(expectedExceptionName, body, message + " — ");
 }
 
 // ----- unconditional failure -----

@@ -9,10 +9,10 @@
 // "scan all loaded classes" native, so auto-discovery is a separate concern.
 //
 // Within a suite the runner partitions declared methods by annotation, then
-// executes @BeforeAll (static), each @Test (with @BeforeEach / @AfterEach
-// around it), then @AfterAll. AssertionFailedException is treated as FAIL
-// with the raw message; any other Exception is FAIL with "unexpected: ..."
-// unless @Test(expected=...) matched the thrown class name.
+// executes @BeforeAll, each @Test (with @BeforeEach / @AfterEach around it),
+// then @AfterAll. AssertionFailedException is treated as FAIL with the raw
+// message; any other Exception is FAIL with "unexpected: ..." unless
+// @Test(expected=...) matched the thrown class name.
 import * from "../collections/ArrayList.mt";
 import * from "../primitives/String.mt";
 import * from "../reflect/Class.mt";
@@ -23,6 +23,7 @@ import * from "../exceptions/Exception.mt";
 import * from "./TestResult.mt";
 import * from "./TestSuiteResult.mt";
 import * from "./AssertionFailedException.mt";
+import * from "./ExceptionName.mt";
 
 public class TestRunner {
     private ArrayList<String> _classNames;
@@ -71,7 +72,10 @@ public class TestRunner {
         return this._suiteResults;
     }
 
-    public function runAndExit(): int {
+    // Returns an exit-code style int (0 = all passed, 1 = any failure) so
+    // callers can feed a CI gate. The runner does NOT terminate the process
+    // — mType has no exit() native — the caller threads the code as needed.
+    public function runAndReturnExitCode(): int {
         this.run();
         int failed = 0;
         for (int i = 0; i < this._suiteResults.size(); i = i + 1) {
@@ -88,16 +92,21 @@ public class TestRunner {
         Class cls = Class::forName(className);
         Method[] allMethods = cls.getDeclaredMethods();
 
-        Method[] beforeAll = this._collect(allMethods, "BeforeAll", true);
-        Method[] afterAll  = this._collect(allMethods, "AfterAll",  true);
-        Method[] beforeEach = this._collect(allMethods, "BeforeEach", false);
-        Method[] afterEach  = this._collect(allMethods, "AfterEach",  false);
-        Method[] tests      = this._collect(allMethods, "Test",       false);
+        Method[] beforeAll = this._collect(allMethods, "BeforeAll");
+        Method[] afterAll  = this._collect(allMethods, "AfterAll");
+        Method[] beforeEach = this._collect(allMethods, "BeforeEach");
+        Method[] afterEach  = this._collect(allMethods, "AfterEach");
+        Method[] tests      = this._collect(allMethods, "Test");
 
         // mType's Method.invoke requires a non-null Object for the receiver,
-        // so even "static" @BeforeAll / @AfterAll hooks are routed through a
-        // dedicated bootstrap instance. This is also why annotation-discovery
-        // treats static-ness as advisory rather than required in v1.
+        // so "static" @BeforeAll / @AfterAll hooks are routed through a shared
+        // bootstrap instance rather than a true static context. Any state
+        // they set on `this` is visible only within hook runs, not to the
+        // fresh per-test instances created below. Suites that need
+        // shared-across-tests state should keep it in static fields (and
+        // accept the v1 caveat that hooks see it via the bootstrap `this`).
+        // Static-vs-instance enforcement is deliberately not performed —
+        // see v1 limitations in Mtest.mt.
         Object bootstrap;
         try {
             bootstrap = this._newInstance(cls);
@@ -138,12 +147,8 @@ public class TestRunner {
         return ctor.newInstance(ctorArgs);
     }
 
-    // Collect declared methods carrying `annName`. If `requireStatic`, non-
-    // static hits are returned as well and validated at the call site; we
-    // keep the filter here focused on annotation presence so ordering is
-    // preserved. Static-vs-instance checks for @BeforeAll/@AfterAll happen
-    // inside _invokeAll.
-    function _collect(Method[] methods, string annName, bool requireStatic): Method[] {
+    // Collect declared methods carrying `annName`, preserving declaration order.
+    function _collect(Method[] methods, string annName): Method[] {
         int count = 0;
         for (int i = 0; i < methods.length; i = i + 1) {
             if (methods[i].hasAnnotation(annName)) {
@@ -234,7 +239,7 @@ public class TestRunner {
         } catch (Exception e) {
             threw = true;
             failureMsg = e.getMessage();
-            actualExcName = _extractExcName(e);
+            actualExcName = ExceptionName::of(e);
         }
 
         string afterFailure = this._invokeAll(afterEach, instance);
@@ -267,16 +272,4 @@ public class TestRunner {
 
         return result;
     }
-}
-
-// Free helper reused across the runner. Mirrors the prefix-parsing used in
-// Assertions.assertThrows: exceptions in lib/exceptions/ override toString()
-// as "<ClassName>: <message>", giving a best-effort runtime-class name.
-function _extractExcName(Exception e): string {
-    string repr = e.toString();
-    int colonIdx = indexOf(repr, ":");
-    if (colonIdx <= 0) {
-        return repr;
-    }
-    return substring(repr, 0, colonIdx);
 }

@@ -25,10 +25,11 @@ class Calculator {
 public class CalculatorTest extends TestSuite {
     private Calculator calc;
 
-    public constructor() : super() {
-        this.calc = new Calculator();
-    }
+    public constructor() : super() { }
 
+    // @BeforeEach owns per-test initialization. TestRunner constructs a
+    // fresh suite instance before each @Test and invokes this hook, so
+    // the constructor body intentionally does no field setup.
     @BeforeEach
     public function setUp(): void {
         this.calc = new Calculator();
