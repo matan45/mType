@@ -1,0 +1,15 @@
+[class]
+false
+false
+[method ping]
+debug
+true
+true
+[field id]
+user_id
+false
+[field email]
+email
+true
+[constructor]
+true

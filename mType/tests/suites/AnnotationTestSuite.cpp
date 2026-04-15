@@ -206,6 +206,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Constructor Annotation Reflection",
                                   passPath + "annotation_on_ctor_reflection_pass.mt");
 
+        addOutputVerificationTest("Annotations End-to-End Demo",
+                                  passPath + "annotations_demo_pass.mt");
+
         // ===== MYT-109 (3a): META-ANNOTATIONS - ERROR TESTS =====
 
         addTestFromFile("Meta-annotation @Target Violation",
