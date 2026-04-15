@@ -36,12 +36,14 @@ namespace vm::compiler::visitors
         tempMetadata.isNative = false;
         ctx.program.registerFunction(constructorName, tempMetadata);
 
-        // Enter function frame
+        // Enter function frame (MYT-112: isConstructor=true allows bare `return;`)
         ctx.functionFrameManager.enterFunctionFrame(constructorName,
                                                     "object",
                                                     ctx.variableTracker.getNextLocalSlot(),
                                                     ctx.variableTracker.getCurrentScopeDepth(),
-                                                    false);
+                                                    false,
+                                                    false,
+                                                    true);
         ctx.variableTracker.beginScope();
 
         // Track 'this' as local
@@ -652,11 +654,14 @@ namespace vm::compiler::visitors
         ctx.program.registerFunction(constructorName, tempMetadata);
 
         // Enter function frame for local variable tracking
+        // MYT-112: isConstructor=true allows bare `return;` inside the body.
         ctx.functionFrameManager.enterFunctionFrame(constructorName,
                                                     returnTypeStr,
                                                     ctx.variableTracker.getNextLocalSlot(),
                                                     ctx.variableTracker.getCurrentScopeDepth(),
-                                                    false);
+                                                    false,
+                                                    false,
+                                                    true);
         ctx.variableTracker.beginScope(); // Constructor body scope
 
         // Track parameters as locals (including 'this')
