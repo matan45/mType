@@ -13,6 +13,12 @@ namespace tests::testSuite
                         passPath + "complexFunctionsNewSyntax.mt");
         addOutputVerificationTest("Void Functions",
                         passPath + "voidFunctions.mt");
+        // MYT-112: bare `return;` accepted in constructors and remains
+        // accepted in void functions/methods.
+        addOutputVerificationTest("Void Early Return (regression guard)",
+                        passPath + "voidEarlyReturn_pass.mt");
+        addOutputVerificationTest("Void Return In Constructor",
+                        passPath + "voidReturnInCtor_pass.mt");
         addOutputVerificationTest("Mixed Parameter Types",
                         passPath + "mixedParameterTypes.mt");
         addOutputVerificationTest("Nested Function Calls",

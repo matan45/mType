@@ -547,7 +547,7 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
         // Write version
-        uint32_t version = 6;  // Version 6: MYT-109 meta-annotations on annotation declarations
+        uint32_t version = 7;  // Version 7: MYT-110 parameter-level annotations
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
         // Write entry point
@@ -596,12 +596,12 @@ namespace vm::bytecode
         // Read version
         uint32_t version;
         in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version < 6) {
+        if (version < 7) {
             throw std::runtime_error(
                 "Bytecode file uses an outdated format (version " + std::to_string(version) + "). "
                 "Please recompile from source using the current compiler.");
         }
-        if (version != 6) {
+        if (version != 7) {
             throw std::runtime_error("Unsupported bytecode version: " + std::to_string(version));
         }
 
@@ -793,6 +793,19 @@ namespace vm::bytecode
                 out.write(reinterpret_cast<const char*>(&len), sizeof(len));
                 out.write(entry.catchVarName.data(), len);
             }
+
+            // MYT-110: function-level annotations (v7+)
+            writeAnnotationList(out, func.annotations);
+            // MYT-110: per-parameter annotations (v7+)
+            size_t fnParamAnnotCount = func.parameterNames.size();
+            out.write(reinterpret_cast<const char*>(&fnParamAnnotCount), sizeof(fnParamAnnotCount));
+            for (size_t i = 0; i < fnParamAnnotCount; ++i) {
+                const std::vector<AnnotationData>& list =
+                    (i < func.parameterAnnotations.size())
+                    ? func.parameterAnnotations[i]
+                    : std::vector<AnnotationData>{};
+                writeAnnotationList(out, list);
+            }
         }
     }
 
@@ -887,6 +900,18 @@ namespace vm::bytecode
                 // Add entry to function's exception table
                 ExceptionTableEntry entry(startIP, endIP, catchIP, finallyIP, exceptionType, nestingLevel, catchVarName, catchVarSlot);
                 func.exceptionTable.addEntry(entry);
+            }
+
+            // MYT-110: function-level annotations (v7+)
+            readAnnotationList(in, func.annotations);
+            // MYT-110: per-parameter annotations (v7+)
+            size_t fnParamAnnotCount = 0;
+            in.read(reinterpret_cast<char*>(&fnParamAnnotCount), sizeof(fnParamAnnotCount));
+            if (!in) throw std::runtime_error("Malformed bytecode: failed to read function parameter-annotation count");
+            validateCount(fnParamAnnotCount, constants::security::MAX_PARAMETERS_PER_FUNCTION, "function parameter-annotation count");
+            func.parameterAnnotations.assign(fnParamAnnotCount, {});
+            for (size_t j = 0; j < fnParamAnnotCount; ++j) {
+                readAnnotationList(in, func.parameterAnnotations[j]);
             }
 
             functions[name] = func;
@@ -1097,6 +1122,16 @@ namespace vm::bytecode
         BytecodeIOHelper::writePrimitive(out, method.isAbstract);
         BytecodeIOHelper::writePrimitive(out, method.startOffset);
         writeAnnotationList(out, method.annotations);
+        // MYT-110: per-parameter annotations, parallel to parameterNames.
+        size_t paramCount = method.parameterNames.size();
+        out.write(reinterpret_cast<const char*>(&paramCount), sizeof(paramCount));
+        for (size_t i = 0; i < paramCount; ++i) {
+            const std::vector<AnnotationData>& list =
+                (i < method.parameterAnnotations.size())
+                ? method.parameterAnnotations[i]
+                : std::vector<AnnotationData>{};
+            writeAnnotationList(out, list);
+        }
     }
 
     void BytecodeProgram::writeConstructorMetadata(std::ostream& out, const ConstructorMetadata& ctor) const {
@@ -1104,6 +1139,16 @@ namespace vm::bytecode
         BytecodeIOHelper::writeStringVector(out, ctor.parameterNames);
         BytecodeIOHelper::writePrimitive(out, ctor.startOffset);
         writeAnnotationList(out, ctor.annotations);
+        // MYT-110: per-parameter annotations, parallel to parameterNames.
+        size_t paramCount = ctor.parameterNames.size();
+        out.write(reinterpret_cast<const char*>(&paramCount), sizeof(paramCount));
+        for (size_t i = 0; i < paramCount; ++i) {
+            const std::vector<AnnotationData>& list =
+                (i < ctor.parameterAnnotations.size())
+                ? ctor.parameterAnnotations[i]
+                : std::vector<AnnotationData>{};
+            writeAnnotationList(out, list);
+        }
     }
 
     void BytecodeProgram::writeClassMetadata(std::ostream& out, const ClassMetadata& classMeta) const {
@@ -1268,6 +1313,15 @@ namespace vm::bytecode
         method.isAbstract = BytecodeIOHelper::readPrimitive<bool>(in);
         method.startOffset = BytecodeIOHelper::readPrimitive<size_t>(in);
         readAnnotationList(in, method.annotations);
+        // MYT-110: per-parameter annotations
+        size_t paramCount = 0;
+        in.read(reinterpret_cast<char*>(&paramCount), sizeof(paramCount));
+        if (!in) throw std::runtime_error("Malformed bytecode: failed to read method parameter-annotation count");
+        validateCount(paramCount, constants::security::MAX_PARAMETERS_PER_FUNCTION, "method parameter-annotation count");
+        method.parameterAnnotations.assign(paramCount, {});
+        for (size_t i = 0; i < paramCount; ++i) {
+            readAnnotationList(in, method.parameterAnnotations[i]);
+        }
     }
 
     void BytecodeProgram::readConstructorMetadata(std::istream& in, ConstructorMetadata& ctor) {
@@ -1275,6 +1329,15 @@ namespace vm::bytecode
         ctor.parameterNames = BytecodeIOHelper::readStringVector(in);
         ctor.startOffset = BytecodeIOHelper::readPrimitive<size_t>(in);
         readAnnotationList(in, ctor.annotations);
+        // MYT-110: per-parameter annotations
+        size_t paramCount = 0;
+        in.read(reinterpret_cast<char*>(&paramCount), sizeof(paramCount));
+        if (!in) throw std::runtime_error("Malformed bytecode: failed to read constructor parameter-annotation count");
+        validateCount(paramCount, constants::security::MAX_PARAMETERS_PER_FUNCTION, "constructor parameter-annotation count");
+        ctor.parameterAnnotations.assign(paramCount, {});
+        for (size_t i = 0; i < paramCount; ++i) {
+            readAnnotationList(in, ctor.parameterAnnotations[i]);
+        }
     }
 
     void BytecodeProgram::readClassMetadata(std::istream& in, ClassMetadata& classMeta) {

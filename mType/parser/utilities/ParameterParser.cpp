@@ -1,5 +1,6 @@
 #include "ParameterParser.hpp"
 #include "NameValidator.hpp"
+#include "AnnotationParser.hpp"
 #include "../TypeParser.hpp"
 #include "../TokenStream.hpp"
 #include "../../ast/GenericType.hpp"
@@ -9,7 +10,120 @@
 
 namespace parser
 {
-    std::vector<std::pair<std::string, value::ValueType>> ParameterParser::parseParameterList(TokenStream& stream, bool expectParentheses)
+    // --- MYT-110: annotation-aware parameter parsers ------------------------
+    // These produce *Declaration structs carrying annotations. The legacy
+    // pair-returning methods below delegate here and discard annotations so
+    // existing call sites that don't care about annotations keep compiling.
+
+    std::vector<ParameterDeclaration>
+    ParameterParser::parseGenericParameterDeclList(TokenStream& stream, bool expectParentheses)
+    {
+        using namespace value;
+        using namespace errors;
+        using namespace token;
+
+        std::vector<ParameterDeclaration> parameters;
+
+        if (expectParentheses) {
+            stream.expect(TokenType::LPAREN);
+        }
+
+        if (stream.current().type == TokenType::RPAREN) {
+            if (expectParentheses) {
+                stream.advance();
+            }
+            return parameters;
+        }
+
+        do {
+            auto paramAnnotations = utilities::AnnotationParser::parseAnnotations(stream);
+
+            auto paramType = TypeParser::parseGenericType(stream);
+
+            if (stream.current().type != TokenType::IDENTIFIER) {
+                throw ParseException("Expected parameter name", stream.location());
+            }
+
+            std::string paramName = stream.current().stringValue.getString();
+            SourceLocation paramLocation = stream.location();
+            NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
+            stream.advance();
+
+            parameters.push_back({std::move(paramName), paramType, std::move(paramAnnotations)});
+
+            if (stream.current().type == TokenType::COMMA) {
+                stream.advance();
+            } else {
+                break;
+            }
+        } while (stream.current().type != TokenType::RPAREN);
+
+        if (expectParentheses) {
+            stream.expect(TokenType::RPAREN);
+        }
+
+        return parameters;
+    }
+
+    std::vector<TypedParameterDeclaration>
+    ParameterParser::parseTypedParameterDeclList(TokenStream& stream, bool expectParentheses)
+    {
+        using namespace value;
+        using namespace errors;
+        using namespace token;
+
+        std::vector<TypedParameterDeclaration> parameters;
+
+        if (expectParentheses) {
+            stream.expect(TokenType::LPAREN);
+        }
+
+        if (stream.current().type == TokenType::RPAREN) {
+            if (expectParentheses) {
+                stream.advance();
+            }
+            return parameters;
+        }
+
+        do {
+            auto paramAnnotations = utilities::AnnotationParser::parseAnnotations(stream);
+
+            TypeInfo typeInfo = TypeParser::parseTypeInfo(stream);
+            ParameterType paramType =
+                (typeInfo.baseType == ValueType::OBJECT && !typeInfo.className.empty())
+                    ? ParameterType::forClass(typeInfo.className)
+                    : ParameterType(typeInfo.baseType);
+            paramType.nullable = typeInfo.isNullable;
+
+            if (stream.current().type != TokenType::IDENTIFIER) {
+                throw ParseException("Expected parameter name", stream.location());
+            }
+
+            std::string paramName = stream.current().stringValue.getString();
+            SourceLocation paramLocation = stream.location();
+            NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
+            stream.advance();
+
+            parameters.push_back({std::move(paramName), paramType, std::move(paramAnnotations)});
+
+            if (stream.current().type == TokenType::COMMA) {
+                stream.advance();
+            } else {
+                break;
+            }
+        } while (stream.current().type != TokenType::RPAREN);
+
+        if (expectParentheses) {
+            stream.expect(TokenType::RPAREN);
+        }
+
+        return parameters;
+    }
+
+    // --- Legacy wrappers (discard annotations to preserve old API) ----------
+
+    std::vector<std::pair<std::string, value::ValueType>>
+    ParameterParser::parseParameterList(TokenStream& stream, bool expectParentheses)
     {
         using namespace value;
         using namespace errors;
@@ -17,170 +131,64 @@ namespace parser
 
         std::vector<std::pair<std::string, ValueType>> parameters;
 
-        if (expectParentheses) {
-            stream.expect(TokenType::LPAREN);
-        }
+        if (expectParentheses) stream.expect(TokenType::LPAREN);
 
-        // Handle empty parameter list
         if (stream.current().type == TokenType::RPAREN) {
-            if (expectParentheses) {
-                stream.advance(); // consume ')'
-            }
+            if (expectParentheses) stream.advance();
             return parameters;
         }
 
-        // Parse first parameter
         do {
-            // Parse parameter type using centralized TypeParser
+            // MYT-110: consume and discard any `@X` chain for syntactic
+            // consistency with the other parameter parsers. ValueType
+            // callers don't track annotations.
+            (void)utilities::AnnotationParser::parseAnnotations(stream);
+
             ValueType paramType = TypeParser::parseType(stream);
 
-            // Expect parameter name
             if (stream.current().type != TokenType::IDENTIFIER) {
                 throw ParseException("Expected parameter name", stream.location());
             }
 
             std::string paramName = stream.current().stringValue.getString();
             SourceLocation paramLocation = stream.location();
-
-            // Validate parameter name contains no special characters
             NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
-
             stream.advance();
 
-            // Add parameter to list
-            parameters.emplace_back(paramName, paramType);
+            parameters.emplace_back(std::move(paramName), paramType);
 
-            // Check for more parameters
             if (stream.current().type == TokenType::COMMA) {
-                stream.advance(); // consume ','
+                stream.advance();
             } else {
-                break; // End of parameter list
+                break;
             }
         } while (stream.current().type != TokenType::RPAREN);
 
-        if (expectParentheses) {
-            stream.expect(TokenType::RPAREN);
-        }
-
+        if (expectParentheses) stream.expect(TokenType::RPAREN);
         return parameters;
     }
 
-    std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> ParameterParser::parseGenericParameterList(TokenStream& stream, bool expectParentheses)
+    std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>>
+    ParameterParser::parseGenericParameterList(TokenStream& stream, bool expectParentheses)
     {
-        using namespace value;
-        using namespace errors;
-        using namespace token;
-
-        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> parameters;
-
-        if (expectParentheses) {
-            stream.expect(TokenType::LPAREN);
+        auto decls = parseGenericParameterDeclList(stream, expectParentheses);
+        std::vector<std::pair<std::string, std::shared_ptr<ast::GenericType>>> result;
+        result.reserve(decls.size());
+        for (auto& d : decls) {
+            result.emplace_back(std::move(d.name), std::move(d.type));
         }
-
-        // Handle empty parameter list
-        if (stream.current().type == TokenType::RPAREN) {
-            if (expectParentheses) {
-                stream.advance(); // consume ')'
-            }
-            return parameters;
-        }
-
-        // Parse first parameter
-        do {
-            // Parse parameter type using centralized TypeParser with generic support
-            auto paramType = TypeParser::parseGenericType(stream);
-
-            // Expect parameter name
-            if (stream.current().type != TokenType::IDENTIFIER) {
-                throw ParseException("Expected parameter name", stream.location());
-            }
-
-            std::string paramName = stream.current().stringValue.getString();
-            SourceLocation paramLocation = stream.location();
-
-            // Validate parameter name contains no special characters
-            NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
-
-            stream.advance();
-
-            // Add parameter to list
-            parameters.emplace_back(paramName, paramType);
-
-            // Check for more parameters
-            if (stream.current().type == TokenType::COMMA) {
-                stream.advance(); // consume ','
-            } else {
-                break; // End of parameter list
-            }
-        } while (stream.current().type != TokenType::RPAREN);
-
-        if (expectParentheses) {
-            stream.expect(TokenType::RPAREN);
-        }
-
-        return parameters;
+        return result;
     }
 
-    std::vector<std::pair<std::string, value::ParameterType>> ParameterParser::parseParameterListWithTypes(TokenStream& stream, bool expectParentheses)
+    std::vector<std::pair<std::string, value::ParameterType>>
+    ParameterParser::parseParameterListWithTypes(TokenStream& stream, bool expectParentheses)
     {
-        using namespace value;
-        using namespace errors;
-        using namespace token;
-
-        std::vector<std::pair<std::string, ParameterType>> parameters;
-
-        if (expectParentheses) {
-            stream.expect(TokenType::LPAREN);
+        auto decls = parseTypedParameterDeclList(stream, expectParentheses);
+        std::vector<std::pair<std::string, value::ParameterType>> result;
+        result.reserve(decls.size());
+        for (auto& d : decls) {
+            result.emplace_back(std::move(d.name), std::move(d.type));
         }
-
-        // Handle empty parameter list
-        if (stream.current().type == TokenType::RPAREN) {
-            if (expectParentheses) {
-                stream.advance(); // consume ')'
-            }
-            return parameters;
-        }
-
-        // Parse first parameter
-        do {
-            // Parse parameter type using TypeParser::parseTypeInfo to get interface information
-            TypeInfo typeInfo = TypeParser::parseTypeInfo(stream);
-
-            // Convert TypeInfo to ParameterType - single construction for efficiency
-            ParameterType paramType =
-                (typeInfo.baseType == ValueType::OBJECT && !typeInfo.className.empty())
-                    ? ParameterType::forClass(typeInfo.className)
-                    : ParameterType(typeInfo.baseType);
-            paramType.nullable = typeInfo.isNullable;
-
-            // Expect parameter name
-            if (stream.current().type != TokenType::IDENTIFIER) {
-                throw ParseException("Expected parameter name", stream.location());
-            }
-
-            std::string paramName = stream.current().stringValue.getString();
-            SourceLocation paramLocation = stream.location();
-
-            // Validate parameter name contains no special characters
-            NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
-
-            stream.advance();
-
-            // Add parameter to list
-            parameters.emplace_back(paramName, paramType);
-
-            // Check for more parameters
-            if (stream.current().type == TokenType::COMMA) {
-                stream.advance(); // consume ','
-            } else {
-                break; // End of parameter list
-            }
-        } while (stream.current().type != TokenType::RPAREN);
-
-        if (expectParentheses) {
-            stream.expect(TokenType::RPAREN);
-        }
-
-        return parameters;
+        return result;
     }
 }

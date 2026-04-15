@@ -1,4 +1,5 @@
 #include "ClassRegistrar.hpp"
+#include "AnnotationRetention.hpp"
 #include "../BytecodeCompiler.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../../analysis/OverrideAnnotationChecker.hpp"
@@ -31,79 +32,10 @@ namespace vm::compiler::registration
 {
     namespace
     {
-        using ast::nodes::annotations::AnnotationValueType;
-        using ast::nodes::annotations::TypedAnnotationValue;
-
-        // Convert an AST-level TypedAnnotationValue into a bytecode-level
-        // TypedAnnotationArg for .mtc serialization. Only the payload field
-        // matching `valueType` carries meaningful data.
-        bytecode::BytecodeProgram::TypedAnnotationArg
-            toTypedArg(const std::string& key, const TypedAnnotationValue& v)
-        {
-            bytecode::BytecodeProgram::TypedAnnotationArg arg;
-            arg.key = key;
-            arg.valueType = static_cast<uint8_t>(v.getType());
-            switch (v.getType())
-            {
-            case AnnotationValueType::INT:         arg.intVal    = v.asInt(); break;
-            case AnnotationValueType::FLOAT:       arg.floatVal  = v.asFloat(); break;
-            case AnnotationValueType::BOOL:        arg.boolVal   = v.asBool(); break;
-            case AnnotationValueType::STRING:      arg.stringVal = v.asString(); break;
-            case AnnotationValueType::CLASS_REF:   arg.stringVal = v.asClassRef(); break;
-            case AnnotationValueType::CLASS_ARRAY: arg.arrayVal  = v.asClassArray(); break;
-            case AnnotationValueType::NULL_VALUE:  break;
-            }
-            return arg;
-        }
-
-        void populateAnnotationData(
-            bytecode::BytecodeProgram::AnnotationData& out,
-            const ast::nodes::annotations::AnnotationNode& node)
-        {
-            out.name = node.getName();
-            out.location = node.getLocation();
-            for (const auto& key : node.getKeyOrder())
-            {
-                if (const auto* v = node.getTypedParameter(key))
-                {
-                    out.typedArguments.push_back(toTypedArg(key, *v));
-                }
-            }
-        }
-
-        // MYT-109: returns true if the annotation should be retained at runtime
-        // and in bytecode. SOURCE-retention annotations are dropped before
-        // class registration so they are invisible to reflection and are not
-        // serialized into the .mtc file.
-        //
-        // `@Retention(SOURCE)` may land in the AnnotationNode under either:
-        //   * "policy" — explicit named arg `@Retention(policy = SOURCE)`
-        //   * "__positional__" — positional shorthand `@Retention(SOURCE)`
-        bool shouldRetainAnnotation(
-            const ast::nodes::annotations::AnnotationNode& annotation,
-            const std::shared_ptr<environment::Environment>& environment)
-        {
-            using ast::nodes::annotations::AnnotationValueType;
-
-            if (!environment) return true;
-            auto registry = environment->getAnnotationRegistry();
-            if (!registry) return true;
-            auto def = registry->findAnnotation(annotation.getName());
-            if (!def) return true; // unknown annotation — leave the validator to report it
-            auto retention = def->getMetaAnnotation("Retention");
-            if (!retention) return true; // default retention is RUNTIME
-
-            for (const char* key : {"policy", "__positional__"})
-            {
-                if (const auto* v = retention->getTypedParameter(key))
-                {
-                    return !(v->getType() == AnnotationValueType::CLASS_REF &&
-                             v->asClassRef() == "SOURCE");
-                }
-            }
-            // No payload on @Retention — treat as RUNTIME (default).
-            return true;
-        }
+        // MYT-110: shouldRetainAnnotation and populateAnnotationData live in
+        // AnnotationRetention.{hpp,cpp} — single source of truth shared with
+        // FunctionRegistrar. Same-namespace call sites below resolve directly
+        // to those symbols.
     }
 
     ClassRegistrar::ClassRegistrar(
@@ -225,6 +157,25 @@ namespace vm::compiler::registration
                         if (!annotation) continue;
                         if (!shouldRetainAnnotation(*annotation, environment)) continue;
                         ctorDef->addAnnotation(annotation);
+                    }
+                    // MYT-110: copy per-parameter annotations (with retention filter).
+                    // Constructor params in AST and runtime are 1:1 aligned.
+                    {
+                        const auto& astParamAnnots = ctorNode->getParameterAnnotations();
+                        std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> filtered;
+                        filtered.reserve(astParamAnnots.size());
+                        for (const auto& perParam : astParamAnnots)
+                        {
+                            std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> kept;
+                            for (const auto& a : perParam)
+                            {
+                                if (!a) continue;
+                                if (!shouldRetainAnnotation(*a, environment)) continue;
+                                kept.push_back(a);
+                            }
+                            filtered.push_back(std::move(kept));
+                        }
+                        ctorDef->setParameterAnnotations(std::move(filtered));
                     }
                     classDef->addConstructor(ctorDef);
                 }
@@ -358,6 +309,33 @@ namespace vm::compiler::registration
                     if (!annotation) continue;
                     if (!shouldRetainAnnotation(*annotation, environment)) continue;
                     methodDef->addAnnotation(annotation);
+                }
+
+                // MYT-110: copy per-parameter annotations (with retention
+                // filter). Instance methods prepend an implicit `this` slot at
+                // runtime-param index 0 that has no annotations in the AST.
+                {
+                    const auto& astParamAnnots = methodNode->getParameterAnnotations();
+                    std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> filtered;
+                    const size_t runtimeParamCount = methodDef->getParameters().size();
+                    filtered.reserve(runtimeParamCount);
+                    const bool hasThis = !methodNode->getIsStatic();
+                    if (hasThis)
+                    {
+                        filtered.push_back({}); // empty slot for `this`
+                    }
+                    for (const auto& perParam : astParamAnnots)
+                    {
+                        std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> kept;
+                        for (const auto& a : perParam)
+                        {
+                            if (!a) continue;
+                            if (!shouldRetainAnnotation(*a, environment)) continue;
+                            kept.push_back(a);
+                        }
+                        filtered.push_back(std::move(kept));
+                    }
+                    methodDef->setParameterAnnotations(std::move(filtered));
                 }
 
                 // Check for duplicate signatures (overloading by name is now allowed, but signatures must be unique)
@@ -839,6 +817,20 @@ namespace vm::compiler::registration
                 methodMeta.annotations.push_back(std::move(annot));
             }
 
+            // MYT-110: per-parameter annotations, parallel to AST parameters.
+            const auto& methodParamAnnots = method->getParameterAnnotations();
+            methodMeta.parameterAnnotations.resize(genericParams.size());
+            for (size_t pi = 0; pi < genericParams.size(); ++pi) {
+                if (pi >= methodParamAnnots.size()) continue;
+                for (const auto& annotationNode : methodParamAnnots[pi]) {
+                    if (!annotationNode) continue;
+                    if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
+                    bytecode::BytecodeProgram::AnnotationData annot;
+                    populateAnnotationData(annot, *annotationNode);
+                    methodMeta.parameterAnnotations[pi].push_back(std::move(annot));
+                }
+            }
+
             if (method->getIsStatic()) {
                 metadata.staticMethods.push_back(methodMeta);
             } else {
@@ -870,6 +862,20 @@ namespace vm::compiler::registration
                 bytecode::BytecodeProgram::AnnotationData annot;
                 populateAnnotationData(annot, *annotationNode);
                 ctorMeta.annotations.push_back(std::move(annot));
+            }
+
+            // MYT-110: per-parameter annotations
+            const auto& ctorParamAnnots = ctor->getParameterAnnotations();
+            ctorMeta.parameterAnnotations.resize(params.size());
+            for (size_t pi = 0; pi < params.size(); ++pi) {
+                if (pi >= ctorParamAnnots.size()) continue;
+                for (const auto& annotationNode : ctorParamAnnots[pi]) {
+                    if (!annotationNode) continue;
+                    if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
+                    bytecode::BytecodeProgram::AnnotationData annot;
+                    populateAnnotationData(annot, *annotationNode);
+                    ctorMeta.parameterAnnotations[pi].push_back(std::move(annot));
+                }
             }
 
             metadata.constructors.push_back(ctorMeta);

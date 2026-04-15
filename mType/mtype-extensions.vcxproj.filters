@@ -401,6 +401,9 @@
     <ClCompile Include="reflection\ReflectionNatives_Method.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
+    <ClCompile Include="reflection\ReflectionNatives_ParameterAnnotation.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives_TypedAnnotation.cpp">
       <Filter>reflection</Filter>
     </ClCompile>

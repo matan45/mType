@@ -27,6 +27,9 @@ namespace ast::nodes::functions
         VisibilityModifier visibility;  // NEW: Top-level visibility for imports
         std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;  // NEW: Annotations for this function
 
+        // MYT-110: per-parameter annotations, parallel to `parameters`.
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> parameterAnnotations;
+
         // Performance cache for legacy getParameters() - O(1) after first call
         mutable std::optional<std::vector<std::pair<std::string, ValueType>>> cachedLegacyParams;
         mutable bool paramCacheValid = false;
@@ -109,6 +112,12 @@ namespace ast::nodes::functions
         void addAnnotation(std::shared_ptr<annotations::AnnotationNode> annotation);
         bool hasAnnotation(const std::string& annotationName) const;
         std::shared_ptr<annotations::AnnotationNode> getAnnotation(const std::string& annotationName) const;
+
+        // MYT-110: per-parameter annotation accessors.
+        const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>& getParameterAnnotations() const;
+        void setParameterAnnotations(
+            std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex);
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getParameterAnnotations(size_t paramIndex) const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

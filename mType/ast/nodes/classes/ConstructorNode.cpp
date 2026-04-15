@@ -9,7 +9,8 @@ namespace ast::nodes::classes
                                      AccessModifier modifier,
                                      const SourceLocation& loc)
         : ASTNode(loc), parametersWithTypes(std::move(params)),
-          body(std::move(constructorBody)), accessModifier(modifier)
+          body(std::move(constructorBody)), accessModifier(modifier),
+          parameterAnnotations(parametersWithTypes.size())
     {
         // No dual storage - parametersWithTypes is the single source of truth
     }
@@ -80,6 +81,27 @@ namespace ast::nodes::classes
         return parametersWithTypes.size();
     }
 
+    const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>&
+    ConstructorNode::getParameterAnnotations() const
+    {
+        return parameterAnnotations;
+    }
+
+    void ConstructorNode::setParameterAnnotations(
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex)
+    {
+        parameterAnnotations = std::move(annotationsByIndex);
+        parameterAnnotations.resize(parametersWithTypes.size());
+    }
+
+    const std::vector<std::shared_ptr<annotations::AnnotationNode>>&
+    ConstructorNode::getParameterAnnotations(size_t paramIndex) const
+    {
+        static const std::vector<std::shared_ptr<annotations::AnnotationNode>> empty;
+        if (paramIndex >= parameterAnnotations.size()) return empty;
+        return parameterAnnotations[paramIndex];
+    }
+
     Value ConstructorNode::accept(ASTVisitor<Value>& visitor)
     {
         return visitor.visitConstructorNode(this);
@@ -106,8 +128,10 @@ namespace ast::nodes::classes
         }
 
         // MYT-108: clone annotations via typed-parameter path
-        for (const auto& annotation : annotations) {
-            if (!annotation) continue;
+        auto cloneAnn = [](const std::shared_ptr<annotations::AnnotationNode>& annotation)
+            -> std::shared_ptr<annotations::AnnotationNode>
+        {
+            if (!annotation) return nullptr;
             auto cloned = std::make_shared<annotations::AnnotationNode>(
                 annotation->getName(), annotation->getLocation());
             for (const auto& key : annotation->getKeyOrder()) {
@@ -115,8 +139,24 @@ namespace ast::nodes::classes
                     cloned->setTypedParameter(key, *v);
                 }
             }
-            clonedConstructor->addAnnotation(cloned);
+            return cloned;
+        };
+        for (const auto& annotation : annotations) {
+            if (auto c = cloneAnn(annotation)) clonedConstructor->addAnnotation(c);
         }
+
+        // MYT-110: clone per-parameter annotations
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> clonedParamAnnots;
+        clonedParamAnnots.reserve(parameterAnnotations.size());
+        for (const auto& perParam : parameterAnnotations) {
+            std::vector<std::shared_ptr<annotations::AnnotationNode>> out;
+            out.reserve(perParam.size());
+            for (const auto& a : perParam) {
+                if (auto c = cloneAnn(a)) out.push_back(std::move(c));
+            }
+            clonedParamAnnots.push_back(std::move(out));
+        }
+        clonedConstructor->setParameterAnnotations(std::move(clonedParamAnnots));
 
         return clonedConstructor;
     }

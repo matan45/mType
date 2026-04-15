@@ -408,7 +408,12 @@ namespace vm::compiler::visitors
             bool isAsyncVoidReturn = ctx.functionFrameManager.currentFrame().isAsync &&
                 expectedReturnType == "Promise<void>";
 
-            if (expectedReturnType != "void" && !isAsyncVoidReturn)
+            // MYT-112: constructors implicitly return `this`; bare `return;`
+            // is a legitimate early-exit that emits the same LOAD_LOCAL 0
+            // + RETURN_VALUE sequence as the end-of-body return.
+            bool isConstructor = ctx.functionFrameManager.currentFrame().isConstructor;
+
+            if (expectedReturnType != "void" && !isAsyncVoidReturn && !isConstructor)
             {
                 throw errors::TypeException(
                     "Return type mismatch: expected " + expectedReturnType + " but got void",
@@ -455,8 +460,17 @@ namespace vm::compiler::visitors
         }
         else
         {
-            // Push null for void return
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+            // MYT-112: bare `return;` inside a constructor returns `this`
+            // (slot 0), not null.
+            if (ctx.functionFrameManager.currentFrame().isConstructor)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+            }
+            else
+            {
+                // Push null for void return
+                ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+            }
 
             // For async functions, wrap in Promise before storing for finally
             if (ctx.functionFrameManager.currentFrame().isAsync)
@@ -505,8 +519,17 @@ namespace vm::compiler::visitors
         }
         else
         {
-            // Push null for void return
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+            // MYT-112: bare `return;` inside a constructor returns `this`
+            // (slot 0), not null.
+            if (ctx.functionFrameManager.currentFrame().isConstructor)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+            }
+            else
+            {
+                // Push null for void return
+                ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+            }
 
             // For async functions, wrap in Promise
             if (ctx.functionFrameManager.currentFrame().isAsync)
@@ -540,9 +563,17 @@ namespace vm::compiler::visitors
         }
         else
         {
+            // MYT-112: bare `return;` inside a constructor returns the
+            // instance (local slot 0 = `this`), mirroring the implicit
+            // end-of-body return emitted by MethodCompilerHelper.
+            if (ctx.functionFrameManager.currentFrame().isConstructor)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+            }
             // For async functions, treat return; as return null; wrapped in Promise
             // This allows Promise<void> functions to use return; like regular void functions
-            if (ctx.functionFrameManager.currentFrame().isAsync)
+            else if (ctx.functionFrameManager.currentFrame().isAsync)
             {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);

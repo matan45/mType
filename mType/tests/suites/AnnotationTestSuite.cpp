@@ -215,5 +215,31 @@ namespace tests::testSuite
                         errorPath + "meta_target_violation_error.mt",
                         TestType::ERROR_EXPECTED,
                         "cannot be applied to");
+
+        // ===== MYT-110: PARAMETER-LEVEL ANNOTATIONS - PASS TESTS =====
+
+        addOutputVerificationTest("Parameter Annotation On Method",
+                                  passPath + "annotation_on_parameter_pass.mt");
+
+        addOutputVerificationTest("Parameter Annotation On Constructor",
+                                  passPath + "annotation_on_ctor_parameter_pass.mt");
+
+        addOutputVerificationTest("Parameter Annotation On Static Method + getAnnotations()",
+                                  passPath + "annotation_on_static_parameter_pass.mt");
+
+        addOutputVerificationTest("Parameter @Retention(SOURCE) Stripped",
+                                  passPath + "parameter_retention_source_stripped_pass.mt");
+
+        // ===== MYT-110: PARAMETER-LEVEL ANNOTATIONS - ERROR TESTS =====
+
+        addTestFromFile("Parameter @Target Violation (method)",
+                        errorPath + "parameter_target_violation_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
+
+        addTestFromFile("Parameter @Target Violation (top-level function)",
+                        errorPath + "function_parameter_target_violation_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
     }
 }

@@ -1,6 +1,7 @@
 #include "MethodParser.hpp"
 #include "GenericParameterParser.hpp"
 #include "../utilities/ParserUtils.hpp"
+#include "../utilities/ParameterParser.hpp"
 #include "../utilities/AccessModifierParser.hpp"
 #include "../utilities/AsyncValidator.hpp"
 #include "../TypeParser.hpp"
@@ -130,8 +131,17 @@ namespace parser
         validateMethodName(methodName, isStatic);
         tokenStream.advance();
 
-        // Parse parameter list using generic-aware utility
-        auto parameters = ParserUtils::parseGenericParameterList(tokenStream, true);
+        // Parse parameter list using generic-aware utility (MYT-110: capture
+        // per-parameter annotations via the Decl variant).
+        auto paramDecls = ParameterParser::parseGenericParameterDeclList(tokenStream, true);
+        std::vector<std::pair<std::string, std::shared_ptr<GenericType>>> parameters;
+        std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> parameterAnnotations;
+        parameters.reserve(paramDecls.size());
+        parameterAnnotations.reserve(paramDecls.size());
+        for (auto& d : paramDecls) {
+            parameters.emplace_back(d.name, d.type);
+            parameterAnnotations.push_back(std::move(d.annotations));
+        }
 
         // Parse return type after the parameters using new generic type system
         std::shared_ptr<GenericType> returnType = std::make_shared<GenericType>(ValueType::VOID);
@@ -176,6 +186,7 @@ namespace parser
                                                        accessModifier, isAsync, methodStartLocation);
         methodNode->setAbstract(isAbstract);
         methodNode->setFinal(isFinal);
+        methodNode->setParameterAnnotations(std::move(parameterAnnotations));
         return methodNode;
     }
 

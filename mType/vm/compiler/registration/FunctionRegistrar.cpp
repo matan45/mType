@@ -1,4 +1,5 @@
 #include "FunctionRegistrar.hpp"
+#include "AnnotationRetention.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ImportNode.hpp"
@@ -195,6 +196,35 @@ namespace vm::compiler::registration
         metadata.isNative = false;
         metadata.isAsync = functionNode->getIsAsync();
 
+        // MYT-110: function-level annotations into bytecode metadata (typed-args),
+        // honoring @Retention(SOURCE) filter.
+        for (const auto& annotationNode : functionNode->getAnnotations())
+        {
+            if (!annotationNode) continue;
+            if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
+            bytecode::BytecodeProgram::AnnotationData annot;
+            populateAnnotationData(annot, *annotationNode);
+            metadata.annotations.push_back(std::move(annot));
+        }
+
+        // MYT-110: per-parameter annotations into bytecode metadata.
+        {
+            const auto& astParamAnnots = functionNode->getParameterAnnotations();
+            metadata.parameterAnnotations.resize(paramNames.size());
+            for (size_t pi = 0; pi < paramNames.size(); ++pi)
+            {
+                if (pi >= astParamAnnots.size()) continue;
+                for (const auto& annotationNode : astParamAnnots[pi])
+                {
+                    if (!annotationNode) continue;
+                    if (!shouldRetainAnnotation(*annotationNode, environment)) continue;
+                    bytecode::BytecodeProgram::AnnotationData annot;
+                    populateAnnotationData(annot, *annotationNode);
+                    metadata.parameterAnnotations[pi].push_back(std::move(annot));
+                }
+            }
+        }
+
         // Store generic type parameters if the function is generic
         if (functionNode->isGeneric())
         {
@@ -254,6 +284,32 @@ namespace vm::compiler::registration
         if (functionNode->isGeneric())
         {
             funcDef->setGenericTypeParameters(functionNode->getGenericTypeParameters());
+        }
+
+        // MYT-110: copy function-level and per-parameter annotations to the
+        // runtime definition, honoring @Retention(SOURCE) filter.
+        for (const auto& annotation : functionNode->getAnnotations())
+        {
+            if (!annotation) continue;
+            if (!shouldRetainAnnotation(*annotation, environment)) continue;
+            funcDef->addAnnotation(annotation);
+        }
+        {
+            const auto& astParamAnnots = functionNode->getParameterAnnotations();
+            std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> filtered;
+            filtered.reserve(astParamAnnots.size());
+            for (const auto& perParam : astParamAnnots)
+            {
+                std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> kept;
+                for (const auto& a : perParam)
+                {
+                    if (!a) continue;
+                    if (!shouldRetainAnnotation(*a, environment)) continue;
+                    kept.push_back(a);
+                }
+                filtered.push_back(std::move(kept));
+            }
+            funcDef->setParameterAnnotations(std::move(filtered));
         }
 
         // Register in FunctionRegistry for overload tracking
@@ -320,6 +376,18 @@ namespace vm::compiler::registration
             ::validation::AnnotationUsageValidator::validate(
                 annotation, environment, annotation->getLocation(),
                 ::validation::AnnotationHostKind::FUNCTION);
+        }
+
+        // MYT-110: validate per-parameter annotations with PARAMETER host kind
+        for (const auto& perParam : functionNode->getParameterAnnotations())
+        {
+            for (const auto& ann : perParam)
+            {
+                if (!ann) continue;
+                ::validation::AnnotationUsageValidator::validate(
+                    ann, environment, ann->getLocation(),
+                    ::validation::AnnotationHostKind::PARAMETER);
+            }
         }
 
         // Validate @Throw annotation if present

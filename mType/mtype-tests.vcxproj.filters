@@ -871,6 +871,9 @@
     <None Include="tests\testFiles\annotation\error\override_wrong_signature_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\parameter_target_violation_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\script_annotation_abstract_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -931,6 +934,9 @@
     <None Include="tests\testFiles\annotation\pass\annotation_on_constructor_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_ctor_parameter_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_ctor_reflection_pass.expected">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
@@ -941,6 +947,9 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_field_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_on_parameter_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_top_function_pass.expected">
@@ -1019,6 +1028,9 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\override_parent_class_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\parameter_retention_source_stripped_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\script_annotation_pass.expected">
@@ -8594,6 +8606,9 @@
       <Filter>testFiles\lib\mtest</Filter>
     </None>
     <None Include="tests\testFiles\lib\mtest\Assertions.mt">
+      <Filter>testFiles\lib\mtest</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\ExceptionName.mt">
       <Filter>testFiles\lib\mtest</Filter>
     </None>
     <None Include="tests\testFiles\lib\mtest\Mtest.mt">

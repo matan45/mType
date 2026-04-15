@@ -120,6 +120,9 @@
     <ClInclude Include="vm\compiler\overload\OverloadResolver.hpp">
       <Filter>vm\compiler\overload</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\registration\AnnotationRetention.hpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\registration\ClassInheritanceValidator.hpp">
       <Filter>vm\compiler\registration</Filter>
     </ClInclude>
@@ -391,6 +394,9 @@
     </ClCompile>
     <ClCompile Include="vm\compiler\overload\OverloadResolver.cpp">
       <Filter>vm\compiler\overload</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\AnnotationRetention.cpp">
+      <Filter>vm\compiler\registration</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\registration\ClassInheritanceValidator.cpp">
       <Filter>vm\compiler\registration</Filter>

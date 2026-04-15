@@ -87,6 +87,49 @@ namespace validation
             }
         }
 
+        // MYT-110: validate annotations applied to method/ctor parameters.
+        // The usage validator checks @Target against HostKind::PARAMETER.
+        auto validateParamAnnotations = [&](const auto& perParam)
+        {
+            for (const auto& ann : perParam)
+            {
+                if (!ann) continue;
+                AnnotationUsageValidator::validate(
+                    ann, environment, ann->getLocation(),
+                    AnnotationHostKind::PARAMETER);
+            }
+        };
+        for (const auto& [methodName, methodOverloads] : classDefinition->getInstanceMethods())
+        {
+            for (const auto& methodDef : methodOverloads)
+            {
+                if (!methodDef) continue;
+                for (const auto& perParam : methodDef->getParameterAnnotations())
+                {
+                    validateParamAnnotations(perParam);
+                }
+            }
+        }
+        for (const auto& [methodName, methodOverloads] : classDefinition->getStaticMethods())
+        {
+            for (const auto& methodDef : methodOverloads)
+            {
+                if (!methodDef) continue;
+                for (const auto& perParam : methodDef->getParameterAnnotations())
+                {
+                    validateParamAnnotations(perParam);
+                }
+            }
+        }
+        for (const auto& ctorDef : classDefinition->getConstructors())
+        {
+            if (!ctorDef) continue;
+            for (const auto& perParam : ctorDef->getParameterAnnotations())
+            {
+                validateParamAnnotations(perParam);
+            }
+        }
+
         // Validate @Script annotation on class
         if (auto scriptAnnotation = classDefinition->getAnnotation("Script"))
         {

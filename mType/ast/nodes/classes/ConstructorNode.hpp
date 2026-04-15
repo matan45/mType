@@ -23,6 +23,9 @@ namespace ast::nodes::classes
         AccessModifier accessModifier;
         std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;
 
+        // MYT-110: per-parameter annotations, parallel to parametersWithTypes.
+        std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> parameterAnnotations;
+
     public:
         // Constructor with ParameterType (preserves class/interface information)
         explicit ConstructorNode(std::vector<std::pair<std::string, ParameterType>> params,
@@ -66,6 +69,13 @@ namespace ast::nodes::classes
         {
             return annotations;
         }
+
+        // MYT-110: per-parameter annotation accessors (definitions in .cpp
+        // — matches MethodNode/FunctionNode convention per CLAUDE.md).
+        const std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>>& getParameterAnnotations() const;
+        void setParameterAnnotations(
+            std::vector<std::vector<std::shared_ptr<annotations::AnnotationNode>>> annotationsByIndex);
+        const std::vector<std::shared_ptr<annotations::AnnotationNode>>& getParameterAnnotations(size_t paramIndex) const;
 
         Value accept(ASTVisitor<Value>& visitor) override;
         std::unique_ptr<ASTNode> clone() const override;

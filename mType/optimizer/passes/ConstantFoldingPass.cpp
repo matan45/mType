@@ -449,6 +449,11 @@ namespace optimizer::passes
                 transformedFunction->addAnnotation(annotation);
             }
 
+            // MYT-110: preserve per-parameter annotations through folding.
+            transformedFunction->setParameterAnnotations(
+                std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>>(
+                    node->getParameterAnnotations()));
+
             return transformedFunction;
         }
 

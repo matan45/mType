@@ -19,6 +19,7 @@ namespace vm::compiler::variables
             std::string functionName;  // Name of the function (for exception table access)
             bool isLambda = false;  // Track if this frame is for a lambda
             bool isAsync = false;   // Track if this frame is for an async function/lambda
+            bool isConstructor = false;  // MYT-112: constructor frames implicitly return `this`
             size_t maxLocalSlot = 0;  // Track the maximum local slot used in this function
             std::vector<std::string> capturedVariableNames;  // For lambdas: names of captured outer variables (for shadowing check)
         };
@@ -28,7 +29,8 @@ namespace vm::compiler::variables
 
         // Frame management
         void enterFunctionFrame(const std::string& functionName, const std::string& returnType, size_t localStartSlot,
-                               int scopeDepthStart, bool isLambda = false, bool isAsync = false);
+                               int scopeDepthStart, bool isLambda = false, bool isAsync = false,
+                               bool isConstructor = false);
         void exitFunctionFrame();
 
         // Frame information

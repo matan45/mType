@@ -497,6 +497,21 @@ namespace reflection
         /// args: (annotationHandle:int, metaAnnotationName:string) -> Annotation handle or null
         static value::Value __reflect_getAnnotationMeta(const std::vector<value::Value>& args);
 
+        // Parameter-level annotation reflection (MYT-110)
+        /// args: (methodHandle:int, paramIndex:int) -> int[] (Annotation handles)
+        static value::Value __reflect_getMethodParameterAnnotations(const std::vector<value::Value>& args);
+        /// args: (methodHandle:int, paramIndex:int, annotationName:string) -> Annotation handle or null
+        static value::Value __reflect_getMethodParameterAnnotation(const std::vector<value::Value>& args);
+        /// args: (methodHandle:int, paramIndex:int, annotationName:string) -> bool
+        static value::Value __reflect_hasMethodParameterAnnotation(const std::vector<value::Value>& args);
+
+        /// args: (ctorHandle:int, paramIndex:int) -> int[] (Annotation handles)
+        static value::Value __reflect_getConstructorParameterAnnotations(const std::vector<value::Value>& args);
+        /// args: (ctorHandle:int, paramIndex:int, annotationName:string) -> Annotation handle or null
+        static value::Value __reflect_getConstructorParameterAnnotation(const std::vector<value::Value>& args);
+        /// args: (ctorHandle:int, paramIndex:int, annotationName:string) -> bool
+        static value::Value __reflect_hasConstructorParameterAnnotation(const std::vector<value::Value>& args);
+
         // Object-style annotation access (MYT-108 M6)
         /// args: (target:int, annotationClassHandle:int) -> ObjectInstance or null
         static value::Value __reflect_getAnnotationObject(const std::vector<value::Value>& args);
