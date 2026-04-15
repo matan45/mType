@@ -1,7 +1,9 @@
 // Loopback integration test for TcpServer + TcpSocket. Brings up a server on
 // a fixed high port, has a client connect and exchange one message, then
 // shuts the server down. Exercises async/await, lambdas, native callback
-// marshalling, and the resource-cleanup path. Requires port 18765 free.
+// marshalling, and the resource-cleanup path. Requires ports 18765/18766 free.
+//
+// Requires MYT-113 (mtest async test support) to run under runNetworkTests.mt.
 import * from "../../lib/mtest/Mtest.mt";
 import * from "../../lib/net/TcpServer.mt";
 import * from "../../lib/net/TcpSocket.mt";
@@ -16,10 +18,10 @@ public class TcpEchoTest extends TestSuite {
         int port = 18765;
 
         TcpServer srv = new TcpServer();
-        srv.onConnection(conn -> {
+        srv.onConnection(async conn -> {
             try {
-                string data = conn.receive(1024);
-                conn.send("ECHO:" + data);
+                String data = await conn.receiveAsync(1024);
+                Int sent = await conn.sendAsync("ECHO:" + data.getValue());
             } catch (Exception e) {
                 print("server error: " + e.getMessage());
             }

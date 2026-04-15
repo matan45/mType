@@ -75,30 +75,29 @@ namespace net
         // Schedule a stored callback as a new event-loop task so its body can
         // `await` freely. Handles both a raw BytecodeLambda value and a wrapped
         // AsyncConsumer/Consumer ObjectInstance (call routed through .accept()).
+        // Invoke a stored callback directly. Runs on the VM thread from
+        // inside an event-loop post-callback (which holds queueMutex during
+        // tick processing), so we MUST NOT call EventLoop::scheduleTask /
+        // post here — both would re-lock the same mutex and deadlock. With
+        // the MYT-113 interop async path, invokeLambda / invokeMethod for
+        // an async target returns immediately on first suspension and the
+        // body resumes via promise continuations — no event-loop task wrap.
         void invokeCallback(std::shared_ptr<vm::runtime::VirtualMachine> vm,
                             const value::Value& cb, const value::Value& arg)
         {
             if (!vm) return;
-            auto* loop = vm->getEventLoop();
-            if (!loop) return;
 
             if (std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(cb))
             {
                 auto lambda = std::get<std::shared_ptr<vm::runtime::BytecodeLambda>>(cb);
                 if (!lambda) return;
-                loop->scheduleTask([vm, lambda, arg]() -> value::Value {
-                    try { return vm->invokeLambda(lambda, { arg }); }
-                    catch (...) { return std::monostate{}; }
-                });
+                try { vm->invokeLambda(lambda, { arg }); } catch (...) {}
             }
             else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(cb))
             {
                 auto inst = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(cb);
                 if (!inst) return;
-                loop->scheduleTask([vm, inst, arg]() -> value::Value {
-                    try { return vm->invokeMethod(inst, "accept", { arg }); }
-                    catch (...) { return std::monostate{}; }
-                });
+                try { vm->invokeMethod(inst, "accept", { arg }); } catch (...) {}
             }
         }
 
@@ -419,8 +418,6 @@ namespace net
 
         srv->start(static_cast<int>(port),
             [env, vm, loop, handle](uintptr_t clientFd) {
-                // Worker-thread context. Wrap FD as WinSocket, register, then
-                // post the user's mType callback to the event loop.
                 auto clientSock = std::make_shared<WinSocket>(clientFd);
                 int clientHandle = SocketRegistry::instance().registerSocket(clientSock);
                 if (!loop) return;
@@ -432,10 +429,7 @@ namespace net
                         auto inst = makeTcpSocketInstance(env, clientHandle);
                         invokeCallback(vm, cbs.onConnection, inst);
                     }
-                    catch (...)
-                    {
-                        // Swallow — surfacing here would crash the event loop.
-                    }
+                    catch (...) {}
                 });
             },
             [vm, loop, handle](const std::string& errMsg) {

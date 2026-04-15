@@ -10,6 +10,9 @@
 #include "utils/ExceptionHandler.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../value/AsyncPromiseValue.hpp"
+#include "../../value/PromiseValue.hpp"
 
 namespace vm::runtime
 {
@@ -101,6 +104,19 @@ namespace vm::runtime
 
             // Execute method (direct loop with UserException handling for try/catch support)
             instructionPointer = funcMetadata->startOffset;
+
+            // MYT-113: For async target methods, drive via the continuation-
+            // based interop async path so nested awaits work and the caller
+            // gets a Promise representing full body completion.
+            if (method->getIsAsync())
+            {
+                auto outerPromise = std::make_shared<value::AsyncPromiseValue>();
+                driveAsyncInvocation(outerPromise, savedIP, savedCallStack,
+                                     savedCurrentFinallyOffset, frameBase);
+                return value::Value(
+                    std::static_pointer_cast<value::PromiseValue>(outerPromise));
+            }
+
             value::Value result = std::monostate{};
             if (controlFlowExecutor)
             {
@@ -166,7 +182,9 @@ namespace vm::runtime
                 result = interpretLoop();
             }
 
-            // If suspended by await, don't restore state — EventLoop will resume
+            // If suspended by await (sync method that somehow awaited — kept
+            // for backwards compatibility), don't restore state — EventLoop
+            // will resume.
             if (suspendedByAwait)
             {
                 suspendedByAwait = false;
@@ -293,6 +311,17 @@ namespace vm::runtime
 
             // Execute method (direct loop with UserException handling for try/catch support)
             instructionPointer = funcMetadata->startOffset;
+
+            // MYT-113: Async target -> drive via the continuation path.
+            if (method->getIsAsync())
+            {
+                auto outerPromise = std::make_shared<value::AsyncPromiseValue>();
+                driveAsyncInvocation(outerPromise, savedIP, savedCallStack,
+                                     savedCurrentFinallyOffset, frameBase);
+                return value::Value(
+                    std::static_pointer_cast<value::PromiseValue>(outerPromise));
+            }
+
             value::Value result = std::monostate{};
             if (controlFlowExecutor)
             {

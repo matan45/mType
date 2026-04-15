@@ -175,14 +175,22 @@ namespace runtime {
     }
 
     bool EventLoop::tick() {
-        // Process callbacks from background threads
+        // Process callbacks from background threads. Drain the queue under
+        // the lock, then execute callbacks WITHOUT the lock held — callbacks
+        // may legitimately call post() / scheduleTask() / resumeTask() (e.g.
+        // a promise resolution that resumes a suspended task), all of which
+        // lock queueMutex themselves. Holding the lock across callback
+        // execution would re-lock it on the same thread and trigger
+        // resource_deadlock_would_occur.
+        std::deque<std::function<void()>> drained;
         {
             std::lock_guard<std::mutex> lock(queueMutex);
-            while (!pendingCallbacks.empty()) {
-                auto callback = pendingCallbacks.front();
-                pendingCallbacks.pop_front();
-                callback();
-            }
+            drained.swap(pendingCallbacks);
+        }
+        while (!drained.empty()) {
+            auto callback = std::move(drained.front());
+            drained.pop_front();
+            callback();
         }
 
         // Move delayed tasks that are ready

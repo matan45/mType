@@ -8677,11 +8677,20 @@
     <None Include="tests\testFiles\lib\mtest\annotations\Test.mt">
       <Filter>testFiles\lib\mtest\annotations</Filter>
     </None>
+    <None Include="tests\testFiles\lib\mtest\examples\AsyncAwaitRunnerTest.mt">
+      <Filter>testFiles\lib\mtest\examples</Filter>
+    </None>
     <None Include="tests\testFiles\lib\mtest\examples\CalculatorTest.mt">
+      <Filter>testFiles\lib\mtest\examples</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\mtest\examples\runAsyncAwaitRunnerTest.mt">
       <Filter>testFiles\lib\mtest\examples</Filter>
     </None>
     <None Include="tests\testFiles\lib\mtest\examples\runCalculatorTest.mt">
       <Filter>testFiles\lib\mtest\examples</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\net\AsyncConsumer.mt">
+      <Filter>testFiles\lib\net</Filter>
     </None>
     <None Include="tests\testFiles\lib\net\Http.mt">
       <Filter>testFiles\lib\net</Filter>

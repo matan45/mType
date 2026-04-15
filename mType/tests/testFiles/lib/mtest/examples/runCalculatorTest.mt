@@ -4,4 +4,4 @@ import * from "./CalculatorTest.mt";
 
 TestRunner runner = new TestRunner();
 runner.addClass("CalculatorTest");
-runner.run();
+await runner.run();

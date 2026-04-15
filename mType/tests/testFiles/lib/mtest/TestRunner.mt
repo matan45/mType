@@ -3,7 +3,7 @@
 // Usage:
 //   TestRunner r = new TestRunner();
 //   r.addClass("CalculatorTest");
-//   r.run();   // returns ArrayList<TestSuiteResult>
+//   await r.run();   // returns ArrayList<TestSuiteResult>
 //
 // Discovery is explicit: callers enumerate suite class names. mType lacks a
 // "scan all loaded classes" native, so auto-discovery is a separate concern.
@@ -14,6 +14,7 @@
 // message; any other Exception is FAIL with "unexpected: ..." unless
 // @Test(expected=...) matched the thrown class name.
 import * from "../collections/ArrayList.mt";
+import * from "../primitives/Int.mt";
 import * from "../primitives/String.mt";
 import * from "../reflect/Class.mt";
 import * from "../reflect/Method.mt";
@@ -46,14 +47,14 @@ public class TestRunner {
         return this;
     }
 
-    public function run(): ArrayList<TestSuiteResult> {
+    public function async run(): Promise<ArrayList<TestSuiteResult>> {
         int totalPassed = 0;
         int totalFailed = 0;
         int totalSkipped = 0;
 
         for (int i = 0; i < this._classNames.size(); i = i + 1) {
             string name = this._classNames.get(i).getValue();
-            TestSuiteResult suiteResult = this._runSuite(name);
+            TestSuiteResult suiteResult = await this._runSuite(name);
             this._suiteResults.add(suiteResult);
             suiteResult.printSummary();
             totalPassed = totalPassed + suiteResult.getPassedCount();
@@ -75,19 +76,19 @@ public class TestRunner {
     // Returns an exit-code style int (0 = all passed, 1 = any failure) so
     // callers can feed a CI gate. The runner does NOT terminate the process
     // — mType has no exit() native — the caller threads the code as needed.
-    public function runAndReturnExitCode(): int {
-        this.run();
+    public function async runAndReturnExitCode(): Promise<Int> {
+        await this.run();
         int failed = 0;
         for (int i = 0; i < this._suiteResults.size(); i = i + 1) {
             failed = failed + this._suiteResults.get(i).getFailedCount();
         }
         if (failed == 0) {
-            return 0;
+            return new Int(0);
         }
-        return 1;
+        return new Int(1);
     }
 
-    function _runSuite(string className): TestSuiteResult {
+    function async _runSuite(string className): Promise<TestSuiteResult> {
         TestSuiteResult suiteResult = new TestSuiteResult(className);
         Class cls = Class::forName(className);
         Method[] allMethods = cls.getDeclaredMethods();
@@ -119,23 +120,23 @@ public class TestRunner {
             return suiteResult;
         }
 
-        string beforeAllFailure = this._invokeAll(beforeAll, bootstrap);
-        if (beforeAllFailure != "") {
+        String beforeAllFailure = await this._invokeAll(beforeAll, bootstrap);
+        if (beforeAllFailure.getValue() != "") {
             for (int i = 0; i < tests.length; i = i + 1) {
                 TestResult r = new TestResult(className, tests[i].getName());
-                r.markFailed("BeforeAll failed: " + beforeAllFailure);
+                r.markFailed("BeforeAll failed: " + beforeAllFailure.getValue());
                 suiteResult.addResult(r);
             }
-            this._invokeAll(afterAll, bootstrap);
+            await this._invokeAll(afterAll, bootstrap);
             return suiteResult;
         }
 
         for (int t = 0; t < tests.length; t = t + 1) {
-            TestResult result = this._runOneTest(cls, tests[t], beforeEach, afterEach);
+            TestResult result = await this._runOneTest(cls, tests[t], beforeEach, afterEach);
             suiteResult.addResult(result);
         }
 
-        this._invokeAll(afterAll, bootstrap);
+        await this._invokeAll(afterAll, bootstrap);
         return suiteResult;
     }
 
@@ -169,20 +170,24 @@ public class TestRunner {
     // Invoke a set of hook methods in declaration order. Returns "" on full
     // success, or the first exception's message (prefixed with method name)
     // on failure so the caller can annotate dependent results.
-    function _invokeAll(Method[] hooks, Object instance): string {
+    function async _invokeAll(Method[] hooks, Object instance): Promise<String> {
         for (int i = 0; i < hooks.length; i = i + 1) {
             Method m = hooks[i];
             try {
                 Object[] noArgs = new Object[0];
-                m.invoke(instance, noArgs);
+                if (m.isAsync()) {
+                    await m.invoke(instance, noArgs);
+                } else {
+                    m.invoke(instance, noArgs);
+                }
             } catch (Exception e) {
-                return m.getName() + ": " + e.getMessage();
+                return new String(m.getName() + ": " + e.getMessage());
             }
         }
-        return "";
+        return new String("");
     }
 
-    function _runOneTest(Class cls, Method testMethod, Method[] beforeEach, Method[] afterEach): TestResult {
+    function async _runOneTest(Class cls, Method testMethod, Method[] beforeEach, Method[] afterEach): Promise<TestResult> {
         TestResult result = new TestResult(cls.getName(), testMethod.getName());
 
         if (testMethod.hasAnnotation("Disabled")) {
@@ -217,10 +222,10 @@ public class TestRunner {
             return result;
         }
 
-        string beforeFailure = this._invokeAll(beforeEach, instance);
-        if (beforeFailure != "") {
-            result.markFailed("BeforeEach failed: " + beforeFailure);
-            this._invokeAll(afterEach, instance);
+        String beforeFailure = await this._invokeAll(beforeEach, instance);
+        if (beforeFailure.getValue() != "") {
+            result.markFailed("BeforeEach failed: " + beforeFailure.getValue());
+            await this._invokeAll(afterEach, instance);
             return result;
         }
 
@@ -230,7 +235,11 @@ public class TestRunner {
         string actualExcName = "";
         try {
             Object[] noArgs = new Object[0];
-            testMethod.invoke(instance, noArgs);
+            if (testMethod.isAsync()) {
+                await testMethod.invoke(instance, noArgs);
+            } else {
+                testMethod.invoke(instance, noArgs);
+            }
         } catch (AssertionFailedException afe) {
             threw = true;
             assertionFailure = true;
@@ -242,7 +251,7 @@ public class TestRunner {
             actualExcName = ExceptionName::of(e);
         }
 
-        string afterFailure = this._invokeAll(afterEach, instance);
+        String afterFailure = await this._invokeAll(afterEach, instance);
 
         if (assertionFailure) {
             result.markFailedWithActual(failureMsg, actualExcName);
@@ -266,8 +275,8 @@ public class TestRunner {
             }
         }
 
-        if (afterFailure != "" && result.isPassed()) {
-            result.markFailed("AfterEach failed: " + afterFailure);
+        if (afterFailure.getValue() != "" && result.isPassed()) {
+            result.markFailed("AfterEach failed: " + afterFailure.getValue());
         }
 
         return result;

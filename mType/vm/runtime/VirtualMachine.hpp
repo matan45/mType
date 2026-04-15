@@ -57,6 +57,11 @@ namespace errors {
     class UserException;
 }
 
+// Forward declaration for async promise (MYT-113 interop)
+namespace value {
+    class AsyncPromiseValue;
+}
+
 namespace vm::runtime
 {
     /**
@@ -103,6 +108,20 @@ namespace vm::runtime
             std::string errorMessage;
         };
         std::optional<PendingAwaitRejection> pendingAwaitRejection;
+
+        // MYT-113: Async-interop mode. When true, executeAwait stores the
+        // awaited promise here and sets suspendedByAwait WITHOUT registering
+        // event-loop callbacks or calling suspendCurrentTask. invokeMethod /
+        // invokeStaticMethod / invokeLambda use this to drive an async body
+        // through nested awaits via continuations chained on the awaited
+        // promise, settling an outer Promise<T> only when the body completes.
+        bool inInteropAsyncMode = false;
+        std::shared_ptr<value::AsyncPromiseValue> interopAwaitedPromise;
+        // Rejection from a previous interop suspension's catch_ continuation,
+        // consumed at the start of the next driveAsyncInvocation call.
+        // Kept separate from pendingAwaitRejection (which the outer loop
+        // uses) so the two can't clobber each other.
+        std::optional<PendingAwaitRejection> interopPendingRejection;
 
         // Execution statistics
         ExecutionStats stats;
@@ -165,6 +184,23 @@ namespace vm::runtime
 
         // C++ Interop API - Object creation and method invocation
         value::Value createObject(const std::string& className, const std::vector<value::Value>& args);
+
+    private:
+        // MYT-113: Drive an async method/lambda body that may suspend on awaits.
+        // Called after the inner frame has been pushed and instructionPointer
+        // is set to the body start. Runs the inner loop in interop async mode;
+        // on suspension, registers a continuation on the awaited promise that
+        // restores the inner frame state and re-enters this driver, eventually
+        // settling `outerPromise` when the body fully completes (or throws).
+        // Returns immediately after the first suspension or upon completion.
+        void driveAsyncInvocation(
+            std::shared_ptr<value::AsyncPromiseValue> outerPromise,
+            size_t outerSavedIP,
+            std::vector<CallFrame> outerSavedCallStack,
+            size_t outerSavedFinally,
+            size_t frameBase);
+
+    public:
         value::Value invokeMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                  const std::string& methodName,
                                  const std::vector<value::Value>& args);
