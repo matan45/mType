@@ -29,7 +29,7 @@ function gcd(int a, int b): int {
 }
 
 int fibRes = fib(32);
-int ackRes = 0;
+int ackRes = ack(3, 8);
 
 int gcdSum = 0;
 int pairs = 50000;
