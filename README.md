@@ -259,6 +259,33 @@ Hardware-accelerated array operations (3-8× faster for arrays ≥16 elements):
 - **SIMD-Optimized**: Field-oriented memory layout
 - **Sub-Array Views**: Zero-copy array slicing
 
+## 📊 Benchmarking
+
+Measure interpreter performance with the built-in benchmark suite:
+
+```bash
+# Run all 5 canonical benchmarks with 1 warmup + 3 measured iterations each
+mType --benchmark
+
+# Run a single benchmark script
+mType --benchmark=mType/tests/testFiles/benchmarks/recursive.mt
+
+# Disable JIT to capture a pure-interpreter baseline
+mType --benchmark --no-jit
+
+# JSON output (for CI diffing)
+mType --benchmark --benchmark-output=json
+```
+
+The suite reports wall-clock time plus `ExecutionStats` (instructions,
+function calls, string/array pool deltas) for:
+`arithmetic_tight_loop`, `method_dispatch`, `object_alloc`, `string_ops`,
+`recursive`.
+
+See [`docs/benchmarks.md`](docs/benchmarks.md) for flags, interpreting
+output, and updating the committed baseline at
+[`docs/bench-baseline.md`](docs/bench-baseline.md).
+
 ## 🛠️ Editor & IDE Support
 
 ### Language Server Protocol (LSP)
@@ -730,10 +757,10 @@ Null safety features:
 - ✅ Value Types (value classes with copy semantics, structural equality, lightweight runtime)
 - ✅ Null Safety (non-nullable by default, `?` suffix, smart casts, compile-time enforcement)
 - ✅ Project System (`.mtproj` with glob patterns, library builds, auto-discovery)
+- ✅ Performance Benchmarking Suite (`--benchmark` flag, 5 canonical scripts, committed baseline)
 
 ### In Progress
 - 🚧 Standard Library Expansion
-- 🚧 Performance Benchmarking Suite
 - 🚧 Documentation Portal
 - 🚧 LSP: Additional Features (go-to-definition, find references, formatting)
 
