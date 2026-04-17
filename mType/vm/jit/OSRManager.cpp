@@ -6,42 +6,10 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
-#include <cstdlib>
-#include <iostream>
-#include <new>
-#include <sstream>
 
 namespace vm::jit
 {
-    // MYT-153: opt-in runtime tracing for OSR transitions. Enabled by setting
-    // the MTYPE_JIT_OSR_TRACE environment variable to any non-empty value.
-    // When disabled the per-event check is a single atomic load, so the hot
-    // path stays free of overhead.
-    static bool osrTraceEnabled()
-    {
-        static const bool enabled = []() {
-            const char* v = std::getenv("MTYPE_JIT_OSR_TRACE");
-            return v != nullptr && v[0] != '\0';
-        }();
-        return enabled;
-    }
-
-    static std::string formatValueForTrace(const value::Value& val)
-    {
-        std::ostringstream os;
-        if (std::holds_alternative<int64_t>(val))
-            os << std::get<int64_t>(val);
-        else if (std::holds_alternative<double>(val))
-            os << std::get<double>(val);
-        else if (std::holds_alternative<bool>(val))
-            os << (std::get<bool>(val) ? "true" : "false");
-        else if (std::holds_alternative<std::string>(val))
-            os << '"' << std::get<std::string>(val) << '"';
-        else
-            os << "<non-primitive>";
-        return os.str();
-    }
-
+    
     OSRManager::OSRManager() {}
     OSRManager::~OSRManager() {}
 
@@ -347,21 +315,6 @@ namespace vm::jit
                                      vm::runtime::VirtualMachine& vm,
                                      JitCodeCache& codeCache)
     {
-        const bool trace = osrTraceEnabled();
-        if (trace)
-        {
-            std::cerr << "[osr] executeOSRLoop: fn=" << state.functionName
-                      << " jumpBack=0x" << std::hex << state.jumpBackOffset
-                      << " range=[0x" << state.loopStartOffset
-                      << ",0x" << state.loopEndOffset << "]"
-                      << std::dec << " localCount=" << state.localCount << "\n";
-            for (const auto& slotInfo : state.locals)
-            {
-                std::cerr << "[osr]   captured local[" << slotInfo.slot
-                          << "] = " << formatValueForTrace(slotInfo.value) << "\n";
-            }
-        }
-
         // Allocate input/output Value arrays
         std::vector<value::Value> inputLocals(state.localCount);
         std::vector<value::Value> outputLocals(state.localCount);
@@ -388,29 +341,6 @@ namespace vm::jit
         try
         {
             func(&jitCtx);
-
-            if (trace)
-            {
-                std::cerr << "[osr] post-jit: osrExited=" << (jitCtx.osrExited ? 1 : 0)
-                          << " osrExitOffset=0x" << std::hex << jitCtx.osrExitOffset
-                          << std::dec << "\n";
-                for (size_t i = 0; i < state.localCount; ++i)
-                {
-                    std::cerr << "[osr]   output local[" << i << "] = "
-                              << formatValueForTrace(outputLocals[i]);
-                    // Highlight when the JIT produced identical bytes to the
-                    // input — symptom of "writeback never executed or wrote
-                    // captured value unchanged".
-                    if (std::holds_alternative<int64_t>(outputLocals[i]) &&
-                        std::holds_alternative<int64_t>(inputLocals[i]) &&
-                        std::get<int64_t>(outputLocals[i])
-                            == std::get<int64_t>(inputLocals[i]))
-                    {
-                        std::cerr << " (== input)";
-                    }
-                    std::cerr << "\n";
-                }
-            }
 
             if (jitCtx.osrExited)
             {
@@ -460,15 +390,7 @@ namespace vm::jit
                                      const OSRState& state,
                                      vm::runtime::ExecutionContext& context)
     {
-        const bool trace = osrTraceEnabled();
         size_t localBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
-
-        if (trace)
-        {
-            std::cerr << "[osr] writeBackState: resumeIP=0x" << std::hex << result.resumeIP
-                      << std::dec << " localBase=" << localBase
-                      << " updatedCount=" << result.updatedLocals.size() << "\n";
-        }
 
         // Write each updated local back to the interpreter stack
         for (size_t i = 0; i < result.updatedLocals.size() && i < state.localCount; ++i)
@@ -476,11 +398,6 @@ namespace vm::jit
             size_t stackIdx = localBase + i;
             if (stackIdx < context.stackManager->size())
             {
-                if (trace)
-                {
-                    std::cerr << "[osr]   write stack[" << stackIdx << "] (slot " << i
-                              << ") = " << formatValueForTrace(result.updatedLocals[i]) << "\n";
-                }
                 context.stackManager->getStack()[stackIdx] = result.updatedLocals[i];
             }
         }
