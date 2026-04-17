@@ -51,22 +51,22 @@ namespace vm::runtime
 
         // Arithmetic - delegated to ArithmeticExecutor
         case OpCode::ADD:
-            trySpecializeArithmetic(instr, OpCode::ADD_INT);
+            trySpecializeArithmetic(instr, OpCode::ADD_INT, OpCode::ADD_FLOAT);
             arithmeticExecutor->handleAdd();
             break;
         case OpCode::STRING_BUILD:
             arithmeticExecutor->handleStringBuild(static_cast<size_t>(instr.operands[0]));
             break;
         case OpCode::SUB:
-            trySpecializeArithmetic(instr, OpCode::SUB_INT);
+            trySpecializeArithmetic(instr, OpCode::SUB_INT, OpCode::SUB_FLOAT);
             arithmeticExecutor->handleSub();
             break;
         case OpCode::MUL:
-            trySpecializeArithmetic(instr, OpCode::MUL_INT);
+            trySpecializeArithmetic(instr, OpCode::MUL_INT, OpCode::MUL_FLOAT);
             arithmeticExecutor->handleMul();
             break;
         case OpCode::DIV:
-            trySpecializeArithmetic(instr, OpCode::DIV_INT);
+            trySpecializeArithmetic(instr, OpCode::DIV_INT, OpCode::DIV_FLOAT);
             arithmeticExecutor->handleDiv();
             break;
         case OpCode::MOD: arithmeticExecutor->handleMod();
@@ -84,6 +84,14 @@ namespace vm::runtime
         case OpCode::MUL_INT: arithmeticExecutor->handleMulInt();
             break;
         case OpCode::DIV_INT: arithmeticExecutor->handleDivInt();
+            break;
+        case OpCode::ADD_FLOAT: arithmeticExecutor->handleAddFloat();
+            break;
+        case OpCode::SUB_FLOAT: arithmeticExecutor->handleSubFloat();
+            break;
+        case OpCode::MUL_FLOAT: arithmeticExecutor->handleMulFloat();
+            break;
+        case OpCode::DIV_FLOAT: arithmeticExecutor->handleDivFloat();
             break;
 
         // Comparison - delegated to ComparisonExecutor
@@ -158,6 +166,9 @@ namespace vm::runtime
         case OpCode::CALL:
             executeCallWithJit(instr);
             break;
+        case OpCode::CALL_FAST:
+            functionExecutor->handleCallFast(instr);
+            break;
         case OpCode::CALL_STATIC: functionExecutor->handleCallStatic(instr);
             break;
 
@@ -186,11 +197,18 @@ namespace vm::runtime
             else
                 objectExecutor->handleInlineSetField(instr);
             break;
+        case OpCode::INLINE_GET_FIELD:
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleInlineGetFieldIC(instr);
+            else
+                objectExecutor->handleInlineGetField(instr);
+            break;
         case OpCode::GET_STATIC: objectExecutor->handleGetStatic(instr);
             break;
         case OpCode::SET_STATIC: objectExecutor->handleSetStatic(instr);
             break;
         case OpCode::CALL_METHOD:
+        case OpCode::INVOKE:
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleCallMethodIC(instr);
             else

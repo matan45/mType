@@ -169,6 +169,69 @@ namespace vm::runtime
         context.stackManager->push(l / r);
     }
 
+    void ArithmeticExecutor::handleAddFloat() {
+        if (context.stackManager->size() < 2) {
+            throw errors::RuntimeException("Stack underflow: ADD_FLOAT requires 2 values");
+        }
+        const auto& right = context.stackManager->peek(0);
+        const auto& left = context.stackManager->peek(1);
+        if (!std::holds_alternative<double>(left) || !std::holds_alternative<double>(right)) {
+            handleAdd();
+            return;
+        }
+        double r = std::get<double>(context.stackManager->pop());
+        double l = std::get<double>(context.stackManager->pop());
+        context.stackManager->push(l + r);
+    }
+
+    void ArithmeticExecutor::handleSubFloat() {
+        if (context.stackManager->size() < 2) {
+            throw errors::RuntimeException("Stack underflow: SUB_FLOAT requires 2 values");
+        }
+        const auto& right = context.stackManager->peek(0);
+        const auto& left = context.stackManager->peek(1);
+        if (!std::holds_alternative<double>(left) || !std::holds_alternative<double>(right)) {
+            handleSub();
+            return;
+        }
+        double r = std::get<double>(context.stackManager->pop());
+        double l = std::get<double>(context.stackManager->pop());
+        context.stackManager->push(l - r);
+    }
+
+    void ArithmeticExecutor::handleMulFloat() {
+        if (context.stackManager->size() < 2) {
+            throw errors::RuntimeException("Stack underflow: MUL_FLOAT requires 2 values");
+        }
+        const auto& right = context.stackManager->peek(0);
+        const auto& left = context.stackManager->peek(1);
+        if (!std::holds_alternative<double>(left) || !std::holds_alternative<double>(right)) {
+            handleMul();
+            return;
+        }
+        double r = std::get<double>(context.stackManager->pop());
+        double l = std::get<double>(context.stackManager->pop());
+        context.stackManager->push(l * r);
+    }
+
+    void ArithmeticExecutor::handleDivFloat() {
+        if (context.stackManager->size() < 2) {
+            throw errors::RuntimeException("Stack underflow: DIV_FLOAT requires 2 values");
+        }
+        const auto& right = context.stackManager->peek(0);
+        const auto& left = context.stackManager->peek(1);
+        if (!std::holds_alternative<double>(left) || !std::holds_alternative<double>(right)) {
+            handleDiv();
+            return;
+        }
+        double r = std::get<double>(context.stackManager->pop());
+        double l = std::get<double>(context.stackManager->pop());
+        if (r == 0.0) {
+            utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
+        }
+        context.stackManager->push(l / r);
+    }
+
     void ArithmeticExecutor::handleStringBuild(size_t count) {
         // Collect all segments from the stack (they are in reverse order)
         std::vector<value::Value> segments(count);

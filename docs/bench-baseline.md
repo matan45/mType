@@ -3,34 +3,79 @@
 Committed min wall-clock numbers from `mType.exe --benchmark`.
 See `docs/benchmarks.md` for how to update.
 
-> **Note:** the first entry below is a placeholder ready to be filled in
-> after the first dev-machine run. Replace the `...` values and iteration
-> counts that land outside the 1-5s target band; commit the result.
+## 2026-04-17 — initial baseline
 
-## YYYY-MM-DD — initial baseline (to be filled in)
-
-- Machine: `<CPU, RAM cores, OS>`
-- Commit:  `<sha>`
+- Machine: dev machine (Windows 11 Home)
+- Commit:  `107b1727`
 - Build:   Release x64, MSVC v145
-- Invocation: `mType.exe --benchmark` for jit=on, `mType.exe --benchmark --no-jit` for jit=off
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
 
-| Script                    | Wall min (ms) | exec (ms) | Instructions | Calls | JIT |
-|---------------------------|--------------:|----------:|-------------:|------:|-----|
-| arithmetic_tight_loop.mt  |           ... |       ... |          ... |   ... | on  |
-| arithmetic_tight_loop.mt  |           ... |       ... |          ... |   ... | off |
-| method_dispatch.mt        |           ... |       ... |          ... |   ... | on  |
-| method_dispatch.mt        |           ... |       ... |          ... |   ... | off |
-| object_alloc.mt           |           ... |       ... |          ... |   ... | on  |
-| object_alloc.mt           |           ... |       ... |          ... |   ... | off |
-| string_ops.mt             |           ... |       ... |          ... |   ... | on  |
-| string_ops.mt             |           ... |       ... |          ... |   ... | off |
-| recursive.mt              |           ... |       ... |          ... |   ... | on  |
-| recursive.mt              |           ... |       ... |          ... |   ... | off |
+| Script                    | Wall min (ms) | exec (ms) | Instructions | Calls   | JIT |
+|---------------------------|-------------:|-----------:|-------------:|--------:|-----|
+| arithmetic_tight_loop.mt  |      5406.80 |   5406.77 |    236000031 |       0 | on  |
+| method_dispatch.mt        |      2212.44 |   2224.66 |     52000048 | 2000006 | on  |
+| object_alloc.mt           |      5764.47 |   6087.09 |     62000018 | 2000000 | on  |
+| string_ops.mt             |       541.69 |    553.50 |     20320032 |       0 | on  |
+| recursive.mt              |      1811.84 |   1811.07 |      1303765 | 2813094 | on  |
+
+### Summary
+
+| Script                    | min(ms) | median(ms) | Instructions | Calls   |
+|---------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt  | 5406.80 |    5407.46 |    236000031 |       0 |
+| method_dispatch.mt        | 2212.44 |    2225.57 |     52000048 | 2000006 |
+| object_alloc.mt           | 5764.47 |    6087.77 |     62000018 | 2000000 |
+| string_ops.mt             |  541.69 |     553.59 |     20320032 |       0 |
+| recursive.mt              | 1811.84 |    1812.78 |      1303765 | 2813094 |
 
 ### Sanity outputs (must match on re-run for same commit)
 
-- `arithmetic_tight_loop.mt`: `intSum=...` and float sum line
-- `method_dispatch.mt`: `acc=...`
-- `object_alloc.mt`: `total=...`
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
 - `string_ops.mt`: `concat_iters=20000 matches=1000000`
-- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=...`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+
+## 2026-04-17 — post MYT-120/121/122/123/124 (CALL_FAST bypasses JIT, see MYT-135)
+
+- Machine: dev machine (Windows 11 Home)
+- Commit:  `107b1727` (uncommitted)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+- Note: `recursive.mt` regressed because CALL_FAST bypasses JIT (MYT-135 workaround)
+
+| Script                    | Wall min (ms) | exec (ms) | Instructions | Calls    | JIT |
+|---------------------------|-------------:|-----------:|-------------:|---------:|-----|
+| arithmetic_tight_loop.mt  |      5278.71 |   5277.91 |    236000031 |        0 | on  |
+| method_dispatch.mt        |      2191.63 |   2190.69 |     52000048 |  2000006 | on  |
+| object_alloc.mt           |      5769.75 |   5913.26 |     62000018 |  2000000 | on  |
+| string_ops.mt             |       536.47 |    536.19 |     20320032 |        0 | on  |
+| recursive.mt              |      3472.62 |   3520.40 |    123974871 | 10410438 | on  |
+
+### Summary
+
+| Script                    | min(ms) | median(ms) | Instructions | Calls    |
+|---------------------------|--------:|-----------:|-------------:|---------:|
+| arithmetic_tight_loop.mt  | 5278.71 |    5292.34 |    236000031 |        0 |
+| method_dispatch.mt        | 2191.63 |    2206.23 |     52000048 |  2000006 |
+| object_alloc.mt           | 5769.75 |    5913.91 |     62000018 |  2000000 |
+| string_ops.mt             |  536.47 |     537.03 |     20320032 |        0 |
+| recursive.mt              | 3472.62 |    3492.58 |    123974871 | 10410438 |
+
+### Delta vs initial baseline
+
+| Script                    | Before (ms) | After (ms) | Change |
+|---------------------------|------------:|-----------:|-------:|
+| arithmetic_tight_loop.mt  |     5406.80 |    5278.71 | -2.4%  |
+| method_dispatch.mt        |     2212.44 |    2191.63 | -0.9%  |
+| object_alloc.mt           |     5764.47 |    5769.75 | +0.1%  |
+| string_ops.mt             |      541.69 |     536.47 | -1.0%  |
+| recursive.mt              |     1811.84 |    3472.62 | +91.7% (REGRESSED — MYT-135) |
+
+### Sanity outputs (must match on re-run for same commit)
+
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
+- `string_ops.mt`: `concat_iters=20000 matches=1000000`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`

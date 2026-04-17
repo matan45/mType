@@ -93,17 +93,25 @@ namespace vm::compiler::emission
         }
     }
 
-    bytecode::OpCode BytecodeEmitter::getBinaryOpCode(token::TokenType op, bool typeSpecialized)
+    bytecode::OpCode BytecodeEmitter::getBinaryOpCode(token::TokenType op, ArithmeticSpecialization spec)
     {
         switch (op) {
             case token::TokenType::PLUS:
-                return typeSpecialized ? bytecode::OpCode::ADD_INT : bytecode::OpCode::ADD;
+                if (spec == ArithmeticSpecialization::INT) return bytecode::OpCode::ADD_INT;
+                if (spec == ArithmeticSpecialization::FLOAT) return bytecode::OpCode::ADD_FLOAT;
+                return bytecode::OpCode::ADD;
             case token::TokenType::MINUS:
-                return typeSpecialized ? bytecode::OpCode::SUB_INT : bytecode::OpCode::SUB;
+                if (spec == ArithmeticSpecialization::INT) return bytecode::OpCode::SUB_INT;
+                if (spec == ArithmeticSpecialization::FLOAT) return bytecode::OpCode::SUB_FLOAT;
+                return bytecode::OpCode::SUB;
             case token::TokenType::MULTIPLY:
-                return typeSpecialized ? bytecode::OpCode::MUL_INT : bytecode::OpCode::MUL;
+                if (spec == ArithmeticSpecialization::INT) return bytecode::OpCode::MUL_INT;
+                if (spec == ArithmeticSpecialization::FLOAT) return bytecode::OpCode::MUL_FLOAT;
+                return bytecode::OpCode::MUL;
             case token::TokenType::DIVIDE:
-                return typeSpecialized ? bytecode::OpCode::DIV_INT : bytecode::OpCode::DIV;
+                if (spec == ArithmeticSpecialization::INT) return bytecode::OpCode::DIV_INT;
+                if (spec == ArithmeticSpecialization::FLOAT) return bytecode::OpCode::DIV_FLOAT;
+                return bytecode::OpCode::DIV;
             case token::TokenType::MODULO:
                 return bytecode::OpCode::MOD;
             case token::TokenType::EQUALS:

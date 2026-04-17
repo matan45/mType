@@ -230,6 +230,31 @@ namespace vm::runtime
         instance->setField(fieldName, newValue);
     }
 
+    void ObjectExecutor::handleInlineGetField(const bytecode::BytecodeProgram::Instruction& instr) {
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        value::Value objectValue = context.stackManager->pop();
+
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
+            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+            context.stackManager->push(instance->getFieldValue(fieldName));
+        } else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
+            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+            context.stackManager->push(valueObj->getFieldValue(fieldName));
+        } else {
+            // Fallback: auto-box primitive and read field
+            objectValue = autoBoxPrimitive(objectValue, context.environment);
+            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
+                auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+                context.stackManager->push(instance->getFieldValue(fieldName));
+            } else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
+                auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+                context.stackManager->push(valueObj->getFieldValue(fieldName));
+            } else {
+                throw errors::RuntimeException("INLINE_GET_FIELD: cannot read field '" + fieldName + "' from non-object");
+            }
+        }
+    }
+
     void ObjectExecutor::handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
         if (instr.operands.empty()) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "GET_STATIC requires operand");

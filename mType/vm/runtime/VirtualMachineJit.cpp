@@ -279,7 +279,7 @@ namespace vm::runtime
 
     void VirtualMachine::trySpecializeArithmetic(
         const bytecode::BytecodeProgram::Instruction& instr,
-        bytecode::OpCode specializedOpcode)
+        bytecode::OpCode intOpcode, bytecode::OpCode floatOpcode)
     {
         if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 2)
             return;
@@ -293,7 +293,12 @@ namespace vm::runtime
         auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
         if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
         {
-            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = specializedOpcode;
+            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
+            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+        }
+        else if (lt == jit::ic::ObservedType::FLOAT && rt == jit::ic::ObservedType::FLOAT)
+        {
+            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = floatOpcode;
             inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
         }
     }
@@ -350,6 +355,57 @@ namespace vm::runtime
         }
         // Fall back to interpreter (uses managed call stack with overflow protection)
         functionExecutor->handleCall(instr);
+    }
+
+    void VirtualMachine::executeCallFastWithJit(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH)
+        {
+            const auto* funcMeta = program->getFunctionByIndex(instr.operands[0]);
+            if (funcMeta) {
+                auto jitCode = jitCodeCache->lookup(funcMeta->name);
+                if (jitCode)
+                {
+                    size_t argCount = instr.operands[1];
+
+                    std::vector<value::Value> args;
+                    args.reserve(argCount);
+                    for (size_t i = 0; i < argCount; ++i)
+                        args.push_back(stackManager->pop());
+                    std::reverse(args.begin(), args.end());
+
+                    jit::JitContext jitCtx{};
+                    jitCtx.args = args.data();
+                    jitCtx.argCount = args.size();
+                    jitCtx.hasReturnValue = false;
+                    jitCtx.program = program;
+                    jitCtx.stackManager = stackManager.get();
+                    jitCtx.environment = environment.get();
+                    jitCtx.vm = this;
+                    jitCtx.jitCodeCache = jitCodeCache.get();
+                    jitCtx.icTable = inlineCacheTable.get();
+
+                    size_t sepPos = funcMeta->name.find("::");
+                    if (sepPos != std::string::npos)
+                        jitCtx.callingClassName = funcMeta->name.substr(0, sepPos);
+
+                    ++jitNativeDepth;
+                    jitCode(&jitCtx);
+                    --jitNativeDepth;
+
+                    if (jitCtx.pendingException)
+                        std::rethrow_exception(jitCtx.pendingException);
+
+                    if (jitCtx.hasReturnValue)
+                        stackManager->push(jitCtx.returnValue);
+
+                    stats.functionCalls++;
+                    return;
+                }
+            }
+        }
+        functionExecutor->handleCallFast(instr);
     }
 
     void VirtualMachine::printJitStats() const

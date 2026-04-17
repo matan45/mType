@@ -225,6 +225,7 @@ namespace vm::bytecode
 
         // === Reserved for Future Use (161-255) ===
         // Opcodes reserved for future extensions
+        INLINE_GET_FIELD,   // Inlined trivial getter (operand: field name index, pushes field value)
 
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
@@ -320,6 +321,7 @@ namespace vm::bytecode
             case OpCode::GET_FIELD_FAST: return "GET_FIELD_FAST";
             case OpCode::SET_FIELD_FAST: return "SET_FIELD_FAST";
             case OpCode::INLINE_SET_FIELD: return "INLINE_SET_FIELD";
+            case OpCode::INLINE_GET_FIELD: return "INLINE_GET_FIELD";
             case OpCode::GET_STATIC: return "GET_STATIC";
             case OpCode::SET_STATIC: return "SET_STATIC";
             case OpCode::CALL_METHOD: return "CALL_METHOD";

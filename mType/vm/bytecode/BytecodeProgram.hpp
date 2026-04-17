@@ -35,9 +35,12 @@ namespace vm::bytecode
             uint8_t flags = 0; // Optimization flags (e.g., INSTR_FLAG_NONNULL_RECEIVER)
 
             // PERFORMANCE: Inline cache for method calls - avoids repeated hash lookups
-            // Cached after first resolution, used on subsequent calls
+            // Cached after first resolution, used on subsequent calls.
+            // Safe because the functions map is immutable after compilation.
             mutable const FunctionMetadata* cachedFuncMetadata = nullptr;
             mutable size_t cachedStartOffset = 0;
+            mutable const BytecodeProgram* cachedProgram = nullptr;
+            mutable size_t cachedProgramIndex = 0;
 
             Instruction();
             Instruction(OpCode op);
@@ -273,6 +276,8 @@ namespace vm::bytecode
         std::vector<Instruction> instructions;
         ConstantPool constantPool;
         std::unordered_map<std::string, FunctionMetadata> functions;
+        std::vector<std::string> functionIndexToName;
+        std::unordered_map<std::string, size_t> functionNameToIndex;
         std::unordered_map<size_t, SourceLocation> sourceLocations;
         std::vector<ClassMetadata> classes; // Class metadata for cached bytecode
         std::vector<InterfaceMetadata> interfaces; // Interface metadata for cached bytecode
@@ -316,6 +321,9 @@ namespace vm::bytecode
         void registerFunction(const std::string& name, const FunctionMetadata& metadata);
         const FunctionMetadata* getFunction(const std::string& name) const;
         const std::unordered_map<std::string, FunctionMetadata>& getFunctions() const;
+        size_t getFunctionIndex(const std::string& name) const;
+        const FunctionMetadata* getFunctionByIndex(size_t index) const;
+        size_t getFunctionCount() const;
 
         // Global Variable Management (for debugging)
         void registerGlobalVariable(const GlobalVariableMetadata& metadata);

@@ -417,6 +417,11 @@ namespace vm::bytecode
 
     void BytecodeProgram::registerFunction(const std::string& name, const FunctionMetadata& metadata) {
         functions[name] = metadata;
+        if (functionNameToIndex.find(name) == functionNameToIndex.end()) {
+            size_t idx = functionIndexToName.size();
+            functionIndexToName.push_back(name);
+            functionNameToIndex[name] = idx;
+        }
     }
 
     const BytecodeProgram::FunctionMetadata* BytecodeProgram::getFunction(const std::string& name) const {
@@ -426,6 +431,20 @@ namespace vm::bytecode
 
     const std::unordered_map<std::string, BytecodeProgram::FunctionMetadata>& BytecodeProgram::getFunctions() const {
         return functions;
+    }
+
+    size_t BytecodeProgram::getFunctionIndex(const std::string& name) const {
+        auto it = functionNameToIndex.find(name);
+        return it != functionNameToIndex.end() ? it->second : SIZE_MAX;
+    }
+
+    const BytecodeProgram::FunctionMetadata* BytecodeProgram::getFunctionByIndex(size_t index) const {
+        if (index >= functionIndexToName.size()) return nullptr;
+        return getFunction(functionIndexToName[index]);
+    }
+
+    size_t BytecodeProgram::getFunctionCount() const {
+        return functionIndexToName.size();
     }
 
     void BytecodeProgram::registerGlobalVariable(const GlobalVariableMetadata& metadata) {
@@ -914,7 +933,7 @@ namespace vm::bytecode
                 readAnnotationList(in, func.parameterAnnotations[j]);
             }
 
-            functions[name] = func;
+            registerFunction(name, func);
         }
     }
 

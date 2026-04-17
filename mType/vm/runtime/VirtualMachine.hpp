@@ -314,8 +314,9 @@ namespace vm::runtime
 
         // Extracted dispatch helpers (reduce executeInstruction size)
         void trySpecializeArithmetic(const bytecode::BytecodeProgram::Instruction& instr,
-                                     bytecode::OpCode specializedOpcode);
+                                     bytecode::OpCode intOpcode, bytecode::OpCode floatOpcode);
         void executeCallWithJit(const bytecode::BytecodeProgram::Instruction& instr);
+        void executeCallFastWithJit(const bytecode::BytecodeProgram::Instruction& instr);
         void executeAwait();
 
         // Helper methods (will be moved to utility classes)
