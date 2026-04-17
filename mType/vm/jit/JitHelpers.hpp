@@ -36,6 +36,7 @@ namespace vm::jit
     }
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount);
+    void jit_call_function_fast(JitContext* ctx, uint32_t funcIndex, size_t argCount);
 
     void jit_generic_add(value::Value* result, const value::Value* left, const value::Value* right);
     void jit_generic_sub(value::Value* result, const value::Value* left, const value::Value* right);

@@ -9817,9 +9817,6 @@
     <None Include="tests\testFiles\stringpool\string_pool_stress_test.mt">
       <Filter>testFiles\stringpool</Filter>
     </None>
-    <None Include="tests\testFiles\typeChecking\error\arrayCovariance.mt">
-      <Filter>testFiles\typeChecking\error</Filter>
-    </None>
     <None Include="tests\testFiles\typeChecking\error\arrayToScalarConversionError.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
@@ -10011,6 +10008,12 @@
     </None>
     <None Include="tests\testFiles\typeChecking\error\typeOverloadAmbiguous_error.mt">
       <Filter>testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\arrayCovariance.expected">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\arrayCovariance.mt">
+      <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\bitwiseOperators_pass.expected">
       <Filter>testFiles\typeChecking\pass</Filter>

@@ -172,6 +172,7 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::ARRAY_LENGTH),
             static_cast<uint8_t>(OpCode::CALL_STATIC),
             static_cast<uint8_t>(OpCode::CALL_METHOD),
+            static_cast<uint8_t>(OpCode::CALL_FAST),
             static_cast<uint8_t>(OpCode::INSTANCEOF),
             static_cast<uint8_t>(OpCode::CAST),
             static_cast<uint8_t>(OpCode::NEW_OBJECT),

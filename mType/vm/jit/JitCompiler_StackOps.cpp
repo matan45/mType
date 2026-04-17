@@ -67,6 +67,7 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::RETURN_VALUE),
 
             static_cast<uint8_t>(OpCode::CALL),
+            static_cast<uint8_t>(OpCode::CALL_FAST),
 
             static_cast<uint8_t>(OpCode::PUSH_STRING),
 

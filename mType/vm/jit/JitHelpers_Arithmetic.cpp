@@ -168,6 +168,44 @@ namespace vm::jit
         }
     }
 
+    void jit_call_function_fast(JitContext* ctx, uint32_t funcIndex, size_t argCount)
+    {
+        if (ctx->pendingException)
+            return;
+
+        try
+        {
+            const auto* meta = ctx->program->getFunctionByIndex(funcIndex);
+            if (!meta)
+                throw errors::RuntimeException(
+                    "JIT: invalid function index " + std::to_string(funcIndex));
+
+            // CALL_FAST only targets non-native user-defined bytecode functions
+            // (guaranteed by FunctionCallHelper.cpp emission conditions), so the
+            // mangled name is the authoritative dispatch key — matches the
+            // lookup done by VirtualMachine::executeCallFastWithJit.
+            const std::string& funcName =
+                meta->mangledName.empty() ? meta->name : meta->mangledName;
+
+            if (tryJitDispatch(ctx, funcName, argCount))
+                return;
+
+            if (ctx->vm)
+            {
+                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->hasReturnValue = true;
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
+    }
+
     void jit_generic_add(value::Value* result, const value::Value* left, const value::Value* right)
     {
         performGenericBinop(result, left, right, '+');

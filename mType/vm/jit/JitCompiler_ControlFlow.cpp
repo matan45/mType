@@ -281,6 +281,56 @@ namespace vm::jit
         return true;
     }
 
+    static bool emitCallFastOp(JitEmissionState& s,
+                                const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        auto& cc = s.cc;
+        uint32_t funcIndex = static_cast<uint32_t>(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        if (argCount > JitContext::MAX_CALL_ARGS)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+
+        const auto* calleeMeta = s.program.getFunctionByIndex(funcIndex);
+        if (!calleeMeta)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+        const std::string& returnType = calleeMeta->returnType;
+
+        bool isPrimReturn = (returnType == "int" || returnType == "float" ||
+                             returnType == "bool" || returnType == "void");
+        if (!isPrimReturn && !s.usesBoxedTypes)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+
+        emitBoxCallArgs(s, argCount);
+        emitPopAndDestroyArgs(s, argCount);
+
+        Gp fiReg = cc.new_gp64();
+        cc.mov(fiReg, static_cast<int64_t>(funcIndex));
+        Gp acReg = cc.new_gp64();
+        cc.mov(acReg, static_cast<int64_t>(argCount));
+
+        InvokeNode* callInv;
+        cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_function_fast),
+                  FuncSignature::build<void, JitContext*, uint32_t, size_t>());
+        callInv->set_arg(0, s.ctxPtr);
+        callInv->set_arg(1, fiReg);
+        callInv->set_arg(2, acReg);
+
+        if (returnType != "void")
+            emitCallReturnValue(s, returnType, isPrimReturn);
+
+        return true;
+    }
+
     bool emitControlFlowOps(JitEmissionState& s,
                             const bytecode::BytecodeProgram::Instruction& instr,
                             const ExitHandler& onExit)
@@ -387,6 +437,9 @@ namespace vm::jit
 
             case OpCode::CALL:
                 return emitCallOp(s, instr);
+
+            case OpCode::CALL_FAST:
+                return emitCallFastOp(s, instr);
 
             default:
                 return false;
