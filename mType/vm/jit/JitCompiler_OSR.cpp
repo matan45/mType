@@ -205,9 +205,16 @@ namespace vm::jit
             const auto& instr = program.getInstruction(ip);
             s.currentIP = ip;
 
-            if (bailoutOpcodes.count(static_cast<uint8_t>(instr.opcode)))
+            uint8_t opByte = static_cast<uint8_t>(instr.opcode);
+            if (bailoutOpcodes.count(opByte))
             {
+                // MYT-148: record WHICH opcode forced the bailout so
+                // --jit-stats can surface it. This is what turns the
+                // ambiguous "OSR failed: N" signal into an actionable
+                // per-loop diagnosis.
                 s.compileFailed = true;
+                s.osrBailoutReason = OSRBailoutReason::BAILOUT_OPCODE;
+                s.osrBailoutOpcode = opByte;
                 continue;
             }
 
@@ -215,6 +222,16 @@ namespace vm::jit
             if (emitArithmeticOps(s, instr)) continue;
             if (emitControlFlowOps(s, instr, osrExit)) continue;
             emitObjectOps(s, instr);
+
+            // If any of the emitters set compileFailed without attaching a
+            // specific reason (e.g. a sub-emitter hit an internal guard),
+            // record a generic CODEGEN_FAILURE so the profile still gets
+            // a non-NONE reason.
+            if (s.compileFailed && s.osrBailoutReason == OSRBailoutReason::NONE)
+            {
+                s.osrBailoutReason = OSRBailoutReason::CODEGEN_FAILURE;
+                s.osrBailoutOpcode = opByte;
+            }
         }
     }
 
@@ -224,7 +241,9 @@ namespace vm::jit
                              const std::vector<LocalSlotInfo>& localSlotInfos,
                              size_t localCount,
                              size_t loopStartOffset, size_t loopEndOffset,
-                             ic::TypeFeedbackCollector* typeFeedback)
+                             ic::TypeFeedbackCollector* typeFeedback,
+                             OSRBailoutReason& outReason,
+                             uint8_t& outOffendingOpcode)
     {
         std::unordered_map<size_t, SlotType> localTypes;
         emitOSRPrologue(cc, frame, ctxPtr, localSlotInfos, localCount, localTypes);
@@ -237,7 +256,9 @@ namespace vm::jit
         JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
                            frame.boxedBase, frame.progPtr,
                            frame.usesBoxedTypes, localCount, frame.localStride,
-                           0, {}, localTypes, false, 0, labels, program,
+                           0, {}, localTypes, false,
+                           OSRBailoutReason::NONE, 0,
+                           0, labels, program,
                            typeFeedback, {}, backEdges};
 
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
@@ -253,7 +274,13 @@ namespace vm::jit
         emitOSRCodegenLoop(s, osrExit, loopStartOffset, loopEndOffset, program);
 
         if (s.compileFailed)
+        {
+            outReason = (s.osrBailoutReason == OSRBailoutReason::NONE)
+                         ? OSRBailoutReason::CODEGEN_FAILURE
+                         : s.osrBailoutReason;
+            outOffendingOpcode = s.osrBailoutOpcode;
             return false;
+        }
 
         emitCleanup(s);
         cc.mov(byte_ptr(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
@@ -267,15 +294,27 @@ namespace vm::jit
                                       size_t localCount,
                                       const bytecode::BytecodeProgram& program,
                                       JitCodeCache& codeCache,
-                                      ic::TypeFeedbackCollector* typeFeedback)
+                                      ic::TypeFeedbackCollector* typeFeedback,
+                                      OSRBailoutReason* outReason,
+                                      uint8_t* outOffendingOpcode)
     {
+        // MYT-148: helper to record bailout reason + opcode for the caller
+        // (OSRManager) to attach to the LoopProfile. Single place to update.
+        auto reportBailout = [&](OSRBailoutReason reason, uint8_t opcode = 0)
+        {
+            if (outReason) *outReason = reason;
+            if (outOffendingOpcode) *outOffendingOpcode = opcode;
+        };
+
         std::string osrKey = "osr@" + std::to_string(jumpBackOffset);
         if (codeCache.contains(osrKey))
             return true;
 
-        if (!canCompileLoopOSR(loopStartOffset, loopEndOffset, program))
+        uint8_t offendingOpcode = 0;
+        if (!canCompileLoopOSR(loopStartOffset, loopEndOffset, program, &offendingOpcode))
         {
             bailoutCount++;
+            reportBailout(OSRBailoutReason::UNSUPPORTED_OPCODE, offendingOpcode);
             return false;
         }
 
@@ -284,6 +323,7 @@ namespace vm::jit
         if (localCount > MAX_LOCAL_COUNT)
         {
             bailoutCount++;
+            reportBailout(OSRBailoutReason::LOCAL_COUNT_EXCEEDED);
             return false;
         }
 
@@ -298,10 +338,14 @@ namespace vm::jit
         auto frame = setupOSRFrame(cc, program, localSlotInfos, localCount,
                                    loopStartOffset, loopEndOffset, ctxPtr);
 
+        OSRBailoutReason bodyReason = OSRBailoutReason::NONE;
+        uint8_t bodyOpcode = 0;
         if (!emitOSRBody(cc, ctxPtr, program, frame, localSlotInfos,
-                         localCount, loopStartOffset, loopEndOffset, typeFeedback))
+                         localCount, loopStartOffset, loopEndOffset, typeFeedback,
+                         bodyReason, bodyOpcode))
         {
             bailoutCount++;
+            reportBailout(bodyReason, bodyOpcode);
             return false;
         }
 

@@ -2,6 +2,7 @@
 #include "SlotType.hpp"
 #include "JitContext.hpp"
 #include "JitHelpers.hpp"
+#include "LoopProfiler.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../bytecode/OpCode.hpp"
 #include <asmjit/x86.h>
@@ -34,6 +35,11 @@ namespace vm::jit
         std::vector<SlotType> slotTypes;
         std::unordered_map<size_t, SlotType> localTypes;
         bool compileFailed = false;
+        // MYT-148: when compileFailed is set during OSR emission, record which
+        // gate tripped so compileLoopOSR can mark the loop profile with a
+        // diagnosable reason. Ignored by function-level compilation.
+        OSRBailoutReason osrBailoutReason = OSRBailoutReason::NONE;
+        uint8_t osrBailoutOpcode = 0;
         size_t currentIP = 0;
         std::unordered_map<size_t, asmjit::Label> labels;
 

@@ -7,6 +7,7 @@
 #include "JitContext.hpp"
 #include "SlotType.hpp"
 #include "OSRState.hpp"
+#include "LoopProfiler.hpp"
 namespace vm::jit::ic { class TypeFeedbackCollector; }
 #include "../bytecode/BytecodeProgram.hpp"
 #include <asmjit/x86.h>
@@ -26,6 +27,9 @@ namespace vm::jit
         size_t getCompileCount() const { return compileCount; }
         size_t getBailoutCount() const { return bailoutCount; }
 
+        // MYT-148: extra out-parameters so the caller (OSRManager) can record
+        // WHICH gate rejected the loop in the LoopProfile for --jit-stats.
+        // Defaults preserve pre-MYT-148 behavior for any other call site.
         bool compileLoopOSR(size_t loopStartOffset,
                             size_t loopEndOffset,
                             size_t jumpBackOffset,
@@ -33,14 +37,19 @@ namespace vm::jit
                             size_t localCount,
                             const bytecode::BytecodeProgram& program,
                             JitCodeCache& codeCache,
-                            ic::TypeFeedbackCollector* typeFeedback = nullptr);
+                            ic::TypeFeedbackCollector* typeFeedback = nullptr,
+                            OSRBailoutReason* outReason = nullptr,
+                            uint8_t* outOffendingOpcode = nullptr);
 
     private:
         bool canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
                         const bytecode::BytecodeProgram& program) const;
 
+        // Returns true if every opcode in [start, end] is JIT-supported. On
+        // failure, *outOpcode (if non-null) gets the offending opcode byte.
         bool canCompileLoopOSR(size_t loopStartOffset, size_t loopEndOffset,
-                               const bytecode::BytecodeProgram& program) const;
+                               const bytecode::BytecodeProgram& program,
+                               uint8_t* outOpcode = nullptr) const;
 
         static const std::unordered_set<uint8_t>& getSupportedOpcodes();
 

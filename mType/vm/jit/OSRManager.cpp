@@ -18,9 +18,14 @@ namespace vm::jit
                                           const bytecode::BytecodeProgram& program,
                                           JitCompiler& compiler,
                                           JitCodeCache& codeCache,
-                                          ic::TypeFeedbackCollector* typeFeedback)
+                                          ic::TypeFeedbackCollector* typeFeedback,
+                                          OSRBailoutReason& outReason,
+                                          uint8_t& outOffendingOpcode)
     {
         std::string osrKey = "osr@" + std::to_string(jumpBackOffset);
+        outReason = OSRBailoutReason::NONE;
+        outOffendingOpcode = 0;
+
         bool compiled = compiler.compileLoopOSR(
             state.loopStartOffset,
             state.loopEndOffset,
@@ -29,7 +34,9 @@ namespace vm::jit
             state.localCount,
             program,
             codeCache,
-            typeFeedback);
+            typeFeedback,
+            &outReason,
+            &outOffendingOpcode);
 
         if (!compiled)
         {
@@ -39,6 +46,9 @@ namespace vm::jit
         auto fn = codeCache.lookup(osrKey);
         if (!fn)
         {
+            // compileLoopOSR claimed success but the cache doesn't have the
+            // entry - treat as a generic codegen failure.
+            outReason = OSRBailoutReason::CODEGEN_FAILURE;
             return false;
         }
 
@@ -60,7 +70,7 @@ namespace vm::jit
         if (cacheIt != osrCache.end())
         {
             OSRState state;
-            if (!captureState(state, jumpBackOffset, program, context))
+            if (captureState(state, jumpBackOffset, program, context) != OSRBailoutReason::NONE)
             {
                 return false;
             }
@@ -73,18 +83,29 @@ namespace vm::jit
             return false;
         }
 
-        // Loop just became hot — try to compile it
+        // Loop just became hot — try to compile it.
+        // MYT-148: thread the specific bailout reason out of captureState and
+        // through compileAndCacheLoop so --jit-stats can show which gate rejected.
         OSRState state;
-        if (!captureState(state, jumpBackOffset, program, context))
+        OSRBailoutReason captureReason =
+            captureState(state, jumpBackOffset, program, context);
+        if (captureReason != OSRBailoutReason::NONE)
         {
-            loopProfiler.markFailed(loopId);
+            loopProfiler.markFailed(loopId, captureReason);
             return false;
         }
 
+        OSRBailoutReason compileReason = OSRBailoutReason::NONE;
+        uint8_t compileOpcode = 0;
         if (!compileAndCacheLoop(state, jumpBackOffset, program, compiler, codeCache,
-                                 vm.getTypeFeedbackCollector()))
+                                 vm.getTypeFeedbackCollector(),
+                                 compileReason, compileOpcode))
         {
-            loopProfiler.markFailed(loopId);
+            loopProfiler.markFailed(loopId,
+                                     compileReason == OSRBailoutReason::NONE
+                                       ? OSRBailoutReason::CODEGEN_FAILURE
+                                       : compileReason,
+                                     compileOpcode);
             return false;
         }
 
@@ -152,18 +173,18 @@ namespace vm::jit
         }
     }
 
-    bool OSRManager::captureState(OSRState& state,
-                                   size_t jumpBackOffset,
-                                   const bytecode::BytecodeProgram& program,
-                                   vm::runtime::ExecutionContext& context)
+    OSRBailoutReason OSRManager::captureState(OSRState& state,
+                                                size_t jumpBackOffset,
+                                                const bytecode::BytecodeProgram& program,
+                                                vm::runtime::ExecutionContext& context)
     {
         size_t loopStartOffset, loopEndOffset;
         if (!findLoopBoundaries(jumpBackOffset, program, loopStartOffset, loopEndOffset))
-            return false;
+            return OSRBailoutReason::LOOP_MARKERS_MISSING;
 
         // Reject if in a function with lambda captures (shared frame)
         if (!context.callStack.empty() && context.callStack.back().sharedFrame)
-            return false;
+            return OSRBailoutReason::SHARED_FRAME_REJECTION;
 
         // Get function metadata for local count
         std::string functionName;
@@ -177,7 +198,7 @@ namespace vm::jit
         }
 
         if (localCount == 0)
-            return false;
+            return OSRBailoutReason::NO_FUNCTION_FRAME;
 
         // Capture locals
         size_t localBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
@@ -186,7 +207,7 @@ namespace vm::jit
         // Check operand stack above locals (should be empty at JUMP_BACK for V1)
         size_t operandStackBase = localBase + localCount;
         if (context.stackManager->size() > operandStackBase)
-            return false;
+            return OSRBailoutReason::OPERAND_STACK_NOT_EMPTY;
 
         state.loopStartOffset = loopStartOffset;
         state.loopEndOffset = loopEndOffset;
@@ -196,7 +217,7 @@ namespace vm::jit
         state.functionName = functionName;
         state.resumeOffset = loopEndOffset + 1;
 
-        return true;
+        return OSRBailoutReason::NONE;
     }
 
     void OSRManager::buildOSRContext(JitContext& jitCtx,

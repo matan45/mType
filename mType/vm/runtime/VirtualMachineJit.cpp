@@ -13,6 +13,7 @@
 #include "executors/FunctionExecutor.hpp"
 #include "executors/ArrayExecutor.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
+#include "../bytecode/OpCode.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../environment/registry/ClassRegistry.hpp"
 #include <algorithm>
@@ -465,6 +466,34 @@ namespace vm::runtime
             std::cout << "  Loops profiled:         " << profiles.size() << "\n";
             std::cout << "  OSR compiled:           " << compiled << "\n";
             std::cout << "  OSR failed:             " << failed << "\n";
+
+            // MYT-148: per-loop bailout reason breakdown. Answers "why didn't
+            // this loop tier up?" without a debugger. Shows the offending
+            // opcode mnemonic for UNSUPPORTED_OPCODE / BAILOUT_OPCODE so the
+            // next step (remediation) is obvious.
+            if (failed > 0)
+            {
+                std::cout << "  Failed loops:\n";
+                for (const auto& [id, profile] : profiles)
+                {
+                    if (!profile.osrFailed) continue;
+                    std::cout << "    - offset 0x" << std::hex << id.jumpBackOffset
+                              << std::dec << ": "
+                              << jit::osrBailoutReasonName(profile.bailoutReason);
+                    if (profile.bailoutReason == jit::OSRBailoutReason::UNSUPPORTED_OPCODE ||
+                        profile.bailoutReason == jit::OSRBailoutReason::BAILOUT_OPCODE ||
+                        profile.bailoutReason == jit::OSRBailoutReason::CODEGEN_FAILURE)
+                    {
+                        std::cout << " (0x" << std::hex
+                                  << static_cast<unsigned>(profile.offendingOpcode)
+                                  << std::dec << " = "
+                                  << bytecode::getOpCodeName(
+                                         static_cast<bytecode::OpCode>(profile.offendingOpcode))
+                                  << ")";
+                    }
+                    std::cout << "\n";
+                }
+            }
         }
 
         std::cout << "======================\n";

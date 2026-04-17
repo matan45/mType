@@ -43,11 +43,14 @@ namespace vm::jit
         // Cache of compiled OSR loops: jumpBackOffset -> compiled code
         std::unordered_map<size_t, OSRLoopFunction> osrCache;
 
-        // Analyze loop structure and build OSR state from current interpreter state
-        bool captureState(OSRState& state,
-                         size_t jumpBackOffset,
-                         const bytecode::BytecodeProgram& program,
-                         vm::runtime::ExecutionContext& context);
+        // Analyze loop structure and build OSR state from current interpreter
+        // state. Returns OSRBailoutReason::NONE on success, or the specific
+        // reason (LOOP_MARKERS_MISSING / SHARED_FRAME_REJECTION / ...) on
+        // failure so the caller can record it in the loop profile (MYT-148).
+        OSRBailoutReason captureState(OSRState& state,
+                                       size_t jumpBackOffset,
+                                       const bytecode::BytecodeProgram& program,
+                                       vm::runtime::ExecutionContext& context);
 
         // Execute the OSR-compiled loop
         bool executeOSRLoop(OSRLoopFunction func,
@@ -84,13 +87,17 @@ namespace vm::jit
                             value::Value* inputLocals,
                             value::Value* outputLocals);
 
-        // Compile a loop via JIT and cache the result
+        // Compile a loop via JIT and cache the result. The out-parameters
+        // (MYT-148) receive the specific bailout reason / offending opcode
+        // when compilation fails, so the caller can tag the LoopProfile.
         bool compileAndCacheLoop(OSRState& state,
                                 size_t jumpBackOffset,
                                 const bytecode::BytecodeProgram& program,
                                 JitCompiler& compiler,
                                 JitCodeCache& codeCache,
-                                ic::TypeFeedbackCollector* typeFeedback = nullptr);
+                                ic::TypeFeedbackCollector* typeFeedback,
+                                OSRBailoutReason& outReason,
+                                uint8_t& outOffendingOpcode);
 
         // Infer SlotType from a runtime Value
         static SlotType inferSlotType(const value::Value& val);

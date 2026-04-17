@@ -760,9 +760,23 @@ namespace vm::bytecode
     }
 
     void BytecodeProgram::writeFunctions(std::ostream& out) const {
-        size_t count = functions.size();
+        // MYT-139: iterate in functionIndexToName order (stable insertion
+        // order) rather than `functions` map order. `std::unordered_map`
+        // iteration is non-deterministic, so writing in map order and
+        // re-registering in read order re-shuffled function indices —
+        // breaking CALL_FAST opcodes that bake function index at compile
+        // time. See ticket MYT-139 for the symptom (e.g. renderDrawable
+        // resolving to `tan` at runtime).
+        size_t count = functionIndexToName.size();
         out.write(reinterpret_cast<const char*>(&count), sizeof(count));
-        for (const auto& [name, func] : functions) {
+        for (const auto& name : functionIndexToName) {
+            auto it = functions.find(name);
+            if (it == functions.end()) {
+                throw std::runtime_error(
+                    "BytecodeProgram::writeFunctions: index registered but no "
+                    "metadata for function '" + name + "'");
+            }
+            const auto& func = it->second;
             // Write function name
             size_t len = name.size();
             out.write(reinterpret_cast<const char*>(&len), sizeof(len));
