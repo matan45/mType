@@ -3490,6 +3490,12 @@
     <None Include="tests\testFiles\class\pass\jitICSpecialization.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\jitNestedLoop.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\jitNestedLoop.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\jitObjectOps.expected">
       <Filter>testFiles\class\pass</Filter>
     </None>

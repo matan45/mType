@@ -6,10 +6,42 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
+#include <cstdlib>
+#include <iostream>
 #include <new>
+#include <sstream>
 
 namespace vm::jit
 {
+    // MYT-153: opt-in runtime tracing for OSR transitions. Enabled by setting
+    // the MTYPE_JIT_OSR_TRACE environment variable to any non-empty value.
+    // When disabled the per-event check is a single atomic load, so the hot
+    // path stays free of overhead.
+    static bool osrTraceEnabled()
+    {
+        static const bool enabled = []() {
+            const char* v = std::getenv("MTYPE_JIT_OSR_TRACE");
+            return v != nullptr && v[0] != '\0';
+        }();
+        return enabled;
+    }
+
+    static std::string formatValueForTrace(const value::Value& val)
+    {
+        std::ostringstream os;
+        if (std::holds_alternative<int64_t>(val))
+            os << std::get<int64_t>(val);
+        else if (std::holds_alternative<double>(val))
+            os << std::get<double>(val);
+        else if (std::holds_alternative<bool>(val))
+            os << (std::get<bool>(val) ? "true" : "false");
+        else if (std::holds_alternative<std::string>(val))
+            os << '"' << std::get<std::string>(val) << '"';
+        else
+            os << "<non-primitive>";
+        return os.str();
+    }
+
     OSRManager::OSRManager() {}
     OSRManager::~OSRManager() {}
 
@@ -118,32 +150,57 @@ namespace vm::jit
                                          size_t& loopStartOffset,
                                          size_t& loopEndOffset)
     {
-        // Find enclosing LOOP_START by scanning backward
+        // Nesting-balanced scan. The back-edge sits inside exactly one loop
+        // body; the enclosing LOOP_START/LOOP_END are the first unmatched
+        // markers walking outward. A naive "first LOOP_START backward,
+        // first LOOP_END forward" picks inner-loop markers for an outer
+        // back-edge and clips the compile range (MYT-153 Bug #1).
         loopStartOffset = SIZE_MAX;
-        for (size_t ip = jumpBackOffset; ip != SIZE_MAX; --ip)
         {
-            const auto& instr = program.getInstruction(ip);
-            if (instr.opcode == bytecode::OpCode::LOOP_START)
+            size_t depth = 0;
+            for (size_t ip = jumpBackOffset; ; --ip)
             {
-                loopStartOffset = ip;
-                break;
+                const auto& instr = program.getInstruction(ip);
+                if (instr.opcode == bytecode::OpCode::LOOP_END)
+                {
+                    ++depth;
+                }
+                else if (instr.opcode == bytecode::OpCode::LOOP_START)
+                {
+                    if (depth == 0)
+                    {
+                        loopStartOffset = ip;
+                        break;
+                    }
+                    --depth;
+                }
+                if (ip == 0) break;
             }
-            if (ip == 0) break;
         }
         if (loopStartOffset == SIZE_MAX)
         {
             return false;
         }
 
-        // Find enclosing LOOP_END by scanning forward
         loopEndOffset = SIZE_MAX;
-        for (size_t ip = jumpBackOffset + 1; ip < program.getInstructionCount(); ++ip)
         {
-            const auto& instr = program.getInstruction(ip);
-            if (instr.opcode == bytecode::OpCode::LOOP_END)
+            size_t depth = 1;
+            for (size_t ip = jumpBackOffset + 1; ip < program.getInstructionCount(); ++ip)
             {
-                loopEndOffset = ip;
-                break;
+                const auto& instr = program.getInstruction(ip);
+                if (instr.opcode == bytecode::OpCode::LOOP_START)
+                {
+                    ++depth;
+                }
+                else if (instr.opcode == bytecode::OpCode::LOOP_END)
+                {
+                    --depth;
+                    if (depth == 0)
+                    {
+                        loopEndOffset = ip;
+                        break;
+                    }
+                }
             }
         }
         return loopEndOffset != SIZE_MAX;
@@ -290,6 +347,21 @@ namespace vm::jit
                                      vm::runtime::VirtualMachine& vm,
                                      JitCodeCache& codeCache)
     {
+        const bool trace = osrTraceEnabled();
+        if (trace)
+        {
+            std::cerr << "[osr] executeOSRLoop: fn=" << state.functionName
+                      << " jumpBack=0x" << std::hex << state.jumpBackOffset
+                      << " range=[0x" << state.loopStartOffset
+                      << ",0x" << state.loopEndOffset << "]"
+                      << std::dec << " localCount=" << state.localCount << "\n";
+            for (const auto& slotInfo : state.locals)
+            {
+                std::cerr << "[osr]   captured local[" << slotInfo.slot
+                          << "] = " << formatValueForTrace(slotInfo.value) << "\n";
+            }
+        }
+
         // Allocate input/output Value arrays
         std::vector<value::Value> inputLocals(state.localCount);
         std::vector<value::Value> outputLocals(state.localCount);
@@ -316,6 +388,29 @@ namespace vm::jit
         try
         {
             func(&jitCtx);
+
+            if (trace)
+            {
+                std::cerr << "[osr] post-jit: osrExited=" << (jitCtx.osrExited ? 1 : 0)
+                          << " osrExitOffset=0x" << std::hex << jitCtx.osrExitOffset
+                          << std::dec << "\n";
+                for (size_t i = 0; i < state.localCount; ++i)
+                {
+                    std::cerr << "[osr]   output local[" << i << "] = "
+                              << formatValueForTrace(outputLocals[i]);
+                    // Highlight when the JIT produced identical bytes to the
+                    // input — symptom of "writeback never executed or wrote
+                    // captured value unchanged".
+                    if (std::holds_alternative<int64_t>(outputLocals[i]) &&
+                        std::holds_alternative<int64_t>(inputLocals[i]) &&
+                        std::get<int64_t>(outputLocals[i])
+                            == std::get<int64_t>(inputLocals[i]))
+                    {
+                        std::cerr << " (== input)";
+                    }
+                    std::cerr << "\n";
+                }
+            }
 
             if (jitCtx.osrExited)
             {
@@ -365,7 +460,15 @@ namespace vm::jit
                                      const OSRState& state,
                                      vm::runtime::ExecutionContext& context)
     {
+        const bool trace = osrTraceEnabled();
         size_t localBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+
+        if (trace)
+        {
+            std::cerr << "[osr] writeBackState: resumeIP=0x" << std::hex << result.resumeIP
+                      << std::dec << " localBase=" << localBase
+                      << " updatedCount=" << result.updatedLocals.size() << "\n";
+        }
 
         // Write each updated local back to the interpreter stack
         for (size_t i = 0; i < result.updatedLocals.size() && i < state.localCount; ++i)
@@ -373,7 +476,32 @@ namespace vm::jit
             size_t stackIdx = localBase + i;
             if (stackIdx < context.stackManager->size())
             {
+                if (trace)
+                {
+                    std::cerr << "[osr]   write stack[" << stackIdx << "] (slot " << i
+                              << ") = " << formatValueForTrace(result.updatedLocals[i]) << "\n";
+                }
                 context.stackManager->getStack()[stackIdx] = result.updatedLocals[i];
+            }
+        }
+
+        // MYT-153 Bug #2: also mirror writes into the SharedStackFrame, when
+        // one is attached to the current call frame. VariableExecutor's
+        // handleStoreLocal pre-populates this frame on every named local
+        // store (speculative bookkeeping for potential lambda capture), and
+        // handleLoadLocal reads from it *before* the stack — so skipping the
+        // update here leaves post-OSR reads serving the captured pre-OSR
+        // values. captureState already rejects `originatingLambda` frames
+        // and frames with external sharedFrame owners, so any sharedFrame
+        // reaching this point is the ordinary per-function bookkeeping copy.
+        if (!context.callStack.empty() &&
+            !context.callStack.back().originatingLambda &&
+            context.callStack.back().sharedFrame)
+        {
+            auto sharedFrame = context.callStack.back().sharedFrame;
+            for (size_t i = 0; i < result.updatedLocals.size() && i < state.localCount; ++i)
+            {
+                sharedFrame->setLocal(i, result.updatedLocals[i]);
             }
         }
 
