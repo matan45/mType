@@ -144,23 +144,31 @@ See `docs/benchmarks.md` for how to update.
 - Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3) + `mType.exe --jit-stats <script>` per row for the Bailouts column
 - Scope: adds `bitwise_tight_loop.mt`, `short_circuit_chain.mt`, `primitive_method_dispatch.mt`. Adds a **Bailouts** column (parsed from the `Bailouts:` line of `--jit-stats` output) so the JIT-gap tickets (MYT-141/142/144) have a before/after signal in the same table. MYT-143 (lambda) is deferred pending capture-plumbing design, so no lambda benchmark is registered here.
 
-| Script                          | Wall min (ms) | exec (ms) | Instructions | Calls | JIT | Bailouts |
-|---------------------------------|--------------:|----------:|-------------:|------:|-----|---------:|
-| arithmetic_tight_loop.mt        |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
-| method_dispatch.mt              |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
-| object_alloc.mt                 |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
-| string_ops.mt                   |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
-| recursive.mt                    |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
-| bitwise_tight_loop.mt           |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
-| short_circuit_chain.mt          |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
-| primitive_method_dispatch.mt    |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
+| Script                          | Wall min (ms) | exec (ms) | Instructions | Calls    | JIT | Bailouts | OSR fail | Hot fns |
+|---------------------------------|--------------:|----------:|-------------:|---------:|-----|---------:|---------:|--------:|
+| arithmetic_tight_loop.mt        |       5171.30 |   5170.39 |    236000031 |        0 | on  |        0 |        4 |       0 |
+| method_dispatch.mt              |       2213.60 |   2212.64 |     52000048 |  2000006 | on  |        0 |        2 |       0 |
+| object_alloc.mt                 |       5958.73 |   6096.11 |     62000018 |  2000000 | on  |        0 |        2 |       0 |
+| string_ops.mt                   |        539.09 |    537.95 |     20320032 |        0 | on  |        0 |        4 |       0 |
+| recursive.mt                    |       1856.67 |   1881.82 |      1303765 |  2813094 | on  |        0 |        2 |       3 |
+| bitwise_tight_loop.mt           |       9411.64 |   9714.39 |    420000023 |        0 | on  |        0 |        2 |       0 |
+| short_circuit_chain.mt          |       4786.38 |   4785.65 |    236570113 |        0 | on  |        0 |        2 |       0 |
+| primitive_method_dispatch.mt    |       2409.10 |   2414.06 |     33000080 |  1000007 | on  |        0 |        4 |       0 |
 
-### How to populate this table
+### Reading the numbers
 
-1. Build Release.
-2. `mType.exe --benchmark` — fills Wall min / exec / Instructions / Calls / JIT for all 8 rows.
-3. For each script, run `mType.exe --jit-stats mType/tests/testFiles/benchmarks/<name>.mt` and grep the `Bailouts:` line from stdout. Record in the Bailouts column.
-4. For the 3 new scripts, capture their deterministic print outputs and add them to the Sanity outputs list below.
+- **Bailouts** (from `--jit-stats`) = function-level JIT compile failures. `0` on every row here, but that's literally-true-yet-misleading: it's 0 for the 7 top-level-script benchmarks because **top-level code is never profiled as a hot function** (no caller → no call-count threshold), so no function-level compile is even attempted. `recursive.mt` is the only benchmark whose loops live inside user-defined functions that cross the 100-call hot threshold (`fib`, `ack`, `gcd` all compile). The gap-coverage tickets (MYT-141/142/144) won't show "before" bailouts via this column on these benchmarks — they'd show up if the loop body were wrapped in a user function called often enough to be hot.
+- **OSR fail** = number of loops that crossed the OSR threshold, attempted tier-up, and failed. **Every loop in every benchmark is failing OSR today.** That's the real signal these benchmarks expose: the OSR pipeline isn't getting any of these loops compiled. Root cause likely varies (e.g., `NEW_OBJECT` in the OSR bailout list blocks `object_alloc` and `primitive_method_dispatch`); needs its own investigation before the MYT-141/142/144 perf wins are measurable.
+- **Hot fns** = functions compiled at function-level JIT. Only non-zero for `recursive.mt`.
+
+### How to capture these columns
+
+```
+mType.exe --benchmark                                      # Wall/exec/Instructions/Calls
+mType.exe --jit-stats mType\tests\testFiles\benchmarks\<name>.mt   # Bailouts, OSR fail, Hot fns
+```
+
+Folding `--jit-stats` output into the `--benchmark` sweep output would be a small worthwhile extension to `BenchmarkRunner.cpp` — today it's two separate passes.
 
 ### Sanity outputs (must match on re-run for same commit)
 
@@ -169,9 +177,9 @@ See `docs/benchmarks.md` for how to update.
 - `object_alloc.mt`: `total=1999999000000`
 - `string_ops.mt`: `concat_iters=20000 matches=1000000`
 - `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
-- `bitwise_tight_loop.mt`: `acc=` TBD
-- `short_circuit_chain.mt`: `hits=` TBD
-- `primitive_method_dispatch.mt`: `accValue=` TBD `faccValue=` TBD
+- `bitwise_tight_loop.mt`: `acc=5000001`
+- `short_circuit_chain.mt`: `hits=4350982`
+- `primitive_method_dispatch.mt`: `accValue=47 faccValue=1.375e+11`
 
 ### Consumers
 
