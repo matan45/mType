@@ -241,6 +241,7 @@ namespace vm::jit
                              const std::vector<LocalSlotInfo>& localSlotInfos,
                              size_t localCount,
                              size_t loopStartOffset, size_t loopEndOffset,
+                             size_t jumpBackOffset,
                              ic::TypeFeedbackCollector* typeFeedback,
                              OSRBailoutReason& outReason,
                              uint8_t& outOffendingOpcode)
@@ -252,6 +253,22 @@ namespace vm::jit
                                        loopStartOffset, loopEndOffset);
         auto backEdges = collectBackEdgeTargets(program, loopStartOffset, loopEndOffset + 1);
         size_t resumeOffset = loopEndOffset + 1;
+
+        // MYT-153 Bug #2 (double-count): the captured state reflects the
+        // interpreter right before the JUMP_BACK at `jumpBackOffset` fires,
+        // so resuming at `loopStartOffset` would re-run the block we've
+        // already executed (header, inc, or body depending on which
+        // back-edge triggered OSR). Jump directly to the back-edge's target
+        // — the same instruction the interpreter's JUMP_BACK would have
+        // landed on.
+        const auto& jbInstr = program.getInstruction(jumpBackOffset);
+        if (!jbInstr.operands.empty())
+        {
+            size_t jumpBackTarget = jbInstr.operands[0];
+            auto it = labels.find(jumpBackTarget);
+            if (it != labels.end())
+                cc.jmp(it->second);
+        }
 
         JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
                            frame.boxedBase, frame.progPtr,
@@ -341,7 +358,8 @@ namespace vm::jit
         OSRBailoutReason bodyReason = OSRBailoutReason::NONE;
         uint8_t bodyOpcode = 0;
         if (!emitOSRBody(cc, ctxPtr, program, frame, localSlotInfos,
-                         localCount, loopStartOffset, loopEndOffset, typeFeedback,
+                         localCount, loopStartOffset, loopEndOffset,
+                         jumpBackOffset, typeFeedback,
                          bodyReason, bodyOpcode))
         {
             bailoutCount++;
