@@ -185,7 +185,7 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;
         frame.frameBase = frameBase;
         frame.localBase = context.stackManager->size();
-        frame.functionName = funcMetadata->name;
+        frame.functionName = funcMetadata->mangledName.empty() ? funcMetadata->name : funcMetadata->mangledName;
         frame.thisInstance = nullptr;
         frame.programIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
 

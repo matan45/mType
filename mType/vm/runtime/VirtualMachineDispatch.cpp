@@ -167,7 +167,7 @@ namespace vm::runtime
             executeCallWithJit(instr);
             break;
         case OpCode::CALL_FAST:
-            functionExecutor->handleCallFast(instr);
+            executeCallFastWithJit(instr);
             break;
         case OpCode::CALL_STATIC: functionExecutor->handleCallStatic(instr);
             break;
