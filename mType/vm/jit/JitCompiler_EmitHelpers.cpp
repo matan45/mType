@@ -66,6 +66,10 @@ namespace vm::jit
             {
                 case OpCode::PUSH_STRING: case OpCode::GET_FIELD:
                 case OpCode::SET_FIELD:   case OpCode::INLINE_SET_FIELD:
+                // MYT-152: LOAD_VAR / STORE_VAR produce / consume boxed Values
+                // (global or field lookups have no compile-time primitive
+                // type), so the enclosing loop must emit in boxed mode.
+                case OpCode::LOAD_VAR:    case OpCode::STORE_VAR:
                 case OpCode::NEW_OBJECT:
                 case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
                 case OpCode::CALL_METHOD: case OpCode::CALL_STATIC:

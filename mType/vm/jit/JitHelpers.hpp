@@ -70,6 +70,14 @@ namespace vm::jit
 
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount);
 
+    // MYT-152: global/field variable access from JIT-compiled OSR loops.
+    // Mirrors VariableExecutor::handleLoadVar / handleStoreVar including the
+    // findVariable -> instance-field -> static-field fallback chain. Throws
+    // are caught and stored in ctx->pendingException.
+    void jit_load_var(value::Value* dest, JitContext* ctx, uint32_t nameIndex);
+    void jit_store_var(JitContext* ctx, uint32_t nameIndex,
+                       const value::Value* val);
+
     // MYT-147: iterator protocol helpers. Receiver is marshalled into
     // ctx->callArgs[0] by the emitter before each call. Methods that return a
     // value (get/has_next/next) write the result into *dest.

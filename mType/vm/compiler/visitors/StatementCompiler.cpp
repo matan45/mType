@@ -13,6 +13,7 @@
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include  <iostream>
 namespace vm::compiler::visitors
@@ -1094,12 +1095,18 @@ namespace vm::compiler::visitors
     {
         using namespace ast::nodes::functions;
 
-        // Top-level function calls (e.g., print(...), ClassName::method(...))
-        // leave a return value on the stack that must be discarded.
-        // Native functions always push a result; bytecode functions push via RETURN_VALUE.
-        // Note: MethodCallNode (instance method calls like obj.method()) are NOT included
-        // because their stack effect is already balanced by the receiver pop/push pattern.
+        // Top-level calls leave exactly one return value on the operand stack:
+        //   - FunctionCallNode: native calls always push; bytecode calls
+        //     push via RETURN_VALUE.
+        //   - MethodCallNode (MYT-152): non-void methods push via RETURN_VALUE;
+        //     void methods push PUSH_NULL + RETURN_VALUE (see
+        //     MethodCompilerHelper::compileMethodBodyWithFrame). Async-void is
+        //     identical with a CREATE_PROMISE before RETURN_VALUE. In all
+        //     cases one slot must be discarded at statement position,
+        //     otherwise the operand stack leaks one slot per call and any
+        //     enclosing JIT loop bails with OPERAND_STACK_NOT_EMPTY.
         if (dynamic_cast<FunctionCallNode*>(node)) return true;
+        if (dynamic_cast<ast::nodes::classes::MethodCallNode*>(node)) return true;
 
         return false;
     }

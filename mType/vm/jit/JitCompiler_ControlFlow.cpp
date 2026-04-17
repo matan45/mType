@@ -117,6 +117,61 @@ namespace vm::jit
         s.localTypes[slot] = tt;
     }
 
+    // MYT-152: JIT emitter for LOAD_VAR. Globals and unqualified field lookups
+    // have no compile-time primitive type, so the loaded Value is always
+    // placed in the boxed operand stack. scanOpcodesForBoxedTypes forces
+    // s.usesBoxedTypes = true whenever LOAD_VAR is present in the loop body;
+    // the guard below bails cleanly if that invariant is ever violated.
+    static void emitLoadVar(JitEmissionState& s, uint32_t nameIndex)
+    {
+        if (!s.usesBoxedTypes) { s.compileFailed = true; return; }
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        Gp dest = cc.new_gp64();
+        cc.lea(dest, Mem(s.boxedBase,
+                         static_cast<int32_t>(s.stackDepth * valueSize)));
+        Gp niReg = cc.new_gp64();
+        cc.mov(niReg, static_cast<int64_t>(nameIndex));
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_load_var),
+                  FuncSignature::build<void, value::Value*, JitContext*,
+                                        uint32_t>());
+        inv->set_arg(0, dest);
+        inv->set_arg(1, s.ctxPtr);
+        inv->set_arg(2, niReg);
+
+        s.slotTypes.push_back(SlotType::BOXED);
+        s.stackDepth++;
+    }
+
+    // MYT-152: JIT emitter for STORE_VAR. The runtime pops the value, writes
+    // it to the global/field, then re-pushes the same bits (so expression-
+    // context `int x = (a = 5)` works). We mirror emitStoreLocal's approach:
+    // pass the top slot to jit_store_var and leave stackDepth / slotTypes
+    // untouched, since the bits at top-of-stack are identical before and
+    // after. The statement-context POP emitted by StatementCompiler's Path B
+    // consumes the re-pushed value.
+    static void emitStoreVar(JitEmissionState& s, uint32_t nameIndex)
+    {
+        if (!s.usesBoxedTypes) { s.compileFailed = true; return; }
+        auto& cc = s.cc;
+
+        SlotType valType = topType(s);
+        Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, valType);
+        Gp niReg = cc.new_gp64();
+        cc.mov(niReg, static_cast<int64_t>(nameIndex));
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_store_var),
+                  FuncSignature::build<void, JitContext*, uint32_t,
+                                        const value::Value*>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, niReg);
+        inv->set_arg(2, valAddr);
+    }
+
     static void emitReturnPrimitive(JitEmissionState& s, SlotType retType)
     {
         auto& cc = s.cc;
@@ -345,6 +400,14 @@ namespace vm::jit
 
             case OpCode::STORE_LOCAL:
                 emitStoreLocal(s, instr.operands[0]);
+                return true;
+
+            case OpCode::LOAD_VAR:
+                emitLoadVar(s, static_cast<uint32_t>(instr.operands[0]));
+                return true;
+
+            case OpCode::STORE_VAR:
+                emitStoreVar(s, static_cast<uint32_t>(instr.operands[0]));
                 return true;
 
             case OpCode::JUMP:

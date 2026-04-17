@@ -65,6 +65,8 @@ namespace vm::jit
 
             static_cast<uint8_t>(OpCode::LOAD_LOCAL),
             static_cast<uint8_t>(OpCode::STORE_LOCAL),
+            static_cast<uint8_t>(OpCode::LOAD_VAR),
+            static_cast<uint8_t>(OpCode::STORE_VAR),
 
             static_cast<uint8_t>(OpCode::JUMP),
             static_cast<uint8_t>(OpCode::JUMP_IF_FALSE),
