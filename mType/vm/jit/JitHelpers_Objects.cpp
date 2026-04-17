@@ -18,52 +18,62 @@ namespace vm::jit
 {
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount)
     {
-        const std::string& methodName = ctx->program->getConstantPool().getString(methodNameIndex);
+        if (ctx->pendingException)
+            return;
 
-        value::Value& objectValue = ctx->callArgs[0];
-
-        std::vector<value::Value> args;
-        for (size_t i = 1; i <= argCount; i++)
+        try
         {
-            args.push_back(ctx->callArgs[i]);
-        }
+            const std::string& methodName = ctx->program->getConstantPool().getString(methodNameIndex);
 
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
-        {
-            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+            value::Value& objectValue = ctx->callArgs[0];
 
-            if (ctx->vm)
+            std::vector<value::Value> args;
+            for (size_t i = 1; i <= argCount; i++)
             {
-                ctx->returnValue = ctx->vm->callMethodFromJit(instance, methodName, args);
-                ctx->hasReturnValue = true;
-                return;
+                args.push_back(ctx->callArgs[i]);
             }
-        }
 
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue))
-        {
-            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
-            auto classDef = valueObj->getClassDefinition();
-
-            auto tempInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
-            const auto& fieldIndexMap = classDef->getFieldIndexMap();
-            for (const auto& [name, index] : fieldIndexMap)
+            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
             {
-                if (index < valueObj->getFieldCount())
+                auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+
+                if (ctx->vm)
                 {
-                    tempInstance->setField(name, valueObj->getFieldByIndex(index));
+                    ctx->returnValue = ctx->vm->callMethodFromJit(instance, methodName, args);
+                    ctx->hasReturnValue = true;
+                    return;
                 }
             }
 
-            if (ctx->vm)
+            if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue))
             {
-                ctx->returnValue = ctx->vm->callMethodFromJit(tempInstance, methodName, args);
-                ctx->hasReturnValue = true;
-                return;
-            }
-        }
+                auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+                auto classDef = valueObj->getClassDefinition();
 
-        throw errors::RuntimeException("JIT: cannot call method '" + methodName + "'");
+                auto tempInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+                const auto& fieldIndexMap = classDef->getFieldIndexMap();
+                for (const auto& [name, index] : fieldIndexMap)
+                {
+                    if (index < valueObj->getFieldCount())
+                    {
+                        tempInstance->setField(name, valueObj->getFieldByIndex(index));
+                    }
+                }
+
+                if (ctx->vm)
+                {
+                    ctx->returnValue = ctx->vm->callMethodFromJit(tempInstance, methodName, args);
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+            }
+
+            throw errors::RuntimeException("JIT: cannot call method '" + methodName + "'");
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
     }
 
     int64_t jit_instanceof(const value::Value* val,

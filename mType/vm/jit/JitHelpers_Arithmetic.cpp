@@ -99,19 +99,17 @@ namespace vm::jit
         nestedCtx.icTable = ctx->icTable;
         nestedCtx.callingClassName = ctx->callingClassName;
 
-        try
-        {
-            jitFn(&nestedCtx);
-        }
-        catch (...)
-        {
-            ctx->vm->decrementJitNativeDepth();
-            ctx->vm->popCallStack();
-            throw;
-        }
+        jitFn(&nestedCtx);
 
         ctx->vm->decrementJitNativeDepth();
         ctx->vm->popCallStack();
+
+        // Propagate any exception stored by JIT helpers
+        if (nestedCtx.pendingException)
+        {
+            ctx->pendingException = nestedCtx.pendingException;
+            return true;  // Return true so caller doesn't try other dispatch paths
+        }
 
         ctx->returnValue = nestedCtx.returnValue;
         ctx->hasReturnValue = nestedCtx.hasReturnValue;
@@ -139,23 +137,35 @@ namespace vm::jit
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount)
     {
-        const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
-
-        if (tryJitDispatch(ctx, funcName, argCount))
+        // If a previous call in this JIT frame already failed, bail out immediately
+        if (ctx->pendingException)
             return;
 
-        if (tryNativeDispatch(ctx, funcName, argCount))
-            return;
-
-        if (ctx->vm)
+        try
         {
-            std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-            ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
-            ctx->hasReturnValue = true;
-            return;
-        }
+            const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
 
-        throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+            if (tryJitDispatch(ctx, funcName, argCount))
+                return;
+
+            if (tryNativeDispatch(ctx, funcName, argCount))
+                return;
+
+            if (ctx->vm)
+            {
+                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->hasReturnValue = true;
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+        }
+        catch (...)
+        {
+            // Store exception — don't let it unwind through JIT-generated frames
+            ctx->pendingException = std::current_exception();
+        }
     }
 
     void jit_generic_add(value::Value* result, const value::Value* left, const value::Value* right)

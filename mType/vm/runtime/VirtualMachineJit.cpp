@@ -12,6 +12,7 @@
 #include "../jit/ic/TypeFeedbackCollector.hpp"
 #include "executors/FunctionExecutor.hpp"
 #include <algorithm>
+#include <exception>
 #include <iostream>
 
 namespace vm::runtime
@@ -332,16 +333,13 @@ namespace vm::runtime
                     jitCtx.callingClassName = funcName.substr(0, sepPos);
 
                 ++jitNativeDepth;
-                try
-                {
-                    jitCode(&jitCtx);
-                }
-                catch (...)
-                {
-                    --jitNativeDepth;
-                    throw;
-                }
+                jitCode(&jitCtx);
                 --jitNativeDepth;
+
+                // Rethrow any exception that was caught inside JIT helpers
+                // (exceptions can't unwind through asmjit-generated frames)
+                if (jitCtx.pendingException)
+                    std::rethrow_exception(jitCtx.pendingException);
 
                 if (jitCtx.hasReturnValue)
                     stackManager->push(jitCtx.returnValue);

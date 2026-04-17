@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include "../../value/ValueType.hpp"
 
 // Forward declarations
@@ -54,5 +55,10 @@ namespace vm::jit
         value::Value* osrOutputLocals = nullptr;
         size_t osrExitOffset = 0;
         bool osrExited = false;
+
+        // Exception propagation: JIT helpers catch exceptions and store them here
+        // so they don't need to unwind through asmjit-generated frames (no SEH).
+        // Callers must check and rethrow after JIT code returns.
+        std::exception_ptr pendingException = nullptr;
     };
 }
