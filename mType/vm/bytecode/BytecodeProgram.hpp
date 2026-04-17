@@ -286,6 +286,12 @@ namespace vm::bytecode
         std::vector<GlobalVariableMetadata> globalVariables; // Global variables for debugging
         ExceptionTable globalExceptionTable; // Exception table for global scope (try-catch-finally outside functions)
         size_t entryPoint;
+        // Number of locals in the top-level "__script_main__" frame. Populated
+        // at compile time and read by OSR to tier-up loops at script scope —
+        // the top-level isn't registered as a FunctionMetadata, so without
+        // this the runtime has no way to size the main frame. 0 when not set
+        // (e.g. deserialized .mtc files pre-dating this field).
+        size_t topLevelLocalCount = 0;
         std::string sourceFilePath; // For class registration when loading cached bytecode
 
     public:
@@ -317,6 +323,10 @@ namespace vm::bytecode
         // Constant Pool Management
         ConstantPool& getConstantPool();
         const ConstantPool& getConstantPool() const;
+
+        // Top-level script frame locals. See `topLevelLocalCount` above.
+        void setTopLevelLocalCount(size_t count) { topLevelLocalCount = count; }
+        size_t getTopLevelLocalCount() const { return topLevelLocalCount; }
 
         // Function Management
         void registerFunction(const std::string& name, const FunctionMetadata& metadata);

@@ -3,6 +3,12 @@
 #include "../services/ScriptInterpreter.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/runtime/context/ExecutionContext.hpp"
+#include "../vm/bytecode/OpCode.hpp"
+#include "../vm/jit/JitCompiler.hpp"
+#include "../vm/jit/JitCodeCache.hpp"
+#include "../vm/jit/JitProfiler.hpp"
+#include "../vm/jit/OSRManager.hpp"
+#include "../vm/jit/LoopProfiler.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/ArrayPool.hpp"
 #include "../gc/GC.hpp"
@@ -38,6 +44,33 @@ namespace
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";
 
+    struct JitFailedLoop
+    {
+        std::size_t jumpBackOffset = 0;
+        vm::jit::OSRBailoutReason reason = vm::jit::OSRBailoutReason::NONE;
+        std::uint8_t offendingOpcode = 0;
+    };
+
+    struct JitHotFunc
+    {
+        std::string name;
+        std::uint32_t calls = 0;
+        bool compiled = false;
+    };
+
+    struct JitSample
+    {
+        bool captured = false;
+        std::size_t compileCount = 0;
+        std::size_t bailoutCount = 0;
+        std::size_t cachedFunctions = 0;
+        std::size_t loopsProfiled = 0;
+        std::size_t osrCompiled = 0;
+        std::size_t osrFailed = 0;
+        std::vector<JitFailedLoop> failedLoops;
+        std::vector<JitHotFunc> hotFunctions;
+    };
+
     struct IterationSample
     {
         double wallMs = 0.0;
@@ -46,7 +79,57 @@ namespace
         std::size_t stringPoolHits = 0;
         std::size_t arrayPoolAllocs = 0;
         std::size_t arrayPoolHits = 0;
+        JitSample jit{};
     };
+
+    JitSample captureJitSample(const vm::runtime::VirtualMachine& vm)
+    {
+        JitSample out{};
+        out.captured = true;
+
+        if (auto* compiler = vm.getJitCompiler())
+        {
+            out.compileCount = compiler->getCompileCount();
+            out.bailoutCount = compiler->getBailoutCount();
+        }
+        if (auto* cache = vm.getJitCodeCache())
+        {
+            out.cachedFunctions = cache->size();
+        }
+        if (auto* profiler = vm.getJitProfiler())
+        {
+            const auto& hot = profiler->getHotFunctions();
+            out.hotFunctions.reserve(hot.size());
+            auto* cache = vm.getJitCodeCache();
+            for (const auto& name : hot)
+            {
+                JitHotFunc hf;
+                hf.name = name;
+                hf.calls = profiler->getInvocationCount(name);
+                hf.compiled = cache && cache->contains(name);
+                out.hotFunctions.push_back(std::move(hf));
+            }
+        }
+        if (auto* osr = vm.getOSRManager())
+        {
+            const auto& profiles = osr->getLoopProfiler().getProfiles();
+            out.loopsProfiled = profiles.size();
+            for (const auto& [id, profile] : profiles)
+            {
+                if (profile.osrCompiled) ++out.osrCompiled;
+                if (profile.osrFailed)
+                {
+                    ++out.osrFailed;
+                    JitFailedLoop f;
+                    f.jumpBackOffset = id.jumpBackOffset;
+                    f.reason = profile.bailoutReason;
+                    f.offendingOpcode = profile.offendingOpcode;
+                    out.failedLoops.push_back(f);
+                }
+            }
+        }
+        return out;
+    }
 
     struct ScriptResult
     {
@@ -86,7 +169,7 @@ namespace
         return {};
     }
 
-    IterationSample runOne(const std::string& path, bool jitEnabled)
+    IterationSample runOne(const std::string& path, bool jitEnabled, bool captureJit)
     {
         IterationSample sample{};
 
@@ -102,6 +185,11 @@ namespace
 
         sample.wallMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
         sample.stats = interpreter.getVM()->getStats();
+
+        if (captureJit && jitEnabled)
+        {
+            sample.jit = captureJitSample(*interpreter.getVM());
+        }
 
         gc::GC::forceCollect();
 
@@ -156,6 +244,43 @@ namespace
         return os.str();
     }
 
+    void printTextJit(const JitSample& j)
+    {
+        if (!j.captured) return;
+
+        std::cout << "    jit            compiled=" << j.compileCount
+                  << " bailouts=" << j.bailoutCount
+                  << " cached=" << j.cachedFunctions
+                  << " osr-profiled=" << j.loopsProfiled
+                  << " osr-compiled=" << j.osrCompiled
+                  << " osr-failed=" << j.osrFailed << "\n";
+
+        if (!j.hotFunctions.empty())
+        {
+            for (const auto& hf : j.hotFunctions)
+            {
+                std::cout << "      hot " << hf.name
+                          << " (" << hf.calls << " calls) "
+                          << (hf.compiled ? "[compiled]" : "[bailout]") << "\n";
+            }
+        }
+
+        for (const auto& f : j.failedLoops)
+        {
+            std::cout << "      osr-fail offset 0x" << std::hex << f.jumpBackOffset
+                      << std::dec << ": " << vm::jit::osrBailoutReasonName(f.reason);
+            if (f.reason == vm::jit::OSRBailoutReason::UNSUPPORTED_OPCODE ||
+                f.reason == vm::jit::OSRBailoutReason::BAILOUT_OPCODE ||
+                f.reason == vm::jit::OSRBailoutReason::CODEGEN_FAILURE)
+            {
+                std::cout << " (" << vm::bytecode::getOpCodeName(
+                                  static_cast<vm::bytecode::OpCode>(f.offendingOpcode))
+                          << ")";
+            }
+            std::cout << "\n";
+        }
+    }
+
     void printTextResult(const ScriptResult& r, bool jitEnabled)
     {
         if (!r.ok)
@@ -180,7 +305,9 @@ namespace
         std::cout << "    string-pool    req=" << first.stringPoolRequests
                   << " hits=" << first.stringPoolHits << "\n";
         std::cout << "    array-pool     alloc=" << first.arrayPoolAllocs
-                  << " hits=" << first.arrayPoolHits << "\n\n";
+                  << " hits=" << first.arrayPoolHits << "\n";
+        printTextJit(first.jit);
+        std::cout << "\n";
     }
 
     void printTextSummary(const std::vector<ScriptResult>& results, bool jitEnabled)
@@ -263,11 +390,15 @@ namespace
         {
             for (int i = 0; i < opts.warmupIterations; ++i)
             {
-                (void)runOne(path, opts.jitEnabled);
+                (void)runOne(path, opts.jitEnabled, false);
             }
             for (int i = 0; i < opts.measuredIterations; ++i)
             {
-                result.measured.push_back(runOne(path, opts.jitEnabled));
+                // Only capture JIT stats on the first measured iteration — the
+                // runner recreates the VM per iteration so stats don't accumulate,
+                // and the printed report reads from samples[0] anyway.
+                const bool captureJit = opts.printJitStats && i == 0;
+                result.measured.push_back(runOne(path, opts.jitEnabled, captureJit));
             }
         }
         catch (const std::exception& e)

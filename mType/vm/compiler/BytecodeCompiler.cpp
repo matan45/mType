@@ -441,9 +441,14 @@ namespace vm::compiler
         // Visit the root node to generate bytecode
         root->accept(*this);
 
+        // Publish the top-level local count before tearing the frame down
+        // — OSR needs this to tier-up loops at script scope (the top-level
+        // isn't registered as a FunctionMetadata).
+        program.setTopLevelLocalCount(context.functionFrameManager.getLocalCount());
+
         // Exit the implicit main function frame
-        context.variableTracker.endScope();   
-        context.variableTracker.endScope();   
+        context.variableTracker.endScope();
+        context.variableTracker.endScope();
         context.functionFrameManager.exitFunctionFrame();
 
         // Validate all class methods have bytecode implementations

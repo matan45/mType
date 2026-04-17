@@ -19,6 +19,7 @@ namespace runMain
         int warmupIterations = 1;
         BenchmarkOutput outputFormat = BenchmarkOutput::Text;
         bool jitEnabled = true;
+        bool printJitStats = false;
     };
 
     // Runs the benchmark suite (or a single script) according to options and

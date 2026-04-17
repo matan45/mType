@@ -182,9 +182,31 @@ namespace vm::jit
         if (!findLoopBoundaries(jumpBackOffset, program, loopStartOffset, loopEndOffset))
             return OSRBailoutReason::LOOP_MARKERS_MISSING;
 
-        // Reject if in a function with lambda captures (shared frame)
-        if (!context.callStack.empty() && context.callStack.back().sharedFrame)
-            return OSRBailoutReason::SHARED_FRAME_REJECTION;
+        // Reject if in a function with real lambda captures.
+        //
+        // We can't just test `sharedFrame != nullptr`: VariableExecutor
+        // pre-allocates a SharedStackFrame on every STORE_LOCAL that carries
+        // a variable name (which is essentially every local store the
+        // compiler emits) as speculative bookkeeping in case a lambda later
+        // captures that local. Using `!= nullptr` would bail out on every
+        // ordinary function/script and block OSR across the whole benchmark
+        // suite.
+        //
+        // A frame is only *truly* shared when either:
+        //   (a) it is itself a lambda invocation frame — locals may resolve
+        //       through `sharedFrame->parentFrame` instead of the operand
+        //       stack the OSR captured-state assumes; or
+        //   (b) an outside owner (captured lambda, VM interop path) holds a
+        //       reference to the SharedStackFrame, so mutations can happen
+        //       outside native code's view.
+        if (!context.callStack.empty())
+        {
+            const auto& frame = context.callStack.back();
+            if (frame.originatingLambda)
+                return OSRBailoutReason::SHARED_FRAME_REJECTION;
+            if (frame.sharedFrame && frame.sharedFrame.use_count() > 1)
+                return OSRBailoutReason::SHARED_FRAME_REJECTION;
+        }
 
         // Get function metadata for local count
         std::string functionName;
@@ -194,7 +216,16 @@ namespace vm::jit
             functionName = context.callStack.back().functionName;
             auto funcMeta = program.getFunction(functionName);
             if (funcMeta)
+            {
                 localCount = funcMeta->localCount;
+            }
+            else if (functionName == "__script_main__")
+            {
+                // Top-level script body isn't registered as a function; the
+                // compiler publishes the local count out-of-band so OSR can
+                // still tier up script-scope loops.
+                localCount = program.getTopLevelLocalCount();
+            }
         }
 
         if (localCount == 0)
