@@ -110,6 +110,7 @@ namespace vm::bytecode
         struct FunctionMetadata
         {
             std::string name;
+            std::string mangledName;
             size_t startOffset;
             size_t instructionCount;
             size_t localCount;

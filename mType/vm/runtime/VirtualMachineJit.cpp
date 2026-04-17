@@ -364,7 +364,7 @@ namespace vm::runtime
         {
             const auto* funcMeta = program->getFunctionByIndex(instr.operands[0]);
             if (funcMeta) {
-                auto jitCode = jitCodeCache->lookup(funcMeta->name);
+                auto jitCode = jitCodeCache->lookup(funcMeta->mangledName);
                 if (jitCode)
                 {
                     size_t argCount = instr.operands[1];

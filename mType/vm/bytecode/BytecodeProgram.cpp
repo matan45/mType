@@ -843,6 +843,7 @@ namespace vm::bytecode
             // Read function metadata
             FunctionMetadata func;
             func.name = name;
+            func.mangledName = name;
             in.read(reinterpret_cast<char*>(&func.startOffset), sizeof(func.startOffset));
             in.read(reinterpret_cast<char*>(&func.instructionCount), sizeof(func.instructionCount));
             in.read(reinterpret_cast<char*>(&func.localCount), sizeof(func.localCount));

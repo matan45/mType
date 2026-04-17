@@ -159,7 +159,33 @@ namespace
                 i1.opcode == OpCode::GET_FIELD && !i1.operands.empty() &&
                 i2.opcode == OpCode::RETURN_VALUE)
             {
-                trivialGetters[name] = i1.operands[0];
+                // Only inline if the field is public — INLINE_GET_FIELD skips access validation.
+                // Walk the inheritance chain to find the field's actual declaring class:
+                // a Child method may return `this.parentField` where the field lives on Parent.
+                std::string getterClassName = name.substr(0, name.find("::"));
+                std::string fieldName = program.getConstantPool().getString(i1.operands[0]);
+                bool fieldIsPublic = false;
+                std::string currentClass = getterClassName;
+                while (!currentClass.empty()) {
+                    const vm::bytecode::BytecodeProgram::ClassMetadata* foundCls = nullptr;
+                    for (const auto& cls : classes) {
+                        if (cls.name == currentClass) { foundCls = &cls; break; }
+                    }
+                    if (!foundCls) break;
+                    bool foundField = false;
+                    for (const auto& field : foundCls->instanceFields) {
+                        if (field.name == fieldName) {
+                            foundField = true;
+                            fieldIsPublic = !(field.isPrivate || field.isProtected);
+                            break;
+                        }
+                    }
+                    if (foundField) break;
+                    currentClass = foundCls->parentClassName;
+                }
+                if (fieldIsPublic) {
+                    trivialGetters[name] = i1.operands[0];
+                }
             }
         }
 

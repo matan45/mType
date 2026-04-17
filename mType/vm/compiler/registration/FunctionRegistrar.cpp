@@ -316,6 +316,7 @@ namespace vm::compiler::registration
         }
 
         // Register the function signature with BOTH original name and mangled name
+        metadata.mangledName = mangledName;
         program.registerFunction(funcName, metadata);          // Original name for tracking
         program.registerFunction(mangledName, metadata);       // Mangled name for VM lookup
     }
