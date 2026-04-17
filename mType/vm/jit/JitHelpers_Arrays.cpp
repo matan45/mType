@@ -4,6 +4,7 @@
 #include "../../value/NativeArray.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
+#include "../runtime/VirtualMachine.hpp"
 
 namespace vm::jit
 {
@@ -22,6 +23,40 @@ namespace vm::jit
         auto array = std::make_shared<value::NativeArray>(
             static_cast<size_t>(size), elemType, elementTypeName);
         *dest = array;
+    }
+
+    // MYT-146: multi-dim array construction. Dimension sizes arrive in
+    // ctx->callArgs[0..specifiedDims-1] as raw int64 variants; the emitter
+    // marshals them in stack order (receiver-deepest is callArgs[0], matching
+    // the interpreter's bottom-to-top dimension order after its reverse).
+    void jit_new_array_multi(value::Value* dest, JitContext* ctx,
+                              uint32_t typeIndex,
+                              uint32_t totalDims,
+                              uint32_t specifiedDims)
+    {
+        if (!ctx->vm)
+            throw errors::RuntimeException("JIT: jit_new_array_multi invoked with null VM");
+
+        std::vector<int64_t> dimensions;
+        dimensions.reserve(specifiedDims);
+        for (uint32_t i = 0; i < specifiedDims; ++i)
+        {
+            const value::Value& v = ctx->callArgs[i];
+            int64_t size = 0;
+            if (std::holds_alternative<int64_t>(v))
+                size = std::get<int64_t>(v);
+            else
+                throw errors::RuntimeException(
+                    "JIT: jit_new_array_multi expected int64 dimension at slot " +
+                    std::to_string(i));
+            if (size < 0)
+                throw errors::RuntimeException(
+                    "Array dimension size cannot be negative: " + std::to_string(size));
+            dimensions.push_back(size);
+        }
+
+        *dest = ctx->vm->createMultiArrayFromJit(typeIndex, dimensions,
+                                                  static_cast<size_t>(totalDims));
     }
 
     void jit_array_get(value::Value* dest, const value::Value* array,

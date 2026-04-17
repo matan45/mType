@@ -167,6 +167,7 @@ namespace vm::jit
         static const std::unordered_set<uint8_t> opcodes = {
             static_cast<uint8_t>(OpCode::SET_FIELD),
             static_cast<uint8_t>(OpCode::NEW_ARRAY),
+            static_cast<uint8_t>(OpCode::NEW_ARRAY_MULTI),
             static_cast<uint8_t>(OpCode::ARRAY_GET),
             static_cast<uint8_t>(OpCode::ARRAY_SET),
             static_cast<uint8_t>(OpCode::ARRAY_LENGTH),
@@ -176,6 +177,10 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::INSTANCEOF),
             static_cast<uint8_t>(OpCode::CAST),
             static_cast<uint8_t>(OpCode::NEW_OBJECT),
+            static_cast<uint8_t>(OpCode::GET_ITERATOR),
+            static_cast<uint8_t>(OpCode::ITERATOR_HAS_NEXT),
+            static_cast<uint8_t>(OpCode::ITERATOR_NEXT),
+            static_cast<uint8_t>(OpCode::ITERATOR_CLOSE),
         };
         return opcodes;
     }

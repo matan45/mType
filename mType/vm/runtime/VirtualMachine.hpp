@@ -299,6 +299,13 @@ namespace vm::runtime
                                        const std::string& methodName,
                                        const std::vector<value::Value>& args);
 
+        // JIT helper (MYT-146): allocate a multi-dimensional array. Mirrors
+        // ArrayExecutor::handleNewArrayMulti's post-pop dispatch but takes
+        // pre-popped dimensions so it's callable without an ExecutionContext.
+        value::Value createMultiArrayFromJit(uint32_t typeNameIndex,
+                                             const std::vector<int64_t>& dimensions,
+                                             size_t totalDimensions);
+
         // Reset VM state
         void reset();
 

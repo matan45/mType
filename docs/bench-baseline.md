@@ -187,3 +187,53 @@ Folding `--jit-stats` output into the `--benchmark` sweep output would be a smal
 - **MYT-142** (JIT short-circuit jumps) — cites `short_circuit_chain.mt`. Same pattern.
 - **MYT-144** (JIT INVOKE_INT_* / INVOKE_FLOAT_*) — cites `primitive_method_dispatch.mt`. Bailouts on INVOKE_INT_* / INVOKE_FLOAT_* should drop after MYT-144.
 - **MYT-143** deferred — `lambda_higher_order.mt` file is kept in `tests/testFiles/benchmarks/` for future use but is not in the canonical sweep yet.
+
+## 2026-04-17 — MYT-146 + MYT-147: multi-dim arrays + iterator protocol
+
+- Machine: dev machine (Windows 11 Home)
+- Commit:  TBD (run after MYT-146+MYT-147 land on `dev`)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3) + `mType.exe --jit-stats <script>` per row for Bailouts / OSR fail / Hot fns.
+- Scope: adds `array_multi_alloc.mt` (MYT-146) and `for_each_loop.mt` (MYT-147). Unlike the MYT-145 scripts, both wrap their hot loop in a user-defined function (`allocOne`, `sumForEach`) so that function crosses the 100-call hot threshold and function-level JIT fires — workaround for MYT-148 (OSR universal failure).
+- Interpreter bug-fix rider: `ArrayExecutor::handleArrayLengthLocal` now dispatches on variant type (NativeArray / FlatMultiArray / SparseMultiArray) instead of naked `std::get<NativeArray>`. Pre-existing bug exposed by `new int[4][4][4]; m.length` — uncovered while writing `array_multi_alloc.mt`'s first draft (which has since been rewritten to avoid multi-dim indexing entirely, because `jit_array_get` / `jit_array_extract_info` on the JIT side have a matching NativeArray-only limitation that aborts the process when hit).
+
+| Script                          | Wall min (ms) | exec (ms) | Instructions | Calls    | JIT | Bailouts | OSR fail | Hot fns |
+|---------------------------------|--------------:|----------:|-------------:|---------:|-----|---------:|---------:|--------:|
+| arithmetic_tight_loop.mt        |       5192.68 |   5220.26 |    236000031 |        0 | on  |      TBD |      TBD |     TBD |
+| method_dispatch.mt              |       2173.05 |   2172.09 |     52000048 |  2000006 | on  |      TBD |      TBD |     TBD |
+| object_alloc.mt                 |       5803.77 |   6045.72 |     62000018 |  2000000 | on  |      TBD |      TBD |     TBD |
+| string_ops.mt                   |        544.35 |    562.05 |     20320032 |        0 | on  |      TBD |      TBD |     TBD |
+| recursive.mt                    |       1873.26 |   1881.87 |      1303765 |  2813094 | on  |      TBD |      TBD |     TBD |
+| bitwise_tight_loop.mt           |       9470.77 |   9470.05 |    420000023 |        0 | on  |      TBD |      TBD |     TBD |
+| short_circuit_chain.mt          |       4806.67 |   4808.48 |    236570113 |        0 | on  |      TBD |      TBD |     TBD |
+| primitive_method_dispatch.mt    |       2373.92 |   2431.01 |     33000080 |  1000007 | on  |      TBD |      TBD |     TBD |
+| array_multi_alloc.mt            |        137.45 |    136.86 |      1800818 |   100000 | on  |      TBD |      TBD |     TBD |
+| for_each_loop.mt                |       6280.50 |   6257.01 |      4607247 |  2306308 | on  |      TBD |      TBD |     TBD |
+
+### Sanity outputs (must match on re-run for same commit)
+
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
+- `string_ops.mt`: `concat_iters=20000 matches=1000000`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+- `bitwise_tight_loop.mt`: `acc=5000001`
+- `short_circuit_chain.mt`: `hits=4350982`
+- `primitive_method_dispatch.mt`: `accValue=47 faccValue=1.375e+11`
+- `array_multi_alloc.mt`: `dummy=4999950000`
+- `for_each_loop.mt`: `total=999000000`
+
+### Tuning notes
+
+- `array_multi_alloc.mt`: 137ms wall-clock is well below the 1-5s target — pooled multi-dim allocation is very cheap. Bump `N` to ~800K-1M if a longer-running sample is desired for regression sensitivity. Asserted result scales with N (currently `dummy = N*(N-1)/2`).
+- `for_each_loop.mt`: 6280ms is slightly over target. Either reduce `M` (ArrayList size, currently 1000) or `N` (outer call count, currently 2000) by ~20% to land in the 1-5s band. Asserted result scales with both.
+
+### Consumers
+
+- **MYT-146** (JIT NEW_ARRAY_MULTI) — cites `array_multi_alloc.mt`. After this ticket lands, `allocOne` should compile: Hot fns ≥ 1, Bailouts = 0.
+- **MYT-147** (JIT iterator protocol) — cites `for_each_loop.mt`. After this ticket lands, `sumForEach` should compile: Hot fns ≥ 1, Bailouts = 0.
+- Both benchmarks still show `OSR fail > 0` in their top-level script bodies — that's the MYT-148 signal, independent of the opcode-coverage work.
+
+### Known JIT multi-dim gap (out of scope for MYT-146)
+
+`jit_array_get`, `jit_array_extract_info`, and by extension `emitArrayLengthLocal` / `emitArrayGetIntLocal` in the JIT only accept `NativeArray` receivers. A function compiled by function-level JIT that indexes (`m[i]`) or reads `.length` on a multi-dim array (`FlatMultiArray` / `SparseMultiArray`) will throw `RuntimeException` from asmjit-emitted code — no SEH registration on the JIT frame means the process aborts instead of surfacing the error. This blocks richer benchmarks (e.g., `m[0][0][0] = i; total += m[0][0][0];` inside a hot function). Follow-up ticket recommended before MYT-146 gets a "meaningful speedup" benchmark.

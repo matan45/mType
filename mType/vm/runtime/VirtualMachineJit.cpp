@@ -11,6 +11,10 @@
 #include "../jit/ic/InlineCacheTable.hpp"
 #include "../jit/ic/TypeFeedbackCollector.hpp"
 #include "executors/FunctionExecutor.hpp"
+#include "executors/ArrayExecutor.hpp"
+#include "../bytecode/BytecodeProgram.hpp"
+#include "../../environment/Environment.hpp"
+#include "../../environment/registry/ClassRegistry.hpp"
 #include <algorithm>
 #include <exception>
 #include <iostream>
@@ -464,5 +468,19 @@ namespace vm::runtime
         }
 
         std::cout << "======================\n";
+    }
+
+    value::Value VirtualMachine::createMultiArrayFromJit(uint32_t typeNameIndex,
+                                                          const std::vector<int64_t>& dimensions,
+                                                          size_t totalDimensions)
+    {
+        if (!program)
+        {
+            throw errors::RuntimeException("JIT multi-array fallback: no program loaded");
+        }
+        const std::string& elementTypeName =
+            program->getConstantPool().getString(typeNameIndex);
+        auto classRegistry = environment ? environment->getClassRegistry().get() : nullptr;
+        return ArrayExecutor::buildMultiArray(classRegistry, elementTypeName, dimensions, totalDimensions);
     }
 }

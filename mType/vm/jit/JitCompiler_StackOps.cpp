@@ -88,6 +88,7 @@ namespace vm::jit
 
             static_cast<uint8_t>(OpCode::NEW_OBJECT),
             static_cast<uint8_t>(OpCode::NEW_ARRAY),
+            static_cast<uint8_t>(OpCode::NEW_ARRAY_MULTI),
             static_cast<uint8_t>(OpCode::ARRAY_GET),
             static_cast<uint8_t>(OpCode::ARRAY_SET),
             static_cast<uint8_t>(OpCode::ARRAY_LENGTH),
@@ -123,6 +124,11 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::INVOKE_FLOAT_ABS),
             static_cast<uint8_t>(OpCode::INVOKE_FLOAT_EQUALS),
             static_cast<uint8_t>(OpCode::INVOKE_FLOAT_COMPARE),
+
+            static_cast<uint8_t>(OpCode::GET_ITERATOR),
+            static_cast<uint8_t>(OpCode::ITERATOR_HAS_NEXT),
+            static_cast<uint8_t>(OpCode::ITERATOR_NEXT),
+            static_cast<uint8_t>(OpCode::ITERATOR_CLOSE),
 
             static_cast<uint8_t>(OpCode::LINE),
             static_cast<uint8_t>(OpCode::SOURCE_FILE),

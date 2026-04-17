@@ -629,6 +629,9 @@
     <ClCompile Include="vm\jit\JitHelpers_Core.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_Iterators.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
     <ClCompile Include="vm\jit\JitHelpers_OSR.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>

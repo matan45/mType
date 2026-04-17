@@ -23,7 +23,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 8> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 10> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -32,6 +32,8 @@ namespace
         "bitwise_tight_loop.mt",
         "short_circuit_chain.mt",
         "primitive_method_dispatch.mt",
+        "array_multi_alloc.mt",
+        "for_each_loop.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";

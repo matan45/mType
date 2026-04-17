@@ -69,12 +69,22 @@ namespace vm::jit
                 case OpCode::NEW_OBJECT:
                 case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
                 case OpCode::CALL_METHOD: case OpCode::CALL_STATIC:
-                case OpCode::NEW_ARRAY:   case OpCode::ARRAY_GET:
+                case OpCode::NEW_ARRAY:   case OpCode::NEW_ARRAY_MULTI:
+                case OpCode::ARRAY_GET:
                 case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:
                 case OpCode::ARRAY_GET_INT_LOCAL: case OpCode::ARRAY_SET_INT_LOCAL:
                 case OpCode::ARRAY_LENGTH_LOCAL:
                 case OpCode::INSTANCEOF:  case OpCode::INSTANCEOF_TYPEPARAM:
                 case OpCode::CAST:
+                // MYT-147: iterator opcodes receive / produce boxed
+                // ObjectInstance values (ArrayIteratorHelper,
+                // HashMapKeyIterator, LinkedListIterator, ...) on the operand
+                // stack, so the enclosing function must run in boxed-types
+                // mode. ITERATOR_HAS_NEXT pushes bool; ITERATOR_CLOSE pushes
+                // nothing - but they're stack-adjacent to boxed iterator slots
+                // and are safe to include in the boxed-mode trigger set.
+                case OpCode::GET_ITERATOR:      case OpCode::ITERATOR_HAS_NEXT:
+                case OpCode::ITERATOR_NEXT:     case OpCode::ITERATOR_CLOSE:
                 // Specialized primitive-method opcodes receive boxed Int / Float
                 // objects on the operand stack, so the enclosing function must
                 // be emitted in boxed-types mode.

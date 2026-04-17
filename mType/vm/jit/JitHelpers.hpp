@@ -58,6 +58,10 @@ namespace vm::jit
 
     void jit_new_array(value::Value* dest, JitContext* ctx,
                         uint32_t typeIndex, int64_t size);
+    void jit_new_array_multi(value::Value* dest, JitContext* ctx,
+                              uint32_t typeIndex,
+                              uint32_t totalDims,
+                              uint32_t specifiedDims);
     void jit_array_get(value::Value* dest, const value::Value* array,
                         int64_t index);
     void jit_array_set(const value::Value* array, int64_t index,
@@ -65,6 +69,14 @@ namespace vm::jit
     int64_t jit_array_length(const value::Value* array);
 
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount);
+
+    // MYT-147: iterator protocol helpers. Receiver is marshalled into
+    // ctx->callArgs[0] by the emitter before each call. Methods that return a
+    // value (get/has_next/next) write the result into *dest.
+    void jit_iterator_get     (value::Value* dest, JitContext* ctx);
+    void jit_iterator_has_next(value::Value* dest, JitContext* ctx);
+    void jit_iterator_next    (value::Value* dest, JitContext* ctx);
+    void jit_iterator_close   (JitContext* ctx);
 
     int64_t jit_instanceof(const value::Value* val,
                             const vm::bytecode::BytecodeProgram* prog,
