@@ -166,6 +166,7 @@ namespace vm::runtime
         std::unique_ptr<vm::jit::JitCompiler> jitCompiler;
         std::unique_ptr<vm::jit::OSRManager> osrManager;
         bool jitEnabled;
+        size_t jitNativeDepth = 0;  // Tracks JIT native recursion depth to prevent C++ stack overflow
 
         // Phase 6: Inline caching and type specialization
         std::unique_ptr<vm::jit::ic::InlineCacheTable> inlineCacheTable;
@@ -332,7 +333,15 @@ namespace vm::runtime
         value::Value peek(size_t offset = 0) const;
         void popN(size_t count);
 
-        // Call stack management with overflow protection
+    public:
+        // Call stack management with overflow protection (public for JIT access)
         void pushCallFrame(const CallFrame& frame);
+        void popCallStack();
+
+        // JIT native depth tracking (public for JIT helpers access)
+        static constexpr size_t MAX_JIT_NATIVE_DEPTH = 64;
+        size_t getJitNativeDepth() const { return jitNativeDepth; }
+        void incrementJitNativeDepth() { ++jitNativeDepth; }
+        void decrementJitNativeDepth() { --jitNativeDepth; }
     };
 }

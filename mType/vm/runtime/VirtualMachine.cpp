@@ -259,6 +259,14 @@ namespace vm::runtime
         callStack.push_back(frame);
     }
 
+    void VirtualMachine::popCallStack()
+    {
+        if (!callStack.empty())
+        {
+            callStack.pop_back();
+        }
+    }
+
 
     // === Helper Methods ===
 

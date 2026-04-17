@@ -49,7 +49,11 @@ namespace vm::runtime
         frame.localBase = savedStackSize;
         frame.functionName = funcName;
         frame.thisInstance = nullptr;
-        callStack.push_back(frame);
+        pushCallFrame(frame);
+
+        // Track native depth — this function runs its own interpreter loop on the
+        // native C++ stack, so it contributes to native recursion depth
+        ++jitNativeDepth;
 
         // Jump to function start
         instructionPointer = funcMeta->startOffset;
@@ -73,6 +77,7 @@ namespace vm::runtime
             }
             catch (...)
             {
+                --jitNativeDepth;
                 // Restore state on exception
                 while (callStack.size() > savedCallStackDepth)
                 {
@@ -88,6 +93,8 @@ namespace vm::runtime
 
             instructionPointer++;
         }
+
+        --jitNativeDepth;
 
         // Get return value (if any)
         value::Value result = std::monostate{};
@@ -204,7 +211,10 @@ namespace vm::runtime
         frame.functionName = qualifiedName;
         frame.thisInstance = instance;
         frame.definingClassName = definingClassName;
-        callStack.push_back(frame);
+        pushCallFrame(frame);
+
+        // Track native depth
+        ++jitNativeDepth;
 
         // Jump to method start
         instructionPointer = funcMetadata->startOffset;
@@ -228,6 +238,7 @@ namespace vm::runtime
             }
             catch (...)
             {
+                --jitNativeDepth;
                 // Restore state on exception
                 while (callStack.size() > savedCallStackDepth)
                 {
@@ -243,6 +254,8 @@ namespace vm::runtime
 
             instructionPointer++;
         }
+
+        --jitNativeDepth;
 
         // Get return value (if any)
         value::Value result = std::monostate{};
@@ -289,7 +302,7 @@ namespace vm::runtime
     {
         using OpCode = bytecode::OpCode;
 
-        if (jitEnabled && jitCodeCache)
+        if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH)
         {
             std::string funcName = program->getConstantPool().getString(instr.operands[0]);
             auto jitCode = jitCodeCache->lookup(funcName);
@@ -318,7 +331,17 @@ namespace vm::runtime
                 if (sepPos != std::string::npos)
                     jitCtx.callingClassName = funcName.substr(0, sepPos);
 
-                jitCode(&jitCtx);
+                ++jitNativeDepth;
+                try
+                {
+                    jitCode(&jitCtx);
+                }
+                catch (...)
+                {
+                    --jitNativeDepth;
+                    throw;
+                }
+                --jitNativeDepth;
 
                 if (jitCtx.hasReturnValue)
                     stackManager->push(jitCtx.returnValue);
@@ -327,6 +350,7 @@ namespace vm::runtime
                 return;
             }
         }
+        // Fall back to interpreter (uses managed call stack with overflow protection)
         functionExecutor->handleCall(instr);
     }
 

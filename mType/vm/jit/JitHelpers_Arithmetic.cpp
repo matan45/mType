@@ -65,12 +65,27 @@ namespace vm::jit
                                const std::string& funcName,
                                size_t argCount)
     {
-        if (!ctx->jitCodeCache)
+        if (!ctx->jitCodeCache || !ctx->vm)
             return false;
 
         auto jitFn = ctx->jitCodeCache->lookup(funcName);
         if (!jitFn)
             return false;
+
+        // If native recursion is too deep, fall back to interpreter to avoid
+        // native C++ stack overflow (the VM interpreter uses a managed call stack)
+        if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
+            return false;
+
+        // Track on the VM call stack for overflow protection
+        vm::runtime::CallFrame frame;
+        frame.returnAddress = 0;
+        frame.frameBase = 0;
+        frame.localBase = 0;
+        frame.functionName = funcName;
+        frame.thisInstance = nullptr;
+        ctx->vm->pushCallFrame(frame);
+        ctx->vm->incrementJitNativeDepth();
 
         JitContext nestedCtx{};
         nestedCtx.args = ctx->callArgs;
@@ -84,7 +99,19 @@ namespace vm::jit
         nestedCtx.icTable = ctx->icTable;
         nestedCtx.callingClassName = ctx->callingClassName;
 
-        jitFn(&nestedCtx);
+        try
+        {
+            jitFn(&nestedCtx);
+        }
+        catch (...)
+        {
+            ctx->vm->decrementJitNativeDepth();
+            ctx->vm->popCallStack();
+            throw;
+        }
+
+        ctx->vm->decrementJitNativeDepth();
+        ctx->vm->popCallStack();
 
         ctx->returnValue = nestedCtx.returnValue;
         ctx->hasReturnValue = nestedCtx.hasReturnValue;

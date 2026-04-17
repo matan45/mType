@@ -11,6 +11,7 @@
 #include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
+#include "../../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include  <iostream>
@@ -842,6 +843,26 @@ namespace vm::compiler::visitors
                     ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
                                                          valueClassName, isNullValue, node->getLocation(),
                                                          node->isNullableType());
+
+                    // For array literals assigned to typed arrays, validate each element
+                    // against the declared element type (catches incompatible objects)
+                    auto* arrayLit = dynamic_cast<ast::nodes::expressions::ArrayLiteralNode*>(value);
+                    if (arrayLit && varClassName.find("[]") != std::string::npos) {
+                        std::string declaredElementType = varClassName.substr(0, varClassName.find("[]"));
+                        const auto& elements = arrayLit->getElements();
+                        for (size_t i = 0; i < elements.size(); ++i) {
+                            if (auto* newNode = dynamic_cast<ast::NewNode*>(elements[i].get())) {
+                                std::string elementClass = newNode->getClassName();
+                                if (elementClass != declaredElementType &&
+                                    !ctx.typeValidator.isClassCompatible(elementClass, declaredElementType)) {
+                                    throw errors::TypeException(
+                                        "Array literal type mismatch: expected '" + declaredElementType +
+                                        "' but got '" + elementClass + "' at index " + std::to_string(i),
+                                        node->getLocation());
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Check for auto-unboxing (Box type to primitive)
