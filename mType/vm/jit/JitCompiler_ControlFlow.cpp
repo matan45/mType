@@ -407,6 +407,44 @@ namespace vm::jit
                 return true;
             }
 
+            case OpCode::JUMP_IF_FALSE_OR_POP:
+            case OpCode::JUMP_IF_TRUE_OR_POP:
+            {
+                // Short-circuit semantics: on jump-taken the condition value is
+                // preserved on the runtime stack (becomes the expression result);
+                // on fall-through the value is popped. Peek without decrementing
+                // the runtime-side counter before the conditional jump.
+                size_t target = instr.operands[0];
+                bool jumpOnZero = (instr.opcode == OpCode::JUMP_IF_FALSE_OR_POP);
+
+                Gp cond = cc.new_gp64();
+                cc.mov(cond, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+                cc.test(cond, cond);
+
+                if (onExit && s.labels.find(target) == s.labels.end())
+                {
+                    Label continueLoop = cc.new_label();
+                    if (jumpOnZero) cc.jnz(continueLoop);
+                    else            cc.jz(continueLoop);
+                    onExit(s, target);
+                    cc.bind(continueLoop);
+                }
+                else
+                {
+                    if (jumpOnZero) cc.jz(s.labels[target]);
+                    else            cc.jnz(s.labels[target]);
+                }
+
+                // Fall-through path: pop the condition value. The bytecode
+                // compiler guarantees BOOL/INT primitive on top at short-circuit
+                // sites (ExpressionCompiler.cpp:63-68, 92-97), so no boxed
+                // destroy is needed — mirrors the existing JUMP_IF_FALSE/TRUE
+                // primitive-only contract.
+                popType(s);
+                s.stackDepth--;
+                return true;
+            }
+
             case OpCode::JUMP_BACK:
             {
                 InvokeNode* gc;

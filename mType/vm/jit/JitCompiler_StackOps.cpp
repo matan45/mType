@@ -56,12 +56,21 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::AND),
             static_cast<uint8_t>(OpCode::OR),
 
+            static_cast<uint8_t>(OpCode::BITWISE_AND_OP),
+            static_cast<uint8_t>(OpCode::BITWISE_OR_OP),
+            static_cast<uint8_t>(OpCode::BITWISE_XOR_OP),
+            static_cast<uint8_t>(OpCode::LEFT_SHIFT_OP),
+            static_cast<uint8_t>(OpCode::RIGHT_SHIFT_OP),
+            static_cast<uint8_t>(OpCode::BITWISE_NOT_OP),
+
             static_cast<uint8_t>(OpCode::LOAD_LOCAL),
             static_cast<uint8_t>(OpCode::STORE_LOCAL),
 
             static_cast<uint8_t>(OpCode::JUMP),
             static_cast<uint8_t>(OpCode::JUMP_IF_FALSE),
             static_cast<uint8_t>(OpCode::JUMP_IF_TRUE),
+            static_cast<uint8_t>(OpCode::JUMP_IF_FALSE_OR_POP),
+            static_cast<uint8_t>(OpCode::JUMP_IF_TRUE_OR_POP),
             static_cast<uint8_t>(OpCode::JUMP_BACK),
             static_cast<uint8_t>(OpCode::RETURN),
             static_cast<uint8_t>(OpCode::RETURN_VALUE),
@@ -95,6 +104,25 @@ namespace vm::jit
 
             static_cast<uint8_t>(OpCode::NEW_VALUE_OBJECT),
             static_cast<uint8_t>(OpCode::OBJECT_TO_VALUE),
+
+            static_cast<uint8_t>(OpCode::INVOKE_INT_ADD),
+            static_cast<uint8_t>(OpCode::INVOKE_INT_SUB),
+            static_cast<uint8_t>(OpCode::INVOKE_INT_MUL),
+            static_cast<uint8_t>(OpCode::INVOKE_INT_DIV),
+            static_cast<uint8_t>(OpCode::INVOKE_INT_MOD),
+            static_cast<uint8_t>(OpCode::INVOKE_INT_NEG),
+            static_cast<uint8_t>(OpCode::INVOKE_INT_ABS),
+            static_cast<uint8_t>(OpCode::INVOKE_INT_EQUALS),
+            static_cast<uint8_t>(OpCode::INVOKE_INT_COMPARE),
+
+            static_cast<uint8_t>(OpCode::INVOKE_FLOAT_ADD),
+            static_cast<uint8_t>(OpCode::INVOKE_FLOAT_SUB),
+            static_cast<uint8_t>(OpCode::INVOKE_FLOAT_MUL),
+            static_cast<uint8_t>(OpCode::INVOKE_FLOAT_DIV),
+            static_cast<uint8_t>(OpCode::INVOKE_FLOAT_NEG),
+            static_cast<uint8_t>(OpCode::INVOKE_FLOAT_ABS),
+            static_cast<uint8_t>(OpCode::INVOKE_FLOAT_EQUALS),
+            static_cast<uint8_t>(OpCode::INVOKE_FLOAT_COMPARE),
 
             static_cast<uint8_t>(OpCode::LINE),
             static_cast<uint8_t>(OpCode::SOURCE_FILE),

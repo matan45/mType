@@ -236,6 +236,11 @@ namespace vm::jit
         throw errors::RuntimeException("Division by zero");
     }
 
+    void jit_throw_shift_out_of_range(int64_t /*count*/)
+    {
+        throw errors::RuntimeException("Shift amount must be between 0 and 63");
+    }
+
     void jit_value_copy(value::Value* dest, const value::Value* src)
     {
         *dest = *src;

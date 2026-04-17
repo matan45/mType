@@ -135,3 +135,47 @@ See `docs/benchmarks.md` for how to update.
 - `object_alloc.mt`: `total=1999999000000`
 - `string_ops.mt`: `concat_iters=20000 matches=1000000`
 - `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+
+## 2026-04-17 — MYT-145: extended suite (bitwise, short-circuit, primitive method)
+
+- Machine: dev machine (Windows 11 Home)
+- Commit:  TBD (run after MYT-145 lands on `dev`)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3) + `mType.exe --jit-stats <script>` per row for the Bailouts column
+- Scope: adds `bitwise_tight_loop.mt`, `short_circuit_chain.mt`, `primitive_method_dispatch.mt`. Adds a **Bailouts** column (parsed from the `Bailouts:` line of `--jit-stats` output) so the JIT-gap tickets (MYT-141/142/144) have a before/after signal in the same table. MYT-143 (lambda) is deferred pending capture-plumbing design, so no lambda benchmark is registered here.
+
+| Script                          | Wall min (ms) | exec (ms) | Instructions | Calls | JIT | Bailouts |
+|---------------------------------|--------------:|----------:|-------------:|------:|-----|---------:|
+| arithmetic_tight_loop.mt        |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
+| method_dispatch.mt              |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
+| object_alloc.mt                 |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
+| string_ops.mt                   |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
+| recursive.mt                    |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
+| bitwise_tight_loop.mt           |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
+| short_circuit_chain.mt          |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
+| primitive_method_dispatch.mt    |           TBD |       TBD |          TBD |   TBD | on  |      TBD |
+
+### How to populate this table
+
+1. Build Release.
+2. `mType.exe --benchmark` — fills Wall min / exec / Instructions / Calls / JIT for all 8 rows.
+3. For each script, run `mType.exe --jit-stats mType/tests/testFiles/benchmarks/<name>.mt` and grep the `Bailouts:` line from stdout. Record in the Bailouts column.
+4. For the 3 new scripts, capture their deterministic print outputs and add them to the Sanity outputs list below.
+
+### Sanity outputs (must match on re-run for same commit)
+
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
+- `string_ops.mt`: `concat_iters=20000 matches=1000000`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+- `bitwise_tight_loop.mt`: `acc=` TBD
+- `short_circuit_chain.mt`: `hits=` TBD
+- `primitive_method_dispatch.mt`: `accValue=` TBD `faccValue=` TBD
+
+### Consumers
+
+- **MYT-141** (JIT bitwise ops) — cites `bitwise_tight_loop.mt`. Expect Bailouts > 0 here today; after MYT-141, Bailouts should drop and Wall min should improve.
+- **MYT-142** (JIT short-circuit jumps) — cites `short_circuit_chain.mt`. Same pattern.
+- **MYT-144** (JIT INVOKE_INT_* / INVOKE_FLOAT_*) — cites `primitive_method_dispatch.mt`. Bailouts on INVOKE_INT_* / INVOKE_FLOAT_* should drop after MYT-144.
+- **MYT-143** deferred — `lambda_higher_order.mt` file is kept in `tests/testFiles/benchmarks/` for future use but is not in the canonical sweep yet.

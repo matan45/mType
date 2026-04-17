@@ -75,6 +75,18 @@ namespace vm::jit
                 case OpCode::ARRAY_LENGTH_LOCAL:
                 case OpCode::INSTANCEOF:  case OpCode::INSTANCEOF_TYPEPARAM:
                 case OpCode::CAST:
+                // Specialized primitive-method opcodes receive boxed Int / Float
+                // objects on the operand stack, so the enclosing function must
+                // be emitted in boxed-types mode.
+                case OpCode::INVOKE_INT_ADD: case OpCode::INVOKE_INT_SUB:
+                case OpCode::INVOKE_INT_MUL: case OpCode::INVOKE_INT_DIV:
+                case OpCode::INVOKE_INT_MOD: case OpCode::INVOKE_INT_NEG:
+                case OpCode::INVOKE_INT_ABS: case OpCode::INVOKE_INT_EQUALS:
+                case OpCode::INVOKE_INT_COMPARE:
+                case OpCode::INVOKE_FLOAT_ADD: case OpCode::INVOKE_FLOAT_SUB:
+                case OpCode::INVOKE_FLOAT_MUL: case OpCode::INVOKE_FLOAT_DIV:
+                case OpCode::INVOKE_FLOAT_NEG: case OpCode::INVOKE_FLOAT_ABS:
+                case OpCode::INVOKE_FLOAT_EQUALS: case OpCode::INVOKE_FLOAT_COMPARE:
                     return true;
                 default: break;
             }
@@ -109,7 +121,10 @@ namespace vm::jit
         {
             const auto& instr = program.getInstruction(ip);
             if (instr.opcode == OpCode::JUMP || instr.opcode == OpCode::JUMP_IF_FALSE ||
-                instr.opcode == OpCode::JUMP_IF_TRUE || instr.opcode == OpCode::JUMP_BACK)
+                instr.opcode == OpCode::JUMP_IF_TRUE ||
+                instr.opcode == OpCode::JUMP_IF_FALSE_OR_POP ||
+                instr.opcode == OpCode::JUMP_IF_TRUE_OR_POP ||
+                instr.opcode == OpCode::JUMP_BACK)
             {
                 if (!instr.operands.empty())
                 {
