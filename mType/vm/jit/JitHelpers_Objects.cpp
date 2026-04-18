@@ -101,94 +101,18 @@ namespace vm::jit
         }
     }
 
-    // MYT-132: direct JIT→JIT dispatch for method calls on IC hit.
-    // If the callee has a JIT entry in jitCodeCache, invoke it directly —
-    // skipping the interpreter loop in callMethodFromJitDirect. The emitter
-    // (emitCallMethodOp) has already marshalled receiver into ctx->callArgs[0]
-    // and args into ctx->callArgs[1..argCount], which matches the layout the
-    // callee's emitArgumentUnboxing expects (args[0]=this, args[i]=arg_i).
-    //
-    // entry->jitEntry is the cached JIT entry pointer (populated on IC
-    // create and refreshed lazily here). Avoids a per-call jitCodeCache
-    // hash-string lookup on the 2M-calls-per-loop hot path.
-    static bool tryDirectJitMethodDispatch(
-        JitContext* ctx,
-        const ic::MethodICEntry* entry,
-        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance,
-        size_t methodArgCount)
-    {
-        if (!ctx->vm)
-            return false;
-
-        // MYT-182: refuse direct JIT→JIT dispatch across programs. The
-        // nested JIT code reads constant-pool strings / type indices via
-        // nestedCtx.program — a mismatched program would hand it the wrong
-        // data or OOB. The caller falls through to callMethodFromJitDirect,
-        // which properly saves / switches / restores executionCtx->program.
-        if (entry->program && entry->program != ctx->program)
-            return false;
-
-        // Fast path: cached JIT entry from IC populate / previous refresh.
-        auto jitFn = reinterpret_cast<JitFunction>(entry->jitEntry);
-        if (!jitFn)
-        {
-            // Slow path: callee may have just become hot and JIT-compiled
-            // after this IC was first populated. Retry the lookup once and
-            // cache the result for subsequent calls.
-            if (!ctx->jitCodeCache)
-                return false;
-            jitFn = ctx->jitCodeCache->lookup(entry->qualifiedName);
-            if (!jitFn)
-                return false;
-            entry->jitEntry = reinterpret_cast<ic::JitEntryPtr>(jitFn);
-        }
-
-        if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
-            return false;
-
-        const std::string& qualifiedName = entry->qualifiedName;
-
-        vm::runtime::CallFrame frame;
-        frame.returnAddress = 0;
-        frame.frameBase = 0;
-        frame.localBase = 0;
-        frame.functionName = qualifiedName;
-        frame.thisInstance = instance;
-        size_t sepPos = qualifiedName.find("::");
-        if (sepPos != std::string::npos)
-            frame.definingClassName = qualifiedName.substr(0, sepPos);
-
-        ctx->vm->pushCallFrame(frame);
-        ctx->vm->incrementJitNativeDepth();
-
-        JitContext nestedCtx{};
-        nestedCtx.args = ctx->callArgs;
-        nestedCtx.argCount = methodArgCount + 1;  // +1 for `this` receiver
-        nestedCtx.hasReturnValue = false;
-        nestedCtx.program = ctx->program;
-        nestedCtx.stackManager = ctx->stackManager;
-        nestedCtx.environment = ctx->environment;
-        nestedCtx.vm = ctx->vm;
-        nestedCtx.jitCodeCache = ctx->jitCodeCache;
-        nestedCtx.icTable = ctx->icTable;
-        nestedCtx.callingClassName = frame.definingClassName;
-
-        jitFn(&nestedCtx);
-
-        ctx->vm->decrementJitNativeDepth();
-        ctx->vm->popCallStack();
-
-        if (nestedCtx.pendingException)
-        {
-            ctx->pendingException = nestedCtx.pendingException;
-            return true;
-        }
-
-        ctx->returnValue = nestedCtx.hasReturnValue
-            ? nestedCtx.returnValue : value::Value{std::monostate{}};
-        ctx->hasReturnValue = true;
-        return true;
-    }
+    // MYT-184: the direct JIT->JIT method dispatch (tryDirectJitMethodDispatch,
+    // originally MYT-132 / MYT-161) was removed after it was found to corrupt the
+    // native stack. When invoked nested, the asmjit-compiled callee's stack-frame
+    // layout (cc.new_stack for locals/operand/boxed areas, sized with
+    // INLINE_LOCALS_SLACK) wrote past its allocated bounds and clobbered the MSVC
+    // /GS cookie of a caller on the chain. Every run ended in
+    // STATUS_STACK_BUFFER_OVERRUN (0xC0000409) at __report_gsfailure — never an
+    // argument-layout mismatch as the original ticket hypothesised. All method IC
+    // hits now route through callMethodFromJitDirect's mini-interpret loop, which
+    // runs the callee bytecode directly and is immune to this class of bug. A
+    // future dedicated "nested entry" prologue (option b in the MYT-184 plan) can
+    // restore the fast path once stack-layout invariants are worked out.
 
     void jit_call_method_ic(JitContext* ctx,
                              size_t bytecodeOffset,
@@ -256,12 +180,10 @@ namespace vm::jit
                 {
                     if (!receiverIsValueObject)
                     {
-                        // Try direct JIT→JIT dispatch first. Skips the interpreter
-                        // loop in callMethodFromJitDirect when the callee is
-                        // JIT-compiled. Falls through on lookup miss / depth limit.
-                        if (tryDirectJitMethodDispatch(ctx, entry, instance, argCount))
-                            return;
-
+                        // MYT-184: route ObjectInstance method IC hits through the
+                        // mini-interpret loop. Direct JIT->JIT dispatch was removed
+                        // after it caused /GS stack-cookie corruption (see the
+                        // comment block above this function).
                         auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
                         std::vector<value::Value> args;
                         args.reserve(argCount);
@@ -339,16 +261,6 @@ namespace vm::jit
                         // this to apply the read-only restriction for
                         // value-class sites.
                         entry.receiverIsValueObject = receiverIsValueObject;
-                        // MYT-161: pre-populate cached JIT entry pointer if
-                        // the callee is already JIT-compiled. Only meaningful
-                        // for ObjectInstance direct dispatch — ValueObject
-                        // hits always go through jit_call_method.
-                        if (!receiverIsValueObject && ctx->jitCodeCache)
-                        {
-                            auto jitFn = ctx->jitCodeCache->lookup(resolution.qualifiedName);
-                            if (jitFn)
-                                entry.jitEntry = reinterpret_cast<ic::JitEntryPtr>(jitFn);
-                        }
                         // MYT-183: re-fetch cache reference immediately
                         // before the write. Nested CALL_METHODs in
                         // jit_call_method above may have inserted new
