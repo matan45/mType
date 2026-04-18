@@ -958,6 +958,7 @@ int main(int argc, char* argv[])
     if (benchmarkMode)
     {
         benchmarkOptions.jitEnabled = enableJit;
+        benchmarkOptions.printJitStats = printJitStats;
         int rc = runMain::runBenchmarks(benchmarkOptions);
 
         gc::GC::shutdown();

@@ -377,6 +377,30 @@ make
 > git submodule update --init --recursive
 > ```
 
+> **⚠️ After pulling a branch that changed `mType/vm/bytecode/OpCode.hpp`**
+> (new opcode added / reordered / sentinel moved), do a **clean rebuild** —
+> incremental builds can leave stale .obj/.lib artifacts compiled against
+> the old enum layout, causing cross-TU dispatch drift that silently
+> corrupts bytecode deserialization and opcode dispatch (symptom:
+> "Unimplemented opcode: …" for handled opcodes, or "invalid opcode N"
+> for opcodes that should be valid). See MYT-139.
+>
+> ```bash
+> # Windows
+> rmdir /s /q mType\obj mType\bin
+> runPremake.bat
+> # then Rebuild in Visual Studio
+>
+> # Linux/macOS
+> rm -rf mType/obj mType/bin
+> premake5 gmake2
+> make clean && make
+> ```
+>
+> `runPremake.bat` also sweeps orphan flat-layout .obj files from any
+> previous premake config on every run (one-time migration no-op once
+> the tree is clean).
+
 ### Installing VS Code Extension
 
 1. Open VS Code

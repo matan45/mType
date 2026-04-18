@@ -30,14 +30,19 @@ namespace vm::jit
     }
 
     bool JitCompiler::canCompileLoopOSR(size_t loopStartOffset, size_t loopEndOffset,
-                                         const bytecode::BytecodeProgram& program) const
+                                         const bytecode::BytecodeProgram& program,
+                                         uint8_t* outOpcode) const
     {
         const auto& supported = getSupportedOpcodes();
         for (size_t ip = loopStartOffset; ip <= loopEndOffset; ++ip)
         {
             const auto& instr = program.getInstruction(ip);
-            if (supported.find(static_cast<uint8_t>(instr.opcode)) == supported.end())
+            uint8_t op = static_cast<uint8_t>(instr.opcode);
+            if (supported.find(op) == supported.end())
+            {
+                if (outOpcode) *outOpcode = op;
                 return false;
+            }
         }
         return true;
     }
@@ -533,7 +538,9 @@ namespace vm::jit
         JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
                            frame.boxedBase, frame.progPtr,
                            frame.usesBoxedTypes, frame.localCount, frame.localStride,
-                           0, {}, frame.localTypes, false, 0, labels, program,
+                           0, {}, frame.localTypes, false,
+                           OSRBailoutReason::NONE, 0,
+                           0, labels, program,
                            typeFeedback, {}, backEdges};
 
         emitCodegenLoop(s, startOffset, instrCount, program);

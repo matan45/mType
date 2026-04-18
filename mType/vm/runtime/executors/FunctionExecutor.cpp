@@ -1,6 +1,5 @@
 #include "FunctionExecutor.hpp"
 #include "../../../errors/SourceLocation.hpp"
-#include <fstream>
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
@@ -37,39 +36,54 @@ namespace vm::runtime
         }
         std::reverse(args.begin(), args.end());
 
-        // Try to find native function first
-        auto nativeRegistry = context.environment->getNativeRegistry();
-        if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName))
-        {
-            auto nativeFunc = nativeRegistry->findNativeFunction(functionName);
-            if (nativeFunc)
-            {
-                vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
-
-                value::Value result = nativeFunc(args);
-
-                vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
-
-                context.stackManager->push(result);
-                return;
-            }
-        }
-
-        // Try to find user-defined function in bytecode
-        auto funcMetadata = context.program->getFunction(functionName);
+        // Check inline cache first, then fall back to full resolution
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = instr.cachedFuncMetadata;
         size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
-        // If not found in current program, search loaded library programs
-        if (!funcMetadata && context.loadedPrograms) {
-            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
-                auto libFunc = (*context.loadedPrograms)[i]->getFunction(functionName);
-                if (libFunc) {
-                    funcMetadata = libFunc;
-                    targetProgramIndex = i;
-                    targetProgram = (*context.loadedPrograms)[i];
-                    break;
+        if (funcMetadata) {
+            // Cache hit — skip native check and hash lookup
+            targetProgram = instr.cachedProgram;
+            targetProgramIndex = instr.cachedProgramIndex;
+        } else {
+            // Cache miss — check native first, then bytecode lookup
+            auto nativeRegistry = context.environment->getNativeRegistry();
+            if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName))
+            {
+                auto nativeFunc = nativeRegistry->findNativeFunction(functionName);
+                if (nativeFunc)
+                {
+                    vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
+
+                    value::Value result = nativeFunc(args);
+
+                    vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
+
+                    context.stackManager->push(result);
+                    return;
                 }
+            }
+
+            funcMetadata = context.program->getFunction(functionName);
+
+            if (!funcMetadata && context.loadedPrograms) {
+                for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                    auto libFunc = (*context.loadedPrograms)[i]->getFunction(functionName);
+                    if (libFunc) {
+                        funcMetadata = libFunc;
+                        targetProgramIndex = i;
+                        targetProgram = (*context.loadedPrograms)[i];
+                        break;
+                    }
+                }
+            }
+
+            // Populate cache for subsequent calls
+            if (funcMetadata) {
+                instr.cachedFuncMetadata = funcMetadata;
+                instr.cachedStartOffset = funcMetadata->startOffset;
+                instr.cachedProgram = targetProgram;
+                instr.cachedProgramIndex = targetProgramIndex;
             }
         }
 
@@ -145,6 +159,78 @@ namespace vm::runtime
         throw errors::RuntimeException("Function not found: " + functionName);
     }
 
+    void FunctionExecutor::handleCallFast(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        size_t funcIndex = instr.operands[0];
+        size_t argCount = instr.operands[1];
+
+        const auto* funcMetadata = context.program->getFunctionByIndex(funcIndex);
+        if (!funcMetadata) {
+            throw errors::RuntimeException("CALL_FAST: invalid function index " + std::to_string(funcIndex));
+        }
+
+        size_t frameBase = context.stackManager->size() - argCount;
+
+        std::vector<value::Value> args;
+        args.reserve(argCount);
+        for (size_t i = 0; i < argCount; ++i)
+        {
+            args.push_back(context.stackManager->pop());
+        }
+        std::reverse(args.begin(), args.end());
+
+        convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+
+        CallFrame frame;
+        frame.returnAddress = context.instructionPointer;
+        frame.frameBase = frameBase;
+        frame.localBase = context.stackManager->size();
+        frame.functionName = funcMetadata->mangledName.empty() ? funcMetadata->name : funcMetadata->mangledName;
+        frame.thisInstance = nullptr;
+        frame.programIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
+
+        context.pushCallFrame(frame);
+        context.stats.functionCalls++;
+
+        vm::profiler::ProfilerHookHelper::onFunctionEntry(funcMetadata->name);
+
+        if (debugger::DebugHookHelper::isDebuggingEnabled())
+        {
+            auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
+            if (sourceLoc)
+            {
+                errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
+                debugger::DebugHookHelper::enterFunctionHook(funcMetadata->name, errorsLoc);
+            }
+            else
+            {
+                auto funcStartLoc = context.program->getSourceLocation(funcMetadata->startOffset);
+                if (funcStartLoc)
+                {
+                    errors::SourceLocation errorsLoc(funcStartLoc->filename, funcStartLoc->line,
+                                                     funcStartLoc->column);
+                    debugger::DebugHookHelper::enterFunctionHook(funcMetadata->name, errorsLoc);
+                }
+                else
+                {
+                    debugger::DebugHookHelper::enterFunctionHook(funcMetadata->name, errors::SourceLocation());
+                }
+            }
+        }
+
+        for (size_t i = 0; i < argCount; ++i)
+        {
+            context.stackManager->push(args[i]);
+        }
+
+        for (size_t i = argCount; i < funcMetadata->localCount; ++i)
+        {
+            context.stackManager->push(std::monostate{});
+        }
+
+        context.instructionPointer = funcMetadata->startOffset - 1;
+    }
+
     void FunctionExecutor::handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr)
     {
         // Get static method name from constant pool (should be fully qualified: ClassName::methodName)
@@ -211,109 +297,120 @@ namespace vm::runtime
         }
         std::reverse(args.begin(), args.end());
 
-        // Look up static method bytecode
-        // Important: Static methods are registered with "$static" suffix to distinguish from instance methods
-        // Functions may be registered with type signatures like "ClassName::methodName/paramTypes$static"
-
-        // Build base qualified name with $static suffix
+        // Build base qualified name with $static suffix (needed for frame.functionName on all paths)
         std::string staticQualifiedName = qualifiedName;
         if (staticQualifiedName.find("$static") == std::string::npos)
         {
             staticQualifiedName += "$static";
         }
 
-        // First, try lookup with type signature built from arguments
-        std::string typeSignature;
-        for (size_t i = 0; i < args.size(); ++i)
-        {
-            if (i > 0) typeSignature += ",";
-            const auto& arg = args[i];
-            if (std::holds_alternative<int64_t>(arg))
-            {
-                typeSignature += "int";
-            }
-            else if (std::holds_alternative<double>(arg))
-            {
-                typeSignature += "float";
-            }
-            else if (std::holds_alternative<bool>(arg))
-            {
-                typeSignature += "bool";
-            }
-            else if (std::holds_alternative<std::string>(arg))
-            {
-                typeSignature += "string";
-            }
-            else if (std::holds_alternative<value::InternedString>(arg))
-            {
-                typeSignature += "string";
-            }
-            else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
-            {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
-                typeSignature += obj->getTypeName();
-            }
-            else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arg))
-            {
-                auto arr = std::get<std::shared_ptr<value::NativeArray>>(arg);
-                // Build array type signature like "int[]", "float[]", "string[]"
-                switch (arr->getElementType())
-                {
-                    case value::ValueType::INT: typeSignature += "int[]"; break;
-                    case value::ValueType::FLOAT: typeSignature += "float[]"; break;
-                    case value::ValueType::BOOL: typeSignature += "bool[]"; break;
-                    case value::ValueType::STRING: typeSignature += "string[]"; break;
-                    case value::ValueType::OBJECT:
-                        typeSignature += arr->getElementTypeName() + "[]";
-                        break;
-                    default: typeSignature += "any[]"; break;
-                }
-            }
-            else if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(arg))
-            {
-                typeSignature += "function";
-            }
-            else if (std::holds_alternative<std::monostate>(arg) || std::holds_alternative<nullptr_t>(arg))
-            {
-                typeSignature += "null";
-            }
-            else
-            {
-                // FlatMultiArray, SparseMultiArray, FlatMultiObjectArray, PromiseValue
-                typeSignature += "any";
-            }
-        }
-
-        // Try lookup with type signature first: ClassName::methodName/paramTypes$static
-        std::string signedQualifiedName = className + "::" + simpleMethodName;
-        if (!typeSignature.empty())
-        {
-            signedQualifiedName += "/" + typeSignature;
-        }
-        signedQualifiedName += "$static";
-
-        auto funcMetadata = context.program->getFunction(signedQualifiedName);
-
-        // Fallback to lookup without type signature
-        if (!funcMetadata)
-        {
-            funcMetadata = context.program->getFunction(staticQualifiedName);
-        }
-
-        // Search loaded library programs if not found in current program
+        // Check inline cache first, then fall back to full resolution
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = instr.cachedFuncMetadata;
         size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
-        if (!funcMetadata && context.loadedPrograms) {
-            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
-                funcMetadata = (*context.loadedPrograms)[i]->getFunction(signedQualifiedName);
-                if (!funcMetadata) {
-                    funcMetadata = (*context.loadedPrograms)[i]->getFunction(staticQualifiedName);
+
+        if (funcMetadata) {
+            // Cache hit — skip type-signature building and hash lookups
+            targetProgram = instr.cachedProgram;
+            targetProgramIndex = instr.cachedProgramIndex;
+        } else {
+            // Cache miss — full resolution with type-signature-based overload lookup
+
+            // Build type signature from runtime argument types
+            std::string typeSignature;
+            for (size_t i = 0; i < args.size(); ++i)
+            {
+                if (i > 0) typeSignature += ",";
+                const auto& arg = args[i];
+                if (std::holds_alternative<int64_t>(arg))
+                {
+                    typeSignature += "int";
                 }
-                if (funcMetadata) {
-                    targetProgramIndex = i;
-                    targetProgram = (*context.loadedPrograms)[i];
-                    break;
+                else if (std::holds_alternative<double>(arg))
+                {
+                    typeSignature += "float";
                 }
+                else if (std::holds_alternative<bool>(arg))
+                {
+                    typeSignature += "bool";
+                }
+                else if (std::holds_alternative<std::string>(arg))
+                {
+                    typeSignature += "string";
+                }
+                else if (std::holds_alternative<value::InternedString>(arg))
+                {
+                    typeSignature += "string";
+                }
+                else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+                {
+                    auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                    typeSignature += obj->getTypeName();
+                }
+                else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arg))
+                {
+                    auto arr = std::get<std::shared_ptr<value::NativeArray>>(arg);
+                    switch (arr->getElementType())
+                    {
+                        case value::ValueType::INT: typeSignature += "int[]"; break;
+                        case value::ValueType::FLOAT: typeSignature += "float[]"; break;
+                        case value::ValueType::BOOL: typeSignature += "bool[]"; break;
+                        case value::ValueType::STRING: typeSignature += "string[]"; break;
+                        case value::ValueType::OBJECT:
+                            typeSignature += arr->getElementTypeName() + "[]";
+                            break;
+                        default: typeSignature += "any[]"; break;
+                    }
+                }
+                else if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(arg))
+                {
+                    typeSignature += "function";
+                }
+                else if (std::holds_alternative<std::monostate>(arg) || std::holds_alternative<nullptr_t>(arg))
+                {
+                    typeSignature += "null";
+                }
+                else
+                {
+                    typeSignature += "any";
+                }
+            }
+
+            // Try lookup with type signature first: ClassName::methodName/paramTypes$static
+            std::string signedQualifiedName = className + "::" + simpleMethodName;
+            if (!typeSignature.empty())
+            {
+                signedQualifiedName += "/" + typeSignature;
+            }
+            signedQualifiedName += "$static";
+
+            funcMetadata = context.program->getFunction(signedQualifiedName);
+
+            if (!funcMetadata)
+            {
+                funcMetadata = context.program->getFunction(staticQualifiedName);
+            }
+
+            if (!funcMetadata && context.loadedPrograms) {
+                for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
+                    funcMetadata = (*context.loadedPrograms)[i]->getFunction(signedQualifiedName);
+                    if (!funcMetadata) {
+                        funcMetadata = (*context.loadedPrograms)[i]->getFunction(staticQualifiedName);
+                    }
+                    if (funcMetadata) {
+                        targetProgramIndex = i;
+                        targetProgram = (*context.loadedPrograms)[i];
+                        break;
+                    }
+                }
+            }
+
+            // Populate cache for subsequent calls
+            if (funcMetadata) {
+                instr.cachedFuncMetadata = funcMetadata;
+                instr.cachedStartOffset = funcMetadata->startOffset;
+                instr.cachedProgram = targetProgram;
+                instr.cachedProgramIndex = targetProgramIndex;
             }
         }
 
@@ -334,21 +431,6 @@ namespace vm::runtime
             // Switch to library program if function is from a library
             if (targetProgram != context.program) {
                 context.program = targetProgram;
-            }
-
-            // Debug: log cross-library static calls
-            {
-                std::ofstream dbg("call_debug.log", std::ios::app);
-                dbg << "CALL_STATIC: " << staticQualifiedName
-                    << " progIdx=" << targetProgramIndex
-                    << " argCount=" << argCount
-                    << " localCount=" << funcMetadata->localCount
-                    << " startOffset=" << funcMetadata->startOffset
-                    << " frameBase=" << frameBase
-                    << " localBase=" << frame.localBase
-                    << " stackSize=" << context.stackManager->size()
-                    << "\n";
-                dbg.close();
             }
 
             context.pushCallFrame(frame);

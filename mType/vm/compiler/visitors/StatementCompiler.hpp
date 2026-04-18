@@ -50,5 +50,14 @@ namespace vm::compiler::visitors
 
         // Check if a statement node is an expression that leaves a value on the stack
         bool isExpressionStatement(ast::ASTNode* node) const;
+
+        // Emit the trailing POP needed to keep the operand stack clean after a
+        // statement, covering two cases: (1) expression statements flagged by
+        // `isExpressionStatement`, (2) statements whose last emitted opcode is
+        // STORE_LOCAL — the runtime's handleStoreLocal re-pushes the stored
+        // value, and for local vars used as statements nothing consumes it.
+        // `offsetBefore` is `ctx.program.getCurrentOffset()` captured before
+        // the statement's accept() call.
+        void emitStatementCleanup(ast::ASTNode* stmt, size_t offsetBefore);
     };
 }

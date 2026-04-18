@@ -31,6 +31,6 @@ namespace constants
          * This limit prevents infinite recursion from consuming all memory
          * Can be overridden via VirtualMachine constructor parameter
          */
-        constexpr size_t DEFAULT_MAX_CALL_STACK_SIZE = 1000;
+        constexpr size_t DEFAULT_MAX_CALL_STACK_SIZE = 10000;
     }
 }

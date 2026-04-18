@@ -241,6 +241,69 @@ namespace vm::runtime
         }
     }
 
+    void InlineCacheExecutor::handleInlineGetFieldIC(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        using namespace vm::jit::ic;
+
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        value::Value objectValue = context.stackManager->pop();
+
+        // ValueObject and primitive receivers can't use IC — handle directly
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
+        {
+            if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
+                auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+                context.stackManager->push(valueObj->getFieldValue(fieldName));
+            } else {
+                // Re-push and delegate to the non-IC handler (which pops again)
+                context.stackManager->push(objectValue);
+                objectExecutor->handleInlineGetField(instr);
+            }
+            return;
+        }
+
+        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto* classDef = instance->getClassDefinition().get();
+
+        FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
+
+        // IC fast path
+        if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
+        {
+            const FieldICEntry* entry = cache.lookup(classDef);
+            if (entry && entry->fieldIndex != SIZE_MAX)
+            {
+                if (!instance->hasFieldVector())
+                {
+                    instance->ensureFieldVector();
+                }
+                context.stackManager->push(instance->getFieldByIndex(entry->fieldIndex));
+                return;
+            }
+        }
+
+        // IC miss
+        context.stackManager->push(instance->getFieldValue(fieldName));
+
+        // Populate IC
+        if (cache.state != ICState::MEGAMORPHIC)
+        {
+            auto fieldDef = instance->getField(fieldName);
+            if (fieldDef && !fieldDef->isStatic())
+            {
+                size_t fieldIndex = classDef->getFieldIndex(fieldName);
+                if (fieldIndex != SIZE_MAX)
+                {
+                    if (!instance->hasFieldVector())
+                    {
+                        instance->ensureFieldVector();
+                    }
+                    cache.addEntry(classDef, fieldIndex);
+                }
+            }
+        }
+    }
+
     void InlineCacheExecutor::handleCallMethodIC(const bytecode::BytecodeProgram::Instruction& instr)
     {
         using namespace vm::jit::ic;
@@ -300,10 +363,14 @@ namespace vm::runtime
                 frame.functionName = entry->qualifiedName;
                 frame.localBase = context.stackManager->size();
                 frame.frameBase = context.stackManager->size();
+                frame.thisInstance = instance;
+                size_t colonPos = entry->qualifiedName.find("::");
+                if (colonPos != std::string::npos) {
+                    frame.definingClassName = entry->qualifiedName.substr(0, colonPos);
+                }
+                frame.programIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
                 context.pushCallFrame(frame);
-
-                // Enter function scope
-                context.environment->enterScope();
+                context.stats.functionCalls++;
 
                 // Push 'this' as first local
                 context.stackManager->push(objectValue);
@@ -312,6 +379,14 @@ namespace vm::runtime
                 for (const auto& arg : args)
                 {
                     context.stackManager->push(arg);
+                }
+
+                // Reserve local variable slots beyond 'this' + arguments
+                size_t pushedSlots = 1 + argCount;
+                if (funcMeta->localCount > pushedSlots) {
+                    for (size_t i = 0; i < funcMeta->localCount - pushedSlots; ++i) {
+                        context.stackManager->push(std::monostate{});
+                    }
                 }
 
                 // Jump to function start
@@ -335,7 +410,7 @@ namespace vm::runtime
         objectExecutor->handleCallMethod(instr);
 
         // After the call, try to populate the cache for next time
-        if (cache.state == ICState::UNINITIALIZED)
+        if (cache.state != ICState::MEGAMORPHIC)
         {
             const std::string& methodName = context.program->getConstantPool().getString(instr.operands[0]);
             auto lookupResult = classDef->findInstanceMethodCached(methodName, argCount);

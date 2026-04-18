@@ -36,6 +36,7 @@ namespace vm::jit
     }
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount);
+    void jit_call_function_fast(JitContext* ctx, uint32_t funcIndex, size_t argCount);
 
     void jit_generic_add(value::Value* result, const value::Value* left, const value::Value* right);
     void jit_generic_sub(value::Value* result, const value::Value* left, const value::Value* right);
@@ -44,6 +45,7 @@ namespace vm::jit
     void jit_generic_mod(value::Value* result, const value::Value* left, const value::Value* right);
 
     void jit_throw_div_by_zero();
+    void jit_throw_shift_out_of_range(int64_t count);
     void jit_throw_array_oob(int64_t index, int64_t size);
 
     void jit_value_copy(value::Value* dest, const value::Value* src);
@@ -56,6 +58,10 @@ namespace vm::jit
 
     void jit_new_array(value::Value* dest, JitContext* ctx,
                         uint32_t typeIndex, int64_t size);
+    void jit_new_array_multi(value::Value* dest, JitContext* ctx,
+                              uint32_t typeIndex,
+                              uint32_t totalDims,
+                              uint32_t specifiedDims);
     void jit_array_get(value::Value* dest, const value::Value* array,
                         int64_t index);
     void jit_array_set(const value::Value* array, int64_t index,
@@ -63,6 +69,32 @@ namespace vm::jit
     int64_t jit_array_length(const value::Value* array);
 
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount);
+
+    // CALL_METHOD with inline-cache fast path. Mirrors emitGetFieldOp/jit_get_field_ic
+    // pattern: emitter passes the bytecode IP, helper looks up MethodInlineCache by
+    // offset, on monomorphic/polymorphic shape match dispatches via pre-resolved
+    // funcMetadata (skipping name resolution). On miss falls back to jit_call_method
+    // and populates the cache from the resolved metadata.
+    void jit_call_method_ic(JitContext* ctx,
+                             size_t bytecodeOffset,
+                             uint32_t methodNameIndex,
+                             size_t argCount);
+
+    // MYT-152: global/field variable access from JIT-compiled OSR loops.
+    // Mirrors VariableExecutor::handleLoadVar / handleStoreVar including the
+    // findVariable -> instance-field -> static-field fallback chain. Throws
+    // are caught and stored in ctx->pendingException.
+    void jit_load_var(value::Value* dest, JitContext* ctx, uint32_t nameIndex);
+    void jit_store_var(JitContext* ctx, uint32_t nameIndex,
+                       const value::Value* val);
+
+    // MYT-147: iterator protocol helpers. Receiver is marshalled into
+    // ctx->callArgs[0] by the emitter before each call. Methods that return a
+    // value (get/has_next/next) write the result into *dest.
+    void jit_iterator_get     (value::Value* dest, JitContext* ctx);
+    void jit_iterator_has_next(value::Value* dest, JitContext* ctx);
+    void jit_iterator_next    (value::Value* dest, JitContext* ctx);
+    void jit_iterator_close   (JitContext* ctx);
 
     int64_t jit_instanceof(const value::Value* val,
                             const vm::bytecode::BytecodeProgram* prog,

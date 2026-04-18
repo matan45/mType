@@ -145,9 +145,13 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Emit appropriate opcode
-        bool typeSpecialized = (leftType == value::ValueType::INT && rightType == value::ValueType::INT);
-        bytecode::OpCode opcode = ctx.emitter.getBinaryOpCode(op, typeSpecialized);
+        // Emit appropriate opcode with type specialization
+        auto spec = emission::ArithmeticSpecialization::NONE;
+        if (leftType == value::ValueType::INT && rightType == value::ValueType::INT)
+            spec = emission::ArithmeticSpecialization::INT;
+        else if (leftType == value::ValueType::FLOAT && rightType == value::ValueType::FLOAT)
+            spec = emission::ArithmeticSpecialization::FLOAT;
+        bytecode::OpCode opcode = ctx.emitter.getBinaryOpCode(op, spec);
         ctx.emitter.emitWithLocation(opcode, node);
 
         return std::monostate{};

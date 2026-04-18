@@ -162,30 +162,11 @@ namespace vm::jit
         }
     }
 
-    static const std::unordered_set<uint8_t>& getOSRBailoutOpcodes()
-    {
-        static const std::unordered_set<uint8_t> opcodes = {
-            static_cast<uint8_t>(OpCode::SET_FIELD),
-            static_cast<uint8_t>(OpCode::NEW_ARRAY),
-            static_cast<uint8_t>(OpCode::ARRAY_GET),
-            static_cast<uint8_t>(OpCode::ARRAY_SET),
-            static_cast<uint8_t>(OpCode::ARRAY_LENGTH),
-            static_cast<uint8_t>(OpCode::CALL_STATIC),
-            static_cast<uint8_t>(OpCode::CALL_METHOD),
-            static_cast<uint8_t>(OpCode::INSTANCEOF),
-            static_cast<uint8_t>(OpCode::CAST),
-            static_cast<uint8_t>(OpCode::NEW_OBJECT),
-        };
-        return opcodes;
-    }
-
     static void emitOSRCodegenLoop(JitEmissionState& s,
                                     const ExitHandler& osrExit,
                                     size_t loopStartOffset, size_t loopEndOffset,
                                     const bytecode::BytecodeProgram& program)
     {
-        const auto& bailoutOpcodes = getOSRBailoutOpcodes();
-
         for (size_t ip = loopStartOffset; ip <= loopEndOffset && !s.compileFailed; ++ip)
         {
             auto labelIt = s.labels.find(ip);
@@ -199,16 +180,22 @@ namespace vm::jit
             const auto& instr = program.getInstruction(ip);
             s.currentIP = ip;
 
-            if (bailoutOpcodes.count(static_cast<uint8_t>(instr.opcode)))
-            {
-                s.compileFailed = true;
-                continue;
-            }
+            uint8_t opByte = static_cast<uint8_t>(instr.opcode);
 
             if (emitCoreOps(s, instr)) continue;
             if (emitArithmeticOps(s, instr)) continue;
             if (emitControlFlowOps(s, instr, osrExit)) continue;
             emitObjectOps(s, instr);
+
+            // If any of the emitters set compileFailed without attaching a
+            // specific reason (e.g. a sub-emitter hit an internal guard),
+            // record a generic CODEGEN_FAILURE so the profile still gets
+            // a non-NONE reason.
+            if (s.compileFailed && s.osrBailoutReason == OSRBailoutReason::NONE)
+            {
+                s.osrBailoutReason = OSRBailoutReason::CODEGEN_FAILURE;
+                s.osrBailoutOpcode = opByte;
+            }
         }
     }
 
@@ -218,7 +205,10 @@ namespace vm::jit
                              const std::vector<LocalSlotInfo>& localSlotInfos,
                              size_t localCount,
                              size_t loopStartOffset, size_t loopEndOffset,
-                             ic::TypeFeedbackCollector* typeFeedback)
+                             size_t jumpBackOffset,
+                             ic::TypeFeedbackCollector* typeFeedback,
+                             OSRBailoutReason& outReason,
+                             uint8_t& outOffendingOpcode)
     {
         std::unordered_map<size_t, SlotType> localTypes;
         emitOSRPrologue(cc, frame, ctxPtr, localSlotInfos, localCount, localTypes);
@@ -228,10 +218,28 @@ namespace vm::jit
         auto backEdges = collectBackEdgeTargets(program, loopStartOffset, loopEndOffset + 1);
         size_t resumeOffset = loopEndOffset + 1;
 
+        // MYT-153 Bug #2 (double-count): the captured state reflects the
+        // interpreter right before the JUMP_BACK at `jumpBackOffset` fires,
+        // so resuming at `loopStartOffset` would re-run the block we've
+        // already executed (header, inc, or body depending on which
+        // back-edge triggered OSR). Jump directly to the back-edge's target
+        // — the same instruction the interpreter's JUMP_BACK would have
+        // landed on.
+        const auto& jbInstr = program.getInstruction(jumpBackOffset);
+        if (!jbInstr.operands.empty())
+        {
+            size_t jumpBackTarget = jbInstr.operands[0];
+            auto it = labels.find(jumpBackTarget);
+            if (it != labels.end())
+                cc.jmp(it->second);
+        }
+
         JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
                            frame.boxedBase, frame.progPtr,
                            frame.usesBoxedTypes, localCount, frame.localStride,
-                           0, {}, localTypes, false, 0, labels, program,
+                           0, {}, localTypes, false,
+                           OSRBailoutReason::NONE, 0,
+                           0, labels, program,
                            typeFeedback, {}, backEdges};
 
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
@@ -247,7 +255,13 @@ namespace vm::jit
         emitOSRCodegenLoop(s, osrExit, loopStartOffset, loopEndOffset, program);
 
         if (s.compileFailed)
+        {
+            outReason = (s.osrBailoutReason == OSRBailoutReason::NONE)
+                         ? OSRBailoutReason::CODEGEN_FAILURE
+                         : s.osrBailoutReason;
+            outOffendingOpcode = s.osrBailoutOpcode;
             return false;
+        }
 
         emitCleanup(s);
         cc.mov(byte_ptr(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
@@ -261,15 +275,27 @@ namespace vm::jit
                                       size_t localCount,
                                       const bytecode::BytecodeProgram& program,
                                       JitCodeCache& codeCache,
-                                      ic::TypeFeedbackCollector* typeFeedback)
+                                      ic::TypeFeedbackCollector* typeFeedback,
+                                      OSRBailoutReason* outReason,
+                                      uint8_t* outOffendingOpcode)
     {
+        // MYT-148: helper to record bailout reason + opcode for the caller
+        // (OSRManager) to attach to the LoopProfile. Single place to update.
+        auto reportBailout = [&](OSRBailoutReason reason, uint8_t opcode = 0)
+        {
+            if (outReason) *outReason = reason;
+            if (outOffendingOpcode) *outOffendingOpcode = opcode;
+        };
+
         std::string osrKey = "osr@" + std::to_string(jumpBackOffset);
         if (codeCache.contains(osrKey))
             return true;
 
-        if (!canCompileLoopOSR(loopStartOffset, loopEndOffset, program))
+        uint8_t offendingOpcode = 0;
+        if (!canCompileLoopOSR(loopStartOffset, loopEndOffset, program, &offendingOpcode))
         {
             bailoutCount++;
+            reportBailout(OSRBailoutReason::UNSUPPORTED_OPCODE, offendingOpcode);
             return false;
         }
 
@@ -278,6 +304,7 @@ namespace vm::jit
         if (localCount > MAX_LOCAL_COUNT)
         {
             bailoutCount++;
+            reportBailout(OSRBailoutReason::LOCAL_COUNT_EXCEEDED);
             return false;
         }
 
@@ -292,10 +319,15 @@ namespace vm::jit
         auto frame = setupOSRFrame(cc, program, localSlotInfos, localCount,
                                    loopStartOffset, loopEndOffset, ctxPtr);
 
+        OSRBailoutReason bodyReason = OSRBailoutReason::NONE;
+        uint8_t bodyOpcode = 0;
         if (!emitOSRBody(cc, ctxPtr, program, frame, localSlotInfos,
-                         localCount, loopStartOffset, loopEndOffset, typeFeedback))
+                         localCount, loopStartOffset, loopEndOffset,
+                         jumpBackOffset, typeFeedback,
+                         bodyReason, bodyOpcode))
         {
             bailoutCount++;
+            reportBailout(bodyReason, bodyOpcode);
             return false;
         }
 

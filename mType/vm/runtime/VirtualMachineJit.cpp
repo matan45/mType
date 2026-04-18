@@ -11,6 +11,11 @@
 #include "../jit/ic/InlineCacheTable.hpp"
 #include "../jit/ic/TypeFeedbackCollector.hpp"
 #include "executors/FunctionExecutor.hpp"
+#include "executors/ArrayExecutor.hpp"
+#include "../bytecode/BytecodeProgram.hpp"
+#include "../bytecode/OpCode.hpp"
+#include "../../environment/Environment.hpp"
+#include "../../environment/registry/ClassRegistry.hpp"
 #include <algorithm>
 #include <exception>
 #include <iostream>
@@ -179,6 +184,31 @@ namespace vm::runtime
                 "' has no bytecode.");
         }
 
+        return callMethodFromJitDirect(instance, qualifiedName, funcMetadata, args);
+    }
+
+    value::Value VirtualMachine::callMethodFromJitDirect(
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+        const std::string& qualifiedName,
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+        const std::vector<value::Value>& args)
+    {
+        if (!program || !instance || !funcMetadata)
+        {
+            throw errors::RuntimeException("JIT method direct: invalid state");
+        }
+
+        size_t argCount = args.size();
+
+        // Defining class is the prefix of the qualified name (matches interpretation
+        // path that walks the class hierarchy to find the introducing class).
+        std::string definingClassName = instance->getClassDefinition()->getName();
+        size_t colonPos = qualifiedName.find("::");
+        if (colonPos != std::string::npos)
+        {
+            definingClassName = qualifiedName.substr(0, colonPos);
+        }
+
         // Save current interpreter state (lightweight — no full callStack copy)
         size_t savedIP = instructionPointer;
         size_t savedCallStackDepth = callStack.size();
@@ -279,7 +309,7 @@ namespace vm::runtime
 
     void VirtualMachine::trySpecializeArithmetic(
         const bytecode::BytecodeProgram::Instruction& instr,
-        bytecode::OpCode specializedOpcode)
+        bytecode::OpCode intOpcode, bytecode::OpCode floatOpcode)
     {
         if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 2)
             return;
@@ -293,7 +323,12 @@ namespace vm::runtime
         auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
         if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
         {
-            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = specializedOpcode;
+            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
+            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+        }
+        else if (lt == jit::ic::ObservedType::FLOAT && rt == jit::ic::ObservedType::FLOAT)
+        {
+            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = floatOpcode;
             inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
         }
     }
@@ -352,6 +387,57 @@ namespace vm::runtime
         functionExecutor->handleCall(instr);
     }
 
+    void VirtualMachine::executeCallFastWithJit(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH)
+        {
+            const auto* funcMeta = program->getFunctionByIndex(instr.operands[0]);
+            if (funcMeta) {
+                auto jitCode = jitCodeCache->lookup(funcMeta->mangledName);
+                if (jitCode)
+                {
+                    size_t argCount = instr.operands[1];
+
+                    std::vector<value::Value> args;
+                    args.reserve(argCount);
+                    for (size_t i = 0; i < argCount; ++i)
+                        args.push_back(stackManager->pop());
+                    std::reverse(args.begin(), args.end());
+
+                    jit::JitContext jitCtx{};
+                    jitCtx.args = args.data();
+                    jitCtx.argCount = args.size();
+                    jitCtx.hasReturnValue = false;
+                    jitCtx.program = program;
+                    jitCtx.stackManager = stackManager.get();
+                    jitCtx.environment = environment.get();
+                    jitCtx.vm = this;
+                    jitCtx.jitCodeCache = jitCodeCache.get();
+                    jitCtx.icTable = inlineCacheTable.get();
+
+                    size_t sepPos = funcMeta->name.find("::");
+                    if (sepPos != std::string::npos)
+                        jitCtx.callingClassName = funcMeta->name.substr(0, sepPos);
+
+                    ++jitNativeDepth;
+                    jitCode(&jitCtx);
+                    --jitNativeDepth;
+
+                    if (jitCtx.pendingException)
+                        std::rethrow_exception(jitCtx.pendingException);
+
+                    if (jitCtx.hasReturnValue)
+                        stackManager->push(jitCtx.returnValue);
+
+                    stats.functionCalls++;
+                    return;
+                }
+            }
+        }
+        functionExecutor->handleCallFast(instr);
+    }
+
     void VirtualMachine::printJitStats() const
     {
         std::cout << "\n=== JIT Statistics ===\n";
@@ -405,8 +491,49 @@ namespace vm::runtime
             std::cout << "  Loops profiled:         " << profiles.size() << "\n";
             std::cout << "  OSR compiled:           " << compiled << "\n";
             std::cout << "  OSR failed:             " << failed << "\n";
+
+            // MYT-148: per-loop bailout reason breakdown. Answers "why didn't
+            // this loop tier up?" without a debugger. Shows the offending
+            // opcode mnemonic for UNSUPPORTED_OPCODE / CODEGEN_FAILURE so the
+            // next step (remediation) is obvious.
+            if (failed > 0)
+            {
+                std::cout << "  Failed loops:\n";
+                for (const auto& [id, profile] : profiles)
+                {
+                    if (!profile.osrFailed) continue;
+                    std::cout << "    - offset 0x" << std::hex << id.jumpBackOffset
+                              << std::dec << ": "
+                              << jit::osrBailoutReasonName(profile.bailoutReason);
+                    if (profile.bailoutReason == jit::OSRBailoutReason::UNSUPPORTED_OPCODE ||
+                        profile.bailoutReason == jit::OSRBailoutReason::CODEGEN_FAILURE)
+                    {
+                        std::cout << " (0x" << std::hex
+                                  << static_cast<unsigned>(profile.offendingOpcode)
+                                  << std::dec << " = "
+                                  << bytecode::getOpCodeName(
+                                         static_cast<bytecode::OpCode>(profile.offendingOpcode))
+                                  << ")";
+                    }
+                    std::cout << "\n";
+                }
+            }
         }
 
         std::cout << "======================\n";
+    }
+
+    value::Value VirtualMachine::createMultiArrayFromJit(uint32_t typeNameIndex,
+                                                          const std::vector<int64_t>& dimensions,
+                                                          size_t totalDimensions)
+    {
+        if (!program)
+        {
+            throw errors::RuntimeException("JIT multi-array fallback: no program loaded");
+        }
+        const std::string& elementTypeName =
+            program->getConstantPool().getString(typeNameIndex);
+        auto classRegistry = environment ? environment->getClassRegistry().get() : nullptr;
+        return ArrayExecutor::buildMultiArray(classRegistry, elementTypeName, dimensions, totalDimensions);
     }
 }

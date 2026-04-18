@@ -256,6 +256,7 @@ namespace vm::compiler::visitors
         std::string mangledName = typeSignature.empty() ? funcName : (funcName + "/" + typeSignature);
 
         // Register with BOTH original name and mangled name
+        metadata.mangledName = mangledName;
         ctx.program.registerFunction(funcName, metadata);      // Original name
         ctx.program.registerFunction(mangledName, metadata);   // Mangled name
 

@@ -1,10 +1,13 @@
 #include "ArrayExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/ArrayBoundsChecker.hpp"
+#include "../../../environment/Environment.hpp"
+#include "../../../environment/registry/ClassRegistry.hpp"
 #include "../../../value/arrays/ArrayFactory.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include <algorithm>
+#include <functional>
 
 namespace vm::runtime
 {
@@ -67,35 +70,67 @@ namespace vm::runtime
         }
         std::reverse(dimensions.begin(), dimensions.end());
 
-        // Use ArrayPool for fully-specified primitive multi-dimensional arrays
-        // Both FlatMultiArray and SparseMultiArray support view-based sub-arrays!
-        // Modifications to sub-arrays propagate to the parent array.
-        // ArrayPool adaptively chooses between dense (FlatMultiArray) and sparse (SparseMultiArray) storage.
+        auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
+        value::Value result = buildMultiArray(classRegistry, elementTypeName, dimensions, totalDimensions);
+        context.stackManager->push(result);
+    }
+
+    // MYT-146: pure-factory entry point - used by both handleNewArrayMulti (above)
+    // and VirtualMachine::createMultiArrayFromJit. Throws plain RuntimeException on
+    // invalid state (no source-location decoration since JIT helpers don't have
+    // an ExecutionContext to thread through).
+    value::Value ArrayExecutor::buildMultiArray(
+        environment::registry::ClassRegistry* classRegistry,
+        const std::string& elementTypeName,
+        const std::vector<int64_t>& dimensions,
+        size_t totalDimensions)
+    {
         value::ValueType elemType = ::types::TypeConversionUtils::stringToValueType(elementTypeName);
         bool isPrimitive = (elemType == value::ValueType::INT ||
-                           elemType == value::ValueType::FLOAT ||
-                           elemType == value::ValueType::BOOL ||
-                           elemType == value::ValueType::STRING);
+                            elemType == value::ValueType::FLOAT ||
+                            elemType == value::ValueType::BOOL ||
+                            elemType == value::ValueType::STRING);
 
+        // Pooled primitive multi-dim fast path (FlatMultiArray / SparseMultiArray via
+        // ArrayPool::acquireAdaptive). Both support view-based sub-arrays, so
+        // mutations through sub-arrays propagate to the parent.
         if (dimensions.size() == totalDimensions && dimensions.size() > 1 && isPrimitive) {
-            // Use ArrayPool with adaptive allocation (automatically chooses optimal storage mode)
+            value::Value defaultValue;
+            switch (elemType) {
+                case value::ValueType::INT:    defaultValue = static_cast<int64_t>(0); break;
+                case value::ValueType::FLOAT:  defaultValue = 0.0; break;
+                case value::ValueType::BOOL:   defaultValue = false; break;
+                case value::ValueType::STRING: defaultValue = std::string(""); break;
+                default:                        defaultValue = nullptr; break;
+            }
             std::vector<size_t> sizeDimensions(dimensions.begin(), dimensions.end());
-            value::Value pooledArray = createPooledMultiDimensionalArray(sizeDimensions, elementTypeName);
-            context.stackManager->push(pooledArray);
-            return;
+            return value::ArrayPool::getInstance().acquireAdaptive(sizeDimensions, defaultValue);
         }
 
-        // Note: For object arrays or jagged arrays, use nested NativeArray approach
-        // FlatMultiObjectArray with full SoA optimization is not yet integrated with bytecode VM
-        // because ARRAY_GET/ARRAY_SET bytecode operations expect NativeArray types
-        //
-        // To get SoA benefits in multi-dimensional arrays, the innermost dimension should be >= 16
-        // Example: Person[4][20] will get SoA for the inner arrays
-
-        // Create the array structure based on specified dimensions
-        std::shared_ptr<value::NativeArray> result = createJaggedArray(dimensions, 0, elementTypeName, totalDimensions);
-
-        context.stackManager->push(result);
+        // Jagged / object path - nested NativeArray structure.
+        std::function<std::shared_ptr<value::NativeArray>(size_t)> makeJagged =
+            [&](size_t dimIndex) -> std::shared_ptr<value::NativeArray> {
+                if (dimIndex >= dimensions.size()) {
+                    throw errors::RuntimeException(
+                        "Invalid dimension index in jagged array creation");
+                }
+                int64_t currentDimSize = dimensions[dimIndex];
+                if (dimIndex == dimensions.size() - 1) {
+                    if (dimensions.size() == totalDimensions) {
+                        return mType::value::arrays::ArrayFactory::create1DArray(
+                            currentDimSize, elemType, elementTypeName, nullptr, classRegistry);
+                    }
+                    return mType::value::arrays::ArrayFactory::create1DArray(
+                        currentDimSize, value::ValueType::OBJECT, "Array", nullptr, classRegistry);
+                }
+                auto outerArray = mType::value::arrays::ArrayFactory::create1DArray(
+                    currentDimSize, value::ValueType::OBJECT, "Array", nullptr, classRegistry);
+                for (int i = 0; i < currentDimSize; ++i) {
+                    outerArray->set(i, makeJagged(dimIndex + 1));
+                }
+                return outerArray;
+            };
+        return makeJagged(0);
     }
 
     void ArrayExecutor::getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index) {
@@ -709,7 +744,29 @@ namespace vm::runtime
         size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
         const value::Value& arrayVal = (*context.stackManager)[frameBase + localSlot];
 
-        const auto& array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
-        context.stackManager->push(static_cast<int64_t>(array->size()));
+        // Match handleArrayLength's dispatch: a local declared `int[][]` etc.
+        // can hold a FlatMultiArray or SparseMultiArray (from NEW_ARRAY_MULTI's
+        // pooled primitive path), not just a NativeArray. The previous
+        // NativeArray-only std::get crashed with std::bad_variant_access when a
+        // local multi-dim array's .length was read.
+        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayVal)) {
+            const auto& array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+            context.stackManager->push(static_cast<int64_t>(array->size()));
+            return;
+        }
+        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(arrayVal)) {
+            const auto& array = std::get<std::shared_ptr<value::FlatMultiArray>>(arrayVal);
+            context.stackManager->push(static_cast<int64_t>(array->size()));
+            return;
+        }
+        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(arrayVal)) {
+            const auto& array = std::get<std::shared_ptr<value::SparseMultiArray>>(arrayVal);
+            context.stackManager->push(static_cast<int64_t>(array->size()));
+            return;
+        }
+        utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+            context,
+            "ARRAY_LENGTH_LOCAL: Invalid array type"
+        );
     }
 }

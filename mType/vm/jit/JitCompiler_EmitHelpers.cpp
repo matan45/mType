@@ -35,6 +35,23 @@ namespace vm::jit
                   FuncSignature::build<void, value::Value*, const value::Value*>());
         cpInv->set_arg(0, destAddr);
         cpInv->set_arg(1, retAddr);
+
+        // MYT-154: also mirror the int/bool payload to the unboxed stack so
+        // primitive-stack consumers (JUMP_IF_FALSE / JUMP_IF_TRUE / ADD_INT /
+        // LT_INT, etc.) read the right value when the call returned a primitive.
+        // jit_unbox_int returns 0 for non-numeric variants, which is harmless —
+        // boxed-mode consumers re-read the variant from boxedBase anyway and
+        // ignore the unboxed mirror.
+        Gp unboxAddr = cc.new_gp64();
+        cc.lea(unboxAddr, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
+        InvokeNode* unbox;
+        cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        unbox->set_arg(0, unboxAddr);
+        Gp unboxed = cc.new_gp64();
+        unbox->set_ret(0, unboxed);
+        cc.mov(Mem(s.stackBase, s.stackDepth * 8), unboxed);
+
         s.slotTypes.push_back(SlotType::BOXED);
         s.stackDepth++;
     }
@@ -66,15 +83,46 @@ namespace vm::jit
             {
                 case OpCode::PUSH_STRING: case OpCode::GET_FIELD:
                 case OpCode::SET_FIELD:   case OpCode::INLINE_SET_FIELD:
+                // MYT-152: LOAD_VAR / STORE_VAR produce / consume boxed Values
+                // (global or field lookups have no compile-time primitive
+                // type), so the enclosing loop must emit in boxed mode.
+                case OpCode::LOAD_VAR:    case OpCode::STORE_VAR:
                 case OpCode::NEW_OBJECT:
                 case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
                 case OpCode::CALL_METHOD: case OpCode::CALL_STATIC:
-                case OpCode::NEW_ARRAY:   case OpCode::ARRAY_GET:
+                case OpCode::NEW_ARRAY:   case OpCode::NEW_ARRAY_MULTI:
+                case OpCode::ARRAY_GET:
                 case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:
                 case OpCode::ARRAY_GET_INT_LOCAL: case OpCode::ARRAY_SET_INT_LOCAL:
                 case OpCode::ARRAY_LENGTH_LOCAL:
                 case OpCode::INSTANCEOF:  case OpCode::INSTANCEOF_TYPEPARAM:
                 case OpCode::CAST:
+                // MYT-147: iterator opcodes receive / produce boxed
+                // ObjectInstance values (ArrayIteratorHelper,
+                // HashMapKeyIterator, LinkedListIterator, ...) on the operand
+                // stack, so the enclosing function must run in boxed-types
+                // mode. ITERATOR_HAS_NEXT pushes bool; ITERATOR_CLOSE pushes
+                // nothing - but they're stack-adjacent to boxed iterator slots
+                // and are safe to include in the boxed-mode trigger set.
+                case OpCode::GET_ITERATOR:      case OpCode::ITERATOR_HAS_NEXT:
+                case OpCode::ITERATOR_NEXT:     case OpCode::ITERATOR_CLOSE:
+                // Specialized primitive-method opcodes receive boxed Int / Float
+                // objects on the operand stack, so the enclosing function must
+                // be emitted in boxed-types mode.
+                case OpCode::INVOKE_INT_ADD: case OpCode::INVOKE_INT_SUB:
+                case OpCode::INVOKE_INT_MUL: case OpCode::INVOKE_INT_DIV:
+                case OpCode::INVOKE_INT_MOD: case OpCode::INVOKE_INT_NEG:
+                case OpCode::INVOKE_INT_ABS: case OpCode::INVOKE_INT_EQUALS:
+                case OpCode::INVOKE_INT_COMPARE: case OpCode::INVOKE_INT_GET_VALUE:
+                case OpCode::INVOKE_INT_LESS_THAN: case OpCode::INVOKE_INT_LESS_EQUAL:
+                case OpCode::INVOKE_INT_GREATER_THAN: case OpCode::INVOKE_INT_GREATER_EQUAL:
+                case OpCode::INVOKE_FLOAT_ADD: case OpCode::INVOKE_FLOAT_SUB:
+                case OpCode::INVOKE_FLOAT_MUL: case OpCode::INVOKE_FLOAT_DIV:
+                case OpCode::INVOKE_FLOAT_NEG: case OpCode::INVOKE_FLOAT_ABS:
+                case OpCode::INVOKE_FLOAT_EQUALS: case OpCode::INVOKE_FLOAT_COMPARE:
+                case OpCode::INVOKE_FLOAT_GET_VALUE: case OpCode::INVOKE_BOOL_GET_VALUE:
+                case OpCode::INVOKE_FLOAT_LESS_THAN: case OpCode::INVOKE_FLOAT_LESS_EQUAL:
+                case OpCode::INVOKE_FLOAT_GREATER_THAN: case OpCode::INVOKE_FLOAT_GREATER_EQUAL:
                     return true;
                 default: break;
             }
@@ -109,7 +157,10 @@ namespace vm::jit
         {
             const auto& instr = program.getInstruction(ip);
             if (instr.opcode == OpCode::JUMP || instr.opcode == OpCode::JUMP_IF_FALSE ||
-                instr.opcode == OpCode::JUMP_IF_TRUE || instr.opcode == OpCode::JUMP_BACK)
+                instr.opcode == OpCode::JUMP_IF_TRUE ||
+                instr.opcode == OpCode::JUMP_IF_FALSE_OR_POP ||
+                instr.opcode == OpCode::JUMP_IF_TRUE_OR_POP ||
+                instr.opcode == OpCode::JUMP_BACK)
             {
                 if (!instr.operands.empty())
                 {

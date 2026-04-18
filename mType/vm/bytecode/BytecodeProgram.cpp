@@ -417,6 +417,11 @@ namespace vm::bytecode
 
     void BytecodeProgram::registerFunction(const std::string& name, const FunctionMetadata& metadata) {
         functions[name] = metadata;
+        if (functionNameToIndex.find(name) == functionNameToIndex.end()) {
+            size_t idx = functionIndexToName.size();
+            functionIndexToName.push_back(name);
+            functionNameToIndex[name] = idx;
+        }
     }
 
     const BytecodeProgram::FunctionMetadata* BytecodeProgram::getFunction(const std::string& name) const {
@@ -426,6 +431,20 @@ namespace vm::bytecode
 
     const std::unordered_map<std::string, BytecodeProgram::FunctionMetadata>& BytecodeProgram::getFunctions() const {
         return functions;
+    }
+
+    size_t BytecodeProgram::getFunctionIndex(const std::string& name) const {
+        auto it = functionNameToIndex.find(name);
+        return it != functionNameToIndex.end() ? it->second : SIZE_MAX;
+    }
+
+    const BytecodeProgram::FunctionMetadata* BytecodeProgram::getFunctionByIndex(size_t index) const {
+        if (index >= functionIndexToName.size()) return nullptr;
+        return getFunction(functionIndexToName[index]);
+    }
+
+    size_t BytecodeProgram::getFunctionCount() const {
+        return functionIndexToName.size();
     }
 
     void BytecodeProgram::registerGlobalVariable(const GlobalVariableMetadata& metadata) {
@@ -741,9 +760,23 @@ namespace vm::bytecode
     }
 
     void BytecodeProgram::writeFunctions(std::ostream& out) const {
-        size_t count = functions.size();
+        // MYT-139: iterate in functionIndexToName order (stable insertion
+        // order) rather than `functions` map order. `std::unordered_map`
+        // iteration is non-deterministic, so writing in map order and
+        // re-registering in read order re-shuffled function indices —
+        // breaking CALL_FAST opcodes that bake function index at compile
+        // time. See ticket MYT-139 for the symptom (e.g. renderDrawable
+        // resolving to `tan` at runtime).
+        size_t count = functionIndexToName.size();
         out.write(reinterpret_cast<const char*>(&count), sizeof(count));
-        for (const auto& [name, func] : functions) {
+        for (const auto& name : functionIndexToName) {
+            auto it = functions.find(name);
+            if (it == functions.end()) {
+                throw std::runtime_error(
+                    "BytecodeProgram::writeFunctions: index registered but no "
+                    "metadata for function '" + name + "'");
+            }
+            const auto& func = it->second;
             // Write function name
             size_t len = name.size();
             out.write(reinterpret_cast<const char*>(&len), sizeof(len));
@@ -824,6 +857,7 @@ namespace vm::bytecode
             // Read function metadata
             FunctionMetadata func;
             func.name = name;
+            func.mangledName = name;
             in.read(reinterpret_cast<char*>(&func.startOffset), sizeof(func.startOffset));
             in.read(reinterpret_cast<char*>(&func.instructionCount), sizeof(func.instructionCount));
             in.read(reinterpret_cast<char*>(&func.localCount), sizeof(func.localCount));
@@ -914,7 +948,7 @@ namespace vm::bytecode
                 readAnnotationList(in, func.parameterAnnotations[j]);
             }
 
-            functions[name] = func;
+            registerFunction(name, func);
         }
     }
 

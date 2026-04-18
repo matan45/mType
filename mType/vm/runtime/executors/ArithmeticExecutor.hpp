@@ -36,6 +36,12 @@ namespace vm::runtime
         void handleMulInt();
         void handleDivInt();
 
+        // Optimized float operations
+        void handleAddFloat();
+        void handleSubFloat();
+        void handleMulFloat();
+        void handleDivFloat();
+
     private:
         ExecutionContext& context;
 

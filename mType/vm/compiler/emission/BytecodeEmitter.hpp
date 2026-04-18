@@ -8,6 +8,8 @@
 
 namespace vm::compiler::emission
 {
+    enum class ArithmeticSpecialization { NONE, INT, FLOAT };
+
     /**
      * Handles bytecode emission and jump management
      * Provides helper methods for emitting instructions with source location tracking
@@ -31,7 +33,7 @@ namespace vm::compiler::emission
         void emitLoop(size_t loopStart, ast::ASTNode* node = nullptr);
 
         // OpCode conversion helpers
-        bytecode::OpCode getBinaryOpCode(token::TokenType op, bool typeSpecialized = false);
+        bytecode::OpCode getBinaryOpCode(token::TokenType op, ArithmeticSpecialization spec = ArithmeticSpecialization::NONE);
         bytecode::OpCode getUnaryOpCode(token::TokenType op);
 
     private:
