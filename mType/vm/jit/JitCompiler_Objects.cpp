@@ -1,6 +1,9 @@
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"
+#include "ic/InlineCacheTable.hpp"
+#include "ic/TypeFeedbackCollector.hpp"
+#include "../optimization/InlineAnalysis.hpp"
 #include <asmjit/x86.h>
 
 namespace vm::jit
@@ -176,18 +179,21 @@ namespace vm::jit
         return true;
     }
 
-    static bool emitCallMethodOp(JitEmissionState& s,
-                                  const bytecode::BytecodeProgram::Instruction& instr)
+    // Original (non-inlined) CALL_METHOD emission. Used as the slow path of
+    // tryEmitInlinedMethodCall when the shape guard misses, and as the direct
+    // emission when the site is not eligible for inlining.
+    //
+    // Marshals receiver + args into ctx->callArgs[], cleans the caller's boxed
+    // operand stack, invokes jit_call_method_ic (which handles IC lookup and
+    // either direct JIT→JIT dispatch or the interpreter path), then copies the
+    // return value back onto the operand stack.
+    static void emitCallMethodOpGeneric(JitEmissionState& s,
+                                         const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         uint32_t methodNameIndex = static_cast<uint32_t>(instr.operands[0]);
         size_t argCount = instr.operands[1];
-        if (argCount + 1 > JitContext::MAX_CALL_ARGS)
-        {
-            s.compileFailed = true;
-            return true;
-        }
         {
             int objIdx = s.stackDepth - static_cast<int>(argCount) - 1;
             Gp destAddr = cc.new_gp64();
@@ -224,6 +230,192 @@ namespace vm::jit
         callInv->set_arg(2, miReg);
         callInv->set_arg(3, acReg);
         emitReturnValueCopyBoxed(s);
+    }
+
+    // MYT-163 (Phase F-a) — speculative bytecode-level inlining.
+    //
+    // When the method-IC at s.currentIP is MONOMORPHIC and the cached callee
+    // passes InlineAnalysis eligibility, emit:
+    //   * a receiver-shape guard against the cached ClassDefinition*
+    //   * a copy of receiver + args into a reserved inline-locals window
+    //   * the callee's bytecode ops inline, with LOAD/STORE_LOCAL remapped
+    //     through s.inlineLocalsBase (see emitLoadLocal / emitStoreLocal)
+    //   * a RETURN_VALUE handler that jumps to a join label leaving the result
+    //     in the caller's operand-stack slot
+    // On shape-guard miss: fall through to emitCallMethodOpGeneric (identical
+    // to the non-inlined path), producing the same observable outcome.
+    //
+    // Returns true iff inlined emission was produced (both fast + slow paths).
+    // Returns false to let the caller (emitCallMethodOp) emit the generic
+    // path normally — either the site is ineligible or the IC is cold.
+    static bool tryEmitInlinedMethodCall(JitEmissionState& s,
+                                          const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (!s.typeFeedback) return false;
+        auto& icTable = s.typeFeedback->getICTable();
+        if (!icTable.hasMethodIC(s.currentIP)) return false;
+
+        auto& cache = icTable.getMethodIC(s.currentIP);
+        auto decision = optimization::checkInlineEligibility(
+            s.program, cache, s.currentCompilingFn, s.inlineStack.size());
+        if (decision != optimization::InlineDecision::INLINE) return false;
+
+        // Boxed-mode callee only: F-a assumes the caller emits in boxed mode
+        // (guaranteed by scanOpcodesForBoxedTypes tripping on CALL_METHOD).
+        // Bail if we somehow got here in unboxed mode.
+        if (!s.usesBoxedTypes) return false;
+
+        const auto& entry = cache.entries[0];
+        const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
+            entry.funcMetadata);
+        const size_t argCount = instr.operands[1];
+
+        // Sanity: arg count must match the callee's parameter count (including
+        // the implicit `this`). If not, fall through to the generic path —
+        // don't fabricate a match.
+        if (callee->parameterCount != argCount + 1) return false;
+
+        // Inline locals window must fit in the pre-reserved slack.
+        const size_t localsBaseSlot = s.localCount;  // F-a: depth 1 only
+        if (callee->localCount > JitEmissionState::INLINE_LOCALS_SLACK) return false;
+
+        auto& cc = s.cc;
+        asmjit::Label slowLabel = cc.new_label();
+        asmjit::Label endLabel  = cc.new_label();
+
+        // Snapshot emitter state so the slow-path emission can rewind after
+        // the fast path drifts s.stackDepth / slotTypes during callee body
+        // emission.
+        const int snapStackDepth = s.stackDepth;
+        const auto snapSlotTypes = s.slotTypes;
+        const auto snapLocalTypes = s.localTypes;
+        const auto snapArrayCache = s.arrayInfoCache;
+
+        const int receiverStackIdx = snapStackDepth - static_cast<int>(argCount) - 1;
+
+        // --- Fast path: shape guard + inline body ---
+        emitInlineShapeGuard(s, receiverStackIdx, entry.shape, slowLabel);
+
+        // Copy receiver + args into the callee's locals window.
+        emitInlineLocalCopy(s, receiverStackIdx, argCount, localsBaseSlot);
+
+        // Destroy the caller's boxed operand-stack entries for receiver + args
+        // (they've been copied into locals; the slots are now logically unused
+        // until the result is written back into receiverStackIdx). In boxed
+        // mode all consumed slots are BOXED, but guard per-slot so stray
+        // unboxed types in slotTypes don't trigger a destroy on raw bytes.
+        for (size_t i = 0; i <= argCount; ++i)
+        {
+            const size_t slotPos = static_cast<size_t>(receiverStackIdx) + i;
+            SlotType at = s.slotTypes[slotPos];
+            if (isBoxedSlotType(at))
+                emitValueDestroy(s, static_cast<int>(slotPos));
+        }
+
+        // Enter callee emission scope.
+        InlineFrame frame;
+        frame.calleeMeta = callee;
+        frame.localsBaseSlot = localsBaseSlot;
+        frame.inlineEndLabel = endLabel;
+        frame.returnResultStackIdx = receiverStackIdx;
+
+        const size_t prevInlineBase = s.inlineLocalsBase;
+        s.inlineStack.push_back(frame);
+        s.inlineLocalsBase = localsBaseSlot;
+
+        // Pop argCount+1 entries from slotTypes and align stackDepth so the
+        // callee starts with an empty logical operand stack positioned where
+        // the caller's receiver used to be.
+        s.slotTypes.resize(s.slotTypes.size() - (argCount + 1));
+        s.stackDepth = receiverStackIdx;
+        s.arrayInfoCache.clear();
+
+        // Record param local types so LOAD_LOCAL on a parameter returns BOXED
+        // (matching what jit_value_copy deposited).
+        for (size_t p = 0; p < callee->parameterCount; ++p)
+            s.localTypes[localsBaseSlot + p] = SlotType::BOXED;
+
+        // onExit handler: when RETURN_VALUE fires in the callee, emitReturnValueOp
+        // has already decremented s.stackDepth and popped the type. The boxed
+        // result sits at s.boxedBase[s.stackDepth * valueSize], which is
+        // exactly receiverStackIdx by construction — no copy needed. Just jump
+        // to the join label. RETURN (no value) writes monostate likewise.
+        ExitHandler onExit = [endLabel](JitEmissionState& es, size_t /*target*/) {
+            es.cc.jmp(endLabel);
+        };
+
+        // Emit the callee's bytecode. F-a forbids internal jumps, so the loop
+        // hits exactly one terminator (RETURN_VALUE) which trips onExit. Any
+        // instructions after the terminator are unreachable — break out once
+        // the terminator has emitted so we don't stream asmjit ops with
+        // under-populated emitter state.
+        for (size_t ip = callee->startOffset;
+             ip < callee->startOffset + callee->instructionCount && !s.compileFailed;
+             ++ip)
+        {
+            const auto& cinstr = s.program.getInstruction(ip);
+            s.currentIP = ip;
+            if (cinstr.opcode == OpCode::PROFILE_ENTER)
+                continue;  // no-op inside an inline frame
+
+            const bool isTerminator =
+                cinstr.opcode == OpCode::RETURN_VALUE ||
+                cinstr.opcode == OpCode::RETURN;
+
+            bool handled = false;
+            if (emitCoreOps(s, cinstr)) handled = true;
+            else if (emitArithmeticOps(s, cinstr)) handled = true;
+            else if (emitControlFlowOps(s, cinstr, onExit)) handled = true;
+            else { emitObjectOps(s, cinstr); handled = true; }
+            (void)handled;
+
+            if (isTerminator) break;
+        }
+
+        // Exit callee scope (regardless of compileFailed — we still need
+        // matching state for the slow path).
+        s.inlineStack.pop_back();
+        s.inlineLocalsBase = prevInlineBase;
+
+        if (s.compileFailed) return true;  // caller short-circuits; function aborts
+
+        // Jump over the slow path to the join label.
+        cc.jmp(endLabel);
+
+        // --- Slow path: generic call when the shape guard misses ---
+        cc.bind(slowLabel);
+
+        // Restore emitter state so emitCallMethodOpGeneric sees the pre-call
+        // operand stack configuration.
+        s.stackDepth = snapStackDepth;
+        s.slotTypes  = snapSlotTypes;
+        s.localTypes = snapLocalTypes;
+        s.arrayInfoCache = snapArrayCache;
+
+        emitCallMethodOpGeneric(s, instr);
+
+        // --- Join ---
+        cc.bind(endLabel);
+        s.arrayInfoCache.clear();  // conservative: inlined body may have touched fields
+        return true;
+    }
+
+    static bool emitCallMethodOp(JitEmissionState& s,
+                                  const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        size_t argCount = instr.operands[1];
+        if (argCount + 1 > JitContext::MAX_CALL_ARGS)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+        // MYT-163: attempt speculative inlining. On success the helper emits
+        // both the shape-guarded fast path and the slow-path fallback. On
+        // ineligible sites (cold IC, polymorphic, ValueObject receiver, etc.)
+        // it returns false and we emit the generic path unchanged.
+        if (tryEmitInlinedMethodCall(s, instr))
+            return true;
+        emitCallMethodOpGeneric(s, instr);
         return true;
     }
 

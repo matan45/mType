@@ -17,6 +17,22 @@
 
 namespace vm::jit
 {
+    // MYT-163: speculative inlining shape-guard helper. Extracts the raw
+    // ClassDefinition pointer from an ObjectInstance receiver. Returns nullptr
+    // for any other variant so the guard compare mismatches and the inlined
+    // site falls back to jit_call_method_ic. Keeping the shared_ptr layout
+    // behind this helper avoids baking MSVC control-block internals into
+    // emitted code.
+    const void* jit_extract_classdef(const value::Value* receiver)
+    {
+        if (!receiver) return nullptr;
+        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*receiver))
+            return nullptr;
+        const auto& instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*receiver);
+        if (!instance) return nullptr;
+        return instance->getClassDefinition().get();
+    }
+
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount)
     {
         if (ctx->pendingException)
@@ -239,6 +255,13 @@ namespace vm::jit
                         entry.funcMetadata = funcMeta;
                         entry.startOffset = funcMeta->startOffset;
                         entry.qualifiedName = lookupResult.qualifiedName;
+                        // MYT-163: only ObjectInstance receivers reach this
+                        // populate path (ValueObject receivers take the
+                        // jit_call_method branch above and never create an
+                        // IC entry). The flag is recorded for future
+                        // inline-aware paths that may want to reject
+                        // value-class sites without a ClassDefinition deref.
+                        entry.receiverIsValueObject = false;
                         // MYT-161: pre-populate cached JIT entry pointer if
                         // the callee is already JIT-compiled. tryDirectJitMethodDispatch
                         // will lazily refresh this slot if the callee becomes

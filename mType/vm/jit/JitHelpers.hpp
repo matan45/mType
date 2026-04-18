@@ -70,6 +70,15 @@ namespace vm::jit
 
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount);
 
+    // MYT-163: extract the ClassDefinition* from a receiver Value. Used by the
+    // speculative-inlining shape guard. Returns the raw ClassDefinition pointer
+    // for an ObjectInstance receiver; returns nullptr for any other variant
+    // (ValueObject, primitive, null, array, lambda, ...). Nullptr always
+    // mismatches the cached shape and triggers the fallback path, which is the
+    // correct behaviour — a mid-function receiver-kind change falls through to
+    // the generic jit_call_method_ic.
+    const void* jit_extract_classdef(const value::Value* receiver);
+
     // CALL_METHOD with inline-cache fast path. Mirrors emitGetFieldOp/jit_get_field_ic
     // pattern: emitter passes the bytecode IP, helper looks up MethodInlineCache by
     // offset, on monomorphic/polymorphic shape match dispatches via pre-resolved

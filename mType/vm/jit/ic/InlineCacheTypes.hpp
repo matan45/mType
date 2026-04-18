@@ -96,6 +96,12 @@ namespace vm::jit::ic
         // then retries the lookup and caches the result). mutable so const
         // MethodICEntry* from cache.lookup() can still refresh the slot.
         mutable JitEntryPtr jitEntry = nullptr;
+        // MYT-163: receiver kind recorded at IC populate time. F-a inlining is
+        // restricted to ObjectInstance receivers; ValueObject sites fall through
+        // to the generic jit_call_method_ic path. The flag is still set for
+        // ObjectInstance entries (as `false`) so eligibility can reject a site
+        // without chasing the ClassDefinition vtable at emit time.
+        bool receiverIsValueObject = false;
     };
 
     struct MethodInlineCache

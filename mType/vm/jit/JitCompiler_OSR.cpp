@@ -107,7 +107,12 @@ namespace vm::jit
 
         const size_t localStride = usesBoxedTypes ? valueSize : 8;
 
-        Mem localsArea = cc.new_stack(static_cast<uint32_t>(localCount * localStride), 8);
+        // MYT-163: reserve INLINE_LOCALS_SLACK slots so CALL_METHOD sites
+        // inside an OSR'd loop body can speculatively inline. Mirrors the
+        // equivalent widening in setupCompilationFrame.
+        const size_t reservedLocals = localCount + JitEmissionState::INLINE_LOCALS_SLACK;
+
+        Mem localsArea = cc.new_stack(static_cast<uint32_t>(reservedLocals * localStride), 8);
         Gp localsBase = cc.new_gp64("localsBase");
         cc.lea(localsBase, localsArea);
 
@@ -127,7 +132,7 @@ namespace vm::jit
             cc.mov(progPtr, reinterpret_cast<uint64_t>(&program));
 
         if (usesBoxedTypes)
-            emitMemoryInit(cc, localsBase, localCount, boxedBase, MAX_OP_STACK);
+            emitMemoryInit(cc, localsBase, reservedLocals, boxedBase, MAX_OP_STACK);
 
         return {localsBase, stackBase, boxedBase, progPtr,
                 usesBoxedTypes, localStride, {}};

@@ -158,7 +158,11 @@ namespace vm::jit
         Gp lBase = cc.new_gp64();
         cc.mov(lBase, s.localsBase);
         Gp lCount = cc.new_gp64();
-        cc.mov(lCount, static_cast<int64_t>(s.localCount));
+        // MYT-163: clean the inline slack too. Unwritten slack slots hold
+        // monostate (zero-inited by setupCompilationFrame), so destroy is a
+        // cheap no-op there — but any slot written by an inlined callee must
+        // be destroyed to avoid shared_ptr leaks.
+        cc.mov(lCount, static_cast<int64_t>(s.localCount + JitEmissionState::INLINE_LOCALS_SLACK));
         InvokeNode* cleanLocals;
         cc.invoke(Out(cleanLocals), reinterpret_cast<uint64_t>(jit_locals_cleanup),
                   FuncSignature::build<void, value::Value*, size_t>());
@@ -461,7 +465,12 @@ namespace vm::jit
 
         const size_t localStride = usesBoxedTypes ? valueSize : 8;
 
-        Mem localsArea = cc.new_stack(static_cast<uint32_t>(localCount * localStride), 8);
+        // MYT-163: reserve INLINE_LOCALS_SLACK extra slots so tryEmitInlinedMethodCall
+        // can stage a callee's locals window without re-allocating the frame.
+        // Conservative for F-a — F-b will replace with a per-function pre-scan.
+        const size_t reservedLocals = localCount + JitEmissionState::INLINE_LOCALS_SLACK;
+
+        Mem localsArea = cc.new_stack(static_cast<uint32_t>(reservedLocals * localStride), 8);
         Gp localsBase = cc.new_gp64("localsBase");
         cc.lea(localsBase, localsArea);
 
@@ -480,8 +489,11 @@ namespace vm::jit
         if (usesBoxedTypes)
             cc.mov(progPtr, reinterpret_cast<uint64_t>(&program));
 
+        // MYT-163: zero-init all reserved locals (including the inline slack)
+        // so an inlined callee's locals area starts in a clean state — no
+        // destructor calls on uninitialised shared_ptr bytes.
         if (usesBoxedTypes)
-            emitMemoryInit(cc, localsBase, localCount, boxedBase, MAX_OP_STACK);
+            emitMemoryInit(cc, localsBase, reservedLocals, boxedBase, MAX_OP_STACK);
 
         std::unordered_map<size_t, SlotType> localTypes;
         return {localsBase, stackBase, boxedBase, progPtr,
@@ -542,6 +554,10 @@ namespace vm::jit
                            OSRBailoutReason::NONE, 0,
                            0, labels, program,
                            typeFeedback, {}, backEdges};
+        // MYT-163: record the function being compiled so the inlining
+        // eligibility check can reject self-recursive inlining.
+        s.currentCompilingFn = funcMeta.mangledName.empty()
+            ? funcMeta.name : funcMeta.mangledName;
 
         emitCodegenLoop(s, startOffset, instrCount, program);
 

@@ -250,6 +250,18 @@ namespace tests::testSuite
         addOutputVerificationTest("Lazy Reboxing Mixed Operands",
                                   passPath + "lazyReboxingMixedOperands.mt");
 
+        // MYT-163 Phase F-a: speculative JIT inlining tests.
+        addOutputVerificationTest("Inline Basic MONO",
+                                  passPath + "inlining/inline_basic.mt");
+        addOutputVerificationTest("Inline Arithmetic Hot Loop",
+                                  passPath + "inlining/inline_arithmetic.mt");
+        addOutputVerificationTest("Inline Monomorphic Acceptance",
+                                  passPath + "inlining/inline_monomorphic.mt");
+        addOutputVerificationTest("Inline Self-Recursive Guard",
+                                  passPath + "inlining/inline_recursive_guard.mt");
+        addOutputVerificationTest("Inline Value Object Skip",
+                                  passPath + "inlining/inline_value_object_skip.mt");
+
         // ====================================
         // COMMENTED OUT - Test files were not created
         // ====================================

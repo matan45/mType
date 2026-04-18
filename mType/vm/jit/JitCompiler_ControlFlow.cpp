@@ -13,12 +13,16 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        SlotType lt = s.localTypes.count(slot) ? s.localTypes[slot] : SlotType::INT;
+        // MYT-163: remap the bytecode's logical slot into the caller's frame
+        // when emission is inside an inlined callee. inlineLocalsBase == 0 at
+        // the top level — the computation is a no-op for non-inline paths.
+        const size_t physSlot = slot + s.inlineLocalsBase;
+        SlotType lt = s.localTypes.count(physSlot) ? s.localTypes[physSlot] : SlotType::INT;
 
         if (s.usesBoxedTypes && isBoxedSlotType(lt))
         {
             Gp src = cc.new_gp64();
-            cc.lea(src, Mem(s.localsBase, static_cast<int32_t>(slot * s.localStride)));
+            cc.lea(src, Mem(s.localsBase, static_cast<int32_t>(physSlot * s.localStride)));
             Gp dst = cc.new_gp64();
             cc.lea(dst, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
             InvokeNode* inv;
@@ -30,7 +34,7 @@ namespace vm::jit
         else if (s.usesBoxedTypes)
         {
             Gp localAddr = cc.new_gp64();
-            cc.lea(localAddr, Mem(s.localsBase, static_cast<int32_t>(slot * s.localStride)));
+            cc.lea(localAddr, Mem(s.localsBase, static_cast<int32_t>(physSlot * s.localStride)));
             if (lt == SlotType::FLOAT)
             {
                 InvokeNode* inv;
@@ -55,7 +59,7 @@ namespace vm::jit
         else
         {
             Gp tmp = cc.new_gp64();
-            cc.mov(tmp, Mem(s.localsBase, static_cast<int32_t>(slot * 8)));
+            cc.mov(tmp, Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)));
             cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
         }
         s.slotTypes.push_back(lt);
@@ -67,13 +71,15 @@ namespace vm::jit
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         SlotType tt = topType(s);
+        // MYT-163: see emitLoadLocal — remap through inlineLocalsBase.
+        const size_t physSlot = slot + s.inlineLocalsBase;
 
         if (s.usesBoxedTypes && isBoxedSlotType(tt))
         {
             Gp src = cc.new_gp64();
             cc.lea(src, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
             Gp dst = cc.new_gp64();
-            cc.lea(dst, Mem(s.localsBase, static_cast<int32_t>(slot * s.localStride)));
+            cc.lea(dst, Mem(s.localsBase, static_cast<int32_t>(physSlot * s.localStride)));
             InvokeNode* inv;
             cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
                       FuncSignature::build<void, value::Value*, const value::Value*>());
@@ -83,7 +89,7 @@ namespace vm::jit
         else if (s.usesBoxedTypes)
         {
             Gp destAddr = cc.new_gp64();
-            cc.lea(destAddr, Mem(s.localsBase, static_cast<int32_t>(slot * s.localStride)));
+            cc.lea(destAddr, Mem(s.localsBase, static_cast<int32_t>(physSlot * s.localStride)));
             if (tt == SlotType::FLOAT)
             {
                 Vec val = cc.new_xmm();
@@ -112,9 +118,9 @@ namespace vm::jit
         {
             Gp tmp = cc.new_gp64();
             cc.mov(tmp, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-            cc.mov(Mem(s.localsBase, static_cast<int32_t>(slot * 8)), tmp);
+            cc.mov(Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)), tmp);
         }
-        s.localTypes[slot] = tt;
+        s.localTypes[physSlot] = tt;
     }
 
     // MYT-152: JIT emitter for LOAD_VAR. Globals and unqualified field lookups

@@ -217,6 +217,68 @@ namespace vm::jit
         initBoxed->set_arg(1, bsCount);
     }
 
+    // MYT-163 (Phase F-a) inline-emission helpers.
+    //
+    // Call contract for emitInlineShapeGuard:
+    //   Receiver sits at `receiverStackIdx` in the boxed operand stack (caller's
+    //   stackDepth - argCount - 1 at the pre-call site). We call
+    //   jit_extract_classdef (returns nullptr for non-ObjectInstance receivers,
+    //   so a type-changed receiver naturally mismatches). Compare against the
+    //   baked ClassDefinition pointer; jne slowLabel.
+    void emitInlineShapeGuard(JitEmissionState& s, int receiverStackIdx,
+                              const void* expectedShape, asmjit::Label slowLabel)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        Gp receiverAddr = cc.new_gp64();
+        cc.lea(receiverAddr, Mem(s.boxedBase, static_cast<int32_t>(receiverStackIdx * valueSize)));
+
+        Gp actualShape = cc.new_gp64();
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_extract_classdef),
+                  FuncSignature::build<const void*, const value::Value*>());
+        inv->set_arg(0, receiverAddr);
+        inv->set_ret(0, actualShape);
+
+        Gp expectedReg = cc.new_gp64();
+        cc.mov(expectedReg, reinterpret_cast<uint64_t>(expectedShape));
+        cc.cmp(actualShape, expectedReg);
+        cc.jne(slowLabel);
+    }
+
+    // Copy receiver + args from the caller's boxed operand stack into the
+    // inlined callee's local window. Source slots: [receiverStackIdx ..
+    // receiverStackIdx + argCount]. Destination slots: [localsBaseSlot ..
+    // localsBaseSlot + argCount]. Uses jit_value_copy so refcounts are
+    // honoured correctly.
+    //
+    // Only the boxed-mode path is emitted: CALL_METHOD forces usesBoxedTypes
+    // true (scanOpcodesForBoxedTypes), so inline sites always run in boxed
+    // mode. An unboxed-mode caller never emits CALL_METHOD in the first place.
+    void emitInlineLocalCopy(JitEmissionState& s, int receiverStackIdx,
+                             size_t argCount, size_t localsBaseSlot)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        const size_t total = argCount + 1;  // receiver + args
+        for (size_t i = 0; i < total; ++i)
+        {
+            Gp src = cc.new_gp64();
+            cc.lea(src, Mem(s.boxedBase,
+                            static_cast<int32_t>((receiverStackIdx + static_cast<int>(i)) * valueSize)));
+            Gp dst = cc.new_gp64();
+            cc.lea(dst, Mem(s.localsBase,
+                            static_cast<int32_t>((localsBaseSlot + i) * s.localStride)));
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
+                      FuncSignature::build<void, value::Value*, const value::Value*>());
+            inv->set_arg(0, dst);
+            inv->set_arg(1, src);
+        }
+    }
+
     bool finalizeAndStore(Compiler& cc, CodeHolder& code,
                           JitCodeCache& codeCache, const std::string& key,
                           size_t& compileCount, size_t& bailoutCount)

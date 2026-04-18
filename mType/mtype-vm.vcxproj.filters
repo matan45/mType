@@ -204,6 +204,9 @@
     <ClInclude Include="vm\compiler\visitors\TryStatementHelper.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\optimization\InlineAnalysis.hpp">
+      <Filter>vm\optimization</Filter>
+    </ClInclude>
     <ClInclude Include="vm\optimization\OptimizationPattern.hpp">
       <Filter>vm\optimization</Filter>
     </ClInclude>
@@ -478,6 +481,9 @@
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\TryStatementHelper.cpp">
       <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\InlineAnalysis.cpp">
+      <Filter>vm\optimization</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\OptimizationPattern.cpp">
       <Filter>vm\optimization</Filter>

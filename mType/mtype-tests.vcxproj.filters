@@ -292,6 +292,9 @@
     <Filter Include="testFiles\integration\pass">
       <UniqueIdentifier>{D1A92EAC-BDB9-DA7C-2673-3F9B12A2C915}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\integration\pass\inlining">
+      <UniqueIdentifier>{18BF53E7-8478-BE91-0DD8-D86B79907401}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\interface">
       <UniqueIdentifier>{78CD634B-E42E-4159-6D9C-870BD9FC7718}</UniqueIdentifier>
     </Filter>
@@ -2146,10 +2149,16 @@
     <None Include="tests\testFiles\benchmarks\array_multi_alloc.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\array_multi_get.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\bitwise_tight_loop.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\for_each_loop.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\inline_monomorphic.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\method_dispatch.mt">
@@ -7059,6 +7068,36 @@
     </None>
     <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.mt">
       <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_arithmetic.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_arithmetic.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_basic.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_basic.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_monomorphic.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_monomorphic.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_recursive_guard.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_recursive_guard.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_skip.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_skip.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.expected">
       <Filter>testFiles\integration\pass</Filter>
