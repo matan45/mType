@@ -1,10 +1,23 @@
 #include "ObjectInstance.hpp"
 #include "../../gc/GC.hpp"
 #include <algorithm>
+#include <cstddef>
 #include <vector>
 
 namespace runtimeTypes::klass
 {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4413)  // offsetof on non-standard-layout (enable_shared_from_this base)
+#endif
+    size_t ObjectInstance::classDefinitionMemberOffset() noexcept
+    {
+        return offsetof(ObjectInstance, classDefinition);
+    }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
     void ObjectInstance::registerWithGC()
     {
         if (!gcRegistered && gc::GC::isInitialized())

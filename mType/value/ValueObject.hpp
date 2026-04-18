@@ -77,5 +77,10 @@ namespace value
 
         // Access the raw fields vector (for serialization, iteration)
         const std::vector<Value>& getFields() const;
+
+        // MYT-169: byte offset of the classDefinition shared_ptr from the start
+        // of a ValueObject, consumed by JIT shape-guard emission to bypass the
+        // jit_extract_classdef helper call. Defined out-of-line in the .cpp.
+        static size_t classDefinitionMemberOffset() noexcept;
     };
 }

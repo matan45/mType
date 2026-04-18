@@ -668,3 +668,37 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 - `inline_branching.mt`: `acc=4000000000000`
 - `inline_polymorphic.mt`: `acc=2000049000000`
 - `inline_value_object_hot.mt`: `acc=14000000` *(new)*
+
+## 2026-04-18 — MYT-169 in-progress snapshot
+
+- Machine: dev machine (Windows 11 Home)
+- Commit:  `159fc356` (+ uncommitted MYT-169 Fix B work: `emitInlineLocalDestroy` in JitCompiler_EmitHelpers.cpp, ObjectInstance/ValueObject hooks)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1071.22 |    1072.95 |        20013 |       0 |
+| method_dispatch.mt            | 1312.73 |    1313.61 |        14039 |     506 |
+| object_alloc.mt               | 2162.86 |    2175.23 |        17509 | 2000000 |
+| string_ops.mt                 |  209.77 |     210.01 |        19014 |       0 |
+| recursive.mt                  | 1936.17 |    1938.65 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1493.26 |    1494.51 |        23014 |       0 |
+| short_circuit_chain.mt        |  410.95 |     411.70 |        24907 |       0 |
+| primitive_method_dispatch.mt  | 1122.65 |    1129.54 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   81.18 |      81.46 |        10909 |     500 |
+| array_multi_get.mt            | 1152.97 |    1160.17 |        50815 |     500 |
+| for_each_loop.mt              |  564.47 |     564.74 |        78650 |    6604 |
+| inline_monomorphic.mt         | 1660.94 |    1678.99 |        13013 |     501 |
+| inline_branching.mt           | 1746.70 |    1768.48 |        15013 |     501 |
+| inline_polymorphic.mt         | 1331.33 |    1340.41 |        14048 |     508 |
+| inline_value_object_hot.mt   | 1955.18 |    1955.58 |        12530 |     501 |
+
+### Notes
+
+- Run on current MYT-169 branch before Fix B is complete.
+- `for_each_loop.mt` and all library-using benchmarks complete cleanly — no crashes.
+- `inline_monomorphic.mt` still regresses vs. `method_dispatch.mt` baseline (1679 ms vs 1314 ms); MYT-169 Fix B is the in-progress lever to close this gap.
+- Investigation findings recorded on the MYT-169 Jira issue for the IC infrastructure gaps surfaced during diagnosis (mangled-name populate, cross-program dispatch in `tryDirectJitMethodDispatch`, `MethodInlineCache&` reference invalidation on rehash).

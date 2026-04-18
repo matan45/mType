@@ -423,6 +423,14 @@ namespace vm::jit
 
         if (s.compileFailed) return true;  // caller short-circuits; function aborts
 
+        // MYT-169 Fix B: release the donated shared_ptr ownership in each
+        // boxed inline-local slot before the fast path rejoins the caller.
+        // emitInlineLocalCopy aliased the receiver (and any boxed args) via
+        // raw memcpy + source-tag-reset; jit_value_destroy here runs the
+        // matching ~shared_ptr and resets the slot to monostate for the next
+        // iteration's memcpy.
+        emitInlineLocalDestroy(s, localsBaseSlot, *callee);
+
         // Jump over the slow path to the join label.
         cc.jmp(endLabel);
 
@@ -611,6 +619,10 @@ namespace vm::jit
             s.inlineLocalsBase = prevInlineBase;
 
             if (s.compileFailed) return true;
+
+            // MYT-169 Fix B: release donated ownership for this shape's body
+            // before jumping to the shared join label (matches the MONO path).
+            emitInlineLocalDestroy(s, localsBaseSlot, *callee);
 
             cc.jmp(endLabel);
         }

@@ -145,6 +145,14 @@ namespace vm::jit
                              size_t localsBaseSlot,
                              const bytecode::BytecodeProgram::FunctionMetadata& callee);
 
+    // MYT-169 (Phase F-a follow-up) Fix B: destroy the boxed inline-local
+    // slots that emitInlineLocalCopy aliased via raw memcpy. Emitted at each
+    // inline body's exit so the donated shared_ptr ownership is correctly
+    // released and the slot is reset to monostate before the next iteration
+    // (or the final emitCleanup) runs.
+    void emitInlineLocalDestroy(JitEmissionState& s, size_t localsBaseSlot,
+                                const bytecode::BytecodeProgram::FunctionMetadata& callee);
+
     // MYT-165 Phase F-c inline-emission helpers for POLY guard chains.
     asmjit::x86::Gp emitExtractReceiverClassDef(JitEmissionState& s,
                                                  int receiverStackIdx);

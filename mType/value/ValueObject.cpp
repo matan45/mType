@@ -1,8 +1,14 @@
 #include "ValueObject.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include <cstddef>
 
 namespace value
 {
+    size_t ValueObject::classDefinitionMemberOffset() noexcept
+    {
+        return offsetof(ValueObject, classDefinition);
+    }
+
     ValueObject::ValueObject(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef)
         : classDefinition(std::move(classDef))
     {
