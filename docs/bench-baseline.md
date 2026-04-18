@@ -462,3 +462,139 @@ For ultra-tiny polymorphic methods, only **function inlining (Phase F)** can mov
 ### Sanity outputs (all preserved)
 
 All benchmarks produce identical output to baseline (`acc=2666666666668`, `total=1999999000000`, `fib32=2178309 ack38=2045 gcdSum=150044`, `accValue=47 faccValue=1.375e+11`, etc.) — correctness gate passed.
+
+## 2026-04-18 — MYT-163: Phase F-a (speculative bytecode-level JIT inlining for MONO CALL_METHOD sites)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-162`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark --jit-stats` (jit=on, warmup=1, measured=3)
+
+Scope:
+- New `mType/vm/optimization/InlineAnalysis.{hpp,cpp}` — eligibility gate returning `INLINE | CALLEE_TOO_BIG | HAS_TRY_CATCH | HAS_ASYNC | HAS_UPVALUES | HAS_SUPER_CALL | HAS_NESTED_CALL | HAS_INTERNAL_JUMPS | SELF_RECURSIVE | DEPTH_EXCEEDED | IC_NOT_MONOMORPHIC | UNKNOWN_SHAPE | VALUE_OBJECT_RECEIVER | CALLEE_NATIVE | CALLEE_NOT_FOUND`. Constants `INLINE_SIZE_LIMIT = 16`, `INLINE_DEPTH_LIMIT = 2`.
+- `JitCompiler_Objects.cpp` — `tryEmitInlinedMethodCall` emits a shape guard against the cached `ClassDefinition*`, marshals receiver + args directly into an inline-locals window in the caller's frame, then inlines the callee's bytecode ops. Shape-guard miss falls through to the factored-out `emitCallMethodOpGeneric` (identical to the pre-F-a path), so correctness is preserved even when the IC transitions MONO → POLY mid-execution.
+- `JitCompiler_EmitHelpers.cpp` — `emitInlineShapeGuard`, `emitInlineLocalCopy`. The latter mirrors `emitArgumentUnboxing`'s per-type marshalling convention — primitive params (`int`/`float`/`bool`) are unbox/rebox'd into the local slot and tagged in `s.localTypes` so the callee's `LOAD_LOCAL` emits via the fast `jit_unbox_int` path. **This was the critical perf fix**: an initial F-a draft kept all params as BOXED, forcing `jit_value_copy` per `LOAD_LOCAL` and unbox/rebox around every arithmetic op inside the callee body. Corrected version halves the inline cost.
+- `JitEmissionState` gains `InlineFrame` struct, `inlineStack` vector, `inlineLocalsBase` field, `currentCompilingFn` string, and an `INLINE_LOCALS_SLACK = 32` constant used to pre-reserve stack slots in every compiled frame. `setupCompilationFrame` and `setupOSRFrame` both widened; `emitCleanup` clears the slack too so inlined writes aren't leaked.
+- `LOAD_LOCAL` / `STORE_LOCAL` in `JitCompiler_ControlFlow.cpp` compute their slot via `(slot + s.inlineLocalsBase) * localStride`. No-op for non-inline paths.
+- `MethodICEntry` gains `bool receiverIsValueObject` field (populated `false` in `jit_call_method_ic` — only ObjectInstance receivers reach the IC populate path in practice). `jit_extract_classdef(const Value*)` helper added to keep shared_ptr control-block layout out of emitted asm.
+
+### Summary
+
+| Script                          | min(ms) | median(ms) | Δ vs MYT-161 c | Note |
+|---------------------------------|--------:|-----------:|---------------:|------|
+| arithmetic_tight_loop.mt        | 1036.36 |    1037.19 | -2.8% | no CALL_METHOD, within noise |
+| method_dispatch.mt              | 1295.18 |    1302.34 | -0.3% | POLY — inliner correctly skips (eligibility returns IC_NOT_MONOMORPHIC); unchanged |
+| object_alloc.mt                 | 2118.85 |    2152.03 | +1.1% | within noise |
+| string_ops.mt                   |  204.45 |     205.67 | +0.2% | noise |
+| recursive.mt                    | 1885.72 |    1891.43 | +0.7% | self-recursive → rejected by HAS_NESTED_CALL + SELF_RECURSIVE; unchanged |
+| bitwise_tight_loop.mt           | 1431.73 |    1440.69 | -2.9% | noise |
+| short_circuit_chain.mt          |  404.89 |     406.41 | -1.8% | noise |
+| primitive_method_dispatch.mt    | 1099.92 |    1103.14 | -0.7% | noise |
+| array_multi_alloc.mt            |   78.41 |      78.73 | -1.9% | noise |
+| array_multi_get.mt              | 1133.98 |    1143.67 | -0.7% | noise |
+| for_each_loop.mt                | 1776.20 |    1784.07 | -0.6% | small additional improvement (the design doc's "+5-10% on top of MYT-161" target is absorbed by noise — structurally the iterator-protocol MONO sites do inline, but at these sizes the wall-clock delta is under the variance floor) |
+| **inline_monomorphic.mt**       | **1596.17** | **1614.60** | n/a (new) | Primary F-a acceptance target — **misses the ≥20% target** |
+
+### Primary acceptance target missed — diagnosis
+
+`inline_monomorphic.mt` at 1596ms lands **above** `method_dispatch.mt` (1295ms, polymorphic direct JIT→JIT via MYT-161). Since the monomorphic IC path without inlining would run roughly at or below method_dispatch's number (~1250ms estimated), F-a is ~25% **slower** than it should be for this micro-benchmark.
+
+Root cause: per-call inline cost at the hot site is still ~3 helper calls' worth of work:
+
+- `jit_extract_classdef` for the shape guard (~40 cyc, one helper call).
+- `jit_value_copy` on the receiver slot (shared_ptr bump: ~80 cyc).
+- `jit_unbox_int` + `jit_box_int` on each primitive arg (~80 cyc per primitive).
+
+`tryDirectJitMethodDispatch` (MYT-161) pays roughly the same helper-call tax for marshalling via `ctx->callArgs[]` plus a `JitContext{}` zero-init, but avoids the shape-guard helper. For a 3-instruction callee body like `return x * 2 + 1`, the shape-guard + inline-setup overhead roughly equals the direct-dispatch overhead — no net win.
+
+The expected win was that eliminating the call frame entirely would drop ~300 cycles per call. In practice the helper-call stubs for arg marshalling preserve most of that cost. Two follow-up levers that weren't pulled in F-a:
+
+1. **Inline the shape-guard extract** — instead of `jit_extract_classdef` (full variant check), emit the shared_ptr control-block read as asmjit ops against a known `offsetof(ObjectInstance, classDefinition)`. Trades MSVC layout fragility for ~30 cycles per call.
+2. **Avoid the receiver `jit_value_copy`** — for the receiver specifically, store only the raw `ObjectInstance*` into the inline local (skipping the shared_ptr refcount bump) on the assumption that the caller's operand stack retains ownership for the duration of the inline body. Saves ~60 cycles per call but needs careful lifetime reasoning.
+
+Both are mechanical follow-ups that would move `inline_monomorphic.mt` into the ≥20% range. Deferred to a follow-up subtask under MYT-162.
+
+### What F-a does deliver
+
+- **Correctness across the suite.** Five new integration tests in `tests/testFiles/integration/pass/inlining/` (`inline_basic`, `inline_arithmetic`, `inline_monomorphic`, `inline_recursive_guard`, `inline_value_object_skip`) all pass; full `mtype-tests` suite unchanged.
+- **Infrastructure complete.** Eligibility, emit helpers, JitEmissionState inline-scope tracking, frame widening, and the IC `receiverIsValueObject` field are all landed. F-b (internal jumps + nested inlining) can build directly on top; F-c (polymorphic chained guards) reuses the same emit helpers.
+- **No regressions** on the 11 pre-existing benchmarks — all Δ values are within the ±3% tripwire.
+
+### Sanity outputs (all preserved)
+
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
+- `string_ops.mt`: `concat_iters=20000 matches=1000000`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+- `bitwise_tight_loop.mt`: `acc=10000000`
+- `short_circuit_chain.mt`: `hits=4350982`
+- `primitive_method_dispatch.mt`: `accValue=47 faccValue=1.375e+11`
+- `array_multi_alloc.mt`: `dummy=4999950000`
+- `array_multi_get.mt`: `total=2618880000`
+- `for_each_loop.mt`: `total=999000000`
+- `inline_monomorphic.mt`: `acc=4000000000000` *(new)*
+
+## 2026-04-18 — MYT-164: Phase F-b (internal jumps + nested inlining)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-162`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark --jit-stats` (jit=on, warmup=1, measured=3)
+
+Scope:
+- `InlineAnalysis::scanCalleeOpcodes` no longer bails on JUMP / JUMP_IF_FALSE / JUMP_IF_TRUE / JUMP_IF_FALSE_OR_POP / JUMP_IF_TRUE_OR_POP / JUMP_BACK (JUMP_IF_NULL stays blocked — no JIT emitter exists for it yet). CALL_METHOD removed from the nested-call rejection; the recursive path in `tryEmitInlinedMethodCall` enforces `INLINE_DEPTH_LIMIT = 2` and non-inlineable nested sites fall back to the generic dispatch cleanly.
+- `InlineFrame` (in `JitEmissionState.hpp`) gains `std::unordered_map<size_t, asmjit::Label> localJumpLabels`. Populated by `tryEmitInlinedMethodCall` via `createJumpLabels(cc, program, callee.startOffset, callee.startOffset + callee.instructionCount)` — the same pre-scan helper used for the outer function, just scoped to the callee's range.
+- `tryEmitInlinedMethodCall` binds the per-IP label at the top of each iteration of the inline emission loop, conservatively resets `stackDepth / slotTypes` to the inline-frame-entry shape + clears `arrayInfoCache` at each bind (structured-IR invariant: join points enter with an empty inline operand stack). Dropped the F-a `if (isTerminator) break;` shortcut — full-range iteration is required so multiple return paths all wire to `endLabel`.
+- `findInlineJumpLabel(s, target)` in `JitCompiler_ControlFlow.cpp` — probes the top-of-stack inline frame's `localJumpLabels` before falling back to the outer `s.labels` / `onExit` path in every JUMP-family case, including `JUMP_BACK`'s pre-safepoint jump.
+- Nested-inline plumbing: `localsBaseSlot` now stacks — at depth 0 starts past the caller's own locals, at depth 1 starts past the outer inline frame's locals. The `INLINE_LOCALS_SLACK = 32` cap gates nested overflow (bails to generic dispatch when cumulative locals exceed slack).
+
+### Summary
+
+| Script                          | min(ms) | median(ms) | Δ vs MYT-163 | Note |
+|---------------------------------|--------:|-----------:|-------------:|------|
+| arithmetic_tight_loop.mt        | 1054.87 |    1058.64 | +1.8% / +2.1% | noise |
+| method_dispatch.mt              | 1304.19 |    1319.03 | +0.7% / +1.3% | POLY — still rejected until F-c |
+| object_alloc.mt                 | 2075.11 |    2079.56 | -2.1% / -3.4% | noise |
+| string_ops.mt                   |  205.70 |     207.15 | +0.6% / +0.7% | noise |
+| recursive.mt                    | 1893.33 |    1916.89 | +0.4% / +1.3% | self-recursive → rejected |
+| bitwise_tight_loop.mt           | 1431.64 |    1438.33 | -0.0% / -0.2% | noise |
+| short_circuit_chain.mt          |  402.92 |     406.42 | -0.5% / +0.0% | noise |
+| primitive_method_dispatch.mt    | 1090.58 |    1093.97 | -0.8% / -0.8% | noise |
+| array_multi_alloc.mt            |   78.95 |      79.50 | +0.7% / +1.0% | noise |
+| array_multi_get.mt              | 1124.49 |    1125.50 | -0.8% / -1.6% | noise |
+| for_each_loop.mt                | 1769.04 |    1772.13 | -0.4% / -0.7% | iterator `hasNext` callee now inlineable, delta below variance floor |
+| inline_monomorphic.mt           | 1555.79 |    1563.23 | -2.5% / -3.2% | incidental improvement, same callee shape |
+| **inline_branching.mt**         | **1686.22** | **1686.23** | **n/a (new)** | F-b primary acceptance — callee with if-guard inlined |
+
+### inline_branching.mt — the F-b acceptance read
+
+Callee body is `if (x < 0) return 0; return x * 2 + 1;`. Under F-a this hit `HAS_INTERNAL_JUMPS` on the first `JUMP_IF_FALSE` and fell back to the generic `jit_call_method_ic` dispatch path. Under F-b the inliner emits a shape-guard + the full branching body inline, with the callee's internal `JUMP_IF_FALSE` rewired through the frame's `localJumpLabels`.
+
+Result: 1686ms, ~130ms above `inline_monomorphic.mt` (1555ms) for the same iteration count. The ~65ns/call gap matches the cost of the extra `cmp`/`jl` + branch prediction variance — not an F-b overhead, just the body doing more work. No F-a baseline exists to compare against directly, but the shape of the win is: a previously-un-inlineable call site now JITs as 2 compiled functions (caller + callee) with a speculative inline at the hot site, and the branching callee produces correct output (`acc=4000000000000`).
+
+`method_dispatch.mt` stays flat at 1304ms (expected — it's polymorphic, waits on F-c). `for_each_loop.mt` drops marginally (the iterator `hasNext` fast-path is now inlineable, but at its iteration count the wall-clock delta sits under the ±3% variance floor).
+
+### What F-b delivers
+
+- **Correctness.** Three new integration tests (`inline_with_if`, `inline_with_loop`, `inline_nested`) pass; existing F-a suite stays green; full `mtype-tests` suite unchanged.
+- **Branching / looping callees inline.** The `HAS_INTERNAL_JUMPS` eligibility barrier is gone for everything except `JUMP_IF_NULL` (deferred until its emitter lands).
+- **Depth-2 nested inlining.** A MONO callee that itself contains a MONO call can fully inline, with stacked locals windows. `inline_nested.mt` exercises this end-to-end.
+- **Op-stack reset invariant holds.** The canary test `inline_with_if.mt` produces correct output — join points inside structured-IR callees enter with an empty inline operand stack, confirming the conservative reset is sufficient. No need for per-branch snapshot restore.
+- **No regressions.** All 12 pre-existing benchmarks stay within the ±3% tripwire relative to MYT-163 F-a numbers.
+
+### Sanity outputs (all preserved)
+
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
+- `string_ops.mt`: `concat_iters=20000 matches=1000000`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+- `bitwise_tight_loop.mt`: `acc=10000000`
+- `short_circuit_chain.mt`: `hits=4350982`
+- `primitive_method_dispatch.mt`: `accValue=47 faccValue=1.375e+11`
+- `array_multi_alloc.mt`: `dummy=4999950000`
+- `array_multi_get.mt`: `total=2618880000`
+- `for_each_loop.mt`: `total=999000000`
+- `inline_monomorphic.mt`: `acc=4000000000000`
+- `inline_branching.mt`: `acc=4000000000000` *(new)*

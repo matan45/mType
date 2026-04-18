@@ -34,6 +34,12 @@ namespace vm::jit
         // Runtime stack slot where the caller expects the inlined call's
         // return value to land (boxed operand stack index in both modes).
         int returnResultStackIdx = -1;
+        // MYT-164 (Phase F-b): asmjit labels keyed by callee-local target IP,
+        // populated by tryEmitInlinedMethodCall's pre-scan over the callee's
+        // bytecode range. JUMP-family emitters in JitCompiler_ControlFlow.cpp
+        // consult the top-of-stack frame's map before falling back to the
+        // outer function's s.labels / onExit path.
+        std::unordered_map<size_t, asmjit::Label> localJumpLabels;
     };
 
     struct JitEmissionState

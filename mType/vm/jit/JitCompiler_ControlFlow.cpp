@@ -9,6 +9,21 @@ namespace vm::jit
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
 
+    // MYT-164 (Phase F-b): resolve a jump target against the innermost active
+    // inline frame's localJumpLabels. Returns nullptr when no inline frame is
+    // active or the target is outside the callee's bytecode range (in which
+    // case the JUMP-family emitter falls back to the outer s.labels / onExit
+    // path). Only the top frame is consulted — jumps inside an inner callee
+    // cannot target an outer frame's bytecode range by lexical scope.
+    static asmjit::Label* findInlineJumpLabel(JitEmissionState& s, size_t target)
+    {
+        if (s.inlineStack.empty()) return nullptr;
+        auto& frame = s.inlineStack.back();
+        auto it = frame.localJumpLabels.find(target);
+        if (it == frame.localJumpLabels.end()) return nullptr;
+        return &it->second;
+    }
+
     static void emitLoadLocal(JitEmissionState& s, size_t slot)
     {
         auto& cc = s.cc;
@@ -419,6 +434,11 @@ namespace vm::jit
             case OpCode::JUMP:
             {
                 size_t target = instr.operands[0];
+                if (auto* lbl = findInlineJumpLabel(s, target))
+                {
+                    cc.jmp(*lbl);
+                    return true;
+                }
                 if (onExit && s.labels.find(target) == s.labels.end())
                 {
                     onExit(s, target);
@@ -439,7 +459,11 @@ namespace vm::jit
                 cc.mov(cond, Mem(s.stackBase, s.stackDepth * 8));
                 cc.test(cond, cond);
 
-                if (onExit && s.labels.find(target) == s.labels.end())
+                if (auto* lbl = findInlineJumpLabel(s, target))
+                {
+                    cc.jz(*lbl);
+                }
+                else if (onExit && s.labels.find(target) == s.labels.end())
                 {
                     Label continueLoop = cc.new_label();
                     cc.jnz(continueLoop);
@@ -462,7 +486,11 @@ namespace vm::jit
                 cc.mov(cond, Mem(s.stackBase, s.stackDepth * 8));
                 cc.test(cond, cond);
 
-                if (onExit && s.labels.find(target) == s.labels.end())
+                if (auto* lbl = findInlineJumpLabel(s, target))
+                {
+                    cc.jnz(*lbl);
+                }
+                else if (onExit && s.labels.find(target) == s.labels.end())
                 {
                     Label continueLoop = cc.new_label();
                     cc.jz(continueLoop);
@@ -490,7 +518,12 @@ namespace vm::jit
                 cc.mov(cond, Mem(s.stackBase, (s.stackDepth - 1) * 8));
                 cc.test(cond, cond);
 
-                if (onExit && s.labels.find(target) == s.labels.end())
+                if (auto* lbl = findInlineJumpLabel(s, target))
+                {
+                    if (jumpOnZero) cc.jz(*lbl);
+                    else            cc.jnz(*lbl);
+                }
+                else if (onExit && s.labels.find(target) == s.labels.end())
                 {
                     Label continueLoop = cc.new_label();
                     if (jumpOnZero) cc.jnz(continueLoop);
@@ -519,7 +552,11 @@ namespace vm::jit
                 InvokeNode* gc;
                 cc.invoke(Out(gc), reinterpret_cast<uint64_t>(jit_gc_safepoint),
                           FuncSignature::build<void>());
-                cc.jmp(s.labels[instr.operands[0]]);
+                size_t target = instr.operands[0];
+                if (auto* lbl = findInlineJumpLabel(s, target))
+                    cc.jmp(*lbl);
+                else
+                    cc.jmp(s.labels[target]);
                 return true;
             }
 

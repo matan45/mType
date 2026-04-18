@@ -29,7 +29,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 12> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 13> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -44,6 +44,11 @@ namespace
         // MYT-163 F-a: primary acceptance target — single-class MONO call
         // site eligible for speculative inlining.
         "inline_monomorphic.mt",
+        // MYT-164 F-b: MONO callee with an internal if-guard (mirrors the
+        // iterator hasNext / null-check pattern). Un-inlineable under F-a
+        // due to HAS_INTERNAL_JUMPS; inlined under F-b via per-frame label
+        // remapping.
+        "inline_branching.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";

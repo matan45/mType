@@ -275,13 +275,31 @@ namespace vm::jit
         // don't fabricate a match.
         if (callee->parameterCount != argCount + 1) return false;
 
-        // Inline locals window must fit in the pre-reserved slack.
-        const size_t localsBaseSlot = s.localCount;  // F-a: depth 1 only
-        if (callee->localCount > JitEmissionState::INLINE_LOCALS_SLACK) return false;
+        // MYT-164: locals base stacks for nested inlining. At depth 0 we start
+        // past the caller's own locals; at depth 1 we start past the outer
+        // inline frame's locals window. Bail cleanly if the cumulative window
+        // would overflow INLINE_LOCALS_SLACK — better to emit the generic
+        // path than corrupt unrelated frame state.
+        const size_t localsBaseSlot = s.inlineStack.empty()
+            ? s.localCount
+            : s.inlineStack.back().localsBaseSlot
+              + s.inlineStack.back().calleeMeta->localCount;
+        if (localsBaseSlot + callee->localCount
+            > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+            return false;
 
         auto& cc = s.cc;
         asmjit::Label slowLabel = cc.new_label();
         asmjit::Label endLabel  = cc.new_label();
+
+        // MYT-164: pre-scan the callee's bytecode range for JUMP-family
+        // targets. createJumpLabels allocates one asmjit label per unique
+        // target IP; the inline codegen loop binds them and jump emitters
+        // (JitCompiler_ControlFlow.cpp) resolve through the top inline
+        // frame's localJumpLabels before touching the outer s.labels.
+        auto localJumpLabels = createJumpLabels(
+            cc, s.program, callee->startOffset,
+            callee->startOffset + callee->instructionCount);
 
         // Snapshot emitter state so the slow-path emission can rewind after
         // the fast path drifts s.stackDepth / slotTypes during callee body
@@ -315,6 +333,7 @@ namespace vm::jit
         frame.localsBaseSlot = localsBaseSlot;
         frame.inlineEndLabel = endLabel;
         frame.returnResultStackIdx = receiverStackIdx;
+        frame.localJumpLabels = std::move(localJumpLabels);
 
         const size_t prevInlineBase = s.inlineLocalsBase;
         s.inlineStack.push_back(frame);
@@ -340,23 +359,38 @@ namespace vm::jit
             es.cc.jmp(endLabel);
         };
 
-        // Emit the callee's bytecode. F-a forbids internal jumps, so the loop
-        // hits exactly one terminator (RETURN_VALUE) which trips onExit. Any
-        // instructions after the terminator are unreachable — break out once
-        // the terminator has emitted so we don't stream asmjit ops with
-        // under-populated emitter state.
+        // Emit the callee's bytecode. MYT-164: internal jumps are permitted;
+        // bind per-IP labels at the top of each iteration so JUMP/JUMP_IF_*/
+        // JUMP_BACK targets inside the callee resolve through the inline
+        // frame's localJumpLabels. RETURN_VALUE / RETURN still trip onExit
+        // and jump to endLabel, so multiple return paths all converge there.
+        // Iterate the full range — trailing unreachable ops emit dead asmjit
+        // instructions, which the outer codegen loop already tolerates.
         for (size_t ip = callee->startOffset;
              ip < callee->startOffset + callee->instructionCount && !s.compileFailed;
              ++ip)
         {
+            // Bind a callee-local label at this IP if the pre-scan registered
+            // one. At a join point the inline operand stack is empty by
+            // bytecode-compiler invariant (ControlFlowCompiler emits labels
+            // at statement boundaries, never mid-expression), so reset
+            // stackDepth / slotTypes to match the expected shape of the
+            // next basic block. Conservative arrayInfoCache reset mirrors
+            // emitCodegenLoop in JitCompiler_Core.cpp.
+            auto& topFrame = s.inlineStack.back();
+            auto lit = topFrame.localJumpLabels.find(ip);
+            if (lit != topFrame.localJumpLabels.end())
+            {
+                cc.bind(lit->second);
+                s.stackDepth = receiverStackIdx;
+                s.slotTypes.resize(static_cast<size_t>(receiverStackIdx));
+                s.arrayInfoCache.clear();
+            }
+
             const auto& cinstr = s.program.getInstruction(ip);
             s.currentIP = ip;
             if (cinstr.opcode == OpCode::PROFILE_ENTER)
                 continue;  // no-op inside an inline frame
-
-            const bool isTerminator =
-                cinstr.opcode == OpCode::RETURN_VALUE ||
-                cinstr.opcode == OpCode::RETURN;
 
             bool handled = false;
             if (emitCoreOps(s, cinstr)) handled = true;
@@ -364,8 +398,6 @@ namespace vm::jit
             else if (emitControlFlowOps(s, cinstr, onExit)) handled = true;
             else { emitObjectOps(s, cinstr); handled = true; }
             (void)handled;
-
-            if (isTerminator) break;
         }
 
         // Exit callee scope (regardless of compileFailed — we still need

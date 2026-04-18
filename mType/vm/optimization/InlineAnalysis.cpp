@@ -10,10 +10,19 @@ namespace vm::optimization
     using vm::jit::ic::ICState;
     using vm::jit::ic::MethodInlineCache;
 
-    // Scan callee bytecode for any opcode that disqualifies F-a inlining.
+    // Scan callee bytecode for any opcode that disqualifies F-b inlining.
     // Order matches the Decision enum preference — the first disqualifying
-    // opcode wins, so a callee that both branches and awaits reports
-    // HAS_INTERNAL_JUMPS (the more relaxable restriction).
+    // opcode wins.
+    //
+    // F-b (MYT-164) unlocks internal control flow (JUMP/JUMP_IF_FALSE/TRUE/
+    // JUMP_BACK/JUMP_IF_FALSE_OR_POP/JUMP_IF_TRUE_OR_POP) via per-frame
+    // localJumpLabels in tryEmitInlinedMethodCall, and unlocks nested inline
+    // for a single CALL_METHOD (the recursive path in tryEmitInlinedMethodCall
+    // enforces INLINE_DEPTH_LIMIT = 2; a non-inlineable nested site simply
+    // falls through to emitCallMethodOpGeneric). JUMP_IF_NULL stays blocked
+    // until its primitive emitter lands; the other CALL_* / INVOKE / LAMBDA_*
+    // opcodes stay blocked — their return-value paths are not wired through
+    // the inline operand-stack contract.
     static InlineDecision scanCalleeOpcodes(
         const BytecodeProgram& program,
         const BytecodeProgram::FunctionMetadata& callee)
@@ -24,13 +33,9 @@ namespace vm::optimization
             const auto& instr = program.getInstruction(ip);
             switch (instr.opcode)
             {
-                case OpCode::JUMP:
-                case OpCode::JUMP_IF_FALSE:
-                case OpCode::JUMP_IF_TRUE:
+                // MYT-164: JUMP_IF_NULL has no JIT emitter in F-b's reach; keep
+                // it on the bailout list until a primitive emitter is wired.
                 case OpCode::JUMP_IF_NULL:
-                case OpCode::JUMP_BACK:
-                case OpCode::JUMP_IF_FALSE_OR_POP:
-                case OpCode::JUMP_IF_TRUE_OR_POP:
                     return InlineDecision::HAS_INTERNAL_JUMPS;
 
                 case OpCode::TRY_BEGIN:
@@ -59,7 +64,6 @@ namespace vm::optimization
 
                 case OpCode::CALL:
                 case OpCode::CALL_FAST:
-                case OpCode::CALL_METHOD:
                 case OpCode::CALL_STATIC:
                 case OpCode::INVOKE:
                 case OpCode::LAMBDA_INVOKE:

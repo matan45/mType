@@ -262,6 +262,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline Value Object Skip",
                                   passPath + "inlining/inline_value_object_skip.mt");
 
+        // MYT-164 Phase F-b: internal jumps + nested inlining.
+        addOutputVerificationTest("Inline With If/Else Branches",
+                                  passPath + "inlining/inline_with_if.mt");
+        addOutputVerificationTest("Inline With While Loop",
+                                  passPath + "inlining/inline_with_loop.mt");
+        addOutputVerificationTest("Inline Nested Depth-2",
+                                  passPath + "inlining/inline_nested.mt");
+
         // ====================================
         // COMMENTED OUT - Test files were not created
         // ====================================
