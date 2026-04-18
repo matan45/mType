@@ -166,6 +166,7 @@ namespace vm::runtime
         std::unique_ptr<vm::jit::JitCompiler> jitCompiler;
         std::unique_ptr<vm::jit::OSRManager> osrManager;
         bool jitEnabled;
+        size_t jitNativeDepth = 0;  // Tracks JIT native recursion depth to prevent C++ stack overflow
 
         // Phase 6: Inline caching and type specialization
         std::unique_ptr<vm::jit::ic::InlineCacheTable> inlineCacheTable;
@@ -298,6 +299,21 @@ namespace vm::runtime
                                        const std::string& methodName,
                                        const std::vector<value::Value>& args);
 
+        // JIT IC fast-path: skip method resolution by accepting pre-resolved metadata.
+        // qualifiedName must include defining class prefix (e.g. "Shape::area"); funcMetadata
+        // must point to that function's bytecode metadata. Used by jit_call_method_ic on hit.
+        value::Value callMethodFromJitDirect(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                             const std::string& qualifiedName,
+                                             const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+                                             const std::vector<value::Value>& args);
+
+        // JIT helper (MYT-146): allocate a multi-dimensional array. Mirrors
+        // ArrayExecutor::handleNewArrayMulti's post-pop dispatch but takes
+        // pre-popped dimensions so it's callable without an ExecutionContext.
+        value::Value createMultiArrayFromJit(uint32_t typeNameIndex,
+                                             const std::vector<int64_t>& dimensions,
+                                             size_t totalDimensions);
+
         // Reset VM state
         void reset();
 
@@ -313,8 +329,9 @@ namespace vm::runtime
 
         // Extracted dispatch helpers (reduce executeInstruction size)
         void trySpecializeArithmetic(const bytecode::BytecodeProgram::Instruction& instr,
-                                     bytecode::OpCode specializedOpcode);
+                                     bytecode::OpCode intOpcode, bytecode::OpCode floatOpcode);
         void executeCallWithJit(const bytecode::BytecodeProgram::Instruction& instr);
+        void executeCallFastWithJit(const bytecode::BytecodeProgram::Instruction& instr);
         void executeAwait();
 
         // Helper methods (will be moved to utility classes)
@@ -332,7 +349,15 @@ namespace vm::runtime
         value::Value peek(size_t offset = 0) const;
         void popN(size_t count);
 
-        // Call stack management with overflow protection
+    public:
+        // Call stack management with overflow protection (public for JIT access)
         void pushCallFrame(const CallFrame& frame);
+        void popCallStack();
+
+        // JIT native depth tracking (public for JIT helpers access)
+        static constexpr size_t MAX_JIT_NATIVE_DEPTH = 64;
+        size_t getJitNativeDepth() const { return jitNativeDepth; }
+        void incrementJitNativeDepth() { ++jitNativeDepth; }
+        void decrementJitNativeDepth() { --jitNativeDepth; }
     };
 }

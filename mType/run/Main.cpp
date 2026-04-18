@@ -2,6 +2,7 @@
 #include "DebugSession.hpp"
 #include "ScriptAnalyzer.hpp"
 #include "ErrorReporting.hpp"
+#include "BenchmarkRunner.hpp"
 
 #include "../diagnostics/DiagnosticRenderer.hpp"
 #include "../diagnostics/TerminalDetect.hpp"
@@ -130,6 +131,10 @@ int main(int argc, char* argv[])
             " --test-script-objects <script.mt> - Demo: Create objects and call methods from C++\n";
         std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
+        std::cout << "  " << argv[0] << " --benchmark                - Run the interpreter benchmark suite\n";
+        std::cout << "  " << argv[0] << " --benchmark=<script.mt>    - Run a single benchmark script\n";
+        std::cout << "  " << argv[0] << " --benchmark-iterations=<N> - Measured iterations per script (default 3)\n";
+        std::cout << "  " << argv[0] << " --benchmark-output=<fmt>   - Output format: text (default) or json\n";
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
         printAvailableTestSuites();
         return 0;
@@ -857,6 +862,9 @@ int main(int argc, char* argv[])
     vm::profiler::ProfilerMode profileMode = vm::profiler::ProfilerMode::DISABLED;
     vm::profiler::ProfilerOutputFormat profileOutputFormat = vm::profiler::ProfilerOutputFormat::CONSOLE;
 
+    bool benchmarkMode = false;
+    runMain::BenchmarkOptions benchmarkOptions;
+
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
@@ -889,6 +897,46 @@ int main(int argc, char* argv[])
         {
             profileOutputFormat = vm::profiler::ProfilerOutputFormat::JSON;
         }
+        else if (arg == "--benchmark")
+        {
+            benchmarkMode = true;
+        }
+        else if (arg.rfind("--benchmark=", 0) == 0)
+        {
+            benchmarkMode = true;
+            benchmarkOptions.singleScript = arg.substr(std::string("--benchmark=").size());
+        }
+        else if (arg.rfind("--benchmark-iterations=", 0) == 0)
+        {
+            benchmarkMode = true;
+            try
+            {
+                int n = std::stoi(arg.substr(std::string("--benchmark-iterations=").size()));
+                if (n > 0) benchmarkOptions.measuredIterations = n;
+            }
+            catch (...)
+            {
+                std::cerr << "Warning: invalid --benchmark-iterations value, using default\n";
+            }
+        }
+        else if (arg.rfind("--benchmark-output=", 0) == 0)
+        {
+            benchmarkMode = true;
+            std::string fmt = arg.substr(std::string("--benchmark-output=").size());
+            if (fmt == "json")
+            {
+                benchmarkOptions.outputFormat = runMain::BenchmarkOutput::Json;
+            }
+            else if (fmt == "text")
+            {
+                benchmarkOptions.outputFormat = runMain::BenchmarkOutput::Text;
+            }
+            else
+            {
+                std::cerr << "Warning: --benchmark-output=" << fmt
+                          << " not recognized (use text|json), defaulting to text\n";
+            }
+        }
         else if (arg == "--no-color" || arg == "--color=never")
         {
             runMain::setColorMode(diagnostics::DiagnosticRenderer::ColorMode::Never);
@@ -905,6 +953,18 @@ int main(int argc, char* argv[])
         {
             filename = arg;
         }
+    }
+
+    if (benchmarkMode)
+    {
+        benchmarkOptions.jitEnabled = enableJit;
+        benchmarkOptions.printJitStats = printJitStats;
+        int rc = runMain::runBenchmarks(benchmarkOptions);
+
+        gc::GC::shutdown();
+        reflection::ReflectionNatives::cleanup();
+        json::JsonNatives::cleanup();
+        return rc;
     }
 
     if (filename.empty())

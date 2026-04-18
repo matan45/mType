@@ -250,6 +250,40 @@ namespace tests::testSuite
         addOutputVerificationTest("Lazy Reboxing Mixed Operands",
                                   passPath + "lazyReboxingMixedOperands.mt");
 
+        // MYT-163 Phase F-a: speculative JIT inlining tests.
+        addOutputVerificationTest("Inline Basic MONO",
+                                  passPath + "inlining/inline_basic.mt");
+        addOutputVerificationTest("Inline Arithmetic Hot Loop",
+                                  passPath + "inlining/inline_arithmetic.mt");
+        addOutputVerificationTest("Inline Monomorphic Acceptance",
+                                  passPath + "inlining/inline_monomorphic.mt");
+        addOutputVerificationTest("Inline Self-Recursive Guard",
+                                  passPath + "inlining/inline_recursive_guard.mt");
+        // MYT-167 Phase F-e: value-object receivers inline for read-only methods;
+        // write-containing callees still fall through.
+        addOutputVerificationTest("Inline Value Object Read-Only",
+                                  passPath + "inlining/inline_value_object_readonly.mt");
+        addOutputVerificationTest("Inline Value Object Write Skip",
+                                  passPath + "inlining/inline_value_object_write_skip.mt");
+
+        // MYT-164 Phase F-b: internal jumps + nested inlining.
+        addOutputVerificationTest("Inline With If/Else Branches",
+                                  passPath + "inlining/inline_with_if.mt");
+        addOutputVerificationTest("Inline With While Loop",
+                                  passPath + "inlining/inline_with_loop.mt");
+        addOutputVerificationTest("Inline Nested Depth-2",
+                                  passPath + "inlining/inline_nested.mt");
+
+        // MYT-165 Phase F-c: polymorphic inlining with chained shape guards.
+        addOutputVerificationTest("Inline Polymorphic Chained Guards",
+                                  passPath + "inlining/inline_poly.mt");
+        addOutputVerificationTest("Inline MEGA Fallback",
+                                  passPath + "inlining/inline_mega_fallback.mt");
+
+        // MYT-168: regression guard for MONO->POLY IC transition in JIT'd code.
+        addOutputVerificationTest("Inline MONO to POLY Transition",
+                                  passPath + "inlining/inline_mono_to_poly.mt");
+
         // ====================================
         // COMMENTED OUT - Test files were not created
         // ====================================

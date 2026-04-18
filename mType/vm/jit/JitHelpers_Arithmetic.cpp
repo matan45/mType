@@ -65,12 +65,27 @@ namespace vm::jit
                                const std::string& funcName,
                                size_t argCount)
     {
-        if (!ctx->jitCodeCache)
+        if (!ctx->jitCodeCache || !ctx->vm)
             return false;
 
         auto jitFn = ctx->jitCodeCache->lookup(funcName);
         if (!jitFn)
             return false;
+
+        // If native recursion is too deep, fall back to interpreter to avoid
+        // native C++ stack overflow (the VM interpreter uses a managed call stack)
+        if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
+            return false;
+
+        // Track on the VM call stack for overflow protection
+        vm::runtime::CallFrame frame;
+        frame.returnAddress = 0;
+        frame.frameBase = 0;
+        frame.localBase = 0;
+        frame.functionName = funcName;
+        frame.thisInstance = nullptr;
+        ctx->vm->pushCallFrame(frame);
+        ctx->vm->incrementJitNativeDepth();
 
         JitContext nestedCtx{};
         nestedCtx.args = ctx->callArgs;
@@ -85,6 +100,16 @@ namespace vm::jit
         nestedCtx.callingClassName = ctx->callingClassName;
 
         jitFn(&nestedCtx);
+
+        ctx->vm->decrementJitNativeDepth();
+        ctx->vm->popCallStack();
+
+        // Propagate any exception stored by JIT helpers
+        if (nestedCtx.pendingException)
+        {
+            ctx->pendingException = nestedCtx.pendingException;
+            return true;  // Return true so caller doesn't try other dispatch paths
+        }
 
         ctx->returnValue = nestedCtx.returnValue;
         ctx->hasReturnValue = nestedCtx.hasReturnValue;
@@ -112,23 +137,73 @@ namespace vm::jit
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount)
     {
-        const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
-
-        if (tryJitDispatch(ctx, funcName, argCount))
+        // If a previous call in this JIT frame already failed, bail out immediately
+        if (ctx->pendingException)
             return;
 
-        if (tryNativeDispatch(ctx, funcName, argCount))
-            return;
-
-        if (ctx->vm)
+        try
         {
-            std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-            ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
-            ctx->hasReturnValue = true;
-            return;
-        }
+            const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
 
-        throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+            if (tryJitDispatch(ctx, funcName, argCount))
+                return;
+
+            if (tryNativeDispatch(ctx, funcName, argCount))
+                return;
+
+            if (ctx->vm)
+            {
+                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->hasReturnValue = true;
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+        }
+        catch (...)
+        {
+            // Store exception — don't let it unwind through JIT-generated frames
+            ctx->pendingException = std::current_exception();
+        }
+    }
+
+    void jit_call_function_fast(JitContext* ctx, uint32_t funcIndex, size_t argCount)
+    {
+        if (ctx->pendingException)
+            return;
+
+        try
+        {
+            const auto* meta = ctx->program->getFunctionByIndex(funcIndex);
+            if (!meta)
+                throw errors::RuntimeException(
+                    "JIT: invalid function index " + std::to_string(funcIndex));
+
+            // CALL_FAST only targets non-native user-defined bytecode functions
+            // (guaranteed by FunctionCallHelper.cpp emission conditions), so the
+            // mangled name is the authoritative dispatch key — matches the
+            // lookup done by VirtualMachine::executeCallFastWithJit.
+            const std::string& funcName =
+                meta->mangledName.empty() ? meta->name : meta->mangledName;
+
+            if (tryJitDispatch(ctx, funcName, argCount))
+                return;
+
+            if (ctx->vm)
+            {
+                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->hasReturnValue = true;
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
     }
 
     void jit_generic_add(value::Value* result, const value::Value* left, const value::Value* right)
@@ -159,6 +234,11 @@ namespace vm::jit
     void jit_throw_div_by_zero()
     {
         throw errors::RuntimeException("Division by zero");
+    }
+
+    void jit_throw_shift_out_of_range(int64_t /*count*/)
+    {
+        throw errors::RuntimeException("Shift amount must be between 0 and 63");
     }
 
     void jit_value_copy(value::Value* dest, const value::Value* src)

@@ -134,6 +134,134 @@ namespace
             mutableInstr.operands = { it->second };
         }
     }
+    void inlineTrivialGetters(vm::bytecode::BytecodeProgram& program)
+    {
+        const auto& functions = program.getFunctions();
+        const auto& classes = program.getClasses();
+
+        // Phase 1: Detect trivial getter methods
+        // Pattern: LOAD_LOCAL 0, GET_FIELD X, RETURN_VALUE
+        std::unordered_map<std::string, uint64_t> trivialGetters;
+
+        for (const auto& [name, meta] : functions)
+        {
+            if (name.find("::") == std::string::npos) continue;
+            if (meta.parameterCount != 1) continue;
+            if (meta.returnType == "void") continue;
+            if (meta.instructionCount != 3) continue;
+            if (meta.startOffset + 2 >= program.getInstructionCount()) continue;
+
+            const auto& i0 = program.getInstruction(meta.startOffset);
+            const auto& i1 = program.getInstruction(meta.startOffset + 1);
+            const auto& i2 = program.getInstruction(meta.startOffset + 2);
+
+            if (i0.opcode == OpCode::LOAD_LOCAL && !i0.operands.empty() && i0.operands[0] == 0 &&
+                i1.opcode == OpCode::GET_FIELD && !i1.operands.empty() &&
+                i2.opcode == OpCode::RETURN_VALUE)
+            {
+                // Only inline if the field is public — INLINE_GET_FIELD skips access validation.
+                // Walk the inheritance chain to find the field's actual declaring class:
+                // a Child method may return `this.parentField` where the field lives on Parent.
+                std::string getterClassName = name.substr(0, name.find("::"));
+                std::string fieldName = program.getConstantPool().getString(i1.operands[0]);
+                bool fieldIsPublic = false;
+                std::string currentClass = getterClassName;
+                while (!currentClass.empty()) {
+                    const vm::bytecode::BytecodeProgram::ClassMetadata* foundCls = nullptr;
+                    for (const auto& cls : classes) {
+                        if (cls.name == currentClass) { foundCls = &cls; break; }
+                    }
+                    if (!foundCls) break;
+                    bool foundField = false;
+                    for (const auto& field : foundCls->instanceFields) {
+                        if (field.name == fieldName) {
+                            foundField = true;
+                            fieldIsPublic = !(field.isPrivate || field.isProtected);
+                            break;
+                        }
+                    }
+                    if (foundField) break;
+                    currentClass = foundCls->parentClassName;
+                }
+                if (fieldIsPublic) {
+                    trivialGetters[name] = i1.operands[0];
+                }
+            }
+        }
+
+        if (trivialGetters.empty()) return;
+
+        // Phase 2: Override safety check
+        std::unordered_map<std::string, std::string> classParent;
+        std::unordered_map<std::string, std::unordered_set<std::string>> classMethods;
+
+        for (const auto& cls : classes)
+        {
+            classParent[cls.name] = cls.parentClassName;
+            for (const auto& method : cls.instanceMethods)
+            {
+                classMethods[cls.name].insert(method.name);
+            }
+        }
+
+        std::unordered_set<std::string> unsafeGetters;
+        for (const auto& [qualifiedName, fieldIdx] : trivialGetters)
+        {
+            size_t colonPos = qualifiedName.find("::");
+            std::string className = qualifiedName.substr(0, colonPos);
+            std::string methodName = qualifiedName.substr(colonPos + 2);
+
+            for (const auto& cls : classes)
+            {
+                if (cls.name == className) continue;
+
+                std::string parent = cls.parentClassName;
+                bool isSubclass = false;
+                while (!parent.empty())
+                {
+                    if (parent == className)
+                    {
+                        isSubclass = true;
+                        break;
+                    }
+                    auto it = classParent.find(parent);
+                    if (it == classParent.end()) break;
+                    parent = it->second;
+                }
+
+                if (isSubclass && classMethods[cls.name].count(methodName))
+                {
+                    unsafeGetters.insert(qualifiedName);
+                    break;
+                }
+            }
+        }
+
+        for (const auto& name : unsafeGetters)
+        {
+            trivialGetters.erase(name);
+        }
+
+        if (trivialGetters.empty()) return;
+
+        // Phase 3: Rewrite CALL_METHOD → INLINE_GET_FIELD
+        for (size_t ip = 0; ip < program.getInstructionCount(); ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            if (instr.opcode != OpCode::CALL_METHOD) continue;
+            if (instr.operands.size() < 2) continue;
+
+            const std::string& methodName =
+                program.getConstantPool().getString(instr.operands[0]);
+            auto it = trivialGetters.find(methodName);
+            if (it == trivialGetters.end()) continue;
+
+            auto& mutableInstr = program.getMutableInstruction(ip);
+            mutableInstr.opcode = OpCode::INLINE_GET_FIELD;
+            mutableInstr.operands = { it->second };
+        }
+    }
+
     void fuseLocalArrayOps(vm::bytecode::BytecodeProgram& program)
     {
         const auto& functions = program.getFunctions();
@@ -313,9 +441,14 @@ namespace vm::compiler
         // Visit the root node to generate bytecode
         root->accept(*this);
 
+        // Publish the top-level local count before tearing the frame down
+        // — OSR needs this to tier-up loops at script scope (the top-level
+        // isn't registered as a FunctionMetadata).
+        program.setTopLevelLocalCount(context.functionFrameManager.getLocalCount());
+
         // Exit the implicit main function frame
-        context.variableTracker.endScope();   
-        context.variableTracker.endScope();   
+        context.variableTracker.endScope();
+        context.variableTracker.endScope();
         context.functionFrameManager.exitFunctionFrame();
 
         // Validate all class methods have bytecode implementations
@@ -347,8 +480,9 @@ namespace vm::compiler
             }
         }
 
-        // TRIVIAL SETTER INLINING PASS
+        // TRIVIAL SETTER/GETTER INLINING PASSES
         inlineTrivialSetters(program);
+        inlineTrivialGetters(program);
 
         // FUSED LOCAL-ARRAY OPERATIONS PASS
         fuseLocalArrayOps(program);

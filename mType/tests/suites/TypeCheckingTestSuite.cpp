@@ -23,6 +23,8 @@ namespace tests::testSuite
                         passPath + "chainedObjectAssignments.mt");
         addOutputVerificationTest("Complex Reassignment Chains",
                         passPath + "complexReassignmentChains.mt");
+        addOutputVerificationTest("Array Covariance",
+                        passPath + "arrayCovariance.mt");
 
         // Function parameter tests
         addOutputVerificationTest("Function Parameter Primitive Types",
@@ -374,9 +376,6 @@ namespace tests::testSuite
 
         addTestFromFile("Float To Int Conversion Error",
                         errorPath + "floatToIntConversion.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("Array Covariance Error",
-                        errorPath + "arrayCovariance.mt",
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Lambda Contravariance Error",
                         errorPath + "lambdaContravariance.mt",

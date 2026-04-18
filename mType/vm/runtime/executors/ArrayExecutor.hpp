@@ -8,6 +8,8 @@
 #include "../../../value/SparseMultiArray.hpp"
 #include <vector>
 
+namespace environment::registry { class ClassRegistry; }
+
 namespace vm::runtime
 {
     /**
@@ -27,6 +29,15 @@ namespace vm::runtime
         void handleArrayGet();
         void handleArraySet();
         void handleArrayLength();
+
+        // MYT-146: shared multi-dim factory usable from the interpreter executor
+        // and from JIT runtime helpers. Takes pre-popped dimension sizes so it is
+        // independent of any ExecutionContext.
+        static value::Value buildMultiArray(
+            environment::registry::ClassRegistry* classRegistry,
+            const std::string& elementTypeName,
+            const std::vector<int64_t>& dimensions,
+            size_t totalDimensions);
 
         // SoA Field Access Optimization (avoids object materialization)
         void handleArrayGetField(const bytecode::BytecodeProgram::Instruction& instr);

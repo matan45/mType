@@ -259,6 +259,33 @@ Hardware-accelerated array operations (3-8× faster for arrays ≥16 elements):
 - **SIMD-Optimized**: Field-oriented memory layout
 - **Sub-Array Views**: Zero-copy array slicing
 
+## 📊 Benchmarking
+
+Measure interpreter performance with the built-in benchmark suite:
+
+```bash
+# Run all 5 canonical benchmarks with 1 warmup + 3 measured iterations each
+mType --benchmark
+
+# Run a single benchmark script
+mType --benchmark=mType/tests/testFiles/benchmarks/recursive.mt
+
+# Disable JIT to capture a pure-interpreter baseline
+mType --benchmark --no-jit
+
+# JSON output (for CI diffing)
+mType --benchmark --benchmark-output=json
+```
+
+The suite reports wall-clock time plus `ExecutionStats` (instructions,
+function calls, string/array pool deltas) for:
+`arithmetic_tight_loop`, `method_dispatch`, `object_alloc`, `string_ops`,
+`recursive`.
+
+See [`docs/benchmarks.md`](docs/benchmarks.md) for flags, interpreting
+output, and updating the committed baseline at
+[`docs/bench-baseline.md`](docs/bench-baseline.md).
+
 ## 🛠️ Editor & IDE Support
 
 ### Language Server Protocol (LSP)
@@ -349,6 +376,30 @@ make
 > ```bash
 > git submodule update --init --recursive
 > ```
+
+> **⚠️ After pulling a branch that changed `mType/vm/bytecode/OpCode.hpp`**
+> (new opcode added / reordered / sentinel moved), do a **clean rebuild** —
+> incremental builds can leave stale .obj/.lib artifacts compiled against
+> the old enum layout, causing cross-TU dispatch drift that silently
+> corrupts bytecode deserialization and opcode dispatch (symptom:
+> "Unimplemented opcode: …" for handled opcodes, or "invalid opcode N"
+> for opcodes that should be valid). See MYT-139.
+>
+> ```bash
+> # Windows
+> rmdir /s /q mType\obj mType\bin
+> runPremake.bat
+> # then Rebuild in Visual Studio
+>
+> # Linux/macOS
+> rm -rf mType/obj mType/bin
+> premake5 gmake2
+> make clean && make
+> ```
+>
+> `runPremake.bat` also sweeps orphan flat-layout .obj files from any
+> previous premake config on every run (one-time migration no-op once
+> the tree is clean).
 
 ### Installing VS Code Extension
 
@@ -730,10 +781,10 @@ Null safety features:
 - ✅ Value Types (value classes with copy semantics, structural equality, lightweight runtime)
 - ✅ Null Safety (non-nullable by default, `?` suffix, smart casts, compile-time enforcement)
 - ✅ Project System (`.mtproj` with glob patterns, library builds, auto-discovery)
+- ✅ Performance Benchmarking Suite (`--benchmark` flag, 5 canonical scripts, committed baseline)
 
 ### In Progress
 - 🚧 Standard Library Expansion
-- 🚧 Performance Benchmarking Suite
 - 🚧 Documentation Portal
 - 🚧 LSP: Additional Features (go-to-definition, find references, formatting)
 

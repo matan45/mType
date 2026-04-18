@@ -523,6 +523,15 @@ namespace vm::compiler::visitors
         size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
         size_t methodStart = ctx.program.getCurrentOffset();
 
+        // MYT-161: Emit PROFILE_ENTER as the method's first instruction,
+        // mirroring FunctionCompiler.cpp:44 for standalone functions.
+        // Without this, methods are never profiled as hot functions, which
+        // means jitCompiler->compile is never invoked for them, which means
+        // jitCodeCache has no entry, which means CALL_METHOD's IC direct-JIT
+        // dispatch (MYT-161 Phase A) can never fire. JIT treats PROFILE_ENTER
+        // as a no-op (JitCompiler_StackOps.cpp:302) so this is free in JIT.
+        ctx.program.emit(bytecode::OpCode::PROFILE_ENTER);
+
         // Collect method parameters and return type
         MethodParameters params = collectMethodParameters(node, isStatic);
 

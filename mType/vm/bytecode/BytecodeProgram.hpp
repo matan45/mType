@@ -35,9 +35,12 @@ namespace vm::bytecode
             uint8_t flags = 0; // Optimization flags (e.g., INSTR_FLAG_NONNULL_RECEIVER)
 
             // PERFORMANCE: Inline cache for method calls - avoids repeated hash lookups
-            // Cached after first resolution, used on subsequent calls
+            // Cached after first resolution, used on subsequent calls.
+            // Safe because the functions map is immutable after compilation.
             mutable const FunctionMetadata* cachedFuncMetadata = nullptr;
             mutable size_t cachedStartOffset = 0;
+            mutable const BytecodeProgram* cachedProgram = nullptr;
+            mutable size_t cachedProgramIndex = 0;
 
             Instruction();
             Instruction(OpCode op);
@@ -107,6 +110,7 @@ namespace vm::bytecode
         struct FunctionMetadata
         {
             std::string name;
+            std::string mangledName;
             size_t startOffset;
             size_t instructionCount;
             size_t localCount;
@@ -273,6 +277,8 @@ namespace vm::bytecode
         std::vector<Instruction> instructions;
         ConstantPool constantPool;
         std::unordered_map<std::string, FunctionMetadata> functions;
+        std::vector<std::string> functionIndexToName;
+        std::unordered_map<std::string, size_t> functionNameToIndex;
         std::unordered_map<size_t, SourceLocation> sourceLocations;
         std::vector<ClassMetadata> classes; // Class metadata for cached bytecode
         std::vector<InterfaceMetadata> interfaces; // Interface metadata for cached bytecode
@@ -280,6 +286,12 @@ namespace vm::bytecode
         std::vector<GlobalVariableMetadata> globalVariables; // Global variables for debugging
         ExceptionTable globalExceptionTable; // Exception table for global scope (try-catch-finally outside functions)
         size_t entryPoint;
+        // Number of locals in the top-level "__script_main__" frame. Populated
+        // at compile time and read by OSR to tier-up loops at script scope —
+        // the top-level isn't registered as a FunctionMetadata, so without
+        // this the runtime has no way to size the main frame. 0 when not set
+        // (e.g. deserialized .mtc files pre-dating this field).
+        size_t topLevelLocalCount = 0;
         std::string sourceFilePath; // For class registration when loading cached bytecode
 
     public:
@@ -312,10 +324,17 @@ namespace vm::bytecode
         ConstantPool& getConstantPool();
         const ConstantPool& getConstantPool() const;
 
+        // Top-level script frame locals. See `topLevelLocalCount` above.
+        void setTopLevelLocalCount(size_t count) { topLevelLocalCount = count; }
+        size_t getTopLevelLocalCount() const { return topLevelLocalCount; }
+
         // Function Management
         void registerFunction(const std::string& name, const FunctionMetadata& metadata);
         const FunctionMetadata* getFunction(const std::string& name) const;
         const std::unordered_map<std::string, FunctionMetadata>& getFunctions() const;
+        size_t getFunctionIndex(const std::string& name) const;
+        const FunctionMetadata* getFunctionByIndex(size_t index) const;
+        size_t getFunctionCount() const;
 
         // Global Variable Management (for debugging)
         void registerGlobalVariable(const GlobalVariableMetadata& metadata);

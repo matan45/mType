@@ -118,7 +118,7 @@ namespace runtimeTypes::klass
         }
     }
 
-    void ObjectInstance::ensureFieldVector()
+    void ObjectInstance::ensureFieldVector() const
     {
         if (fieldVectorInitialized) return;
         if (!classDefinition) return;

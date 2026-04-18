@@ -271,9 +271,28 @@ namespace vm::compiler::visitors
     {
         ctx.variableTracker.beginScope();
 
-        // Compile initializer
+        // Compile initializer. STORE_LOCAL / STORE_VAR / SET_FIELD re-push the
+        // stored value at runtime (for expression-context cascades like
+        // `int x = (a = 5)`), so the init site needs a POP in statement
+        // context — mirrors the update-path POP a few lines below.
         if (node->getInitialization()) {
+            size_t offsetBefore = ctx.program.getCurrentOffset();
             node->getInitialization()->accept(ctx.visitor);  // Will need delegation
+            size_t offsetAfter = ctx.program.getCurrentOffset();
+            if (offsetAfter > offsetBefore)
+            {
+                const auto& lastInstr = ctx.program.getInstruction(offsetAfter - 1);
+                switch (lastInstr.opcode)
+                {
+                    case bytecode::OpCode::STORE_LOCAL:
+                    case bytecode::OpCode::STORE_VAR:
+                    case bytecode::OpCode::SET_FIELD:
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
 
         // Emit LOOP_START marker for optimization passes
@@ -402,11 +421,16 @@ namespace vm::compiler::visitors
             // === ARRAY FAST PATH ===
             // Use counter-based iteration with ARRAY_GET (existing implementation)
 
-            // Store collection in local
+            // Store collection in local. STORE_LOCAL re-pushes the stored
+            // value (see VariableExecutor::handleStoreLocal), so each setup
+            // store here needs a POP to keep the operand stack clean — without
+            // it, foreach loops leak setup values across every iteration and
+            // OSR can't tier them up.
             ctx.variableTracker.declareLocal("__foreach_array__", value::ValueType::OBJECT, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t arraySlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(arraySlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
 
             // Get array length
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(arraySlot), node);
@@ -417,6 +441,7 @@ namespace vm::compiler::visitors
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t lengthSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(lengthSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
 
             // Initialize counter
             ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
@@ -425,6 +450,7 @@ namespace vm::compiler::visitors
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t counterSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
 
             // Emit LOOP_START marker for optimization passes
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
@@ -442,11 +468,12 @@ namespace vm::compiler::visitors
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(counterSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET, node);
 
-            // Store in loop variable
+            // Store in loop variable (per-iter — needs POP for STORE_LOCAL re-push)
             ctx.variableTracker.declareLocal(varName, varType, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(loopVarSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
 
             // Enter loop context
             size_t continueTarget = ctx.program.getCurrentOffset();
@@ -544,11 +571,12 @@ namespace vm::compiler::visitors
                 }
             }
 
-            // Store iterator in local variable
+            // Store iterator in local variable (STORE_LOCAL re-pushes — POP it)
             ctx.variableTracker.declareLocal("__foreach_iterator__", value::ValueType::OBJECT, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t iteratorSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
 
             // Emit LOOP_START marker
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
@@ -573,11 +601,12 @@ namespace vm::compiler::visitors
                 ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
             }
 
-            // Store in loop variable
+            // Store in loop variable (per-iter — needs POP for STORE_LOCAL re-push)
             ctx.variableTracker.declareLocal(varName, varType, "");
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(loopVarSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
 
             // Enter loop context
             size_t continueTarget = ctx.program.getCurrentOffset();

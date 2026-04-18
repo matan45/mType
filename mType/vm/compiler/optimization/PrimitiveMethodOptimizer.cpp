@@ -19,6 +19,11 @@ const std::unordered_map<std::string, bytecode::OpCode> PrimitiveMethodOptimizer
     {"Int::abs", bytecode::OpCode::INVOKE_INT_ABS},
     {"Int::equals", bytecode::OpCode::INVOKE_INT_EQUALS},
     {"Int::compareTo", bytecode::OpCode::INVOKE_INT_COMPARE},
+    {"Int::getValue", bytecode::OpCode::INVOKE_INT_GET_VALUE},
+    {"Int::lessThan", bytecode::OpCode::INVOKE_INT_LESS_THAN},
+    {"Int::lessThanOrEqual", bytecode::OpCode::INVOKE_INT_LESS_EQUAL},
+    {"Int::greaterThan", bytecode::OpCode::INVOKE_INT_GREATER_THAN},
+    {"Int::greaterThanOrEqual", bytecode::OpCode::INVOKE_INT_GREATER_EQUAL},
 
     // Float methods
     {"Float::add", bytecode::OpCode::INVOKE_FLOAT_ADD},
@@ -29,6 +34,14 @@ const std::unordered_map<std::string, bytecode::OpCode> PrimitiveMethodOptimizer
     {"Float::abs", bytecode::OpCode::INVOKE_FLOAT_ABS},
     {"Float::equals", bytecode::OpCode::INVOKE_FLOAT_EQUALS},
     {"Float::compareTo", bytecode::OpCode::INVOKE_FLOAT_COMPARE},
+    {"Float::getValue", bytecode::OpCode::INVOKE_FLOAT_GET_VALUE},
+    {"Float::lessThan", bytecode::OpCode::INVOKE_FLOAT_LESS_THAN},
+    {"Float::lessThanOrEqual", bytecode::OpCode::INVOKE_FLOAT_LESS_EQUAL},
+    {"Float::greaterThan", bytecode::OpCode::INVOKE_FLOAT_GREATER_THAN},
+    {"Float::greaterThanOrEqual", bytecode::OpCode::INVOKE_FLOAT_GREATER_EQUAL},
+
+    // Bool methods
+    {"Bool::getValue", bytecode::OpCode::INVOKE_BOOL_GET_VALUE},
 };
 
 bool PrimitiveMethodOptimizer::isPrimitiveBoxType(const std::string& className) {
@@ -59,8 +72,8 @@ bool PrimitiveMethodOptimizer::canOptimizeMethod(const std::string& className,
 
     // Validate argument count matches expected
     // Binary operations (add, subtract, multiply, divide, modulo, equals, compareTo): 1 arg
-    // Unary operations (negate, abs): 0 args
-    if (methodName == "negate" || methodName == "abs") {
+    // Unary operations (negate, abs, getValue): 0 args
+    if (methodName == "negate" || methodName == "abs" || methodName == "getValue") {
         return argCount == 0;
     } else {
         return argCount == 1;

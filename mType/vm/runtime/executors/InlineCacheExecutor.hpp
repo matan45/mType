@@ -26,6 +26,7 @@ namespace vm::runtime
         void handleGetFieldIC(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSetFieldIC(const bytecode::BytecodeProgram::Instruction& instr);
         void handleInlineSetFieldIC(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleInlineGetFieldIC(const bytecode::BytecodeProgram::Instruction& instr);
 
         // IC-enabled method dispatch
         void handleCallMethodIC(const bytecode::BytecodeProgram::Instruction& instr);

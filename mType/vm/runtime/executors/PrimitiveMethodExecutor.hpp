@@ -45,6 +45,23 @@ public:
     void handleInvokeIntEquals();   // Int.equals(Int) -> bool
     void handleInvokeIntCompare();  // Int.compareTo(Int) -> int
 
+    // Inline accessors (MYT-155): pop boxed receiver, push raw primitive from
+    // field 0. Skips the call-frame-setup + interpreter-loop dispatch that
+    // CALL_METHOD into Int::getValue/Float::getValue/Bool::getValue would do.
+    void handleInvokeIntGetValue();    // Int.getValue() -> int
+    void handleInvokeFloatGetValue();  // Float.getValue() -> float
+    void handleInvokeBoolGetValue();   // Bool.getValue() -> bool
+
+    // Inline comparison ops (MYT-155): pop arg + receiver, push bool result.
+    void handleInvokeIntLessThan();        // Int.lessThan(Int) -> bool
+    void handleInvokeIntLessEqual();       // Int.lessThanOrEqual(Int) -> bool
+    void handleInvokeIntGreaterThan();     // Int.greaterThan(Int) -> bool
+    void handleInvokeIntGreaterEqual();    // Int.greaterThanOrEqual(Int) -> bool
+    void handleInvokeFloatLessThan();      // Float.lessThan(Float) -> bool
+    void handleInvokeFloatLessEqual();     // Float.lessThanOrEqual(Float) -> bool
+    void handleInvokeFloatGreaterThan();   // Float.greaterThan(Float) -> bool
+    void handleInvokeFloatGreaterEqual();  // Float.greaterThanOrEqual(Float) -> bool
+
     // === Float Object Method Handlers ===
 
     // Binary arithmetic operations

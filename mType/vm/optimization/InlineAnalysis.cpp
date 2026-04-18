@@ -1,0 +1,183 @@
+#include "InlineAnalysis.hpp"
+#include "../bytecode/BytecodeProgram.hpp"
+#include "../bytecode/OpCode.hpp"
+#include "../jit/ic/InlineCacheTypes.hpp"
+
+namespace vm::optimization
+{
+    using vm::bytecode::BytecodeProgram;
+    using vm::bytecode::OpCode;
+    using vm::jit::ic::ICState;
+    using vm::jit::ic::MethodICEntry;
+    using vm::jit::ic::MethodInlineCache;
+
+    // Scan callee bytecode for any opcode that disqualifies F-b inlining.
+    // Order matches the Decision enum preference — the first disqualifying
+    // opcode wins.
+    //
+    // F-b (MYT-164) unlocks internal control flow (JUMP/JUMP_IF_FALSE/TRUE/
+    // JUMP_BACK/JUMP_IF_FALSE_OR_POP/JUMP_IF_TRUE_OR_POP) via per-frame
+    // localJumpLabels in tryEmitInlinedMethodCall, and unlocks nested inline
+    // for a single CALL_METHOD (the recursive path in tryEmitInlinedMethodCall
+    // enforces INLINE_DEPTH_LIMIT = 2; a non-inlineable nested site simply
+    // falls through to emitCallMethodOpGeneric). JUMP_IF_NULL stays blocked
+    // until its primitive emitter lands; the other CALL_* / INVOKE / LAMBDA_*
+    // opcodes stay blocked — their return-value paths are not wired through
+    // the inline operand-stack contract.
+    static InlineDecision scanCalleeOpcodes(
+        const BytecodeProgram& program,
+        const BytecodeProgram::FunctionMetadata& callee,
+        bool isValueObjectReceiver)
+    {
+        const size_t end = callee.startOffset + callee.instructionCount;
+        for (size_t ip = callee.startOffset; ip < end; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            switch (instr.opcode)
+            {
+                // MYT-164: JUMP_IF_NULL has no JIT emitter in F-b's reach; keep
+                // it on the bailout list until a primitive emitter is wired.
+                case OpCode::JUMP_IF_NULL:
+                    return InlineDecision::HAS_INTERNAL_JUMPS;
+
+                case OpCode::TRY_BEGIN:
+                case OpCode::TRY_END:
+                case OpCode::CATCH:
+                case OpCode::FINALLY:
+                case OpCode::THROW:
+                    return InlineDecision::HAS_TRY_CATCH;
+
+                case OpCode::AWAIT:
+                case OpCode::CREATE_PROMISE:
+                case OpCode::PROMISE_RESOLVE:
+                    return InlineDecision::HAS_ASYNC;
+
+                case OpCode::LOAD_UPVALUE:
+                case OpCode::STORE_UPVALUE:
+                case OpCode::CLOSE_UPVALUE:
+                    return InlineDecision::HAS_UPVALUES;
+
+                case OpCode::SUPER_INVOKE:
+                case OpCode::SUPER_CONSTRUCTOR:
+                case OpCode::SUPER_GET_FIELD:
+                case OpCode::SUPER_SET_FIELD:
+                case OpCode::GET_SUPER:
+                    return InlineDecision::HAS_SUPER_CALL;
+
+                case OpCode::CALL:
+                case OpCode::CALL_FAST:
+                case OpCode::CALL_STATIC:
+                case OpCode::INVOKE:
+                case OpCode::LAMBDA_INVOKE:
+                    return InlineDecision::HAS_NESTED_CALL;
+
+                // MYT-167 (F-e): ValueObject receivers are read-only inline
+                // eligible. Field writes require the COW slot rewrite in
+                // setFieldOnValueObject which cannot be naively lifted into
+                // an inlined body; reject such callees for ValueObject sites.
+                case OpCode::SET_FIELD:
+                case OpCode::INLINE_SET_FIELD:
+                    if (isValueObjectReceiver)
+                        return InlineDecision::VALUE_OBJECT_WRITES_FIELDS;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+        return InlineDecision::INLINE;
+    }
+
+    // Per-entry eligibility: checks that apply independently to one IC entry's
+    // callee. MONO uses this once; POLY (MYT-165) loops over every entry and
+    // requires all to return INLINE.
+    static InlineDecision checkEntryEligibility(
+        const BytecodeProgram& program,
+        const MethodICEntry& entry,
+        const std::string& currentCompilingFn)
+    {
+        if (!entry.shape || !entry.funcMetadata)
+            return InlineDecision::UNKNOWN_SHAPE;
+
+        // MYT-167 (F-e): ValueObject receivers are eligible for read-only
+        // methods only. Rejection deferred to scanCalleeOpcodes, which rejects
+        // SET_FIELD / INLINE_SET_FIELD when the receiver is a ValueObject.
+
+        const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
+            entry.funcMetadata);
+
+        if (callee->isNative)
+            return InlineDecision::CALLEE_NATIVE;
+
+        if (callee->isAsync)
+            return InlineDecision::HAS_ASYNC;
+
+        if (!callee->exceptionTable.getEntries().empty())
+            return InlineDecision::HAS_TRY_CATCH;
+
+        if (callee->instructionCount == 0)
+            return InlineDecision::CALLEE_NOT_FOUND;
+
+        if (callee->instructionCount > INLINE_SIZE_LIMIT)
+            return InlineDecision::CALLEE_TOO_BIG;
+
+        // F-a emits only the RETURN_VALUE substitution; void-returning
+        // methods (RETURN without a value) would leave the caller's operand
+        // stack out of sync with the generic path (which always pushes a
+        // monostate via emitReturnValueCopyBoxed). Reject until F-b handles
+        // the void-return case.
+        if (callee->returnType == "void")
+            return InlineDecision::CALLEE_NOT_FOUND;
+
+        // Self-recursive inlining is forbidden — would chase unbounded emit.
+        if (!currentCompilingFn.empty() &&
+            (callee->mangledName == currentCompilingFn ||
+             callee->name == currentCompilingFn ||
+             entry.qualifiedName == currentCompilingFn))
+            return InlineDecision::SELF_RECURSIVE;
+
+        return scanCalleeOpcodes(program, *callee, entry.receiverIsValueObject);
+    }
+
+    InlineDecision checkInlineEligibility(
+        const BytecodeProgram& program,
+        const MethodInlineCache& cache,
+        const std::string& currentCompilingFn,
+        size_t currentInlineDepth)
+    {
+        if (currentInlineDepth >= INLINE_DEPTH_LIMIT)
+            return InlineDecision::DEPTH_EXCEEDED;
+
+        // MYT-165: accept POLYMORPHIC in addition to MONOMORPHIC. The emitter
+        // branches on cache.state to pick the MONO (single guard + body) or
+        // POLY (chained guards + per-shape bodies) emission path. Enum name
+        // kept for continuity — its meaning is now "IC not in an inline-
+        // eligible state".
+        if (cache.state != ICState::MONOMORPHIC &&
+            cache.state != ICState::POLYMORPHIC)
+            return InlineDecision::IC_NOT_MONOMORPHIC;
+
+        if (cache.entryCount == 0)
+            return InlineDecision::UNKNOWN_SHAPE;
+
+        size_t combinedSize = 0;
+        for (uint8_t i = 0; i < cache.entryCount; ++i)
+        {
+            auto d = checkEntryEligibility(program, cache.entries[i], currentCompilingFn);
+            if (d != InlineDecision::INLINE)
+                return d;
+
+            const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
+                cache.entries[i].funcMetadata);
+            combinedSize += callee->instructionCount;
+        }
+
+        // MYT-165: combined-body cap prevents code-cache blowup on maximally
+        // polymorphic sites. IC_MAX_POLYMORPHIC_ENTRIES × INLINE_SIZE_LIMIT
+        // = 4 × 16 = 64 ops across all shape bodies.
+        if (combinedSize > INLINE_SIZE_LIMIT * vm::jit::ic::IC_MAX_POLYMORPHIC_ENTRIES)
+            return InlineDecision::CALLEE_TOO_BIG;
+
+        return InlineDecision::INLINE;
+    }
+}

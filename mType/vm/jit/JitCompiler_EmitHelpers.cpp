@@ -35,6 +35,23 @@ namespace vm::jit
                   FuncSignature::build<void, value::Value*, const value::Value*>());
         cpInv->set_arg(0, destAddr);
         cpInv->set_arg(1, retAddr);
+
+        // MYT-154: also mirror the int/bool payload to the unboxed stack so
+        // primitive-stack consumers (JUMP_IF_FALSE / JUMP_IF_TRUE / ADD_INT /
+        // LT_INT, etc.) read the right value when the call returned a primitive.
+        // jit_unbox_int returns 0 for non-numeric variants, which is harmless —
+        // boxed-mode consumers re-read the variant from boxedBase anyway and
+        // ignore the unboxed mirror.
+        Gp unboxAddr = cc.new_gp64();
+        cc.lea(unboxAddr, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
+        InvokeNode* unbox;
+        cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        unbox->set_arg(0, unboxAddr);
+        Gp unboxed = cc.new_gp64();
+        unbox->set_ret(0, unboxed);
+        cc.mov(Mem(s.stackBase, s.stackDepth * 8), unboxed);
+
         s.slotTypes.push_back(SlotType::BOXED);
         s.stackDepth++;
     }
@@ -66,15 +83,46 @@ namespace vm::jit
             {
                 case OpCode::PUSH_STRING: case OpCode::GET_FIELD:
                 case OpCode::SET_FIELD:   case OpCode::INLINE_SET_FIELD:
+                // MYT-152: LOAD_VAR / STORE_VAR produce / consume boxed Values
+                // (global or field lookups have no compile-time primitive
+                // type), so the enclosing loop must emit in boxed mode.
+                case OpCode::LOAD_VAR:    case OpCode::STORE_VAR:
                 case OpCode::NEW_OBJECT:
                 case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
                 case OpCode::CALL_METHOD: case OpCode::CALL_STATIC:
-                case OpCode::NEW_ARRAY:   case OpCode::ARRAY_GET:
+                case OpCode::NEW_ARRAY:   case OpCode::NEW_ARRAY_MULTI:
+                case OpCode::ARRAY_GET:
                 case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:
                 case OpCode::ARRAY_GET_INT_LOCAL: case OpCode::ARRAY_SET_INT_LOCAL:
                 case OpCode::ARRAY_LENGTH_LOCAL:
                 case OpCode::INSTANCEOF:  case OpCode::INSTANCEOF_TYPEPARAM:
                 case OpCode::CAST:
+                // MYT-147: iterator opcodes receive / produce boxed
+                // ObjectInstance values (ArrayIteratorHelper,
+                // HashMapKeyIterator, LinkedListIterator, ...) on the operand
+                // stack, so the enclosing function must run in boxed-types
+                // mode. ITERATOR_HAS_NEXT pushes bool; ITERATOR_CLOSE pushes
+                // nothing - but they're stack-adjacent to boxed iterator slots
+                // and are safe to include in the boxed-mode trigger set.
+                case OpCode::GET_ITERATOR:      case OpCode::ITERATOR_HAS_NEXT:
+                case OpCode::ITERATOR_NEXT:     case OpCode::ITERATOR_CLOSE:
+                // Specialized primitive-method opcodes receive boxed Int / Float
+                // objects on the operand stack, so the enclosing function must
+                // be emitted in boxed-types mode.
+                case OpCode::INVOKE_INT_ADD: case OpCode::INVOKE_INT_SUB:
+                case OpCode::INVOKE_INT_MUL: case OpCode::INVOKE_INT_DIV:
+                case OpCode::INVOKE_INT_MOD: case OpCode::INVOKE_INT_NEG:
+                case OpCode::INVOKE_INT_ABS: case OpCode::INVOKE_INT_EQUALS:
+                case OpCode::INVOKE_INT_COMPARE: case OpCode::INVOKE_INT_GET_VALUE:
+                case OpCode::INVOKE_INT_LESS_THAN: case OpCode::INVOKE_INT_LESS_EQUAL:
+                case OpCode::INVOKE_INT_GREATER_THAN: case OpCode::INVOKE_INT_GREATER_EQUAL:
+                case OpCode::INVOKE_FLOAT_ADD: case OpCode::INVOKE_FLOAT_SUB:
+                case OpCode::INVOKE_FLOAT_MUL: case OpCode::INVOKE_FLOAT_DIV:
+                case OpCode::INVOKE_FLOAT_NEG: case OpCode::INVOKE_FLOAT_ABS:
+                case OpCode::INVOKE_FLOAT_EQUALS: case OpCode::INVOKE_FLOAT_COMPARE:
+                case OpCode::INVOKE_FLOAT_GET_VALUE: case OpCode::INVOKE_BOOL_GET_VALUE:
+                case OpCode::INVOKE_FLOAT_LESS_THAN: case OpCode::INVOKE_FLOAT_LESS_EQUAL:
+                case OpCode::INVOKE_FLOAT_GREATER_THAN: case OpCode::INVOKE_FLOAT_GREATER_EQUAL:
                     return true;
                 default: break;
             }
@@ -109,7 +157,10 @@ namespace vm::jit
         {
             const auto& instr = program.getInstruction(ip);
             if (instr.opcode == OpCode::JUMP || instr.opcode == OpCode::JUMP_IF_FALSE ||
-                instr.opcode == OpCode::JUMP_IF_TRUE || instr.opcode == OpCode::JUMP_BACK)
+                instr.opcode == OpCode::JUMP_IF_TRUE ||
+                instr.opcode == OpCode::JUMP_IF_FALSE_OR_POP ||
+                instr.opcode == OpCode::JUMP_IF_TRUE_OR_POP ||
+                instr.opcode == OpCode::JUMP_BACK)
             {
                 if (!instr.operands.empty())
                 {
@@ -164,6 +215,176 @@ namespace vm::jit
                   FuncSignature::build<void, value::Value*, size_t>());
         initBoxed->set_arg(0, bsBase);
         initBoxed->set_arg(1, bsCount);
+    }
+
+    // MYT-163 (Phase F-a) inline-emission helpers.
+    //
+    // Call contract for emitInlineShapeGuard:
+    //   Receiver sits at `receiverStackIdx` in the boxed operand stack (caller's
+    //   stackDepth - argCount - 1 at the pre-call site). We call
+    //   jit_extract_classdef (returns nullptr for non-ObjectInstance receivers,
+    //   so a type-changed receiver naturally mismatches). Compare against the
+    //   baked ClassDefinition pointer; jne slowLabel.
+    void emitInlineShapeGuard(JitEmissionState& s, int receiverStackIdx,
+                              const void* expectedShape, asmjit::Label slowLabel)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        Gp receiverAddr = cc.new_gp64();
+        cc.lea(receiverAddr, Mem(s.boxedBase, static_cast<int32_t>(receiverStackIdx * valueSize)));
+
+        Gp actualShape = cc.new_gp64();
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_extract_classdef),
+                  FuncSignature::build<const void*, const value::Value*>());
+        inv->set_arg(0, receiverAddr);
+        inv->set_ret(0, actualShape);
+
+        Gp expectedReg = cc.new_gp64();
+        cc.mov(expectedReg, reinterpret_cast<uint64_t>(expectedShape));
+        cc.cmp(actualShape, expectedReg);
+        cc.jne(slowLabel);
+    }
+
+    // MYT-165 (Phase F-c): extract the receiver's ClassDefinition pointer once
+    // and return it in a reusable Gp register. The POLY emitter calls this
+    // before the guard chain so the N shape-compares all share a single
+    // jit_extract_classdef invocation instead of N.
+    Gp emitExtractReceiverClassDef(JitEmissionState& s, int receiverStackIdx)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        Gp receiverAddr = cc.new_gp64();
+        cc.lea(receiverAddr, Mem(s.boxedBase,
+                                  static_cast<int32_t>(receiverStackIdx * valueSize)));
+
+        Gp actualShape = cc.new_gp64();
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_extract_classdef),
+                  FuncSignature::build<const void*, const value::Value*>());
+        inv->set_arg(0, receiverAddr);
+        inv->set_ret(0, actualShape);
+        return actualShape;
+    }
+
+    // MYT-165 (Phase F-c): emit a single cmp/jne against the pre-extracted
+    // classDef register. Used for each link of the POLY guard chain; the last
+    // link's missLabel is the slow-path helper call, intermediate links jump
+    // to the next-shape check label.
+    void emitInlineShapeGuardReusingClassDef(JitEmissionState& s,
+                                              Gp classDefReg,
+                                              const void* expectedShape,
+                                              asmjit::Label missLabel)
+    {
+        auto& cc = s.cc;
+        Gp expectedReg = cc.new_gp64();
+        cc.mov(expectedReg, reinterpret_cast<uint64_t>(expectedShape));
+        cc.cmp(classDefReg, expectedReg);
+        cc.jne(missLabel);
+    }
+
+    // Copy receiver + args from the caller's boxed operand stack into the
+    // inlined callee's local window, matching the emitArgumentUnboxing
+    // convention used by top-level JIT compilation. Primitive params
+    // (int/float/bool) are unbox/rebox'd so the callee's LOAD_LOCAL reads
+    // them via jit_unbox_* + raw arithmetic (~30 cycles) instead of
+    // jit_value_copy (~80 cycles). For non-primitive params (receiver `this`,
+    // objects, arrays, strings) a full jit_value_copy preserves the Value.
+    //
+    // Records the resulting slot type into s.localTypes so subsequent
+    // LOAD_LOCAL emits take the correct path.
+    //
+    // Source slots: [receiverStackIdx .. receiverStackIdx + argCount] in the
+    // caller's boxed operand stack.
+    // Destination slots: [localsBaseSlot .. localsBaseSlot + argCount] in the
+    // caller's locals area.
+    //
+    // Only the boxed-mode path is emitted: CALL_METHOD forces usesBoxedTypes
+    // true (scanOpcodesForBoxedTypes), so inline sites always run in boxed
+    // mode. An unboxed-mode caller never emits CALL_METHOD in the first place.
+    void emitInlineLocalCopy(JitEmissionState& s, int receiverStackIdx,
+                             size_t localsBaseSlot,
+                             const bytecode::BytecodeProgram::FunctionMetadata& callee)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        const size_t total = callee.parameterCount;  // includes implicit `this`
+        for (size_t i = 0; i < total; ++i)
+        {
+            // parameterTypes[0] is `this`'s class name for instance methods
+            // — classified as BOXED by the default below. Subsequent entries
+            // are user param types, where "int"/"float"/"bool" trigger the
+            // fast unbox/rebox path. Mirrors emitArgumentUnboxing in Core.
+            SlotType paramType = SlotType::INT;
+            if (i < callee.parameterTypes.size())
+            {
+                const std::string& t = callee.parameterTypes[i];
+                if      (t == "float") paramType = SlotType::FLOAT;
+                else if (t == "bool")  paramType = SlotType::BOOL;
+                else if (t != "int")   paramType = SlotType::BOXED;
+            }
+            else
+            {
+                paramType = SlotType::BOXED;
+            }
+
+            Gp src = cc.new_gp64();
+            cc.lea(src, Mem(s.boxedBase,
+                            static_cast<int32_t>((receiverStackIdx + static_cast<int>(i)) * valueSize)));
+            Gp dst = cc.new_gp64();
+            cc.lea(dst, Mem(s.localsBase,
+                            static_cast<int32_t>((localsBaseSlot + i) * s.localStride)));
+
+            if (isBoxedSlotType(paramType))
+            {
+                InvokeNode* inv;
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
+                          FuncSignature::build<void, value::Value*, const value::Value*>());
+                inv->set_arg(0, dst);
+                inv->set_arg(1, src);
+            }
+            else if (paramType == SlotType::FLOAT)
+            {
+                // unbox float from Value, then re-box into the local Value slot.
+                // The local slot is still Value-sized (boxed mode); the value's
+                // variant tag indicates FLOAT and LOAD_LOCAL will use jit_unbox_float.
+                InvokeNode* ub;
+                cc.invoke(Out(ub), reinterpret_cast<uint64_t>(jit_unbox_float),
+                          FuncSignature::build<double, const value::Value*>());
+                ub->set_arg(0, src);
+                Vec val = cc.new_xmm();
+                ub->set_ret(0, val);
+                InvokeNode* bx;
+                cc.invoke(Out(bx), reinterpret_cast<uint64_t>(jit_box_float),
+                          FuncSignature::build<void, value::Value*, double>());
+                bx->set_arg(0, dst);
+                bx->set_arg(1, val);
+            }
+            else
+            {
+                // INT or BOOL: unbox via jit_unbox_int (also works for bool,
+                // which stores a 0/1 int), then re-box with the correct helper.
+                InvokeNode* ub;
+                cc.invoke(Out(ub), reinterpret_cast<uint64_t>(jit_unbox_int),
+                          FuncSignature::build<int64_t, const value::Value*>());
+                ub->set_arg(0, src);
+                Gp val = cc.new_gp64();
+                ub->set_ret(0, val);
+                uint64_t boxFn = (paramType == SlotType::BOOL)
+                    ? reinterpret_cast<uint64_t>(jit_box_bool)
+                    : reinterpret_cast<uint64_t>(jit_box_int);
+                InvokeNode* bx;
+                cc.invoke(Out(bx), boxFn,
+                          FuncSignature::build<void, value::Value*, int64_t>());
+                bx->set_arg(0, dst);
+                bx->set_arg(1, val);
+            }
+
+            s.localTypes[localsBaseSlot + i] = paramType;
+        }
     }
 
     bool finalizeAndStore(Compiler& cc, CodeHolder& code,

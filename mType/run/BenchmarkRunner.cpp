@@ -1,0 +1,505 @@
+#include "BenchmarkRunner.hpp"
+
+#include "../services/ScriptInterpreter.hpp"
+#include "../vm/runtime/VirtualMachine.hpp"
+#include "../vm/runtime/context/ExecutionContext.hpp"
+#include "../vm/bytecode/OpCode.hpp"
+#include "../vm/jit/JitCompiler.hpp"
+#include "../vm/jit/JitCodeCache.hpp"
+#include "../vm/jit/JitProfiler.hpp"
+#include "../vm/jit/OSRManager.hpp"
+#include "../vm/jit/LoopProfiler.hpp"
+#include "../value/StringPool.hpp"
+#include "../value/ArrayPool.hpp"
+#include "../gc/GC.hpp"
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <filesystem>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
+
+namespace runMain
+{
+namespace
+{
+    constexpr std::array<const char*, 15> CANONICAL_SCRIPTS = {
+        "arithmetic_tight_loop.mt",
+        "method_dispatch.mt",
+        "object_alloc.mt",
+        "string_ops.mt",
+        "recursive.mt",
+        "bitwise_tight_loop.mt",
+        "short_circuit_chain.mt",
+        "primitive_method_dispatch.mt",
+        "array_multi_alloc.mt",
+        "array_multi_get.mt",
+        "for_each_loop.mt",
+        // MYT-163 F-a: primary acceptance target — single-class MONO call
+        // site eligible for speculative inlining.
+        "inline_monomorphic.mt",
+        // MYT-164 F-b: MONO callee with an internal if-guard (mirrors the
+        // iterator hasNext / null-check pattern). Un-inlineable under F-a
+        // due to HAS_INTERNAL_JUMPS; inlined under F-b via per-frame label
+        // remapping.
+        "inline_branching.mt",
+        // MYT-165 F-c: 4-subclass polymorphic hot loop (fills
+        // IC_MAX_POLYMORPHIC_ENTRIES = 4). Exercises the chained shape-guard
+        // emission against the maximum IC-width case.
+        "inline_polymorphic.mt",
+        // MYT-167 F-e: value-class MONO hot loop. Pre-F-e the slow path was
+        // jit_call_method's temp-ObjectInstance materialisation per call;
+        // post-F-e the IC populates with receiverIsValueObject=true and the
+        // body inlines identically to inline_monomorphic.mt.
+        "inline_value_object_hot.mt",
+    };
+
+    constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";
+
+    struct JitFailedLoop
+    {
+        std::size_t jumpBackOffset = 0;
+        vm::jit::OSRBailoutReason reason = vm::jit::OSRBailoutReason::NONE;
+        std::uint8_t offendingOpcode = 0;
+    };
+
+    struct JitHotFunc
+    {
+        std::string name;
+        std::uint32_t calls = 0;
+        bool compiled = false;
+    };
+
+    struct JitSample
+    {
+        bool captured = false;
+        std::size_t compileCount = 0;
+        std::size_t bailoutCount = 0;
+        std::size_t cachedFunctions = 0;
+        std::size_t loopsProfiled = 0;
+        std::size_t osrCompiled = 0;
+        std::size_t osrFailed = 0;
+        std::vector<JitFailedLoop> failedLoops;
+        std::vector<JitHotFunc> hotFunctions;
+    };
+
+    struct IterationSample
+    {
+        double wallMs = 0.0;
+        vm::runtime::ExecutionStats stats{};
+        std::size_t stringPoolRequests = 0;
+        std::size_t stringPoolHits = 0;
+        std::size_t arrayPoolAllocs = 0;
+        std::size_t arrayPoolHits = 0;
+        JitSample jit{};
+    };
+
+    JitSample captureJitSample(const vm::runtime::VirtualMachine& vm)
+    {
+        JitSample out{};
+        out.captured = true;
+
+        if (auto* compiler = vm.getJitCompiler())
+        {
+            out.compileCount = compiler->getCompileCount();
+            out.bailoutCount = compiler->getBailoutCount();
+        }
+        if (auto* cache = vm.getJitCodeCache())
+        {
+            out.cachedFunctions = cache->size();
+        }
+        if (auto* profiler = vm.getJitProfiler())
+        {
+            const auto& hot = profiler->getHotFunctions();
+            out.hotFunctions.reserve(hot.size());
+            auto* cache = vm.getJitCodeCache();
+            for (const auto& name : hot)
+            {
+                JitHotFunc hf;
+                hf.name = name;
+                hf.calls = profiler->getInvocationCount(name);
+                hf.compiled = cache && cache->contains(name);
+                out.hotFunctions.push_back(std::move(hf));
+            }
+        }
+        if (auto* osr = vm.getOSRManager())
+        {
+            const auto& profiles = osr->getLoopProfiler().getProfiles();
+            out.loopsProfiled = profiles.size();
+            for (const auto& [id, profile] : profiles)
+            {
+                if (profile.osrCompiled) ++out.osrCompiled;
+                if (profile.osrFailed)
+                {
+                    ++out.osrFailed;
+                    JitFailedLoop f;
+                    f.jumpBackOffset = id.jumpBackOffset;
+                    f.reason = profile.bailoutReason;
+                    f.offendingOpcode = profile.offendingOpcode;
+                    out.failedLoops.push_back(f);
+                }
+            }
+        }
+        return out;
+    }
+
+    struct ScriptResult
+    {
+        std::string path;
+        std::string name;
+        bool ok = true;
+        std::string errorMessage;
+        std::vector<IterationSample> measured;
+    };
+
+    struct Aggregate
+    {
+        double minMs = 0.0;
+        double medianMs = 0.0;
+        double meanMs = 0.0;
+        double stddevMs = 0.0;
+    };
+
+    // Walks CWD upward up to 8 levels looking for `mType/tests/testFiles/benchmarks`.
+    std::string locateBenchmarksDir()
+    {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        fs::path cur = fs::current_path(ec);
+        if (ec) return {};
+
+        for (int depth = 0; depth < 8; ++depth)
+        {
+            fs::path candidate = cur / BENCHMARKS_REL;
+            if (fs::exists(candidate, ec) && fs::is_directory(candidate, ec))
+            {
+                return candidate.string();
+            }
+            if (!cur.has_parent_path() || cur == cur.parent_path()) break;
+            cur = cur.parent_path();
+        }
+        return {};
+    }
+
+    IterationSample runOne(const std::string& path, bool jitEnabled, bool captureJit)
+    {
+        IterationSample sample{};
+
+        const auto stringPoolBefore = value::StringPool::getInstance().getStats();
+        const auto arrayPoolBefore = value::ArrayPool::getInstance().getGlobalStats();
+
+        services::ScriptInterpreter interpreter(constants::ExecutionMode::BYTECODE_VM);
+        interpreter.getVM()->setJitEnabled(jitEnabled);
+
+        const auto t0 = std::chrono::high_resolution_clock::now();
+        interpreter.runScript(path);
+        const auto t1 = std::chrono::high_resolution_clock::now();
+
+        sample.wallMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        sample.stats = interpreter.getVM()->getStats();
+
+        if (captureJit && jitEnabled)
+        {
+            sample.jit = captureJitSample(*interpreter.getVM());
+        }
+
+        gc::GC::forceCollect();
+
+        const auto stringPoolAfter = value::StringPool::getInstance().getStats();
+        const auto arrayPoolAfter = value::ArrayPool::getInstance().getGlobalStats();
+
+        sample.stringPoolRequests = stringPoolAfter.totalRequests - stringPoolBefore.totalRequests;
+        sample.stringPoolHits = stringPoolAfter.poolHits - stringPoolBefore.poolHits;
+        sample.arrayPoolAllocs = arrayPoolAfter.totalAllocations - arrayPoolBefore.totalAllocations;
+        sample.arrayPoolHits = arrayPoolAfter.poolHits - arrayPoolBefore.poolHits;
+
+        return sample;
+    }
+
+    Aggregate summarize(const std::vector<IterationSample>& samples)
+    {
+        Aggregate agg{};
+        if (samples.empty()) return agg;
+
+        std::vector<double> wall;
+        wall.reserve(samples.size());
+        for (const auto& s : samples) wall.push_back(s.wallMs);
+
+        std::sort(wall.begin(), wall.end());
+        agg.minMs = wall.front();
+
+        const std::size_t n = wall.size();
+        agg.medianMs = (n % 2 == 0) ? (wall[n / 2 - 1] + wall[n / 2]) / 2.0 : wall[n / 2];
+
+        double sum = 0.0;
+        for (double v : wall) sum += v;
+        agg.meanMs = sum / static_cast<double>(n);
+
+        if (n >= 2)
+        {
+            double sqSum = 0.0;
+            for (double v : wall)
+            {
+                const double d = v - agg.meanMs;
+                sqSum += d * d;
+            }
+            agg.stddevMs = std::sqrt(sqSum / static_cast<double>(n - 1));
+        }
+
+        return agg;
+    }
+
+    std::string formatMs(double ms)
+    {
+        std::ostringstream os;
+        os << std::fixed << std::setprecision(2) << ms;
+        return os.str();
+    }
+
+    void printTextJit(const JitSample& j)
+    {
+        if (!j.captured) return;
+
+        std::cout << "    jit            compiled=" << j.compileCount
+                  << " bailouts=" << j.bailoutCount
+                  << " cached=" << j.cachedFunctions
+                  << " osr-profiled=" << j.loopsProfiled
+                  << " osr-compiled=" << j.osrCompiled
+                  << " osr-failed=" << j.osrFailed << "\n";
+
+        if (!j.hotFunctions.empty())
+        {
+            for (const auto& hf : j.hotFunctions)
+            {
+                std::cout << "      hot " << hf.name
+                          << " (" << hf.calls << " calls) "
+                          << (hf.compiled ? "[compiled]" : "[bailout]") << "\n";
+            }
+        }
+
+        for (const auto& f : j.failedLoops)
+        {
+            std::cout << "      osr-fail offset 0x" << std::hex << f.jumpBackOffset
+                      << std::dec << ": " << vm::jit::osrBailoutReasonName(f.reason);
+            if (f.reason == vm::jit::OSRBailoutReason::UNSUPPORTED_OPCODE ||
+                f.reason == vm::jit::OSRBailoutReason::CODEGEN_FAILURE)
+            {
+                std::cout << " (" << vm::bytecode::getOpCodeName(
+                                  static_cast<vm::bytecode::OpCode>(f.offendingOpcode))
+                          << ")";
+            }
+            std::cout << "\n";
+        }
+    }
+
+    void printTextResult(const ScriptResult& r, bool jitEnabled)
+    {
+        if (!r.ok)
+        {
+            std::cout << "  [FAILED] " << r.name << ": " << r.errorMessage << "\n\n";
+            return;
+        }
+        const Aggregate agg = summarize(r.measured);
+        const auto& first = r.measured.front();
+
+        std::cout << "  " << r.name << "  (jit=" << (jitEnabled ? "on" : "off") << ")\n";
+        std::cout << "    wall-clock ms  min=" << formatMs(agg.minMs)
+                  << "  median=" << formatMs(agg.medianMs)
+                  << "  mean=" << formatMs(agg.meanMs)
+                  << "  stddev=" << formatMs(agg.stddevMs) << "\n";
+        std::cout << "    exec (VM)      "
+                  << formatMs(static_cast<double>(first.stats.executionTime.count()) / 1000.0)
+                  << " ms\n";
+        std::cout << "    instructions   " << first.stats.instructionsExecuted << "\n";
+        std::cout << "    calls          " << first.stats.functionCalls << "\n";
+        std::cout << "    mem-allocated  " << first.stats.memoryAllocated << " (unused stub)\n";
+        std::cout << "    string-pool    req=" << first.stringPoolRequests
+                  << " hits=" << first.stringPoolHits << "\n";
+        std::cout << "    array-pool     alloc=" << first.arrayPoolAllocs
+                  << " hits=" << first.arrayPoolHits << "\n";
+        printTextJit(first.jit);
+        std::cout << "\n";
+    }
+
+    void printTextSummary(const std::vector<ScriptResult>& results, bool jitEnabled)
+    {
+        std::cout << "=== Summary (jit=" << (jitEnabled ? "on" : "off") << ") ===\n";
+        std::cout << "  "
+                  << std::left << std::setw(28) << "Script"
+                  << std::right << std::setw(14) << "min(ms)"
+                  << std::right << std::setw(14) << "median(ms)"
+                  << std::right << std::setw(16) << "instructions"
+                  << std::right << std::setw(10) << "calls"
+                  << "\n";
+        for (const auto& r : results)
+        {
+            if (!r.ok)
+            {
+                std::cout << "  "
+                          << std::left << std::setw(28) << r.name
+                          << std::right << std::setw(14) << "FAILED"
+                          << "\n";
+                continue;
+            }
+            const Aggregate agg = summarize(r.measured);
+            const auto& first = r.measured.front();
+            std::cout << "  "
+                      << std::left << std::setw(28) << r.name
+                      << std::right << std::setw(14) << formatMs(agg.minMs)
+                      << std::right << std::setw(14) << formatMs(agg.medianMs)
+                      << std::right << std::setw(16) << first.stats.instructionsExecuted
+                      << std::right << std::setw(10) << first.stats.functionCalls
+                      << "\n";
+        }
+        std::cout << "\n";
+    }
+
+    void printJsonResults(const std::vector<ScriptResult>& results, bool jitEnabled)
+    {
+        std::cout << "{\n  \"jit\": " << (jitEnabled ? "true" : "false") << ",\n";
+        std::cout << "  \"scripts\": [\n";
+        for (std::size_t i = 0; i < results.size(); ++i)
+        {
+            const auto& r = results[i];
+            std::cout << "    {\n";
+            std::cout << "      \"name\": \"" << r.name << "\",\n";
+            std::cout << "      \"path\": \"" << r.path << "\",\n";
+            std::cout << "      \"ok\": " << (r.ok ? "true" : "false");
+            if (!r.ok)
+            {
+                std::cout << ",\n      \"error\": \"" << r.errorMessage << "\"";
+                std::cout << "\n    }" << (i + 1 < results.size() ? "," : "") << "\n";
+                continue;
+            }
+            const Aggregate agg = summarize(r.measured);
+            const auto& first = r.measured.front();
+            std::cout << ",\n      \"iterations\": " << r.measured.size() << ",\n";
+            std::cout << "      \"wall_ms\": { \"min\": " << formatMs(agg.minMs)
+                      << ", \"median\": " << formatMs(agg.medianMs)
+                      << ", \"mean\": " << formatMs(agg.meanMs)
+                      << ", \"stddev\": " << formatMs(agg.stddevMs) << " },\n";
+            std::cout << "      \"exec_ms\": "
+                      << formatMs(static_cast<double>(first.stats.executionTime.count()) / 1000.0) << ",\n";
+            std::cout << "      \"instructions\": " << first.stats.instructionsExecuted << ",\n";
+            std::cout << "      \"calls\": " << first.stats.functionCalls << ",\n";
+            std::cout << "      \"string_pool\": { \"requests\": " << first.stringPoolRequests
+                      << ", \"hits\": " << first.stringPoolHits << " },\n";
+            std::cout << "      \"array_pool\": { \"allocations\": " << first.arrayPoolAllocs
+                      << ", \"hits\": " << first.arrayPoolHits << " }\n";
+            std::cout << "    }" << (i + 1 < results.size() ? "," : "") << "\n";
+        }
+        std::cout << "  ]\n}\n";
+    }
+
+    ScriptResult runScript(const std::string& path, const BenchmarkOptions& opts)
+    {
+        ScriptResult result;
+        result.path = path;
+        result.name = std::filesystem::path(path).filename().string();
+
+        try
+        {
+            for (int i = 0; i < opts.warmupIterations; ++i)
+            {
+                (void)runOne(path, opts.jitEnabled, false);
+            }
+            for (int i = 0; i < opts.measuredIterations; ++i)
+            {
+                // Only capture JIT stats on the first measured iteration — the
+                // runner recreates the VM per iteration so stats don't accumulate,
+                // and the printed report reads from samples[0] anyway.
+                const bool captureJit = opts.printJitStats && i == 0;
+                result.measured.push_back(runOne(path, opts.jitEnabled, captureJit));
+            }
+        }
+        catch (const std::exception& e)
+        {
+            result.ok = false;
+            result.errorMessage = e.what();
+        }
+        catch (...)
+        {
+            result.ok = false;
+            result.errorMessage = "(unknown exception)";
+        }
+        return result;
+    }
+
+    std::vector<std::string> resolveScriptPaths(const BenchmarkOptions& opts)
+    {
+        if (!opts.singleScript.empty())
+        {
+            return { opts.singleScript };
+        }
+
+        const std::string dir = locateBenchmarksDir();
+        if (dir.empty()) return {};
+
+        std::vector<std::string> out;
+        out.reserve(CANONICAL_SCRIPTS.size());
+        for (const char* name : CANONICAL_SCRIPTS)
+        {
+            out.push_back((std::filesystem::path(dir) / name).string());
+        }
+        return out;
+    }
+}
+
+int runBenchmarks(const BenchmarkOptions& options)
+{
+    const auto paths = resolveScriptPaths(options);
+    if (paths.empty())
+    {
+        std::cerr << "Error: could not locate " << BENCHMARKS_REL
+                  << " (searched parents of current directory).\n";
+        std::cerr << "Run from the repo root, or pass --benchmark=<path>.\n";
+        return 2;
+    }
+
+    const bool textMode = (options.outputFormat == BenchmarkOutput::Text);
+
+    if (textMode)
+    {
+        std::cout << "mType benchmark suite  (jit=" << (options.jitEnabled ? "on" : "off")
+                  << ", warmup=" << options.warmupIterations
+                  << ", measured=" << options.measuredIterations << ")\n\n";
+    }
+
+    std::vector<ScriptResult> results;
+    results.reserve(paths.size());
+    int failed = 0;
+
+    for (const auto& p : paths)
+    {
+        if (textMode)
+        {
+            std::cout << "--- running " << std::filesystem::path(p).filename().string()
+                      << " ---\n";
+        }
+        auto r = runScript(p, options);
+        if (!r.ok) ++failed;
+
+        if (textMode) printTextResult(r, options.jitEnabled);
+        results.push_back(std::move(r));
+    }
+
+    if (textMode)
+    {
+        printTextSummary(results, options.jitEnabled);
+        std::cout << "Paste this block into docs/bench-baseline.md under today's date.\n";
+    }
+    else
+    {
+        printJsonResults(results, options.jitEnabled);
+    }
+
+    return failed > 0 ? 1 : 0;
+}
+
+} // namespace runMain

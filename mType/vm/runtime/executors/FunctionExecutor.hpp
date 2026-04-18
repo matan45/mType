@@ -19,6 +19,7 @@ namespace vm::runtime
 
         // Function call operations
         void handleCall(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleCallFast(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Public helper for lambda-to-interface conversion (used by ObjectExecutor too)

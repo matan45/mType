@@ -199,6 +199,11 @@ namespace vm::bytecode
         INVOKE_INT_ABS,         // Int.abs() - optimized absolute value
         INVOKE_INT_EQUALS,      // Int.equals(Int) - optimized equality
         INVOKE_INT_COMPARE,     // Int.compareTo(Int) - optimized comparison
+        INVOKE_INT_GET_VALUE,   // Int.getValue() - inline field-0 read (MYT-155)
+        INVOKE_INT_LESS_THAN,    // Int.lessThan(Int) - inline cmp+sete (MYT-155)
+        INVOKE_INT_LESS_EQUAL,   // Int.lessThanOrEqual(Int) (MYT-155)
+        INVOKE_INT_GREATER_THAN, // Int.greaterThan(Int) (MYT-155)
+        INVOKE_INT_GREATER_EQUAL,// Int.greaterThanOrEqual(Int) (MYT-155)
 
         // Float object methods (141-150)
         INVOKE_FLOAT_ADD,       // Float.add(Float) - optimized addition
@@ -209,6 +214,12 @@ namespace vm::bytecode
         INVOKE_FLOAT_ABS,       // Float.abs() - optimized absolute value
         INVOKE_FLOAT_EQUALS,    // Float.equals(Float) - optimized equality
         INVOKE_FLOAT_COMPARE,   // Float.compareTo(Float) - optimized comparison
+        INVOKE_FLOAT_GET_VALUE, // Float.getValue() - inline field-0 read (MYT-155)
+        INVOKE_BOOL_GET_VALUE,  // Bool.getValue() - inline field-0 read (MYT-155)
+        INVOKE_FLOAT_LESS_THAN,    // Float.lessThan(Float) (MYT-155)
+        INVOKE_FLOAT_LESS_EQUAL,   // Float.lessThanOrEqual(Float) (MYT-155)
+        INVOKE_FLOAT_GREATER_THAN, // Float.greaterThan(Float) (MYT-155)
+        INVOKE_FLOAT_GREATER_EQUAL,// Float.greaterThanOrEqual(Float) (MYT-155)
 
         // === Iterator Operations (151-154) ===
         GET_ITERATOR,           // Get iterator from iterable object (calls iterator() method)
@@ -225,6 +236,7 @@ namespace vm::bytecode
 
         // === Reserved for Future Use (161-255) ===
         // Opcodes reserved for future extensions
+        INLINE_GET_FIELD,   // Inlined trivial getter (operand: field name index, pushes field value)
 
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
@@ -320,6 +332,7 @@ namespace vm::bytecode
             case OpCode::GET_FIELD_FAST: return "GET_FIELD_FAST";
             case OpCode::SET_FIELD_FAST: return "SET_FIELD_FAST";
             case OpCode::INLINE_SET_FIELD: return "INLINE_SET_FIELD";
+            case OpCode::INLINE_GET_FIELD: return "INLINE_GET_FIELD";
             case OpCode::GET_STATIC: return "GET_STATIC";
             case OpCode::SET_STATIC: return "SET_STATIC";
             case OpCode::CALL_METHOD: return "CALL_METHOD";
@@ -397,6 +410,11 @@ namespace vm::bytecode
             case OpCode::INVOKE_INT_ABS: return "INVOKE_INT_ABS";
             case OpCode::INVOKE_INT_EQUALS: return "INVOKE_INT_EQUALS";
             case OpCode::INVOKE_INT_COMPARE: return "INVOKE_INT_COMPARE";
+            case OpCode::INVOKE_INT_GET_VALUE: return "INVOKE_INT_GET_VALUE";
+            case OpCode::INVOKE_INT_LESS_THAN: return "INVOKE_INT_LESS_THAN";
+            case OpCode::INVOKE_INT_LESS_EQUAL: return "INVOKE_INT_LESS_EQUAL";
+            case OpCode::INVOKE_INT_GREATER_THAN: return "INVOKE_INT_GREATER_THAN";
+            case OpCode::INVOKE_INT_GREATER_EQUAL: return "INVOKE_INT_GREATER_EQUAL";
 
             case OpCode::INVOKE_FLOAT_ADD: return "INVOKE_FLOAT_ADD";
             case OpCode::INVOKE_FLOAT_SUB: return "INVOKE_FLOAT_SUB";
@@ -406,6 +424,12 @@ namespace vm::bytecode
             case OpCode::INVOKE_FLOAT_ABS: return "INVOKE_FLOAT_ABS";
             case OpCode::INVOKE_FLOAT_EQUALS: return "INVOKE_FLOAT_EQUALS";
             case OpCode::INVOKE_FLOAT_COMPARE: return "INVOKE_FLOAT_COMPARE";
+            case OpCode::INVOKE_FLOAT_GET_VALUE: return "INVOKE_FLOAT_GET_VALUE";
+            case OpCode::INVOKE_BOOL_GET_VALUE: return "INVOKE_BOOL_GET_VALUE";
+            case OpCode::INVOKE_FLOAT_LESS_THAN: return "INVOKE_FLOAT_LESS_THAN";
+            case OpCode::INVOKE_FLOAT_LESS_EQUAL: return "INVOKE_FLOAT_LESS_EQUAL";
+            case OpCode::INVOKE_FLOAT_GREATER_THAN: return "INVOKE_FLOAT_GREATER_THAN";
+            case OpCode::INVOKE_FLOAT_GREATER_EQUAL: return "INVOKE_FLOAT_GREATER_EQUAL";
 
             case OpCode::GET_ITERATOR: return "GET_ITERATOR";
             case OpCode::ITERATOR_HAS_NEXT: return "ITERATOR_HAS_NEXT";

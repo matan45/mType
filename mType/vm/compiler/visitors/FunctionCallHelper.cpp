@@ -810,11 +810,23 @@ namespace vm::compiler::visitors
         }
         else
         {
-            // Regular function call - use CALL with resolved (mangled) function name
-            size_t nameIndex = ctx.program.getConstantPool().addString(resolvedFunctionName);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::CALL,
-                                         static_cast<uint64_t>(nameIndex),
-                                         static_cast<uint64_t>(arguments.size()), node);
+            // Try CALL_FAST for statically-resolved bytecode functions
+            const auto* funcMeta = ctx.program.getFunction(resolvedFunctionName);
+            size_t funcIndex = ctx.program.getFunctionIndex(resolvedFunctionName);
+
+            if (funcMeta && !funcMeta->isNative && funcIndex != SIZE_MAX)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_FAST,
+                                             static_cast<uint64_t>(funcIndex),
+                                             static_cast<uint64_t>(arguments.size()), node);
+            }
+            else
+            {
+                size_t nameIndex = ctx.program.getConstantPool().addString(resolvedFunctionName);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL,
+                                             static_cast<uint64_t>(nameIndex),
+                                             static_cast<uint64_t>(arguments.size()), node);
+            }
         }
     }
 

@@ -220,15 +220,17 @@ namespace vm::compiler::types
             std::string varElementType = varClass.substr(0, varClass.find("[]"));
             std::string valueElementType = valueClass.substr(0, valueClass.find("[]"));
 
-            // Require exact match for array element types (no inheritance/polymorphism)
-            if (varElementType != valueElementType) {
+            // Allow covariant array assignment (e.g., Dog[] to Animal[])
+            // Check inheritance/interface compatibility via isClassCompatible
+            if (varElementType != valueElementType &&
+                !isClassCompatible(valueElementType, varElementType)) {
                 throw errors::TypeException(
-                    "Array covariance violation: cannot assign " + valueElementType + "[] to " +
-                    varElementType + "[] (arrays are invariant, not covariant)",
+                    "Array type mismatch: cannot assign " + valueElementType + "[] to " +
+                    varElementType + "[] (element types are not compatible)",
                     location
                 );
             }
-            return; // Arrays match, no further checking needed
+            return; // Arrays are compatible
         }
 
         // Normalize both types for array comparison

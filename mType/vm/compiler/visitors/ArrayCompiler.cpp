@@ -105,8 +105,16 @@ namespace vm::compiler::visitors
                     if (currentType != "null" && currentType != "unknown" && expectedType != "unknown") {
                         if (currentType != expectedType) {
                             // Allow int/float mixing
-                            if (!((currentType == "int" && expectedType == "float") ||
-                                  (currentType == "float" && expectedType == "int"))) {
+                            if ((currentType == "int" && expectedType == "float") ||
+                                (currentType == "float" && expectedType == "int")) {
+                                // int/float mixing is allowed
+                            }
+                            // Allow all object types in array literals - compatibility is
+                            // validated at declaration level by TypeValidator
+                            else if (currentType.substr(0, 7) == "object:" && expectedType.substr(0, 7) == "object:") {
+                                continue;
+                            }
+                            else {
                                 // Type mismatch error
                                 throw errors::TypeException(
                                     "Array literal type mismatch: expected '" + expectedType +

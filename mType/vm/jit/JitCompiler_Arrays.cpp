@@ -40,6 +40,54 @@ namespace vm::jit
         return true;
     }
 
+    // MYT-146: NEW_ARRAY_MULTI. Operands: [typeIdx, totalDims, specifiedDims].
+    // Dimension sizes are on the operand stack (specifiedDims of them), with
+    // dim_0 deepest and dim_last on top. Box each into ctx->callArgs[0..N-1],
+    // call helper, push the resulting boxed array as the first dimension-slot's
+    // replacement.
+    static bool emitNewArrayMulti(JitEmissionState& s,
+                                   const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        uint32_t typeIndex      = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t totalDims      = static_cast<uint32_t>(instr.operands[1]);
+        uint32_t specifiedDims  = instr.operands.size() > 2
+                                   ? static_cast<uint32_t>(instr.operands[2])
+                                   : totalDims;
+
+        // Box each dimension size from the JIT stack into ctx->callArgs[i].
+        // emitBoxCallArgs takes the top `specifiedDims` slots in order and
+        // preserves dim_0-deepest → callArgs[0] semantics.
+        emitBoxCallArgs(s, specifiedDims);
+        // Pop the size slots (all primitive INT — emitPopAndDestroyArgs is a
+        // no-op for unboxed slots apart from decrementing stackDepth).
+        emitPopAndDestroyArgs(s, specifiedDims);
+
+        Gp dest = cc.new_gp64();
+        cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
+        Gp typeIdxReg = cc.new_gp64();
+        cc.mov(typeIdxReg, static_cast<int64_t>(typeIndex));
+        Gp totalDimsReg = cc.new_gp64();
+        cc.mov(totalDimsReg, static_cast<int64_t>(totalDims));
+        Gp specifiedDimsReg = cc.new_gp64();
+        cc.mov(specifiedDimsReg, static_cast<int64_t>(specifiedDims));
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_new_array_multi),
+                  FuncSignature::build<void, value::Value*, JitContext*,
+                      uint32_t, uint32_t, uint32_t>());
+        inv->set_arg(0, dest);
+        inv->set_arg(1, s.ctxPtr);
+        inv->set_arg(2, typeIdxReg);
+        inv->set_arg(3, totalDimsReg);
+        inv->set_arg(4, specifiedDimsReg);
+
+        s.slotTypes.push_back(SlotType::ARRAY);
+        s.stackDepth++;
+        return true;
+    }
+
     static bool emitArrayGet(JitEmissionState& s)
     {
         auto& cc = s.cc;
@@ -524,11 +572,12 @@ namespace vm::jit
     {
         switch (instr.opcode)
         {
-            case OpCode::NEW_ARRAY:     return emitNewArray(s, instr);
-            case OpCode::ARRAY_GET:     return emitArrayGet(s);
-            case OpCode::ARRAY_SET:     return emitArraySet(s);
-            case OpCode::ARRAY_LENGTH:  return emitArrayLength(s);
-            default:                    return false;
+            case OpCode::NEW_ARRAY:         return emitNewArray(s, instr);
+            case OpCode::NEW_ARRAY_MULTI:   return emitNewArrayMulti(s, instr);
+            case OpCode::ARRAY_GET:         return emitArrayGet(s);
+            case OpCode::ARRAY_SET:         return emitArraySet(s);
+            case OpCode::ARRAY_LENGTH:      return emitArrayLength(s);
+            default:                        return false;
         }
     }
 

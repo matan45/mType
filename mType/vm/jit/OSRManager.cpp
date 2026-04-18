@@ -6,10 +6,10 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
-#include <new>
 
 namespace vm::jit
 {
+    
     OSRManager::OSRManager() {}
     OSRManager::~OSRManager() {}
 
@@ -18,9 +18,14 @@ namespace vm::jit
                                           const bytecode::BytecodeProgram& program,
                                           JitCompiler& compiler,
                                           JitCodeCache& codeCache,
-                                          ic::TypeFeedbackCollector* typeFeedback)
+                                          ic::TypeFeedbackCollector* typeFeedback,
+                                          OSRBailoutReason& outReason,
+                                          uint8_t& outOffendingOpcode)
     {
         std::string osrKey = "osr@" + std::to_string(jumpBackOffset);
+        outReason = OSRBailoutReason::NONE;
+        outOffendingOpcode = 0;
+
         bool compiled = compiler.compileLoopOSR(
             state.loopStartOffset,
             state.loopEndOffset,
@@ -29,7 +34,9 @@ namespace vm::jit
             state.localCount,
             program,
             codeCache,
-            typeFeedback);
+            typeFeedback,
+            &outReason,
+            &outOffendingOpcode);
 
         if (!compiled)
         {
@@ -39,6 +46,9 @@ namespace vm::jit
         auto fn = codeCache.lookup(osrKey);
         if (!fn)
         {
+            // compileLoopOSR claimed success but the cache doesn't have the
+            // entry - treat as a generic codegen failure.
+            outReason = OSRBailoutReason::CODEGEN_FAILURE;
             return false;
         }
 
@@ -60,7 +70,7 @@ namespace vm::jit
         if (cacheIt != osrCache.end())
         {
             OSRState state;
-            if (!captureState(state, jumpBackOffset, program, context))
+            if (captureState(state, jumpBackOffset, program, context) != OSRBailoutReason::NONE)
             {
                 return false;
             }
@@ -73,18 +83,29 @@ namespace vm::jit
             return false;
         }
 
-        // Loop just became hot — try to compile it
+        // Loop just became hot — try to compile it.
+        // MYT-148: thread the specific bailout reason out of captureState and
+        // through compileAndCacheLoop so --jit-stats can show which gate rejected.
         OSRState state;
-        if (!captureState(state, jumpBackOffset, program, context))
+        OSRBailoutReason captureReason =
+            captureState(state, jumpBackOffset, program, context);
+        if (captureReason != OSRBailoutReason::NONE)
         {
-            loopProfiler.markFailed(loopId);
+            loopProfiler.markFailed(loopId, captureReason);
             return false;
         }
 
+        OSRBailoutReason compileReason = OSRBailoutReason::NONE;
+        uint8_t compileOpcode = 0;
         if (!compileAndCacheLoop(state, jumpBackOffset, program, compiler, codeCache,
-                                 vm.getTypeFeedbackCollector()))
+                                 vm.getTypeFeedbackCollector(),
+                                 compileReason, compileOpcode))
         {
-            loopProfiler.markFailed(loopId);
+            loopProfiler.markFailed(loopId,
+                                     compileReason == OSRBailoutReason::NONE
+                                       ? OSRBailoutReason::CODEGEN_FAILURE
+                                       : compileReason,
+                                     compileOpcode);
             return false;
         }
 
@@ -97,32 +118,57 @@ namespace vm::jit
                                          size_t& loopStartOffset,
                                          size_t& loopEndOffset)
     {
-        // Find enclosing LOOP_START by scanning backward
+        // Nesting-balanced scan. The back-edge sits inside exactly one loop
+        // body; the enclosing LOOP_START/LOOP_END are the first unmatched
+        // markers walking outward. A naive "first LOOP_START backward,
+        // first LOOP_END forward" picks inner-loop markers for an outer
+        // back-edge and clips the compile range (MYT-153 Bug #1).
         loopStartOffset = SIZE_MAX;
-        for (size_t ip = jumpBackOffset; ip != SIZE_MAX; --ip)
         {
-            const auto& instr = program.getInstruction(ip);
-            if (instr.opcode == bytecode::OpCode::LOOP_START)
+            size_t depth = 0;
+            for (size_t ip = jumpBackOffset; ; --ip)
             {
-                loopStartOffset = ip;
-                break;
+                const auto& instr = program.getInstruction(ip);
+                if (instr.opcode == bytecode::OpCode::LOOP_END)
+                {
+                    ++depth;
+                }
+                else if (instr.opcode == bytecode::OpCode::LOOP_START)
+                {
+                    if (depth == 0)
+                    {
+                        loopStartOffset = ip;
+                        break;
+                    }
+                    --depth;
+                }
+                if (ip == 0) break;
             }
-            if (ip == 0) break;
         }
         if (loopStartOffset == SIZE_MAX)
         {
             return false;
         }
 
-        // Find enclosing LOOP_END by scanning forward
         loopEndOffset = SIZE_MAX;
-        for (size_t ip = jumpBackOffset + 1; ip < program.getInstructionCount(); ++ip)
         {
-            const auto& instr = program.getInstruction(ip);
-            if (instr.opcode == bytecode::OpCode::LOOP_END)
+            size_t depth = 1;
+            for (size_t ip = jumpBackOffset + 1; ip < program.getInstructionCount(); ++ip)
             {
-                loopEndOffset = ip;
-                break;
+                const auto& instr = program.getInstruction(ip);
+                if (instr.opcode == bytecode::OpCode::LOOP_START)
+                {
+                    ++depth;
+                }
+                else if (instr.opcode == bytecode::OpCode::LOOP_END)
+                {
+                    --depth;
+                    if (depth == 0)
+                    {
+                        loopEndOffset = ip;
+                        break;
+                    }
+                }
             }
         }
         return loopEndOffset != SIZE_MAX;
@@ -152,18 +198,40 @@ namespace vm::jit
         }
     }
 
-    bool OSRManager::captureState(OSRState& state,
-                                   size_t jumpBackOffset,
-                                   const bytecode::BytecodeProgram& program,
-                                   vm::runtime::ExecutionContext& context)
+    OSRBailoutReason OSRManager::captureState(OSRState& state,
+                                                size_t jumpBackOffset,
+                                                const bytecode::BytecodeProgram& program,
+                                                vm::runtime::ExecutionContext& context)
     {
         size_t loopStartOffset, loopEndOffset;
         if (!findLoopBoundaries(jumpBackOffset, program, loopStartOffset, loopEndOffset))
-            return false;
+            return OSRBailoutReason::LOOP_MARKERS_MISSING;
 
-        // Reject if in a function with lambda captures (shared frame)
-        if (!context.callStack.empty() && context.callStack.back().sharedFrame)
-            return false;
+        // Reject if in a function with real lambda captures.
+        //
+        // We can't just test `sharedFrame != nullptr`: VariableExecutor
+        // pre-allocates a SharedStackFrame on every STORE_LOCAL that carries
+        // a variable name (which is essentially every local store the
+        // compiler emits) as speculative bookkeeping in case a lambda later
+        // captures that local. Using `!= nullptr` would bail out on every
+        // ordinary function/script and block OSR across the whole benchmark
+        // suite.
+        //
+        // A frame is only *truly* shared when either:
+        //   (a) it is itself a lambda invocation frame — locals may resolve
+        //       through `sharedFrame->parentFrame` instead of the operand
+        //       stack the OSR captured-state assumes; or
+        //   (b) an outside owner (captured lambda, VM interop path) holds a
+        //       reference to the SharedStackFrame, so mutations can happen
+        //       outside native code's view.
+        if (!context.callStack.empty())
+        {
+            const auto& frame = context.callStack.back();
+            if (frame.originatingLambda)
+                return OSRBailoutReason::SHARED_FRAME_REJECTION;
+            if (frame.sharedFrame && frame.sharedFrame.use_count() > 1)
+                return OSRBailoutReason::SHARED_FRAME_REJECTION;
+        }
 
         // Get function metadata for local count
         std::string functionName;
@@ -173,11 +241,20 @@ namespace vm::jit
             functionName = context.callStack.back().functionName;
             auto funcMeta = program.getFunction(functionName);
             if (funcMeta)
+            {
                 localCount = funcMeta->localCount;
+            }
+            else if (functionName == "__script_main__")
+            {
+                // Top-level script body isn't registered as a function; the
+                // compiler publishes the local count out-of-band so OSR can
+                // still tier up script-scope loops.
+                localCount = program.getTopLevelLocalCount();
+            }
         }
 
         if (localCount == 0)
-            return false;
+            return OSRBailoutReason::NO_FUNCTION_FRAME;
 
         // Capture locals
         size_t localBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
@@ -186,7 +263,7 @@ namespace vm::jit
         // Check operand stack above locals (should be empty at JUMP_BACK for V1)
         size_t operandStackBase = localBase + localCount;
         if (context.stackManager->size() > operandStackBase)
-            return false;
+            return OSRBailoutReason::OPERAND_STACK_NOT_EMPTY;
 
         state.loopStartOffset = loopStartOffset;
         state.loopEndOffset = loopEndOffset;
@@ -196,7 +273,7 @@ namespace vm::jit
         state.functionName = functionName;
         state.resumeOffset = loopEndOffset + 1;
 
-        return true;
+        return OSRBailoutReason::NONE;
     }
 
     void OSRManager::buildOSRContext(JitContext& jitCtx,
@@ -322,6 +399,26 @@ namespace vm::jit
             if (stackIdx < context.stackManager->size())
             {
                 context.stackManager->getStack()[stackIdx] = result.updatedLocals[i];
+            }
+        }
+
+        // MYT-153 Bug #2: also mirror writes into the SharedStackFrame, when
+        // one is attached to the current call frame. VariableExecutor's
+        // handleStoreLocal pre-populates this frame on every named local
+        // store (speculative bookkeeping for potential lambda capture), and
+        // handleLoadLocal reads from it *before* the stack — so skipping the
+        // update here leaves post-OSR reads serving the captured pre-OSR
+        // values. captureState already rejects `originatingLambda` frames
+        // and frames with external sharedFrame owners, so any sharedFrame
+        // reaching this point is the ordinary per-function bookkeeping copy.
+        if (!context.callStack.empty() &&
+            !context.callStack.back().originatingLambda &&
+            context.callStack.back().sharedFrame)
+        {
+            auto sharedFrame = context.callStack.back().sharedFrame;
+            for (size_t i = 0; i < result.updatedLocals.size() && i < state.localCount; ++i)
+            {
+                sharedFrame->setLocal(i, result.updatedLocals[i]);
             }
         }
 

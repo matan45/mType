@@ -282,9 +282,13 @@ project "mtype-extensions"
       "packagemanager/src/**.cpp",
    }
 
-   filter "system:windows"
-      links { "winhttp", "ws2_32" }
-   filter {}
+   -- NOTE: Windows system libs (winhttp, ws2_32) are intentionally NOT linked
+   -- here even though this project uses them. When listed on a StaticLib,
+   -- premake emits them into <Lib><AdditionalDependencies>, which causes
+   -- lib.exe to merge the import libs into mtype-extensions.lib and triggers
+   -- a non-suppressible LNK4006 on __NULL_IMPORT_DESCRIPTOR. The libs are
+   -- instead linked by the consuming ConsoleApp projects (mType,
+   -- mtype-launcher), where /IGNORE:4006 on the final link step is honored.
 
    -- Exclude standalone Main.cpp from library build
    removefiles { "packagemanager/src/Main.cpp" }
@@ -330,10 +334,12 @@ project "mType"
    includedirs { "vendor/asmjit" }
    defines { "ASMJIT_STATIC" }
 
-   -- Suppress LNK4006: __NULL_IMPORT_DESCRIPTOR is defined by every MSVC
-   -- import library (e.g. winhttp.lib, ws2_32.lib); linking more than one
-   -- triggers a benign duplicate-definition warning.
+   -- Link Windows system libs here (not in mtype-extensions) so lib.exe
+   -- never merges two import libraries — that merge is what triggers
+   -- LNK4006 on __NULL_IMPORT_DESCRIPTOR. /IGNORE:4006 covers the residual
+   -- case at the link step.
    filter "system:windows"
+      links { "winhttp", "ws2_32" }
       linkoptions { "/ignore:4006" }
    filter {}
 
@@ -374,8 +380,9 @@ project "mtype-launcher"
    includedirs { "vendor/asmjit", "packagemanager/src" }
    defines { "ASMJIT_STATIC" }
 
-   -- Suppress LNK4006: see comment on mType project above.
+   -- See comment on mType project above.
    filter "system:windows"
+      links { "winhttp", "ws2_32" }
       linkoptions { "/ignore:4006" }
    filter {}
 

@@ -1,9 +1,47 @@
 #include "JitHelpers.hpp"
 #include "../../gc/GC.hpp"
+#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ValueObject.hpp"
 #include <new>
 
 namespace vm::jit
 {
+    namespace
+    {
+        // Boxed Int / Float primitives always keep their scalar under field index 0;
+        // the invariant is asserted in PrimitiveMethodExecutor and PrimitiveTypeTag.
+        template <typename T>
+        bool tryReadBoxedField(const value::Value& val, T& out)
+        {
+            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val))
+            {
+                const auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+                if (!obj) return false;
+                obj->ensureFieldVector();
+                const value::Value& field = obj->getFieldByIndex(0);
+                if (std::holds_alternative<T>(field))
+                {
+                    out = std::get<T>(field);
+                    return true;
+                }
+                return false;
+            }
+            if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val))
+            {
+                const auto& obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+                if (!obj) return false;
+                const value::Value& field = obj->getFieldByIndex(0);
+                if (std::holds_alternative<T>(field))
+                {
+                    out = std::get<T>(field);
+                    return true;
+                }
+                return false;
+            }
+            return false;
+        }
+    }
+
     extern "C" {
 
         int64_t jit_unbox_int(const value::Value* val)
@@ -15,6 +53,11 @@ namespace vm::jit
             if (std::holds_alternative<bool>(*val))
             {
                 return std::get<bool>(*val) ? 1 : 0;
+            }
+            int64_t boxed = 0;
+            if (tryReadBoxedField<int64_t>(*val, boxed))
+            {
+                return boxed;
             }
             return 0;
         }
@@ -45,6 +88,16 @@ namespace vm::jit
             if (std::holds_alternative<int64_t>(*val))
             {
                 return static_cast<double>(std::get<int64_t>(*val));
+            }
+            double dboxed = 0.0;
+            if (tryReadBoxedField<double>(*val, dboxed))
+            {
+                return dboxed;
+            }
+            int64_t iboxed = 0;
+            if (tryReadBoxedField<int64_t>(*val, iboxed))
+            {
+                return static_cast<double>(iboxed);
             }
             return 0.0;
         }
