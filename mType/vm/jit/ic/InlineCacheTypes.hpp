@@ -102,6 +102,14 @@ namespace vm::jit::ic
         // ObjectInstance entries (as `false`) so eligibility can reject a site
         // without chasing the ClassDefinition vtable at emit time.
         bool receiverIsValueObject = false;
+        // MYT-182: program that owns funcMetadata / startOffset. Library
+        // callees live in loadedPrograms[programIndex]; without this, the
+        // IC fast paths jump into the caller's bytecode and crash. Pointer
+        // is kept for immediate use on the hot path; the index is pushed
+        // onto CallFrame for restoration via ControlFlowExecutor return
+        // handling.
+        const bytecode::BytecodeProgram* program = nullptr;
+        size_t programIndex = 0;
     };
 
     struct MethodInlineCache

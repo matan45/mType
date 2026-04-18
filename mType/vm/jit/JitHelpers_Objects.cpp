@@ -5,12 +5,14 @@
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/NullPointerException.hpp"
 #include "../runtime/utils/NullCheckUtils.hpp"
+#include "../runtime/utils/MethodResolver.hpp"
 #include "../../environment/registry/ClassRegistry.hpp"
 #include "../../environment/Environment.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../runtime/VirtualMachine.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../value/ValueObject.hpp"
 #include <vector>
 #include <memory>
@@ -116,6 +118,14 @@ namespace vm::jit
         size_t methodArgCount)
     {
         if (!ctx->vm)
+            return false;
+
+        // MYT-182: refuse direct JIT→JIT dispatch across programs. The
+        // nested JIT code reads constant-pool strings / type indices via
+        // nestedCtx.program — a mismatched program would hand it the wrong
+        // data or OOB. The caller falls through to callMethodFromJitDirect,
+        // which properly saves / switches / restores executionCtx->program.
+        if (entry->program && entry->program != ctx->program)
             return false;
 
         // Fast path: cached JIT entry from IC populate / previous refresh.
@@ -259,8 +269,12 @@ namespace vm::jit
                         {
                             args.push_back(ctx->callArgs[i]);
                         }
+                        // MYT-182: pass the callee's program so the mini-interpret
+                        // loop in callMethodFromJitDirect runs against the right
+                        // bytecode for library callees.
                         ctx->returnValue = ctx->vm->callMethodFromJitDirect(
-                            instance, entry->qualifiedName, funcMeta, args);
+                            instance, entry->qualifiedName, funcMeta, args,
+                            entry->program);
                         ctx->hasReturnValue = true;
                         return;
                     }
@@ -285,19 +299,41 @@ namespace vm::jit
             // no-op once the slot count is exceeded, but we save a hash hit + lookup).
             if (cache.state != ic::ICState::MEGAMORPHIC)
             {
-                const std::string& methodName =
+                const std::string& rawMethodName =
                     ctx->program->getConstantPool().getString(methodNameIndex);
-                auto lookupResult = classDef->findInstanceMethodCached(methodName, argCount);
+                // MYT-181: strip class prefix + signature suffix. The compiler
+                // emits mangled names; findInstanceMethodCached expects the
+                // simple name.
+                const std::string simpleMethodName =
+                    runtimeTypes::klass::SignatureUtils::extractSimpleName(rawMethodName);
+                auto lookupResult = classDef->findInstanceMethodCached(simpleMethodName, argCount);
                 if (lookupResult.method)
                 {
-                    auto* funcMeta = ctx->program->getFunction(lookupResult.qualifiedName);
-                    if (funcMeta)
+                    // MYT-182: resolve across main + loaded library programs
+                    // so the IC entry knows which program owns funcMetadata.
+                    const std::vector<const vm::bytecode::BytecodeProgram*>* loadedPrograms =
+                        ctx->vm ? &ctx->vm->getLoadedPrograms() : nullptr;
+                    size_t startIndex = 0;
+                    if (ctx->vm && !ctx->vm->getCallStack().empty())
+                    {
+                        startIndex = ctx->vm->getCallStack().back().programIndex;
+                    }
+                    auto resolution = vm::runtime::utils::MethodResolver::resolve(
+                        lookupResult.qualifiedName,
+                        lookupResult.definingClassName,
+                        simpleMethodName,
+                        ctx->program,
+                        loadedPrograms,
+                        startIndex);
+                    if (resolution.funcMetadata)
                     {
                         ic::MethodICEntry entry;
                         entry.shape = classDef;
-                        entry.funcMetadata = funcMeta;
-                        entry.startOffset = funcMeta->startOffset;
-                        entry.qualifiedName = lookupResult.qualifiedName;
+                        entry.funcMetadata = resolution.funcMetadata;
+                        entry.startOffset = resolution.funcMetadata->startOffset;
+                        entry.qualifiedName = resolution.qualifiedName;
+                        entry.program = resolution.program;
+                        entry.programIndex = resolution.programIndex;
                         // MYT-167 (F-e): flag reflects the observed receiver
                         // kind. InlineAnalysis::scanCalleeOpcodes consumes
                         // this to apply the read-only restriction for
@@ -309,11 +345,19 @@ namespace vm::jit
                         // hits always go through jit_call_method.
                         if (!receiverIsValueObject && ctx->jitCodeCache)
                         {
-                            auto jitFn = ctx->jitCodeCache->lookup(lookupResult.qualifiedName);
+                            auto jitFn = ctx->jitCodeCache->lookup(resolution.qualifiedName);
                             if (jitFn)
                                 entry.jitEntry = reinterpret_cast<ic::JitEntryPtr>(jitFn);
                         }
-                        cache.addEntry(entry);
+                        // MYT-183: re-fetch cache reference immediately
+                        // before the write. Nested CALL_METHODs in
+                        // jit_call_method above may have inserted new
+                        // entries into methodCaches and rehashed; the
+                        // captured reference is not guaranteed pointer-stable
+                        // across that. Cheap on the slow path.
+                        ic::MethodInlineCache& freshCache =
+                            ctx->icTable->getMethodIC(bytecodeOffset);
+                        freshCache.addEntry(entry);
                     }
                 }
             }

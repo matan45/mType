@@ -3,7 +3,9 @@
 #include "FunctionExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/NullCheckUtils.hpp"
+#include "../utils/MethodResolver.hpp"
 #include "../validation/AccessValidator.hpp"
+#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 
 namespace vm::runtime
 {
@@ -379,9 +381,23 @@ namespace vm::runtime
                 if (colonPos != std::string::npos) {
                     frame.definingClassName = entry->qualifiedName.substr(0, colonPos);
                 }
-                frame.programIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
+                // MYT-182: carry the callee's program identity on the frame
+                // so ControlFlowExecutor restores context.program on return.
+                // If entry has no program recorded (pre-MYT-182 cache, or
+                // populate path that didn't resolve), fall back to caller's.
+                frame.programIndex = entry->program
+                    ? entry->programIndex
+                    : (context.callStack.empty() ? 0 : context.callStack.back().programIndex);
                 context.pushCallFrame(frame);
                 context.stats.functionCalls++;
+
+                // MYT-182: switch context.program to the callee's owning
+                // program before jumping. startOffset is an index into
+                // entry->program's instruction stream, not context.program's.
+                if (entry->program && entry->program != context.program)
+                {
+                    context.program = entry->program;
+                }
 
                 // Push 'this' as first local
                 context.stackManager->push(objectValue);
@@ -418,24 +434,50 @@ namespace vm::runtime
         // For UNINITIALIZED, let the full handler run and we'll populate on next hit
         // This is a tradeoff: we miss the first IC population opportunity,
         // but keep the code simple and correct.
+        // Capture the caller's IP before handleCallMethod mutates it — this
+        // is the bytecode offset that keys our cache entry.
+        const size_t icKey = context.instructionPointer;
         objectExecutor->handleCallMethod(instr);
 
         // After the call, try to populate the cache for next time
         if (cache.state != ICState::MEGAMORPHIC)
         {
-            const std::string& methodName = context.program->getConstantPool().getString(instr.operands[0]);
-            auto lookupResult = classDef->findInstanceMethodCached(methodName, argCount);
+            const std::string& rawMethodName =
+                context.program->getConstantPool().getString(instr.operands[0]);
+            // MYT-181: strip class prefix + signature suffix. The compiler
+            // emits mangled names ("Shape::compute/int") but
+            // findInstanceMethodCached expects the simple name.
+            const std::string simpleMethodName =
+                runtimeTypes::klass::SignatureUtils::extractSimpleName(rawMethodName);
+            auto lookupResult = classDef->findInstanceMethodCached(simpleMethodName, argCount);
             if (lookupResult.method)
             {
-                auto funcMeta = context.program->getFunction(lookupResult.qualifiedName);
-                if (funcMeta)
+                // MYT-182: resolve across main + loaded library programs so
+                // the IC entry carries the owning program identity. Library
+                // callees would otherwise dispatch against context.program
+                // and jump into unrelated bytecode.
+                auto resolution = utils::MethodResolver::resolve(
+                    lookupResult.qualifiedName,
+                    lookupResult.definingClassName,
+                    simpleMethodName,
+                    context);
+                if (resolution.funcMetadata)
                 {
                     MethodICEntry entry;
                     entry.shape = classDef;
-                    entry.funcMetadata = funcMeta;
-                    entry.startOffset = funcMeta->startOffset;
-                    entry.qualifiedName = lookupResult.qualifiedName;
-                    cache.addEntry(entry);
+                    entry.funcMetadata = resolution.funcMetadata;
+                    entry.startOffset = resolution.funcMetadata->startOffset;
+                    entry.qualifiedName = resolution.qualifiedName;
+                    entry.program = resolution.program;
+                    entry.programIndex = resolution.programIndex;
+                    // MYT-183: re-fetch cache reference immediately before
+                    // the write. The reference captured at the top of this
+                    // method may have been invalidated by nested CALL_METHODs
+                    // that inserted into the same methodCaches map and
+                    // triggered rehash. Cheap: one hash lookup on the slow
+                    // path, which we already are on.
+                    MethodInlineCache& freshCache = icTable.getMethodIC(icKey);
+                    freshCache.addEntry(entry);
                 }
             }
         }
