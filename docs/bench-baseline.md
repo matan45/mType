@@ -702,3 +702,38 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 - `for_each_loop.mt` and all library-using benchmarks complete cleanly — no crashes.
 - `inline_monomorphic.mt` still regresses vs. `method_dispatch.mt` baseline (1679 ms vs 1314 ms); MYT-169 Fix B is the in-progress lever to close this gap.
 - Investigation findings recorded on the MYT-169 Jira issue for the IC infrastructure gaps surfaced during diagnosis (mangled-name populate, cross-program dispatch in `tryDirectJitMethodDispatch`, `MethodInlineCache&` reference invalidation on rehash).
+
+## 2026-04-18 — MYT-181/182/183 + MYT-184 landed
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-181` (includes MYT-181 IC-populate fix, MYT-182 cross-program dispatch, MYT-183 rehash-invalidation fix, MYT-184 TDJM removal + /GS cookie corruption root-cause documented)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --jit-stats --benchmark` (jit=on, warmup=1, measured=3)
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1061.21 |    1065.24 |        20013 |       0 |
+| method_dispatch.mt            |  266.47 |     267.63 |        14039 |     506 |
+| object_alloc.mt               | 2098.98 |    2101.55 |        17509 | 2000000 |
+| string_ops.mt                 |  214.15 |     218.46 |        19014 |       0 |
+| recursive.mt                  | 1869.23 |    1870.64 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1482.96 |    1523.41 |        23014 |       0 |
+| short_circuit_chain.mt        |  411.79 |     448.60 |        24907 |       0 |
+| primitive_method_dispatch.mt  | 1127.49 |    1135.56 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   87.18 |      87.60 |        10909 |     500 |
+| array_multi_get.mt            | 1167.81 |    1203.21 |        50815 |     500 |
+| for_each_loop.mt              |  568.54 |     572.32 |        78650 |    6604 |
+| inline_monomorphic.mt         |  227.25 |     227.45 |        13013 |     501 |
+| inline_branching.mt           |  230.25 |     234.19 |        15013 |     501 |
+| inline_polymorphic.mt         |  267.57 |     268.07 |        14048 |     508 |
+| inline_value_object_hot.mt    | 1857.99 |    1859.31 |        12530 |     501 |
+
+### Notes
+
+- **MYT-169 AC met**: `inline_monomorphic.mt median (227.45 ms) ≤ method_dispatch.mt median (267.63 ms)`. ~40 ms headroom.
+- `for_each_loop.mt` now runs to completion — previously crashed inside JIT-compiled `ArrayList::add/T` invoked via `tryDirectJitMethodDispatch` with a `STATUS_STACK_BUFFER_OVERRUN` (0xC0000409, MSVC /GS cookie). MYT-184 deleted that dispatch path; method IC hits now route through `callMethodFromJitDirect`'s mini-interpret loop.
+- The 4–5× wins vs. the pre-MYT-181 snapshot on `method_dispatch.mt`, `inline_monomorphic.mt`, `inline_branching.mt`, `inline_polymorphic.mt` are driven by **MYT-181 unblocking IC populate**, which lets the F-a/F-c speculative inliner fire for the first time. TDJM removal itself is neutral — the workaround (and now the permanent fix) routes the same path.
+- `inline_value_object_hot.mt` barely moved (–5%) — confirms the ValueObject field-lookup overhead is the remaining MYT-169 residual, separate from method dispatch. Tracked for a follow-up (ValueObject field IC).
+- Per-benchmark output hashes unchanged vs. expected results above.
