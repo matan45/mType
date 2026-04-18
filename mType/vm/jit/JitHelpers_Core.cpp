@@ -17,7 +17,7 @@ namespace vm::jit
             {
                 const auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
                 if (!obj) return false;
-                const_cast<runtimeTypes::klass::ObjectInstance&>(*obj).ensureFieldVector();
+                obj->ensureFieldVector();
                 const value::Value& field = obj->getFieldByIndex(0);
                 if (std::holds_alternative<T>(field))
                 {

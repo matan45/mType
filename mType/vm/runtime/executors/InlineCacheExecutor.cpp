@@ -348,6 +348,17 @@ namespace vm::runtime
             {
                 auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
 
+                // Guard: native functions and entries without a real bytecode
+                // range must not take the fast jump path (would underflow
+                // startOffset-1 or jump into unrelated top-level bytecode).
+                // Fall through to the generic handler, which dispatches native
+                // calls correctly.
+                if (funcMeta->isNative || funcMeta->startOffset == 0)
+                {
+                    objectExecutor->handleCallMethod(instr);
+                    return;
+                }
+
                 // Pop arguments
                 std::vector<value::Value> args(argCount);
                 for (size_t i = argCount; i > 0; --i)

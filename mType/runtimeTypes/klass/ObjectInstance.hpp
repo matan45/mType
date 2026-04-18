@@ -32,9 +32,13 @@ namespace runtimeTypes::klass
         // GC: Flag to track if this instance is registered with GC
         bool gcRegistered = false;
 
-        // Phase 6 (IC): Vector-based field storage for O(1) indexed access
-        std::vector<Value> fieldVector;
-        bool fieldVectorInitialized = false;
+        // Phase 6 (IC): Vector-based field storage for O(1) indexed access.
+        // Marked mutable so ensureFieldVector() can be a const-qualified lazy
+        // initializer — the underlying ObjectInstance identity is unchanged,
+        // only a cached view is populated. Canonical C++ pattern for lazy
+        // cached state; also removes a const_cast at JitHelpers_Core.cpp:20.
+        mutable std::vector<Value> fieldVector;
+        mutable bool fieldVectorInitialized = false;
 
         // Fast primitive type tag (avoids string comparisons in hot paths)
         value::PrimitiveTypeTag primitiveTag_ = value::PrimitiveTypeTag::NONE;
@@ -97,7 +101,7 @@ namespace runtimeTypes::klass
         bool contentEquals(const ObjectInstance& other) const;
 
         // Phase 6 (IC): Indexed field access for inline caching
-        void ensureFieldVector();
+        void ensureFieldVector() const;
         const Value& getFieldByIndex(size_t index) const;
         void setFieldByIndex(size_t index, const Value& value);
         bool hasFieldVector() const { return fieldVectorInitialized; }

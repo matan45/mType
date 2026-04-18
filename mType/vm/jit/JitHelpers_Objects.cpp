@@ -513,25 +513,61 @@ namespace vm::jit
         }
     }
 
+    // MYT-167 (F-e follow-up): per-site field IC for ValueObject receivers.
+    // ValueObject shares ClassDefinition identity with ObjectInstance, so the
+    // same FieldInlineCache (shape → fieldIndex) serves both. IC hit avoids
+    // the classDef->getFieldIndex(name) hash lookup that dominated the
+    // value-class inlined hot path.
     static bool getFieldFromValueObject(value::Value* dest,
                                         const value::Value* object,
                                         JitContext* ctx,
+                                        size_t bytecodeOffset,
                                         uint32_t fieldNameIndex)
     {
         if (!std::holds_alternative<std::shared_ptr<value::ValueObject>>(*object))
             return false;
 
+        using namespace vm::jit::ic;
+
         auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(*object);
-        auto classDef = valueObj->getClassDefinition();
+        auto* classDef = valueObj->getClassDefinition().get();
+
+        // IC fast path — cached shape, known fieldIndex.
+        if (ctx->icTable)
+        {
+            FieldInlineCache& cache = ctx->icTable->getFieldIC(bytecodeOffset);
+            if (cache.state == ICState::MONOMORPHIC ||
+                cache.state == ICState::POLYMORPHIC)
+            {
+                const FieldICEntry* entry = cache.lookup(classDef);
+                if (entry && entry->fieldIndex != SIZE_MAX &&
+                    entry->fieldIndex < valueObj->getFieldCount())
+                {
+                    *dest = valueObj->getFieldByIndex(entry->fieldIndex);
+                    return true;
+                }
+            }
+        }
+
+        // Slow path — resolve field index by name, populate the IC.
         const std::string& fieldName =
             ctx->program->getConstantPool().getString(fieldNameIndex);
         size_t fieldIndex = classDef->getFieldIndex(fieldName);
         if (fieldIndex != SIZE_MAX && fieldIndex < valueObj->getFieldCount())
         {
             *dest = valueObj->getFieldByIndex(fieldIndex);
-            return true;
         }
-        *dest = valueObj->getFieldValue(fieldName);
+        else
+        {
+            *dest = valueObj->getFieldValue(fieldName);
+        }
+
+        if (ctx->icTable && fieldIndex != SIZE_MAX)
+        {
+            FieldInlineCache& cache = ctx->icTable->getFieldIC(bytecodeOffset);
+            if (cache.state != ICState::MEGAMORPHIC)
+                cache.addEntry(classDef, fieldIndex);
+        }
         return true;
     }
 
@@ -594,7 +630,7 @@ namespace vm::jit
             }
         }
 
-        if (getFieldFromValueObject(dest, object, ctx, fieldNameIndex))
+        if (getFieldFromValueObject(dest, object, ctx, bytecodeOffset, fieldNameIndex))
             return;
 
         auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
