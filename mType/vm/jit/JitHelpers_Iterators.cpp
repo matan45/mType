@@ -9,6 +9,8 @@
 #include "../../value/ValueObject.hpp"
 #include "../runtime/VirtualMachine.hpp"
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 // MYT-147: Shape-A runtime helpers for the iterator protocol. Each helper is
@@ -53,77 +55,158 @@ namespace vm::jit
             return nullptr;
         }
 
-        // MYT-155: monomorphic-shape fast paths for the two iterator classes that
-        // ship with the standard library. ArrayIteratorHelper backs raw-array
-        // for-each (handleGetIterator constructs it), ListIterator backs ArrayList.
-        // Both are pure index-bump + bounds-check, so we can answer hasNext() /
-        // next() without re-entering the VM. Returns true if the fast path
-        // applied (and wrote *dest); false otherwise — caller falls back to the
+        // MYT-132 Phase B: per-class field-index cache for the two stdlib
+        // iterator shapes. The previous MYT-155 fast path did two
+        // unordered_map lookups (getFieldValue(string)) and a Value copy per
+        // field per iteration. For a 2000*1000-iteration for-each loop that's
+        // 8M hash-string operations. The cache lets us switch to indexed
+        // access via getFieldByIndex (const-ref, no copy, direct vector
+        // subscript). Indices are class-invariant so one-time resolution per
+        // ClassDefinition is safe.
+        enum class IteratorShape { UNKNOWN, ARRAY_ITERATOR, LIST_ITERATOR };
+
+        struct IteratorFastSlots
+        {
+            IteratorShape shape = IteratorShape::UNKNOWN;
+            size_t idxSlot = SIZE_MAX;
+            size_t collSlot = SIZE_MAX;  // "array" for ArrayIteratorHelper, "data" for ListIterator
+            size_t sizeSlot = SIZE_MAX;  // ListIterator only
+            // Cached class name for setField path (still routes by name for
+            // GC write-barrier + fieldValues map sync; cheaper than a reverse
+            // index→name scan in setFieldByIndex).
+            const std::string* idxFieldName = nullptr;
+        };
+
+        // thread_local so we don't need a mutex. ClassDefinition* is
+        // process-lifetime stable — no invalidation concern here. If a class
+        // is redefined (future MYT), Phase A's invalidateAll() hook should
+        // clear this too; until then class redefinition is out of scope.
+        thread_local std::unordered_map<const runtimeTypes::klass::ClassDefinition*,
+                                         IteratorFastSlots> g_iteratorSlotCache;
+
+        // Field name constants — reused by setField to avoid string literal
+        // temporaries on the hot path.
+        const std::string kFieldArray         = "array";
+        const std::string kFieldIndex         = "index";
+        const std::string kFieldData          = "data";
+        const std::string kFieldCurrentIndex  = "currentIndex";
+        const std::string kFieldListSize      = "listSize";
+
+        const IteratorFastSlots* resolveSlots(
+            const runtimeTypes::klass::ClassDefinition* classDef)
+        {
+            auto it = g_iteratorSlotCache.find(classDef);
+            if (it != g_iteratorSlotCache.end())
+            {
+                return it->second.shape == IteratorShape::UNKNOWN
+                    ? nullptr : &it->second;
+            }
+
+            IteratorFastSlots slots;
+            const std::string& name = classDef->getName();
+            if (name == "ArrayIteratorHelper")
+            {
+                slots.shape = IteratorShape::ARRAY_ITERATOR;
+                slots.idxSlot = classDef->getFieldIndex(kFieldIndex);
+                slots.collSlot = classDef->getFieldIndex(kFieldArray);
+                slots.idxFieldName = &kFieldIndex;
+                if (slots.idxSlot == SIZE_MAX || slots.collSlot == SIZE_MAX)
+                    slots.shape = IteratorShape::UNKNOWN;
+            }
+            else if (name == "ListIterator")
+            {
+                slots.shape = IteratorShape::LIST_ITERATOR;
+                slots.idxSlot = classDef->getFieldIndex(kFieldCurrentIndex);
+                slots.collSlot = classDef->getFieldIndex(kFieldData);
+                slots.sizeSlot = classDef->getFieldIndex(kFieldListSize);
+                slots.idxFieldName = &kFieldCurrentIndex;
+                if (slots.idxSlot == SIZE_MAX || slots.collSlot == SIZE_MAX
+                    || slots.sizeSlot == SIZE_MAX)
+                    slots.shape = IteratorShape::UNKNOWN;
+            }
+
+            auto [insIt, _] = g_iteratorSlotCache.emplace(classDef, slots);
+            return insIt->second.shape == IteratorShape::UNKNOWN
+                ? nullptr : &insIt->second;
+        }
+
+        // MYT-155 / MYT-132 Phase B: monomorphic-shape fast paths for the two
+        // iterator classes that ship with the standard library. Cached
+        // per-class field indices let us skip the unordered_map field lookups
+        // on the iteration hot path. Returns true if the fast path applied
+        // (and wrote *dest); false otherwise — caller falls back to the
         // generic vm->callMethodFromJit path.
 
         bool tryFastHasNext(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& iter,
                              value::Value* dest)
         {
-            const std::string& className = iter->getClassDefinition()->getName();
-            if (className == "ArrayIteratorHelper")
+            auto* classDef = iter->getClassDefinition().get();
+            const IteratorFastSlots* slots = resolveSlots(classDef);
+            if (!slots) return false;
+
+            if (!iter->hasFieldVector())
+                iter->ensureFieldVector();
+
+            const value::Value& idxVal = iter->getFieldByIndex(slots->idxSlot);
+            if (!std::holds_alternative<int64_t>(idxVal)) return false;
+            int64_t idx = std::get<int64_t>(idxVal);
+
+            if (slots->shape == IteratorShape::ARRAY_ITERATOR)
             {
-                const value::Value& idxVal = iter->getFieldValue("index");
-                const value::Value& arrVal = iter->getFieldValue("array");
-                if (!std::holds_alternative<int64_t>(idxVal)) return false;
-                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrVal)) return false;
+                const value::Value& arrVal = iter->getFieldByIndex(slots->collSlot);
+                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrVal))
+                    return false;
                 auto arr = std::get<std::shared_ptr<value::NativeArray>>(arrVal);
                 if (!arr) return false;
-                *dest = (std::get<int64_t>(idxVal) < static_cast<int64_t>(arr->size()));
+                *dest = (idx < static_cast<int64_t>(arr->size()));
                 return true;
             }
-            if (className == "ListIterator")
-            {
-                const value::Value& idxVal = iter->getFieldValue("currentIndex");
-                const value::Value& sizeVal = iter->getFieldValue("listSize");
-                if (!std::holds_alternative<int64_t>(idxVal)) return false;
-                if (!std::holds_alternative<int64_t>(sizeVal)) return false;
-                *dest = (std::get<int64_t>(idxVal) < std::get<int64_t>(sizeVal));
-                return true;
-            }
-            return false;
+            // LIST_ITERATOR
+            const value::Value& sizeVal = iter->getFieldByIndex(slots->sizeSlot);
+            if (!std::holds_alternative<int64_t>(sizeVal)) return false;
+            *dest = (idx < std::get<int64_t>(sizeVal));
+            return true;
         }
 
         bool tryFastNext(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& iter,
                           value::Value* dest)
         {
-            const std::string& className = iter->getClassDefinition()->getName();
-            if (className == "ArrayIteratorHelper")
+            auto* classDef = iter->getClassDefinition().get();
+            const IteratorFastSlots* slots = resolveSlots(classDef);
+            if (!slots) return false;
+
+            if (!iter->hasFieldVector())
+                iter->ensureFieldVector();
+
+            const value::Value& idxVal = iter->getFieldByIndex(slots->idxSlot);
+            if (!std::holds_alternative<int64_t>(idxVal)) return false;
+            int64_t idx = std::get<int64_t>(idxVal);
+
+            if (slots->shape == IteratorShape::ARRAY_ITERATOR)
             {
-                const value::Value& idxVal = iter->getFieldValue("index");
-                const value::Value& arrVal = iter->getFieldValue("array");
-                if (!std::holds_alternative<int64_t>(idxVal)) return false;
-                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrVal)) return false;
+                const value::Value& arrVal = iter->getFieldByIndex(slots->collSlot);
+                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrVal))
+                    return false;
                 auto arr = std::get<std::shared_ptr<value::NativeArray>>(arrVal);
                 if (!arr) return false;
-                int64_t idx = std::get<int64_t>(idxVal);
                 if (idx < 0 || static_cast<size_t>(idx) >= arr->size()) return false;
                 *dest = arr->getUnchecked(static_cast<size_t>(idx));
-                iter->setField("index", static_cast<int64_t>(idx + 1));
+                iter->setField(*slots->idxFieldName, static_cast<int64_t>(idx + 1));
                 return true;
             }
-            if (className == "ListIterator")
-            {
-                const value::Value& idxVal = iter->getFieldValue("currentIndex");
-                const value::Value& sizeVal = iter->getFieldValue("listSize");
-                const value::Value& dataVal = iter->getFieldValue("data");
-                if (!std::holds_alternative<int64_t>(idxVal)) return false;
-                if (!std::holds_alternative<int64_t>(sizeVal)) return false;
-                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(dataVal)) return false;
-                auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataVal);
-                if (!arr) return false;
-                int64_t idx = std::get<int64_t>(idxVal);
-                if (idx < 0 || idx >= std::get<int64_t>(sizeVal)) return false;
-                if (static_cast<size_t>(idx) >= arr->size()) return false;
-                *dest = arr->getUnchecked(static_cast<size_t>(idx));
-                iter->setField("currentIndex", static_cast<int64_t>(idx + 1));
-                return true;
-            }
-            return false;
+            // LIST_ITERATOR
+            const value::Value& sizeVal = iter->getFieldByIndex(slots->sizeSlot);
+            const value::Value& dataVal = iter->getFieldByIndex(slots->collSlot);
+            if (!std::holds_alternative<int64_t>(sizeVal)) return false;
+            if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(dataVal))
+                return false;
+            auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataVal);
+            if (!arr) return false;
+            if (idx < 0 || idx >= std::get<int64_t>(sizeVal)) return false;
+            if (static_cast<size_t>(idx) >= arr->size()) return false;
+            *dest = arr->getUnchecked(static_cast<size_t>(idx));
+            iter->setField(*slots->idxFieldName, static_cast<int64_t>(idx + 1));
+            return true;
         }
     }
 

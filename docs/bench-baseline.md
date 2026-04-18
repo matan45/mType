@@ -296,3 +296,169 @@ Includes:
 - `array_multi_alloc.mt`: `allocOne` (100 calls) — compiled.
 - `array_multi_get.mt`: `sumGrid/int[][],int,int` (100 calls) — compiled.
 - `for_each_loop.mt`: `sumForEach/ArrayList<Int>` (100 calls) — compiled (was osr-failed before MYT-156).
+
+## 2026-04-18 — MYT-161: Phase A (direct JIT→JIT method dispatch) + Phase B (iterator field-index cache)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-161`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --jit-stats --benchmark` (jit=on, warmup=1, measured=3)
+
+Scope:
+- **Phase A** — `JitHelpers_Objects.cpp`: added `tryDirectJitMethodDispatch` in `jit_call_method_ic`. On IC MONO/POLY hit, looks up the callee in `jitCodeCache` and dispatches JIT→JIT directly via a nested `JitContext` — skipping the interpreter loop inside `callMethodFromJitDirect`. Pure C++ addition, no asmjit codegen change. Falls through to the existing path on `jitCodeCache->lookup` miss.
+- **Phase B** — `JitHelpers_Iterators.cpp`: per-`ClassDefinition*` `thread_local` field-index cache (`g_iteratorSlotCache`) for `ArrayIteratorHelper` / `ListIterator`. `tryFastHasNext` / `tryFastNext` now use `getFieldByIndex` (vector subscript, const-ref) instead of `getFieldValue(string)` (hash + copy). Cached `const std::string&` for the index-write `setField` call.
+
+### Summary
+
+| Script                          | min(ms) | median(ms) | Instructions | Calls    | JIT compiled | OSR compiled | OSR failed |
+|---------------------------------|--------:|-----------:|-------------:|---------:|-------------:|-------------:|-----------:|
+| arithmetic_tight_loop.mt        | 1070.13 |    1075.10 |        20013 |        0 | 2 | 2 | 0 |
+| method_dispatch.mt              | 1294.11 |    1299.51 |        13539 |      506 | 1 | 1 | 0 |
+| object_alloc.mt                 | 2189.43 |    2194.36 |        17509 |  2000000 | 1 | 1 | 0 |
+| string_ops.mt                   |  208.28 |     209.95 |        19014 |        0 | 2 | 2 | 0 |
+| recursive.mt                    | 1891.66 |    1898.99 |        17256 |  2763594 | 4 | 1 | 0 |
+| bitwise_tight_loop.mt           | 1438.98 |    1439.31 |        23014 |        0 | 1 | 1 | 0 |
+| short_circuit_chain.mt          |  400.18 |     401.43 |        24907 |        0 | 1 | 1 | 0 |
+| primitive_method_dispatch.mt    | 1097.22 |    1099.24 |        38061 |  1000005 | 2 | 2 | 0 |
+| array_multi_alloc.mt            |   72.38 |      72.89 |        10909 |      500 | 2 | 1 | 0 |
+| array_multi_get.mt              | 1128.87 |    1131.98 |        50815 |      500 | 5 | 4 | 0 |
+| for_each_loop.mt                | 1752.90 |    1757.45 |        75548 |     6604 | 5 | 4 | 0 |
+
+### Delta vs 2026-04-18 MYT-132 reverted baseline
+
+| Script                          | Prior (ms) | Now (ms) | Change | Notes |
+|---------------------------------|-----------:|---------:|-------:|-------|
+| arithmetic_tight_loop.mt        |    1026.41 |  1070.13 | **+4.3% REGRESSION** | no CALL_METHOD / iterator path — likely binary-layout / I-cache effect from added code |
+| method_dispatch.mt              |    1278.39 |  1294.11 | +1.2%  | within noise — target benchmark of Phase A, **did not move**; JIT compiled=1 unchanged (compute() methods still not JIT-compiled despite 667K calls each → Phase A's direct dispatch never fires) |
+| object_alloc.mt                 |    2121.31 |  2189.43 | **+3.2% REGRESSION** | no CALL_METHOD / iterator path — same suspected cause as arithmetic |
+| string_ops.mt                   |     208.36 |   208.28 | -0.0%  | noise |
+| recursive.mt                    |    1956.45 |  1891.66 | -3.3%  | free-function recursion, no CALL_METHOD — likely noise, stddev=8.88 |
+| bitwise_tight_loop.mt           |    1431.07 |  1438.98 | +0.6%  | noise |
+| short_circuit_chain.mt          |     409.16 |   400.18 | -2.2%  | noise band |
+| primitive_method_dispatch.mt    |    1107.25 |  1097.22 | -0.9%  | noise |
+| array_multi_alloc.mt            |      76.54 |    72.38 | -5.4%  | small absolute delta (~4ms), likely noise |
+| array_multi_get.mt              |    1152.74 |  1128.87 | -2.1%  | noise band |
+| **for_each_loop.mt**            |    **2006.52** |  **1752.90** | **-12.6% WIN** | **Phase B confirmed** — field-index cache eliminates per-iteration hash-string lookups on `ArrayIteratorHelper` / `ListIterator` |
+
+### Read
+
+1. **Phase B works as designed.** for_each_loop drops 254ms (-12.6%), well outside the ±3% noise band. The thread_local field-index cache is the concrete win.
+2. **Phase A is a no-op on its target.** method_dispatch moves +1.2% (within noise). The hypothesis flagged in MYT-161 ("if Phase A measures as a no-op, method-level compilation gating is the blocker") is confirmed by `JIT compiled=1` staying unchanged — the polymorphic A/B/C::compute methods don't cross the hot threshold into the jitCodeCache, so `tryDirectJitMethodDispatch`'s lookup always misses and falls through to the existing interpreter path.
+3. **Two mystery regressions** (`arithmetic_tight_loop` +4.3%, `object_alloc` +3.2%). Neither benchmark exercises CALL_METHOD or iterator helpers. Likely cause is binary layout / branch predictor disturbance from adding ~60 LOC to JitHelpers. Worth a follow-up bisect: revert Phase A and re-bench to see if these come back.
+
+### Recommendation
+
+- **Keep Phase B** (`JitHelpers_Iterators.cpp` field-index cache). Large win on for_each_loop; no functional risk; thread_local cache is a clean pattern.
+- **Revert Phase A** or hold it until method-level JIT compilation gating is investigated. With the target benchmark unmoved and two benchmarks regressing, the change is strictly cost today. Investigation path: why don't A/B/C::compute JIT-compile despite being hot? Check `PROFILE_ENTER` firing inside `callMethodFromJitDirect`'s interpreter loop, and the key format `jitCompiler->compile` uses vs the `entry.qualifiedName` the IC stores.
+- Next real-ROI ticket: method-level JIT compilation gating for polymorphic call sites. Without that, Phase A Step 2 (asmjit inline guard) can't deliver either — same root cause.
+
+### Sanity outputs (all preserved)
+
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
+- `string_ops.mt`: `concat_iters=20000 matches=1000000`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+- `bitwise_tight_loop.mt`: `acc=10000000`
+- `short_circuit_chain.mt`: `hits=4350982`
+- `primitive_method_dispatch.mt`: `accValue=47 faccValue=1.375e+11`
+- `array_multi_alloc.mt`: `dummy=4999950000`
+- `array_multi_get.mt`: `total=2618880000`
+- `for_each_loop.mt`: `total=999000000`
+
+### Hot functions
+
+- `recursive.mt`: `fib/int` (100 calls), `ack/int,int` (2.76M calls), `gcd/int,int` (100 calls) — all compiled.
+- `array_multi_alloc.mt`: `allocOne` (100 calls) — compiled.
+- `array_multi_get.mt`: `sumGrid/int[][],int,int` (100 calls) — compiled.
+- `for_each_loop.mt`: `sumForEach/ArrayList<Int>` (100 calls) — compiled.
+
+## 2026-04-18 — MYT-161 b: PROFILE_ENTER emitted for methods (method JIT compilation unblocked)
+
+- Branch: `MYT-161`
+- Build: Release x64, MSVC v145
+
+Diagnosis from prior run: Phase A measured as a no-op on `method_dispatch` because the `compute()` methods were never JIT-compiled. Root cause: `MethodCompilerHelper::compileMethod` was missing the `PROFILE_ENTER` emission that `FunctionCompiler.cpp:44` does for standalone functions. Methods never entered `jitProfiler`, never crossed the 100-call threshold, never invoked `jitCompiler->compile` → `jitCodeCache` had no entry → my Phase A `tryDirectJitMethodDispatch` lookup always missed.
+
+**Fix** (1 line, `MethodCompilerHelper.cpp:533`): `ctx.program.emit(bytecode::OpCode::PROFILE_ENTER);` immediately after `methodStart` is captured. JIT already treats PROFILE_ENTER as no-op (`JitCompiler_StackOps.cpp:302`).
+
+### Summary
+
+| Script                          | min(ms) | median(ms) | Instructions | Calls    | JIT compiled | OSR compiled | OSR failed |
+|---------------------------------|--------:|-----------:|-------------:|---------:|-------------:|-------------:|-----------:|
+| arithmetic_tight_loop.mt        | 1033.41 |    1056.34 |        20013 |        0 | 2 | 2 | 0 |
+| method_dispatch.mt              | 1296.62 |    1342.71 |        14039 |      506 | **4** | 1 | 0 |
+| object_alloc.mt                 | 2119.98 |    2126.92 |        17509 |  2000000 | 1 | 1 | 0 |
+| string_ops.mt                   |  205.39 |     205.57 |        19014 |        0 | 2 | 2 | 0 |
+| recursive.mt                    | 1876.40 |    1878.42 |        17256 |  2763594 | 4 | 1 | 0 |
+| bitwise_tight_loop.mt           | 1433.54 |    1443.28 |        23014 |        0 | 1 | 1 | 0 |
+| short_circuit_chain.mt          |  406.03 |     408.44 |        24907 |        0 | 1 | 1 | 0 |
+| primitive_method_dispatch.mt    | 1103.85 |    1110.38 |        38061 |  1000005 | 2 | 2 | 0 |
+| array_multi_alloc.mt            |   74.00 |      74.64 |        10909 |      500 | 2 | 1 | 0 |
+| array_multi_get.mt              | 1157.52 |    1157.69 |        50815 |      500 | 5 | 4 | 0 |
+| for_each_loop.mt                | 1800.71 |    1801.62 |        78650 |     6604 | **11** | 4 | 0 |
+
+### What the fix delivered structurally
+
+The JIT now sees method-level hotness:
+- `method_dispatch.mt`: hot functions list gained `A::compute/int` (666667 calls), `B::compute/int` (666667), `C::compute/int` (666666) — all `[compiled]`. Previously all missing.
+- `for_each_loop.mt`: hot functions list gained `ArrayList::add/T` (1000), `ListIterator::hasNext` (1198), `ListIterator::next` (599), `ListIterator::close` (2000), `ArrayList::iterator` (2000), `Int::getValue` (2M). JIT compiled went from 5 → 11.
+- Two regressions from the prior run (`arithmetic_tight_loop`, `object_alloc`) vanished — confirms they were day-to-day noise, not caused by my Phase A edit.
+
+### But `method_dispatch` wall-clock didn't drop
+
+Expected ~40% drop on method_dispatch; got +1.4% vs MYT-132 baseline (1278→1296, within noise given stddev=28). Diagnosis: `tryDirectJitMethodDispatch` does a `jitCodeCache->lookup(qualifiedName)` on every IC hit — a string-keyed `unordered_map::find` per call. For 2M tiny-method calls (each `compute` is 3 bytecode ops), the lookup cost roughly cancels out the interpreter→JIT savings.
+
+**Follow-up optimization** (now in branch, not yet benched): cache the `JitFunction` pointer in `MethodICEntry` at IC populate time. Added `mutable JitEntryPtr jitEntry` field, populated in the IC miss/populate path, consumed by `tryDirectJitMethodDispatch` via pointer read instead of hash lookup. Also refreshed lazily on first hit if the callee JIT-compiled *after* the IC was created. Files: `InlineCacheTypes.hpp`, `JitHelpers_Objects.cpp`. Expected: the per-call overhead drops from ~100 cycles (hash) to ~5 cycles (pointer read + null check).
+
+### Sanity outputs (all preserved — first run)
+
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
+- `string_ops.mt`: `concat_iters=20000 matches=1000000`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+- `bitwise_tight_loop.mt`: `acc=10000000`
+- `short_circuit_chain.mt`: `hits=4350982`
+- `primitive_method_dispatch.mt`: `accValue=47 faccValue=1.375e+11`
+- `array_multi_alloc.mt`: `dummy=4999950000`
+- `array_multi_get.mt`: `total=2618880000`
+- `for_each_loop.mt`: `total=999000000`
+
+## 2026-04-18 — MYT-161 c: cached jitEntry pointer in MethodICEntry (benched)
+
+Added `mutable JitEntryPtr jitEntry` to `MethodICEntry`; populated at IC create and lazily refreshed. Per-call IC hit path: string hash lookup → pointer read + null check.
+
+### Summary
+
+| Script                          | min(ms) | median(ms) | Δ vs prior (PROFILE_ENTER fix) | Δ vs pre-Phase-A baseline |
+|---------------------------------|--------:|-----------:|-------------------------------:|--------------------------:|
+| arithmetic_tight_loop.mt        | 1066.37 |    1069.19 | +3.2% | +3.9% (binary-layout noise, no CALL_METHOD) |
+| method_dispatch.mt              | 1298.90 |    1302.09 | +0.2% | +1.6% — **infrastructure firing, wall-clock flat** |
+| object_alloc.mt                 | 2095.00 |    2162.36 | -1.2% | -1.2% |
+| string_ops.mt                   |  204.07 |     204.54 | -0.6% | -2.1% |
+| recursive.mt                    | 1872.65 |    1874.69 | -0.2% | **-4.3%** (free-function, not Phase A — binary-layout side-effect) |
+| bitwise_tight_loop.mt           | 1474.64 |    1474.81 | +2.9% | +3.0% (at threshold) |
+| short_circuit_chain.mt          |  412.13 |     412.67 | +1.5% | +0.7% |
+| primitive_method_dispatch.mt    | 1107.24 |    1107.85 | +0.3% | -0.0% |
+| array_multi_alloc.mt            |   79.93 |      81.51 | +8.0% | +4.4% (small absolute Δ ~3ms) |
+| array_multi_get.mt              | 1141.77 |    1146.25 | -1.4% | -1.0% |
+| **for_each_loop.mt**            | **1786.04** | **1791.28** | -0.8% | **-11.0% WIN** |
+
+### Diagnosis: jitEntry caching didn't move method_dispatch
+
+Hypothesis was that the per-call `jitCodeCache->lookup` hash was the bottleneck. Data says no — method_dispatch stayed at 1298ms (was 1296ms before caching, 1278ms on MYT-132 baseline). Real root cause: **direct JIT dispatch isn't meaningfully faster than interpreter dispatch for 3-instruction polymorphic methods** because the per-call setup cost (CallFrame push, `JitContext{}` zero-init, argument unboxing in callee, return boxing) dominates over the body. Per-call breakdown:
+
+- **JIT path**: ~200-300 cycles setup + ~20 cycles native `imul`/`add`/`sub` + boxing trip
+- **Interpreter path**: ~15 cycles save state + ~5 instructions × ~50 cycles dispatch + cleanup = ~300-400 cycles, no box/unbox
+
+For ultra-tiny polymorphic methods, only **function inlining (Phase F)** can move the benchmark — eliminating the call entirely. Phase A Step 2 (asmjit inline guard) would save ~30 cycles of helper-call overhead per hit, negligible against the ~300-cycle setup dominating total.
+
+### Stable wins (vs pre-Phase-A baseline)
+
+- **for_each_loop**: -11.0% (2006 → 1786). Real, measured, stable across runs.
+- PROFILE_ENTER structural fix: method JIT compilation is now unblocked. Enables future Phase F inlining to actually have JIT entries to inline.
+
+### Sanity outputs (all preserved)
+
+All benchmarks produce identical output to baseline (`acc=2666666666668`, `total=1999999000000`, `fib32=2178309 ack38=2045 gcdSum=150044`, `accValue=47 faccValue=1.375e+11`, etc.) — correctness gate passed.

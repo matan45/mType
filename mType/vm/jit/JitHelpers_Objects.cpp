@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include "JitCodeCache.hpp"
 #include "ic/InlineCacheTable.hpp"
 #include "../../errors/AccessViolationException.hpp"
 #include "../../errors/RuntimeException.hpp"
@@ -76,6 +77,87 @@ namespace vm::jit
         }
     }
 
+    // MYT-132: direct JIT→JIT dispatch for method calls on IC hit.
+    // If the callee has a JIT entry in jitCodeCache, invoke it directly —
+    // skipping the interpreter loop in callMethodFromJitDirect. The emitter
+    // (emitCallMethodOp) has already marshalled receiver into ctx->callArgs[0]
+    // and args into ctx->callArgs[1..argCount], which matches the layout the
+    // callee's emitArgumentUnboxing expects (args[0]=this, args[i]=arg_i).
+    //
+    // entry->jitEntry is the cached JIT entry pointer (populated on IC
+    // create and refreshed lazily here). Avoids a per-call jitCodeCache
+    // hash-string lookup on the 2M-calls-per-loop hot path.
+    static bool tryDirectJitMethodDispatch(
+        JitContext* ctx,
+        const ic::MethodICEntry* entry,
+        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance,
+        size_t methodArgCount)
+    {
+        if (!ctx->vm)
+            return false;
+
+        // Fast path: cached JIT entry from IC populate / previous refresh.
+        auto jitFn = reinterpret_cast<JitFunction>(entry->jitEntry);
+        if (!jitFn)
+        {
+            // Slow path: callee may have just become hot and JIT-compiled
+            // after this IC was first populated. Retry the lookup once and
+            // cache the result for subsequent calls.
+            if (!ctx->jitCodeCache)
+                return false;
+            jitFn = ctx->jitCodeCache->lookup(entry->qualifiedName);
+            if (!jitFn)
+                return false;
+            entry->jitEntry = reinterpret_cast<ic::JitEntryPtr>(jitFn);
+        }
+
+        if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
+            return false;
+
+        const std::string& qualifiedName = entry->qualifiedName;
+
+        vm::runtime::CallFrame frame;
+        frame.returnAddress = 0;
+        frame.frameBase = 0;
+        frame.localBase = 0;
+        frame.functionName = qualifiedName;
+        frame.thisInstance = instance;
+        size_t sepPos = qualifiedName.find("::");
+        if (sepPos != std::string::npos)
+            frame.definingClassName = qualifiedName.substr(0, sepPos);
+
+        ctx->vm->pushCallFrame(frame);
+        ctx->vm->incrementJitNativeDepth();
+
+        JitContext nestedCtx{};
+        nestedCtx.args = ctx->callArgs;
+        nestedCtx.argCount = methodArgCount + 1;  // +1 for `this` receiver
+        nestedCtx.hasReturnValue = false;
+        nestedCtx.program = ctx->program;
+        nestedCtx.stackManager = ctx->stackManager;
+        nestedCtx.environment = ctx->environment;
+        nestedCtx.vm = ctx->vm;
+        nestedCtx.jitCodeCache = ctx->jitCodeCache;
+        nestedCtx.icTable = ctx->icTable;
+        nestedCtx.callingClassName = frame.definingClassName;
+
+        jitFn(&nestedCtx);
+
+        ctx->vm->decrementJitNativeDepth();
+        ctx->vm->popCallStack();
+
+        if (nestedCtx.pendingException)
+        {
+            ctx->pendingException = nestedCtx.pendingException;
+            return true;
+        }
+
+        ctx->returnValue = nestedCtx.hasReturnValue
+            ? nestedCtx.returnValue : value::Value{std::monostate{}};
+        ctx->hasReturnValue = true;
+        return true;
+    }
+
     void jit_call_method_ic(JitContext* ctx,
                              size_t bytecodeOffset,
                              uint32_t methodNameIndex,
@@ -115,6 +197,12 @@ namespace vm::jit
                 const ic::MethodICEntry* entry = cache.lookup(classDef);
                 if (entry && entry->funcMetadata)
                 {
+                    // Try direct JIT→JIT dispatch first. Skips the interpreter
+                    // loop in callMethodFromJitDirect when the callee is
+                    // JIT-compiled. Falls through on lookup miss / depth limit.
+                    if (tryDirectJitMethodDispatch(ctx, entry, instance, argCount))
+                        return;
+
                     auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
                     std::vector<value::Value> args;
                     args.reserve(argCount);
@@ -151,6 +239,16 @@ namespace vm::jit
                         entry.funcMetadata = funcMeta;
                         entry.startOffset = funcMeta->startOffset;
                         entry.qualifiedName = lookupResult.qualifiedName;
+                        // MYT-161: pre-populate cached JIT entry pointer if
+                        // the callee is already JIT-compiled. tryDirectJitMethodDispatch
+                        // will lazily refresh this slot if the callee becomes
+                        // hot *after* this IC entry is created.
+                        if (ctx->jitCodeCache)
+                        {
+                            auto jitFn = ctx->jitCodeCache->lookup(lookupResult.qualifiedName);
+                            if (jitFn)
+                                entry.jitEntry = reinterpret_cast<ic::JitEntryPtr>(jitFn);
+                        }
                         cache.addEntry(entry);
                     }
                 }
