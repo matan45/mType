@@ -301,10 +301,14 @@ namespace vm::jit
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
-        // PEEK: receiver stays on stack. Fresh copy into callArgs[0] per call
-        // so the shared_ptr refcount management is local to this invocation.
+        // MYT-156: POP receiver (mirrors handleIteratorHasNext executor change
+        // and matches emitGetIteratorOp). Result slot reuses the receiver's
+        // position so net stackDepth change is 0.
         int receiverIdx = s.stackDepth - 1;
         emitCopyReceiverToCallArgs(s, receiverIdx);
+        emitValueDestroy(s, receiverIdx);
+        popType(s);
+        s.stackDepth--;
 
         Gp dest = cc.new_gp64();
         cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
@@ -342,9 +346,12 @@ namespace vm::jit
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
-        // PEEK: receiver stays on stack.
+        // MYT-156: POP receiver (mirrors handleIteratorNext executor change).
         int receiverIdx = s.stackDepth - 1;
         emitCopyReceiverToCallArgs(s, receiverIdx);
+        emitValueDestroy(s, receiverIdx);
+        popType(s);
+        s.stackDepth--;
 
         Gp dest = cc.new_gp64();
         cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));

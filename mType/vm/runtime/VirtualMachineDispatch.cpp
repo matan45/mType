@@ -255,6 +255,16 @@ namespace vm::runtime
             break;
         case OpCode::INVOKE_INT_COMPARE: primitiveMethodExecutor->handleInvokeIntCompare();
             break;
+        case OpCode::INVOKE_INT_GET_VALUE: primitiveMethodExecutor->handleInvokeIntGetValue();
+            break;
+        case OpCode::INVOKE_INT_LESS_THAN: primitiveMethodExecutor->handleInvokeIntLessThan();
+            break;
+        case OpCode::INVOKE_INT_LESS_EQUAL: primitiveMethodExecutor->handleInvokeIntLessEqual();
+            break;
+        case OpCode::INVOKE_INT_GREATER_THAN: primitiveMethodExecutor->handleInvokeIntGreaterThan();
+            break;
+        case OpCode::INVOKE_INT_GREATER_EQUAL: primitiveMethodExecutor->handleInvokeIntGreaterEqual();
+            break;
 
         // Float object methods
         case OpCode::INVOKE_FLOAT_ADD: primitiveMethodExecutor->handleInvokeFloatAdd();
@@ -272,6 +282,18 @@ namespace vm::runtime
         case OpCode::INVOKE_FLOAT_EQUALS: primitiveMethodExecutor->handleInvokeFloatEquals();
             break;
         case OpCode::INVOKE_FLOAT_COMPARE: primitiveMethodExecutor->handleInvokeFloatCompare();
+            break;
+        case OpCode::INVOKE_FLOAT_GET_VALUE: primitiveMethodExecutor->handleInvokeFloatGetValue();
+            break;
+        case OpCode::INVOKE_BOOL_GET_VALUE: primitiveMethodExecutor->handleInvokeBoolGetValue();
+            break;
+        case OpCode::INVOKE_FLOAT_LESS_THAN: primitiveMethodExecutor->handleInvokeFloatLessThan();
+            break;
+        case OpCode::INVOKE_FLOAT_LESS_EQUAL: primitiveMethodExecutor->handleInvokeFloatLessEqual();
+            break;
+        case OpCode::INVOKE_FLOAT_GREATER_THAN: primitiveMethodExecutor->handleInvokeFloatGreaterThan();
+            break;
+        case OpCode::INVOKE_FLOAT_GREATER_EQUAL: primitiveMethodExecutor->handleInvokeFloatGreaterEqual();
             break;
 
         // Arrays - delegated to ArrayExecutor

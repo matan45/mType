@@ -507,7 +507,11 @@ namespace vm::jit
             return true;
         }
 
-        if (op == OpCode::INVOKE_INT_EQUALS)
+        if (op == OpCode::INVOKE_INT_EQUALS ||
+            op == OpCode::INVOKE_INT_LESS_THAN ||
+            op == OpCode::INVOKE_INT_LESS_EQUAL ||
+            op == OpCode::INVOKE_INT_GREATER_THAN ||
+            op == OpCode::INVOKE_INT_GREATER_EQUAL)
         {
             Gp left = cc.new_gp64();
             Gp right = cc.new_gp64();
@@ -516,7 +520,15 @@ namespace vm::jit
             Gp result = cc.new_gp64();
             cc.xor_(result, result);
             cc.cmp(left, right);
-            cc.sete(result.r8());
+            switch (op)
+            {
+                case OpCode::INVOKE_INT_EQUALS:        cc.sete(result.r8()); break;
+                case OpCode::INVOKE_INT_LESS_THAN:     cc.setl(result.r8()); break;
+                case OpCode::INVOKE_INT_LESS_EQUAL:    cc.setle(result.r8()); break;
+                case OpCode::INVOKE_INT_GREATER_THAN:  cc.setg(result.r8()); break;
+                case OpCode::INVOKE_INT_GREATER_EQUAL: cc.setge(result.r8()); break;
+                default: break;
+            }
             cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
             s.slotTypes.push_back(SlotType::BOOL);
             return true;
@@ -661,6 +673,36 @@ namespace vm::jit
             return true;
         }
 
+        if (op == OpCode::INVOKE_FLOAT_LESS_THAN ||
+            op == OpCode::INVOKE_FLOAT_LESS_EQUAL ||
+            op == OpCode::INVOKE_FLOAT_GREATER_THAN ||
+            op == OpCode::INVOKE_FLOAT_GREATER_EQUAL)
+        {
+            // ucomisd sets unordered (PF=1) on NaN; all comparisons return
+            // false on NaN to match interpreter (a < NaN, a > NaN both false).
+            Vec left = cc.new_xmm();
+            Vec right = cc.new_xmm();
+            cc.movsd(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+            cc.movsd(right, Mem(s.stackBase, s.stackDepth * 8));
+            // For LESS_*, swap operands and use seta/setae (which are NaN-safe).
+            // For GREATER_*, use seta/setae directly on (left, right).
+            bool swap = (op == OpCode::INVOKE_FLOAT_LESS_THAN ||
+                         op == OpCode::INVOKE_FLOAT_LESS_EQUAL);
+            if (swap) cc.ucomisd(right, left);
+            else      cc.ucomisd(left, right);
+            Gp result = cc.new_gp64();
+            cc.xor_(result, result);
+            // seta = ZF=0 && CF=0 (strict greater, false on NaN/equal)
+            // setae = CF=0 (greater-or-equal, false on NaN)
+            bool strict = (op == OpCode::INVOKE_FLOAT_LESS_THAN ||
+                           op == OpCode::INVOKE_FLOAT_GREATER_THAN);
+            if (strict) cc.seta(result.r8());
+            else        cc.setae(result.r8());
+            cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
+            s.slotTypes.push_back(SlotType::BOOL);
+            return true;
+        }
+
         return false;
     }
 
@@ -696,6 +738,34 @@ namespace vm::jit
         return true;
     }
 
+    // MYT-155: inline accessors for boxed primitives. Pop boxed receiver,
+    // ensure-unboxed at the receiver slot (calls jit_unbox_int / jit_unbox_float
+    // which extract field 0 from ObjectInstance/ValueObject), push primitive
+    // slot type. Net stackDepth change is 0 (in-place unbox).
+    static bool emitInvokeIntGetValue(JitEmissionState& s)
+    {
+        SlotType rType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth - 1, rType, SlotType::INT);
+        s.slotTypes.push_back(SlotType::INT);
+        return true;
+    }
+
+    static bool emitInvokeFloatGetValue(JitEmissionState& s)
+    {
+        SlotType rType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth - 1, rType, SlotType::FLOAT);
+        s.slotTypes.push_back(SlotType::FLOAT);
+        return true;
+    }
+
+    static bool emitInvokeBoolGetValue(JitEmissionState& s)
+    {
+        SlotType rType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth - 1, rType, SlotType::BOOL);
+        s.slotTypes.push_back(SlotType::BOOL);
+        return true;
+    }
+
     static bool emitInvokePrimitiveOps(JitEmissionState& s,
                                         const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -705,18 +775,31 @@ namespace vm::jit
             case OpCode::INVOKE_INT_MUL: case OpCode::INVOKE_INT_DIV:
             case OpCode::INVOKE_INT_MOD:
             case OpCode::INVOKE_INT_EQUALS: case OpCode::INVOKE_INT_COMPARE:
+            case OpCode::INVOKE_INT_LESS_THAN: case OpCode::INVOKE_INT_LESS_EQUAL:
+            case OpCode::INVOKE_INT_GREATER_THAN: case OpCode::INVOKE_INT_GREATER_EQUAL:
                 return emitInvokeIntBinary(s, instr.opcode);
 
             case OpCode::INVOKE_INT_NEG: case OpCode::INVOKE_INT_ABS:
                 return emitInvokeIntUnary(s, instr.opcode);
 
+            case OpCode::INVOKE_INT_GET_VALUE:
+                return emitInvokeIntGetValue(s);
+
             case OpCode::INVOKE_FLOAT_ADD: case OpCode::INVOKE_FLOAT_SUB:
             case OpCode::INVOKE_FLOAT_MUL: case OpCode::INVOKE_FLOAT_DIV:
             case OpCode::INVOKE_FLOAT_EQUALS: case OpCode::INVOKE_FLOAT_COMPARE:
+            case OpCode::INVOKE_FLOAT_LESS_THAN: case OpCode::INVOKE_FLOAT_LESS_EQUAL:
+            case OpCode::INVOKE_FLOAT_GREATER_THAN: case OpCode::INVOKE_FLOAT_GREATER_EQUAL:
                 return emitInvokeFloatBinary(s, instr.opcode);
 
             case OpCode::INVOKE_FLOAT_NEG: case OpCode::INVOKE_FLOAT_ABS:
                 return emitInvokeFloatUnary(s, instr.opcode);
+
+            case OpCode::INVOKE_FLOAT_GET_VALUE:
+                return emitInvokeFloatGetValue(s);
+
+            case OpCode::INVOKE_BOOL_GET_VALUE:
+                return emitInvokeBoolGetValue(s);
 
             default: return false;
         }
@@ -753,10 +836,17 @@ namespace vm::jit
             case OpCode::INVOKE_INT_MOD:
             case OpCode::INVOKE_INT_NEG: case OpCode::INVOKE_INT_ABS:
             case OpCode::INVOKE_INT_EQUALS: case OpCode::INVOKE_INT_COMPARE:
+            case OpCode::INVOKE_INT_GET_VALUE:
+            case OpCode::INVOKE_INT_LESS_THAN: case OpCode::INVOKE_INT_LESS_EQUAL:
+            case OpCode::INVOKE_INT_GREATER_THAN: case OpCode::INVOKE_INT_GREATER_EQUAL:
             case OpCode::INVOKE_FLOAT_ADD: case OpCode::INVOKE_FLOAT_SUB:
             case OpCode::INVOKE_FLOAT_MUL: case OpCode::INVOKE_FLOAT_DIV:
             case OpCode::INVOKE_FLOAT_NEG: case OpCode::INVOKE_FLOAT_ABS:
             case OpCode::INVOKE_FLOAT_EQUALS: case OpCode::INVOKE_FLOAT_COMPARE:
+            case OpCode::INVOKE_FLOAT_GET_VALUE:
+            case OpCode::INVOKE_BOOL_GET_VALUE:
+            case OpCode::INVOKE_FLOAT_LESS_THAN: case OpCode::INVOKE_FLOAT_LESS_EQUAL:
+            case OpCode::INVOKE_FLOAT_GREATER_THAN: case OpCode::INVOKE_FLOAT_GREATER_EQUAL:
                 return emitInvokePrimitiveOps(s, instr);
 
             default:

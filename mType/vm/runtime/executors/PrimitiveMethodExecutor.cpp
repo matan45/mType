@@ -258,6 +258,111 @@ void PrimitiveMethodExecutor::handleInvokeIntCompare() {
     context.stackManager->push(result);
 }
 
+void PrimitiveMethodExecutor::handleInvokeIntGetValue() {
+    value::Value receiverValue = context.stackManager->pop();
+    int64_t receiver = unboxIntFromValue(receiverValue);
+    context.stackManager->push(receiver);
+}
+
+void PrimitiveMethodExecutor::handleInvokeFloatGetValue() {
+    value::Value receiverValue = context.stackManager->pop();
+    double receiver = unboxFloatFromValue(receiverValue);
+    context.stackManager->push(receiver);
+}
+
+void PrimitiveMethodExecutor::handleInvokeIntLessThan() {
+    value::Value argValue = context.stackManager->pop();
+    int64_t arg = unboxIntFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    int64_t receiver = unboxIntFromValue(receiverValue);
+    context.stackManager->push(receiver < arg);
+}
+
+void PrimitiveMethodExecutor::handleInvokeIntLessEqual() {
+    value::Value argValue = context.stackManager->pop();
+    int64_t arg = unboxIntFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    int64_t receiver = unboxIntFromValue(receiverValue);
+    context.stackManager->push(receiver <= arg);
+}
+
+void PrimitiveMethodExecutor::handleInvokeIntGreaterThan() {
+    value::Value argValue = context.stackManager->pop();
+    int64_t arg = unboxIntFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    int64_t receiver = unboxIntFromValue(receiverValue);
+    context.stackManager->push(receiver > arg);
+}
+
+void PrimitiveMethodExecutor::handleInvokeIntGreaterEqual() {
+    value::Value argValue = context.stackManager->pop();
+    int64_t arg = unboxIntFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    int64_t receiver = unboxIntFromValue(receiverValue);
+    context.stackManager->push(receiver >= arg);
+}
+
+void PrimitiveMethodExecutor::handleInvokeFloatLessThan() {
+    value::Value argValue = context.stackManager->pop();
+    double arg = unboxFloatFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    double receiver = unboxFloatFromValue(receiverValue);
+    context.stackManager->push(receiver < arg);
+}
+
+void PrimitiveMethodExecutor::handleInvokeFloatLessEqual() {
+    value::Value argValue = context.stackManager->pop();
+    double arg = unboxFloatFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    double receiver = unboxFloatFromValue(receiverValue);
+    context.stackManager->push(receiver <= arg);
+}
+
+void PrimitiveMethodExecutor::handleInvokeFloatGreaterThan() {
+    value::Value argValue = context.stackManager->pop();
+    double arg = unboxFloatFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    double receiver = unboxFloatFromValue(receiverValue);
+    context.stackManager->push(receiver > arg);
+}
+
+void PrimitiveMethodExecutor::handleInvokeFloatGreaterEqual() {
+    value::Value argValue = context.stackManager->pop();
+    double arg = unboxFloatFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    double receiver = unboxFloatFromValue(receiverValue);
+    context.stackManager->push(receiver >= arg);
+}
+
+void PrimitiveMethodExecutor::handleInvokeBoolGetValue() {
+    value::Value receiverValue = context.stackManager->pop();
+    // Bool's value field holds either a raw bool variant (lazy re-boxing)
+    // or a ValueObject/ObjectInstance whose field 0 holds the bool.
+    if (std::holds_alternative<bool>(receiverValue)) {
+        context.stackManager->push(std::get<bool>(receiverValue));
+        return;
+    }
+    if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(receiverValue)) {
+        const auto& obj = std::get<std::shared_ptr<value::ValueObject>>(receiverValue);
+        if (!obj) throw errors::RuntimeException("Cannot unbox null Bool value object");
+        const value::Value& fieldValue = obj->getFieldByIndex(0);
+        if (!std::holds_alternative<bool>(fieldValue))
+            throw errors::RuntimeException("Bool value object 'value' field is not a bool");
+        context.stackManager->push(std::get<bool>(fieldValue));
+        return;
+    }
+    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue)) {
+        const auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
+        if (!obj) throw errors::RuntimeException("Cannot unbox null Bool object");
+        const value::Value& fieldValue = obj->getFieldByIndex(0);
+        if (!std::holds_alternative<bool>(fieldValue))
+            throw errors::RuntimeException("Bool object 'value' field is not a bool");
+        context.stackManager->push(std::get<bool>(fieldValue));
+        return;
+    }
+    throw errors::RuntimeException("Cannot unbox Bool: unexpected value type");
+}
+
 // === Float Object Method Handlers ===
 
 void PrimitiveMethodExecutor::handleInvokeFloatAdd() {

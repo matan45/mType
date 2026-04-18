@@ -52,6 +52,79 @@ namespace vm::jit
                 return std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v);
             return nullptr;
         }
+
+        // MYT-155: monomorphic-shape fast paths for the two iterator classes that
+        // ship with the standard library. ArrayIteratorHelper backs raw-array
+        // for-each (handleGetIterator constructs it), ListIterator backs ArrayList.
+        // Both are pure index-bump + bounds-check, so we can answer hasNext() /
+        // next() without re-entering the VM. Returns true if the fast path
+        // applied (and wrote *dest); false otherwise — caller falls back to the
+        // generic vm->callMethodFromJit path.
+
+        bool tryFastHasNext(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& iter,
+                             value::Value* dest)
+        {
+            const std::string& className = iter->getClassDefinition()->getName();
+            if (className == "ArrayIteratorHelper")
+            {
+                const value::Value& idxVal = iter->getFieldValue("index");
+                const value::Value& arrVal = iter->getFieldValue("array");
+                if (!std::holds_alternative<int64_t>(idxVal)) return false;
+                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrVal)) return false;
+                auto arr = std::get<std::shared_ptr<value::NativeArray>>(arrVal);
+                if (!arr) return false;
+                *dest = (std::get<int64_t>(idxVal) < static_cast<int64_t>(arr->size()));
+                return true;
+            }
+            if (className == "ListIterator")
+            {
+                const value::Value& idxVal = iter->getFieldValue("currentIndex");
+                const value::Value& sizeVal = iter->getFieldValue("listSize");
+                if (!std::holds_alternative<int64_t>(idxVal)) return false;
+                if (!std::holds_alternative<int64_t>(sizeVal)) return false;
+                *dest = (std::get<int64_t>(idxVal) < std::get<int64_t>(sizeVal));
+                return true;
+            }
+            return false;
+        }
+
+        bool tryFastNext(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& iter,
+                          value::Value* dest)
+        {
+            const std::string& className = iter->getClassDefinition()->getName();
+            if (className == "ArrayIteratorHelper")
+            {
+                const value::Value& idxVal = iter->getFieldValue("index");
+                const value::Value& arrVal = iter->getFieldValue("array");
+                if (!std::holds_alternative<int64_t>(idxVal)) return false;
+                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrVal)) return false;
+                auto arr = std::get<std::shared_ptr<value::NativeArray>>(arrVal);
+                if (!arr) return false;
+                int64_t idx = std::get<int64_t>(idxVal);
+                if (idx < 0 || static_cast<size_t>(idx) >= arr->size()) return false;
+                *dest = arr->getUnchecked(static_cast<size_t>(idx));
+                iter->setField("index", static_cast<int64_t>(idx + 1));
+                return true;
+            }
+            if (className == "ListIterator")
+            {
+                const value::Value& idxVal = iter->getFieldValue("currentIndex");
+                const value::Value& sizeVal = iter->getFieldValue("listSize");
+                const value::Value& dataVal = iter->getFieldValue("data");
+                if (!std::holds_alternative<int64_t>(idxVal)) return false;
+                if (!std::holds_alternative<int64_t>(sizeVal)) return false;
+                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(dataVal)) return false;
+                auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataVal);
+                if (!arr) return false;
+                int64_t idx = std::get<int64_t>(idxVal);
+                if (idx < 0 || idx >= std::get<int64_t>(sizeVal)) return false;
+                if (static_cast<size_t>(idx) >= arr->size()) return false;
+                *dest = arr->getUnchecked(static_cast<size_t>(idx));
+                iter->setField("currentIndex", static_cast<int64_t>(idx + 1));
+                return true;
+            }
+            return false;
+        }
     }
 
     // GET_ITERATOR: pop collection from callArgs[0], push iterator via *dest.
@@ -91,8 +164,8 @@ namespace vm::jit
         }
     }
 
-    // ITERATOR_HAS_NEXT: peek receiver in callArgs[0] (caller does NOT decrement
-    // stackDepth for the receiver), push bool via *dest.
+    // ITERATOR_HAS_NEXT: receiver is in callArgs[0] (emitter copies it from the
+    // operand-stack receiver slot then pops, MYT-156). Push bool via *dest.
     void jit_iterator_has_next(value::Value* dest, JitContext* ctx)
     {
         if (ctx->pendingException) return;
@@ -114,6 +187,10 @@ namespace vm::jit
             if (!ctx->vm)
                 throw errors::RuntimeException("JIT iterator: null VM");
 
+            // MYT-155: monomorphic-shape fast path skips VM re-entry when the
+            // receiver is one of the two stdlib iterator classes.
+            if (tryFastHasNext(iterator, dest)) return;
+
             *dest = ctx->vm->callMethodFromJit(iterator, "hasNext", {});
         }
         catch (...)
@@ -122,7 +199,8 @@ namespace vm::jit
         }
     }
 
-    // ITERATOR_NEXT: peek receiver in callArgs[0], push next element via *dest.
+    // ITERATOR_NEXT: receiver is in callArgs[0] (emitter copies and pops,
+    // MYT-156). Push next element via *dest.
     void jit_iterator_next(value::Value* dest, JitContext* ctx)
     {
         if (ctx->pendingException) return;
@@ -143,6 +221,9 @@ namespace vm::jit
                     "ITERATOR_NEXT requires an iterator instance");
             if (!ctx->vm)
                 throw errors::RuntimeException("JIT iterator: null VM");
+
+            // MYT-155: monomorphic-shape fast path skips VM re-entry.
+            if (tryFastNext(iterator, dest)) return;
 
             *dest = ctx->vm->callMethodFromJit(iterator, "next", {});
         }

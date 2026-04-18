@@ -237,3 +237,62 @@ Folding `--jit-stats` output into the `--benchmark` sweep output would be a smal
 ### Known JIT multi-dim gap (out of scope for MYT-146)
 
 `jit_array_get`, `jit_array_extract_info`, and by extension `emitArrayLengthLocal` / `emitArrayGetIntLocal` in the JIT only accept `NativeArray` receivers. A function compiled by function-level JIT that indexes (`m[i]`) or reads `.length` on a multi-dim array (`FlatMultiArray` / `SparseMultiArray`) will throw `RuntimeException` from asmjit-emitted code — no SEH registration on the JIT frame means the process aborts instead of surfacing the error. This blocks richer benchmarks (e.g., `m[0][0][0] = i; total += m[0][0][0];` inside a hot function). Follow-up ticket recommended before MYT-146 gets a "meaningful speedup" benchmark.
+
+## 2026-04-18 — MYT-152 / 154 / 155 / 156 (JIT bailout cleanup + IC + primitive inlining)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-152`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --jit-stats --benchmark` (jit=on, warmup=1, measured=3)
+
+Includes:
+- MYT-152: removed all 16 OSR deny-list entries; added `CALL_METHOD` inline cache; widened `jit_array_get/set/length` for FlatMultiArray + SparseMultiArray; added `jit_value_destroy` correctness; new benchmark `array_multi_get.mt`.
+- MYT-154 (closed): `emitReturnValueCopyBoxed` now mirrors return-value primitive payload to `stackBase` (was the missing-link that hung CALL_METHOD-in-OSR).
+- MYT-155: `INVOKE_INT_GET_VALUE / FLOAT_GET_VALUE / BOOL_GET_VALUE` and `INVOKE_*_LESS_THAN / LESS_EQUAL / GREATER_THAN / GREATER_EQUAL` opcodes added; `ListIterator` and `ArrayIteratorHelper` monomorphic fast paths in `jit_iterator_has_next/next`.
+- MYT-156: `ITERATOR_HAS_NEXT` / `ITERATOR_NEXT` switched from `peek` to `pop` (fixes 2-slots-per-iter operand-stack leak that blocked OSR for every for-each loop).
+
+### Summary
+
+| Script                          | min(ms) | median(ms) | Instructions | Calls    | JIT compiled | OSR compiled | OSR failed |
+|---------------------------------|--------:|-----------:|-------------:|---------:|-------------:|-------------:|-----------:|
+| arithmetic_tight_loop.mt        | 1045.53 |    1057.03 |        20013 |        0 | 2 | 2 | 0 |
+| method_dispatch.mt              | 1248.29 |    1257.09 |        13539 |      506 | 1 | 1 | 0 |
+| object_alloc.mt                 | 2092.29 |    2107.44 |        17509 |  2000000 | 1 | 1 | 0 |
+| string_ops.mt                   |  205.86 |     206.11 |        19014 |        0 | 2 | 2 | 0 |
+| recursive.mt                    | 1980.54 |    1981.67 |        17256 |  2763594 | 4 | 1 | 0 |
+| bitwise_tight_loop.mt           | 1480.49 |    1484.50 |        23014 |        0 | 1 | 1 | 0 |
+| short_circuit_chain.mt          |  410.97 |     411.65 |        24907 |        0 | 1 | 1 | 0 |
+| primitive_method_dispatch.mt    | 1077.16 |    1084.30 |        38061 |  1000005 | 2 | 2 | 0 |
+| array_multi_alloc.mt            |   74.30 |      74.83 |        10909 |      500 | 2 | 1 | 0 |
+| array_multi_get.mt              | 1132.86 |    1138.93 |        50815 |      500 | 5 | 4 | 0 |
+| for_each_loop.mt                | 1983.97 |    2001.34 |        75548 |     6604 | 5 | 4 | 0 |
+
+### Headline deltas vs prior baseline
+
+| Script              | Wall min Δ | Instructions Δ | Notes |
+|---------------------|-----------:|---------------:|-------|
+| `for_each_loop.mt`  | 6280→1984 (**-68%**) | 4,607,247→75,548 (**-98.4%**) | MYT-156 fixed osr-failed; MYT-155 inlined Int.getValue + ListIterator |
+| `array_multi_alloc` |  137→74 (-46%) | 1,800,818→10,909 (-99.4%) | MYT-152 NEW_ARRAY_MULTI now JITs in OSR |
+| `recursive.mt`      | 1812→1981 (+9%) | 1,303,765→17,256 (-98.7%) | wall-clock slightly up; instruction count crash from CALL_FAST OSR |
+| `string_ops.mt`     |  541→206 (-62%) | 20,320,032→19,014 (-99.9%) | OSR'd hot loop, no longer interpreted |
+
+### Sanity outputs (must match on re-run for same commit)
+
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
+- `string_ops.mt`: `concat_iters=20000 matches=1000000`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+- `bitwise_tight_loop.mt`: `acc=10000000`
+- `short_circuit_chain.mt`: `hits=4350982`
+- `primitive_method_dispatch.mt`: `accValue=47 faccValue=1.375e+11`
+- `array_multi_alloc.mt`: `dummy=4999950000`
+- `array_multi_get.mt`: `total=2618880000`
+- `for_each_loop.mt`: `total=999000000`
+
+### Hot functions (per-benchmark JIT detail)
+
+- `recursive.mt`: `fib/int` (100 calls), `ack/int,int` (2.76M calls), `gcd/int,int` (100 calls) — all compiled.
+- `array_multi_alloc.mt`: `allocOne` (100 calls) — compiled.
+- `array_multi_get.mt`: `sumGrid/int[][],int,int` (100 calls) — compiled.
+- `for_each_loop.mt`: `sumForEach/ArrayList<Int>` (100 calls) — compiled (was osr-failed before MYT-156).

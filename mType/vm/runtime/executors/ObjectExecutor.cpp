@@ -972,8 +972,11 @@ namespace vm::runtime
 
     void ObjectExecutor::handleIteratorHasNext(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        // Peek at the iterator on the stack (don't pop it, we need it for next())
-        value::Value iteratorValue = context.stackManager->peek();
+        // MYT-156: pop the iterator. The for-each compiler emits a fresh
+        // LOAD_LOCAL iter before each iterator op, so popping here keeps the
+        // operand stack balanced (peeking leaked one slot per iteration and
+        // blocked OSR with OPERAND_STACK_NOT_EMPTY).
+        value::Value iteratorValue = context.stackManager->pop();
 
         utils::checkNullReceiver(instr, iteratorValue, context, "call hasNext() on", "iterator");
 
@@ -995,8 +998,8 @@ namespace vm::runtime
 
     void ObjectExecutor::handleIteratorNext(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        // Peek at the iterator on the stack
-        value::Value iteratorValue = context.stackManager->peek();
+        // MYT-156: pop the iterator (see handleIteratorHasNext).
+        value::Value iteratorValue = context.stackManager->pop();
 
         utils::checkNullReceiver(instr, iteratorValue, context, "call next() on", "iterator");
 
