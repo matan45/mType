@@ -29,7 +29,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 10> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 11> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -39,6 +39,7 @@ namespace
         "short_circuit_chain.mt",
         "primitive_method_dispatch.mt",
         "array_multi_alloc.mt",
+        "array_multi_get.mt",
         "for_each_loop.mt",
     };
 
@@ -270,7 +271,6 @@ namespace
             std::cout << "      osr-fail offset 0x" << std::hex << f.jumpBackOffset
                       << std::dec << ": " << vm::jit::osrBailoutReasonName(f.reason);
             if (f.reason == vm::jit::OSRBailoutReason::UNSUPPORTED_OPCODE ||
-                f.reason == vm::jit::OSRBailoutReason::BAILOUT_OPCODE ||
                 f.reason == vm::jit::OSRBailoutReason::CODEGEN_FAILURE)
             {
                 std::cout << " (" << vm::bytecode::getOpCodeName(

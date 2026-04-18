@@ -184,6 +184,34 @@ namespace vm::runtime
                 "' has no bytecode.");
         }
 
+        return callMethodFromJitDirect(instance, qualifiedName, funcMetadata, args);
+    }
+
+    value::Value VirtualMachine::callMethodFromJitDirect(
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+        const std::string& qualifiedName,
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+        const std::vector<value::Value>& args)
+    {
+        std::cerr << "[VM] callMethodFromJitDirect enter qn=" << qualifiedName
+                  << " argc=" << args.size()
+                  << " jitNativeDepth=" << jitNativeDepth << std::endl;
+        if (!program || !instance || !funcMetadata)
+        {
+            throw errors::RuntimeException("JIT method direct: invalid state");
+        }
+
+        size_t argCount = args.size();
+
+        // Defining class is the prefix of the qualified name (matches interpretation
+        // path that walks the class hierarchy to find the introducing class).
+        std::string definingClassName = instance->getClassDefinition()->getName();
+        size_t colonPos = qualifiedName.find("::");
+        if (colonPos != std::string::npos)
+        {
+            definingClassName = qualifiedName.substr(0, colonPos);
+        }
+
         // Save current interpreter state (lightweight — no full callStack copy)
         size_t savedIP = instructionPointer;
         size_t savedCallStackDepth = callStack.size();
@@ -229,6 +257,7 @@ namespace vm::runtime
         // Use post-increment to match interpretLoop pattern (executors set IP = target - 1)
         // Use executionCtx->program so cross-library calls fetch from the correct bytecode
         auto& jitCurrentProgram2 = executionCtx->program;
+        size_t innerIters = 0;
         while (callStack.size() > savedCallStackDepth)
         {
             if (instructionPointer >= jitCurrentProgram2->getInstructionCount())
@@ -245,6 +274,7 @@ namespace vm::runtime
             catch (...)
             {
                 --jitNativeDepth;
+                std::cerr << "[VM] callMethodFromJitDirect EXC qn=" << qualifiedName << std::endl;
                 // Restore state on exception
                 while (callStack.size() > savedCallStackDepth)
                 {
@@ -259,9 +289,17 @@ namespace vm::runtime
             }
 
             instructionPointer++;
+            ++innerIters;
+            if (innerIters == 1 || (innerIters % 100000) == 0)
+            {
+                std::cerr << "[VM] direct loop iter=" << innerIters
+                          << " qn=" << qualifiedName << std::endl;
+            }
         }
 
         --jitNativeDepth;
+        std::cerr << "[VM] callMethodFromJitDirect exit qn=" << qualifiedName
+                  << " iters=" << innerIters << std::endl;
 
         // Get return value (if any)
         value::Value result = std::monostate{};
@@ -469,7 +507,7 @@ namespace vm::runtime
 
             // MYT-148: per-loop bailout reason breakdown. Answers "why didn't
             // this loop tier up?" without a debugger. Shows the offending
-            // opcode mnemonic for UNSUPPORTED_OPCODE / BAILOUT_OPCODE so the
+            // opcode mnemonic for UNSUPPORTED_OPCODE / CODEGEN_FAILURE so the
             // next step (remediation) is obvious.
             if (failed > 0)
             {
@@ -481,7 +519,6 @@ namespace vm::runtime
                               << std::dec << ": "
                               << jit::osrBailoutReasonName(profile.bailoutReason);
                     if (profile.bailoutReason == jit::OSRBailoutReason::UNSUPPORTED_OPCODE ||
-                        profile.bailoutReason == jit::OSRBailoutReason::BAILOUT_OPCODE ||
                         profile.bailoutReason == jit::OSRBailoutReason::CODEGEN_FAILURE)
                     {
                         std::cout << " (0x" << std::hex

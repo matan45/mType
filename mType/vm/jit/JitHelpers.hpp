@@ -70,6 +70,16 @@ namespace vm::jit
 
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount);
 
+    // CALL_METHOD with inline-cache fast path. Mirrors emitGetFieldOp/jit_get_field_ic
+    // pattern: emitter passes the bytecode IP, helper looks up MethodInlineCache by
+    // offset, on monomorphic/polymorphic shape match dispatches via pre-resolved
+    // funcMetadata (skipping name resolution). On miss falls back to jit_call_method
+    // and populates the cache from the resolved metadata.
+    void jit_call_method_ic(JitContext* ctx,
+                             size_t bytecodeOffset,
+                             uint32_t methodNameIndex,
+                             size_t argCount);
+
     // MYT-152: global/field variable access from JIT-compiled OSR loops.
     // Mirrors VariableExecutor::handleLoadVar / handleStoreVar including the
     // findVariable -> instance-field -> static-field fallback chain. Throws

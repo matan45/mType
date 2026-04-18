@@ -6,6 +6,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
+#include <iostream>
 
 namespace vm::jit
 {
@@ -26,6 +27,10 @@ namespace vm::jit
         outReason = OSRBailoutReason::NONE;
         outOffendingOpcode = 0;
 
+        std::cerr << "[OSR] compile attempt: loopStart=" << state.loopStartOffset
+                  << " loopEnd=" << state.loopEndOffset
+                  << " jumpBack=" << state.jumpBackOffset << std::endl;
+
         bool compiled = compiler.compileLoopOSR(
             state.loopStartOffset,
             state.loopEndOffset,
@@ -40,8 +45,11 @@ namespace vm::jit
 
         if (!compiled)
         {
+            std::cerr << "[OSR] compile FAILED: reason=" << static_cast<int>(outReason)
+                      << " opByte=" << static_cast<int>(outOffendingOpcode) << std::endl;
             return false;
         }
+        std::cerr << "[OSR] compile OK" << std::endl;
 
         auto fn = codeCache.lookup(osrKey);
         if (!fn)

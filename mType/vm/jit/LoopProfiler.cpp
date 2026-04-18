@@ -13,7 +13,6 @@ namespace vm::jit
             case OSRBailoutReason::OPERAND_STACK_NOT_EMPTY: return "OPERAND_STACK_NOT_EMPTY";
             case OSRBailoutReason::UNSUPPORTED_OPCODE:      return "UNSUPPORTED_OPCODE";
             case OSRBailoutReason::LOCAL_COUNT_EXCEEDED:    return "LOCAL_COUNT_EXCEEDED";
-            case OSRBailoutReason::BAILOUT_OPCODE:          return "BAILOUT_OPCODE";
             case OSRBailoutReason::CODEGEN_FAILURE:         return "CODEGEN_FAILURE";
         }
         return "UNKNOWN";

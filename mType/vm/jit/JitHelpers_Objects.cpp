@@ -13,6 +13,7 @@
 #include "../../value/ValueObject.hpp"
 #include <vector>
 #include <memory>
+#include <iostream>
 
 namespace vm::jit
 {
@@ -69,6 +70,99 @@ namespace vm::jit
             }
 
             throw errors::RuntimeException("JIT: cannot call method '" + methodName + "'");
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
+    }
+
+    void jit_call_method_ic(JitContext* ctx,
+                             size_t bytecodeOffset,
+                             uint32_t methodNameIndex,
+                             size_t argCount)
+    {
+        std::cerr << "[IC] call_method_ic enter offset=" << bytecodeOffset
+                  << " nameIdx=" << methodNameIndex << " argc=" << argCount << std::endl;
+        if (ctx->pendingException)
+            return;
+
+        // Without an IC table or VM, fall back to the resolution path.
+        if (!ctx->icTable || !ctx->vm)
+        {
+            jit_call_method(ctx, methodNameIndex, argCount);
+            return;
+        }
+
+        try
+        {
+            value::Value& receiverValue = ctx->callArgs[0];
+
+            // Non-ObjectInstance receivers (ValueObject, etc.) take the existing
+            // generic path which knows how to materialise ValueObject into a
+            // temporary ObjectInstance for dispatch.
+            if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue))
+            {
+                jit_call_method(ctx, methodNameIndex, argCount);
+                return;
+            }
+
+            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
+            auto* classDef = instance->getClassDefinition().get();
+
+            ic::MethodInlineCache& cache = ctx->icTable->getMethodIC(bytecodeOffset);
+
+            // Fast path: monomorphic / polymorphic shape match.
+            if (cache.state == ic::ICState::MONOMORPHIC || cache.state == ic::ICState::POLYMORPHIC)
+            {
+                const ic::MethodICEntry* entry = cache.lookup(classDef);
+                if (entry && entry->funcMetadata)
+                {
+                    std::cerr << "[IC] HIT class=" << classDef->getName()
+                              << " qn=" << entry->qualifiedName << std::endl;
+                    auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
+                    std::vector<value::Value> args;
+                    args.reserve(argCount);
+                    for (size_t i = 1; i <= argCount; ++i)
+                    {
+                        args.push_back(ctx->callArgs[i]);
+                    }
+                    ctx->returnValue = ctx->vm->callMethodFromJitDirect(
+                        instance, entry->qualifiedName, funcMeta, args);
+                    ctx->hasReturnValue = true;
+                    std::cerr << "[IC] HIT done" << std::endl;
+                    return;
+                }
+            }
+
+            // Miss / UNINITIALIZED / MEGAMORPHIC — defer to the generic helper.
+            std::cerr << "[IC] MISS class=" << classDef->getName()
+                      << " state=" << static_cast<int>(cache.state) << std::endl;
+            jit_call_method(ctx, methodNameIndex, argCount);
+            if (ctx->pendingException)
+                return;
+
+            // Populate cache for future iterations (skip MEGAMORPHIC: addEntry will
+            // no-op once the slot count is exceeded, but we save a hash hit + lookup).
+            if (cache.state != ic::ICState::MEGAMORPHIC)
+            {
+                const std::string& methodName =
+                    ctx->program->getConstantPool().getString(methodNameIndex);
+                auto lookupResult = classDef->findInstanceMethodCached(methodName, argCount);
+                if (lookupResult.method)
+                {
+                    auto* funcMeta = ctx->program->getFunction(lookupResult.qualifiedName);
+                    if (funcMeta)
+                    {
+                        ic::MethodICEntry entry;
+                        entry.shape = classDef;
+                        entry.funcMetadata = funcMeta;
+                        entry.startOffset = funcMeta->startOffset;
+                        entry.qualifiedName = lookupResult.qualifiedName;
+                        cache.addEntry(entry);
+                    }
+                }
+            }
         }
         catch (...)
         {

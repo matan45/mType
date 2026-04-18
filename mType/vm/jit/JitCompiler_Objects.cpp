@@ -210,16 +210,19 @@ namespace vm::jit
         popType(s);
         emitValueDestroy(s, s.stackDepth - static_cast<int>(argCount) - 1);
         s.stackDepth -= static_cast<int>(argCount) + 1;
+        Gp ipReg = cc.new_gp64();
+        cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
         Gp miReg = cc.new_gp64();
         cc.mov(miReg, static_cast<int64_t>(methodNameIndex));
         Gp acReg = cc.new_gp64();
         cc.mov(acReg, static_cast<int64_t>(argCount));
         InvokeNode* callInv;
-        cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_method),
-                  FuncSignature::build<void, JitContext*, uint32_t, size_t>());
+        cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_method_ic),
+                  FuncSignature::build<void, JitContext*, size_t, uint32_t, size_t>());
         callInv->set_arg(0, s.ctxPtr);
-        callInv->set_arg(1, miReg);
-        callInv->set_arg(2, acReg);
+        callInv->set_arg(1, ipReg);
+        callInv->set_arg(2, miReg);
+        callInv->set_arg(3, acReg);
         emitReturnValueCopyBoxed(s);
         return true;
     }

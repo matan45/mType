@@ -162,25 +162,19 @@ namespace vm::jit
         }
     }
 
-    static const std::unordered_set<uint8_t>& getOSRBailoutOpcodes()
+    // Bisection deny-list for MYT-152 follow-up: opcodes whose emitters are
+    // believed correct in non-OSR (function-entry) JIT but exhibit a hang or
+    // wrong result when the same emitter runs inside an OSR-compiled loop.
+    // Entries here should each have an open ticket. Empty when all suspects
+    // are cleared.
+    static const std::unordered_set<uint8_t>& getOSRTemporaryBailoutOpcodes()
     {
         static const std::unordered_set<uint8_t> opcodes = {
-            static_cast<uint8_t>(OpCode::SET_FIELD),
-            static_cast<uint8_t>(OpCode::NEW_ARRAY),
-            static_cast<uint8_t>(OpCode::NEW_ARRAY_MULTI),
-            static_cast<uint8_t>(OpCode::ARRAY_GET),
-            static_cast<uint8_t>(OpCode::ARRAY_SET),
-            static_cast<uint8_t>(OpCode::ARRAY_LENGTH),
-            static_cast<uint8_t>(OpCode::CALL_STATIC),
-            static_cast<uint8_t>(OpCode::CALL_METHOD),
-            static_cast<uint8_t>(OpCode::CALL_FAST),
-            static_cast<uint8_t>(OpCode::INSTANCEOF),
-            static_cast<uint8_t>(OpCode::CAST),
+            // Suspected pre-existing OSR-only bug: enabling this opcode in the
+            // OSR codegen loop causes errorLargeExceptionData_pass.mt to hang
+            // inside testMultipleLargeExceptions (inner loop in
+            // buildLargeArrayList). Bisection narrowed to this emitter.
             static_cast<uint8_t>(OpCode::NEW_OBJECT),
-            static_cast<uint8_t>(OpCode::GET_ITERATOR),
-            static_cast<uint8_t>(OpCode::ITERATOR_HAS_NEXT),
-            static_cast<uint8_t>(OpCode::ITERATOR_NEXT),
-            static_cast<uint8_t>(OpCode::ITERATOR_CLOSE),
         };
         return opcodes;
     }
@@ -190,7 +184,7 @@ namespace vm::jit
                                     size_t loopStartOffset, size_t loopEndOffset,
                                     const bytecode::BytecodeProgram& program)
     {
-        const auto& bailoutOpcodes = getOSRBailoutOpcodes();
+        const auto& tempBailout = getOSRTemporaryBailoutOpcodes();
 
         for (size_t ip = loopStartOffset; ip <= loopEndOffset && !s.compileFailed; ++ip)
         {
@@ -206,14 +200,11 @@ namespace vm::jit
             s.currentIP = ip;
 
             uint8_t opByte = static_cast<uint8_t>(instr.opcode);
-            if (bailoutOpcodes.count(opByte))
+
+            if (tempBailout.count(opByte))
             {
-                // MYT-148: record WHICH opcode forced the bailout so
-                // --jit-stats can surface it. This is what turns the
-                // ambiguous "OSR failed: N" signal into an actionable
-                // per-loop diagnosis.
                 s.compileFailed = true;
-                s.osrBailoutReason = OSRBailoutReason::BAILOUT_OPCODE;
+                s.osrBailoutReason = OSRBailoutReason::CODEGEN_FAILURE;
                 s.osrBailoutOpcode = opByte;
                 continue;
             }

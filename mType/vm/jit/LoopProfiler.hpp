@@ -38,7 +38,6 @@ namespace vm::jit
         OPERAND_STACK_NOT_EMPTY,     // captureState(): values left on operand stack at back-edge
         UNSUPPORTED_OPCODE,          // canCompileLoopOSR(): opcode not in getSupportedOpcodes
         LOCAL_COUNT_EXCEEDED,        // compileLoopOSR(): localCount > MAX_LOCAL_COUNT
-        BAILOUT_OPCODE,              // emitOSRCodegenLoop(): opcode in getOSRBailoutOpcodes
         CODEGEN_FAILURE              // Generic compileFailed during emission
     };
 
@@ -51,7 +50,7 @@ namespace vm::jit
         bool osrCompiled = false;
         bool osrFailed = false;
         OSRBailoutReason bailoutReason = OSRBailoutReason::NONE;
-        uint8_t offendingOpcode = 0;  // Populated for UNSUPPORTED_OPCODE / BAILOUT_OPCODE
+        uint8_t offendingOpcode = 0;  // Populated for UNSUPPORTED_OPCODE / CODEGEN_FAILURE
     };
 
     class LoopProfiler
