@@ -598,3 +598,73 @@ Result: 1686ms, ~130ms above `inline_monomorphic.mt` (1555ms) for the same itera
 - `for_each_loop.mt`: `total=999000000`
 - `inline_monomorphic.mt`: `acc=4000000000000`
 - `inline_branching.mt`: `acc=4000000000000` *(new)*
+
+## 2026-04-18 — MYT-167: Phase F-e (value-class inlining)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-162`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark --jit-stats` (jit=on, warmup=1, measured=3)
+
+Scope:
+- `jit_extract_classdef` (`JitHelpers_Objects.cpp:26-46`) now returns the `ClassDefinition*` from either `shared_ptr<ObjectInstance>` or `shared_ptr<ValueObject>` — shape-guard immediates compare identically for both receiver kinds since they share registry-owned `ClassDefinition`.
+- `jit_call_method_ic` (`JitHelpers_Objects.cpp:198-268`) no longer short-circuits ValueObject receivers straight to `jit_call_method`. Instead: classDef is extracted from either kind; IC is populated with `receiverIsValueObject` reflecting the observed receiver. ValueObject IC hits still route dispatch through `jit_call_method` (since `callMethodFromJitDirect` requires `shared_ptr<ObjectInstance>`), but the populated IC lets the speculative inliner consume the entry on the caller's next recompile.
+- `InlineAnalysis::checkEntryEligibility` no longer rejects ValueObject receivers categorically. `scanCalleeOpcodes` takes a new `isValueObjectReceiver` parameter and rejects `SET_FIELD` / `INLINE_SET_FIELD` for ValueObject callees (read-only restriction — the COW slot rewrite in `setFieldOnValueObject` cannot be naively lifted into inlined code). New decision: `VALUE_OBJECT_WRITES_FIELDS`. Legacy `VALUE_OBJECT_RECEIVER` kept dormant for log stability.
+- Integration tests: `inline_value_object_skip.mt` renamed to `inline_value_object_readonly.mt` (now asserts the inline path works end-to-end). New `inline_value_object_write_skip.mt` exercises the `VALUE_OBJECT_WRITES_FIELDS` rejection for a Counter with `bumpAndGet()`.
+- New benchmark `inline_value_object_hot.mt` — `Point::sum()` hot loop (2M iterations), mirror of `inline_monomorphic.mt` but with a value class receiver.
+
+### Summary
+
+| Script                          | min(ms) | median(ms) | Δ vs MYT-164 | Note |
+|---------------------------------|--------:|-----------:|-------------:|------|
+| arithmetic_tight_loop.mt        | 1039.58 |    1040.70 | -1.4% / -1.7% | noise |
+| method_dispatch.mt              | 1301.43 |    1302.11 | -0.2% / -1.3% | noise |
+| object_alloc.mt                 | 2104.70 |    2111.72 | +1.4% / +1.5% | noise |
+| string_ops.mt                   |  205.02 |     205.56 | -0.3% / -0.8% | noise |
+| recursive.mt                    | 1852.87 |    1861.50 | -2.1% / -2.9% | noise |
+| bitwise_tight_loop.mt           | 1396.54 |    1400.36 | -2.4% / -2.6% | noise |
+| short_circuit_chain.mt          |  395.56 |     397.40 | -1.8% / -2.2% | noise |
+| primitive_method_dispatch.mt    | 1101.89 |    1108.60 | +1.0% / +1.3% | noise |
+| array_multi_alloc.mt            |   79.25 |      79.54 | +0.4% / +0.1% | noise |
+| array_multi_get.mt              | 1140.33 |    1151.71 | +1.4% / +2.3% | noise |
+| for_each_loop.mt                |  600.36 |     601.55 | -66% / -66% | unrelated — iterator-loop regression was fixed elsewhere on branch |
+| inline_monomorphic.mt           | 1518.43 |    1524.82 | -2.4% / -2.5% | noise |
+| inline_branching.mt             | 1657.93 |    1665.07 | -1.7% / -1.3% | noise |
+| inline_polymorphic.mt           | 1265.58 |    1266.78 | n/a | F-c bench (first post-F-c run captured here) |
+| **inline_value_object_hot.mt**  | **1932.62** | **1939.55** | **n/a (new)** | F-e primary acceptance — value-class inlined |
+
+### inline_value_object_hot.mt — the F-e acceptance read
+
+Callee `Point::sum(): return this.x + this.y` is a value-class method with two field reads and an add. Pre-F-e every call went through `jit_call_method`'s temp-ObjectInstance materialization (copy fields into a temp `ObjectInstance` on the heap, dispatch via `VirtualMachine::callMethodFromJit`, discard); a 2M-iteration loop amounted to 2M temp allocations. Post-F-e the site populates a MONO IC with `receiverIsValueObject = true`, eligibility passes (no SET_FIELD), and the inliner emits a shape-guarded inline body — the call frame disappears.
+
+Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the same iteration count. The gap is not an inlining failure; it is intrinsic to ValueObject field access. `jit_get_field_ic` (`JitHelpers_Objects.cpp:556`) short-circuits ValueObject receivers into `getFieldFromValueObject`, which does a `classDef->getFieldIndex(fieldName)` hash lookup **every call** — ValueObject does not have a per-site field-offset IC the way ObjectInstance does. At two field reads × 2M iterations, ≈4M hash lookups contribute the ~200 ns/call observed gap. Output `acc=14000000` = 7 × 2M, correct.
+
+### What F-e delivers
+
+- **Correctness.** Two integration tests pass: `inline_value_object_readonly.mt` (was `_skip.mt`, now verifies the inline path produces the same `1400`) and the new `inline_value_object_write_skip.mt` (asserts `VALUE_OBJECT_WRITES_FIELDS` keeps `bumpAndGet` on the generic path, output `200` from the 200 × 1 discard-per-call loop).
+- **Value-class call sites inline.** Previously-ineligible ValueObject receivers now populate the IC and the inliner consumes them on recompile. Correct end-to-end output confirms the shape-guard, local-copy, inlined-body, and RETURN_VALUE paths all handle ValueObject receivers.
+- **Write-containing callees safely rejected.** `SET_FIELD` / `INLINE_SET_FIELD` under a ValueObject receiver returns `VALUE_OBJECT_WRITES_FIELDS` from `scanCalleeOpcodes`; such call sites fall through to `jit_call_method`'s materialize path, where COW semantics are preserved by `setFieldOnValueObject`.
+- **No regressions on the reference benchmarks.** Every pre-existing benchmark stays within the ±3% tripwire relative to MYT-164 F-b numbers.
+
+### Residual / deferred
+
+- ValueObject field access inside inlined bodies remains slower than ObjectInstance because ValueObject has no per-site field IC. Adding one is out of F-e scope — track as a follow-up if a workload surfaces the cost.
+- Write-containing ValueObject callees still pay the temp-materialize cost per call. Inlining them safely would require lifting the COW deep-copy + caller-slot rebind into the inline body. Deferred; no benchmark exercises it.
+
+### Sanity outputs (all preserved)
+
+- `arithmetic_tight_loop.mt`: `intSum=1291840006568070912` and `2e+12`
+- `method_dispatch.mt`: `acc=2666666666668`
+- `object_alloc.mt`: `total=1999999000000`
+- `string_ops.mt`: `concat_iters=20000 matches=1000000`
+- `recursive.mt`: `fib32=2178309 ack38=2045 gcdSum=150044`
+- `bitwise_tight_loop.mt`: `acc=10000000`
+- `short_circuit_chain.mt`: `hits=4350982`
+- `primitive_method_dispatch.mt`: `accValue=47 faccValue=1.375e+11`
+- `array_multi_alloc.mt`: `dummy=4999950000`
+- `array_multi_get.mt`: `total=2618880000`
+- `for_each_loop.mt`: `total=999000000`
+- `inline_monomorphic.mt`: `acc=4000000000000`
+- `inline_branching.mt`: `acc=4000000000000`
+- `inline_polymorphic.mt`: `acc=2000049000000`
+- `inline_value_object_hot.mt`: `acc=14000000` *(new)*
