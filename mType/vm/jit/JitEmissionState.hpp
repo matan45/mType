@@ -136,7 +136,8 @@ namespace vm::jit
     void emitInlineShapeGuard(JitEmissionState& s, int receiverStackIdx,
                               const void* expectedShape, asmjit::Label slowLabel);
     void emitInlineLocalCopy(JitEmissionState& s, int receiverStackIdx,
-                             size_t argCount, size_t localsBaseSlot);
+                             size_t localsBaseSlot,
+                             const bytecode::BytecodeProgram::FunctionMetadata& callee);
 
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount,
                          size_t destStartSlot = 0);

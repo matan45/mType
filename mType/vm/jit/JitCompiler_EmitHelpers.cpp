@@ -248,34 +248,104 @@ namespace vm::jit
     }
 
     // Copy receiver + args from the caller's boxed operand stack into the
-    // inlined callee's local window. Source slots: [receiverStackIdx ..
-    // receiverStackIdx + argCount]. Destination slots: [localsBaseSlot ..
-    // localsBaseSlot + argCount]. Uses jit_value_copy so refcounts are
-    // honoured correctly.
+    // inlined callee's local window, matching the emitArgumentUnboxing
+    // convention used by top-level JIT compilation. Primitive params
+    // (int/float/bool) are unbox/rebox'd so the callee's LOAD_LOCAL reads
+    // them via jit_unbox_* + raw arithmetic (~30 cycles) instead of
+    // jit_value_copy (~80 cycles). For non-primitive params (receiver `this`,
+    // objects, arrays, strings) a full jit_value_copy preserves the Value.
+    //
+    // Records the resulting slot type into s.localTypes so subsequent
+    // LOAD_LOCAL emits take the correct path.
+    //
+    // Source slots: [receiverStackIdx .. receiverStackIdx + argCount] in the
+    // caller's boxed operand stack.
+    // Destination slots: [localsBaseSlot .. localsBaseSlot + argCount] in the
+    // caller's locals area.
     //
     // Only the boxed-mode path is emitted: CALL_METHOD forces usesBoxedTypes
     // true (scanOpcodesForBoxedTypes), so inline sites always run in boxed
     // mode. An unboxed-mode caller never emits CALL_METHOD in the first place.
     void emitInlineLocalCopy(JitEmissionState& s, int receiverStackIdx,
-                             size_t argCount, size_t localsBaseSlot)
+                             size_t localsBaseSlot,
+                             const bytecode::BytecodeProgram::FunctionMetadata& callee)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
-        const size_t total = argCount + 1;  // receiver + args
+        const size_t total = callee.parameterCount;  // includes implicit `this`
         for (size_t i = 0; i < total; ++i)
         {
+            // parameterTypes[0] is `this`'s class name for instance methods
+            // — classified as BOXED by the default below. Subsequent entries
+            // are user param types, where "int"/"float"/"bool" trigger the
+            // fast unbox/rebox path. Mirrors emitArgumentUnboxing in Core.
+            SlotType paramType = SlotType::INT;
+            if (i < callee.parameterTypes.size())
+            {
+                const std::string& t = callee.parameterTypes[i];
+                if      (t == "float") paramType = SlotType::FLOAT;
+                else if (t == "bool")  paramType = SlotType::BOOL;
+                else if (t != "int")   paramType = SlotType::BOXED;
+            }
+            else
+            {
+                paramType = SlotType::BOXED;
+            }
+
             Gp src = cc.new_gp64();
             cc.lea(src, Mem(s.boxedBase,
                             static_cast<int32_t>((receiverStackIdx + static_cast<int>(i)) * valueSize)));
             Gp dst = cc.new_gp64();
             cc.lea(dst, Mem(s.localsBase,
                             static_cast<int32_t>((localsBaseSlot + i) * s.localStride)));
-            InvokeNode* inv;
-            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
-                      FuncSignature::build<void, value::Value*, const value::Value*>());
-            inv->set_arg(0, dst);
-            inv->set_arg(1, src);
+
+            if (isBoxedSlotType(paramType))
+            {
+                InvokeNode* inv;
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
+                          FuncSignature::build<void, value::Value*, const value::Value*>());
+                inv->set_arg(0, dst);
+                inv->set_arg(1, src);
+            }
+            else if (paramType == SlotType::FLOAT)
+            {
+                // unbox float from Value, then re-box into the local Value slot.
+                // The local slot is still Value-sized (boxed mode); the value's
+                // variant tag indicates FLOAT and LOAD_LOCAL will use jit_unbox_float.
+                InvokeNode* ub;
+                cc.invoke(Out(ub), reinterpret_cast<uint64_t>(jit_unbox_float),
+                          FuncSignature::build<double, const value::Value*>());
+                ub->set_arg(0, src);
+                Vec val = cc.new_xmm();
+                ub->set_ret(0, val);
+                InvokeNode* bx;
+                cc.invoke(Out(bx), reinterpret_cast<uint64_t>(jit_box_float),
+                          FuncSignature::build<void, value::Value*, double>());
+                bx->set_arg(0, dst);
+                bx->set_arg(1, val);
+            }
+            else
+            {
+                // INT or BOOL: unbox via jit_unbox_int (also works for bool,
+                // which stores a 0/1 int), then re-box with the correct helper.
+                InvokeNode* ub;
+                cc.invoke(Out(ub), reinterpret_cast<uint64_t>(jit_unbox_int),
+                          FuncSignature::build<int64_t, const value::Value*>());
+                ub->set_arg(0, src);
+                Gp val = cc.new_gp64();
+                ub->set_ret(0, val);
+                uint64_t boxFn = (paramType == SlotType::BOOL)
+                    ? reinterpret_cast<uint64_t>(jit_box_bool)
+                    : reinterpret_cast<uint64_t>(jit_box_int);
+                InvokeNode* bx;
+                cc.invoke(Out(bx), boxFn,
+                          FuncSignature::build<void, value::Value*, int64_t>());
+                bx->set_arg(0, dst);
+                bx->set_arg(1, val);
+            }
+
+            s.localTypes[localsBaseSlot + i] = paramType;
         }
     }
 

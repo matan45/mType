@@ -296,8 +296,11 @@ namespace vm::jit
         // --- Fast path: shape guard + inline body ---
         emitInlineShapeGuard(s, receiverStackIdx, entry.shape, slowLabel);
 
-        // Copy receiver + args into the callee's locals window.
-        emitInlineLocalCopy(s, receiverStackIdx, argCount, localsBaseSlot);
+        // Copy receiver + args into the callee's locals window. Primitive
+        // params are unbox/rebox'd so LOAD_LOCAL in the callee body uses the
+        // fast unbox-only path (matching emitArgumentUnboxing's convention
+        // for top-level JIT compilation).
+        emitInlineLocalCopy(s, receiverStackIdx, localsBaseSlot, *callee);
 
         // Destroy the caller's boxed operand-stack entries for receiver + args
         // (they've been copied into locals; the slots are now logically unused
@@ -330,10 +333,9 @@ namespace vm::jit
         s.stackDepth = receiverStackIdx;
         s.arrayInfoCache.clear();
 
-        // Record param local types so LOAD_LOCAL on a parameter returns BOXED
-        // (matching what jit_value_copy deposited).
-        for (size_t p = 0; p < callee->parameterCount; ++p)
-            s.localTypes[localsBaseSlot + p] = SlotType::BOXED;
+        // emitInlineLocalCopy has already recorded per-param SlotType in
+        // s.localTypes — primitive params are INT/FLOAT/BOOL (fast path),
+        // the receiver and any non-primitive param are BOXED.
 
         // onExit handler: when RETURN_VALUE fires in the callee, emitReturnValueOp
         // has already decremented s.stackDepth and popped the type. The boxed
