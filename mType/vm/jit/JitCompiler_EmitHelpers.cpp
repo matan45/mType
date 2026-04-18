@@ -35,6 +35,23 @@ namespace vm::jit
                   FuncSignature::build<void, value::Value*, const value::Value*>());
         cpInv->set_arg(0, destAddr);
         cpInv->set_arg(1, retAddr);
+
+        // MYT-154: also mirror the int/bool payload to the unboxed stack so
+        // primitive-stack consumers (JUMP_IF_FALSE / JUMP_IF_TRUE / ADD_INT /
+        // LT_INT, etc.) read the right value when the call returned a primitive.
+        // jit_unbox_int returns 0 for non-numeric variants, which is harmless —
+        // boxed-mode consumers re-read the variant from boxedBase anyway and
+        // ignore the unboxed mirror.
+        Gp unboxAddr = cc.new_gp64();
+        cc.lea(unboxAddr, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
+        InvokeNode* unbox;
+        cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        unbox->set_arg(0, unboxAddr);
+        Gp unboxed = cc.new_gp64();
+        unbox->set_ret(0, unboxed);
+        cc.mov(Mem(s.stackBase, s.stackDepth * 8), unboxed);
+
         s.slotTypes.push_back(SlotType::BOXED);
         s.stackDepth++;
     }

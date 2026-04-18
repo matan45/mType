@@ -162,30 +162,11 @@ namespace vm::jit
         }
     }
 
-    // Bisection deny-list for MYT-152 follow-up: opcodes whose emitters are
-    // believed correct in non-OSR (function-entry) JIT but exhibit a hang or
-    // wrong result when the same emitter runs inside an OSR-compiled loop.
-    // Entries here should each have an open ticket. Empty when all suspects
-    // are cleared.
-    static const std::unordered_set<uint8_t>& getOSRTemporaryBailoutOpcodes()
-    {
-        static const std::unordered_set<uint8_t> opcodes = {
-            // Suspected pre-existing OSR-only bug: enabling this opcode in the
-            // OSR codegen loop causes errorLargeExceptionData_pass.mt to hang
-            // inside testMultipleLargeExceptions (inner loop in
-            // buildLargeArrayList). Bisection narrowed to this emitter.
-            static_cast<uint8_t>(OpCode::NEW_OBJECT),
-        };
-        return opcodes;
-    }
-
     static void emitOSRCodegenLoop(JitEmissionState& s,
                                     const ExitHandler& osrExit,
                                     size_t loopStartOffset, size_t loopEndOffset,
                                     const bytecode::BytecodeProgram& program)
     {
-        const auto& tempBailout = getOSRTemporaryBailoutOpcodes();
-
         for (size_t ip = loopStartOffset; ip <= loopEndOffset && !s.compileFailed; ++ip)
         {
             auto labelIt = s.labels.find(ip);
@@ -200,14 +181,6 @@ namespace vm::jit
             s.currentIP = ip;
 
             uint8_t opByte = static_cast<uint8_t>(instr.opcode);
-
-            if (tempBailout.count(opByte))
-            {
-                s.compileFailed = true;
-                s.osrBailoutReason = OSRBailoutReason::CODEGEN_FAILURE;
-                s.osrBailoutOpcode = opByte;
-                continue;
-            }
 
             if (emitCoreOps(s, instr)) continue;
             if (emitArithmeticOps(s, instr)) continue;

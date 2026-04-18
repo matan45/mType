@@ -13,7 +13,6 @@
 #include "../../value/ValueObject.hpp"
 #include <vector>
 #include <memory>
-#include <iostream>
 
 namespace vm::jit
 {
@@ -82,8 +81,6 @@ namespace vm::jit
                              uint32_t methodNameIndex,
                              size_t argCount)
     {
-        std::cerr << "[IC] call_method_ic enter offset=" << bytecodeOffset
-                  << " nameIdx=" << methodNameIndex << " argc=" << argCount << std::endl;
         if (ctx->pendingException)
             return;
 
@@ -118,8 +115,6 @@ namespace vm::jit
                 const ic::MethodICEntry* entry = cache.lookup(classDef);
                 if (entry && entry->funcMetadata)
                 {
-                    std::cerr << "[IC] HIT class=" << classDef->getName()
-                              << " qn=" << entry->qualifiedName << std::endl;
                     auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
                     std::vector<value::Value> args;
                     args.reserve(argCount);
@@ -130,14 +125,11 @@ namespace vm::jit
                     ctx->returnValue = ctx->vm->callMethodFromJitDirect(
                         instance, entry->qualifiedName, funcMeta, args);
                     ctx->hasReturnValue = true;
-                    std::cerr << "[IC] HIT done" << std::endl;
                     return;
                 }
             }
 
             // Miss / UNINITIALIZED / MEGAMORPHIC — defer to the generic helper.
-            std::cerr << "[IC] MISS class=" << classDef->getName()
-                      << " state=" << static_cast<int>(cache.state) << std::endl;
             jit_call_method(ctx, methodNameIndex, argCount);
             if (ctx->pendingException)
                 return;
@@ -247,16 +239,26 @@ namespace vm::jit
     void jit_new_object(value::Value* dest, JitContext* ctx,
                          uint32_t classIndex, size_t argCount)
     {
-        const std::string& className = ctx->program->getConstantPool().getString(classIndex);
-        std::vector<value::Value> args(ctx->callArgs, ctx->callArgs + argCount);
-
-        if (ctx->vm)
-        {
-            *dest = ctx->vm->createObject(className, args);
+        if (ctx->pendingException)
             return;
-        }
 
-        throw errors::RuntimeException("JIT: cannot create object '" + className + "'");
+        try
+        {
+            const std::string& className = ctx->program->getConstantPool().getString(classIndex);
+            std::vector<value::Value> args(ctx->callArgs, ctx->callArgs + argCount);
+
+            if (ctx->vm)
+            {
+                *dest = ctx->vm->createObject(className, args);
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot create object '" + className + "'");
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
     }
 
     void jit_object_to_value(value::Value* val)
