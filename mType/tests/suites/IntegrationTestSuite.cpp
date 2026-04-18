@@ -270,6 +270,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline Nested Depth-2",
                                   passPath + "inlining/inline_nested.mt");
 
+        // MYT-165 Phase F-c: polymorphic inlining with chained shape guards.
+        addOutputVerificationTest("Inline Polymorphic Chained Guards",
+                                  passPath + "inlining/inline_poly.mt");
+        addOutputVerificationTest("Inline MEGA Fallback",
+                                  passPath + "inlining/inline_mega_fallback.mt");
+
         // ====================================
         // COMMENTED OUT - Test files were not created
         // ====================================

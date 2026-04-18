@@ -8,6 +8,7 @@ namespace vm::optimization
     using vm::bytecode::BytecodeProgram;
     using vm::bytecode::OpCode;
     using vm::jit::ic::ICState;
+    using vm::jit::ic::MethodICEntry;
     using vm::jit::ic::MethodInlineCache;
 
     // Scan callee bytecode for any opcode that disqualifies F-b inlining.
@@ -76,22 +77,14 @@ namespace vm::optimization
         return InlineDecision::INLINE;
     }
 
-    InlineDecision checkInlineEligibility(
+    // Per-entry eligibility: checks that apply independently to one IC entry's
+    // callee. MONO uses this once; POLY (MYT-165) loops over every entry and
+    // requires all to return INLINE.
+    static InlineDecision checkEntryEligibility(
         const BytecodeProgram& program,
-        const MethodInlineCache& cache,
-        const std::string& currentCompilingFn,
-        size_t currentInlineDepth)
+        const MethodICEntry& entry,
+        const std::string& currentCompilingFn)
     {
-        if (currentInlineDepth >= INLINE_DEPTH_LIMIT)
-            return InlineDecision::DEPTH_EXCEEDED;
-
-        if (cache.state != ICState::MONOMORPHIC)
-            return InlineDecision::IC_NOT_MONOMORPHIC;
-
-        if (cache.entryCount == 0)
-            return InlineDecision::UNKNOWN_SHAPE;
-
-        const auto& entry = cache.entries[0];
         if (!entry.shape || !entry.funcMetadata)
             return InlineDecision::UNKNOWN_SHAPE;
 
@@ -132,5 +125,47 @@ namespace vm::optimization
             return InlineDecision::SELF_RECURSIVE;
 
         return scanCalleeOpcodes(program, *callee);
+    }
+
+    InlineDecision checkInlineEligibility(
+        const BytecodeProgram& program,
+        const MethodInlineCache& cache,
+        const std::string& currentCompilingFn,
+        size_t currentInlineDepth)
+    {
+        if (currentInlineDepth >= INLINE_DEPTH_LIMIT)
+            return InlineDecision::DEPTH_EXCEEDED;
+
+        // MYT-165: accept POLYMORPHIC in addition to MONOMORPHIC. The emitter
+        // branches on cache.state to pick the MONO (single guard + body) or
+        // POLY (chained guards + per-shape bodies) emission path. Enum name
+        // kept for continuity — its meaning is now "IC not in an inline-
+        // eligible state".
+        if (cache.state != ICState::MONOMORPHIC &&
+            cache.state != ICState::POLYMORPHIC)
+            return InlineDecision::IC_NOT_MONOMORPHIC;
+
+        if (cache.entryCount == 0)
+            return InlineDecision::UNKNOWN_SHAPE;
+
+        size_t combinedSize = 0;
+        for (uint8_t i = 0; i < cache.entryCount; ++i)
+        {
+            auto d = checkEntryEligibility(program, cache.entries[i], currentCompilingFn);
+            if (d != InlineDecision::INLINE)
+                return d;
+
+            const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
+                cache.entries[i].funcMetadata);
+            combinedSize += callee->instructionCount;
+        }
+
+        // MYT-165: combined-body cap prevents code-cache blowup on maximally
+        // polymorphic sites. IC_MAX_POLYMORPHIC_ENTRIES × INLINE_SIZE_LIMIT
+        // = 4 × 16 = 64 ops across all shape bodies.
+        if (combinedSize > INLINE_SIZE_LIMIT * vm::jit::ic::IC_MAX_POLYMORPHIC_ENTRIES)
+            return InlineDecision::CALLEE_TOO_BIG;
+
+        return InlineDecision::INLINE;
     }
 }

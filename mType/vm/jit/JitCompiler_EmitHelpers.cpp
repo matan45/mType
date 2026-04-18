@@ -247,6 +247,44 @@ namespace vm::jit
         cc.jne(slowLabel);
     }
 
+    // MYT-165 (Phase F-c): extract the receiver's ClassDefinition pointer once
+    // and return it in a reusable Gp register. The POLY emitter calls this
+    // before the guard chain so the N shape-compares all share a single
+    // jit_extract_classdef invocation instead of N.
+    Gp emitExtractReceiverClassDef(JitEmissionState& s, int receiverStackIdx)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        Gp receiverAddr = cc.new_gp64();
+        cc.lea(receiverAddr, Mem(s.boxedBase,
+                                  static_cast<int32_t>(receiverStackIdx * valueSize)));
+
+        Gp actualShape = cc.new_gp64();
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_extract_classdef),
+                  FuncSignature::build<const void*, const value::Value*>());
+        inv->set_arg(0, receiverAddr);
+        inv->set_ret(0, actualShape);
+        return actualShape;
+    }
+
+    // MYT-165 (Phase F-c): emit a single cmp/jne against the pre-extracted
+    // classDef register. Used for each link of the POLY guard chain; the last
+    // link's missLabel is the slow-path helper call, intermediate links jump
+    // to the next-shape check label.
+    void emitInlineShapeGuardReusingClassDef(JitEmissionState& s,
+                                              Gp classDefReg,
+                                              const void* expectedShape,
+                                              asmjit::Label missLabel)
+    {
+        auto& cc = s.cc;
+        Gp expectedReg = cc.new_gp64();
+        cc.mov(expectedReg, reinterpret_cast<uint64_t>(expectedShape));
+        cc.cmp(classDefReg, expectedReg);
+        cc.jne(missLabel);
+    }
+
     // Copy receiver + args from the caller's boxed operand stack into the
     // inlined callee's local window, matching the emitArgumentUnboxing
     // convention used by top-level JIT compilation. Primitive params

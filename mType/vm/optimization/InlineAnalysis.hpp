@@ -21,8 +21,12 @@ namespace vm::optimization
     // jit_call_method_ic path unchanged.
     //
     // F-a restricts to straight-line MONO callees with ObjectInstance
-    // receivers. F-b adds internal jumps + nested inlining, F-c adds
-    // polymorphic chained guards.
+    // receivers. F-b adds internal jumps + nested inlining. F-c (MYT-165)
+    // accepts POLYMORPHIC IC state: every entry in cache.entries[0..entryCount)
+    // must pass the per-entry checks AND the combined instructionCount across
+    // entries must not exceed INLINE_SIZE_LIMIT * IC_MAX_POLYMORPHIC_ENTRIES
+    // (= 64 ops). The emitter reads cache.state to choose MONO vs POLY
+    // emission paths; the eligibility function is unchanged for callers.
 
     enum class InlineDecision
     {

@@ -5,6 +5,7 @@
 #include "ic/TypeFeedbackCollector.hpp"
 #include "../optimization/InlineAnalysis.hpp"
 #include <asmjit/x86.h>
+#include <cassert>
 
 namespace vm::jit
 {
@@ -232,7 +233,8 @@ namespace vm::jit
         emitReturnValueCopyBoxed(s);
     }
 
-    // MYT-163 (Phase F-a) — speculative bytecode-level inlining.
+    // MYT-163 (Phase F-a) / MYT-164 (F-b) — speculative bytecode-level
+    // inlining, MONOMORPHIC IC state.
     //
     // When the method-IC at s.currentIP is MONOMORPHIC and the cached callee
     // passes InlineAnalysis eligibility, emit:
@@ -245,26 +247,13 @@ namespace vm::jit
     // On shape-guard miss: fall through to emitCallMethodOpGeneric (identical
     // to the non-inlined path), producing the same observable outcome.
     //
-    // Returns true iff inlined emission was produced (both fast + slow paths).
-    // Returns false to let the caller (emitCallMethodOp) emit the generic
-    // path normally — either the site is ineligible or the IC is cold.
-    static bool tryEmitInlinedMethodCall(JitEmissionState& s,
-                                          const bytecode::BytecodeProgram::Instruction& instr)
+    // Body unchanged from F-a/F-b to keep emitted code byte-identical for
+    // MONO sites (existing benchmarks must not regress). POLY state is handled
+    // by emitInlinedMethodCallPoly.
+    static bool emitInlinedMethodCallMono(JitEmissionState& s,
+                                           const bytecode::BytecodeProgram::Instruction& instr,
+                                           const ic::MethodInlineCache& cache)
     {
-        if (!s.typeFeedback) return false;
-        auto& icTable = s.typeFeedback->getICTable();
-        if (!icTable.hasMethodIC(s.currentIP)) return false;
-
-        auto& cache = icTable.getMethodIC(s.currentIP);
-        auto decision = optimization::checkInlineEligibility(
-            s.program, cache, s.currentCompilingFn, s.inlineStack.size());
-        if (decision != optimization::InlineDecision::INLINE) return false;
-
-        // Boxed-mode callee only: F-a assumes the caller emits in boxed mode
-        // (guaranteed by scanOpcodesForBoxedTypes tripping on CALL_METHOD).
-        // Bail if we somehow got here in unboxed mode.
-        if (!s.usesBoxedTypes) return false;
-
         const auto& entry = cache.entries[0];
         const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
             entry.funcMetadata);
@@ -426,6 +415,234 @@ namespace vm::jit
         cc.bind(endLabel);
         s.arrayInfoCache.clear();  // conservative: inlined body may have touched fields
         return true;
+    }
+
+    // MYT-165 (Phase F-c) — speculative bytecode-level inlining, POLYMORPHIC
+    // IC state. Emits a chain of shape guards against the N (≤4) cached
+    // ClassDefinition pointers. Each guard's fall-through enters that shape's
+    // inlined body; mismatch jumps to the next shape's guard (or, for the
+    // last entry, to the slow-path helper call). Only one shape body
+    // executes per call, so the callees share a single locals window sized
+    // to the max localCount — not the sum.
+    //
+    // Layout of emitted code:
+    //   extract classDef (once)
+    //   cmp classDef, shape0 ; jne next_1
+    //   [body 0] ; jmp endLabel
+    //   next_1: cmp classDef, shape1 ; jne next_2
+    //   [body 1] ; jmp endLabel
+    //   ...
+    //   next_{N-1}: cmp classDef, shape{N-1} ; jne slowLabel
+    //   [body N-1] ; jmp endLabel
+    //   slowLabel: call jit_call_method_ic
+    //   endLabel:
+    static bool emitInlinedMethodCallPoly(JitEmissionState& s,
+                                           const bytecode::BytecodeProgram::Instruction& instr,
+                                           const ic::MethodInlineCache& cache)
+    {
+        const size_t argCount = instr.operands[1];
+        const uint8_t entryCount = cache.entryCount;
+
+        // Per-entry argcount sanity + max-localCount computation. Only one
+        // shape body runs per call, so the shared locals window is sized
+        // to the largest callee (MAX, not SUM).
+        size_t maxLocalCount = 0;
+        for (uint8_t i = 0; i < entryCount; ++i)
+        {
+            const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
+                cache.entries[i].funcMetadata);
+            if (callee->parameterCount != argCount + 1) return false;
+            if (callee->localCount > maxLocalCount)
+                maxLocalCount = callee->localCount;
+        }
+
+        const size_t localsBaseSlot = s.inlineStack.empty()
+            ? s.localCount
+            : s.inlineStack.back().localsBaseSlot
+              + s.inlineStack.back().calleeMeta->localCount;
+        if (localsBaseSlot + maxLocalCount
+            > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+            return false;
+
+#ifndef NDEBUG
+        // MethodInlineCache::addEntry already dedupes by shape; defensive check
+        // that the guard chain can't silently alias two bodies.
+        for (uint8_t i = 0; i < entryCount; ++i)
+            for (uint8_t j = static_cast<uint8_t>(i + 1); j < entryCount; ++j)
+                assert(cache.entries[i].shape != cache.entries[j].shape
+                       && "POLY IC has duplicate ClassDefinition*");
+#endif
+
+        auto& cc = s.cc;
+
+        // Pre-scan each callee's jump targets independently. F-b's
+        // createJumpLabels already handles the per-entry range; we just
+        // call it entryCount times.
+        std::vector<std::unordered_map<size_t, asmjit::Label>> perEntryJumpLabels(entryCount);
+        for (uint8_t i = 0; i < entryCount; ++i)
+        {
+            const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
+                cache.entries[i].funcMetadata);
+            perEntryJumpLabels[i] = createJumpLabels(
+                cc, s.program, callee->startOffset,
+                callee->startOffset + callee->instructionCount);
+        }
+
+        // Snapshot emitter state. Restored before each shape body AND before
+        // the slow path — each shape emission must see the same pre-call
+        // configuration.
+        const int snapStackDepth = s.stackDepth;
+        const auto snapSlotTypes = s.slotTypes;
+        const auto snapLocalTypes = s.localTypes;
+        const auto snapArrayCache = s.arrayInfoCache;
+        // The callee emit loop overwrites s.currentIP per instruction; the
+        // slow path's emitCallMethodOpGeneric bakes s.currentIP into the
+        // asmjit-emitted call to jit_call_method_ic, which uses it as the
+        // IC lookup key. Restore before the slow path so the runtime IC
+        // lookup hits the original CALL_METHOD's cache.
+        const size_t snapCurrentIP = s.currentIP;
+
+        const int receiverStackIdx = snapStackDepth - static_cast<int>(argCount) - 1;
+
+        // Pre-allocate the guard-chain next-check labels (one per non-last
+        // entry) plus the shared slow and end labels.
+        std::vector<asmjit::Label> nextCheckLabels;
+        nextCheckLabels.reserve(entryCount > 0 ? static_cast<size_t>(entryCount - 1) : 0);
+        for (uint8_t i = 0; i + 1 < entryCount; ++i)
+            nextCheckLabels.push_back(cc.new_label());
+        asmjit::Label slowLabel = cc.new_label();
+        asmjit::Label endLabel  = cc.new_label();
+
+        // Extract classDef once; reuse across all guard compares.
+        Gp classDefReg = emitExtractReceiverClassDef(s, receiverStackIdx);
+
+        ExitHandler onExit = [endLabel](JitEmissionState& es, size_t /*target*/) {
+            es.cc.jmp(endLabel);
+        };
+
+        for (uint8_t i = 0; i < entryCount; ++i)
+        {
+            // Bind this shape's check label (except shape 0, which falls
+            // through from the initial cmp above — see the guard emission
+            // below; shape 0's check is emitted before entering this body).
+            if (i > 0)
+                cc.bind(nextCheckLabels[i - 1]);
+
+            const auto& entry = cache.entries[i];
+            const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
+                entry.funcMetadata);
+
+            // Guard: cmp classDef, entry.shape ; jne <next-check-or-slow>.
+            const asmjit::Label missLabel = (i + 1 < entryCount)
+                ? nextCheckLabels[i]
+                : slowLabel;
+            emitInlineShapeGuardReusingClassDef(s, classDefReg, entry.shape, missLabel);
+
+            // Fall-through is this shape's inlined body. Each body is a
+            // fresh emission — restore the snapshot before emitting so
+            // stackDepth / slotTypes / localTypes are at the pre-call
+            // configuration. (Body i-1 drifted these during its emission.)
+            s.stackDepth = snapStackDepth;
+            s.slotTypes  = snapSlotTypes;
+            s.localTypes = snapLocalTypes;
+            s.arrayInfoCache = snapArrayCache;
+
+            emitInlineLocalCopy(s, receiverStackIdx, localsBaseSlot, *callee);
+
+            InlineFrame frame;
+            frame.calleeMeta = callee;
+            frame.localsBaseSlot = localsBaseSlot;
+            frame.inlineEndLabel = endLabel;
+            frame.returnResultStackIdx = receiverStackIdx;
+            frame.localJumpLabels = std::move(perEntryJumpLabels[i]);
+
+            const size_t prevInlineBase = s.inlineLocalsBase;
+            s.inlineStack.push_back(frame);
+            s.inlineLocalsBase = localsBaseSlot;
+
+            s.slotTypes.resize(s.slotTypes.size() - (argCount + 1));
+            s.stackDepth = receiverStackIdx;
+            s.arrayInfoCache.clear();
+
+            for (size_t ip = callee->startOffset;
+                 ip < callee->startOffset + callee->instructionCount && !s.compileFailed;
+                 ++ip)
+            {
+                auto& topFrame = s.inlineStack.back();
+                auto lit = topFrame.localJumpLabels.find(ip);
+                if (lit != topFrame.localJumpLabels.end())
+                {
+                    cc.bind(lit->second);
+                    s.stackDepth = receiverStackIdx;
+                    s.slotTypes.resize(static_cast<size_t>(receiverStackIdx));
+                    s.arrayInfoCache.clear();
+                }
+
+                const auto& cinstr = s.program.getInstruction(ip);
+                s.currentIP = ip;
+                if (cinstr.opcode == OpCode::PROFILE_ENTER)
+                    continue;
+
+                bool handled = false;
+                if (emitCoreOps(s, cinstr)) handled = true;
+                else if (emitArithmeticOps(s, cinstr)) handled = true;
+                else if (emitControlFlowOps(s, cinstr, onExit)) handled = true;
+                else { emitObjectOps(s, cinstr); handled = true; }
+                (void)handled;
+            }
+
+            s.inlineStack.pop_back();
+            s.inlineLocalsBase = prevInlineBase;
+
+            if (s.compileFailed) return true;
+
+            cc.jmp(endLabel);
+        }
+
+        // --- Slow path: all guards missed, route through jit_call_method_ic
+        // which will handle MEGA promotion / IC maintenance as normal.
+        cc.bind(slowLabel);
+        s.stackDepth = snapStackDepth;
+        s.slotTypes  = snapSlotTypes;
+        s.localTypes = snapLocalTypes;
+        s.arrayInfoCache = snapArrayCache;
+        s.currentIP = snapCurrentIP;
+
+        emitCallMethodOpGeneric(s, instr);
+
+        cc.bind(endLabel);
+        s.arrayInfoCache.clear();
+        return true;
+    }
+
+    // Dispatcher: checks IC presence + eligibility + boxed mode, then routes
+    // to the MONO or POLY emitter based on cache.state.
+    //
+    // Returns true iff inlined emission was produced (both fast + slow paths).
+    // Returns false to let the caller (emitCallMethodOp) emit the generic
+    // path normally — either the site is ineligible or the IC is cold.
+    static bool tryEmitInlinedMethodCall(JitEmissionState& s,
+                                          const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (!s.typeFeedback) return false;
+        auto& icTable = s.typeFeedback->getICTable();
+        if (!icTable.hasMethodIC(s.currentIP)) return false;
+
+        auto& cache = icTable.getMethodIC(s.currentIP);
+        auto decision = optimization::checkInlineEligibility(
+            s.program, cache, s.currentCompilingFn, s.inlineStack.size());
+        if (decision != optimization::InlineDecision::INLINE) return false;
+
+        // Boxed-mode callee only: inlining assumes the caller emits in boxed
+        // mode (guaranteed by scanOpcodesForBoxedTypes tripping on CALL_METHOD).
+        // Bail if we somehow got here in unboxed mode.
+        if (!s.usesBoxedTypes) return false;
+
+        if (cache.state == ic::ICState::MONOMORPHIC)
+            return emitInlinedMethodCallMono(s, instr, cache);
+        if (cache.state == ic::ICState::POLYMORPHIC)
+            return emitInlinedMethodCallPoly(s, instr, cache);
+        return false;
     }
 
     static bool emitCallMethodOp(JitEmissionState& s,

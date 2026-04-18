@@ -145,6 +145,14 @@ namespace vm::jit
                              size_t localsBaseSlot,
                              const bytecode::BytecodeProgram::FunctionMetadata& callee);
 
+    // MYT-165 Phase F-c inline-emission helpers for POLY guard chains.
+    asmjit::x86::Gp emitExtractReceiverClassDef(JitEmissionState& s,
+                                                 int receiverStackIdx);
+    void emitInlineShapeGuardReusingClassDef(JitEmissionState& s,
+                                              asmjit::x86::Gp classDefReg,
+                                              const void* expectedShape,
+                                              asmjit::Label missLabel);
+
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount,
                          size_t destStartSlot = 0);
     void emitPopAndDestroyArgs(JitEmissionState& s, size_t argCount);

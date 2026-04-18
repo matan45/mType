@@ -29,7 +29,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 13> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 14> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -49,6 +49,10 @@ namespace
         // due to HAS_INTERNAL_JUMPS; inlined under F-b via per-frame label
         // remapping.
         "inline_branching.mt",
+        // MYT-165 F-c: 4-subclass polymorphic hot loop (fills
+        // IC_MAX_POLYMORPHIC_ENTRIES = 4). Exercises the chained shape-guard
+        // emission against the maximum IC-width case.
+        "inline_polymorphic.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";

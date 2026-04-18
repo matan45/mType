@@ -2164,6 +2164,9 @@
     <None Include="tests\testFiles\benchmarks\inline_monomorphic.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\inline_polymorphic.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\method_dispatch.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -7084,6 +7087,12 @@
     <None Include="tests\testFiles\integration\pass\inlining\inline_basic.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_mega_fallback.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_mega_fallback.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_monomorphic.expected">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
@@ -7094,6 +7103,12 @@
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_nested.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_poly.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_poly.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_recursive_guard.expected">
@@ -7118,12 +7133,6 @@
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_with_loop.mt">
-      <Filter>testFiles\integration\pass\inlining</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\inlining\inline_nested.expected">
-      <Filter>testFiles\integration\pass\inlining</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\inlining\inline_nested.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.expected">
