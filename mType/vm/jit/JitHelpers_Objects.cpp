@@ -18,19 +18,25 @@
 namespace vm::jit
 {
     // MYT-163: speculative inlining shape-guard helper. Extracts the raw
-    // ClassDefinition pointer from an ObjectInstance receiver. Returns nullptr
-    // for any other variant so the guard compare mismatches and the inlined
-    // site falls back to jit_call_method_ic. Keeping the shared_ptr layout
-    // behind this helper avoids baking MSVC control-block internals into
-    // emitted code.
+    // ClassDefinition pointer from a receiver, handling both ObjectInstance
+    // and ValueObject variants (MYT-167 F-e). Returns nullptr for any other
+    // variant so the guard compare mismatches and the inlined site falls back
+    // to jit_call_method_ic. Keeping the shared_ptr layout behind this helper
+    // avoids baking MSVC control-block internals into emitted code.
     const void* jit_extract_classdef(const value::Value* receiver)
     {
         if (!receiver) return nullptr;
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*receiver))
-            return nullptr;
-        const auto& instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*receiver);
-        if (!instance) return nullptr;
-        return instance->getClassDefinition().get();
+        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*receiver))
+        {
+            const auto& instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*receiver);
+            return instance ? instance->getClassDefinition().get() : nullptr;
+        }
+        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(*receiver))
+        {
+            const auto& valueObj = std::get<std::shared_ptr<value::ValueObject>>(*receiver);
+            return valueObj ? valueObj->getClassDefinition().get() : nullptr;
+        }
+        return nullptr;
     }
 
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount)
@@ -193,17 +199,42 @@ namespace vm::jit
         {
             value::Value& receiverValue = ctx->callArgs[0];
 
-            // Non-ObjectInstance receivers (ValueObject, etc.) take the existing
-            // generic path which knows how to materialise ValueObject into a
-            // temporary ObjectInstance for dispatch.
-            if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue))
+            // MYT-167 (F-e): unified receiver-kind handling. ValueObject
+            // receivers populate the IC (with receiverIsValueObject=true) and,
+            // on hit, route dispatch through jit_call_method (which performs
+            // the temp-ObjectInstance materialisation). The speculative
+            // inliner later consumes the IC entry and emits a direct inlined
+            // body for eligible read-only callees.
+            const runtimeTypes::klass::ClassDefinition* classDef = nullptr;
+            bool receiverIsValueObject = false;
+            std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance;
+
+            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue))
+            {
+                instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
+                if (!instance)
+                {
+                    jit_call_method(ctx, methodNameIndex, argCount);
+                    return;
+                }
+                classDef = instance->getClassDefinition().get();
+            }
+            else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(receiverValue))
+            {
+                const auto& valueObj = std::get<std::shared_ptr<value::ValueObject>>(receiverValue);
+                if (!valueObj)
+                {
+                    jit_call_method(ctx, methodNameIndex, argCount);
+                    return;
+                }
+                classDef = valueObj->getClassDefinition().get();
+                receiverIsValueObject = true;
+            }
+            else
             {
                 jit_call_method(ctx, methodNameIndex, argCount);
                 return;
             }
-
-            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
-            auto* classDef = instance->getClassDefinition().get();
 
             ic::MethodInlineCache& cache = ctx->icTable->getMethodIC(bytecodeOffset);
 
@@ -213,22 +244,34 @@ namespace vm::jit
                 const ic::MethodICEntry* entry = cache.lookup(classDef);
                 if (entry && entry->funcMetadata)
                 {
-                    // Try direct JIT→JIT dispatch first. Skips the interpreter
-                    // loop in callMethodFromJitDirect when the callee is
-                    // JIT-compiled. Falls through on lookup miss / depth limit.
-                    if (tryDirectJitMethodDispatch(ctx, entry, instance, argCount))
-                        return;
-
-                    auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
-                    std::vector<value::Value> args;
-                    args.reserve(argCount);
-                    for (size_t i = 1; i <= argCount; ++i)
+                    if (!receiverIsValueObject)
                     {
-                        args.push_back(ctx->callArgs[i]);
+                        // Try direct JIT→JIT dispatch first. Skips the interpreter
+                        // loop in callMethodFromJitDirect when the callee is
+                        // JIT-compiled. Falls through on lookup miss / depth limit.
+                        if (tryDirectJitMethodDispatch(ctx, entry, instance, argCount))
+                            return;
+
+                        auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
+                        std::vector<value::Value> args;
+                        args.reserve(argCount);
+                        for (size_t i = 1; i <= argCount; ++i)
+                        {
+                            args.push_back(ctx->callArgs[i]);
+                        }
+                        ctx->returnValue = ctx->vm->callMethodFromJitDirect(
+                            instance, entry->qualifiedName, funcMeta, args);
+                        ctx->hasReturnValue = true;
+                        return;
                     }
-                    ctx->returnValue = ctx->vm->callMethodFromJitDirect(
-                        instance, entry->qualifiedName, funcMeta, args);
-                    ctx->hasReturnValue = true;
+
+                    // ValueObject IC hit — generic dispatch. callMethodFromJitDirect
+                    // requires shared_ptr<ObjectInstance>; the temp-materialisation
+                    // branch in jit_call_method handles ValueObject correctly.
+                    // The inliner consumes this IC entry on the caller's next
+                    // recompile, so this slow path runs only between populate
+                    // and recompile.
+                    jit_call_method(ctx, methodNameIndex, argCount);
                     return;
                 }
             }
@@ -255,18 +298,16 @@ namespace vm::jit
                         entry.funcMetadata = funcMeta;
                         entry.startOffset = funcMeta->startOffset;
                         entry.qualifiedName = lookupResult.qualifiedName;
-                        // MYT-163: only ObjectInstance receivers reach this
-                        // populate path (ValueObject receivers take the
-                        // jit_call_method branch above and never create an
-                        // IC entry). The flag is recorded for future
-                        // inline-aware paths that may want to reject
-                        // value-class sites without a ClassDefinition deref.
-                        entry.receiverIsValueObject = false;
+                        // MYT-167 (F-e): flag reflects the observed receiver
+                        // kind. InlineAnalysis::scanCalleeOpcodes consumes
+                        // this to apply the read-only restriction for
+                        // value-class sites.
+                        entry.receiverIsValueObject = receiverIsValueObject;
                         // MYT-161: pre-populate cached JIT entry pointer if
-                        // the callee is already JIT-compiled. tryDirectJitMethodDispatch
-                        // will lazily refresh this slot if the callee becomes
-                        // hot *after* this IC entry is created.
-                        if (ctx->jitCodeCache)
+                        // the callee is already JIT-compiled. Only meaningful
+                        // for ObjectInstance direct dispatch — ValueObject
+                        // hits always go through jit_call_method.
+                        if (!receiverIsValueObject && ctx->jitCodeCache)
                         {
                             auto jitFn = ctx->jitCodeCache->lookup(lookupResult.qualifiedName);
                             if (jitFn)

@@ -180,6 +180,36 @@ namespace vm::jit
         return true;
     }
 
+    // Captures the JIT emitter state that inline emission mutates while walking
+    // the callee body. Used by emitInlinedMethodCallMono / emitInlinedMethodCallPoly
+    // to rewind before emitting the fallback slow path.
+    struct InlineEmitStateSnapshot
+    {
+        int stackDepth;
+        std::vector<SlotType> slotTypes;
+        std::unordered_map<size_t, SlotType> localTypes;
+        std::unordered_map<int, JitEmissionState::CachedArrayInfo> arrayInfoCache;
+        // MYT-168: currentIP is baked into the IC lookup key emitted by
+        // emitCallMethodOpGeneric; the callee emission loop overwrites it per
+        // instruction, so it MUST round-trip through the snapshot.
+        size_t currentIP;
+    };
+
+    static InlineEmitStateSnapshot snapshotEmitStateForInline(const JitEmissionState& s)
+    {
+        return { s.stackDepth, s.slotTypes, s.localTypes, s.arrayInfoCache, s.currentIP };
+    }
+
+    static void restoreEmitStateForInline(JitEmissionState& s,
+                                          const InlineEmitStateSnapshot& snap)
+    {
+        s.stackDepth     = snap.stackDepth;
+        s.slotTypes      = snap.slotTypes;
+        s.localTypes     = snap.localTypes;
+        s.arrayInfoCache = snap.arrayInfoCache;
+        s.currentIP      = snap.currentIP;
+    }
+
     // Original (non-inlined) CALL_METHOD emission. Used as the slow path of
     // tryEmitInlinedMethodCall when the shape guard misses, and as the direct
     // emission when the site is not eligible for inlining.
@@ -291,14 +321,11 @@ namespace vm::jit
             callee->startOffset + callee->instructionCount);
 
         // Snapshot emitter state so the slow-path emission can rewind after
-        // the fast path drifts s.stackDepth / slotTypes during callee body
-        // emission.
-        const int snapStackDepth = s.stackDepth;
-        const auto snapSlotTypes = s.slotTypes;
-        const auto snapLocalTypes = s.localTypes;
-        const auto snapArrayCache = s.arrayInfoCache;
+        // the fast path drifts s.stackDepth / slotTypes / currentIP during
+        // callee body emission.
+        const InlineEmitStateSnapshot snap = snapshotEmitStateForInline(s);
 
-        const int receiverStackIdx = snapStackDepth - static_cast<int>(argCount) - 1;
+        const int receiverStackIdx = snap.stackDepth - static_cast<int>(argCount) - 1;
 
         // --- Fast path: shape guard + inline body ---
         emitInlineShapeGuard(s, receiverStackIdx, entry.shape, slowLabel);
@@ -403,11 +430,9 @@ namespace vm::jit
         cc.bind(slowLabel);
 
         // Restore emitter state so emitCallMethodOpGeneric sees the pre-call
-        // operand stack configuration.
-        s.stackDepth = snapStackDepth;
-        s.slotTypes  = snapSlotTypes;
-        s.localTypes = snapLocalTypes;
-        s.arrayInfoCache = snapArrayCache;
+        // operand stack configuration. MYT-168: this restore MUST include
+        // s.currentIP — jit_call_method_ic uses it as the IC lookup key.
+        restoreEmitStateForInline(s, snap);
 
         emitCallMethodOpGeneric(s, instr);
 
@@ -490,19 +515,13 @@ namespace vm::jit
 
         // Snapshot emitter state. Restored before each shape body AND before
         // the slow path — each shape emission must see the same pre-call
-        // configuration.
-        const int snapStackDepth = s.stackDepth;
-        const auto snapSlotTypes = s.slotTypes;
-        const auto snapLocalTypes = s.localTypes;
-        const auto snapArrayCache = s.arrayInfoCache;
-        // The callee emit loop overwrites s.currentIP per instruction; the
-        // slow path's emitCallMethodOpGeneric bakes s.currentIP into the
-        // asmjit-emitted call to jit_call_method_ic, which uses it as the
-        // IC lookup key. Restore before the slow path so the runtime IC
-        // lookup hits the original CALL_METHOD's cache.
-        const size_t snapCurrentIP = s.currentIP;
+        // configuration. The snapshot includes s.currentIP because the callee
+        // emit loop overwrites it per instruction, and the slow path's
+        // emitCallMethodOpGeneric bakes s.currentIP into the asmjit-emitted
+        // call to jit_call_method_ic as the IC lookup key (see MYT-168).
+        const InlineEmitStateSnapshot snap = snapshotEmitStateForInline(s);
 
-        const int receiverStackIdx = snapStackDepth - static_cast<int>(argCount) - 1;
+        const int receiverStackIdx = snap.stackDepth - static_cast<int>(argCount) - 1;
 
         // Pre-allocate the guard-chain next-check labels (one per non-last
         // entry) plus the shared slow and end labels.
@@ -542,10 +561,7 @@ namespace vm::jit
             // fresh emission — restore the snapshot before emitting so
             // stackDepth / slotTypes / localTypes are at the pre-call
             // configuration. (Body i-1 drifted these during its emission.)
-            s.stackDepth = snapStackDepth;
-            s.slotTypes  = snapSlotTypes;
-            s.localTypes = snapLocalTypes;
-            s.arrayInfoCache = snapArrayCache;
+            restoreEmitStateForInline(s, snap);
 
             emitInlineLocalCopy(s, receiverStackIdx, localsBaseSlot, *callee);
 
@@ -602,11 +618,7 @@ namespace vm::jit
         // --- Slow path: all guards missed, route through jit_call_method_ic
         // which will handle MEGA promotion / IC maintenance as normal.
         cc.bind(slowLabel);
-        s.stackDepth = snapStackDepth;
-        s.slotTypes  = snapSlotTypes;
-        s.localTypes = snapLocalTypes;
-        s.arrayInfoCache = snapArrayCache;
-        s.currentIP = snapCurrentIP;
+        restoreEmitStateForInline(s, snap);
 
         emitCallMethodOpGeneric(s, instr);
 

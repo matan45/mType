@@ -42,7 +42,8 @@ namespace vm::optimization
         DEPTH_EXCEEDED,
         IC_NOT_MONOMORPHIC,
         UNKNOWN_SHAPE,
-        VALUE_OBJECT_RECEIVER,
+        VALUE_OBJECT_RECEIVER,       // MYT-167 (F-e): legacy — no longer emitted; kept for log stability
+        VALUE_OBJECT_WRITES_FIELDS,  // MYT-167 (F-e): ValueObject receiver + write-containing callee
         CALLEE_NATIVE,
         CALLEE_NOT_FOUND
     };

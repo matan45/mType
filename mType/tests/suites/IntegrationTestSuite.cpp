@@ -259,8 +259,12 @@ namespace tests::testSuite
                                   passPath + "inlining/inline_monomorphic.mt");
         addOutputVerificationTest("Inline Self-Recursive Guard",
                                   passPath + "inlining/inline_recursive_guard.mt");
-        addOutputVerificationTest("Inline Value Object Skip",
-                                  passPath + "inlining/inline_value_object_skip.mt");
+        // MYT-167 Phase F-e: value-object receivers inline for read-only methods;
+        // write-containing callees still fall through.
+        addOutputVerificationTest("Inline Value Object Read-Only",
+                                  passPath + "inlining/inline_value_object_readonly.mt");
+        addOutputVerificationTest("Inline Value Object Write Skip",
+                                  passPath + "inlining/inline_value_object_write_skip.mt");
 
         // MYT-164 Phase F-b: internal jumps + nested inlining.
         addOutputVerificationTest("Inline With If/Else Branches",
@@ -275,6 +279,10 @@ namespace tests::testSuite
                                   passPath + "inlining/inline_poly.mt");
         addOutputVerificationTest("Inline MEGA Fallback",
                                   passPath + "inlining/inline_mega_fallback.mt");
+
+        // MYT-168: regression guard for MONO->POLY IC transition in JIT'd code.
+        addOutputVerificationTest("Inline MONO to POLY Transition",
+                                  passPath + "inlining/inline_mono_to_poly.mt");
 
         // ====================================
         // COMMENTED OUT - Test files were not created

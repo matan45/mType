@@ -29,7 +29,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 14> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 15> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -53,6 +53,11 @@ namespace
         // IC_MAX_POLYMORPHIC_ENTRIES = 4). Exercises the chained shape-guard
         // emission against the maximum IC-width case.
         "inline_polymorphic.mt",
+        // MYT-167 F-e: value-class MONO hot loop. Pre-F-e the slow path was
+        // jit_call_method's temp-ObjectInstance materialisation per call;
+        // post-F-e the IC populates with receiverIsValueObject=true and the
+        // body inlines identically to inline_monomorphic.mt.
+        "inline_value_object_hot.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";

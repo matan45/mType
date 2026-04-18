@@ -26,7 +26,8 @@ namespace vm::optimization
     // the inline operand-stack contract.
     static InlineDecision scanCalleeOpcodes(
         const BytecodeProgram& program,
-        const BytecodeProgram::FunctionMetadata& callee)
+        const BytecodeProgram::FunctionMetadata& callee,
+        bool isValueObjectReceiver)
     {
         const size_t end = callee.startOffset + callee.instructionCount;
         for (size_t ip = callee.startOffset; ip < end; ++ip)
@@ -70,6 +71,16 @@ namespace vm::optimization
                 case OpCode::LAMBDA_INVOKE:
                     return InlineDecision::HAS_NESTED_CALL;
 
+                // MYT-167 (F-e): ValueObject receivers are read-only inline
+                // eligible. Field writes require the COW slot rewrite in
+                // setFieldOnValueObject which cannot be naively lifted into
+                // an inlined body; reject such callees for ValueObject sites.
+                case OpCode::SET_FIELD:
+                case OpCode::INLINE_SET_FIELD:
+                    if (isValueObjectReceiver)
+                        return InlineDecision::VALUE_OBJECT_WRITES_FIELDS;
+                    break;
+
                 default:
                     break;
             }
@@ -88,8 +99,9 @@ namespace vm::optimization
         if (!entry.shape || !entry.funcMetadata)
             return InlineDecision::UNKNOWN_SHAPE;
 
-        if (entry.receiverIsValueObject)
-            return InlineDecision::VALUE_OBJECT_RECEIVER;
+        // MYT-167 (F-e): ValueObject receivers are eligible for read-only
+        // methods only. Rejection deferred to scanCalleeOpcodes, which rejects
+        // SET_FIELD / INLINE_SET_FIELD when the receiver is a ValueObject.
 
         const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
             entry.funcMetadata);
@@ -124,7 +136,7 @@ namespace vm::optimization
              entry.qualifiedName == currentCompilingFn))
             return InlineDecision::SELF_RECURSIVE;
 
-        return scanCalleeOpcodes(program, *callee);
+        return scanCalleeOpcodes(program, *callee, entry.receiverIsValueObject);
     }
 
     InlineDecision checkInlineEligibility(
