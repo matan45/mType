@@ -1,19 +1,8 @@
 #pragma once
 
 #include <memory>
-#include <variant>
 #include "GCCoordinator.hpp"
-#include "../value/ValueType.hpp"
-
-namespace runtimeTypes::klass { class ObjectInstance; }
-namespace vm::runtime { struct BytecodeLambda; }
-namespace value {
-    class NativeArray;
-    class FlatMultiArray;
-    class SparseMultiArray;
-    class PromiseValue;
-}
-namespace mType::value::arrays { class FlatMultiObjectArray; }
+#include "../value/ValueShim.hpp"
 
 namespace gc
 {
@@ -25,50 +14,14 @@ namespace gc
      */
     inline void* extractPointer(const value::Value& val)
     {
-#ifdef MTYPE_TAGGED_VALUE
-        // MYT-126: GC is walled off under flag-on (registration gated to no-op
-        // in ObjectInstance::registerWithGC). extractPointer is only reached
-        // from GC paths, so returning nullptr here is safe.
-        (void)val;
+        if (value::isObject(val))              return value::asObject(val).get();
+        if (value::isNativeArray(val))         return value::asNativeArray(val).get();
+        if (value::isFlatMultiArray(val))      return value::asFlatMultiArray(val).get();
+        if (value::isSparseMultiArray(val))    return value::asSparseMultiArray(val).get();
+        if (value::isFlatMultiObjectArray(val)) return value::asFlatMultiObjectArray(val).get();
+        if (value::isLambda(val))              return value::asLambda(val).get();
+        if (value::isPromise(val))             return value::asPromise(val).get();
         return nullptr;
-#else
-        return std::visit([](auto&& arg) -> void* {
-            using T = std::decay_t<decltype(arg)>;
-
-            if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::NativeArray>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::FlatMultiArray>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<vm::runtime::BytecodeLambda>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::PromiseValue>>)
-            {
-                return arg.get();
-            }
-            else
-            {
-                return nullptr;
-            }
-        }, val);
-#endif
     }
 
     /**

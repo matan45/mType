@@ -79,10 +79,6 @@ namespace environment::registry
     {
         // Register all builtin functions using clean, separated classes
         registerBuiltinFunction(std::make_unique<builtin::PrintFunction>(methodCallHandler));
-#ifndef MTYPE_TAGGED_VALUE
-        // MYT-126: the math/string natives below are walled off flag-on
-        // (variant-heavy, not exercised by benchmarks). Keep registration
-        // conditional so their symbols aren't referenced.
         registerBuiltinFunction(std::make_unique<builtin::ParsePrimitiveFunction>());
         registerBuiltinFunction(std::make_unique<builtin::StrLengthFunction>());
         registerBuiltinFunction(std::make_unique<builtin::HashCodeFunction>());
@@ -102,7 +98,6 @@ namespace environment::registry
         registerBuiltinFunction(std::make_unique<builtin::ToUpperCaseFunction>());
         registerBuiltinFunction(std::make_unique<builtin::ToLowerCaseFunction>());
         registerBuiltinFunction(std::make_unique<builtin::IndexOfFunction>());
-#endif
     }
 
     void NativeRegistry::registerBuiltinFunction(std::unique_ptr<builtin::BuiltinFunction> function)

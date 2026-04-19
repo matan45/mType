@@ -14,23 +14,20 @@ namespace vm::jit
         template <typename T>
         bool tryReadBoxedField(const value::Value& val, T& out)
         {
-#ifdef MTYPE_TAGGED_VALUE
-            // MYT-126 flag-on stub — JIT is disabled under flag-on, so this is
-            // never called at runtime. Returning false keeps the symbol defined
-            // for linkage without requiring a generic std::holds_alternative<T>
-            // against the tagged Value class.
-            (void)val; (void)out;
-            return false;
-#else
+            // MYT-189: uses holdsT<T>/getT<T> so the helper compiles on both
+            // flag paths. The surrounding JIT is still force-disabled flag-on
+            // at VirtualMachine::setJitEnabled because JIT-emitted machine
+            // code bakes in the std::variant Value layout — the helper just
+            // stays linkable and correct if the gate ever lifts.
             if (value::isObject(val))
             {
                 const auto& obj = value::asObject(val);
                 if (!obj) return false;
                 obj->ensureFieldVector();
                 const value::Value& field = obj->getFieldByIndex(0);
-                if (std::holds_alternative<T>(field))
+                if (value::holdsT<T>(field))
                 {
-                    out = std::get<T>(field);
+                    out = value::getT<T>(field);
                     return true;
                 }
                 return false;
@@ -40,15 +37,14 @@ namespace vm::jit
                 const auto& obj = value::asValueObject(val);
                 if (!obj) return false;
                 const value::Value& field = obj->getFieldByIndex(0);
-                if (std::holds_alternative<T>(field))
+                if (value::holdsT<T>(field))
                 {
-                    out = std::get<T>(field);
+                    out = value::getT<T>(field);
                     return true;
                 }
                 return false;
             }
             return false;
-#endif
         }
     }
 

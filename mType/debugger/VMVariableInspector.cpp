@@ -1,5 +1,3 @@
-// MYT-126: walled off under flag-on — variant accessors not migrated.
-#ifndef MTYPE_TAGGED_VALUE
 #include "VMVariableInspector.hpp"
 #include "DebuggerConstants.hpp"
 #include "../vm/runtime/stack/StackManager.hpp"
@@ -10,10 +8,10 @@
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"
 #include "../value/StringPool.hpp"
+#include "../value/ValueShim.hpp"
 #include "../environment/manager/VariableManager.hpp"
 #include <iostream>
 #include <sstream>
-#include <variant>
 
 namespace debugger
 {
@@ -186,7 +184,7 @@ namespace debugger
                                 {
                                     const auto& val = stack[stackIndex];
                                     // Only show initialized variables
-                                    if (!std::holds_alternative<std::monostate>(val))
+                                    if (!value::isVoid(val))
                                     {
                                         std::string localName = lambdaMetadata->localVariableNames[i];
                                         if (localName.empty())
@@ -301,7 +299,7 @@ namespace debugger
                                 // IMPORTANT: Only show variables that have been initialized (not std::monostate)
                                 // This prevents showing variables that are declared later in the function
                                 // but appear in localVariableNames (which captures all variables at compile time)
-                                if (!std::holds_alternative<std::monostate>(val))
+                                if (!value::isVoid(val))
                                 {
                                     variables.push_back(valueToDebugVariable(funcMetadata->localVariableNames[i], val));
                                 }
@@ -566,9 +564,9 @@ namespace debugger
             const auto& val = it->second;
 
             // Handle arrays
-            if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(val))
+            if (value::isNativeArray(val))
             {
-                auto arr = std::get<std::shared_ptr<value::NativeArray>>(val);
+                auto arr = value::asNativeArray(val);
                 if (arr)
                 {
                     try
@@ -602,9 +600,9 @@ namespace debugger
                 }
             }
             // Handle objects
-            else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val))
+            else if (value::isObject(val))
             {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+                auto obj = value::asObject(val);
                 if (obj)
                 {
                     try
@@ -649,8 +647,8 @@ namespace debugger
     DebugVariable VMVariableInspector::valueToDebugVariable(const std::string& name, const value::Value& val)
     {
         // Check if this is an expandable type
-        bool expandable = std::holds_alternative<std::shared_ptr<value::NativeArray>>(val) ||
-                         std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+        bool expandable = value::isNativeArray(val) ||
+                         value::isObject(val);
 
         int64_t refId = 0;
         if (expandable)
@@ -668,31 +666,31 @@ namespace debugger
     {
         try
         {
-            if (std::holds_alternative<std::monostate>(val))
+            if (value::isVoid(val))
             {
                 return "null";
             }
-            else if (std::holds_alternative<int64_t>(val))
+            else if (value::isInt(val))
             {
-                return std::to_string(std::get<int64_t>(val));
+                return std::to_string(value::asInt(val));
             }
-            else if (std::holds_alternative<double>(val))
+            else if (value::isFloat(val))
             {
-                return std::to_string(std::get<double>(val));
+                return std::to_string(value::asFloat(val));
             }
-            else if (std::holds_alternative<bool>(val))
+            else if (value::isBool(val))
             {
-                return std::get<bool>(val) ? "true" : "false";
+                return value::asBool(val) ? "true" : "false";
             }
-            else if (std::holds_alternative<std::string>(val))
+            else if (value::isString(val))
             {
-                return "\"" + std::get<std::string>(val) + "\"";
+                return "\"" + value::asString(val) + "\"";
             }
-            else if (std::holds_alternative<value::InternedString>(val))
+            else if (value::isInternedString(val))
             {
                 try
                 {
-                    auto internedStr = std::get<value::InternedString>(val);
+                    auto internedStr = value::asInternedString(val);
                     return "\"" + internedStr.getString() + "\"";
                 }
                 catch (const std::exception& e)
@@ -700,9 +698,9 @@ namespace debugger
                     return "\"<error: " + std::string(e.what()) + ">\"";
                 }
             }
-            else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(val))
+            else if (value::isNativeArray(val))
             {
-                auto arr = std::get<std::shared_ptr<value::NativeArray>>(val);
+                auto arr = value::asNativeArray(val);
                 if (arr)
                 {
                     try
@@ -717,9 +715,9 @@ namespace debugger
                 }
                 return "Array[null]";
             }
-            else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val))
+            else if (value::isObject(val))
             {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+                auto obj = value::asObject(val);
                 if (obj)
                 {
                     try
@@ -734,27 +732,27 @@ namespace debugger
                 }
                 return "Object[null]";
             }
-            else if (std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(val))
+            else if (value::isLambda(val))
             {
                 return "<lambda>";
             }
-            else if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(val))
+            else if (value::isFlatMultiArray(val))
             {
                 return "<multi-array>";
             }
-            else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(val))
+            else if (value::isSparseMultiArray(val))
             {
                 return "<sparse-array>";
             }
-            else if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(val))
+            else if (value::isFlatMultiObjectArray(val))
             {
                 return "<object-array>";
             }
-            else if (std::holds_alternative<std::shared_ptr<value::PromiseValue>>(val))
+            else if (value::isPromise(val))
             {
                 return "<promise>";
             }
-            else if (std::holds_alternative<std::nullptr_t>(val))
+            else if (value::isNullType(val))
             {
                 return "null";
             }
@@ -777,37 +775,37 @@ namespace debugger
     {
         try
         {
-            if (std::holds_alternative<std::monostate>(val))
+            if (value::isVoid(val))
             {
                 return "null";
             }
-            else if (std::holds_alternative<int64_t>(val))
+            else if (value::isInt(val))
             {
                 return "Int";
             }
-            else if (std::holds_alternative<double>(val))
+            else if (value::isFloat(val))
             {
                 return "Float";
             }
-            else if (std::holds_alternative<bool>(val))
+            else if (value::isBool(val))
             {
                 return "Bool";
             }
-            else if (std::holds_alternative<std::string>(val))
+            else if (value::isString(val))
             {
                 return "String";
             }
-            else if (std::holds_alternative<value::InternedString>(val))
+            else if (value::isInternedString(val))
             {
                 return "String";
             }
-            else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(val))
+            else if (value::isNativeArray(val))
             {
                 return "Array";
             }
-            else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val))
+            else if (value::isObject(val))
             {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+                auto obj = value::asObject(val);
                 if (obj)
                 {
                     try
@@ -822,27 +820,27 @@ namespace debugger
                 }
                 return "Object";
             }
-            else if (std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(val))
+            else if (value::isLambda(val))
             {
                 return "Lambda";
             }
-            else if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(val))
+            else if (value::isFlatMultiArray(val))
             {
                 return "MultiArray";
             }
-            else if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(val))
+            else if (value::isSparseMultiArray(val))
             {
                 return "SparseArray";
             }
-            else if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(val))
+            else if (value::isFlatMultiObjectArray(val))
             {
                 return "ObjectArray";
             }
-            else if (std::holds_alternative<std::shared_ptr<value::PromiseValue>>(val))
+            else if (value::isPromise(val))
             {
                 return "Promise";
             }
-            else if (std::holds_alternative<std::nullptr_t>(val))
+            else if (value::isNullType(val))
             {
                 return "null";
             }
@@ -861,5 +859,3 @@ namespace debugger
         }
     }
 }
-
-#endif

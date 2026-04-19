@@ -1,5 +1,3 @@
-// MYT-126: walled off under flag-on — variant accessors not migrated.
-#ifndef MTYPE_TAGGED_VALUE
 #include "NetNatives.hpp"
 
 #include "WinHttpClient.hpp"
@@ -15,6 +13,7 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../value/AsyncPromiseValue.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/ValueShim.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/runtime/context/ExecutionContext.hpp"
 #include "../errors/RuntimeException.hpp"
@@ -26,7 +25,6 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
-#include <variant>
 
 namespace net
 {
@@ -87,9 +85,9 @@ namespace net
         {
             if (!vm) return;
 
-            if (std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(cb))
+            if (value::isLambda(cb))
             {
-                auto lambda = std::get<std::shared_ptr<vm::runtime::BytecodeLambda>>(cb);
+                auto lambda = value::asLambda(cb);
                 if (!lambda) return;
                 try { vm->invokeLambda(lambda, { arg }); }
                 catch (const std::exception& e) {
@@ -99,9 +97,9 @@ namespace net
                     std::cerr << "[net] server callback threw: unknown error" << std::endl;
                 }
             }
-            else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(cb))
+            else if (value::isObject(cb))
             {
-                auto inst = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(cb);
+                auto inst = value::asObject(cb);
                 if (!inst) return;
                 try { vm->invokeMethod(inst, "accept", { arg }); }
                 catch (const std::exception& e) {
@@ -188,17 +186,17 @@ namespace net
 
     std::string NetNatives::extractString(const value::Value& arg, const std::string& funcName)
     {
-        if (std::holds_alternative<std::string>(arg))
-            return std::get<std::string>(arg);
-        if (std::holds_alternative<value::InternedString>(arg))
-            return std::get<value::InternedString>(arg).getString();
+        if (value::isString(arg))
+            return value::asString(arg);
+        if (value::isInternedString(arg))
+            return value::asInternedString(arg).getString();
         throw errors::RuntimeException(funcName + ": expected string argument");
     }
 
     int64_t NetNatives::extractInt(const value::Value& arg, const std::string& funcName)
     {
-        if (std::holds_alternative<int64_t>(arg))
-            return std::get<int64_t>(arg);
+        if (value::isInt(arg))
+            return value::asInt(arg);
         throw errors::RuntimeException(funcName + ": expected int argument");
     }
 
@@ -502,5 +500,3 @@ namespace net
         return std::monostate{};
     }
 }
-
-#endif

@@ -253,10 +253,8 @@ void runSpecificTestSuite(const std::string& suiteName,
     gc::GC::shutdown();
 
     // Cleanup reflection static state to avoid static destruction order issues
-#ifndef MTYPE_TAGGED_VALUE
     reflection::ReflectionNatives::cleanup();
     json::JsonNatives::cleanup();
-#endif
     project::mtclib::LibraryNatives::cleanup();
 }
 
@@ -308,10 +306,8 @@ void runAllTests(constants::ExecutionMode execMode)
     }
 
     // Cleanup reflection static state to avoid static destruction order issues
-#ifndef MTYPE_TAGGED_VALUE
     reflection::ReflectionNatives::cleanup();
     json::JsonNatives::cleanup();
-#endif
     project::mtclib::LibraryNatives::cleanup();
 
     // Print final summary

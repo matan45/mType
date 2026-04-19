@@ -1,5 +1,9 @@
 #include "ObjectInstance.hpp"
 #include "../../gc/GC.hpp"
+#ifdef MTYPE_TAGGED_VALUE
+#include "../../value/ValueShim.hpp"
+#include "../../value/ValueBridge.hpp"
+#endif
 #include <algorithm>
 #include <cstddef>
 #include <vector>
@@ -294,16 +298,27 @@ namespace runtimeTypes::klass
 
             // Convert field value to string
 #ifdef MTYPE_TAGGED_VALUE
-            // MYT-126: flag-on uses tag-driven hashing. Heap types fall back to
-            // reference-based hashing — the SPIKE benchmarks don't exercise
-            // content-hash correctness across heap values.
+            // MYT-189: tag-driven content hashing, matching the flag-off
+            // std::visit branch below. Strings hash by content (both STD and
+            // interned), nested objects recurse with the shared depth cap,
+            // and other heap kinds fall back to pointer-based hashing (same
+            // behaviour as the flag-off else-branch).
             if (value::isInt(fieldValue)) hash += std::to_string(value::asInt(fieldValue));
             else if (value::isFloat(fieldValue)) hash += std::to_string(value::asFloat(fieldValue));
             else if (value::isBool(fieldValue)) hash += value::asBool(fieldValue) ? "true" : "false";
             else if (value::isVoid(fieldValue)) hash += "void";
             else if (value::isNullType(fieldValue)) hash += "null";
-            else hash += "ref_" + std::to_string(reinterpret_cast<uintptr_t>(&fieldValue));
-            (void)depth;
+            else if (value::isString(fieldValue)) hash += value::asString(fieldValue);
+            else if (value::isInternedString(fieldValue)) hash += value::asInternedString(fieldValue).getString();
+            else if (value::isObject(fieldValue))
+            {
+                auto obj = value::asObject(fieldValue);
+                hash += obj ? obj->getContentHashImpl(depth + 1) : "null_obj";
+            }
+            else
+            {
+                hash += "ref_" + std::to_string(reinterpret_cast<uintptr_t>(fieldValue.rawBridge()));
+            }
 #else
             std::visit([&hash, depth](const auto& v) {
                 if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int64_t>) {
@@ -336,11 +351,34 @@ namespace runtimeTypes::klass
     bool ObjectInstance::compareFieldValues(const Value& thisValue, const Value& otherValue, int depth)
     {
 #ifdef MTYPE_TAGGED_VALUE
-        // MYT-126: tagged Value's operator== handles tag+payload equality.
-        // Deep content comparison on nested ObjectInstance is not exercised
-        // by the SPIKE benchmarks.
-        (void)depth;
-        return thisValue == otherValue;
+        // MYT-189: tag-driven field comparison matching the flag-off std::visit
+        // branch below. Primitives and strings compare by value (Value::operator==
+        // already handles content-correct equality). Nested objects recurse via
+        // contentEqualsImpl with the shared depth cap. All other heap kinds
+        // return false for distinct Values — mirrors the flag-off pointer
+        // compare (`&thisV == &otherV`), which is always false for separate
+        // variant slots.
+        if (thisValue.tag() != otherValue.tag()) return false;
+        switch (thisValue.tag())
+        {
+        case value::ValueType::INT:
+        case value::ValueType::FLOAT:
+        case value::ValueType::BOOL:
+        case value::ValueType::VOID:
+        case value::ValueType::NULL_TYPE:
+        case value::ValueType::STRING:
+            return thisValue == otherValue;
+        case value::ValueType::OBJECT:
+        {
+            auto lhs = value::asObject(thisValue);
+            auto rhs = value::asObject(otherValue);
+            if (!lhs && !rhs) return true;
+            if (!lhs || !rhs) return false;
+            return lhs->contentEqualsImpl(*rhs, depth + 1);
+        }
+        default:
+            return false;
+        }
 #else
         return std::visit([depth](const auto& thisV, const auto& otherV) -> bool {
             // Same types comparison

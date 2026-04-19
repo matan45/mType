@@ -1,5 +1,3 @@
-// MYT-126: walled off under flag-on — variant accessors not migrated.
-#ifndef MTYPE_TAGGED_VALUE
 #include "WinHttpClient.hpp"
 
 #include <windows.h>
@@ -266,5 +264,3 @@ namespace net
         return response;
     }
 }
-
-#endif

@@ -1,8 +1,7 @@
-// MYT-126: walled off under flag-on — variant accessors not migrated.
-#ifndef MTYPE_TAGGED_VALUE
 #include "ReflectionNatives.hpp"
 #include "ReflectionHandle.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/InternedString.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
@@ -20,15 +19,15 @@ namespace reflection
     {
         int64_t extractHandle(const Value& arg, const char* fn, const char* label)
         {
-            if (!std::holds_alternative<int64_t>(arg))
+            if (!isInt(arg))
                 throw errors::RuntimeException(std::string(fn) + " requires " + label + ":int");
-            return std::get<int64_t>(arg);
+            return asInt(arg);
         }
 
         std::string extractName(const Value& arg, const char* fn, const char* label)
         {
-            if (std::holds_alternative<std::string>(arg)) return std::get<std::string>(arg);
-            if (std::holds_alternative<InternedString>(arg)) return std::get<InternedString>(arg).getString();
+            if (isString(arg)) return asString(arg);
+            if (isInternedString(arg)) return asInternedString(arg).getString();
             throw errors::RuntimeException(std::string(fn) + " requires " + label + ":string");
         }
 
@@ -162,5 +161,3 @@ namespace reflection
         return info.constructor->hasParameterAnnotation(pi, name);
     }
 }
-
-#endif

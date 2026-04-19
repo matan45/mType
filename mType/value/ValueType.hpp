@@ -160,18 +160,28 @@ namespace value
         bool rawBool() const noexcept { return payload_.b; }
         BridgeBase* rawBridge() const noexcept { return static_cast<BridgeBase*>(payload_.ptr); }
 
-        // Comparison operators required by tests / variant-backed call sites
-        // that compare Values directly. Minimal SPIKE impl: tag equality plus
-        // identity comparison for heap, payload bitwise compare for inline.
+        // Comparison operators. Matches flag-off std::variant::operator==
+        // semantics: primitives by value, STRING by content (both STD_STRING
+        // and INTERNED_STRING kinds, cross-kind falls back to content), other
+        // heap kinds by held shared_ptr::get() (the shared_ptr default ==).
         bool operator==(const Value& other) const noexcept
         {
             if (tag_ != other.tag_) return false;
-            if (isHeapTag()) return payload_.ptr == other.payload_.ptr;
-            return payload_.i == other.payload_.i;
+            switch (tag_)
+            {
+            case ValueType::INT:       return payload_.i == other.payload_.i;
+            case ValueType::FLOAT:     return payload_.d == other.payload_.d;
+            case ValueType::BOOL:      return payload_.b == other.payload_.b;
+            case ValueType::VOID:
+            case ValueType::NULL_TYPE: return true;
+            default:                   return equalsHeap(other);
+            }
         }
         bool operator!=(const Value& other) const noexcept { return !(*this == other); }
 
     private:
+        bool equalsHeap(const Value& other) const noexcept;
+
         union Payload
         {
             int64_t i;

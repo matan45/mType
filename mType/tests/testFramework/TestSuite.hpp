@@ -49,6 +49,11 @@ namespace tests::testFramework
                              const std::string& bootstrapFilePath,
                              NativeCallback callback);
 
+        // MYT-189 — register a test as SKIPPED with an explicit reason.
+        // Used to gate walled-off subsystems under MTYPE_TAGGED_VALUE so
+        // the suite reports an explicit skip instead of silently dropping.
+        void addSkippedTest(const std::string& name, const std::string& reason);
+
         void setExecutionModeForAll(constants::ExecutionMode mode);
 
     private:

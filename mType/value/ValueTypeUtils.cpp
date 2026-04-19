@@ -145,6 +145,85 @@ namespace value {
     Value::Value(InternedString&& s)
         : tag_(ValueType::STRING) { payload_.ptr = makeBridge<BridgeKind::INTERNED_STRING, InternedString>(std::move(s)); }
 
+    // MYT-189: out-of-line heap-content equality. Mirrors the implicit
+    // std::variant::operator== dispatch used under flag-off — strings by
+    // content, other heap kinds by the held shared_ptr's underlying raw
+    // pointer (same as shared_ptr::operator== semantics).
+    namespace {
+        const std::string& stringAt(const Value& v)
+        {
+            auto kind = v.rawBridge()->kind();
+            if (kind == BridgeKind::STD_STRING)
+            {
+                using Bridge = TypedBridge<BridgeKind::STD_STRING, std::string>;
+                return static_cast<Bridge*>(v.rawBridge())->get();
+            }
+            using Bridge = TypedBridge<BridgeKind::INTERNED_STRING, InternedString>;
+            return static_cast<Bridge*>(v.rawBridge())->get().getString();
+        }
+
+        template <BridgeKind K, typename Held>
+        const void* heldRaw(const Value& v)
+        {
+            return static_cast<TypedBridge<K, Held>*>(v.rawBridge())->get().get();
+        }
+    }
+
+    bool Value::equalsHeap(const Value& other) const noexcept
+    {
+        BridgeBase* lhs = rawBridge();
+        BridgeBase* rhs = other.rawBridge();
+        if (!lhs || !rhs) return lhs == rhs;
+
+        if (tag_ == ValueType::STRING)
+        {
+            return stringAt(*this) == stringAt(other);
+        }
+
+        if (lhs->kind() != rhs->kind()) return false;
+
+        switch (lhs->kind())
+        {
+        case BridgeKind::OBJECT_INSTANCE:
+            return heldRaw<BridgeKind::OBJECT_INSTANCE,
+                           std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*this)
+                == heldRaw<BridgeKind::OBJECT_INSTANCE,
+                           std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(other);
+        case BridgeKind::VALUE_OBJECT:
+            return heldRaw<BridgeKind::VALUE_OBJECT, std::shared_ptr<ValueObject>>(*this)
+                == heldRaw<BridgeKind::VALUE_OBJECT, std::shared_ptr<ValueObject>>(other);
+        case BridgeKind::BYTECODE_LAMBDA:
+            return heldRaw<BridgeKind::BYTECODE_LAMBDA,
+                           std::shared_ptr<vm::runtime::BytecodeLambda>>(*this)
+                == heldRaw<BridgeKind::BYTECODE_LAMBDA,
+                           std::shared_ptr<vm::runtime::BytecodeLambda>>(other);
+        case BridgeKind::NATIVE_ARRAY:
+            return heldRaw<BridgeKind::NATIVE_ARRAY, std::shared_ptr<NativeArray>>(*this)
+                == heldRaw<BridgeKind::NATIVE_ARRAY, std::shared_ptr<NativeArray>>(other);
+        case BridgeKind::FLAT_MULTI_ARRAY:
+            return heldRaw<BridgeKind::FLAT_MULTI_ARRAY, std::shared_ptr<FlatMultiArray>>(*this)
+                == heldRaw<BridgeKind::FLAT_MULTI_ARRAY, std::shared_ptr<FlatMultiArray>>(other);
+        case BridgeKind::SPARSE_MULTI_ARRAY:
+            return heldRaw<BridgeKind::SPARSE_MULTI_ARRAY,
+                           std::shared_ptr<SparseMultiArray>>(*this)
+                == heldRaw<BridgeKind::SPARSE_MULTI_ARRAY,
+                           std::shared_ptr<SparseMultiArray>>(other);
+        case BridgeKind::FLAT_MULTI_OBJECT_ARRAY:
+            return heldRaw<BridgeKind::FLAT_MULTI_OBJECT_ARRAY,
+                           std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(*this)
+                == heldRaw<BridgeKind::FLAT_MULTI_OBJECT_ARRAY,
+                           std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(other);
+        case BridgeKind::PROMISE:
+            return heldRaw<BridgeKind::PROMISE, std::shared_ptr<PromiseValue>>(*this)
+                == heldRaw<BridgeKind::PROMISE, std::shared_ptr<PromiseValue>>(other);
+        case BridgeKind::STD_STRING:
+        case BridgeKind::INTERNED_STRING:
+            // Handled by the tag_==STRING branch above.
+            return false;
+        }
+        return false;
+    }
+
 #endif
 
 }

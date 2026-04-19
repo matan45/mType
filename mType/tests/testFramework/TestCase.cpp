@@ -50,8 +50,21 @@ namespace tests::testFramework
     {
     }
 
+    TestCase TestCase::skipped(const std::string& testName, const std::string& reason)
+    {
+        TestCase tc(testName, "", TestType::NORMAL);
+        tc.status = TestStatus::SKIPPED;
+        tc.errorMessage = reason;
+        return tc;
+    }
+
     void TestCase::execute()
     {
+        if (status == TestStatus::SKIPPED)
+        {
+            return;
+        }
+
         auto startTime = std::chrono::high_resolution_clock::now();
 
         // Clear interface validation cache to prevent contamination between tests
@@ -65,10 +78,8 @@ namespace tests::testFramework
         }
 
         // Clear reflection handle registry to prevent stale handles between tests
-#ifndef MTYPE_TAGGED_VALUE
         reflection::ReflectionNatives::cleanup();
         json::JsonNatives::cleanup();
-#endif
 
         // Reset GC state to prevent cross-test contamination
         gc::GC::reset();

@@ -1,34 +1,33 @@
-// MYT-126: walled off under flag-on — variant accessors not migrated.
-#ifndef MTYPE_TAGGED_VALUE
 #include "HashMapMarshal.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/ValueShim.hpp"
 #include "../errors/RuntimeException.hpp"
-
-#include <variant>
 
 namespace net
 {
     namespace
     {
-        std::string asString(const value::Value& v)
+        // Named `extractString` (not `asString`) to avoid ambiguity with the
+        // ValueShim's `value::asString`, which this file now depends on.
+        std::string extractString(const value::Value& v)
         {
-            if (std::holds_alternative<std::string>(v))
-                return std::get<std::string>(v);
-            if (std::holds_alternative<value::InternedString>(v))
-                return std::get<value::InternedString>(v).getString();
+            if (value::isString(v))
+                return value::asString(v);
+            if (value::isInternedString(v))
+                return value::asInternedString(v).getString();
             // Boxed String instance: pull the inner `value` field.
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v))
+            if (value::isObject(v))
             {
-                auto inst = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v);
+                auto inst = value::asObject(v);
                 if (inst)
                 {
                     auto inner = inst->getFieldValue("value");
-                    if (std::holds_alternative<std::string>(inner))
-                        return std::get<std::string>(inner);
-                    if (std::holds_alternative<value::InternedString>(inner))
-                        return std::get<value::InternedString>(inner).getString();
+                    if (value::isString(inner))
+                        return value::asString(inner);
+                    if (value::isInternedString(inner))
+                        return value::asInternedString(inner).getString();
                 }
             }
             return "";
@@ -69,46 +68,46 @@ namespace net
     std::unordered_map<std::string, std::string> hashMapToStdMap(const value::Value& v)
     {
         std::unordered_map<std::string, std::string> result;
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v))
+        if (!value::isObject(v))
             return result;
 
-        auto inst = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v);
+        auto inst = value::asObject(v);
         if (!inst) return result;
 
         auto keyBucketsVal = inst->getFieldValue("keyBuckets");
         auto valBucketsVal = inst->getFieldValue("valueBuckets");
         auto bucketSizesVal = inst->getFieldValue("bucketSizes");
 
-        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(keyBucketsVal) ||
-            !std::holds_alternative<std::shared_ptr<value::NativeArray>>(valBucketsVal) ||
-            !std::holds_alternative<std::shared_ptr<value::NativeArray>>(bucketSizesVal))
+        if (!value::isNativeArray(keyBucketsVal) ||
+            !value::isNativeArray(valBucketsVal) ||
+            !value::isNativeArray(bucketSizesVal))
         {
             return result;
         }
 
-        auto keyBuckets = std::get<std::shared_ptr<value::NativeArray>>(keyBucketsVal);
-        auto valBuckets = std::get<std::shared_ptr<value::NativeArray>>(valBucketsVal);
-        auto bucketSizes = std::get<std::shared_ptr<value::NativeArray>>(bucketSizesVal);
+        auto keyBuckets = value::asNativeArray(keyBucketsVal);
+        auto valBuckets = value::asNativeArray(valBucketsVal);
+        auto bucketSizes = value::asNativeArray(bucketSizesVal);
 
         size_t cap = keyBuckets->size();
         for (size_t i = 0; i < cap; ++i)
         {
             auto sizeVal = bucketSizes->get(i);
-            if (!std::holds_alternative<int64_t>(sizeVal)) continue;
-            int64_t bSize = std::get<int64_t>(sizeVal);
+            if (!value::isInt(sizeVal)) continue;
+            int64_t bSize = value::asInt(sizeVal);
 
             auto kRowVal = keyBuckets->get(i);
             auto vRowVal = valBuckets->get(i);
-            if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(kRowVal) ||
-                !std::holds_alternative<std::shared_ptr<value::NativeArray>>(vRowVal))
+            if (!value::isNativeArray(kRowVal) ||
+                !value::isNativeArray(vRowVal))
                 continue;
 
-            auto kRow = std::get<std::shared_ptr<value::NativeArray>>(kRowVal);
-            auto vRow = std::get<std::shared_ptr<value::NativeArray>>(vRowVal);
+            auto kRow = value::asNativeArray(kRowVal);
+            auto vRow = value::asNativeArray(vRowVal);
             for (int64_t j = 0; j < bSize; ++j)
             {
-                std::string key = asString(kRow->get(static_cast<size_t>(j)));
-                std::string val = asString(vRow->get(static_cast<size_t>(j)));
+                std::string key = extractString(kRow->get(static_cast<size_t>(j)));
+                std::string val = extractString(vRow->get(static_cast<size_t>(j)));
                 result[key] = val;
             }
         }
@@ -147,11 +146,9 @@ namespace net
             int64_t hash = stringHash(k);
             int64_t bucket = computeBucketIndex(hash, capacity);
 
-            int64_t bSize = std::get<int64_t>(bucketSizes->get(static_cast<size_t>(bucket)));
-            auto kRow = std::get<std::shared_ptr<value::NativeArray>>(
-                keyBuckets->get(static_cast<size_t>(bucket)));
-            auto vRow = std::get<std::shared_ptr<value::NativeArray>>(
-                valBuckets->get(static_cast<size_t>(bucket)));
+            int64_t bSize = value::asInt(bucketSizes->get(static_cast<size_t>(bucket)));
+            auto kRow = value::asNativeArray(keyBuckets->get(static_cast<size_t>(bucket)));
+            auto vRow = value::asNativeArray(valBuckets->get(static_cast<size_t>(bucket)));
 
             if (bSize >= static_cast<int64_t>(kRow->size()))
             {
@@ -183,5 +180,3 @@ namespace net
         return instance;
     }
 }
-
-#endif

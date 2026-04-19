@@ -1,6 +1,3 @@
-// MYT-126: debugger is walled off under flag-on. DebugSession becomes a stub
-// that refuses to enter debug mode.
-#ifndef MTYPE_TAGGED_VALUE
 #include "DebugSession.hpp"
 #include "../debugger/DebugContext.hpp"
 #include "../debugger/DebugHookHelper.hpp"
@@ -115,11 +112,3 @@ void runInDebugMode(const std::string& filename,
     }
     // StdoutGuard restores std::cout and clears protocol stream on all exit paths
 }
-
-#else
-#include "DebugSession.hpp"
-#include <iostream>
-void runInDebugMode(const std::string&, constants::ExecutionMode) {
-    std::cerr << "Debug mode disabled under MTYPE_TAGGED_VALUE (MYT-126 SPIKE)" << std::endl;
-}
-#endif

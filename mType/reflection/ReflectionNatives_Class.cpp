@@ -1,11 +1,10 @@
-// MYT-126: walled off under flag-on — variant accessors not migrated.
-#ifndef MTYPE_TAGGED_VALUE
 #include "ReflectionNatives.hpp"
 #include "ReflectionHandle.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/InternedString.hpp"
+#include "../value/ValueShim.hpp"
 #include "../types/UnifiedType.hpp"
 #include "../types/ReifiedTypeRegistry.hpp"
 #include "../environment/registry/ClassRegistry.hpp"
@@ -297,12 +296,12 @@ namespace reflection
         validateArgCount(args, 2, "__reflect_isInstance");
         int64_t classHandle = extractInt(args[0], "__reflect_isInstance", "classHandle");
 
-        if (std::holds_alternative<std::monostate>(args[1]) || std::holds_alternative<nullptr_t>(args[1]))
+        if (isVoid(args[1]) || isNullType(args[1]))
         {
             return false;
         }
 
-        if (!std::holds_alternative<std::shared_ptr<ObjectInstance>>(args[1]))
+        if (!isObject(args[1]))
         {
             return false;
         }
@@ -314,7 +313,7 @@ namespace reflection
             throw errors::RuntimeException("Invalid class handle");
         }
 
-        auto instance = std::get<std::shared_ptr<ObjectInstance>>(args[1]);
+        auto instance = asObject(args[1]);
         return instance->isInstanceOf(classDef->getName());
     }
 
@@ -518,5 +517,3 @@ namespace reflection
     }
 
 } // namespace reflection
-
-#endif

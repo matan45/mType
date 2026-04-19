@@ -1,11 +1,10 @@
-// MYT-126: walled off under flag-on — variant accessors not migrated.
-#ifndef MTYPE_TAGGED_VALUE
 #include "ReflectionNatives.hpp"
 #include "ReflectionHandle.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/InternedString.hpp"
+#include "../value/ValueShim.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 
 namespace reflection
@@ -31,9 +30,9 @@ namespace reflection
 
         // Get param count from array
         size_t paramCount = 0;
-        if (std::holds_alternative<std::shared_ptr<NativeArray>>(args[2]))
+        if (isNativeArray(args[2]))
         {
-            auto paramArray = std::get<std::shared_ptr<NativeArray>>(args[2]);
+            auto paramArray = asNativeArray(args[2]);
             paramCount = paramArray->size();
         }
 
@@ -252,15 +251,15 @@ namespace reflection
         }
 
         std::vector<Value> argsVec;
-        if (std::holds_alternative<std::shared_ptr<NativeArray>>(args[2]))
+        if (isNativeArray(args[2]))
         {
-            auto argArray = std::get<std::shared_ptr<NativeArray>>(args[2]);
+            auto argArray = asNativeArray(args[2]);
             for (size_t i = 0; i < argArray->size(); ++i)
             {
                 argsVec.push_back(argArray->get(i));
             }
         }
-        else if (!std::holds_alternative<std::monostate>(args[2]) && !std::holds_alternative<nullptr_t>(args[2]))
+        else if (!isVoid(args[2]) && !isNullType(args[2]))
         {
             throw errors::RuntimeException("Expected array for arguments parameter in __reflect_invokeMethod");
         }
@@ -307,15 +306,15 @@ namespace reflection
         }
 
         std::vector<Value> argsVec;
-        if (std::holds_alternative<std::shared_ptr<NativeArray>>(args[2]))
+        if (isNativeArray(args[2]))
         {
-            auto argArray = std::get<std::shared_ptr<NativeArray>>(args[2]);
+            auto argArray = asNativeArray(args[2]);
             for (size_t i = 0; i < argArray->size(); ++i)
             {
                 argsVec.push_back(argArray->get(i));
             }
         }
-        else if (!std::holds_alternative<std::monostate>(args[2]) && !std::holds_alternative<nullptr_t>(args[2]))
+        else if (!isVoid(args[2]) && !isNullType(args[2]))
         {
             throw errors::RuntimeException("Expected array for arguments parameter in __reflect_invokeStaticMethod");
         }
@@ -340,5 +339,3 @@ namespace reflection
 
 
 } // namespace reflection
-
-#endif
