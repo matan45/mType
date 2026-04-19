@@ -1,10 +1,9 @@
 #pragma once
 //
-// IntrusivePtr<T> + RefCounted base — MYT-126 SPIKE.
+// IntrusivePtr<T> + RefCounted base.
 //
-// Non-atomic, intrusive refcount scaffolding for the tagged-Value prototype.
-// Not used under flag-off builds; flag-on (MTYPE_TAGGED_VALUE) eight heap
-// types inherit RefCounted and Value stores IntrusivePtr<RefCounted> in a
+// Non-atomic, intrusive refcount backing the tagged Value. The eight heap
+// types inherit RefCounted; Value stores IntrusivePtr<RefCounted> in its
 // 16-byte tagged payload.
 //
 // Non-atomic is deliberate: the interpreter is single-threaded inside the

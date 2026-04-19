@@ -7,21 +7,32 @@
 namespace gc
 {
     /**
-     * @brief Extract raw pointer from a Value variant
+     * @brief Extract raw pointer from a Value
      *
      * Returns the raw pointer if the Value contains a GC-managed type,
-     * nullptr otherwise.
+     * nullptr otherwise. Hot path: called twice per
+     * ObjectInstance::setField, so the dispatch is on v.tag() first so
+     * primitives/null/string bail out with a single byte compare.
      */
     inline void* extractPointer(const value::Value& val)
     {
-        if (value::isObject(val))              return value::asObject(val).get();
-        if (value::isNativeArray(val))         return value::asNativeArray(val).get();
-        if (value::isFlatMultiArray(val))      return value::asFlatMultiArray(val).get();
-        if (value::isSparseMultiArray(val))    return value::asSparseMultiArray(val).get();
-        if (value::isFlatMultiObjectArray(val)) return value::asFlatMultiObjectArray(val).get();
-        if (value::isLambda(val))              return value::asLambda(val).get();
-        if (value::isPromise(val))             return value::asPromise(val).get();
-        return nullptr;
+        switch (val.tag())
+        {
+        case value::ValueType::OBJECT:
+            return value::asObject(val).get();
+        case value::ValueType::ARRAY:
+            if (value::isNativeArray(val))           return value::asNativeArray(val).get();
+            if (value::isFlatMultiArray(val))        return value::asFlatMultiArray(val).get();
+            if (value::isSparseMultiArray(val))      return value::asSparseMultiArray(val).get();
+            if (value::isFlatMultiObjectArray(val))  return value::asFlatMultiObjectArray(val).get();
+            return nullptr;
+        case value::ValueType::LAMBDA:
+            return value::asLambda(val).get();
+        case value::ValueType::PROMISE:
+            return value::asPromise(val).get();
+        default:
+            return nullptr;
+        }
     }
 
     /**

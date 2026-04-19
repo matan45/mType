@@ -187,33 +187,9 @@ namespace value
          */
         bool valuesEqual(const Value& a, const Value& b) const
         {
-#ifdef MTYPE_TAGGED_VALUE
-            // Tagged Value already provides operator==, which is tag equality
-            // plus payload bit-compare / pointer identity. Matches the variant
-            // semantics for the SPIKE — heap identity is acceptable here.
+            // Value::operator== is tag+content dispatched (see ValueType.hpp),
+            // so this delegates to the standard equality semantics.
             return a == b;
-#else
-            // Handle the different value types properly
-            if (a.index() != b.index()) return false;
-
-            return std::visit([&b](const auto& aVal) -> bool
-            {
-                return std::visit([&aVal](const auto& bVal) -> bool
-                {
-                    using AType = std::decay_t<decltype(aVal)>;
-                    using BType = std::decay_t<decltype(bVal)>;
-
-                    if constexpr (std::is_same_v<AType, BType>)
-                    {
-                        return aVal == bVal;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }, b);
-            }, a);
-#endif
         }
 
         /**

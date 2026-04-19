@@ -165,11 +165,7 @@ namespace vm::jit
 
             if (isNull(*left) && isNull(*right)) return 1;
             if (isNull(*left) || isNull(*right)) return 0;
-#ifdef MTYPE_TAGGED_VALUE
             if (left->tag() != right->tag()) return 0;
-#else
-            if (left->index() != right->index()) return 0;
-#endif
 
             if (value::isInt(*left))
                 return value::asInt(*left) == value::asInt(*right) ? 1 : 0;

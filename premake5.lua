@@ -16,10 +16,6 @@ function commonConfig()
    targetdir (builddir)
 
    defines { "_CRT_SECURE_NO_WARNINGS", "MTYPE_SIMD_ENABLED" }
-   -- MYT-126 SPIKE: 16-byte tagged Value prototype.
-   -- Flag-on builds replace the std::variant Value with a tagged union and
-   -- disable the JIT tier. See docs/spike-myt126-tagged-value.md.
-   defines { "MTYPE_TAGGED_VALUE" }
 
    -- Platform-specific configurations
    filter "system:windows"

@@ -75,10 +75,10 @@ namespace tests::testFramework
                  TestType testType,
                  const std::string& expectedErrorSubstr);
 
-        // MYT-189 — skip-at-setup entry. execute() short-circuits with
-        // SKIPPED status and the provided reason. Used for walled-off
-        // subsystems under MTYPE_TAGGED_VALUE so the suite reports the
-        // skip explicitly instead of silently dropping the tests.
+        // Skip-at-setup entry. execute() short-circuits with SKIPPED status
+        // and the provided reason. Used when a feature is unavailable in the
+        // current build so the suite reports the skip explicitly instead of
+        // silently dropping the tests.
         static TestCase skipped(const std::string& testName, const std::string& reason);
 
         // NATIVE_CALLBACK constructor — runs `bootstrapFilePath` first

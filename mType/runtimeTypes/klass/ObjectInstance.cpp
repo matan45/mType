@@ -1,9 +1,7 @@
 #include "ObjectInstance.hpp"
 #include "../../gc/GC.hpp"
-#ifdef MTYPE_TAGGED_VALUE
 #include "../../value/ValueShim.hpp"
 #include "../../value/ValueBridge.hpp"
-#endif
 #include <algorithm>
 #include <cstddef>
 #include <vector>
@@ -296,13 +294,9 @@ namespace runtimeTypes::klass
             Value fieldValue = getFieldValue(fieldName);
             hash += fieldName + "=";
 
-            // Convert field value to string
-#ifdef MTYPE_TAGGED_VALUE
-            // MYT-189: tag-driven content hashing, matching the flag-off
-            // std::visit branch below. Strings hash by content (both STD and
-            // interned), nested objects recurse with the shared depth cap,
-            // and other heap kinds fall back to pointer-based hashing (same
-            // behaviour as the flag-off else-branch).
+            // Tag-driven content hashing. Strings hash by content (both STD
+            // and interned), nested objects recurse with the shared depth cap,
+            // and other heap kinds fall back to pointer-based hashing.
             if (value::isInt(fieldValue)) hash += std::to_string(value::asInt(fieldValue));
             else if (value::isFloat(fieldValue)) hash += std::to_string(value::asFloat(fieldValue));
             else if (value::isBool(fieldValue)) hash += value::asBool(fieldValue) ? "true" : "false";
@@ -319,29 +313,6 @@ namespace runtimeTypes::klass
             {
                 hash += "ref_" + std::to_string(reinterpret_cast<uintptr_t>(fieldValue.rawBridge()));
             }
-#else
-            std::visit([&hash, depth](const auto& v) {
-                if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int64_t>) {
-                    hash += std::to_string(v);
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, double>) {
-                    hash += std::to_string(v);
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, bool>) {
-                    hash += v ? "true" : "false";
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::string>) {
-                    hash += v;
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, nullptr_t>) {
-                    hash += "null";
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::monostate>) {
-                    hash += "void";
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
-                    // Depth-limited recursive content hashing
-                    hash += v ? v->getContentHashImpl(depth + 1) : "null_obj";
-                } else {
-                    // For collections and other complex types, use reference-based hashing
-                    hash += "ref_" + std::to_string(reinterpret_cast<uintptr_t>(&v));
-                }
-            }, fieldValue);
-#endif
             hash += ";";
         }
 
@@ -350,14 +321,10 @@ namespace runtimeTypes::klass
 
     bool ObjectInstance::compareFieldValues(const Value& thisValue, const Value& otherValue, int depth)
     {
-#ifdef MTYPE_TAGGED_VALUE
-        // MYT-189: tag-driven field comparison matching the flag-off std::visit
-        // branch below. Primitives and strings compare by value (Value::operator==
-        // already handles content-correct equality). Nested objects recurse via
-        // contentEqualsImpl with the shared depth cap. All other heap kinds
-        // return false for distinct Values — mirrors the flag-off pointer
-        // compare (`&thisV == &otherV`), which is always false for separate
-        // variant slots.
+        // Tag-driven field comparison. Primitives and strings compare by
+        // value (Value::operator== already handles content-correct equality).
+        // Nested objects recurse via contentEqualsImpl with the shared depth
+        // cap. All other heap kinds return false for distinct Values.
         if (thisValue.tag() != otherValue.tag()) return false;
         switch (thisValue.tag())
         {
@@ -379,32 +346,6 @@ namespace runtimeTypes::klass
         default:
             return false;
         }
-#else
-        return std::visit([depth](const auto& thisV, const auto& otherV) -> bool {
-            // Same types comparison
-            if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, std::decay_t<decltype(otherV)>>) {
-                if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>) {
-                    // Depth-limited recursive content comparison
-                    if (!thisV && !otherV) return true;
-                    if (!thisV || !otherV) return false;
-                    return thisV->contentEqualsImpl(*otherV, depth + 1);
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, int64_t> ||
-                                   std::is_same_v<std::decay_t<decltype(thisV)>, double> ||
-                                   std::is_same_v<std::decay_t<decltype(thisV)>, bool> ||
-                                   std::is_same_v<std::decay_t<decltype(thisV)>, std::string>) {
-                    return thisV == otherV;
-                } else if constexpr (std::is_same_v<std::decay_t<decltype(thisV)>, nullptr_t> ||
-                                   std::is_same_v<std::decay_t<decltype(thisV)>, std::monostate>) {
-                    return true;  // Both null or void
-                } else {
-                    // For collections and other complex types, use pointer comparison
-                    return &thisV == &otherV;
-                }
-            }
-            // Different types are not equal
-            return false;
-        }, thisValue, otherValue);
-#endif
     }
 
     bool ObjectInstance::contentEquals(const ObjectInstance& other) const

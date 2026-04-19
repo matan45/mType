@@ -76,25 +76,12 @@ namespace vm::runtime
 
     void VirtualMachine::setJitEnabled(bool enabled)
     {
-#ifdef MTYPE_TAGGED_VALUE
-        // MYT-126: JIT-emitted machine code bakes in the std::variant Value
-        // layout. Under the tagged-Value flag, force JIT off — the helpers
-        // still compile (via the shim) but never run.
+        // JIT-emitted machine code was designed against the pre-migration
+        // std::variant Value layout, so it is force-disabled under the
+        // tagged Value. The helpers still compile and link (they use the
+        // shim) but never run until the emitter is re-ported.
         (void)enabled;
         jitEnabled = false;
-        return;
-#else
-        jitEnabled = enabled;
-        if (enabled && !jitProfiler)
-        {
-            jitProfiler = std::make_unique<jit::JitProfiler>();
-            jitCodeCache = std::make_unique<jit::JitCodeCache>();
-            jitCompiler = std::make_unique<jit::JitCompiler>();
-            osrManager = std::make_unique<jit::OSRManager>();
-        }
-        // JIT implies IC
-        if (enabled) setICEnabled(true);
-#endif
     }
 
     void VirtualMachine::setICEnabled(bool enabled)

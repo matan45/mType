@@ -1,11 +1,8 @@
 #pragma once
-#include <variant>
 #include <string>
 #include <memory>
 #include "StringPool.hpp"
-#ifdef MTYPE_TAGGED_VALUE
 #include "ValueBridge.hpp"
-#endif
 
 namespace runtimeTypes::klass
 {
@@ -50,29 +47,16 @@ namespace value
         PROMISE
     };
 
-#ifndef MTYPE_TAGGED_VALUE
-    // Runtime value that can hold different types
-    using Value = std::variant<int64_t, double, bool, std::string, InternedString, std::monostate,
-                               std::shared_ptr<runtimeTypes::klass::ObjectInstance>,
-                               std::shared_ptr<ValueObject>,
-                               std::shared_ptr<NativeArray>,
-                               std::shared_ptr<FlatMultiArray>,
-                               std::shared_ptr<SparseMultiArray>,
-                               std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>,
-                               std::shared_ptr<vm::runtime::BytecodeLambda>,
-                               std::shared_ptr<PromiseValue>,
-                               nullptr_t>;
-#else
     //
-    // MYT-126 SPIKE: 16-byte tagged Value.
+    // 16-byte tagged Value (MYT-126 go).
     //
     // Layout: 8-byte payload + 1-byte tag + 7 bytes padding (sizeof == 16).
     // Primitives (INT/FLOAT/BOOL/VOID/NULL_TYPE) live inline in the payload.
     // Everything else routes through a RefCounted BridgeBase* — see ValueBridge.hpp.
     //
     // Heap-type constructors are declared here but defined out-of-line in
-    // ValueType.cpp so this header doesn't need to pull in the full heap type
-    // definitions.
+    // ValueTypeUtils.cpp so this header doesn't need to pull in the full heap
+    // type definitions.
     //
     class Value final
     {
@@ -223,10 +207,9 @@ namespace value
     };
 
     static_assert(sizeof(Value) == 16,
-                  "MYT-126 tagged Value must be 16 bytes — adjust payload/padding");
+                  "Tagged Value must be 16 bytes — adjust payload/padding");
     static_assert(alignof(Value) == 8,
-                  "MYT-126 tagged Value must be 8-byte aligned (JIT assumption)");
-#endif
+                  "Tagged Value must be 8-byte aligned (JIT helper assumption)");
 
     // Primitive shim accessors — defined inline in ValueType.hpp so that
     // headers which only include ValueType.hpp (e.g. NativeArray.hpp) can
@@ -234,9 +217,7 @@ namespace value
     // Heap-type accessors (isObject / asObject / etc.) live in ValueShim.hpp.
     // Template helpers for generic code (e.g. PrimitiveArray<T>::set).
     // holdsT<T> returns whether Value holds a T; getT<T> extracts it.
-    // Under flag-on these dispatch on tag; under flag-off they delegate to
-    // std::variant. Only primitive Ts are supported under flag-on.
-#ifdef MTYPE_TAGGED_VALUE
+    // Only primitive Ts are supported.
     template <typename T> inline bool holdsT(const Value& v) noexcept
     {
         if constexpr (std::is_same_v<T, int64_t>) return v.tag() == ValueType::INT;
@@ -251,57 +232,7 @@ namespace value
         else if constexpr (std::is_same_v<T, bool>) return v.rawBool();
         else return T{};
     }
-#else
-    template <typename T> inline bool holdsT(const Value& v) noexcept { return std::holds_alternative<T>(v); }
-    template <typename T> inline T getT(const Value& v) { return std::get<T>(v); }
-#endif
 
-#ifndef MTYPE_TAGGED_VALUE
-    inline bool isInt(const Value& v) noexcept { return std::holds_alternative<int64_t>(v); }
-    inline bool isFloat(const Value& v) noexcept { return std::holds_alternative<double>(v); }
-    inline bool isBool(const Value& v) noexcept { return std::holds_alternative<bool>(v); }
-    inline bool isVoid(const Value& v) noexcept { return std::holds_alternative<std::monostate>(v); }
-    inline bool isNullType(const Value& v) noexcept { return std::holds_alternative<std::nullptr_t>(v); }
-    inline bool isString(const Value& v) noexcept { return std::holds_alternative<std::string>(v); }
-    inline bool isInternedString(const Value& v) noexcept { return std::holds_alternative<InternedString>(v); }
-    inline bool isObject(const Value& v) noexcept
-    {
-        return std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v);
-    }
-    inline bool isValueObject(const Value& v) noexcept
-    {
-        return std::holds_alternative<std::shared_ptr<ValueObject>>(v);
-    }
-    inline bool isLambda(const Value& v) noexcept
-    {
-        return std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(v);
-    }
-    inline bool isNativeArray(const Value& v) noexcept
-    {
-        return std::holds_alternative<std::shared_ptr<NativeArray>>(v);
-    }
-    inline bool isFlatMultiArray(const Value& v) noexcept
-    {
-        return std::holds_alternative<std::shared_ptr<FlatMultiArray>>(v);
-    }
-    inline bool isSparseMultiArray(const Value& v) noexcept
-    {
-        return std::holds_alternative<std::shared_ptr<SparseMultiArray>>(v);
-    }
-    inline bool isFlatMultiObjectArray(const Value& v) noexcept
-    {
-        return std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(v);
-    }
-    inline bool isPromise(const Value& v) noexcept
-    {
-        return std::holds_alternative<std::shared_ptr<PromiseValue>>(v);
-    }
-    inline int64_t asInt(const Value& v) { return std::get<int64_t>(v); }
-    inline double asFloat(const Value& v) { return std::get<double>(v); }
-    inline bool asBool(const Value& v) { return std::get<bool>(v); }
-    inline const std::string& asString(const Value& v) { return std::get<std::string>(v); }
-    inline const InternedString& asInternedString(const Value& v) { return std::get<InternedString>(v); }
-#else
     inline bool isInt(const Value& v) noexcept { return v.tag() == ValueType::INT; }
     inline bool isFloat(const Value& v) noexcept { return v.tag() == ValueType::FLOAT; }
     inline bool isBool(const Value& v) noexcept { return v.tag() == ValueType::BOOL; }
@@ -348,5 +279,4 @@ namespace value
         using Bridge = TypedBridge<BridgeKind::INTERNED_STRING, InternedString>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }
-#endif
 }
