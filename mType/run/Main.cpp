@@ -962,8 +962,10 @@ int main(int argc, char* argv[])
         int rc = runMain::runBenchmarks(benchmarkOptions);
 
         gc::GC::shutdown();
+#ifndef MTYPE_TAGGED_VALUE
         reflection::ReflectionNatives::cleanup();
         json::JsonNatives::cleanup();
+#endif
         return rc;
     }
 
@@ -1042,8 +1044,10 @@ int main(int argc, char* argv[])
             vm::profiler::ProfilerContext::shutdown();
         }
         gc::GC::shutdown(); // Clean up GC before exit
+#ifndef MTYPE_TAGGED_VALUE
         reflection::ReflectionNatives::cleanup();
         json::JsonNatives::cleanup();
+#endif
         return 1;
     }
 
@@ -1051,8 +1055,10 @@ int main(int argc, char* argv[])
     gc::GC::shutdown();
 
     // Cleanup reflection static state to avoid static destruction order issues
+#ifndef MTYPE_TAGGED_VALUE
     reflection::ReflectionNatives::cleanup();
     json::JsonNatives::cleanup();
+#endif
 
     return 0;
 }

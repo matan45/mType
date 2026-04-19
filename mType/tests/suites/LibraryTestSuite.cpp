@@ -1,5 +1,6 @@
 #include "LibraryTestSuite.hpp"
 #include "../../services/ScriptAPI.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../types/TypeSignature.hpp"
 #include "../../project/mtclib/MtcLibFormat.hpp"
 #include "../../project/mtclib/MtcLibSerializer.hpp"
@@ -1385,7 +1386,7 @@ namespace tests::testSuite
 
                 // Load library via native function
                 auto result = loadLibFunc({ std::string(libPath) });
-                require(std::holds_alternative<std::monostate>(result),
+                require(value::isVoid(result),
                     "loadLibrary should return void");
 
                 // Verify library was loaded

@@ -80,11 +80,14 @@ namespace services
         // Always create bytecode execution strategy
         executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get(), scriptAPI.get());
 
+#ifndef MTYPE_TAGGED_VALUE
+        // MYT-126: reflection/net natives are walled off flag-on.
         // Set VM reference for reflection method/constructor invocation
         reflection::ReflectionNatives::setVM(vm);
 
         // Set VM reference for networking (HTTP/TCP) async natives
         net::NetNatives::setVM(vm);
+#endif
 
         // Set VM and loader for runtime library loading native functions
         transitiveDependencyLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
@@ -95,7 +98,9 @@ namespace services
     ScriptInterpreter::~ScriptInterpreter()
     {
         // Clean up static native function state
+#ifndef MTYPE_TAGGED_VALUE
         net::NetNatives::cleanup();
+#endif
         project::mtclib::LibraryNatives::cleanup();
 
         // Clean up registries to prevent memory leaks in long-running programs

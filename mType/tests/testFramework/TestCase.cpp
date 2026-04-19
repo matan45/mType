@@ -65,8 +65,10 @@ namespace tests::testFramework
         }
 
         // Clear reflection handle registry to prevent stale handles between tests
+#ifndef MTYPE_TAGGED_VALUE
         reflection::ReflectionNatives::cleanup();
         json::JsonNatives::cleanup();
+#endif
 
         // Reset GC state to prevent cross-test contamination
         gc::GC::reset();

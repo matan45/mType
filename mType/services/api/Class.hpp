@@ -3,6 +3,7 @@
 #include <string>
 #include <variant>
 #include "../../value/ValueType.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../errors/ObjectException.hpp"
