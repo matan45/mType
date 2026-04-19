@@ -593,6 +593,13 @@ namespace vm::runtime
                 return;
             }
             if (simpleMethodName == "equals") {
+                // Default Object.equals() — content-based equality. Iterates
+                // the declared instance fields and compares element-wise via
+                // ObjectInstance::contentEqualsImpl. `==` stays reference-only
+                // (see objectIdentity.mt); user overrides customize further.
+                // Per implicitObjectInheritance.mt and objectEqualsNull.mt,
+                // two instances of the same class with identical field values
+                // compare equal.
                 if (argCount >= 1) {
                     const auto& otherVal = args[0];
                     if (value::isObject(otherVal)) {

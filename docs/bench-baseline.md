@@ -777,3 +777,30 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 - **Run-to-run variance**: All deltas vs. the 2026-04-18 snapshot are within ±5%; no regression attributable to the new materialize / box dispatch. The onExit path adds one `jit_unbox_int` invoke (or one `jit_box_*`) per inlined RETURN_VALUE emission — negligible at the hot-loop scale since each inline body typically has one return.
 - **STRING_BUILD fallback cost**: Inliner bailout via `HAS_UNSUPPORTED_OPCODE` routes STRING_BUILD-containing callees (e.g. `Container::describe`) to the generic slow path. Not visible in this benchmark set — no bench currently exercises a hot STRING_BUILD site. Filed as a perf follow-up to implement a JIT handler (ticket TBD).
 - **Per-benchmark output hashes**: verified against `--no-jit` on the three inlining integration tests (`inline_arithmetic.mt` → `500500`, `inline_mono_to_poly.mt` → `33050`, `valueClassJitFieldAccess.mt` → `container: box:rgb(10,20,30)`).
+
+## 2026-04-19 — MYT-190 (JIT re-enabled under tagged Value, emitter ported)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-190`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      |  989.34 |     997.87 |        20013 |       0 |
+| method_dispatch.mt            |  254.90 |     255.37 |        14039 |     506 |
+| object_alloc.mt               | 2088.34 |    2140.22 |        17509 | 2000000 |
+| string_ops.mt                 |  190.74 |     190.90 |        19014 |       0 |
+| recursive.mt                  | 1616.30 |    1635.31 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1421.14 |    1421.28 |        23014 |       0 |
+| short_circuit_chain.mt        |  395.53 |     398.99 |        24907 |       0 |
+| primitive_method_dispatch.mt  | 1114.46 |    1120.09 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   67.61 |      67.83 |        10909 |     500 |
+| array_multi_get.mt            | 1301.85 |    1309.12 |        50815 |     500 |
+| for_each_loop.mt              |  429.71 |     444.48 |        78650 |    6604 |
+| inline_monomorphic.mt         |  220.26 |     221.18 |        13013 |     501 |
+| inline_branching.mt           |  223.45 |     224.28 |        15013 |     501 |
+| inline_polymorphic.mt         |  260.58 |     262.36 |        14048 |     508 |
+| inline_value_object_hot.mt    | 1841.05 |    1850.55 |        12530 |     501 |
