@@ -88,6 +88,18 @@ namespace value {
     Value::Value(InternedString&& s)
         : tag_(ValueType::STRING) { payload_.ptr = makeBridge<BridgeKind::INTERNED_STRING, InternedString>(std::move(s)); }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4413)  // offsetof on non-standard-layout (Value has user-defined dtor)
+#endif
+    size_t Value::payloadOffset() noexcept
+    {
+        return offsetof(Value, payload_);
+    }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
     // MYT-189: out-of-line heap-content equality. Mirrors the implicit
     // std::variant::operator== dispatch used under flag-off — strings by
     // content, other heap kinds by the held shared_ptr's underlying raw

@@ -190,6 +190,15 @@ namespace vm::runtime
 
         for (const auto& classInHierarchy : hierarchy) {
             for (const auto& [fieldName, fieldDef] : classInHierarchy->getInstanceFields()) {
+                // Final fields are always written by the constructor: inline
+                // initializers fire in the prologue, ctor-initialized fields
+                // fire in the body. Pre-populating them here would make the
+                // instance-final check in ObjectExecutor::SET_FIELD see the
+                // field as already set and reject the legitimate first write.
+                // FieldInitializationValidator catches uninitialized finals
+                // at compile time.
+                if (fieldDef->isFinal()) continue;
+
                 value::Value initialValue = fieldDef->getValue();
                 if (value::isVoid(initialValue)) {
                     switch (fieldDef->getType()) {

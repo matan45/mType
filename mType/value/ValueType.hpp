@@ -144,6 +144,13 @@ namespace value
         bool rawBool() const noexcept { return payload_.b; }
         BridgeBase* rawBridge() const noexcept { return static_cast<BridgeBase*>(payload_.ptr); }
 
+        // Byte offset of payload_ within Value. Consumed by the JIT emitter
+        // to synthesize inline loads of the bridge pointer without calling a
+        // helper. Not constexpr because offsetof on a non-standard-layout
+        // type is conditionally-supported; same pattern as
+        // ObjectInstance::classDefinitionMemberOffset.
+        static size_t payloadOffset() noexcept;
+
         // Comparison operators. Matches flag-off std::variant::operator==
         // semantics: primitives by value, STRING by content (both STD_STRING
         // and INTERNED_STRING kinds, cross-kind falls back to content), other

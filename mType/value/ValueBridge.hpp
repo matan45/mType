@@ -54,6 +54,22 @@ namespace value
         const Held& get() const noexcept { return held_; }
         Held& get() noexcept { return held_; }
 
+        // Byte offset of held_ within the bridge. Consumed by the JIT emitter
+        // to synthesize inline shared_ptr dereferencing without a helper call
+        // (MYT-169 / MYT-190 Phase 2). Not constexpr: offsetof on a
+        // polymorphic type is conditionally-supported.
+        static size_t heldOffset() noexcept
+        {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4413)
+#endif
+            return offsetof(TypedBridge, held_);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+        }
+
     private:
         Held held_;
     };

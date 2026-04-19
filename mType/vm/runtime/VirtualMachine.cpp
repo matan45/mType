@@ -76,12 +76,15 @@ namespace vm::runtime
 
     void VirtualMachine::setJitEnabled(bool enabled)
     {
-        // JIT-emitted machine code was designed against the pre-migration
-        // std::variant Value layout, so it is force-disabled under the
-        // tagged Value. The helpers still compile and link (they use the
-        // shim) but never run until the emitter is re-ported.
-        (void)enabled;
-        jitEnabled = false;
+        jitEnabled = enabled;
+        if (enabled && !jitProfiler)
+        {
+            jitProfiler  = std::make_unique<jit::JitProfiler>();
+            jitCodeCache = std::make_unique<jit::JitCodeCache>();
+            jitCompiler  = std::make_unique<jit::JitCompiler>();
+            osrManager   = std::make_unique<jit::OSRManager>();
+        }
+        if (enabled) setICEnabled(true);
     }
 
     void VirtualMachine::setICEnabled(bool enabled)
