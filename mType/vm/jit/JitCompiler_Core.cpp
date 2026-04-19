@@ -533,7 +533,9 @@ namespace vm::jit
                                    CompilationFrame& frame,
                                    ic::TypeFeedbackCollector* typeFeedback,
                                    uint64_t* inlineFieldICHits,
-                                   uint64_t* inlineFieldICMisses)
+                                   uint64_t* inlineFieldICMisses,
+                                   uint64_t* inlineFieldSetICHits,
+                                   uint64_t* inlineFieldSetICMisses)
     {
         emitArgumentUnboxing(cc, ctxPtr, frame.localsBase, funcMeta,
                              frame.usesBoxedTypes, frame.localStride, frame.localTypes);
@@ -562,6 +564,8 @@ namespace vm::jit
             ? funcMeta.name : funcMeta.mangledName;
         s.inlineFieldICHits = inlineFieldICHits;
         s.inlineFieldICMisses = inlineFieldICMisses;
+        s.inlineFieldSetICHits = inlineFieldSetICHits;
+        s.inlineFieldSetICMisses = inlineFieldSetICMisses;
 
         emitCodegenLoop(s, startOffset, instrCount, program);
 
@@ -613,7 +617,8 @@ namespace vm::jit
         auto frame = setupCompilationFrame(cc, program, *funcMeta, localCount);
 
         if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame, typeFeedback,
-                               &inlineFieldICHits, &inlineFieldICMisses))
+                               &inlineFieldICHits, &inlineFieldICMisses,
+                               &inlineFieldSetICHits, &inlineFieldSetICMisses))
         {
             bailoutCount++;
             return false;

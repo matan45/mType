@@ -4,6 +4,7 @@
 #include "ic/InlineCacheTable.hpp"
 #include "ic/TypeFeedbackCollector.hpp"
 #include "../optimization/InlineAnalysis.hpp"
+#include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include <asmjit/x86.h>
 #include <cassert>
 
@@ -233,15 +234,25 @@ namespace vm::jit
         return true;
     }
 
-    static bool emitSetFieldOp(JitEmissionState& s,
-                                const bytecode::BytecodeProgram::Instruction& instr)
+    // MYT-191: emit the helper-call slow path for SET_FIELD, without any
+    // slotType / stackDepth management. Used both by the original
+    // emitSetFieldOp fall-through and as the miss-branch tail of
+    // tryEmitInlinedFieldSet. Mirrors emitGetFieldHelperInvoke's split.
+    //
+    // Pre-condition: the emitter has already popped the two input slot
+    // types; stackDepth still points past the new-value slot so
+    // (stackDepth - 1) = new value and (stackDepth - 2) = object/dest.
+    // Caller provides newValAddr (already boxed if needed) so the boxing
+    // is emitted once even when this invoke runs on the miss branch of
+    // tryEmitInlinedFieldSet.
+    static void emitSetFieldHelperInvoke(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr,
+        Gp newValAddr)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         uint32_t fieldNameIndex = static_cast<uint32_t>(instr.operands[0]);
-        SlotType valType = popType(s);
-        popType(s);
-        Gp newValAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, valType);
         Gp objAddr = cc.new_gp64();
         cc.lea(objAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
         Gp dest = cc.new_gp64();
@@ -264,6 +275,124 @@ namespace vm::jit
         inv->set_arg(4, ipReg);
         inv->set_arg(5, idx);
         inv->set_arg(6, flagsReg);
+    }
+
+    // MYT-191: speculative-inline SET_FIELD when the field IC is in
+    // monomorphic state with a non-value-class shape. Mirrors
+    // tryEmitInlinedFieldGet's structure. Returns false on cold IC,
+    // POLY/MEGA, unboxed mode, or a value-class shape — caller falls back
+    // to the original emitSetFieldOp body.
+    //
+    // Fast path: shape guard → invoke jit_field_set_at (thin helper that
+    // runs ObjectInstance::setFieldByIndex with its full write barrier and
+    // mirrors `*dest = *newValue`) → bump hit counter.
+    // Slow path: bump miss counter → emitSetFieldHelperInvoke (jit_set_field_ic).
+    //
+    // ValueClass receivers are rejected at emit time because ValueObject
+    // SET is fundamentally CoW (deepCopy + reassign) — the existing helper
+    // is correct and the inline path would need an entirely different
+    // sequence. A MONO IC pins one shape, so the compile-time flag is
+    // authoritative.
+    static bool tryEmitInlinedFieldSet(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (!s.typeFeedback) return false;
+        if (!s.usesBoxedTypes) return false;
+        if (!s.inlineFieldSetICHits || !s.inlineFieldSetICMisses) return false;
+
+        auto& icTable = s.typeFeedback->getICTable();
+        if (!icTable.hasFieldIC(s.currentIP)) return false;
+
+        auto& cache = icTable.getFieldIC(s.currentIP);
+        if (cache.state != ic::ICState::MONOMORPHIC) return false;
+        if (cache.entryCount == 0) return false;
+
+        const auto* shape = cache.entries[0].shape;
+        size_t fieldIndex = cache.entries[0].fieldIndex;
+        if (!shape || fieldIndex == SIZE_MAX) return false;
+        if (shape->isValueClass()) return false;
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        SlotType valType = popType(s);
+        popType(s);
+        const int receiverIdx = s.stackDepth - 2;
+        const int newValIdx = s.stackDepth - 1;
+
+        Label slowLabel = cc.new_label();
+        Label joinLabel = cc.new_label();
+
+        // 1. Box new value once (shared by both paths). In boxed-types
+        //    mode the new value may still be a raw primitive slot type, so
+        //    emitGetBoxedValueAddr will materialise a boxed Value into
+        //    callArgs; we want that to happen exactly once.
+        Gp newValAddr = emitGetBoxedValueAddr(s, newValIdx, valType);
+
+        // 2. Shape guard. On mismatch / null bridge / wrong variant → slow.
+        emitInlineShapeGuard(s, receiverIdx, shape, slowLabel);
+
+        // 3. Invoke jit_field_set_at(destSlot, receiverSlot, fieldIndex,
+        //    newValue). destSlot and receiverSlot alias the same stack
+        //    position (stackDepth-2) — the helper runs setFieldByIndex
+        //    before overwriting it. A false return (null bridge at runtime,
+        //    unexpected ValueObject tag, out-of-range index) branches to
+        //    the slow path.
+        Gp slotAddr = cc.new_gp64();
+        cc.lea(slotAddr, Mem(s.boxedBase,
+                             static_cast<int32_t>(receiverIdx * valueSize)));
+        Gp fieldIdxReg = cc.new_gp64();
+        cc.mov(fieldIdxReg, static_cast<int64_t>(fieldIndex));
+        Gp retReg = cc.new_gp64();
+        InvokeNode* setInv;
+        cc.invoke(Out(setInv), reinterpret_cast<uint64_t>(jit_field_set_at),
+                  FuncSignature::build<bool, value::Value*, const value::Value*,
+                      size_t, const value::Value*>());
+        setInv->set_arg(0, slotAddr);
+        setInv->set_arg(1, slotAddr);
+        setInv->set_arg(2, fieldIdxReg);
+        setInv->set_arg(3, newValAddr);
+        setInv->set_ret(0, retReg);
+        // bool returns land in AL; test the low byte so the upper bits
+        // (undefined under the MS x64 ABI) don't affect the branch.
+        cc.test(retReg.r8(), retReg.r8());
+        cc.jz(slowLabel);
+
+        // 4. Fast-path hit. Bump counter, skip the slow-path helper.
+        Gp hitsAddr = cc.new_gp64();
+        cc.mov(hitsAddr, reinterpret_cast<uint64_t>(s.inlineFieldSetICHits));
+        cc.inc(qword_ptr(hitsAddr));
+        cc.jmp(joinLabel);
+
+        // 5. Slow path. Bump miss counter, then run jit_set_field_ic.
+        cc.bind(slowLabel);
+        Gp missesAddr = cc.new_gp64();
+        cc.mov(missesAddr, reinterpret_cast<uint64_t>(s.inlineFieldSetICMisses));
+        cc.inc(qword_ptr(missesAddr));
+        emitSetFieldHelperInvoke(s, instr, newValAddr);
+
+        cc.bind(joinLabel);
+
+        // 6. Both paths leave the dest slot (stackDepth-2) holding
+        //    newValue; destroy the original newValue slot at stackDepth-1
+        //    so its heap ref is released, then collapse the stack by one.
+        if (isBoxedSlotType(valType))
+            emitValueDestroy(s, s.stackDepth - 1);
+        s.stackDepth--;
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
+    static bool emitSetFieldOp(JitEmissionState& s,
+                                const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (tryEmitInlinedFieldSet(s, instr))
+            return true;
+
+        SlotType valType = popType(s);
+        popType(s);
+        Gp newValAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, valType);
+        emitSetFieldHelperInvoke(s, instr, newValAddr);
         if (isBoxedSlotType(valType))
             emitValueDestroy(s, s.stackDepth - 1);
         s.stackDepth--;
@@ -1086,6 +1215,8 @@ namespace vm::jit
             case OpCode::PUSH_STRING:    return emitPushStringOp(s, instr);
             case OpCode::GET_FIELD:      return emitGetFieldOp(s, instr);
             case OpCode::SET_FIELD:      return emitSetFieldOp(s, instr);
+            case OpCode::INLINE_GET_FIELD: return emitGetFieldOp(s, instr);
+            case OpCode::INLINE_SET_FIELD: return emitSetFieldOp(s, instr);
             case OpCode::CALL_STATIC:    return emitCallStaticOp(s, instr);
             case OpCode::CALL_METHOD:    return emitCallMethodOp(s, instr);
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);

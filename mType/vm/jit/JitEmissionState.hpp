@@ -89,6 +89,10 @@ namespace vm::jit
         uint64_t* inlineFieldICHits = nullptr;
         uint64_t* inlineFieldICMisses = nullptr;
 
+        // MYT-191: separate SET-site counters, plumbed the same way.
+        uint64_t* inlineFieldSetICHits = nullptr;
+        uint64_t* inlineFieldSetICMisses = nullptr;
+
         // MYT-163: name of the top-level function currently being compiled.
         // Used by InlineAnalysis::checkInlineEligibility to reject self-recursive
         // inline candidates. Empty for OSR emission (self-recursion already

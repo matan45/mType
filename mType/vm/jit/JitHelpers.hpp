@@ -88,6 +88,19 @@ namespace vm::jit
     // entire point — this helper does no map lookups.
     const value::Value* jit_field_data_const(const value::Value* receiver) noexcept;
 
+    // MYT-191: thin inline-IC SET helper. Writes *newValue into the
+    // ObjectInstance receiver's field[fieldIndex] using the write-barrier-
+    // correct setFieldByIndex path, then mirrors *destSlot = *newValue so
+    // the destination stack slot holds the assigned value (matching the
+    // semantics of jit_set_field_ic). Returns false on any bail condition
+    // (null pointers, non-ObjectInstance receiver including ValueObject, or
+    // out-of-range fieldIndex) so the caller can jump to the slow path
+    // which handles ValueObject CoW and IC table maintenance.
+    bool jit_field_set_at(value::Value* destSlot,
+                          const value::Value* receiverSlot,
+                          size_t fieldIndex,
+                          const value::Value* newValue) noexcept;
+
     // CALL_METHOD with inline-cache fast path. Mirrors emitGetFieldOp/jit_get_field_ic
     // pattern: emitter passes the bytecode IP, helper looks up MethodInlineCache by
     // offset, on monomorphic/polymorphic shape match dispatches via pre-resolved

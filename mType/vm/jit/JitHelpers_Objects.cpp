@@ -61,6 +61,48 @@ namespace vm::jit
         return nullptr;
     }
 
+    // MYT-191: inline-IC SET fast path helper. Thin wrapper around
+    // ObjectInstance::setFieldByIndex that preserves the full write-barrier
+    // sequence (oldPtr refcount decrement, cycle-root mark, fieldValues map
+    // sync) while skipping the IC lookup and name resolution that
+    // jit_set_field_ic does unconditionally.
+    //
+    // The emitter gates on the shape cache being MONOMORPHIC and the shape
+    // not being a value class, so the receiver is guaranteed to be an
+    // ObjectInstance at a matching shape with the cached fieldIndex already
+    // resolved. Anything unexpected at runtime (null bridge, wrong variant,
+    // uninitialised fieldVector that ensureFieldVector can't recover) signals
+    // via a false return so the caller jumps to the original helper-invoke
+    // slow path — which handles ValueObject CoW, populates the IC on miss,
+    // and runs the same write barrier ObjectInstance::setFieldByIndex runs.
+    bool jit_field_set_at(value::Value* destSlot,
+                          const value::Value* receiverSlot,
+                          size_t fieldIndex,
+                          const value::Value* newValue) noexcept
+    {
+        if (!destSlot || !receiverSlot || !newValue) return false;
+        if (!value::isObject(*receiverSlot)) return false;
+        const auto& instance = value::asObject(*receiverSlot);
+        if (!instance) return false;
+        if (!instance->hasFieldVector())
+            instance->ensureFieldVector();
+        const auto& classDef = instance->getClassDefinition();
+        if (!classDef || fieldIndex >= classDef->getTotalFieldCount())
+            return false;
+        // setFieldByIndex runs the write barrier: releases oldPtr if distinct
+        // from newPtr, marks `this` as cycle-suspect if the new value is a
+        // heap ref, keeps fieldValues map in sync. Value::operator= inside
+        // the vector assignment retains newPtr.
+        instance->setFieldByIndex(fieldIndex, *newValue);
+        // Mirror jit_set_field_ic's `*destValue = *newValue` semantics. When
+        // destSlot == receiverSlot (the emitter passes the same pointer for
+        // both) this releases the ObjectInstance bridge the slot held and
+        // retains newValue in its place. The local `instance` reference is
+        // not touched after this assignment.
+        *destSlot = *newValue;
+        return true;
+    }
+
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount)
     {
         if (ctx->pendingException)

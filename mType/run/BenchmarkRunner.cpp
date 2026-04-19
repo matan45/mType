@@ -29,10 +29,15 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 15> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 16> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
+        // MYT-191: direct-field-write hot loop. SET_FIELD lives inside the
+        // OSR-compiled outer loop (unlike object_alloc.mt, whose SETs are
+        // in Point.constructor and run interpreted), so this is the only
+        // canonical script that exercises tryEmitInlinedFieldSet.
+        "field_write_hot.mt",
         "string_ops.mt",
         "recursive.mt",
         "bitwise_tight_loop.mt",
