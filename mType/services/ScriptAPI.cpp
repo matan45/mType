@@ -1,6 +1,7 @@
 #include "ScriptAPI.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ValueShim.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
 #include "../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../runtimeTypes/global/VariableDefinition.hpp"
@@ -39,12 +40,12 @@ namespace services
         std::shared_ptr<runtimeTypes::klass::ObjectInstance>
         asObjectInstance(const value::Value& v, const char* apiName)
         {
-            if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v))
+            if (!value::isObject(v))
             {
                 throw errors::ObjectException(
                     "Value is not an object", "", apiName);
             }
-            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v);
+            auto instance = value::asObject(v);
             if (!instance)
             {
                 throw errors::ObjectException(
@@ -173,12 +174,12 @@ namespace services
     value::Value ScriptAPI::callLambda(const value::Value& lambda,
                                        const std::vector<value::Value>& args)
     {
-        if (!std::holds_alternative<std::shared_ptr<vm::runtime::BytecodeLambda>>(lambda))
+        if (!value::isLambda(lambda))
         {
             throw errors::ObjectException("Cannot invoke non-lambda value", "", __FUNCTION__);
         }
 
-        auto lambdaPtr = std::get<std::shared_ptr<vm::runtime::BytecodeLambda>>(lambda);
+        auto lambdaPtr = value::asLambda(lambda);
 
         if (vm)
         {
@@ -335,15 +336,16 @@ namespace services
     {
         // Silent-false for non-objects is the documented behavior of this
         // utility — keep it distinct from the throw-on-mismatch helpers.
-        // Uses get_if so this file still passes the hygiene grep (no
-        // `std::get<std::shared_ptr<ObjectInstance>>` outside asObjectInstance).
-        auto* instancePtr =
-            std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&object);
-        if (!instancePtr || !*instancePtr)
+        if (!value::isObject(object))
         {
             return false;
         }
-        auto classDef = (*instancePtr)->getClassDefinition();
+        auto instance = value::asObject(object);
+        if (!instance)
+        {
+            return false;
+        }
+        auto classDef = instance->getClassDefinition();
         return classDef && classDef->getName() == className;
     }
 
@@ -399,14 +401,14 @@ namespace services
         // level a shared_ptr<NativeArray> with object elements. Anything
         // else is an internal invariant violation and must fail loudly
         // rather than silently return an empty vector.
-        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(argsArray))
+        if (!value::isNativeArray(argsArray))
         {
             throw errors::ObjectException(
                 "Class.getTypeArguments() returned an unexpected value shape "
                 "(expected NativeArray)",
                 "Class", "ScriptAPI::getGenericArguments");
         }
-        auto array = std::get<std::shared_ptr<value::NativeArray>>(argsArray);
+        auto array = value::asNativeArray(argsArray);
         if (!array)
         {
             throw errors::ObjectException(
@@ -448,13 +450,13 @@ namespace services
         // same string the language-side Class.getName() would.
         auto instance = asObjectInstance(cls.asValue(), "ScriptAPI::isInstanceOf");
         value::Value handleVal = instance->getFieldValue("_nativeHandle");
-        if (!std::holds_alternative<int64_t>(handleVal))
+        if (!value::isInt(handleVal))
         {
             throw errors::ObjectException(
                 "Class._nativeHandle is missing or not an int",
                 "Class", "ScriptAPI::isInstanceOf");
         }
-        int64_t handle = std::get<int64_t>(handleVal);
+        int64_t handle = value::asInt(handleVal);
 
         auto& registry = reflection::ReflectionHandleRegistry::instance();
         std::string name;

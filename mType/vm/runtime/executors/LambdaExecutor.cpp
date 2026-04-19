@@ -2,6 +2,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
@@ -128,7 +129,7 @@ namespace vm::runtime
 
         // Pop lambda value from stack
         value::Value lambdaVal = context.stackManager->pop();
-        auto lambda = std::get<std::shared_ptr<BytecodeLambda>>(lambdaVal);
+        auto lambda = value::asLambda(lambdaVal);
 
         size_t lambdaStart = lambda->instructionPointer;
         size_t paramCount = lambda->parameterCount;
@@ -209,13 +210,13 @@ namespace vm::runtime
                 bool needsBoxing = false;
                 std::string boxClassName;
 
-                if (expectedType == "Int" && std::holds_alternative<int64_t>(argValue)) {
+                if (expectedType == "Int" && value::isInt(argValue)) {
                     needsBoxing = true; boxClassName = "Int";
-                } else if (expectedType == "Float" && (std::holds_alternative<double>(argValue) || std::holds_alternative<int64_t>(argValue))) {
+                } else if (expectedType == "Float" && (value::isFloat(argValue) || value::isInt(argValue))) {
                     needsBoxing = true; boxClassName = "Float";
-                } else if (expectedType == "Bool" && std::holds_alternative<bool>(argValue)) {
+                } else if (expectedType == "Bool" && value::isBool(argValue)) {
                     needsBoxing = true; boxClassName = "Bool";
-                } else if (expectedType == "String" && std::holds_alternative<std::string>(argValue)) {
+                } else if (expectedType == "String" && value::isString(argValue)) {
                     needsBoxing = true; boxClassName = "String";
                 }
 

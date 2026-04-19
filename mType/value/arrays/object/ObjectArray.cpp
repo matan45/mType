@@ -1,5 +1,6 @@
 #include "ObjectArray.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../../ValueShim.hpp"
 namespace mType
 {
     namespace value
@@ -62,12 +63,12 @@ namespace mType
                 }
 
                 // Must be an ObjectInstance
-                if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value))
+                if (!::value::isObject(value))
                 {
                     throw std::runtime_error("Value must be an ObjectInstance");
                 }
 
-                auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
+                auto instance = ::value::asObject(value);
 
                 // Validate it's the same class type
                 if (instance->getClassDefinition()->getClassName() != classDefinition_->getClassName())

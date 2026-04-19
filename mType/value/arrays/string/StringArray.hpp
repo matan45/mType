@@ -168,13 +168,13 @@ namespace mType
                     }
 
                     // Handle string types and increment ref count for new value
-                    if (std::holds_alternative<std::string>(value))
+                    if (::value::isString(value))
                     {
-                        poolIds_[index] = internStringAndAddRef(std::get<std::string>(value));
+                        poolIds_[index] = internStringAndAddRef(::value::asString(value));
                     }
-                    else if (std::holds_alternative<::value::InternedString>(value))
+                    else if (::value::isInternedString(value))
                     {
-                        const auto& internedStr = std::get<::value::InternedString>(value);
+                        const auto& internedStr = ::value::asInternedString(value);
                         poolIds_[index] = internStringAndAddRef(internedStr.getString());
                     }
                     else
@@ -382,13 +382,13 @@ namespace mType
                     }
 
                     // Handle string types and increment ref count for new value
-                    if (std::holds_alternative<std::string>(value))
+                    if (::value::isString(value))
                     {
-                        poolIds_[index] = internStringAndAddRef(std::get<std::string>(value));
+                        poolIds_[index] = internStringAndAddRef(::value::asString(value));
                     }
-                    else if (std::holds_alternative<::value::InternedString>(value))
+                    else if (::value::isInternedString(value))
                     {
-                        const auto& internedStr = std::get<::value::InternedString>(value);
+                        const auto& internedStr = ::value::asInternedString(value);
                         poolIds_[index] = internStringAndAddRef(internedStr.getString());
                     }
                 }

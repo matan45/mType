@@ -28,11 +28,11 @@ namespace vm::runtime::utils
         }
 
         std::string className;
-        if (std::holds_alternative<int64_t>(val))
+        if (value::isInt(val))
             className = "Int";
-        else if (std::holds_alternative<double>(val))
+        else if (value::isFloat(val))
             className = "Float";
-        else if (std::holds_alternative<bool>(val))
+        else if (value::isBool(val))
             className = "Bool";
         else
             return val;

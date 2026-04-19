@@ -1,6 +1,7 @@
 #include "ArrayOperations.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../simd/SIMDOperations.hpp"
+#include "../ValueShim.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -20,8 +21,8 @@ namespace value::operations
 
     bool ArrayOperations::extractInt(const Value& val, int64_t& out)
     {
-        if (std::holds_alternative<int64_t>(val)) {
-            out = std::get<int64_t>(val);
+        if (value::isInt(val)) {
+            out = value::asInt(val);
             return true;
         }
         return false;
@@ -29,12 +30,12 @@ namespace value::operations
 
     bool ArrayOperations::extractFloat(const Value& val, double& out)
     {
-        if (std::holds_alternative<double>(val)) {
-            out = std::get<double>(val);
+        if (value::isFloat(val)) {
+            out = value::asFloat(val);
             return true;
         }
-        if (std::holds_alternative<int64_t>(val)) {
-            out = static_cast<double>(std::get<int64_t>(val));
+        if (value::isInt(val)) {
+            out = static_cast<double>(value::asInt(val));
             return true;
         }
         return false;
@@ -42,8 +43,8 @@ namespace value::operations
 
     bool ArrayOperations::extractBool(const Value& val, bool& out)
     {
-        if (std::holds_alternative<bool>(val)) {
-            out = std::get<bool>(val);
+        if (value::isBool(val)) {
+            out = value::asBool(val);
             return true;
         }
         return false;
@@ -100,10 +101,10 @@ namespace value::operations
             Value val1 = array1->get(i);
             Value val2 = array2->get(i);
 
-            if (std::holds_alternative<int64_t>(val1) && std::holds_alternative<int64_t>(val2)) {
-                result->set(i, Value(scalarOp(std::get<int64_t>(val1), std::get<int64_t>(val2))));
-            } else if (std::holds_alternative<double>(val1) && std::holds_alternative<double>(val2)) {
-                result->set(i, Value(scalarOp(std::get<double>(val1), std::get<double>(val2))));
+            if (value::isInt(val1) && value::isInt(val2)) {
+                result->set(i, Value(scalarOp(value::asInt(val1), value::asInt(val2))));
+            } else if (value::isFloat(val1) && value::isFloat(val2)) {
+                result->set(i, Value(scalarOp(value::asFloat(val1), value::asFloat(val2))));
             }
         }
         return result;
@@ -165,10 +166,10 @@ namespace value::operations
         auto result = std::make_shared<NativeArray>(size, elemType);
         for (size_t i = 0; i < size; ++i) {
             Value val = array->get(i);
-            if (std::holds_alternative<int64_t>(val) && std::holds_alternative<int64_t>(scalar)) {
-                result->set(i, Value(scalarOp(std::get<int64_t>(val), std::get<int64_t>(scalar))));
-            } else if (std::holds_alternative<double>(val) && std::holds_alternative<double>(scalar)) {
-                result->set(i, Value(scalarOp(std::get<double>(val), std::get<double>(scalar))));
+            if (value::isInt(val) && value::isInt(scalar)) {
+                result->set(i, Value(scalarOp(value::asInt(val), value::asInt(scalar))));
+            } else if (value::isFloat(val) && value::isFloat(scalar)) {
+                result->set(i, Value(scalarOp(value::asFloat(val), value::asFloat(scalar))));
             }
         }
         return result;
@@ -293,10 +294,10 @@ namespace value::operations
 
                 for (size_t i = 0; i < arr->size(); ++i) {
                     Value val = arr->get(i);
-                    if (std::holds_alternative<int64_t>(val)) {
-                        intSum += std::get<int64_t>(val);
-                    } else if (std::holds_alternative<double>(val)) {
-                        floatSum += std::get<double>(val);
+                    if (value::isInt(val)) {
+                        intSum += value::asInt(val);
+                    } else if (value::isFloat(val)) {
+                        floatSum += value::asFloat(val);
                         isFloat = true;
                     }
                 }
@@ -317,10 +318,10 @@ namespace value::operations
                 Value minVal = arr->get(0);
                 for (size_t i = 1; i < arr->size(); ++i) {
                     Value val = arr->get(i);
-                    if (std::holds_alternative<int64_t>(val) && std::holds_alternative<int64_t>(minVal)) {
-                        if (std::get<int64_t>(val) < std::get<int64_t>(minVal)) minVal = val;
-                    } else if (std::holds_alternative<double>(val) && std::holds_alternative<double>(minVal)) {
-                        if (std::get<double>(val) < std::get<double>(minVal)) minVal = val;
+                    if (value::isInt(val) && value::isInt(minVal)) {
+                        if (value::asInt(val) < value::asInt(minVal)) minVal = val;
+                    } else if (value::isFloat(val) && value::isFloat(minVal)) {
+                        if (value::asFloat(val) < value::asFloat(minVal)) minVal = val;
                     }
                 }
                 return minVal;
@@ -340,10 +341,10 @@ namespace value::operations
                 Value maxVal = arr->get(0);
                 for (size_t i = 1; i < arr->size(); ++i) {
                     Value val = arr->get(i);
-                    if (std::holds_alternative<int64_t>(val) && std::holds_alternative<int64_t>(maxVal)) {
-                        if (std::get<int64_t>(val) > std::get<int64_t>(maxVal)) maxVal = val;
-                    } else if (std::holds_alternative<double>(val) && std::holds_alternative<double>(maxVal)) {
-                        if (std::get<double>(val) > std::get<double>(maxVal)) maxVal = val;
+                    if (value::isInt(val) && value::isInt(maxVal)) {
+                        if (value::asInt(val) > value::asInt(maxVal)) maxVal = val;
+                    } else if (value::isFloat(val) && value::isFloat(maxVal)) {
+                        if (value::asFloat(val) > value::asFloat(maxVal)) maxVal = val;
                     }
                 }
                 return maxVal;
@@ -362,10 +363,10 @@ namespace value::operations
         Value total = sum(array);
         size_t count = array->size();
 
-        if (std::holds_alternative<int64_t>(total)) {
-            return Value(static_cast<double>(std::get<int64_t>(total)) / static_cast<double>(count));
-        } else if (std::holds_alternative<double>(total)) {
-            return Value(std::get<double>(total) / count);
+        if (value::isInt(total)) {
+            return Value(static_cast<double>(value::asInt(total)) / static_cast<double>(count));
+        } else if (value::isFloat(total)) {
+            return Value(value::asFloat(total) / count);
         }
 
         return Value(0.0);

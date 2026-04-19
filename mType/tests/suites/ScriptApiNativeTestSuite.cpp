@@ -1,6 +1,7 @@
 #include "ScriptApiNativeTestSuite.hpp"
 
 #include "../../services/ScriptAPI.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../errors/ObjectException.hpp"
 #include "../../errors/ClassNotFoundException.hpp"
 #include "../../errors/RuntimeException.hpp"
@@ -39,23 +40,23 @@ namespace tests::testSuite
         int64_t handleOf(ScriptAPI& api, const Class& cls)
         {
             value::Value nameValue = api.callMethod(cls.asValue(), "getNativeHandle", {});
-            if (!std::holds_alternative<int64_t>(nameValue))
+            if (!value::isInt(nameValue))
             {
                 throw std::runtime_error("Class.getNativeHandle() did not return an int");
             }
-            return std::get<int64_t>(nameValue);
+            return value::asInt(nameValue);
         }
 
         std::string classNameOf(ScriptAPI& api, const Class& cls)
         {
             value::Value nameValue = api.callMethod(cls.asValue(), "getName", {});
-            if (std::holds_alternative<std::string>(nameValue))
+            if (value::isString(nameValue))
             {
-                return std::get<std::string>(nameValue);
+                return value::asString(nameValue);
             }
-            if (std::holds_alternative<value::InternedString>(nameValue))
+            if (value::isInternedString(nameValue))
             {
-                return std::get<value::InternedString>(nameValue).getString();
+                return value::asInternedString(nameValue).getString();
             }
             throw std::runtime_error("Class.getName() did not return a string");
         }
@@ -127,9 +128,9 @@ namespace tests::testSuite
                 // classOf handle matches, the same ReflectionHandleRegistry
                 // is shared across both surfaces.
                 value::Value langHandleVal = api.callFunction("langForNameHandle", {});
-                require(std::holds_alternative<int64_t>(langHandleVal),
+                require(value::isInt(langHandleVal),
                     "langForNameHandle() must return an int");
-                int64_t langHandle = std::get<int64_t>(langHandleVal);
+                int64_t langHandle = value::asInt(langHandleVal);
                 Class nativeCls = api.classOf("Box<Int>");
                 require(handleOf(api, nativeCls) == langHandle,
                     "native classOf and language forName must converge on the same handle");
@@ -188,10 +189,10 @@ namespace tests::testSuite
                 // returned Class is a live ObjectInstance, not a stub.
                 value::Value name = api.callMethod(args[0].asValue(), "getName", {});
                 std::string nameStr;
-                if (std::holds_alternative<std::string>(name)) {
-                    nameStr = std::get<std::string>(name);
-                } else if (std::holds_alternative<value::InternedString>(name)) {
-                    nameStr = std::get<value::InternedString>(name).getString();
+                if (value::isString(name)) {
+                    nameStr = value::asString(name);
+                } else if (value::isInternedString(name)) {
+                    nameStr = value::asInternedString(name).getString();
                 } else {
                     throw std::runtime_error("getName did not return a string");
                 }

@@ -1,5 +1,6 @@
 #include "FlatMultiObjectArray.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../../ValueShim.hpp"
 
 namespace mType
 {
@@ -104,12 +105,12 @@ namespace mType
                     throw std::out_of_range("Calculated index exceeds array bounds");
                 }
 
-                if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value))
+                if (!::value::isObject(value))
                 {
                     throw std::runtime_error("Value must be an ObjectInstance");
                 }
 
-                auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
+                auto instance = ::value::asObject(value);
 
                 if (instance->getClassDefinition()->getClassName() != classDefinition_->getClassName())
                 {
@@ -138,12 +139,12 @@ namespace mType
                     throw std::out_of_range("Linear index out of bounds");
                 }
 
-                if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value))
+                if (!::value::isObject(value))
                 {
                     throw std::runtime_error("Value must be an ObjectInstance");
                 }
 
-                auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value);
+                auto instance = ::value::asObject(value);
 
                 if (instance->getClassDefinition()->getClassName() != classDefinition_->getClassName())
                 {

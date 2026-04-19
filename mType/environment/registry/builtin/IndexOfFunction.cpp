@@ -4,6 +4,13 @@
 
 namespace environment::registry::builtin
 {
+    static std::string extractString(const Value& arg, const char* msg)
+    {
+        if (isString(arg)) return asString(arg);
+        if (isInternedString(arg)) return asInternedString(arg).getString();
+        throw errors::RuntimeException(msg);
+    }
+
     Value IndexOfFunction::execute(const std::vector<Value>& args)
     {
         if (args.size() != 2)
@@ -11,48 +18,13 @@ namespace environment::registry::builtin
             throw errors::ArgumentException("indexOf expects exactly 2 arguments (haystack, needle)");
         }
 
-        // Extract haystack string
-        std::string haystack;
-        std::visit([&haystack](const auto& value)
-        {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
-            {
-                haystack = value;
-            }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, value::InternedString>)
-            {
-                haystack = value.getString();
-            }
-            else
-            {
-                throw errors::RuntimeException("indexOf: first argument (haystack) must be a string");
-            }
-        }, args[0]);
+        const std::string haystack = extractString(args[0], "indexOf: first argument (haystack) must be a string");
+        const std::string needle = extractString(args[1], "indexOf: second argument (needle) must be a string");
 
-        // Extract needle string
-        std::string needle;
-        std::visit([&needle](const auto& value)
-        {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
-            {
-                needle = value;
-            }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, value::InternedString>)
-            {
-                needle = value.getString();
-            }
-            else
-            {
-                throw errors::RuntimeException("indexOf: second argument (needle) must be a string");
-            }
-        }, args[1]);
-
-        // Find the first occurrence
         size_t pos = haystack.find(needle);
-
         if (pos == std::string::npos)
         {
-            return -1;  // Not found
+            return -1;
         }
 
         return static_cast<int>(pos);

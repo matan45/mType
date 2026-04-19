@@ -1,6 +1,7 @@
 #include "ValuePrinter.hpp"
 #include "../../../value/AsyncPromiseValue.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/ValueShim.hpp"
 
 namespace environment::registry::builtin
 {
@@ -11,107 +12,88 @@ namespace environment::registry::builtin
 
     void ValuePrinter::print(const Value& value, std::ostream& out) const
     {
-        std::visit([this, &out](const auto& v)
+        if (value::isString(value))
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::string>)
+            out << value::asString(value);
+            return;
+        }
+        if (value::isInternedString(value))
+        {
+            out << value::asInternedString(value).getString();
+            return;
+        }
+        if (value::isInt(value))
+        {
+            out << value::asInt(value);
+            return;
+        }
+        if (value::isFloat(value))
+        {
+            out << value::asFloat(value);
+            return;
+        }
+        if (value::isBool(value))
+        {
+            out << (value::asBool(value) ? "true" : "false");
+            return;
+        }
+        if (value::isVoid(value) || value::isNullType(value))
+        {
+            out << "null";
+            return;
+        }
+        if (value::isPromise(value))
+        {
+            auto v = value::asPromise(value);
+            if (!v) { out << "null"; return; }
+            if (v->isFulfilled()) { out << "[Promise:fulfilled]"; return; }
+            if (v->isPending()) { out << "[Promise:pending]"; return; }
+            out << "[Promise:rejected]";
+            return;
+        }
+        if (value::isObject(value))
+        {
+            auto v = value::asObject(value);
+            if (!v) { out << "null"; return; }
+            // Check if this is a primitive wrapper (String, Int, Bool, Float) with a 'value' field
+            auto primitiveValue = tryGetPrimitiveWrapperValue(v);
+            if (primitiveValue.has_value())
             {
-                out << v;
+                // Recursively print the unwrapped primitive value
+                print(primitiveValue.value(), out);
+                return;
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, value::InternedString>)
+            // Try calling toString() for non-primitive objects
+            auto stringRep = getObjectStringRepresentation(v);
+            if (stringRep.has_value())
             {
-                out << v.getString();
+                out << stringRep.value();
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, int64_t>)
+            else
             {
-                out << v;
+                out << "[object " << v->getTypeName() << "]";
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, double>)
+            return;
+        }
+        if (value::isValueObject(value))
+        {
+            auto v = value::asValueObject(value);
+            if (!v) { out << "null"; return; }
+            const std::string& typeName = v->getClassName();
+            if ((typeName == "String" || typeName == "Int" || typeName == "Bool" || typeName == "Float")
+                && v->hasField("value"))
             {
-                out << v;
+                print(v->getFieldValue("value"), out);
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, bool>)
+            else
             {
-                out << (v ? "true" : "false");
+                out << "<" << typeName << ">";
             }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::monostate>)
-            {
-                out << "null";
-            }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, nullptr_t>)
-            {
-                out << "null";
-            }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<value::PromiseValue>>)
-            {
-                if (!v)
-                {
-                    out << "null";
-                }
-                else if (v->isFulfilled())
-                {
-                    out << "[Promise:fulfilled]";
-                }
-                else if (v->isPending())
-                {
-                    out << "[Promise:pending]";
-                }
-                else
-                {
-                    out << "[Promise:rejected]";
-                }
-            }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
-            {
-                if (!v)
-                {
-                    out << "null";
-                }
-                else
-                {
-                    // Check if this is a primitive wrapper (String, Int, Bool, Float) with a 'value' field
-                    auto primitiveValue = tryGetPrimitiveWrapperValue(v);
-                    if (primitiveValue.has_value())
-                    {
-                        // Recursively print the unwrapped primitive value
-                        print(primitiveValue.value(), out);
-                    }
-                    else
-                    {
-                        // Try calling toString() for non-primitive objects
-                        auto stringRep = getObjectStringRepresentation(v);
-                        if (stringRep.has_value())
-                        {
-                            out << stringRep.value();
-                        }
-                        else
-                        {
-                            out << "[object " << v->getTypeName() << "]";
-                        }
-                    }
-                }
-            }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(v)>, std::shared_ptr<value::ValueObject>>)
-            {
-                if (!v)
-                {
-                    out << "null";
-                }
-                else
-                {
-                    // Check if this is a primitive wrapper value class (String, Int, Bool, Float)
-                    const std::string& typeName = v->getClassName();
-                    if ((typeName == "String" || typeName == "Int" || typeName == "Bool" || typeName == "Float")
-                        && v->hasField("value"))
-                    {
-                        print(v->getFieldValue("value"), out);
-                    }
-                    else
-                    {
-                        out << "<" << typeName << ">";
-                    }
-                }
-            }
-        }, value);
+            return;
+        }
+        // Remaining kinds (NativeArray / multi-arrays / Lambda) — fall through
+        // silently to match the flag-off std::visit which has no branch for
+        // them (outputs nothing).
     }
 
     std::optional<std::string> ValuePrinter::getObjectStringRepresentation(
@@ -134,31 +116,31 @@ namespace environment::registry::builtin
         {
             Value result = methodCallHandler(value, "toString", {});
 
-            if (std::holds_alternative<std::string>(result))
+            if (value::isString(result))
             {
-                return std::get<std::string>(result);
+                return value::asString(result);
             }
 
-            if (std::holds_alternative<value::InternedString>(result))
+            if (value::isInternedString(result))
             {
-                return std::get<value::InternedString>(result).getString();
+                return value::asInternedString(result).getString();
             }
 
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(result))
+            if (value::isObject(result))
             {
-                auto resultObj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(result);
+                auto resultObj = value::asObject(result);
                 if (resultObj)
                 {
                     Value fieldValue = resultObj->getFieldValue("value");
 
-                    if (std::holds_alternative<std::string>(fieldValue))
+                    if (value::isString(fieldValue))
                     {
-                        return std::get<std::string>(fieldValue);
+                        return value::asString(fieldValue);
                     }
 
-                    if (std::holds_alternative<value::InternedString>(fieldValue))
+                    if (value::isInternedString(fieldValue))
                     {
-                        return std::get<value::InternedString>(fieldValue).getString();
+                        return value::asInternedString(fieldValue).getString();
                     }
                 }
             }

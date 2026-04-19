@@ -1,66 +1,38 @@
 #pragma once
 
 #include <memory>
-#include <variant>
 #include "GCCoordinator.hpp"
-#include "../value/ValueType.hpp"
-
-namespace runtimeTypes::klass { class ObjectInstance; }
-namespace vm::runtime { struct BytecodeLambda; }
-namespace value {
-    class NativeArray;
-    class FlatMultiArray;
-    class SparseMultiArray;
-    class PromiseValue;
-}
-namespace mType::value::arrays { class FlatMultiObjectArray; }
+#include "../value/ValueShim.hpp"
 
 namespace gc
 {
     /**
-     * @brief Extract raw pointer from a Value variant
+     * @brief Extract raw pointer from a Value
      *
      * Returns the raw pointer if the Value contains a GC-managed type,
-     * nullptr otherwise.
+     * nullptr otherwise. Hot path: called twice per
+     * ObjectInstance::setField, so the dispatch is on v.tag() first so
+     * primitives/null/string bail out with a single byte compare.
      */
     inline void* extractPointer(const value::Value& val)
     {
-        return std::visit([](auto&& arg) -> void* {
-            using T = std::decay_t<decltype(arg)>;
-
-            if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::NativeArray>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::FlatMultiArray>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<vm::runtime::BytecodeLambda>>)
-            {
-                return arg.get();
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::PromiseValue>>)
-            {
-                return arg.get();
-            }
-            else
-            {
-                return nullptr;
-            }
-        }, val);
+        switch (val.tag())
+        {
+        case value::ValueType::OBJECT:
+            return value::asObject(val).get();
+        case value::ValueType::ARRAY:
+            if (value::isNativeArray(val))           return value::asNativeArray(val).get();
+            if (value::isFlatMultiArray(val))        return value::asFlatMultiArray(val).get();
+            if (value::isSparseMultiArray(val))      return value::asSparseMultiArray(val).get();
+            if (value::isFlatMultiObjectArray(val))  return value::asFlatMultiObjectArray(val).get();
+            return nullptr;
+        case value::ValueType::LAMBDA:
+            return value::asLambda(val).get();
+        case value::ValueType::PROMISE:
+            return value::asPromise(val).get();
+        default:
+            return nullptr;
+        }
     }
 
     /**

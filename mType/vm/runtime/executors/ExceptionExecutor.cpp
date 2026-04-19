@@ -1,5 +1,6 @@
 #include "ExceptionExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include <sstream>
@@ -50,13 +51,13 @@ namespace vm::runtime
         }
 
         // Validate that only Exception objects (or subclasses) can be thrown
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue))
+        if (!value::isObject(exceptionValue))
         {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "Only classes that inherit from Exception can be thrown");
         }
 
-        auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue);
+        auto objInstance = value::asObject(exceptionValue);
 
         // Verify the object inherits from Exception
         if (objInstance)

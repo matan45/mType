@@ -87,9 +87,9 @@ namespace mType
                         throw std::out_of_range("Array index out of bounds");
                     }
 
-                    if (std::holds_alternative<T>(value))
+                    if (::value::holdsT<T>(value))
                     {
-                        data_[index] = std::get<T>(value);
+                        data_[index] = ::value::getT<T>(value);
                     }
                     else
                     {
@@ -194,7 +194,7 @@ namespace mType
                  */
                 inline void setUnchecked(size_t index, const ::value::Value& value)
                 {
-                    data_[index] = std::get<T>(value);
+                    data_[index] = ::value::getT<T>(value);
                 }
 
             private:

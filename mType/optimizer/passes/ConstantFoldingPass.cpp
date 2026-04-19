@@ -79,29 +79,29 @@ namespace optimizer::passes
         const SourceLocation& loc
     )
     {
-        if (std::holds_alternative<int64_t>(value))
+        if (value::isInt(value))
         {
-            return std::make_unique<ast::nodes::expressions::IntegerNode>(std::get<int64_t>(value), loc);
+            return std::make_unique<ast::nodes::expressions::IntegerNode>(value::asInt(value), loc);
         }
-        if (std::holds_alternative<double>(value))
+        if (value::isFloat(value))
         {
-            return std::make_unique<ast::nodes::expressions::FloatNode>(std::get<double>(value), loc);
+            return std::make_unique<ast::nodes::expressions::FloatNode>(value::asFloat(value), loc);
         }
-        if (std::holds_alternative<bool>(value))
+        if (value::isBool(value))
         {
-            return std::make_unique<ast::nodes::expressions::BoolNode>(std::get<bool>(value), loc);
+            return std::make_unique<ast::nodes::expressions::BoolNode>(value::asBool(value), loc);
         }
-        if (std::holds_alternative<std::string>(value))
+        if (value::isString(value))
         {
-            return std::make_unique<ast::nodes::expressions::StringNode>(std::get<std::string>(value), loc);
+            return std::make_unique<ast::nodes::expressions::StringNode>(value::asString(value), loc);
         }
-        if (std::holds_alternative<InternedString>(value))
+        if (value::isInternedString(value))
         {
             return std::make_unique<ast::nodes::expressions::StringNode>(
-                std::get<InternedString>(value).getString(), loc);
+                value::asInternedString(value).getString(), loc);
         }
-        if (std::holds_alternative<std::monostate>(value) ||
-            std::holds_alternative<nullptr_t>(value))
+        if (value::isVoid(value) ||
+            value::isNullType(value))
         {
             return std::make_unique<ast::nodes::expressions::NullNode>(loc);
         }
@@ -228,9 +228,9 @@ namespace optimizer::passes
         auto conditionValue = extractLiteralValue(condition.get());
 
         // If condition is a constant boolean, fold to one branch
-        if (conditionValue && std::holds_alternative<bool>(*conditionValue))
+        if (conditionValue && value::isBool(*conditionValue))
         {
-            bool condBool = std::get<bool>(*conditionValue);
+            bool condBool = value::asBool(*conditionValue);
 
             if (condBool)
             {

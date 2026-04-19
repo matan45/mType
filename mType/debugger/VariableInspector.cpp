@@ -2,7 +2,7 @@
 #include "DebuggerConstants.hpp"
 #include "../environment/manager/VariableManager.hpp"
 #include "../environment/manager/ScopeManager.hpp"
-#include <variant>
+#include "../value/ValueShim.hpp"
 #include <iomanip>
 #include <iostream>
 
@@ -114,36 +114,20 @@ namespace debugger {
         const std::string& name,
         const value::Value& val) {
 
-        using namespace value;
-
-        // Check if it's an object instance
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
-            return formatObjectInstance(name, obj);
+        if (value::isObject(val)) {
+            return formatObjectInstance(name, value::asObject(val));
         }
-
-        // Check if it's a NativeArray
-        if (std::holds_alternative<std::shared_ptr<NativeArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<NativeArray>>(val);
-            return formatNativeArray(name, arr);
+        if (value::isNativeArray(val)) {
+            return formatNativeArray(name, value::asNativeArray(val));
         }
-
-        // Check if it's a FlatMultiArray
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<FlatMultiArray>>(val);
-            return formatFlatMultiArray(name, arr);
+        if (value::isFlatMultiArray(val)) {
+            return formatFlatMultiArray(name, value::asFlatMultiArray(val));
         }
-
-        // Check if it's a SparseMultiArray
-        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<SparseMultiArray>>(val);
-            return formatSparseMultiArray(name, arr);
+        if (value::isSparseMultiArray(val)) {
+            return formatSparseMultiArray(name, value::asSparseMultiArray(val));
         }
-
-        // Check if it's a FlatMultiObjectArray
-        if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(val);
-            return formatFlatMultiObjectArray(name, arr);
+        if (value::isFlatMultiObjectArray(val)) {
+            return formatFlatMultiObjectArray(name, value::asFlatMultiObjectArray(val));
         }
 
         // Simple value
@@ -164,27 +148,25 @@ namespace debugger {
     }
 
     std::string VariableInspector::valueToString(const value::Value& val) {
-        using namespace value;
-
-        if (std::holds_alternative<int64_t>(val)) {
-            return std::to_string(std::get<int64_t>(val));
+        if (value::isInt(val)) {
+            return std::to_string(value::asInt(val));
         }
-        if (std::holds_alternative<double>(val)) {
+        if (value::isFloat(val)) {
             std::stringstream ss;
-            ss << std::fixed << std::setprecision(2) << std::get<double>(val);
+            ss << std::fixed << std::setprecision(2) << value::asFloat(val);
             return ss.str();
         }
-        if (std::holds_alternative<std::string>(val)) {
-            return "\"" + std::get<std::string>(val) + "\"";
+        if (value::isString(val)) {
+            return "\"" + value::asString(val) + "\"";
         }
-        if (std::holds_alternative<InternedString>(val)) {
-            return "\"" + std::get<InternedString>(val).getString() + "\"";
+        if (value::isInternedString(val)) {
+            return "\"" + value::asInternedString(val).getString() + "\"";
         }
-        if (std::holds_alternative<bool>(val)) {
-            return std::get<bool>(val) ? "true" : "false";
+        if (value::isBool(val)) {
+            return value::asBool(val) ? "true" : "false";
         }
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+        if (value::isObject(val)) {
+            auto obj = value::asObject(val);
             if (obj) {
                 return "{" + obj->getTypeName() + "}";
             }
@@ -192,15 +174,15 @@ namespace debugger {
         }
 
         // Handle arrays
-        if (std::holds_alternative<std::shared_ptr<NativeArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<NativeArray>>(val);
+        if (value::isNativeArray(val)) {
+            auto arr = value::asNativeArray(val);
             if (arr) {
                 return "[" + std::to_string(arr->size()) + " elements]";
             }
             return "[null]";
         }
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<FlatMultiArray>>(val);
+        if (value::isFlatMultiArray(val)) {
+            auto arr = value::asFlatMultiArray(val);
             if (arr) {
                 auto dims = arr->getDimensions();
                 std::string dimStr;
@@ -212,8 +194,8 @@ namespace debugger {
             }
             return "[null]";
         }
-        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<SparseMultiArray>>(val);
+        if (value::isSparseMultiArray(val)) {
+            auto arr = value::asSparseMultiArray(val);
             if (arr) {
                 auto dims = arr->getDimensions();
                 std::string dimStr;
@@ -225,8 +207,8 @@ namespace debugger {
             }
             return "[null]";
         }
-        if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(val);
+        if (value::isFlatMultiObjectArray(val)) {
+            auto arr = value::asFlatMultiObjectArray(val);
             if (arr) {
                 auto dims = arr->getDimensions();
                 std::string dimStr;
@@ -239,7 +221,7 @@ namespace debugger {
             return "[null]";
         }
 
-        if (std::holds_alternative<std::monostate>(val)) {
+        if (value::isVoid(val) || value::isNullType(val)) {
             return "null";
         }
 
@@ -247,25 +229,13 @@ namespace debugger {
     }
 
     std::string VariableInspector::getTypeName(const value::Value& val) {
-        using namespace value;
-
-        if (std::holds_alternative<int64_t>(val)) {
-            return "int";
-        }
-        if (std::holds_alternative<double>(val)) {
-            return "float";
-        }
-        if (std::holds_alternative<std::string>(val)) {
-            return "string";
-        }
-        if (std::holds_alternative<InternedString>(val)) {
-            return "string";
-        }
-        if (std::holds_alternative<bool>(val)) {
-            return "bool";
-        }
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+        if (value::isInt(val))           return "int";
+        if (value::isFloat(val))         return "float";
+        if (value::isString(val))        return "string";
+        if (value::isInternedString(val)) return "string";
+        if (value::isBool(val))          return "bool";
+        if (value::isObject(val)) {
+            auto obj = value::asObject(val);
             if (obj) {
                 return obj->getTypeName();
             }
@@ -273,8 +243,8 @@ namespace debugger {
         }
 
         // Array types
-        if (std::holds_alternative<std::shared_ptr<NativeArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<NativeArray>>(val);
+        if (value::isNativeArray(val)) {
+            auto arr = value::asNativeArray(val);
             if (arr) {
                 std::string elemType = arr->getElementTypeName();
                 if (elemType.empty()) {
@@ -284,17 +254,11 @@ namespace debugger {
             }
             return "array";
         }
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(val)) {
-            return "array[multi]";
-        }
-        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(val)) {
-            return "array[sparse]";
-        }
-        if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(val)) {
-            return "array[objects]";
-        }
+        if (value::isFlatMultiArray(val))       return "array[multi]";
+        if (value::isSparseMultiArray(val))     return "array[sparse]";
+        if (value::isFlatMultiObjectArray(val)) return "array[objects]";
 
-        if (std::holds_alternative<std::monostate>(val)) {
+        if (value::isVoid(val) || value::isNullType(val)) {
             return "null";
         }
 
@@ -302,28 +266,11 @@ namespace debugger {
     }
 
     bool VariableInspector::isExpandable(const value::Value& val) {
-        using namespace value;
-
-        // Objects are expandable
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            return true;
-        }
-
-        // Arrays are expandable
-        if (std::holds_alternative<std::shared_ptr<NativeArray>>(val)) {
-            return true;
-        }
-        if (std::holds_alternative<std::shared_ptr<FlatMultiArray>>(val)) {
-            return true;
-        }
-        if (std::holds_alternative<std::shared_ptr<SparseMultiArray>>(val)) {
-            return true;
-        }
-        if (std::holds_alternative<std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>(val)) {
-            return true;
-        }
-
-        return false;
+        return value::isObject(val) ||
+               value::isNativeArray(val) ||
+               value::isFlatMultiArray(val) ||
+               value::isSparseMultiArray(val) ||
+               value::isFlatMultiObjectArray(val);
     }
 
     int64_t VariableInspector::storeObjectReference(

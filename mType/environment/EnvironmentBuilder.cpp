@@ -78,13 +78,16 @@ namespace environment
         // Register SIMD-accelerated array operations
         runtimeTypes::global::ArrayOperationsNative::registerAll(environment);
 
-        // Register reflection native functions
+        // Register reflection native functions (MYT-189: ported to ValueShim,
+        // registered on both flag paths).
         reflection::ReflectionNatives::registerAll(environment);
 
-        // Register JSON serialization native functions
+        // Register JSON serialization native functions (MYT-189: ported to
+        // ValueShim, registered on both flag paths).
         json::JsonNatives::registerAll(environment);
 
-        // Register networking native functions (HTTP, TCP, DNS)
+        // Register networking native functions (HTTP, TCP, DNS) (MYT-189:
+        // ported to ValueShim, registered on both flag paths).
         net::NetNatives::registerAll(environment);
 
         // Register library loading native functions

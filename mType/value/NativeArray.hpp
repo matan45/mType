@@ -305,7 +305,7 @@ namespace value
         void setUnchecked(size_t index, const Value& value) {
             switch (storage.index()) {
                 case 1: // SIMD_INT
-                    if (std::holds_alternative<int64_t>(value)) {
+                    if (value::isInt(value)) {
                         std::get<1>(storage)->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();
@@ -314,7 +314,7 @@ namespace value
                     break;
 
                 case 2: // SIMD_FLOAT
-                    if (std::holds_alternative<double>(value)) {
+                    if (value::isFloat(value)) {
                         std::get<2>(storage)->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();
@@ -323,7 +323,7 @@ namespace value
                     break;
 
                 case 3: // SIMD_BOOL
-                    if (std::holds_alternative<bool>(value)) {
+                    if (value::isBool(value)) {
                         std::get<3>(storage)->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();
@@ -332,8 +332,8 @@ namespace value
                     break;
 
                 case 4: // SIMD_STRING
-                    if (std::holds_alternative<std::string>(value) ||
-                        std::holds_alternative<InternedString>(value)) {
+                    if (value::isString(value) ||
+                        value::isInternedString(value)) {
                         std::get<4>(storage)->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();
@@ -342,7 +342,7 @@ namespace value
                     break;
 
                 case 5: // SOA_OBJECT
-                    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(value)) {
+                    if (value::isObject(value)) {
                         std::get<5>(storage)->set(index, value); // ObjectArray doesn't have setUnchecked yet
                     } else {
                         convertToHeterogeneous();
@@ -393,7 +393,7 @@ namespace value
             if (storage.index() == 1) {
                 return std::get<1>(storage)->getDirect(index);
             }
-            return std::get<int64_t>(std::get<0>(storage)[index]);
+            return value::asInt(std::get<0>(storage)[index]);
         }
 
         void setIntDirect(size_t index, int64_t val) {

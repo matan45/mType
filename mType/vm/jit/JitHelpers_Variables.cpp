@@ -102,10 +102,28 @@ namespace vm::jit
         auto fieldDef = thisInstance->getField(varName);
         if (!fieldDef) return false;
 
-        if (fieldDef->isFinal() && fieldDef->isInitialized())
+        // MYT-189: match VariableExecutor / ObjectExecutor — static finals
+        // share FieldDefinition's isInitialized bit; instance finals track
+        // per-instance via the fieldValues map.
+        if (fieldDef->isFinal())
         {
-            throw errors::RuntimeException(
-                "Cannot assign to final field '" + varName + "'");
+            if (fieldDef->isStatic())
+            {
+                if (fieldDef->isInitialized())
+                {
+                    throw errors::RuntimeException(
+                        "Cannot assign to final field '" + varName + "'");
+                }
+            }
+            else
+            {
+                const auto& instanceFields = thisInstance->getAllFieldValues();
+                if (instanceFields.find(varName) != instanceFields.end())
+                {
+                    throw errors::RuntimeException(
+                        "Cannot assign to final field '" + varName + "'");
+                }
+            }
         }
 
         thisInstance->setField(varName, val);

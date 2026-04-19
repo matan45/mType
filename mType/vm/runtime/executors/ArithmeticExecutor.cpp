@@ -7,6 +7,7 @@
 #include "../../../value/NativeArray.hpp"
 #include "../../../value/FlatMultiArray.hpp"
 #include "../../../value/SparseMultiArray.hpp"
+#include "../../../value/ValueShim.hpp"
 #include <sstream>
 
 namespace
@@ -21,14 +22,14 @@ namespace
         switch (tag)
         {
         case value::PrimitiveTypeTag::INT:
-            return std::holds_alternative<int64_t>(v);
+            return value::isInt(v);
         case value::PrimitiveTypeTag::FLOAT:
-            return std::holds_alternative<double>(v);
+            return value::isFloat(v);
         case value::PrimitiveTypeTag::BOOL:
-            return std::holds_alternative<bool>(v);
+            return value::isBool(v);
         case value::PrimitiveTypeTag::STRING:
-            return std::holds_alternative<std::string>(v) ||
-                   std::holds_alternative<value::InternedString>(v);
+            return value::isString(v) ||
+                   value::isInternedString(v);
         case value::PrimitiveTypeTag::NONE:
         default:
             return true;
@@ -74,10 +75,10 @@ namespace vm::runtime
 
     void ArithmeticExecutor::handleNeg() {
         value::Value val = context.stackManager->pop();
-        if (std::holds_alternative<int64_t>(val)) {
-            context.stackManager->push(utils::wrappingNeg64(std::get<int64_t>(val)));
-        } else if (std::holds_alternative<double>(val)) {
-            context.stackManager->push(-std::get<double>(val));
+        if (value::isInt(val)) {
+            context.stackManager->push(utils::wrappingNeg64(value::asInt(val)));
+        } else if (value::isFloat(val)) {
+            context.stackManager->push(-value::asFloat(val));
         } else {
             throw errors::RuntimeException("NEG requires numeric value");
         }
@@ -85,10 +86,10 @@ namespace vm::runtime
 
     void ArithmeticExecutor::handleInc() {
         value::Value val = context.stackManager->pop();
-        if (std::holds_alternative<int64_t>(val)) {
-            context.stackManager->push(utils::wrappingAdd64(std::get<int64_t>(val), 1));
-        } else if (std::holds_alternative<double>(val)) {
-            context.stackManager->push(std::get<double>(val) + 1.0);
+        if (value::isInt(val)) {
+            context.stackManager->push(utils::wrappingAdd64(value::asInt(val), 1));
+        } else if (value::isFloat(val)) {
+            context.stackManager->push(value::asFloat(val) + 1.0);
         } else {
             throw errors::RuntimeException("INC requires numeric value");
         }
@@ -96,10 +97,10 @@ namespace vm::runtime
 
     void ArithmeticExecutor::handleDec() {
         value::Value val = context.stackManager->pop();
-        if (std::holds_alternative<int64_t>(val)) {
-            context.stackManager->push(utils::wrappingSub64(std::get<int64_t>(val), 1));
-        } else if (std::holds_alternative<double>(val)) {
-            context.stackManager->push(std::get<double>(val) - 1.0);
+        if (value::isInt(val)) {
+            context.stackManager->push(utils::wrappingSub64(value::asInt(val), 1));
+        } else if (value::isFloat(val)) {
+            context.stackManager->push(value::asFloat(val) - 1.0);
         } else {
             throw errors::RuntimeException("DEC requires numeric value");
         }
@@ -112,12 +113,12 @@ namespace vm::runtime
         // Phase 6: Type guard — deopt to generic ADD if types don't match
         const auto& right = context.stackManager->peek(0);
         const auto& left = context.stackManager->peek(1);
-        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+        if (!value::isInt(left) || !value::isInt(right)) {
             handleAdd(); // Fall back to generic
             return;
         }
-        int64_t r = std::get<int64_t>(context.stackManager->pop());
-        int64_t l = std::get<int64_t>(context.stackManager->pop());
+        int64_t r = value::asInt(context.stackManager->pop());
+        int64_t l = value::asInt(context.stackManager->pop());
         context.stackManager->push(utils::wrappingAdd64(l, r));
     }
 
@@ -127,12 +128,12 @@ namespace vm::runtime
         }
         const auto& right = context.stackManager->peek(0);
         const auto& left = context.stackManager->peek(1);
-        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+        if (!value::isInt(left) || !value::isInt(right)) {
             handleSub();
             return;
         }
-        int64_t r = std::get<int64_t>(context.stackManager->pop());
-        int64_t l = std::get<int64_t>(context.stackManager->pop());
+        int64_t r = value::asInt(context.stackManager->pop());
+        int64_t l = value::asInt(context.stackManager->pop());
         context.stackManager->push(utils::wrappingSub64(l, r));
     }
 
@@ -142,12 +143,12 @@ namespace vm::runtime
         }
         const auto& right = context.stackManager->peek(0);
         const auto& left = context.stackManager->peek(1);
-        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+        if (!value::isInt(left) || !value::isInt(right)) {
             handleMul();
             return;
         }
-        int64_t r = std::get<int64_t>(context.stackManager->pop());
-        int64_t l = std::get<int64_t>(context.stackManager->pop());
+        int64_t r = value::asInt(context.stackManager->pop());
+        int64_t l = value::asInt(context.stackManager->pop());
         context.stackManager->push(utils::wrappingMul64(l, r));
     }
 
@@ -157,12 +158,12 @@ namespace vm::runtime
         }
         const auto& right = context.stackManager->peek(0);
         const auto& left = context.stackManager->peek(1);
-        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+        if (!value::isInt(left) || !value::isInt(right)) {
             handleDiv();
             return;
         }
-        int64_t r = std::get<int64_t>(context.stackManager->pop());
-        int64_t l = std::get<int64_t>(context.stackManager->pop());
+        int64_t r = value::asInt(context.stackManager->pop());
+        int64_t l = value::asInt(context.stackManager->pop());
         if (r == 0) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
         }
@@ -175,12 +176,12 @@ namespace vm::runtime
         }
         const auto& right = context.stackManager->peek(0);
         const auto& left = context.stackManager->peek(1);
-        if (!std::holds_alternative<double>(left) || !std::holds_alternative<double>(right)) {
+        if (!value::isFloat(left) || !value::isFloat(right)) {
             handleAdd();
             return;
         }
-        double r = std::get<double>(context.stackManager->pop());
-        double l = std::get<double>(context.stackManager->pop());
+        double r = value::asFloat(context.stackManager->pop());
+        double l = value::asFloat(context.stackManager->pop());
         context.stackManager->push(l + r);
     }
 
@@ -190,12 +191,12 @@ namespace vm::runtime
         }
         const auto& right = context.stackManager->peek(0);
         const auto& left = context.stackManager->peek(1);
-        if (!std::holds_alternative<double>(left) || !std::holds_alternative<double>(right)) {
+        if (!value::isFloat(left) || !value::isFloat(right)) {
             handleSub();
             return;
         }
-        double r = std::get<double>(context.stackManager->pop());
-        double l = std::get<double>(context.stackManager->pop());
+        double r = value::asFloat(context.stackManager->pop());
+        double l = value::asFloat(context.stackManager->pop());
         context.stackManager->push(l - r);
     }
 
@@ -205,12 +206,12 @@ namespace vm::runtime
         }
         const auto& right = context.stackManager->peek(0);
         const auto& left = context.stackManager->peek(1);
-        if (!std::holds_alternative<double>(left) || !std::holds_alternative<double>(right)) {
+        if (!value::isFloat(left) || !value::isFloat(right)) {
             handleMul();
             return;
         }
-        double r = std::get<double>(context.stackManager->pop());
-        double l = std::get<double>(context.stackManager->pop());
+        double r = value::asFloat(context.stackManager->pop());
+        double l = value::asFloat(context.stackManager->pop());
         context.stackManager->push(l * r);
     }
 
@@ -220,12 +221,12 @@ namespace vm::runtime
         }
         const auto& right = context.stackManager->peek(0);
         const auto& left = context.stackManager->peek(1);
-        if (!std::holds_alternative<double>(left) || !std::holds_alternative<double>(right)) {
+        if (!value::isFloat(left) || !value::isFloat(right)) {
             handleDiv();
             return;
         }
-        double r = std::get<double>(context.stackManager->pop());
-        double l = std::get<double>(context.stackManager->pop());
+        double r = value::asFloat(context.stackManager->pop());
+        double l = value::asFloat(context.stackManager->pop());
         if (r == 0.0) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
         }
@@ -258,8 +259,8 @@ namespace vm::runtime
         value::Value unboxedLeft = left;
         value::Value unboxedRight = right;
 
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left)) {
-            auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left);
+        if (value::isObject(left)) {
+            auto obj = value::asObject(left);
             auto tag = obj->getPrimitiveTag();
             if (tag != value::PrimitiveTypeTag::NONE) {
                 unboxedLeft = obj->getFieldValue("value");
@@ -268,8 +269,8 @@ namespace vm::runtime
                 }
             }
         }
-        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(left)) {
-            auto& obj = std::get<std::shared_ptr<value::ValueObject>>(left);
+        else if (value::isValueObject(left)) {
+            auto obj = value::asValueObject(left);
             auto tag = obj->getPrimitiveTag();
             if (tag != value::PrimitiveTypeTag::NONE) {
                 unboxedLeft = obj->getFieldValue("value");
@@ -279,8 +280,8 @@ namespace vm::runtime
             }
         }
 
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right)) {
-            auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right);
+        if (value::isObject(right)) {
+            auto obj = value::asObject(right);
             auto tag = obj->getPrimitiveTag();
             if (tag != value::PrimitiveTypeTag::NONE) {
                 unboxedRight = obj->getFieldValue("value");
@@ -289,8 +290,8 @@ namespace vm::runtime
                 }
             }
         }
-        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(right)) {
-            auto& obj = std::get<std::shared_ptr<value::ValueObject>>(right);
+        else if (value::isValueObject(right)) {
+            auto obj = value::asValueObject(right);
             auto tag = obj->getPrimitiveTag();
             if (tag != value::PrimitiveTypeTag::NONE) {
                 unboxedRight = obj->getFieldValue("value");
@@ -301,9 +302,9 @@ namespace vm::runtime
         }
 
         // Integer operations
-        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
-            int64_t l = std::get<int64_t>(unboxedLeft);
-            int64_t r = std::get<int64_t>(unboxedRight);
+        if (value::isInt(unboxedLeft) && value::isInt(unboxedRight)) {
+            int64_t l = value::asInt(unboxedLeft);
+            int64_t r = value::asInt(unboxedRight);
             switch (op) {
                 case OpCode::ADD: return utils::wrappingAdd64(l, r);
                 case OpCode::SUB: return utils::wrappingSub64(l, r);
@@ -332,10 +333,10 @@ namespace vm::runtime
         }
 
         // Float operations
-        if ((std::holds_alternative<double>(unboxedLeft) || std::holds_alternative<int64_t>(unboxedLeft)) &&
-            (std::holds_alternative<double>(unboxedRight) || std::holds_alternative<int64_t>(unboxedRight))) {
-            double l = std::holds_alternative<double>(unboxedLeft) ? std::get<double>(unboxedLeft) : static_cast<double>(std::get<int64_t>(unboxedLeft));
-            double r = std::holds_alternative<double>(unboxedRight) ? std::get<double>(unboxedRight) : static_cast<double>(std::get<int64_t>(unboxedRight));
+        if ((value::isFloat(unboxedLeft) || value::isInt(unboxedLeft)) &&
+            (value::isFloat(unboxedRight) || value::isInt(unboxedRight))) {
+            double l = value::isFloat(unboxedLeft) ? value::asFloat(unboxedLeft) : static_cast<double>(value::asInt(unboxedLeft));
+            double r = value::isFloat(unboxedRight) ? value::asFloat(unboxedRight) : static_cast<double>(value::asInt(unboxedRight));
             switch (op) {
                 case OpCode::ADD: return l + r;
                 case OpCode::SUB: return l - r;
@@ -351,18 +352,18 @@ namespace vm::runtime
 
         // String concatenation (includes objects and arrays, which should call toString())
         if (op == OpCode::ADD &&
-            (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
-             std::holds_alternative<value::InternedString>(left) || std::holds_alternative<value::InternedString>(right) ||
-             std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left) ||
-             std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right) ||
-             std::holds_alternative<std::shared_ptr<value::ValueObject>>(left) ||
-             std::holds_alternative<std::shared_ptr<value::ValueObject>>(right) ||
-             std::holds_alternative<std::shared_ptr<value::NativeArray>>(left) ||
-             std::holds_alternative<std::shared_ptr<value::NativeArray>>(right) ||
-             std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(left) ||
-             std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(right) ||
-             std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(left) ||
-             std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(right))) {
+            (value::isString(left) || value::isString(right) ||
+             value::isInternedString(left) || value::isInternedString(right) ||
+             value::isObject(left) ||
+             value::isObject(right) ||
+             value::isValueObject(left) ||
+             value::isValueObject(right) ||
+             value::isNativeArray(left) ||
+             value::isNativeArray(right) ||
+             value::isFlatMultiArray(left) ||
+             value::isFlatMultiArray(right) ||
+             value::isSparseMultiArray(left) ||
+             value::isSparseMultiArray(right))) {
 
             // Convert both operands to string using valueToString
             std::string leftStr = valueToString(left);
@@ -378,29 +379,29 @@ namespace vm::runtime
     }
 
     std::string ArithmeticExecutor::valueToString(const value::Value& val) const {
-        if (std::holds_alternative<int64_t>(val)) {
-            return std::to_string(std::get<int64_t>(val));
+        if (value::isInt(val)) {
+            return std::to_string(value::asInt(val));
         }
-        if (std::holds_alternative<double>(val)) {
+        if (value::isFloat(val)) {
             // Format float to match interpreter behavior (remove trailing zeros)
             std::ostringstream oss;
-            oss << std::get<double>(val);
+            oss << value::asFloat(val);
             return oss.str();
         }
-        if (std::holds_alternative<bool>(val)) {
-            return std::get<bool>(val) ? "true" : "false";
+        if (value::isBool(val)) {
+            return value::asBool(val) ? "true" : "false";
         }
-        if (std::holds_alternative<std::string>(val)) {
-            return std::get<std::string>(val);
+        if (value::isString(val)) {
+            return value::asString(val);
         }
-        if (std::holds_alternative<value::InternedString>(val)) {
-            return std::get<value::InternedString>(val).getString();
+        if (value::isInternedString(val)) {
+            return value::asInternedString(val).getString();
         }
-        if (std::holds_alternative<nullptr_t>(val)) {
+        if (value::isNullType(val)) {
             return "null";
         }
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+        if (value::isObject(val)) {
+            auto obj = value::asObject(val);
             if (obj) {
                 // First, try to call toString() if it exists (custom toString() takes priority)
                 auto classDef = obj->getClassDefinition();
@@ -448,8 +449,8 @@ namespace vm::runtime
             }
         }
         // Handle ValueObject (value types)
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+        if (value::isValueObject(val)) {
+            auto obj = value::asValueObject(val);
             if (obj) {
                 // For primitive wrapper value objects, extract "value" field
                 if (obj->hasField("value") && obj->getFieldCount() == 1) {
@@ -459,8 +460,8 @@ namespace vm::runtime
             }
         }
         // Handle NativeArray
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<value::NativeArray>>(val);
+        if (value::isNativeArray(val)) {
+            auto arr = value::asNativeArray(val);
             if (arr) {
                 std::string result = "[";
                 for (size_t i = 0; i < arr->size(); ++i) {
@@ -472,8 +473,8 @@ namespace vm::runtime
             }
             return "[]";
         }
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<value::FlatMultiArray>>(val);
+        if (value::isFlatMultiArray(val)) {
+            auto arr = value::asFlatMultiArray(val);
             if (arr) {
                 std::string result;
                 formatMultiArraySlice(*arr, arr->getDimensions(), 0, 0, result);
@@ -481,8 +482,8 @@ namespace vm::runtime
             }
             return "[]";
         }
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(val)) {
-            auto arr = std::get<std::shared_ptr<value::SparseMultiArray>>(val);
+        if (value::isSparseMultiArray(val)) {
+            auto arr = value::asSparseMultiArray(val);
             if (arr) {
                 std::string result;
                 formatMultiArraySlice(*arr, arr->getDimensions(), 0, 0, result);

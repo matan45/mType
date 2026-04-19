@@ -3,6 +3,7 @@
 #include "InterfaceDefinition.hpp"
 #include "../../vm/MethodSignature.hpp"
 #include "../../types/TypeSubstitutionService.hpp"
+#include "../../value/ValueShim.hpp"
 #include <algorithm>
 #include <set>
 
@@ -59,15 +60,15 @@ namespace runtimeTypes::klass
 
                 // Get the runtime type of the argument
                 value::ValueType argType;
-                if (std::holds_alternative<int64_t>(arg)) {
+                if (value::isInt(arg)) {
                     argType = value::ValueType::INT;
-                } else if (std::holds_alternative<double>(arg)) {
+                } else if (value::isFloat(arg)) {
                     argType = value::ValueType::FLOAT;
-                } else if (std::holds_alternative<bool>(arg)) {
+                } else if (value::isBool(arg)) {
                     argType = value::ValueType::BOOL;
-                } else if (std::holds_alternative<std::string>(arg) || std::holds_alternative<value::InternedString>(arg)) {
+                } else if (value::isString(arg) || value::isInternedString(arg)) {
                     argType = value::ValueType::STRING;
-                } else if (std::holds_alternative<std::monostate>(arg) || std::holds_alternative<std::nullptr_t>(arg)) {
+                } else if (value::isVoid(arg) || value::isNullType(arg)) {
                     argType = value::ValueType::VOID; // null
                 } else {
                     argType = value::ValueType::OBJECT;

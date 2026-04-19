@@ -6,6 +6,7 @@
 #include "../value/NativeArray.hpp"
 #include "../value/ValueObject.hpp"
 #include "../value/StringPool.hpp"
+#include "../value/ValueShim.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../types/UnifiedType.hpp"
 #include <stdexcept>
@@ -13,12 +14,44 @@
 
 namespace
 {
+    // MYT-189: ported from std::variant accessors to the ValueShim.
     template<typename T>
     T safeGet(const value::Value& val, const std::string& context)
     {
-        if (!std::holds_alternative<T>(val))
-            throw errors::RuntimeException("Unexpected value type while " + context);
-        return std::get<T>(val);
+        if constexpr (std::is_same_v<T, int64_t>)
+        {
+            if (!value::isInt(val))
+                throw errors::RuntimeException("Unexpected value type while " + context);
+            return value::asInt(val);
+        }
+        else if constexpr (std::is_same_v<T, std::shared_ptr<value::NativeArray>>)
+        {
+            if (!value::isNativeArray(val))
+                throw errors::RuntimeException("Unexpected value type while " + context);
+            return value::asNativeArray(val);
+        }
+        else
+        {
+            static_assert(sizeof(T*) == 0, "safeGet only supports int64_t and shared_ptr<NativeArray>");
+        }
+    }
+
+    // Mirrors the primitive hash arms of HashCodeFunction. Returns 0 for
+    // non-hashable values. Used by the nested computeHashCode dispatches
+    // below to avoid duplicating the same five type checks.
+    int64_t hashPrimitive(const value::Value& val)
+    {
+        if (value::isInt(val))
+            return static_cast<int64_t>(std::hash<int64_t>{}(value::asInt(val)) & 0x7FFFFFFF);
+        if (value::isFloat(val))
+            return static_cast<int64_t>(std::hash<double>{}(value::asFloat(val)) & 0x7FFFFFFF);
+        if (value::isBool(val))
+            return value::asBool(val) ? 1231 : 1237;
+        if (value::isString(val))
+            return static_cast<int64_t>(std::hash<std::string>{}(value::asString(val)) & 0x7FFFFFFF);
+        if (value::isInternedString(val))
+            return static_cast<int64_t>(std::hash<std::string>{}(value::asInternedString(val).getString()) & 0x7FFFFFFF);
+        return 0;
     }
 }
 
@@ -455,71 +488,34 @@ namespace json
     // WARNING: if HashCodeFunction.cpp changes, this must be updated to match.
     int64_t JsonDeserializer::computeHashCode(const value::Value& val)
     {
-        return std::visit([](const auto& v) -> int64_t
+        // Primitive values hash directly.
+        if (value::isInt(val) || value::isFloat(val) || value::isBool(val) ||
+            value::isString(val) || value::isInternedString(val))
         {
-            using T = std::decay_t<decltype(v)>;
+            return hashPrimitive(val);
+        }
 
-            if constexpr (std::is_same_v<T, int64_t>)
-                return static_cast<int64_t>(std::hash<int64_t>{}(v) & 0x7FFFFFFF);
-            else if constexpr (std::is_same_v<T, double>)
-                return static_cast<int64_t>(std::hash<double>{}(v) & 0x7FFFFFFF);
-            else if constexpr (std::is_same_v<T, bool>)
-                return v ? 1231 : 1237;
-            else if constexpr (std::is_same_v<T, std::string>)
-                return static_cast<int64_t>(std::hash<std::string>{}(v) & 0x7FFFFFFF);
-            else if constexpr (std::is_same_v<T, value::InternedString>)
-                return static_cast<int64_t>(std::hash<std::string>{}(v.getString()) & 0x7FFFFFFF);
-            else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
-            {
-                // Wrapper types: extract primitive value field
-                if (!v) return 0;
-                const auto& fields = v->getAllFieldValues();
-                auto valIt = fields.find("value");
-                if (valIt == fields.end()) return 0;
+        // Object wrapper: pull the `value` field and hash its primitive payload.
+        if (value::isObject(val))
+        {
+            auto obj = value::asObject(val);
+            if (!obj) return 0;
+            const auto& fields = obj->getAllFieldValues();
+            auto valIt = fields.find("value");
+            if (valIt == fields.end()) return 0;
+            return hashPrimitive(valIt->second);
+        }
 
-                // Recurse on the inner value
-                return std::visit([](const auto& inner) -> int64_t
-                {
-                    using U = std::decay_t<decltype(inner)>;
-                    if constexpr (std::is_same_v<U, int64_t>)
-                        return static_cast<int64_t>(std::hash<int64_t>{}(inner) & 0x7FFFFFFF);
-                    else if constexpr (std::is_same_v<U, double>)
-                        return static_cast<int64_t>(std::hash<double>{}(inner) & 0x7FFFFFFF);
-                    else if constexpr (std::is_same_v<U, bool>)
-                        return inner ? 1231 : 1237;
-                    else if constexpr (std::is_same_v<U, std::string>)
-                        return static_cast<int64_t>(std::hash<std::string>{}(inner) & 0x7FFFFFFF);
-                    else if constexpr (std::is_same_v<U, value::InternedString>)
-                        return static_cast<int64_t>(std::hash<std::string>{}(inner.getString()) & 0x7FFFFFFF);
-                    else
-                        return 0;
-                }, valIt->second);
-            }
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::ValueObject>>)
-            {
-                // Value types: extract primitive value field
-                if (!v) return 0;
-                value::Value inner = v->getFieldValue("value");
-                return std::visit([](const auto& iv) -> int64_t
-                {
-                    using U = std::decay_t<decltype(iv)>;
-                    if constexpr (std::is_same_v<U, int64_t>)
-                        return static_cast<int64_t>(std::hash<int64_t>{}(iv) & 0x7FFFFFFF);
-                    else if constexpr (std::is_same_v<U, double>)
-                        return static_cast<int64_t>(std::hash<double>{}(iv) & 0x7FFFFFFF);
-                    else if constexpr (std::is_same_v<U, bool>)
-                        return iv ? 1231 : 1237;
-                    else if constexpr (std::is_same_v<U, std::string>)
-                        return static_cast<int64_t>(std::hash<std::string>{}(iv) & 0x7FFFFFFF);
-                    else if constexpr (std::is_same_v<U, value::InternedString>)
-                        return static_cast<int64_t>(std::hash<std::string>{}(iv.getString()) & 0x7FFFFFFF);
-                    else
-                        return 0;
-                }, inner);
-            }
-            else
-                return 0;
-        }, val);
+        // Value-object wrapper: same idea, via ValueObject::getFieldValue.
+        if (value::isValueObject(val))
+        {
+            auto vo = value::asValueObject(val);
+            if (!vo) return 0;
+            value::Value inner = vo->getFieldValue("value");
+            return hashPrimitive(inner);
+        }
+
+        return 0;
     }
 
     // Mirrors HashMap.getBucketIndex() from lib/collections/HashMap.mt (line ~210).

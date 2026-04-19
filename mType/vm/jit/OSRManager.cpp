@@ -1,5 +1,6 @@
 #include "OSRManager.hpp"
 #include "JitHelpers.hpp"
+#include "../../value/ValueShim.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "../runtime/VirtualMachine.hpp"
@@ -428,13 +429,13 @@ namespace vm::jit
 
     SlotType OSRManager::inferSlotType(const value::Value& val)
     {
-        if (std::holds_alternative<int64_t>(val)) return SlotType::INT;
-        if (std::holds_alternative<double>(val)) return SlotType::FLOAT;
-        if (std::holds_alternative<bool>(val)) return SlotType::BOOL;
-        if (std::holds_alternative<std::string>(val)) return SlotType::STRING;
-        if (std::holds_alternative<value::InternedString>(val)) return SlotType::STRING;
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) return SlotType::OBJECT;
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(val)) return SlotType::ARRAY;
+        if (value::isInt(val)) return SlotType::INT;
+        if (value::isFloat(val)) return SlotType::FLOAT;
+        if (value::isBool(val)) return SlotType::BOOL;
+        if (value::isString(val)) return SlotType::STRING;
+        if (value::isInternedString(val)) return SlotType::STRING;
+        if (value::isObject(val)) return SlotType::OBJECT;
+        if (value::isNativeArray(val)) return SlotType::ARRAY;
         return SlotType::BOXED;
     }
 }

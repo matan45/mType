@@ -12,21 +12,16 @@ namespace environment::registry::builtin
             throw errors::ArgumentException("sqrt expects exactly 1 argument");
         }
 
-        return std::visit([](const auto& value) -> Value
+        const Value& arg = args[0];
+        if (isFloat(arg))
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, double>)
-            {
-                return std::sqrt(value);
-            }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, int64_t>)
-            {
-                return std::sqrt(static_cast<double>(value));
-            }
-            else
-            {
-                throw errors::TypeException("sqrt expects a numeric argument");
-            }
-        }, args[0]);
+            return std::sqrt(asFloat(arg));
+        }
+        if (isInt(arg))
+        {
+            return std::sqrt(static_cast<double>(asInt(arg)));
+        }
+        throw errors::TypeException("sqrt expects a numeric argument");
     }
 
     std::string SqrtFunction::getName() const

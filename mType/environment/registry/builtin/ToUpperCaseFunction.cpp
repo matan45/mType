@@ -14,23 +14,20 @@ namespace environment::registry::builtin
         }
 
         std::string str;
-        std::visit([&str](const auto& value)
+        const Value& arg = args[0];
+        if (isString(arg))
         {
-            if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>)
-            {
-                str = value;
-            }
-            else if constexpr (std::is_same_v<std::decay_t<decltype(value)>, value::InternedString>)
-            {
-                str = value.getString();
-            }
-            else
-            {
-                throw errors::RuntimeException("toUpperCase can only be called on strings");
-            }
-        }, args[0]);
+            str = asString(arg);
+        }
+        else if (isInternedString(arg))
+        {
+            str = asInternedString(arg).getString();
+        }
+        else
+        {
+            throw errors::RuntimeException("toUpperCase can only be called on strings");
+        }
 
-        // Convert to uppercase
         std::transform(str.begin(), str.end(), str.begin(),
             [](unsigned char c) { return std::toupper(c); });
 

@@ -3,6 +3,7 @@
 #include <string>
 #include <variant>
 #include "../../value/ValueType.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../errors/ObjectException.hpp"
@@ -67,11 +68,11 @@ namespace services::api
          */
         static bool isClassValue(const value::Value& v)
         {
-            if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v))
+            if (!value::isObject(v))
             {
                 return false;
             }
-            const auto& instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v);
+            auto instance = value::asObject(v);
             if (!instance)
             {
                 return false;

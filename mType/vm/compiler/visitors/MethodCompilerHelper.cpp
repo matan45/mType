@@ -683,7 +683,11 @@ namespace vm::compiler::visitors
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
         // BEFORE super() call: Assign constructor parameters to matching instance fields
-        // This ensures polymorphic methods called in parent constructors see correct field values
+        // This ensures polymorphic methods called in parent constructors see correct field values.
+        // Final fields are skipped — they must be assigned exactly once, either in their inline
+        // initializer (prologue SET_FIELD) or via an explicit `this.X = ...` in the ctor body.
+        // Auto-binding them would be the *first* write, causing the user's explicit assignment
+        // to trip the instance-final check.
         if (ctx.currentClassNode)
         {
             const auto& fields = ctx.currentClassNode->getFields();
@@ -696,7 +700,8 @@ namespace vm::compiler::visitors
                 {
                     // Cast to FieldNode to access field-specific methods
                     auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get());
-                    if (fieldNode && !fieldNode->getIsStatic() && fieldNode->getName() == paramName)
+                    if (fieldNode && !fieldNode->getIsStatic() && !fieldNode->getIsFinal()
+                        && fieldNode->getName() == paramName)
                     {
                         // Load 'this' (slot 0) - object goes on stack first
                         ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);

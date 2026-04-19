@@ -3,6 +3,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueTypeUtils.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../constants/SecurityConstants.hpp"
 namespace vm::runtime
 {
@@ -99,10 +100,24 @@ namespace vm::runtime
             return false;
         }
 
-        // Field found - check if it's final
-        if (fieldDef->isFinal() && fieldDef->isInitialized()) {
-            utils::ErrorLocationHelper::throwRuntimeError(context,
-                "Cannot assign to final field '" + varName + "'");
+        // Field found - check if it's final. Static finals share a single
+        // isInitialized bit on FieldDefinition; instance finals track state
+        // per-instance in the fieldValues map (MYT-189: match ObjectExecutor's
+        // SET_FIELD check so per-instance field init doesn't trip the check
+        // after the first instance sets the field).
+        if (fieldDef->isFinal()) {
+            if (fieldDef->isStatic()) {
+                if (fieldDef->isInitialized()) {
+                    utils::ErrorLocationHelper::throwRuntimeError(context,
+                        "Cannot assign to final field '" + varName + "'");
+                }
+            } else {
+                const auto& instanceFields = thisInstance->getAllFieldValues();
+                if (instanceFields.find(varName) != instanceFields.end()) {
+                    utils::ErrorLocationHelper::throwRuntimeError(context,
+                        "Cannot assign to final field '" + varName + "'");
+                }
+            }
         }
 
         // Set the field value
@@ -271,7 +286,7 @@ namespace vm::runtime
                         // Access by slot number (reference capture)
                         value::Value val = lambda->capturedFrame->getLocal(capturedSlot);
 
-                        if (!std::holds_alternative<std::monostate>(val))
+                        if (!value::isVoid(val))
                         {
                             context.stackManager->push(val);
                             return;
@@ -289,7 +304,7 @@ namespace vm::runtime
             value::Value sharedVal = sharedFrame->getLocal(slot);
 
             // If the variable exists in the shared frame, use it (reference capture)
-            if (!std::holds_alternative<std::monostate>(sharedVal))
+            if (!value::isVoid(sharedVal))
             {
                 context.stackManager->push(sharedVal);
                 return;

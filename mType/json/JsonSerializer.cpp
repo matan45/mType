@@ -6,17 +6,41 @@
 #include "../value/ValueObject.hpp"
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"
+#include "../value/ValueShim.hpp"
+#include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../errors/RuntimeException.hpp"
 #include <stdexcept>
 
 namespace
 {
+    // MYT-189: ported from std::variant accessors to the ValueShim.
+    // Only the two types used internally are supported.
     template<typename T>
     T safeGet(const value::Value& val, const std::string& context)
     {
-        if (!std::holds_alternative<T>(val))
-            throw errors::RuntimeException("Unexpected value type while " + context);
-        return std::get<T>(val);
+        if constexpr (std::is_same_v<T, int64_t>)
+        {
+            if (!value::isInt(val))
+                throw errors::RuntimeException("Unexpected value type while " + context);
+            return value::asInt(val);
+        }
+        else if constexpr (std::is_same_v<T, std::shared_ptr<value::NativeArray>>)
+        {
+            if (!value::isNativeArray(val))
+                throw errors::RuntimeException("Unexpected value type while " + context);
+            return value::asNativeArray(val);
+        }
+        else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
+        {
+            if (!value::isObject(val))
+                throw errors::RuntimeException("Unexpected value type while " + context);
+            return value::asObject(val);
+        }
+        else
+        {
+            static_assert(sizeof(T*) == 0,
+                "safeGet only supports int64_t, shared_ptr<NativeArray>, shared_ptr<ObjectInstance>");
+        }
     }
 
     void checkReservedFieldName(const std::string& fieldName, const std::string& className)
@@ -55,39 +79,36 @@ namespace json
 
     std::shared_ptr<JsonValue> JsonSerializer::serializeValue(const value::Value& val)
     {
-        return std::visit([this](const auto& v) -> std::shared_ptr<JsonValue>
+        if (value::isVoid(val) || value::isNullType(val))
+            return JsonValue::null();
+        if (value::isInt(val))
+            return JsonValue::integer(value::asInt(val));
+        if (value::isFloat(val))
+            return JsonValue::floating(value::asFloat(val));
+        if (value::isBool(val))
+            return JsonValue::boolean(value::asBool(val));
+        if (value::isString(val))
+            return JsonValue::string(value::asString(val));
+        if (value::isInternedString(val))
+            return JsonValue::string(value::asInternedString(val).getString());
+        if (value::isObject(val))
         {
-            using T = std::decay_t<decltype(v)>;
-
-            if constexpr (std::is_same_v<T, int64_t>)
-                return JsonValue::integer(v);
-            else if constexpr (std::is_same_v<T, double>)
-                return JsonValue::floating(v);
-            else if constexpr (std::is_same_v<T, bool>)
-                return JsonValue::boolean(v);
-            else if constexpr (std::is_same_v<T, std::string>)
-                return JsonValue::string(v);
-            else if constexpr (std::is_same_v<T, value::InternedString>)
-                return JsonValue::string(v.getString());
-            else if constexpr (std::is_same_v<T, std::monostate>)
-                return JsonValue::null();
-            else if constexpr (std::is_same_v<T, nullptr_t>)
-                return JsonValue::null();
-            else if constexpr (std::is_same_v<T, std::shared_ptr<runtimeTypes::klass::ObjectInstance>>)
-                return v ? serializeObject(v) : JsonValue::null();
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::ValueObject>>)
-                return v ? serializeValueObject(v) : JsonValue::null();
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::NativeArray>>)
-                return v ? serializeArray(v) : JsonValue::null();
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::FlatMultiArray>>)
-                return JsonValue::null(); // Multi-dimensional array, not supported in JSON
-            else if constexpr (std::is_same_v<T, std::shared_ptr<value::SparseMultiArray>>)
-                return JsonValue::null(); // Sparse multi-array, not supported in JSON
-            else if constexpr (std::is_same_v<T, std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>)
-                return JsonValue::null(); // Object multi-array, not supported in JSON
-            else
-                return JsonValue::null(); // Lambda, Promise, etc.
-        }, val);
+            auto p = value::asObject(val);
+            return p ? serializeObject(p) : JsonValue::null();
+        }
+        if (value::isValueObject(val))
+        {
+            auto p = value::asValueObject(val);
+            return p ? serializeValueObject(p) : JsonValue::null();
+        }
+        if (value::isNativeArray(val))
+        {
+            auto p = value::asNativeArray(val);
+            return p ? serializeArray(p) : JsonValue::null();
+        }
+        // FlatMultiArray / SparseMultiArray / FlatMultiObjectArray / Lambda /
+        // Promise — not representable in JSON.
+        return JsonValue::null();
     }
 
     std::shared_ptr<JsonValue> JsonSerializer::serializeObject(
@@ -358,8 +379,7 @@ namespace json
         if (headIt == fields.end()) return jsonArr;
 
         // head could be null
-        if (std::holds_alternative<nullptr_t>(headIt->second) ||
-            std::holds_alternative<std::monostate>(headIt->second))
+        if (value::isNullType(headIt->second) || value::isVoid(headIt->second))
             return jsonArr;
 
         auto node = safeGet<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(headIt->second,
@@ -374,8 +394,8 @@ namespace json
             auto nextIt = nodeFields.find("next");
             if (nextIt == nodeFields.end()) break;
 
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(nextIt->second))
-                node = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(nextIt->second);
+            if (value::isObject(nextIt->second))
+                node = value::asObject(nextIt->second);
             else
                 break;
         }

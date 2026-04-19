@@ -240,6 +240,9 @@
     <ClInclude Include="value\InternedString.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\IntrusivePtr.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\MultiArrayBase.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -264,7 +267,13 @@
     <ClInclude Include="value\StringPool.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\ValueBridge.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\ValueObject.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ValueShim.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\ValueType.hpp">

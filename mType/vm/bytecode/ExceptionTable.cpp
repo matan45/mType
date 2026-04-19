@@ -1,5 +1,6 @@
 #include "ExceptionTable.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ValueShim.hpp"
 #include <algorithm>
 
 namespace vm::bytecode
@@ -140,9 +141,9 @@ namespace vm::bytecode
         // Check inheritance: if exception is an ObjectInstance, use isInstanceOf()
         // This properly handles exception hierarchies (e.g., InitializationException extends Exception)
         // Use the base catch type (without generics) for inheritance checking
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue))
+        if (value::isObject(exceptionValue))
         {
-            auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(exceptionValue);
+            auto objInstance = value::asObject(exceptionValue);
             if (objInstance)
             {
                 return objInstance->isInstanceOf(baseCatchType);

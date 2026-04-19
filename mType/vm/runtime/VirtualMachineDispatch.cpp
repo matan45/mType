@@ -396,7 +396,7 @@ namespace vm::runtime
                 // Use AsyncPromiseValue for async functions so they integrate with event loop
                 value::Value val = stackManager->pop();
                 auto promise = std::make_shared<value::AsyncPromiseValue>(val);
-                stackManager->push(promise);
+                stackManager->push(std::shared_ptr<value::PromiseValue>(promise));
                 break;
             }
 

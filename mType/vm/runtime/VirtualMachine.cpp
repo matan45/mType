@@ -79,12 +79,11 @@ namespace vm::runtime
         jitEnabled = enabled;
         if (enabled && !jitProfiler)
         {
-            jitProfiler = std::make_unique<jit::JitProfiler>();
+            jitProfiler  = std::make_unique<jit::JitProfiler>();
             jitCodeCache = std::make_unique<jit::JitCodeCache>();
-            jitCompiler = std::make_unique<jit::JitCompiler>();
-            osrManager = std::make_unique<jit::OSRManager>();
+            jitCompiler  = std::make_unique<jit::JitCompiler>();
+            osrManager   = std::make_unique<jit::OSRManager>();
         }
-        // JIT implies IC
         if (enabled) setICEnabled(true);
     }
 

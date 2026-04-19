@@ -14,25 +14,25 @@ namespace constant_folding {
 // ==================== Type Detection ====================
 
 bool ConstantEvaluator::isIntValue(const Value& value) {
-    return std::holds_alternative<int64_t>(value);
+    return value::isInt(value);
 }
 
 bool ConstantEvaluator::isFloatValue(const Value& value) {
-    return std::holds_alternative<double>(value);
+    return value::isFloat(value);
 }
 
 bool ConstantEvaluator::isBoolValue(const Value& value) {
-    return std::holds_alternative<bool>(value);
+    return value::isBool(value);
 }
 
 bool ConstantEvaluator::isStringValue(const Value& value) {
-    return std::holds_alternative<std::string>(value) ||
-           std::holds_alternative<InternedString>(value);
+    return value::isString(value) ||
+           value::isInternedString(value);
 }
 
 bool ConstantEvaluator::isNullValue(const Value& value) {
-    return std::holds_alternative<std::monostate>(value) ||
-           std::holds_alternative<nullptr_t>(value);
+    return value::isVoid(value) ||
+           value::isNullType(value);
 }
 
 bool ConstantEvaluator::isFoldableValue(const Value& value) {
@@ -138,17 +138,17 @@ std::optional<Value> ConstantEvaluator::evaluateMixedArithmetic(
     double rightFloat = 0.0;
 
     if (isIntValue(left)) {
-        leftFloat = static_cast<double>(std::get<int64_t>(left));
+        leftFloat = static_cast<double>(value::asInt(left));
     } else if (isFloatValue(left)) {
-        leftFloat = std::get<double>(left);
+        leftFloat = value::asFloat(left);
     } else {
         return std::nullopt;
     }
 
     if (isIntValue(right)) {
-        rightFloat = static_cast<double>(std::get<int64_t>(right));
+        rightFloat = static_cast<double>(value::asInt(right));
     } else if (isFloatValue(right)) {
-        rightFloat = std::get<double>(right);
+        rightFloat = value::asFloat(right);
     } else {
         return std::nullopt;
     }
@@ -228,27 +228,27 @@ std::optional<Value> ConstantEvaluator::evaluateComparison(
 ) {
     // Both integers
     if (isIntValue(left) && isIntValue(right)) {
-        return compareIntegers(std::get<int64_t>(left), std::get<int64_t>(right), op);
+        return compareIntegers(value::asInt(left), value::asInt(right), op);
     }
 
     // Both floats
     if (isFloatValue(left) && isFloatValue(right)) {
-        return compareFloats(std::get<double>(left), std::get<double>(right), op);
+        return compareFloats(value::asFloat(left), value::asFloat(right), op);
     }
 
     // Mixed int/float - promote to float
     if ((isIntValue(left) || isFloatValue(left)) &&
         (isIntValue(right) || isFloatValue(right))) {
-        double leftFloat = isIntValue(left) ? static_cast<double>(std::get<int64_t>(left))
-                                           : std::get<double>(left);
-        double rightFloat = isIntValue(right) ? static_cast<double>(std::get<int64_t>(right))
-                                             : std::get<double>(right);
+        double leftFloat = isIntValue(left) ? static_cast<double>(value::asInt(left))
+                                           : value::asFloat(left);
+        double rightFloat = isIntValue(right) ? static_cast<double>(value::asInt(right))
+                                             : value::asFloat(right);
         return compareFloats(leftFloat, rightFloat, op);
     }
 
     // Both booleans
     if (isBoolValue(left) && isBoolValue(right)) {
-        return compareBools(std::get<bool>(left), std::get<bool>(right), op);
+        return compareBools(value::asBool(left), value::asBool(right), op);
     }
 
     // Both strings
@@ -256,16 +256,16 @@ std::optional<Value> ConstantEvaluator::evaluateComparison(
         std::string leftStr;
         std::string rightStr;
 
-        if (std::holds_alternative<std::string>(left)) {
-            leftStr = std::get<std::string>(left);
+        if (value::isString(left)) {
+            leftStr = value::asString(left);
         } else {
-            leftStr = std::get<InternedString>(left).getString();
+            leftStr = value::asInternedString(left).getString();
         }
 
-        if (std::holds_alternative<std::string>(right)) {
-            rightStr = std::get<std::string>(right);
+        if (value::isString(right)) {
+            rightStr = value::asString(right);
         } else {
-            rightStr = std::get<InternedString>(right).getString();
+            rightStr = value::asInternedString(right).getString();
         }
 
         return compareStrings(leftStr, rightStr, op);
@@ -296,8 +296,8 @@ std::optional<Value> ConstantEvaluator::evaluateLogicalOp(
         return std::nullopt;
     }
 
-    bool leftBool = std::get<bool>(left);
-    bool rightBool = std::get<bool>(right);
+    bool leftBool = value::asBool(left);
+    bool rightBool = value::asBool(right);
 
     switch (op) {
         case TokenType::AND:
@@ -313,21 +313,21 @@ std::optional<Value> ConstantEvaluator::evaluateLogicalOp(
 
 std::string ConstantEvaluator::valueToString(const Value& value) {
     if (isIntValue(value)) {
-        return std::to_string(std::get<int64_t>(value));
+        return std::to_string(value::asInt(value));
     }
     if (isFloatValue(value)) {
         std::ostringstream oss;
-        oss << std::get<double>(value);
+        oss << value::asFloat(value);
         return oss.str();
     }
     if (isBoolValue(value)) {
-        return std::get<bool>(value) ? "true" : "false";
+        return value::asBool(value) ? "true" : "false";
     }
-    if (std::holds_alternative<std::string>(value)) {
-        return std::get<std::string>(value);
+    if (value::isString(value)) {
+        return value::asString(value);
     }
-    if (std::holds_alternative<InternedString>(value)) {
-        return std::get<InternedString>(value).getString();
+    if (value::isInternedString(value)) {
+        return value::asInternedString(value).getString();
     }
     if (isNullValue(value)) {
         return "null";
@@ -364,7 +364,7 @@ std::optional<Value> ConstantEvaluator::evaluateBinaryOp(
 
         // Both integers
         if (isIntValue(left) && isIntValue(right)) {
-            return evaluateIntArithmetic(std::get<int64_t>(left), std::get<int64_t>(right), op);
+            return evaluateIntArithmetic(value::asInt(left), value::asInt(right), op);
         }
 
         // Both floats or mixed int/float
@@ -400,11 +400,11 @@ std::optional<Value> ConstantEvaluator::evaluateUnaryOp(
     switch (op) {
         case TokenType::MINUS: {
             if (isIntValue(operand)) {
-                auto result = SafeArithmetic::safeNegate(std::get<int64_t>(operand));
+                auto result = SafeArithmetic::safeNegate(value::asInt(operand));
                 return result.has_value() ? std::optional<Value>(*result) : std::nullopt;
             }
             if (isFloatValue(operand)) {
-                auto result = SafeArithmetic::safeNegate(std::get<double>(operand));
+                auto result = SafeArithmetic::safeNegate(value::asFloat(operand));
                 return result.has_value() ? std::optional<Value>(*result) : std::nullopt;
             }
             return std::nullopt;
@@ -420,7 +420,7 @@ std::optional<Value> ConstantEvaluator::evaluateUnaryOp(
 
         case TokenType::NOT: {
             if (isBoolValue(operand)) {
-                return !std::get<bool>(operand);
+                return !value::asBool(operand);
             }
             return std::nullopt;
         }
@@ -437,10 +437,10 @@ std::optional<Value> ConstantEvaluator::convertToInt(const Value& value) {
         return value; // Already int
     }
     if (isFloatValue(value)) {
-        return static_cast<int64_t>(std::get<double>(value)); // Truncation
+        return static_cast<int64_t>(value::asFloat(value)); // Truncation
     }
     if (isBoolValue(value)) {
-        return std::get<bool>(value) ? static_cast<int64_t>(1) : static_cast<int64_t>(0);
+        return value::asBool(value) ? static_cast<int64_t>(1) : static_cast<int64_t>(0);
     }
     return std::nullopt; // Can't convert strings/null to int at compile-time
 }
@@ -450,7 +450,7 @@ std::optional<Value> ConstantEvaluator::convertToFloat(const Value& value) {
         return value; // Already float
     }
     if (isIntValue(value)) {
-        return static_cast<double>(std::get<int64_t>(value));
+        return static_cast<double>(value::asInt(value));
     }
     return std::nullopt;
 }
@@ -460,7 +460,7 @@ std::optional<Value> ConstantEvaluator::convertToBool(const Value& value) {
         return value; // Already bool
     }
     if (isIntValue(value)) {
-        return std::get<int64_t>(value) != 0;
+        return value::asInt(value) != 0;
     }
     return std::nullopt;
 }

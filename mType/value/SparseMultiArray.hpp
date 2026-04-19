@@ -187,26 +187,9 @@ namespace value
          */
         bool valuesEqual(const Value& a, const Value& b) const
         {
-            // Handle the different value types properly
-            if (a.index() != b.index()) return false;
-
-            return std::visit([&b](const auto& aVal) -> bool
-            {
-                return std::visit([&aVal](const auto& bVal) -> bool
-                {
-                    using AType = std::decay_t<decltype(aVal)>;
-                    using BType = std::decay_t<decltype(bVal)>;
-
-                    if constexpr (std::is_same_v<AType, BType>)
-                    {
-                        return aVal == bVal;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }, b);
-            }, a);
+            // Value::operator== is tag+content dispatched (see ValueType.hpp),
+            // so this delegates to the standard equality semantics.
+            return a == b;
         }
 
         /**

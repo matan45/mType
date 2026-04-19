@@ -1,6 +1,7 @@
 #include "ArrayOperationsNative.hpp"
 #include "../../value/operations/ArrayOperations.hpp"
 #include "../../value/NativeArray.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../errors/RuntimeException.hpp"
 
 namespace runtimeTypes::global
@@ -18,17 +19,17 @@ namespace runtimeTypes::global
 
     std::shared_ptr<value::NativeArray> ArrayOperationsNative::extractArray(const Value& arg, const std::string& funcName, const std::string& paramName)
     {
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(arg)) {
+        if (!value::isNativeArray(arg)) {
             throw errors::RuntimeException(funcName + " requires " + paramName + " to be an array");
         }
-        return std::get<std::shared_ptr<NativeArray>>(arg);
+        return value::asNativeArray(arg);
     }
 
     void ArrayOperationsNative::validateTwoArrays(const std::vector<Value>& args, const std::string& funcName)
     {
         validateArgCount(args, 2, funcName);
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0]) ||
-            !std::holds_alternative<std::shared_ptr<NativeArray>>(args[1])) {
+        if (!value::isNativeArray(args[0]) ||
+            !value::isNativeArray(args[1])) {
             throw errors::RuntimeException(funcName + " requires two arrays");
         }
     }
@@ -36,7 +37,7 @@ namespace runtimeTypes::global
     void ArrayOperationsNative::validateSingleArray(const std::vector<Value>& args, const std::string& funcName)
     {
         validateArgCount(args, 1, funcName);
-        if (!std::holds_alternative<std::shared_ptr<NativeArray>>(args[0])) {
+        if (!value::isNativeArray(args[0])) {
             throw errors::RuntimeException(funcName + " requires an array");
         }
     }
@@ -70,8 +71,8 @@ namespace runtimeTypes::global
     {
         validateTwoArrays(args, "arrayAdd");
 
-        auto array1 = std::get<std::shared_ptr<NativeArray>>(args[0]);
-        auto array2 = std::get<std::shared_ptr<NativeArray>>(args[1]);
+        auto array1 = value::asNativeArray(args[0]);
+        auto array2 = value::asNativeArray(args[1]);
 
         return ArrayOperations::add(array1, array2);
     }
@@ -87,8 +88,8 @@ namespace runtimeTypes::global
     {
         validateTwoArrays(args, "arraySubtract");
 
-        auto array1 = std::get<std::shared_ptr<NativeArray>>(args[0]);
-        auto array2 = std::get<std::shared_ptr<NativeArray>>(args[1]);
+        auto array1 = value::asNativeArray(args[0]);
+        auto array2 = value::asNativeArray(args[1]);
 
         return ArrayOperations::subtract(array1, array2);
     }
@@ -97,8 +98,8 @@ namespace runtimeTypes::global
     {
         validateTwoArrays(args, "arrayMultiply");
 
-        auto array1 = std::get<std::shared_ptr<NativeArray>>(args[0]);
-        auto array2 = std::get<std::shared_ptr<NativeArray>>(args[1]);
+        auto array1 = value::asNativeArray(args[0]);
+        auto array2 = value::asNativeArray(args[1]);
 
         return ArrayOperations::multiply(array1, array2);
     }
@@ -115,28 +116,28 @@ namespace runtimeTypes::global
     Value ArrayOperationsNative::arraySum(const std::vector<Value>& args)
     {
         validateSingleArray(args, "arraySum");
-        auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
+        auto array = value::asNativeArray(args[0]);
         return ArrayOperations::sum(array);
     }
 
     Value ArrayOperationsNative::arrayMin(const std::vector<Value>& args)
     {
         validateSingleArray(args, "arrayMin");
-        auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
+        auto array = value::asNativeArray(args[0]);
         return ArrayOperations::min(array);
     }
 
     Value ArrayOperationsNative::arrayMax(const std::vector<Value>& args)
     {
         validateSingleArray(args, "arrayMax");
-        auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
+        auto array = value::asNativeArray(args[0]);
         return ArrayOperations::max(array);
     }
 
     Value ArrayOperationsNative::arrayAverage(const std::vector<Value>& args)
     {
         validateSingleArray(args, "arrayAverage");
-        auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
+        auto array = value::asNativeArray(args[0]);
         return ArrayOperations::average(array);
     }
 
@@ -153,14 +154,14 @@ namespace runtimeTypes::global
     Value ArrayOperationsNative::arrayCopy(const std::vector<Value>& args)
     {
         validateSingleArray(args, "arrayCopy");
-        auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
+        auto array = value::asNativeArray(args[0]);
         return ArrayOperations::copy(array);
     }
 
     Value ArrayOperationsNative::arrayReverse(const std::vector<Value>& args)
     {
         validateSingleArray(args, "arrayReverse");
-        auto array = std::get<std::shared_ptr<NativeArray>>(args[0]);
+        auto array = value::asNativeArray(args[0]);
         ArrayOperations::reverse(array);
         return std::monostate{}; // void return
     }

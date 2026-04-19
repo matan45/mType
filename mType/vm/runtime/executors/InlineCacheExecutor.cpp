@@ -6,6 +6,7 @@
 #include "../utils/MethodResolver.hpp"
 #include "../validation/AccessValidator.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../../value/ValueShim.hpp"
 
 namespace vm::runtime
 {
@@ -40,7 +41,7 @@ namespace vm::runtime
         }
 
         // Must be an object
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
+        if (!value::isObject(objectValue))
         {
             // Fall back to generic path by pushing back and delegating
             context.stackManager->push(objectValue);
@@ -48,7 +49,7 @@ namespace vm::runtime
             return;
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto instance = value::asObject(objectValue);
         auto* classDef = instance->getClassDefinition().get();
 
         // IC fast path
@@ -131,7 +132,7 @@ namespace vm::runtime
             }
         }
 
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
+        if (!value::isObject(objectValue))
         {
             // Fall back: push values back and delegate to generic handler
             context.stackManager->push(objectValue);
@@ -140,7 +141,7 @@ namespace vm::runtime
             return;
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto instance = value::asObject(objectValue);
         auto* classDef = instance->getClassDefinition().get();
 
         // IC fast path
@@ -203,7 +204,7 @@ namespace vm::runtime
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto instance = value::asObject(objectValue);
         auto* classDef = instance->getClassDefinition().get();
 
         // IC fast path
@@ -251,10 +252,10 @@ namespace vm::runtime
         value::Value objectValue = context.stackManager->pop();
 
         // ValueObject and primitive receivers can't use IC — handle directly
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
+        if (!value::isObject(objectValue))
         {
-            if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
-                auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+            if (value::isValueObject(objectValue)) {
+                auto valueObj = value::asValueObject(objectValue);
                 context.stackManager->push(valueObj->getFieldValue(fieldName));
             } else {
                 // Re-push and delegate to the non-IC handler (which pops again)
@@ -264,7 +265,7 @@ namespace vm::runtime
             return;
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto instance = value::asObject(objectValue);
         auto* classDef = instance->getClassDefinition().get();
 
         FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
@@ -332,14 +333,14 @@ namespace vm::runtime
 
         value::Value objectValue = context.stackManager->peek(argCount);
 
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
+        if (!value::isObject(objectValue))
         {
             // Not a simple object — delegate to full handler (handles lambdas, etc.)
             objectExecutor->handleCallMethod(instr);
             return;
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto instance = value::asObject(objectValue);
         auto* classDef = instance->getClassDefinition().get();
 
         // IC fast path

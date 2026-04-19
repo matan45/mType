@@ -1,6 +1,7 @@
 #include "LibraryNatives.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../value/InternedString.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../vm/runtime/VirtualMachine.hpp"
 #include <filesystem>
 
@@ -121,11 +122,11 @@ namespace project::mtclib
     std::string LibraryNatives::extractString(
         const value::Value& arg, const std::string& funcName, const std::string& paramName)
     {
-        if (std::holds_alternative<std::string>(arg)) {
-            return std::get<std::string>(arg);
+        if (value::isString(arg)) {
+            return value::asString(arg);
         }
-        if (std::holds_alternative<value::InternedString>(arg)) {
-            return std::get<value::InternedString>(arg).getString();
+        if (value::isInternedString(arg)) {
+            return value::asInternedString(arg).getString();
         }
         throw errors::RuntimeException(
             funcName + ": " + paramName + " must be a string");

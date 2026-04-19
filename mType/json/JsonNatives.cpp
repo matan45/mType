@@ -5,6 +5,7 @@
 #include "FileWriteNative.hpp"
 #include "../services/FileReader.hpp"
 #include "../errors/RuntimeException.hpp"
+#include "../value/ValueType.hpp"
 #include <stdexcept>
 
 namespace json
@@ -62,7 +63,7 @@ namespace json
     value::Value JsonNatives::__json_deserialize(const std::vector<value::Value>& args)
     {
         validateArgCount(args, 1, "__json_deserialize");
-        const std::string& jsonStr = extractString(args[0], "__json_deserialize");
+        const std::string jsonStr = extractString(args[0], "__json_deserialize");
 
         JsonDeserializer deserializer(currentEnvironment);
         return deserializer.deserialize(jsonStr);
@@ -71,8 +72,8 @@ namespace json
     value::Value JsonNatives::__json_deserializeAs(const std::vector<value::Value>& args)
     {
         validateArgCount(args, 2, "__json_deserializeAs");
-        const std::string& jsonStr = extractString(args[0], "__json_deserializeAs");
-        const std::string& className = extractString(args[1], "__json_deserializeAs");
+        const std::string jsonStr = extractString(args[0], "__json_deserializeAs");
+        const std::string className = extractString(args[1], "__json_deserializeAs");
 
         JsonDeserializer deserializer(currentEnvironment);
         return deserializer.deserializeAs(jsonStr, className);
@@ -83,7 +84,7 @@ namespace json
     value::Value JsonNatives::__json_format(const std::vector<value::Value>& args)
     {
         validateArgCount(args, 1, "__json_format");
-        const std::string& jsonStr = extractString(args[0], "__json_format");
+        const std::string jsonStr = extractString(args[0], "__json_format");
 
         auto parsed = JsonParser::parse(jsonStr);
         return parsed->toJsonString(true);
@@ -107,7 +108,7 @@ namespace json
     value::Value JsonNatives::__json_readFile(const std::vector<value::Value>& args)
     {
         validateArgCount(args, 1, "__json_readFile");
-        const std::string& filePath = extractString(args[0], "__json_readFile");
+        const std::string filePath = extractString(args[0], "__json_readFile");
 
         lexer::FileReader reader;
         return reader.readFile(filePath);
@@ -116,8 +117,8 @@ namespace json
     value::Value JsonNatives::__json_writeFile(const std::vector<value::Value>& args)
     {
         validateArgCount(args, 2, "__json_writeFile");
-        const std::string& filePath = extractString(args[0], "__json_writeFile");
-        const std::string& content = extractString(args[1], "__json_writeFile");
+        const std::string filePath = extractString(args[0], "__json_writeFile");
+        const std::string content = extractString(args[1], "__json_writeFile");
 
         FileWriteNative::writeFile(filePath, content);
         return std::monostate{};
@@ -139,11 +140,11 @@ namespace json
     std::string JsonNatives::extractString(const value::Value& arg,
                                            const std::string& funcName)
     {
-        if (std::holds_alternative<std::string>(arg))
-            return std::get<std::string>(arg);
+        if (value::isString(arg))
+            return value::asString(arg);
 
-        if (std::holds_alternative<value::InternedString>(arg))
-            return std::get<value::InternedString>(arg).getString();
+        if (value::isInternedString(arg))
+            return value::asInternedString(arg).getString();
 
         throw errors::RuntimeException(funcName + ": expected string argument");
     }
@@ -151,8 +152,8 @@ namespace json
     bool JsonNatives::extractBool(const value::Value& arg,
                                    const std::string& funcName)
     {
-        if (std::holds_alternative<bool>(arg))
-            return std::get<bool>(arg);
+        if (value::isBool(arg))
+            return value::asBool(arg);
 
         throw errors::RuntimeException(funcName + ": expected bool argument");
     }

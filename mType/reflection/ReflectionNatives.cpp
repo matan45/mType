@@ -4,6 +4,7 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/InternedString.hpp"
+#include "../value/ValueShim.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 
 namespace reflection
@@ -140,43 +141,43 @@ namespace reflection
 
     int64_t ReflectionNatives::extractInt(const Value& arg, const std::string& funcName, const std::string& paramName)
     {
-        if (!std::holds_alternative<int64_t>(arg))
+        if (!isInt(arg))
         {
             throw errors::RuntimeException(funcName + " requires " + paramName + " to be an int");
         }
-        return std::get<int64_t>(arg);
+        return asInt(arg);
     }
 
     const std::string& ReflectionNatives::extractString(const Value& arg, const std::string& funcName, const std::string& paramName)
     {
-        if (std::holds_alternative<std::string>(arg))
+        if (isString(arg))
         {
-            return std::get<std::string>(arg);
+            return asString(arg);
         }
-        if (std::holds_alternative<InternedString>(arg))
+        if (isInternedString(arg))
         {
-            return std::get<InternedString>(arg).getString();
+            return asInternedString(arg).getString();
         }
         throw errors::RuntimeException(funcName + " requires " + paramName + " to be a string");
     }
 
     bool ReflectionNatives::extractBool(const Value& arg, const std::string& funcName, const std::string& paramName)
     {
-        if (!std::holds_alternative<bool>(arg))
+        if (!isBool(arg))
         {
             throw errors::RuntimeException(funcName + " requires " + paramName + " to be a bool");
         }
-        return std::get<bool>(arg);
+        return asBool(arg);
     }
 
     std::shared_ptr<ObjectInstance> ReflectionNatives::extractObject(
         const Value& arg, const std::string& funcName, const std::string& paramName)
     {
-        if (!std::holds_alternative<std::shared_ptr<ObjectInstance>>(arg))
+        if (!isObject(arg))
         {
             throw errors::RuntimeException(funcName + " requires " + paramName + " to be an object");
         }
-        return std::get<std::shared_ptr<ObjectInstance>>(arg);
+        return asObject(arg);
     }
 
     std::string ReflectionNatives::valueTypeToTypeName(ValueType type)

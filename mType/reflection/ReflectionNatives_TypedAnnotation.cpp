@@ -2,6 +2,7 @@
 #include "ReflectionHandle.hpp"
 #include "AnnotationInstanceFactory.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/InternedString.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/klass/AnnotationDefinition.hpp"
@@ -21,12 +22,12 @@ namespace reflection
         {
             if (args.size() != 2)
                 throw errors::RuntimeException(std::string(fn) + " requires 2 arguments");
-            if (!std::holds_alternative<int64_t>(args[0]))
+            if (!isInt(args[0]))
                 throw errors::RuntimeException(std::string(fn) + " requires annotationHandle:int");
-            int64_t handle = std::get<int64_t>(args[0]);
+            int64_t handle = asInt(args[0]);
             std::string key;
-            if (std::holds_alternative<std::string>(args[1])) key = std::get<std::string>(args[1]);
-            else if (std::holds_alternative<InternedString>(args[1])) key = std::get<InternedString>(args[1]).getString();
+            if (isString(args[1])) key = asString(args[1]);
+            else if (isInternedString(args[1])) key = asInternedString(args[1]).getString();
             else throw errors::RuntimeException(std::string(fn) + " requires paramKey:string");
 
             auto info = ReflectionHandleRegistry::instance().getAnnotation(handle);
@@ -122,12 +123,12 @@ namespace reflection
     Value ReflectionNatives::__reflect_getMethodAnnotation(const std::vector<Value>& args)
     {
         if (args.size() != 2) throw errors::RuntimeException("__reflect_getMethodAnnotation requires 2 arguments");
-        if (!std::holds_alternative<int64_t>(args[0]))
+        if (!isInt(args[0]))
             throw errors::RuntimeException("__reflect_getMethodAnnotation requires methodHandle:int");
-        int64_t methodHandle = std::get<int64_t>(args[0]);
+        int64_t methodHandle = asInt(args[0]);
         std::string name;
-        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
-        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        if (isString(args[1])) name = asString(args[1]);
+        else if (isInternedString(args[1])) name = asInternedString(args[1]).getString();
         else throw errors::RuntimeException("__reflect_getMethodAnnotation requires annotationName:string");
 
         auto& reg = ReflectionHandleRegistry::instance();
@@ -141,12 +142,12 @@ namespace reflection
     Value ReflectionNatives::__reflect_hasMethodAnnotation(const std::vector<Value>& args)
     {
         if (args.size() != 2) throw errors::RuntimeException("__reflect_hasMethodAnnotation requires 2 arguments");
-        if (!std::holds_alternative<int64_t>(args[0]))
+        if (!isInt(args[0]))
             throw errors::RuntimeException("__reflect_hasMethodAnnotation requires methodHandle:int");
-        int64_t methodHandle = std::get<int64_t>(args[0]);
+        int64_t methodHandle = asInt(args[0]);
         std::string name;
-        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
-        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        if (isString(args[1])) name = asString(args[1]);
+        else if (isInternedString(args[1])) name = asInternedString(args[1]).getString();
         else throw errors::RuntimeException("__reflect_hasMethodAnnotation requires annotationName:string");
 
         auto info = ReflectionHandleRegistry::instance().getMethod(methodHandle);
@@ -157,12 +158,12 @@ namespace reflection
     Value ReflectionNatives::__reflect_getFieldAnnotation(const std::vector<Value>& args)
     {
         if (args.size() != 2) throw errors::RuntimeException("__reflect_getFieldAnnotation requires 2 arguments");
-        if (!std::holds_alternative<int64_t>(args[0]))
+        if (!isInt(args[0]))
             throw errors::RuntimeException("__reflect_getFieldAnnotation requires fieldHandle:int");
-        int64_t fieldHandle = std::get<int64_t>(args[0]);
+        int64_t fieldHandle = asInt(args[0]);
         std::string name;
-        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
-        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        if (isString(args[1])) name = asString(args[1]);
+        else if (isInternedString(args[1])) name = asInternedString(args[1]).getString();
         else throw errors::RuntimeException("__reflect_getFieldAnnotation requires annotationName:string");
 
         auto& reg = ReflectionHandleRegistry::instance();
@@ -176,12 +177,12 @@ namespace reflection
     Value ReflectionNatives::__reflect_hasFieldAnnotation(const std::vector<Value>& args)
     {
         if (args.size() != 2) throw errors::RuntimeException("__reflect_hasFieldAnnotation requires 2 arguments");
-        if (!std::holds_alternative<int64_t>(args[0]))
+        if (!isInt(args[0]))
             throw errors::RuntimeException("__reflect_hasFieldAnnotation requires fieldHandle:int");
-        int64_t fieldHandle = std::get<int64_t>(args[0]);
+        int64_t fieldHandle = asInt(args[0]);
         std::string name;
-        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
-        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        if (isString(args[1])) name = asString(args[1]);
+        else if (isInternedString(args[1])) name = asInternedString(args[1]).getString();
         else throw errors::RuntimeException("__reflect_hasFieldAnnotation requires annotationName:string");
 
         auto info = ReflectionHandleRegistry::instance().getField(fieldHandle);
@@ -192,9 +193,9 @@ namespace reflection
     Value ReflectionNatives::__reflect_getConstructorAnnotations(const std::vector<Value>& args)
     {
         if (args.size() != 1) throw errors::RuntimeException("__reflect_getConstructorAnnotations requires 1 argument");
-        if (!std::holds_alternative<int64_t>(args[0]))
+        if (!isInt(args[0]))
             throw errors::RuntimeException("__reflect_getConstructorAnnotations requires ctorHandle:int");
-        int64_t ctorHandle = std::get<int64_t>(args[0]);
+        int64_t ctorHandle = asInt(args[0]);
 
         auto& reg = ReflectionHandleRegistry::instance();
         auto info = reg.getConstructor(ctorHandle);
@@ -217,12 +218,12 @@ namespace reflection
     Value ReflectionNatives::__reflect_getConstructorAnnotation(const std::vector<Value>& args)
     {
         if (args.size() != 2) throw errors::RuntimeException("__reflect_getConstructorAnnotation requires 2 arguments");
-        if (!std::holds_alternative<int64_t>(args[0]))
+        if (!isInt(args[0]))
             throw errors::RuntimeException("__reflect_getConstructorAnnotation requires ctorHandle:int");
-        int64_t ctorHandle = std::get<int64_t>(args[0]);
+        int64_t ctorHandle = asInt(args[0]);
         std::string name;
-        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
-        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        if (isString(args[1])) name = asString(args[1]);
+        else if (isInternedString(args[1])) name = asInternedString(args[1]).getString();
         else throw errors::RuntimeException("__reflect_getConstructorAnnotation requires annotationName:string");
 
         auto& reg = ReflectionHandleRegistry::instance();
@@ -236,12 +237,12 @@ namespace reflection
     Value ReflectionNatives::__reflect_hasConstructorAnnotation(const std::vector<Value>& args)
     {
         if (args.size() != 2) throw errors::RuntimeException("__reflect_hasConstructorAnnotation requires 2 arguments");
-        if (!std::holds_alternative<int64_t>(args[0]))
+        if (!isInt(args[0]))
             throw errors::RuntimeException("__reflect_hasConstructorAnnotation requires ctorHandle:int");
-        int64_t ctorHandle = std::get<int64_t>(args[0]);
+        int64_t ctorHandle = asInt(args[0]);
         std::string name;
-        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
-        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        if (isString(args[1])) name = asString(args[1]);
+        else if (isInternedString(args[1])) name = asInternedString(args[1]).getString();
         else throw errors::RuntimeException("__reflect_hasConstructorAnnotation requires annotationName:string");
 
         auto info = ReflectionHandleRegistry::instance().getConstructor(ctorHandle);
@@ -252,12 +253,12 @@ namespace reflection
     Value ReflectionNatives::__reflect_getAnnotationMeta(const std::vector<Value>& args)
     {
         if (args.size() != 2) throw errors::RuntimeException("__reflect_getAnnotationMeta requires 2 arguments");
-        if (!std::holds_alternative<int64_t>(args[0]))
+        if (!isInt(args[0]))
             throw errors::RuntimeException("__reflect_getAnnotationMeta requires annotationHandle:int");
-        int64_t handle = std::get<int64_t>(args[0]);
+        int64_t handle = asInt(args[0]);
         std::string metaName;
-        if (std::holds_alternative<std::string>(args[1])) metaName = std::get<std::string>(args[1]);
-        else if (std::holds_alternative<InternedString>(args[1])) metaName = std::get<InternedString>(args[1]).getString();
+        if (isString(args[1])) metaName = asString(args[1]);
+        else if (isInternedString(args[1])) metaName = asInternedString(args[1]).getString();
         else throw errors::RuntimeException("__reflect_getAnnotationMeta requires metaAnnotationName:string");
 
         auto& reg = ReflectionHandleRegistry::instance();
@@ -277,12 +278,12 @@ namespace reflection
     {
         if (args.size() != 2)
             throw errors::RuntimeException("__reflect_getAnnotationObject requires (annotationHandle, annotationName)");
-        if (!std::holds_alternative<int64_t>(args[0]))
+        if (!isInt(args[0]))
             throw errors::RuntimeException("__reflect_getAnnotationObject requires annotationHandle:int");
-        int64_t handle = std::get<int64_t>(args[0]);
+        int64_t handle = asInt(args[0]);
         std::string name;
-        if (std::holds_alternative<std::string>(args[1])) name = std::get<std::string>(args[1]);
-        else if (std::holds_alternative<InternedString>(args[1])) name = std::get<InternedString>(args[1]).getString();
+        if (isString(args[1])) name = asString(args[1]);
+        else if (isInternedString(args[1])) name = asInternedString(args[1]).getString();
         else throw errors::RuntimeException("__reflect_getAnnotationObject requires annotationName:string");
 
         auto info = ReflectionHandleRegistry::instance().getAnnotation(handle);

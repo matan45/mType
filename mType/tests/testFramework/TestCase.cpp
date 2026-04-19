@@ -50,8 +50,21 @@ namespace tests::testFramework
     {
     }
 
+    TestCase TestCase::skipped(const std::string& testName, const std::string& reason)
+    {
+        TestCase tc(testName, "", TestType::NORMAL);
+        tc.status = TestStatus::SKIPPED;
+        tc.errorMessage = reason;
+        return tc;
+    }
+
     void TestCase::execute()
     {
+        if (status == TestStatus::SKIPPED)
+        {
+            return;
+        }
+
         auto startTime = std::chrono::high_resolution_clock::now();
 
         // Clear interface validation cache to prevent contamination between tests

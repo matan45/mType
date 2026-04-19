@@ -4,6 +4,7 @@
 #include "../bytecode/OpCode.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
+#include "../../value/ValueBridge.hpp"
 #include <asmjit/x86.h>
 #include <cassert>
 #include <cstdint>
@@ -16,56 +17,26 @@ namespace vm::jit
     using OpCode = bytecode::OpCode;
 
     namespace {
-        // MYT-169: layout constants consumed by the inlined shape-guard emitter.
-        // Computed once at first use; cached in a function-local static.
+        // Layout constants for the donation-reset in emitInlineLocalCopy. Under
+        // the 16-byte tagged Value (MYT-126), tag_ is the first member of
+        // value::Value so the tag byte sits at offset 0. Writing ValueType::VOID
+        // into that byte donates the slot without a refcount bump — isHeapTag
+        // is false for VOID, so the matching emitInlineLocalDestroy skips the
+        // release.
         struct InlineShapeLayout
         {
-            size_t variantTagOffset;        // byte offset of discriminant in value::Value
-            size_t objInstClassDefOffset;   // ObjectInstance → classDefinition shared_ptr
-            size_t valueObjClassDefOffset;  // ValueObject    → classDefinition shared_ptr
-            uint8_t objInstAltTag;          // discriminant byte value for shared_ptr<ObjectInstance>
-            uint8_t valueObjAltTag;         // discriminant byte value for shared_ptr<ValueObject>
-            uint8_t monostateAltTag;        // discriminant byte value for std::monostate (trivial dtor)
+            size_t  tagOffset;
+            uint8_t voidTag;
         };
+        static_assert(sizeof(value::ValueType) == 1,
+                      "tag byte layout assumes single-byte ValueType");
 
         const InlineShapeLayout& getInlineShapeLayout()
         {
-            static const InlineShapeLayout layout = []() {
-                // Probe the std::variant discriminant byte position: construct two
-                // Values with known adjacent alternative indices (int64_t → 0,
-                // double → 1) and find the byte that flips 0 → 1. MSVC stores a
-                // single-byte _Which at the tail of the variant storage.
-                value::Value v0{int64_t{0}};
-                value::Value v1{double{0.0}};
-                const uint8_t* b0 = reinterpret_cast<const uint8_t*>(&v0);
-                const uint8_t* b1 = reinterpret_cast<const uint8_t*>(&v1);
-                size_t tagOffset = sizeof(value::Value) - 1;
-                for (size_t i = sizeof(value::Value); i-- > 0;)
-                {
-                    if (b0[i] == 0 && b1[i] == 1) { tagOffset = i; break; }
-                }
-
-                // Probe alt tags for the receiver-bearing alternatives and for
-                // std::monostate (used by MYT-169 Fix B as a no-op-destructor tag
-                // when donating receiver ownership from operand stack to local).
-                value::Value vObj{std::shared_ptr<runtimeTypes::klass::ObjectInstance>{}};
-                value::Value vVal{std::shared_ptr<value::ValueObject>{}};
-                value::Value vMono{std::monostate{}};
-
-                InlineShapeLayout l;
-                l.variantTagOffset       = tagOffset;
-                l.objInstAltTag          = reinterpret_cast<const uint8_t*>(&vObj)[tagOffset];
-                l.valueObjAltTag         = reinterpret_cast<const uint8_t*>(&vVal)[tagOffset];
-                l.monostateAltTag        = reinterpret_cast<const uint8_t*>(&vMono)[tagOffset];
-                l.objInstClassDefOffset  = runtimeTypes::klass::ObjectInstance::classDefinitionMemberOffset();
-                l.valueObjClassDefOffset = value::ValueObject::classDefinitionMemberOffset();
-
-                // Sanity: alt tags must match the variant alternative order in
-                // ValueType.hpp (ObjectInstance at index 6, ValueObject at 7,
-                // monostate at 5).
-                assert(l.objInstAltTag == 6 && l.valueObjAltTag == 7 && l.monostateAltTag == 5);
-                return l;
-            }();
+            static constexpr InlineShapeLayout layout{
+                /*tagOffset=*/0,
+                static_cast<uint8_t>(value::ValueType::VOID)
+            };
             return layout;
         }
     }
@@ -279,64 +250,85 @@ namespace vm::jit
 
     // MYT-163 Phase F-a inline-emission helpers.
     //
-    // MYT-169 (Phase F-a follow-up): emit the receiver ClassDef* extract
-    // inline. Replaces the jit_extract_classdef helper call in both MONO
-    // (emitInlineShapeGuard) and POLY (emitExtractReceiverClassDef) paths,
-    // saving ~30 cyc/call on the hot inline-method path.
+    // MYT-190 Phase 2 (re-inlines the MYT-169 extract under tagged Value).
+    // The receiver's shared_ptr<ObjectInstance> / shared_ptr<ValueObject>
+    // lives two indirections below the Value: payload_.ptr points to a
+    // TypedBridge whose held_ member is the shared_ptr, whose first qword
+    // (MSVC shared_ptr._Ptr) is the raw T*. Emitted sequence:
     //
-    // Emitted sequence:
-    //   tag := (byte)[receiverAddr + variantTagOffset]
-    //   if (tag == valueObjAltTag) goto lblValueObj
-    //   if (tag != objInstAltTag)  goto slowLabel
-    //   rawPtr := [receiverAddr + 0]                        ; shared_ptr._Ptr
+    //   bridge := [rcv + Value::payloadOffset()]
+    //   if (bridge == 0) goto slowLabel
+    //   tag := (byte)[rcv + 0]
+    //   if (tag == VALUE_OBJECT) goto lblValueObj
+    //   if (tag != OBJECT) goto slowLabel
+    //   rawPtr := [bridge + ObjBridge::heldOffset()]       ; shared_ptr._Ptr
     //   if (rawPtr == 0) goto slowLabel
-    //   classDef := [rawPtr + objInstClassDefOffset + 0]    ; ClassDef* via shared_ptr._Ptr
+    //   classDef := [rawPtr + ObjectInstance::classDefinitionMemberOffset()]
     //   goto lblMerge
     // lblValueObj:
-    //   rawPtr := [receiverAddr + 0]
+    //   rawPtr := [bridge + ValBridge::heldOffset()]
     //   if (rawPtr == 0) goto slowLabel
-    //   classDef := [rawPtr + valueObjClassDefOffset + 0]
+    //   classDef := [rawPtr + ValueObject::classDefinitionMemberOffset()]
     // lblMerge:
+    //
+    // All offsets are queried from the owning C++ types (not baked into
+    // emitted code), so layout changes remain a single source-of-truth in
+    // ValueBridge.hpp / ValueType.hpp.
     static Gp emitInlineExtractClassDef(JitEmissionState& s, int receiverStackIdx,
                                         asmjit::Label slowLabel)
     {
+        using ObjBridge = value::TypedBridge<
+            value::BridgeKind::OBJECT_INSTANCE,
+            std::shared_ptr<runtimeTypes::klass::ObjectInstance>>;
+        using ValBridge = value::TypedBridge<
+            value::BridgeKind::VALUE_OBJECT,
+            std::shared_ptr<value::ValueObject>>;
+
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        const auto& layout = getInlineShapeLayout();
 
         Gp receiverAddr = cc.new_gp64();
         cc.lea(receiverAddr, Mem(s.boxedBase,
                                   static_cast<int32_t>(receiverStackIdx * valueSize)));
 
+        Gp bridge = cc.new_gp64();
+        cc.mov(bridge, qword_ptr(receiverAddr,
+                                 static_cast<int32_t>(value::Value::payloadOffset())));
+        cc.test(bridge, bridge);
+        cc.jz(slowLabel);
+
         Gp tag = cc.new_gp32();
-        cc.movzx(tag, byte_ptr(receiverAddr,
-                                static_cast<int32_t>(layout.variantTagOffset)));
+        cc.movzx(tag, byte_ptr(receiverAddr, 0));
 
         Label lblValueObj = cc.new_label();
         Label lblMerge    = cc.new_label();
 
         // Dispatch by receiver kind; ObjectInstance is the hot fall-through.
-        cc.cmp(tag, static_cast<int32_t>(layout.valueObjAltTag));
+        cc.cmp(tag, static_cast<int32_t>(value::ValueType::VALUE_OBJECT));
         cc.je(lblValueObj);
-        cc.cmp(tag, static_cast<int32_t>(layout.objInstAltTag));
+        cc.cmp(tag, static_cast<int32_t>(value::ValueType::OBJECT));
         cc.jne(slowLabel);
 
         Gp rawPtr   = cc.new_gp64();
         Gp classDef = cc.new_gp64();
 
-        cc.mov(rawPtr, qword_ptr(receiverAddr, 0));
+        cc.mov(rawPtr, qword_ptr(bridge,
+                                 static_cast<int32_t>(ObjBridge::heldOffset())));
         cc.test(rawPtr, rawPtr);
         cc.jz(slowLabel);
         cc.mov(classDef, qword_ptr(rawPtr,
-                                    static_cast<int32_t>(layout.objInstClassDefOffset)));
+                                    static_cast<int32_t>(
+                                        runtimeTypes::klass::ObjectInstance::classDefinitionMemberOffset())));
         cc.jmp(lblMerge);
 
         cc.bind(lblValueObj);
-        cc.mov(rawPtr, qword_ptr(receiverAddr, 0));
+        cc.mov(rawPtr, qword_ptr(bridge,
+                                 static_cast<int32_t>(ValBridge::heldOffset())));
         cc.test(rawPtr, rawPtr);
         cc.jz(slowLabel);
         cc.mov(classDef, qword_ptr(rawPtr,
-                                    static_cast<int32_t>(layout.valueObjClassDefOffset)));
+                                    static_cast<int32_t>(
+                                        value::ValueObject::classDefinitionMemberOffset())));
 
         cc.bind(lblMerge);
         return classDef;
@@ -478,8 +470,8 @@ namespace vm::jit
                     cc.mov(scratch, qword_ptr(src, static_cast<int32_t>(k * 8)));
                     cc.mov(qword_ptr(dst, static_cast<int32_t>(k * 8)), scratch);
                 }
-                cc.mov(byte_ptr(src, static_cast<int32_t>(layout.variantTagOffset)),
-                        static_cast<int32_t>(layout.monostateAltTag));
+                cc.mov(byte_ptr(src, static_cast<int32_t>(layout.tagOffset)),
+                        static_cast<int32_t>(layout.voidTag));
             }
             else
             {
