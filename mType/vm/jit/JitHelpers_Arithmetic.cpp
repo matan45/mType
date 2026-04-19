@@ -1,5 +1,6 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../environment/registry/NativeRegistry.hpp"
@@ -15,10 +16,10 @@ namespace vm::jit
                                      const value::Value* right,
                                      char op)
     {
-        if (std::holds_alternative<int64_t>(*left) && std::holds_alternative<int64_t>(*right))
+        if (value::isInt(*left) && value::isInt(*right))
         {
-            int64_t l = std::get<int64_t>(*left);
-            int64_t r = std::get<int64_t>(*right);
+            int64_t l = value::asInt(*left);
+            int64_t r = value::asInt(*right);
             switch (op)
             {
                 case '+': *result = l + r; return;
@@ -33,17 +34,17 @@ namespace vm::jit
             }
         }
 
-        bool leftIsNumeric = std::holds_alternative<double>(*left) || std::holds_alternative<int64_t>(*left);
-        bool rightIsNumeric = std::holds_alternative<double>(*right) || std::holds_alternative<int64_t>(*right);
+        bool leftIsNumeric = value::isFloat(*left) || value::isInt(*left);
+        bool rightIsNumeric = value::isFloat(*right) || value::isInt(*right);
 
         if (leftIsNumeric && rightIsNumeric)
         {
-            double l = std::holds_alternative<double>(*left)
-                ? std::get<double>(*left)
-                : static_cast<double>(std::get<int64_t>(*left));
-            double r = std::holds_alternative<double>(*right)
-                ? std::get<double>(*right)
-                : static_cast<double>(std::get<int64_t>(*right));
+            double l = value::isFloat(*left)
+                ? value::asFloat(*left)
+                : static_cast<double>(value::asInt(*left));
+            double r = value::isFloat(*right)
+                ? value::asFloat(*right)
+                : static_cast<double>(value::asInt(*right));
 
             switch (op)
             {

@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "ParsePrimitiveFunction.hpp"
 #include "../../../errors/ArgumentException.hpp"
 
@@ -58,3 +60,5 @@ namespace environment::registry::builtin
         return "parsePrimitive";
     }
 }
+
+#endif

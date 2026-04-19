@@ -78,6 +78,10 @@ namespace environment
         // Register SIMD-accelerated array operations
         runtimeTypes::global::ArrayOperationsNative::registerAll(environment);
 
+#ifndef MTYPE_TAGGED_VALUE
+        // MYT-126: reflection/JSON/net natives are walled off under flag-on —
+        // their .cpp bodies use std::variant accessors that the SPIKE does not
+        // migrate. Benchmarks don't need these paths.
         // Register reflection native functions
         reflection::ReflectionNatives::registerAll(environment);
 
@@ -86,6 +90,7 @@ namespace environment
 
         // Register networking native functions (HTTP, TCP, DNS)
         net::NetNatives::registerAll(environment);
+#endif
 
         // Register library loading native functions
         project::mtclib::LibraryNatives::registerAll(environment);

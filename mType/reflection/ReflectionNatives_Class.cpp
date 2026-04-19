@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "ReflectionNatives.hpp"
 #include "ReflectionHandle.hpp"
 #include "../errors/RuntimeException.hpp"
@@ -516,3 +518,5 @@ namespace reflection
     }
 
 } // namespace reflection
+
+#endif

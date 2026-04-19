@@ -187,6 +187,12 @@ namespace value
          */
         bool valuesEqual(const Value& a, const Value& b) const
         {
+#ifdef MTYPE_TAGGED_VALUE
+            // Tagged Value already provides operator==, which is tag equality
+            // plus payload bit-compare / pointer identity. Matches the variant
+            // semantics for the SPIKE — heap identity is acceptable here.
+            return a == b;
+#else
             // Handle the different value types properly
             if (a.index() != b.index()) return false;
 
@@ -207,6 +213,7 @@ namespace value
                     }
                 }, b);
             }, a);
+#endif
         }
 
         /**

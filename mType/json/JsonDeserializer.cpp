@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "JsonDeserializer.hpp"
 #include "JsonParser.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -756,3 +758,5 @@ namespace json
         deserializer.currentDepth--;
     }
 }
+
+#endif

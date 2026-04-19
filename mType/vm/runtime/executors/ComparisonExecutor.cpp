@@ -1,6 +1,7 @@
 #include "ComparisonExecutor.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../utils/NullCheckUtils.hpp"
 #include <iostream>
 
@@ -12,15 +13,15 @@ namespace vm::runtime
 
     value::Value ComparisonExecutor::unboxIfNeeded(const value::Value& val) const {
         // Auto-unbox boxed types (Int, Float, Bool, String) to primitives
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+        if (value::isObject(val)) {
+            auto obj = value::asObject(val);
             if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
                 return obj->getFieldValue("value");
             }
         }
         // Auto-unbox value object boxed types (when boxing classes become value classes)
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto& obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+        if (value::isValueObject(val)) {
+            auto obj = value::asValueObject(val);
             if (obj->getPrimitiveTag() != value::PrimitiveTypeTag::NONE) {
                 return obj->getFieldValue("value");
             }
@@ -42,29 +43,29 @@ namespace vm::runtime
         }
 
         // Handle ValueObject structural equality
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(left) &&
-            std::holds_alternative<std::shared_ptr<value::ValueObject>>(right)) {
-            auto leftObj = std::get<std::shared_ptr<value::ValueObject>>(left);
-            auto rightObj = std::get<std::shared_ptr<value::ValueObject>>(right);
+        if (value::isValueObject(left) &&
+            value::isValueObject(right)) {
+            auto leftObj = value::asValueObject(left);
+            auto rightObj = value::asValueObject(right);
             context.stackManager->push(leftObj->equals(*rightObj));
             return;
         }
 
         // Handle cross-type string comparison (std::string vs InternedString)
-        if (std::holds_alternative<std::string>(left) && std::holds_alternative<value::InternedString>(right)) {
-            context.stackManager->push(std::get<value::InternedString>(right) == std::get<std::string>(left));
+        if (value::isString(left) && value::isInternedString(right)) {
+            context.stackManager->push(value::asInternedString(right) == value::asString(left));
             return;
         }
-        if (std::holds_alternative<value::InternedString>(left) && std::holds_alternative<std::string>(right)) {
-            context.stackManager->push(std::get<value::InternedString>(left) == std::get<std::string>(right));
+        if (value::isInternedString(left) && value::isString(right)) {
+            context.stackManager->push(value::asInternedString(left) == value::asString(right));
             return;
         }
 
         // Handle bool-to-int conversion for comparisons
-        if (std::holds_alternative<bool>(left) && std::holds_alternative<int64_t>(right)) {
-            context.stackManager->push(static_cast<int>(std::get<bool>(left)) == std::get<int64_t>(right));
-        } else if (std::holds_alternative<int64_t>(left) && std::holds_alternative<bool>(right)) {
-            context.stackManager->push(std::get<int64_t>(left) == static_cast<int>(std::get<bool>(right)));
+        if (value::isBool(left) && value::isInt(right)) {
+            context.stackManager->push(static_cast<int>(value::asBool(left)) == value::asInt(right));
+        } else if (value::isInt(left) && value::isBool(right)) {
+            context.stackManager->push(value::asInt(left) == static_cast<int>(value::asBool(right)));
         } else {
             // Direct equality comparison
             context.stackManager->push(left == right);
@@ -86,21 +87,21 @@ namespace vm::runtime
         }
 
         // Handle ValueObject structural inequality
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(left) &&
-            std::holds_alternative<std::shared_ptr<value::ValueObject>>(right)) {
-            auto leftObj = std::get<std::shared_ptr<value::ValueObject>>(left);
-            auto rightObj = std::get<std::shared_ptr<value::ValueObject>>(right);
+        if (value::isValueObject(left) &&
+            value::isValueObject(right)) {
+            auto leftObj = value::asValueObject(left);
+            auto rightObj = value::asValueObject(right);
             context.stackManager->push(!leftObj->equals(*rightObj));
             return;
         }
 
         // Handle cross-type string comparison (std::string vs InternedString)
-        if (std::holds_alternative<std::string>(left) && std::holds_alternative<value::InternedString>(right)) {
-            context.stackManager->push(std::get<value::InternedString>(right) != std::get<std::string>(left));
+        if (value::isString(left) && value::isInternedString(right)) {
+            context.stackManager->push(value::asInternedString(right) != value::asString(left));
             return;
         }
-        if (std::holds_alternative<value::InternedString>(left) && std::holds_alternative<std::string>(right)) {
-            context.stackManager->push(std::get<value::InternedString>(left) != std::get<std::string>(right));
+        if (value::isInternedString(left) && value::isString(right)) {
+            context.stackManager->push(value::asInternedString(left) != value::asString(right));
             return;
         }
 
@@ -115,10 +116,10 @@ namespace vm::runtime
         value::Value unboxedLeft = unboxIfNeeded(left);
         value::Value unboxedRight = unboxIfNeeded(right);
 
-        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
-            context.stackManager->push(std::get<int64_t>(unboxedLeft) < std::get<int64_t>(unboxedRight));
-        } else if (std::holds_alternative<double>(unboxedLeft) && std::holds_alternative<double>(unboxedRight)) {
-            context.stackManager->push(std::get<double>(unboxedLeft) < std::get<double>(unboxedRight));
+        if (value::isInt(unboxedLeft) && value::isInt(unboxedRight)) {
+            context.stackManager->push(value::asInt(unboxedLeft) < value::asInt(unboxedRight));
+        } else if (value::isFloat(unboxedLeft) && value::isFloat(unboxedRight)) {
+            context.stackManager->push(value::asFloat(unboxedLeft) < value::asFloat(unboxedRight));
         } else {
             throw errors::RuntimeException("LT requires numeric operands");
         }
@@ -132,10 +133,10 @@ namespace vm::runtime
         value::Value unboxedLeft = unboxIfNeeded(left);
         value::Value unboxedRight = unboxIfNeeded(right);
 
-        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
-            context.stackManager->push(std::get<int64_t>(unboxedLeft) > std::get<int64_t>(unboxedRight));
-        } else if (std::holds_alternative<double>(unboxedLeft) && std::holds_alternative<double>(unboxedRight)) {
-            context.stackManager->push(std::get<double>(unboxedLeft) > std::get<double>(unboxedRight));
+        if (value::isInt(unboxedLeft) && value::isInt(unboxedRight)) {
+            context.stackManager->push(value::asInt(unboxedLeft) > value::asInt(unboxedRight));
+        } else if (value::isFloat(unboxedLeft) && value::isFloat(unboxedRight)) {
+            context.stackManager->push(value::asFloat(unboxedLeft) > value::asFloat(unboxedRight));
         } else {
             throw errors::RuntimeException("GT requires numeric operands");
         }
@@ -149,10 +150,10 @@ namespace vm::runtime
         value::Value unboxedLeft = unboxIfNeeded(left);
         value::Value unboxedRight = unboxIfNeeded(right);
 
-        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
-            context.stackManager->push(std::get<int64_t>(unboxedLeft) <= std::get<int64_t>(unboxedRight));
-        } else if (std::holds_alternative<double>(unboxedLeft) && std::holds_alternative<double>(unboxedRight)) {
-            context.stackManager->push(std::get<double>(unboxedLeft) <= std::get<double>(unboxedRight));
+        if (value::isInt(unboxedLeft) && value::isInt(unboxedRight)) {
+            context.stackManager->push(value::asInt(unboxedLeft) <= value::asInt(unboxedRight));
+        } else if (value::isFloat(unboxedLeft) && value::isFloat(unboxedRight)) {
+            context.stackManager->push(value::asFloat(unboxedLeft) <= value::asFloat(unboxedRight));
         } else {
             throw errors::RuntimeException("LE requires numeric operands");
         }
@@ -166,10 +167,10 @@ namespace vm::runtime
         value::Value unboxedLeft = unboxIfNeeded(left);
         value::Value unboxedRight = unboxIfNeeded(right);
 
-        if (std::holds_alternative<int64_t>(unboxedLeft) && std::holds_alternative<int64_t>(unboxedRight)) {
-            context.stackManager->push(std::get<int64_t>(unboxedLeft) >= std::get<int64_t>(unboxedRight));
-        } else if (std::holds_alternative<double>(unboxedLeft) && std::holds_alternative<double>(unboxedRight)) {
-            context.stackManager->push(std::get<double>(unboxedLeft) >= std::get<double>(unboxedRight));
+        if (value::isInt(unboxedLeft) && value::isInt(unboxedRight)) {
+            context.stackManager->push(value::asInt(unboxedLeft) >= value::asInt(unboxedRight));
+        } else if (value::isFloat(unboxedLeft) && value::isFloat(unboxedRight)) {
+            context.stackManager->push(value::asFloat(unboxedLeft) >= value::asFloat(unboxedRight));
         } else {
             throw errors::RuntimeException("GE requires numeric operands");
         }

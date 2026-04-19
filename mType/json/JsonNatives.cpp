@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "JsonNatives.hpp"
 #include "JsonSerializer.hpp"
 #include "JsonDeserializer.hpp"
@@ -157,3 +159,5 @@ namespace json
         throw errors::RuntimeException(funcName + ": expected bool argument");
     }
 }
+
+#endif

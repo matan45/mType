@@ -267,6 +267,9 @@
     <ClInclude Include="value\StringPool.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\ValueBridge.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\ValueObject.hpp">
       <Filter>value</Filter>
     </ClInclude>

@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "AsinFunction.hpp"
 #include "../../../errors/ArgumentException.hpp"
 #include "../../../errors/TypeException.hpp"
@@ -34,3 +36,5 @@ namespace environment::registry::builtin
         return "asin";
     }
 }
+
+#endif

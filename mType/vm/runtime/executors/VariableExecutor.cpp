@@ -3,6 +3,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueTypeUtils.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../constants/SecurityConstants.hpp"
 namespace vm::runtime
 {
@@ -271,7 +272,7 @@ namespace vm::runtime
                         // Access by slot number (reference capture)
                         value::Value val = lambda->capturedFrame->getLocal(capturedSlot);
 
-                        if (!std::holds_alternative<std::monostate>(val))
+                        if (!value::isVoid(val))
                         {
                             context.stackManager->push(val);
                             return;
@@ -289,7 +290,7 @@ namespace vm::runtime
             value::Value sharedVal = sharedFrame->getLocal(slot);
 
             // If the variable exists in the shared frame, use it (reference capture)
-            if (!std::holds_alternative<std::monostate>(sharedVal))
+            if (!value::isVoid(sharedVal))
             {
                 context.stackManager->push(sharedVal);
                 return;

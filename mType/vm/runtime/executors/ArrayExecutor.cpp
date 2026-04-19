@@ -5,6 +5,7 @@
 #include "../../../environment/registry/ClassRegistry.hpp"
 #include "../../../value/arrays/ArrayFactory.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include <algorithm>
 #include <functional>
@@ -21,7 +22,7 @@ namespace vm::runtime
 
         // Pop array size from stack
         value::Value sizeVal = context.stackManager->pop();
-        int64_t size = std::get<int64_t>(sizeVal);
+        int64_t size = value::asInt(sizeVal);
 
         if (size < 0) {
             utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
@@ -59,7 +60,7 @@ namespace vm::runtime
         dimensions.reserve(specifiedDimensions);
         for (size_t i = 0; i < specifiedDimensions; ++i) {
             value::Value sizeVal = context.stackManager->pop();
-            int64_t size = std::get<int64_t>(sizeVal);
+            int64_t size = value::asInt(sizeVal);
             if (size < 0) {
                 utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
                     context,
@@ -143,8 +144,8 @@ namespace vm::runtime
 
         // Deep copy ValueObjects when retrieving from arrays (value semantics)
         // This ensures list.get(0).x = 5 doesn't modify the value inside the collection
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(element)) {
-            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(element);
+        if (value::isValueObject(element)) {
+            auto valueObj = value::asValueObject(element);
             element = value::Value(valueObj->deepCopy());
         }
 
@@ -183,28 +184,28 @@ namespace vm::runtime
     void ArrayExecutor::handleArrayGet() {
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
-        int64_t index = std::get<int64_t>(indexVal);
+        int64_t index = value::asInt(indexVal);
 
         // Pop array from stack
         value::Value arrayVal = context.stackManager->pop();
 
         // Handle NativeArray (1D arrays and nested multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayVal)) {
-            auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        if (value::isNativeArray(arrayVal)) {
+            auto array = value::asNativeArray(arrayVal);
             getNativeArrayElement(array, index);
             return;
         }
 
         // Handle FlatMultiArray (pooled dense multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(arrayVal)) {
-            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(arrayVal);
+        if (value::isFlatMultiArray(arrayVal)) {
+            auto flatArray = value::asFlatMultiArray(arrayVal);
             getFlatMultiArrayElement(flatArray, index);
             return;
         }
 
         // Handle SparseMultiArray (pooled sparse multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(arrayVal)) {
-            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(arrayVal);
+        if (value::isSparseMultiArray(arrayVal)) {
+            auto sparseArray = value::asSparseMultiArray(arrayVal);
             getSparseMultiArrayElement(sparseArray, index);
             return;
         }
@@ -224,8 +225,8 @@ namespace vm::runtime
             std::string expectedTypeName = array->getElementTypeName();
 
             // Check for array-to-array assignment (e.g., int[][] where string[] is assigned to int[] slot)
-            if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(valueToSet)) {
-                auto valueArray = std::get<std::shared_ptr<value::NativeArray>>(valueToSet);
+            if (value::isNativeArray(valueToSet)) {
+                auto valueArray = value::asNativeArray(valueToSet);
                 std::string actualArrayElementType = valueArray->getElementTypeName();
                 value::ValueType actualElementValueType = valueArray->getElementType();
 
@@ -235,8 +236,8 @@ namespace vm::runtime
                     value::Value existingElement = array->get(static_cast<size_t>(index));
 
                     // If there's an existing non-null array, compare element types
-                    if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(existingElement)) {
-                        auto existingArray = std::get<std::shared_ptr<value::NativeArray>>(existingElement);
+                    if (value::isNativeArray(existingElement)) {
+                        auto existingArray = value::asNativeArray(existingElement);
                         std::string existingElementType = existingArray->getElementTypeName();
                         value::ValueType existingElementValueType = existingArray->getElementType();
 
@@ -322,8 +323,8 @@ namespace vm::runtime
             bool isGenericInstantiation = (expectedTypeName.find('<') != std::string::npos);
 
             // Check if value is an object instance
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(valueToSet)) {
-                auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(valueToSet);
+            if (value::isObject(valueToSet)) {
+                auto objInstance = value::asObject(valueToSet);
 
                 // Get the full type name including generic type arguments
                 std::string actualTypeName = objInstance->getFullTypeName();
@@ -394,28 +395,28 @@ namespace vm::runtime
 
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
-        int64_t index = std::get<int64_t>(indexVal);
+        int64_t index = value::asInt(indexVal);
 
         // Pop array from stack
         value::Value arrayVal = context.stackManager->pop();
 
         // Handle NativeArray (1D arrays and nested multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayVal)) {
-            auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        if (value::isNativeArray(arrayVal)) {
+            auto array = value::asNativeArray(arrayVal);
             setNativeArrayElement(array, index, valueToSet);
             return;
         }
 
         // Handle FlatMultiArray (pooled dense multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(arrayVal)) {
-            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(arrayVal);
+        if (value::isFlatMultiArray(arrayVal)) {
+            auto flatArray = value::asFlatMultiArray(arrayVal);
             setFlatMultiArrayElement(flatArray, index, valueToSet);
             return;
         }
 
         // Handle SparseMultiArray (pooled sparse multi-dimensional arrays)
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(arrayVal)) {
-            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(arrayVal);
+        if (value::isSparseMultiArray(arrayVal)) {
+            auto sparseArray = value::asSparseMultiArray(arrayVal);
             setSparseMultiArrayElement(sparseArray, index, valueToSet);
             return;
         }
@@ -431,24 +432,24 @@ namespace vm::runtime
         value::Value arrayVal = context.stackManager->pop();
 
         // Handle NativeArray
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayVal)) {
-            auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        if (value::isNativeArray(arrayVal)) {
+            auto array = value::asNativeArray(arrayVal);
             int64_t length = static_cast<int64_t>(array->size());
             context.stackManager->push(length);
             return;
         }
 
         // Handle FlatMultiArray
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(arrayVal)) {
-            auto flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(arrayVal);
+        if (value::isFlatMultiArray(arrayVal)) {
+            auto flatArray = value::asFlatMultiArray(arrayVal);
             int64_t length = static_cast<int64_t>(flatArray->size());
             context.stackManager->push(length);
             return;
         }
 
         // Handle SparseMultiArray
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(arrayVal)) {
-            auto sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(arrayVal);
+        if (value::isSparseMultiArray(arrayVal)) {
+            auto sparseArray = value::asSparseMultiArray(arrayVal);
             int64_t length = static_cast<int64_t>(sparseArray->size());
             context.stackManager->push(length);
             return;
@@ -577,11 +578,11 @@ namespace vm::runtime
 
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
-        int64_t index = std::get<int64_t>(indexVal);
+        int64_t index = value::asInt(indexVal);
 
         // Pop array from stack
         value::Value arrayVal = context.stackManager->pop();
-        auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        auto array = value::asNativeArray(arrayVal);
 
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
@@ -605,12 +606,12 @@ namespace vm::runtime
         // - Arrays without ClassDefinition
         value::Value element = array->getUnchecked(arrayIndex);
 
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element)) {
-            auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element);
+        if (value::isObject(element)) {
+            auto objInstance = value::asObject(element);
             value::Value fieldValue = objInstance->getFieldValue(fieldName);
             context.stackManager->push(fieldValue);
-        } else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(element)) {
-            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(element);
+        } else if (value::isValueObject(element)) {
+            auto valueObj = value::asValueObject(element);
             value::Value fieldValue = valueObj->getFieldValue(fieldName);
             context.stackManager->push(fieldValue);
         } else {
@@ -630,11 +631,11 @@ namespace vm::runtime
 
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
-        int64_t index = std::get<int64_t>(indexVal);
+        int64_t index = value::asInt(indexVal);
 
         // Pop array from stack
         value::Value arrayVal = context.stackManager->pop();
-        auto array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        auto array = value::asNativeArray(arrayVal);
 
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
@@ -653,11 +654,11 @@ namespace vm::runtime
         // SLOW PATH: Array is not SoA-optimized, need to materialize object
         value::Value element = array->getUnchecked(arrayIndex);
 
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element)) {
-            auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element);
+        if (value::isObject(element)) {
+            auto objInstance = value::asObject(element);
             objInstance->setField(fieldName, valueToSet);
-        } else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(element)) {
-            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(element);
+        } else if (value::isValueObject(element)) {
+            auto valueObj = value::asValueObject(element);
             valueObj->setField(fieldName, valueToSet);
             // Write back modified value object to the array (value semantics)
             array->setUnchecked(arrayIndex, value::Value(valueObj));
@@ -715,9 +716,9 @@ namespace vm::runtime
         const value::Value& arrayVal = (*context.stackManager)[frameBase + localSlot];
 
         value::Value indexVal = context.stackManager->pop();
-        int64_t index = std::get<int64_t>(indexVal);
+        int64_t index = value::asInt(indexVal);
 
-        const auto& array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        const auto& array = value::asNativeArray(arrayVal);
         context.stackManager->push(array->getIntDirect(static_cast<size_t>(index)));
     }
 
@@ -730,10 +731,10 @@ namespace vm::runtime
 
         value::Value valToSet = context.stackManager->pop();
         value::Value indexVal = context.stackManager->pop();
-        int64_t index = std::get<int64_t>(indexVal);
-        int64_t val = std::get<int64_t>(valToSet);
+        int64_t index = value::asInt(indexVal);
+        int64_t val = value::asInt(valToSet);
 
-        const auto& array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        const auto& array = value::asNativeArray(arrayVal);
         array->setIntDirect(static_cast<size_t>(index), val);
     }
 
@@ -749,18 +750,18 @@ namespace vm::runtime
         // pooled primitive path), not just a NativeArray. The previous
         // NativeArray-only std::get crashed with std::bad_variant_access when a
         // local multi-dim array's .length was read.
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrayVal)) {
-            const auto& array = std::get<std::shared_ptr<value::NativeArray>>(arrayVal);
+        if (value::isNativeArray(arrayVal)) {
+            const auto& array = value::asNativeArray(arrayVal);
             context.stackManager->push(static_cast<int64_t>(array->size()));
             return;
         }
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(arrayVal)) {
-            const auto& array = std::get<std::shared_ptr<value::FlatMultiArray>>(arrayVal);
+        if (value::isFlatMultiArray(arrayVal)) {
+            const auto& array = value::asFlatMultiArray(arrayVal);
             context.stackManager->push(static_cast<int64_t>(array->size()));
             return;
         }
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(arrayVal)) {
-            const auto& array = std::get<std::shared_ptr<value::SparseMultiArray>>(arrayVal);
+        if (value::isSparseMultiArray(arrayVal)) {
+            const auto& array = value::asSparseMultiArray(arrayVal);
             context.stackManager->push(static_cast<int64_t>(array->size()));
             return;
         }

@@ -13,6 +13,7 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/NativeArray.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/IntegerCache.hpp"
 #include "../utils/BoxingUtils.hpp"
@@ -45,13 +46,13 @@ namespace vm::runtime
         // Convert the ObjectInstance on the stack top to a lightweight ValueObject
         value::Value topValue = context.stackManager->pop();
 
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(topValue)) {
+        if (!value::isObject(topValue)) {
             // Already a ValueObject or not an object — just push it back
             context.stackManager->push(topValue);
             return;
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(topValue);
+        auto instance = value::asObject(topValue);
         auto classDef = instance->getClassDefinition();
 
         auto valueObj = std::make_shared<value::ValueObject>(classDef);
@@ -79,17 +80,17 @@ namespace vm::runtime
         value::Value objectValue = context.stackManager->pop();
 
         // Auto-box raw primitives at escape point (lazy re-boxing support)
-        if (std::holds_alternative<int64_t>(objectValue) ||
-            std::holds_alternative<double>(objectValue) ||
-            std::holds_alternative<bool>(objectValue)) {
+        if (value::isInt(objectValue) ||
+            value::isFloat(objectValue) ||
+            value::isBool(objectValue)) {
             objectValue = autoBoxPrimitive(objectValue, context.environment);
         }
 
         utils::checkNullReceiver(instr, objectValue, context, "access field", fieldName);
 
         // Handle ValueObject (value types)
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
-            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+        if (value::isValueObject(objectValue)) {
+            auto valueObj = value::asValueObject(objectValue);
             auto classDef = valueObj->getClassDefinition();
 
             auto fieldDef = classDef ? classDef->getField(fieldName) : nullptr;
@@ -116,11 +117,11 @@ namespace vm::runtime
             return;
         }
 
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
+        if (!value::isObject(objectValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires an object instance");
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto instance = value::asObject(objectValue);
 
         auto fieldDef = instance->getField(fieldName);
         if (!fieldDef) {
@@ -154,8 +155,8 @@ namespace vm::runtime
         utils::checkNullReceiver(instr, objectValue, context, "set field", fieldName);
 
         // Handle ValueObject (value types) — deep copy before mutation for value semantics
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
-            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+        if (value::isValueObject(objectValue)) {
+            auto valueObj = value::asValueObject(objectValue);
 
             // Deep copy for value semantics: always mutate a fresh copy
             auto copy = valueObj->deepCopy();
@@ -178,11 +179,11 @@ namespace vm::runtime
             return;
         }
 
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
+        if (!value::isObject(objectValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires an object instance");
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto instance = value::asObject(objectValue);
 
         auto fieldDef = instance->getField(fieldName);
         if (!fieldDef) {
@@ -228,7 +229,7 @@ namespace vm::runtime
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto instance = value::asObject(objectValue);
         instance->setField(fieldName, newValue);
     }
 
@@ -236,20 +237,20 @@ namespace vm::runtime
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
         value::Value objectValue = context.stackManager->pop();
 
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        if (value::isObject(objectValue)) {
+            auto instance = value::asObject(objectValue);
             context.stackManager->push(instance->getFieldValue(fieldName));
-        } else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
-            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+        } else if (value::isValueObject(objectValue)) {
+            auto valueObj = value::asValueObject(objectValue);
             context.stackManager->push(valueObj->getFieldValue(fieldName));
         } else {
             // Fallback: auto-box primitive and read field
             objectValue = autoBoxPrimitive(objectValue, context.environment);
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
-                auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+            if (value::isObject(objectValue)) {
+                auto instance = value::asObject(objectValue);
                 context.stackManager->push(instance->getFieldValue(fieldName));
-            } else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
-                auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+            } else if (value::isValueObject(objectValue)) {
+                auto valueObj = value::asValueObject(objectValue);
                 context.stackManager->push(valueObj->getFieldValue(fieldName));
             } else {
                 throw errors::RuntimeException("INLINE_GET_FIELD: cannot read field '" + fieldName + "' from non-object");
@@ -425,19 +426,19 @@ namespace vm::runtime
                 bool needsBoxing = false;
                 std::string boxClassName;
 
-                if (expectedType == "Int" && std::holds_alternative<int64_t>(argValue)) {
+                if (expectedType == "Int" && value::isInt(argValue)) {
                     needsBoxing = true;
                     boxClassName = "Int";
                 }
-                else if (expectedType == "Float" && (std::holds_alternative<double>(argValue) || std::holds_alternative<int64_t>(argValue))) {
+                else if (expectedType == "Float" && (value::isFloat(argValue) || value::isInt(argValue))) {
                     needsBoxing = true;
                     boxClassName = "Float";
                 }
-                else if (expectedType == "Bool" && std::holds_alternative<bool>(argValue)) {
+                else if (expectedType == "Bool" && value::isBool(argValue)) {
                     needsBoxing = true;
                     boxClassName = "Bool";
                 }
-                else if (expectedType == "String" && std::holds_alternative<std::string>(argValue)) {
+                else if (expectedType == "String" && value::isString(argValue)) {
                     needsBoxing = true;
                     boxClassName = "String";
                 }
@@ -594,9 +595,10 @@ namespace vm::runtime
             if (simpleMethodName == "equals") {
                 if (argCount >= 1) {
                     const auto& otherVal = args[0];
-                    if (auto* otherPtr = std::get_if<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(&otherVal)) {
-                        if (*otherPtr) {
-                            context.stackManager->push(instance->contentEquals(**otherPtr));
+                    if (value::isObject(otherVal)) {
+                        auto otherPtr = value::asObject(otherVal);
+                        if (otherPtr) {
+                            context.stackManager->push(instance->contentEquals(*otherPtr));
                         } else {
                             context.stackManager->push(false);
                         }
@@ -703,24 +705,24 @@ namespace vm::runtime
         value::Value objectValue = context.stackManager->pop();
 
         // Auto-box raw primitives at escape point (lazy re-boxing support)
-        if (std::holds_alternative<int64_t>(objectValue) ||
-            std::holds_alternative<double>(objectValue) ||
-            std::holds_alternative<bool>(objectValue)) {
+        if (value::isInt(objectValue) ||
+            value::isFloat(objectValue) ||
+            value::isBool(objectValue)) {
             objectValue = autoBoxPrimitive(objectValue, context.environment);
         }
 
         utils::checkNullReceiver(instr, objectValue, context, "call method", methodName);
 
         // Handle lambda invocation
-        if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(objectValue)) {
-            auto lambda = std::get<std::shared_ptr<BytecodeLambda>>(objectValue);
+        if (value::isLambda(objectValue)) {
+            auto lambda = value::asLambda(objectValue);
             invokeLambdaMethod(lambda, args, methodName);
             return;
         }
 
         // Handle value object method invocation
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue)) {
-            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+        if (value::isValueObject(objectValue)) {
+            auto valueObj = value::asValueObject(objectValue);
             // Value types use the same method dispatch as regular objects
             // but 'this' is a copy (value semantics — mutations don't propagate back)
             auto classDef = valueObj->getClassDefinition();
@@ -749,12 +751,12 @@ namespace vm::runtime
         }
 
         // Handle regular instance method invocation
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue)) {
+        if (!value::isObject(objectValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "CALL_METHOD requires an object instance or lambda");
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+        auto instance = value::asObject(objectValue);
         invokeInstanceMethod(instance, methodName, args, argCount);
     }
 
@@ -870,7 +872,7 @@ namespace vm::runtime
         utils::checkNullReceiver(instr, collectionValue, context, "get iterator from", "collection");
 
         // Check if it's an array - create an ArrayIteratorHelper for it
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(collectionValue)) {
+        if (value::isNativeArray(collectionValue)) {
             // Get the ArrayIteratorHelper class from the class registry
             auto classRegistry = context.environment->getClassRegistry();
             auto iteratorHelperClass = classRegistry->findClass("ArrayIteratorHelper");
@@ -900,12 +902,12 @@ namespace vm::runtime
             return;
         }
 
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(collectionValue)) {
+        if (!value::isObject(collectionValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "GET_ITERATOR requires an object instance");
         }
 
-        auto collection = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(collectionValue);
+        auto collection = value::asObject(collectionValue);
 
         // Call the iterator() method on the collection
         std::string methodName = "iterator";
@@ -926,12 +928,12 @@ namespace vm::runtime
 
         utils::checkNullReceiver(instr, iteratorValue, context, "call hasNext() on", "iterator");
 
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
+        if (!value::isObject(iteratorValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "ITERATOR_HAS_NEXT requires an iterator instance");
         }
 
-        auto iterator = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue);
+        auto iterator = value::asObject(iteratorValue);
 
         // Call hasNext() method on the iterator
         std::string methodName = "hasNext";
@@ -949,12 +951,12 @@ namespace vm::runtime
 
         utils::checkNullReceiver(instr, iteratorValue, context, "call next() on", "iterator");
 
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
+        if (!value::isObject(iteratorValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "ITERATOR_NEXT requires an iterator instance");
         }
 
-        auto iterator = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue);
+        auto iterator = value::asObject(iteratorValue);
 
         // Call next() method on the iterator
         std::string methodName = "next";
@@ -970,17 +972,17 @@ namespace vm::runtime
         // Pop the iterator from the stack
         value::Value iteratorValue = context.stackManager->pop();
 
-        if (std::holds_alternative<std::nullptr_t>(iteratorValue)) {
+        if (value::isNullType(iteratorValue)) {
             // Null iterator is OK, just return
             return;
         }
 
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue)) {
+        if (!value::isObject(iteratorValue)) {
             // Not an object, just ignore
             return;
         }
 
-        auto iterator = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(iteratorValue);
+        auto iterator = value::asObject(iteratorValue);
 
         // Call close() method on the iterator (for cleanup)
         std::string methodName = "close";

@@ -1,5 +1,6 @@
 #pragma once
 #include "../../../value/ValueType.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../errors/NullPointerException.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../value/ValueObject.hpp"
@@ -14,8 +15,8 @@ namespace vm::runtime::utils
      */
     inline bool isNullValue(const value::Value& val)
     {
-        return std::holds_alternative<std::nullptr_t>(val) ||
-               std::holds_alternative<std::monostate>(val);
+        return value::isNullType(val) ||
+               value::isVoid(val);
     }
 
     /**
@@ -45,41 +46,41 @@ namespace vm::runtime::utils
      */
     inline bool isTruthy(const value::Value& val)
     {
-        if (std::holds_alternative<bool>(val))
+        if (value::isBool(val))
         {
-            return std::get<bool>(val);
+            return value::asBool(val);
         }
-        if (std::holds_alternative<int64_t>(val))
+        if (value::isInt(val))
         {
-            return std::get<int64_t>(val) != 0;
+            return value::asInt(val) != 0;
         }
         if (isNullValue(val))
         {
             return false;
         }
         // Check if it's a Bool object (auto-boxed boolean)
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val))
+        if (value::isObject(val))
         {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+            auto obj = value::asObject(val);
             if (obj && obj->getClassDefinition()->getName() == "Bool")
             {
                 value::Value valueField = obj->getFieldValue("value");
-                if (std::holds_alternative<bool>(valueField))
+                if (value::isBool(valueField))
                 {
-                    return std::get<bool>(valueField);
+                    return value::asBool(valueField);
                 }
             }
         }
         // Check if it's a Bool value object (when Bool becomes a value class)
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val))
+        if (value::isValueObject(val))
         {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            auto obj = value::asValueObject(val);
             if (obj && obj->getClassName() == "Bool")
             {
                 value::Value valueField = obj->getFieldValue("value");
-                if (std::holds_alternative<bool>(valueField))
+                if (value::isBool(valueField))
                 {
-                    return std::get<bool>(valueField);
+                    return value::asBool(valueField);
                 }
             }
         }

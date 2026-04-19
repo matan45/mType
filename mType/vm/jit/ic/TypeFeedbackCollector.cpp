@@ -1,5 +1,6 @@
 #include "TypeFeedbackCollector.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ValueShim.hpp"
 
 namespace vm::jit::ic
 {
@@ -9,12 +10,12 @@ namespace vm::jit::ic
 
     ObservedType TypeFeedbackCollector::classifyValue(const value::Value& val)
     {
-        if (std::holds_alternative<int64_t>(val)) return ObservedType::INT;
-        if (std::holds_alternative<double>(val)) return ObservedType::FLOAT;
-        if (std::holds_alternative<bool>(val)) return ObservedType::INT; // bool treated as int for specialization
-        if (std::holds_alternative<std::string>(val)) return ObservedType::STRING;
-        if (std::holds_alternative<value::InternedString>(val)) return ObservedType::STRING;
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) return ObservedType::OBJECT;
+        if (value::isInt(val)) return ObservedType::INT;
+        if (value::isFloat(val)) return ObservedType::FLOAT;
+        if (value::isBool(val)) return ObservedType::INT; // bool treated as int for specialization
+        if (value::isString(val)) return ObservedType::STRING;
+        if (value::isInternedString(val)) return ObservedType::STRING;
+        if (value::isObject(val)) return ObservedType::OBJECT;
         return ObservedType::MIXED;
     }
 

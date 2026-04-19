@@ -25,6 +25,13 @@ namespace gc
      */
     inline void* extractPointer(const value::Value& val)
     {
+#ifdef MTYPE_TAGGED_VALUE
+        // MYT-126: GC is walled off under flag-on (registration gated to no-op
+        // in ObjectInstance::registerWithGC). extractPointer is only reached
+        // from GC paths, so returning nullptr here is safe.
+        (void)val;
+        return nullptr;
+#else
         return std::visit([](auto&& arg) -> void* {
             using T = std::decay_t<decltype(arg)>;
 
@@ -61,6 +68,7 @@ namespace gc
                 return nullptr;
             }
         }, val);
+#endif
     }
 
     /**

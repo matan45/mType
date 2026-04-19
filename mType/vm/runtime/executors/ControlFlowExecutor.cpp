@@ -157,11 +157,11 @@ namespace vm::runtime
             if (funcMetadata && funcMetadata->isAsync) {
                 // Check if already wrapped in Promise (by CREATE_PROMISE opcode)
                 // This prevents double-wrapping when bytecode compiler emits CREATE_PROMISE
-                if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(returnVal)) {
+                if (!value::isPromise(returnVal)) {
                     // Wrap return value in AsyncPromiseValue for async functions
                     // Use AsyncPromiseValue to support event loop and callbacks
                     auto promise = std::make_shared<value::AsyncPromiseValue>(returnVal);
-                    returnVal = promise;
+                    returnVal = std::shared_ptr<value::PromiseValue>(promise);
                 }
             }
         }

@@ -3,6 +3,7 @@
 #include "../utils/NullCheckUtils.hpp"
 #include "../../../value/StringPool.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/UserException.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
@@ -332,16 +333,16 @@ namespace vm::runtime
     // static
     bool TypeExecutor::checkInstanceofPrimitive(const value::Value& val, const std::string& targetTypeName) {
         if (targetTypeName == "Int" || targetTypeName == "int") {
-            return std::holds_alternative<int64_t>(val);
+            return value::isInt(val);
         }
         if (targetTypeName == "Float" || targetTypeName == "float") {
-            return std::holds_alternative<double>(val);
+            return value::isFloat(val);
         }
         if (targetTypeName == "Bool" || targetTypeName == "bool") {
-            return std::holds_alternative<bool>(val);
+            return value::isBool(val);
         }
         if (targetTypeName == "String" || targetTypeName == "string") {
-            return std::holds_alternative<std::string>(val) || std::holds_alternative<value::InternedString>(val);
+            return value::isString(val) || value::isInternedString(val);
         }
         return false;
     }
@@ -351,8 +352,8 @@ namespace vm::runtime
         const std::string& targetTypeName,
         environment::Environment* env) {
         // Object type check
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+        if (value::isObject(val)) {
+            auto obj = value::asObject(val);
 
             if (obj) {
                 auto classDef = obj->getClassDefinition();
@@ -475,8 +476,8 @@ namespace vm::runtime
             }
         }
         // ValueObject type check (value classes)
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+        if (value::isValueObject(val)) {
+            auto obj = value::asValueObject(val);
             if (obj) {
                 auto classDef = obj->getClassDefinition();
                 // Reconstruct the full parameterized type from bindings —
@@ -545,40 +546,40 @@ namespace vm::runtime
     }
 
     value::Value TypeExecutor::castToInt(const value::Value& val) {
-        if (std::holds_alternative<int64_t>(val)) {
+        if (value::isInt(val)) {
             return val; // Already int
         }
-        else if (std::holds_alternative<double>(val)) {
-            return static_cast<int64_t>(std::get<double>(val));
+        else if (value::isFloat(val)) {
+            return static_cast<int64_t>(value::asFloat(val));
         }
-        else if (std::holds_alternative<bool>(val)) {
-            return std::get<bool>(val) ? static_cast<int64_t>(1) : static_cast<int64_t>(0);
+        else if (value::isBool(val)) {
+            return value::asBool(val) ? static_cast<int64_t>(1) : static_cast<int64_t>(0);
         }
-        else if (std::holds_alternative<std::string>(val)) {
+        else if (value::isString(val)) {
             try {
-                return std::stoll(std::get<std::string>(val));
+                return std::stoll(value::asString(val));
             } catch (...) {
-                throwCastError("Cannot cast string to int: " + std::get<std::string>(val));
+                throwCastError("Cannot cast string to int: " + value::asString(val));
             }
         }
-        else if (std::holds_alternative<value::InternedString>(val)) {
-            const std::string& str = std::get<value::InternedString>(val).getString();
+        else if (value::isInternedString(val)) {
+            const std::string& str = value::asInternedString(val).getString();
             try {
                 return std::stoll(str);
             } catch (...) {
                 throwCastError("Cannot cast string to int: " + str);
             }
         }
-        else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+        else if (value::isObject(val)) {
+            auto obj = value::asObject(val);
             if (obj && obj->getClassDefinition()->getName() == "Int") {
                 // Return the Int object itself (it's already the right type)
                 return val;
             }
             throwCastError("Cannot cast object to int");
         }
-        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+        else if (value::isValueObject(val)) {
+            auto obj = value::asValueObject(val);
             if (obj && obj->getClassName() == "Int") {
                 return val;
             }
@@ -590,29 +591,29 @@ namespace vm::runtime
     }
 
     value::Value TypeExecutor::castToFloat(const value::Value& val) {
-        if (std::holds_alternative<double>(val)) {
+        if (value::isFloat(val)) {
             return val; // Already float
         }
-        else if (std::holds_alternative<int64_t>(val)) {
-            return static_cast<double>(std::get<int64_t>(val));
+        else if (value::isInt(val)) {
+            return static_cast<double>(value::asInt(val));
         }
-        else if (std::holds_alternative<std::string>(val)) {
+        else if (value::isString(val)) {
             try {
-                return std::stod(std::get<std::string>(val));
+                return std::stod(value::asString(val));
             } catch (...) {
-                throwCastError("Cannot cast string to float: " + std::get<std::string>(val));
+                throwCastError("Cannot cast string to float: " + value::asString(val));
             }
         }
-        else if (std::holds_alternative<value::InternedString>(val)) {
-            const std::string& str = std::get<value::InternedString>(val).getString();
+        else if (value::isInternedString(val)) {
+            const std::string& str = value::asInternedString(val).getString();
             try {
                 return std::stod(str);
             } catch (...) {
                 throwCastError("Cannot cast string to float: " + str);
             }
         }
-        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+        else if (value::isValueObject(val)) {
+            auto obj = value::asValueObject(val);
             if (obj && obj->getClassName() == "Float") {
                 return val;
             }
@@ -628,27 +629,27 @@ namespace vm::runtime
     }
 
     value::Value TypeExecutor::castToBool(const value::Value& val) {
-        if (std::holds_alternative<bool>(val)) {
+        if (value::isBool(val)) {
             return val; // Already bool
         }
-        else if (std::holds_alternative<int64_t>(val)) {
-            return std::get<int64_t>(val) != 0;
+        else if (value::isInt(val)) {
+            return value::asInt(val) != 0;
         }
-        else if (std::holds_alternative<double>(val)) {
-            return std::get<double>(val) != 0.0;
+        else if (value::isFloat(val)) {
+            return value::asFloat(val) != 0.0;
         }
-        else if (std::holds_alternative<std::string>(val)) {
-            const std::string& str = std::get<std::string>(val);
+        else if (value::isString(val)) {
+            const std::string& str = value::asString(val);
             // Non-empty strings are true
             return !str.empty();
         }
-        else if (std::holds_alternative<value::InternedString>(val)) {
-            const value::InternedString& str = std::get<value::InternedString>(val);
+        else if (value::isInternedString(val)) {
+            const value::InternedString& str = value::asInternedString(val);
             // Non-empty strings are true
             return str.length() > 0;
         }
-        else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+        else if (value::isValueObject(val)) {
+            auto obj = value::asValueObject(val);
             if (obj && obj->getClassName() == "Bool") {
                 return val;
             }
@@ -769,8 +770,8 @@ namespace vm::runtime
         }
 
         // Handle ValueObject (value classes)
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+        if (value::isValueObject(val)) {
+            auto obj = value::asValueObject(val);
             if (!obj) {
                 throwCastError("Cannot cast null to " + targetTypeName);
             }
@@ -792,12 +793,12 @@ namespace vm::runtime
         }
 
         // Handle non-object types
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
+        if (!value::isObject(val)) {
             throwCastError("Cannot cast primitive type to " + targetTypeName);
         }
 
         // Object cast - check if it's a valid object type
-        auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+        auto obj = value::asObject(val);
         if (!obj) {
             throwCastError("Cannot cast null to " + targetTypeName);
         }
@@ -950,28 +951,28 @@ namespace vm::runtime
     }
 
     std::string TypeExecutor::valueToString(const value::Value& val) {
-        if (std::holds_alternative<int64_t>(val)) {
-            return std::to_string(std::get<int64_t>(val));
+        if (value::isInt(val)) {
+            return std::to_string(value::asInt(val));
         }
-        if (std::holds_alternative<double>(val)) {
+        if (value::isFloat(val)) {
             std::ostringstream oss;
-            oss << std::get<double>(val);
+            oss << value::asFloat(val);
             return oss.str();
         }
-        if (std::holds_alternative<bool>(val)) {
-            return std::get<bool>(val) ? "true" : "false";
+        if (value::isBool(val)) {
+            return value::asBool(val) ? "true" : "false";
         }
-        if (std::holds_alternative<std::string>(val)) {
-            return std::get<std::string>(val);
+        if (value::isString(val)) {
+            return value::asString(val);
         }
-        if (std::holds_alternative<value::InternedString>(val)) {
-            return std::get<value::InternedString>(val).getString();
+        if (value::isInternedString(val)) {
+            return value::asInternedString(val).getString();
         }
         if (utils::isNullValue(val)) {
             return "null";
         }
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+        if (value::isValueObject(val)) {
+            auto obj = value::asValueObject(val);
             if (obj && obj->hasField("value") && obj->getFieldCount() == 1) {
                 return valueToString(obj->getFieldValue("value"));
             }

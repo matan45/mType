@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "SubstringFunction.hpp"
 #include "../../../errors/ArgumentException.hpp"
 #include "../../../errors/RuntimeException.hpp"
@@ -90,3 +92,5 @@ namespace environment::registry::builtin
         return "substring";
     }
 }
+
+#endif

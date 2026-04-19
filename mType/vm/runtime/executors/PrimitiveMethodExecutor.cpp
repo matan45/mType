@@ -2,6 +2,7 @@
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/ValueShim.hpp"
 #include <variant>
 #include <cassert>
 
@@ -25,10 +26,10 @@ int64_t PrimitiveMethodExecutor::unboxInt(const std::shared_ptr<runtimeTypes::kl
     assert(obj->getClassDefinition()->getFieldIndex("value") == 0
         && "Int class must have 'value' as first field (index 0)");
     const value::Value& fieldValue = obj->getFieldByIndex(0);
-    if (!std::holds_alternative<int64_t>(fieldValue)) {
+    if (!value::isInt(fieldValue)) {
         throw errors::RuntimeException("Int object 'value' field is not an int");
     }
-    return std::get<int64_t>(fieldValue);
+    return value::asInt(fieldValue);
 }
 
 double PrimitiveMethodExecutor::unboxFloat(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj) {
@@ -41,54 +42,54 @@ double PrimitiveMethodExecutor::unboxFloat(const std::shared_ptr<runtimeTypes::k
     assert(obj->getClassDefinition()->getFieldIndex("value") == 0
         && "Float class must have 'value' as first field (index 0)");
     const value::Value& fieldValue = obj->getFieldByIndex(0);
-    if (!std::holds_alternative<double>(fieldValue)) {
+    if (!value::isFloat(fieldValue)) {
         throw errors::RuntimeException("Float object 'value' field is not a float");
     }
-    return std::get<double>(fieldValue);
+    return value::asFloat(fieldValue);
 }
 
 int64_t PrimitiveMethodExecutor::unboxIntFromValue(const value::Value& val) {
     // Fast path: already a raw primitive (from lazy re-boxing)
-    if (std::holds_alternative<int64_t>(val)) {
-        return std::get<int64_t>(val);
+    if (value::isInt(val)) {
+        return value::asInt(val);
     }
-    if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-        auto& obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+    if (value::isValueObject(val)) {
+        auto obj = value::asValueObject(val);
         if (!obj) throw errors::RuntimeException("Cannot unbox null Int value object");
         // Use indexed access - "value" field is always at index 0
         assert(obj->getClassDefinition()->getFieldIndex("value") == 0
             && "Int value class must have 'value' as first field (index 0)");
         const value::Value& fieldValue = obj->getFieldByIndex(0);
-        if (!std::holds_alternative<int64_t>(fieldValue)) {
+        if (!value::isInt(fieldValue)) {
             throw errors::RuntimeException("Int value object 'value' field is not an int");
         }
-        return std::get<int64_t>(fieldValue);
+        return value::asInt(fieldValue);
     }
-    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-        return unboxInt(std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val));
+    if (value::isObject(val)) {
+        return unboxInt(value::asObject(val));
     }
     throw errors::RuntimeException("Cannot unbox Int: unexpected value type");
 }
 
 double PrimitiveMethodExecutor::unboxFloatFromValue(const value::Value& val) {
     // Fast path: already a raw primitive (from lazy re-boxing)
-    if (std::holds_alternative<double>(val)) {
-        return std::get<double>(val);
+    if (value::isFloat(val)) {
+        return value::asFloat(val);
     }
-    if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val)) {
-        auto& obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+    if (value::isValueObject(val)) {
+        auto obj = value::asValueObject(val);
         if (!obj) throw errors::RuntimeException("Cannot unbox null Float value object");
         // Use indexed access - "value" field is always at index 0
         assert(obj->getClassDefinition()->getFieldIndex("value") == 0
             && "Float value class must have 'value' as first field (index 0)");
         const value::Value& fieldValue = obj->getFieldByIndex(0);
-        if (!std::holds_alternative<double>(fieldValue)) {
+        if (!value::isFloat(fieldValue)) {
             throw errors::RuntimeException("Float value object 'value' field is not a float");
         }
-        return std::get<double>(fieldValue);
+        return value::asFloat(fieldValue);
     }
-    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val)) {
-        return unboxFloat(std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val));
+    if (value::isObject(val)) {
+        return unboxFloat(value::asObject(val));
     }
     throw errors::RuntimeException("Cannot unbox Float: unexpected value type");
 }
@@ -338,26 +339,26 @@ void PrimitiveMethodExecutor::handleInvokeBoolGetValue() {
     value::Value receiverValue = context.stackManager->pop();
     // Bool's value field holds either a raw bool variant (lazy re-boxing)
     // or a ValueObject/ObjectInstance whose field 0 holds the bool.
-    if (std::holds_alternative<bool>(receiverValue)) {
-        context.stackManager->push(std::get<bool>(receiverValue));
+    if (value::isBool(receiverValue)) {
+        context.stackManager->push(value::asBool(receiverValue));
         return;
     }
-    if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(receiverValue)) {
-        const auto& obj = std::get<std::shared_ptr<value::ValueObject>>(receiverValue);
+    if (value::isValueObject(receiverValue)) {
+        const auto& obj = value::asValueObject(receiverValue);
         if (!obj) throw errors::RuntimeException("Cannot unbox null Bool value object");
         const value::Value& fieldValue = obj->getFieldByIndex(0);
-        if (!std::holds_alternative<bool>(fieldValue))
+        if (!value::isBool(fieldValue))
             throw errors::RuntimeException("Bool value object 'value' field is not a bool");
-        context.stackManager->push(std::get<bool>(fieldValue));
+        context.stackManager->push(value::asBool(fieldValue));
         return;
     }
-    if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue)) {
-        const auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
+    if (value::isObject(receiverValue)) {
+        const auto& obj = value::asObject(receiverValue);
         if (!obj) throw errors::RuntimeException("Cannot unbox null Bool object");
         const value::Value& fieldValue = obj->getFieldByIndex(0);
-        if (!std::holds_alternative<bool>(fieldValue))
+        if (!value::isBool(fieldValue))
             throw errors::RuntimeException("Bool object 'value' field is not a bool");
-        context.stackManager->push(std::get<bool>(fieldValue));
+        context.stackManager->push(value::asBool(fieldValue));
         return;
     }
     throw errors::RuntimeException("Cannot unbox Bool: unexpected value type");

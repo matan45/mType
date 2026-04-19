@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "VariableInspector.hpp"
 #include "DebuggerConstants.hpp"
 #include "../environment/manager/VariableManager.hpp"
@@ -711,3 +713,5 @@ namespace debugger {
     }
 
 } // namespace debugger
+
+#endif

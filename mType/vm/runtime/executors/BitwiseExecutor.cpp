@@ -1,5 +1,6 @@
 #include "BitwiseExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
+#include "../../../value/ValueShim.hpp"
 
 namespace vm::runtime
 {
@@ -14,12 +15,12 @@ namespace vm::runtime
         value::Value right = context.stackManager->pop();
         value::Value left = context.stackManager->pop();
 
-        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+        if (!value::isInt(left) || !value::isInt(right)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Bitwise AND requires integer operands");
         }
 
-        int64_t l = std::get<int64_t>(left);
-        int64_t r = std::get<int64_t>(right);
+        int64_t l = value::asInt(left);
+        int64_t r = value::asInt(right);
         context.stackManager->push(l & r);
     }
 
@@ -30,12 +31,12 @@ namespace vm::runtime
         value::Value right = context.stackManager->pop();
         value::Value left = context.stackManager->pop();
 
-        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+        if (!value::isInt(left) || !value::isInt(right)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Bitwise OR requires integer operands");
         }
 
-        int64_t l = std::get<int64_t>(left);
-        int64_t r = std::get<int64_t>(right);
+        int64_t l = value::asInt(left);
+        int64_t r = value::asInt(right);
         context.stackManager->push(l | r);
     }
 
@@ -46,12 +47,12 @@ namespace vm::runtime
         value::Value right = context.stackManager->pop();
         value::Value left = context.stackManager->pop();
 
-        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+        if (!value::isInt(left) || !value::isInt(right)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Bitwise XOR requires integer operands");
         }
 
-        int64_t l = std::get<int64_t>(left);
-        int64_t r = std::get<int64_t>(right);
+        int64_t l = value::asInt(left);
+        int64_t r = value::asInt(right);
         context.stackManager->push(l ^ r);
     }
 
@@ -62,12 +63,12 @@ namespace vm::runtime
         value::Value right = context.stackManager->pop();
         value::Value left = context.stackManager->pop();
 
-        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+        if (!value::isInt(left) || !value::isInt(right)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Left shift requires integer operands");
         }
 
-        int64_t l = std::get<int64_t>(left);
-        int64_t r = std::get<int64_t>(right);
+        int64_t l = value::asInt(left);
+        int64_t r = value::asInt(right);
 
         // Validate shift amount is in valid range (0-63 for 64-bit integers)
         if (r < 0 || r > 63) {
@@ -84,12 +85,12 @@ namespace vm::runtime
         value::Value right = context.stackManager->pop();
         value::Value left = context.stackManager->pop();
 
-        if (!std::holds_alternative<int64_t>(left) || !std::holds_alternative<int64_t>(right)) {
+        if (!value::isInt(left) || !value::isInt(right)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Right shift requires integer operands");
         }
 
-        int64_t l = std::get<int64_t>(left);
-        int64_t r = std::get<int64_t>(right);
+        int64_t l = value::asInt(left);
+        int64_t r = value::asInt(right);
 
         // Validate shift amount is in valid range (0-63 for 64-bit integers)
         if (r < 0 || r > 63) {
@@ -105,11 +106,11 @@ namespace vm::runtime
         }
         value::Value val = context.stackManager->pop();
 
-        if (!std::holds_alternative<int64_t>(val)) {
+        if (!value::isInt(val)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Bitwise NOT requires integer operand");
         }
 
-        int64_t v = std::get<int64_t>(val);
+        int64_t v = value::asInt(val);
         context.stackManager->push(~v);
     }
 }

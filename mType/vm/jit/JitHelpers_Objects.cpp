@@ -1,6 +1,7 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
 #include "ic/InlineCacheTable.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../errors/AccessViolationException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/NullPointerException.hpp"
@@ -28,14 +29,14 @@ namespace vm::jit
     const void* jit_extract_classdef(const value::Value* receiver)
     {
         if (!receiver) return nullptr;
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*receiver))
+        if (value::isObject(*receiver))
         {
-            const auto& instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*receiver);
+            const auto& instance = value::asObject(*receiver);
             return instance ? instance->getClassDefinition().get() : nullptr;
         }
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(*receiver))
+        if (value::isValueObject(*receiver))
         {
-            const auto& valueObj = std::get<std::shared_ptr<value::ValueObject>>(*receiver);
+            const auto& valueObj = value::asValueObject(*receiver);
             return valueObj ? valueObj->getClassDefinition().get() : nullptr;
         }
         return nullptr;
@@ -58,9 +59,9 @@ namespace vm::jit
                 args.push_back(ctx->callArgs[i]);
             }
 
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue))
+            if (value::isObject(objectValue))
             {
-                auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(objectValue);
+                auto instance = value::asObject(objectValue);
 
                 if (ctx->vm)
                 {
@@ -70,9 +71,9 @@ namespace vm::jit
                 }
             }
 
-            if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(objectValue))
+            if (value::isValueObject(objectValue))
             {
-                auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(objectValue);
+                auto valueObj = value::asValueObject(objectValue);
                 auto classDef = valueObj->getClassDefinition();
 
                 auto tempInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
@@ -143,9 +144,9 @@ namespace vm::jit
             bool receiverIsValueObject = false;
             std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance;
 
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue))
+            if (value::isObject(receiverValue))
             {
-                instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(receiverValue);
+                instance = value::asObject(receiverValue);
                 if (!instance)
                 {
                     jit_call_method(ctx, methodNameIndex, argCount);
@@ -153,9 +154,9 @@ namespace vm::jit
                 }
                 classDef = instance->getClassDefinition().get();
             }
-            else if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(receiverValue))
+            else if (value::isValueObject(receiverValue))
             {
-                const auto& valueObj = std::get<std::shared_ptr<value::ValueObject>>(receiverValue);
+                const auto& valueObj = value::asValueObject(receiverValue);
                 if (!valueObj)
                 {
                     jit_call_method(ctx, methodNameIndex, argCount);
@@ -287,18 +288,18 @@ namespace vm::jit
         const std::string& typeName = prog->getConstantPool().getString(typeIndex);
 
         if (typeName == "Int" || typeName == "int")
-            return std::holds_alternative<int64_t>(*val) ? 1 : 0;
+            return value::isInt(*val) ? 1 : 0;
         if (typeName == "Float" || typeName == "float")
-            return std::holds_alternative<double>(*val) ? 1 : 0;
+            return value::isFloat(*val) ? 1 : 0;
         if (typeName == "Bool" || typeName == "bool")
-            return std::holds_alternative<bool>(*val) ? 1 : 0;
+            return value::isBool(*val) ? 1 : 0;
         if (typeName == "String" || typeName == "string")
-            return (std::holds_alternative<std::string>(*val) ||
-                    std::holds_alternative<value::InternedString>(*val)) ? 1 : 0;
+            return (value::isString(*val) ||
+                    value::isInternedString(*val)) ? 1 : 0;
 
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*val))
+        if (value::isObject(*val))
         {
-            auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*val);
+            auto instance = value::asObject(*val);
             auto classDef = instance->getClassDefinition();
             while (classDef)
             {
@@ -307,9 +308,9 @@ namespace vm::jit
             }
         }
 
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(*val))
+        if (value::isValueObject(*val))
         {
-            auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(*val);
+            auto valueObj = value::asValueObject(*val);
             auto classDef = valueObj->getClassDefinition();
             while (classDef)
             {
@@ -329,26 +330,26 @@ namespace vm::jit
 
         if (targetType == "Int" || targetType == "int")
         {
-            if (std::holds_alternative<int64_t>(*src))
+            if (value::isInt(*src))
                 { *dest = *src; return; }
-            if (std::holds_alternative<double>(*src))
-                { *dest = static_cast<int64_t>(std::get<double>(*src)); return; }
-            if (std::holds_alternative<bool>(*src))
-                { *dest = std::get<bool>(*src) ? static_cast<int64_t>(1) : static_cast<int64_t>(0); return; }
+            if (value::isFloat(*src))
+                { *dest = static_cast<int64_t>(value::asFloat(*src)); return; }
+            if (value::isBool(*src))
+                { *dest = value::asBool(*src) ? static_cast<int64_t>(1) : static_cast<int64_t>(0); return; }
         }
         else if (targetType == "Float" || targetType == "float")
         {
-            if (std::holds_alternative<double>(*src))
+            if (value::isFloat(*src))
                 { *dest = *src; return; }
-            if (std::holds_alternative<int64_t>(*src))
-                { *dest = static_cast<double>(std::get<int64_t>(*src)); return; }
+            if (value::isInt(*src))
+                { *dest = static_cast<double>(value::asInt(*src)); return; }
         }
         else if (targetType == "Bool" || targetType == "bool")
         {
-            if (std::holds_alternative<bool>(*src))
+            if (value::isBool(*src))
                 { *dest = *src; return; }
-            if (std::holds_alternative<int64_t>(*src))
-                { *dest = (std::get<int64_t>(*src) != 0); return; }
+            if (value::isInt(*src))
+                { *dest = (value::asInt(*src) != 0); return; }
         }
 
         *dest = *src;
@@ -381,12 +382,12 @@ namespace vm::jit
 
     void jit_object_to_value(value::Value* val)
     {
-        if (!std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*val))
+        if (!value::isObject(*val))
         {
             return;
         }
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*val);
+        auto instance = value::asObject(*val);
         auto classDef = instance->getClassDefinition();
         auto valueObj = std::make_shared<value::ValueObject>(classDef);
 
@@ -480,12 +481,12 @@ namespace vm::jit
                                         size_t bytecodeOffset,
                                         uint32_t fieldNameIndex)
     {
-        if (!std::holds_alternative<std::shared_ptr<value::ValueObject>>(*object))
+        if (!value::isValueObject(*object))
             return false;
 
         using namespace vm::jit::ic;
 
-        auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(*object);
+        auto valueObj = value::asValueObject(*object);
         auto* classDef = valueObj->getClassDefinition().get();
 
         // IC fast path — cached shape, known fieldIndex.
@@ -589,7 +590,7 @@ namespace vm::jit
         if (getFieldFromValueObject(dest, object, ctx, bytecodeOffset, fieldNameIndex))
             return;
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
+        auto instance = value::asObject(*object);
         auto* classDef = instance->getClassDefinition().get();
 
         if (getFieldICLookupOrFallback(dest, instance, classDef, ctx,
@@ -610,10 +611,10 @@ namespace vm::jit
                                       JitContext* ctx,
                                       uint32_t fieldNameIndex)
     {
-        if (!std::holds_alternative<std::shared_ptr<value::ValueObject>>(*object))
+        if (!value::isValueObject(*object))
             return false;
 
-        auto valueObj = std::get<std::shared_ptr<value::ValueObject>>(*object);
+        auto valueObj = value::asValueObject(*object);
         auto copy = valueObj->deepCopy();
         const std::string& fieldName =
             ctx->program->getConstantPool().getString(fieldNameIndex);
@@ -689,7 +690,7 @@ namespace vm::jit
         if (setFieldOnValueObject(destValue, object, newValue, ctx, fieldNameIndex))
             return;
 
-        auto instance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(*object);
+        auto instance = value::asObject(*object);
         auto* classDef = instance->getClassDefinition().get();
 
         if (setFieldICLookupOrFallback(destValue, instance, classDef, newValue,

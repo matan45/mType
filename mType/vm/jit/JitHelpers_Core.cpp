@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../gc/GC.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
@@ -13,9 +14,17 @@ namespace vm::jit
         template <typename T>
         bool tryReadBoxedField(const value::Value& val, T& out)
         {
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val))
+#ifdef MTYPE_TAGGED_VALUE
+            // MYT-126 flag-on stub — JIT is disabled under flag-on, so this is
+            // never called at runtime. Returning false keeps the symbol defined
+            // for linkage without requiring a generic std::holds_alternative<T>
+            // against the tagged Value class.
+            (void)val; (void)out;
+            return false;
+#else
+            if (value::isObject(val))
             {
-                const auto& obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+                const auto& obj = value::asObject(val);
                 if (!obj) return false;
                 obj->ensureFieldVector();
                 const value::Value& field = obj->getFieldByIndex(0);
@@ -26,9 +35,9 @@ namespace vm::jit
                 }
                 return false;
             }
-            if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val))
+            if (value::isValueObject(val))
             {
-                const auto& obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+                const auto& obj = value::asValueObject(val);
                 if (!obj) return false;
                 const value::Value& field = obj->getFieldByIndex(0);
                 if (std::holds_alternative<T>(field))
@@ -39,6 +48,7 @@ namespace vm::jit
                 return false;
             }
             return false;
+#endif
         }
     }
 
@@ -46,13 +56,13 @@ namespace vm::jit
 
         int64_t jit_unbox_int(const value::Value* val)
         {
-            if (std::holds_alternative<int64_t>(*val))
+            if (value::isInt(*val))
             {
-                return std::get<int64_t>(*val);
+                return value::asInt(*val);
             }
-            if (std::holds_alternative<bool>(*val))
+            if (value::isBool(*val))
             {
-                return std::get<bool>(*val) ? 1 : 0;
+                return value::asBool(*val) ? 1 : 0;
             }
             int64_t boxed = 0;
             if (tryReadBoxedField<int64_t>(*val, boxed))
@@ -81,13 +91,13 @@ namespace vm::jit
 
         double jit_unbox_float(const value::Value* val)
         {
-            if (std::holds_alternative<double>(*val))
+            if (value::isFloat(*val))
             {
-                return std::get<double>(*val);
+                return value::asFloat(*val);
             }
-            if (std::holds_alternative<int64_t>(*val))
+            if (value::isInt(*val))
             {
-                return static_cast<double>(std::get<int64_t>(*val));
+                return static_cast<double>(value::asInt(*val));
             }
             double dboxed = 0.0;
             if (tryReadBoxedField<double>(*val, dboxed))
@@ -153,24 +163,24 @@ namespace vm::jit
         int64_t jit_values_equal(const value::Value* left, const value::Value* right)
         {
             auto isNull = [](const value::Value& v) {
-                return std::holds_alternative<std::monostate>(v) ||
-                       std::holds_alternative<nullptr_t>(v);
+                return value::isVoid(v) ||
+                       value::isNullType(v);
             };
 
             if (isNull(*left) && isNull(*right)) return 1;
             if (isNull(*left) || isNull(*right)) return 0;
             if (left->index() != right->index()) return 0;
 
-            if (std::holds_alternative<int64_t>(*left))
-                return std::get<int64_t>(*left) == std::get<int64_t>(*right) ? 1 : 0;
-            if (std::holds_alternative<double>(*left))
-                return std::get<double>(*left) == std::get<double>(*right) ? 1 : 0;
-            if (std::holds_alternative<bool>(*left))
-                return std::get<bool>(*left) == std::get<bool>(*right) ? 1 : 0;
-            if (std::holds_alternative<std::string>(*left))
-                return std::get<std::string>(*left) == std::get<std::string>(*right) ? 1 : 0;
-            if (std::holds_alternative<value::InternedString>(*left))
-                return std::get<value::InternedString>(*left) == std::get<value::InternedString>(*right) ? 1 : 0;
+            if (value::isInt(*left))
+                return value::asInt(*left) == value::asInt(*right) ? 1 : 0;
+            if (value::isFloat(*left))
+                return value::asFloat(*left) == value::asFloat(*right) ? 1 : 0;
+            if (value::isBool(*left))
+                return value::asBool(*left) == value::asBool(*right) ? 1 : 0;
+            if (value::isString(*left))
+                return value::asString(*left) == value::asString(*right) ? 1 : 0;
+            if (value::isInternedString(*left))
+                return value::asInternedString(*left) == value::asInternedString(*right) ? 1 : 0;
 
             return 0;
         }

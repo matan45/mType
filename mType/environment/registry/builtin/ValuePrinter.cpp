@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "ValuePrinter.hpp"
 #include "../../../value/AsyncPromiseValue.hpp"
 #include "../../../value/ValueObject.hpp"
@@ -203,3 +205,5 @@ namespace environment::registry::builtin
         return std::nullopt;
     }
 }
+
+#endif

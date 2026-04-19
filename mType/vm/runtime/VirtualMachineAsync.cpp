@@ -1,5 +1,6 @@
 #include "VirtualMachine.hpp"
 #include "utils/ExceptionHandler.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/ScriptException.hpp"
 #include "../../errors/UserException.hpp"
@@ -21,12 +22,12 @@ namespace vm::runtime
     void VirtualMachine::executeAwait()
     {
         value::Value promiseVal = stackManager->pop();
-        if (!std::holds_alternative<std::shared_ptr<value::PromiseValue>>(promiseVal))
+        if (!value::isPromise(promiseVal))
         {
             throw errors::RuntimeException("await can only be used on Promise values");
         }
 
-        auto promise = std::get<std::shared_ptr<value::PromiseValue>>(promiseVal);
+        auto promise = value::asPromise(promiseVal);
         if (!promise)
         {
             throw errors::RuntimeException("Null promise in await expression");

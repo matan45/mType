@@ -7,6 +7,7 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/NativeArray.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../jit/JitCodeCache.hpp"
 #include "../../jit/JitContext.hpp"
 #include <algorithm>
@@ -322,34 +323,34 @@ namespace vm::runtime
             {
                 if (i > 0) typeSignature += ",";
                 const auto& arg = args[i];
-                if (std::holds_alternative<int64_t>(arg))
+                if (value::isInt(arg))
                 {
                     typeSignature += "int";
                 }
-                else if (std::holds_alternative<double>(arg))
+                else if (value::isFloat(arg))
                 {
                     typeSignature += "float";
                 }
-                else if (std::holds_alternative<bool>(arg))
+                else if (value::isBool(arg))
                 {
                     typeSignature += "bool";
                 }
-                else if (std::holds_alternative<std::string>(arg))
+                else if (value::isString(arg))
                 {
                     typeSignature += "string";
                 }
-                else if (std::holds_alternative<value::InternedString>(arg))
+                else if (value::isInternedString(arg))
                 {
                     typeSignature += "string";
                 }
-                else if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+                else if (value::isObject(arg))
                 {
-                    auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                    auto obj = value::asObject(arg);
                     typeSignature += obj->getTypeName();
                 }
-                else if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(arg))
+                else if (value::isNativeArray(arg))
                 {
-                    auto arr = std::get<std::shared_ptr<value::NativeArray>>(arg);
+                    auto arr = value::asNativeArray(arg);
                     switch (arr->getElementType())
                     {
                         case value::ValueType::INT: typeSignature += "int[]"; break;
@@ -362,11 +363,11 @@ namespace vm::runtime
                         default: typeSignature += "any[]"; break;
                     }
                 }
-                else if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(arg))
+                else if (value::isLambda(arg))
                 {
                     typeSignature += "function";
                 }
-                else if (std::holds_alternative<std::monostate>(arg) || std::holds_alternative<nullptr_t>(arg))
+                else if (value::isVoid(arg) || value::isNullType(arg))
                 {
                     typeSignature += "null";
                 }
@@ -517,52 +518,52 @@ namespace vm::runtime
             value::Value& arg = args[i];
 
             // AUTO-UNBOXING: Convert wrapper objects to primitives (Int → int, Float → float, etc.)
-            if (paramType == "int" && std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+            if (paramType == "int" && value::isObject(arg))
             {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                auto obj = value::asObject(arg);
                 if (obj->getTypeName() == "Int")
                 {
                     value::Value unboxedValue = obj->getFieldValue("value");
-                    if (std::holds_alternative<int64_t>(unboxedValue))
+                    if (value::isInt(unboxedValue))
                     {
                         arg = unboxedValue;
                     }
                 }
                 continue;
             }
-            else if (paramType == "float" && std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+            else if (paramType == "float" && value::isObject(arg))
             {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                auto obj = value::asObject(arg);
                 if (obj->getTypeName() == "Float")
                 {
                     value::Value unboxedValue = obj->getFieldValue("value");
-                    if (std::holds_alternative<double>(unboxedValue))
+                    if (value::isFloat(unboxedValue))
                     {
                         arg = unboxedValue;
                     }
                 }
                 continue;
             }
-            else if (paramType == "bool" && std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+            else if (paramType == "bool" && value::isObject(arg))
             {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                auto obj = value::asObject(arg);
                 if (obj->getTypeName() == "Bool")
                 {
                     value::Value unboxedValue = obj->getFieldValue("value");
-                    if (std::holds_alternative<bool>(unboxedValue))
+                    if (value::isBool(unboxedValue))
                     {
                         arg = unboxedValue;
                     }
                 }
                 continue;
             }
-            else if (paramType == "string" && std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg))
+            else if (paramType == "string" && value::isObject(arg))
             {
-                auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(arg);
+                auto obj = value::asObject(arg);
                 if (obj->getTypeName() == "String")
                 {
                     value::Value unboxedValue = obj->getFieldValue("value");
-                    if (std::holds_alternative<std::string>(unboxedValue))
+                    if (value::isString(unboxedValue))
                     {
                         arg = unboxedValue;
                     }
@@ -571,7 +572,7 @@ namespace vm::runtime
             }
 
             // AUTO-BOXING: Convert primitives to wrapper objects (Int, Float, Bool, String)
-            if (paramType == "Int" && std::holds_alternative<int64_t>(arg))
+            if (paramType == "Int" && value::isInt(arg))
             {
                 // Auto-box int to Int
                 auto intClass = context.environment->findClass("Int");
@@ -583,7 +584,7 @@ namespace vm::runtime
                 }
                 continue;
             }
-            else if (paramType == "Float" && std::holds_alternative<double>(arg))
+            else if (paramType == "Float" && value::isFloat(arg))
             {
                 // Auto-box float to Float
                 auto floatClass = context.environment->findClass("Float");
@@ -595,7 +596,7 @@ namespace vm::runtime
                 }
                 continue;
             }
-            else if (paramType == "Bool" && std::holds_alternative<bool>(arg))
+            else if (paramType == "Bool" && value::isBool(arg))
             {
                 // Auto-box bool to Bool
                 auto boolClass = context.environment->findClass("Bool");
@@ -607,7 +608,7 @@ namespace vm::runtime
                 }
                 continue;
             }
-            else if (paramType == "String" && std::holds_alternative<std::string>(arg))
+            else if (paramType == "String" && value::isString(arg))
             {
                 // Auto-box string to String
                 auto stringClass = context.environment->findClass("String");
@@ -622,7 +623,7 @@ namespace vm::runtime
 
             // BytecodeLambda (bytecode VM) - no conversion needed
             // ObjectExecutor::handleCallMethod handles BytecodeLambda invocation directly
-            if (std::holds_alternative<std::shared_ptr<BytecodeLambda>>(arg))
+            if (value::isLambda(arg))
             {
                 // No conversion needed - bytecode lambdas are invoked directly
                 continue;

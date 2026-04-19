@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../types/TypeConversionUtils.hpp"
 #include "../../value/NativeArray.hpp"
@@ -45,8 +46,8 @@ namespace vm::jit
         {
             const value::Value& v = ctx->callArgs[i];
             int64_t size = 0;
-            if (std::holds_alternative<int64_t>(v))
-                size = std::get<int64_t>(v);
+            if (value::isInt(v))
+                size = value::asInt(v);
             else
                 throw errors::RuntimeException(
                     "JIT: jit_new_array_multi expected int64 dimension at slot " +
@@ -64,16 +65,16 @@ namespace vm::jit
     void jit_array_get(value::Value* dest, const value::Value* array,
                         int64_t index)
     {
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        if (value::isNativeArray(*array))
         {
-            const auto& arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+            const auto& arr = value::asNativeArray(*array);
             *dest = arr->getUnchecked(index);
             return;
         }
 
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(*array))
+        if (value::isFlatMultiArray(*array))
         {
-            const auto& flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(*array);
+            const auto& flatArray = value::asFlatMultiArray(*array);
             if (index < 0 || static_cast<size_t>(index) >= flatArray->size())
                 jit_throw_array_oob(index, static_cast<int64_t>(flatArray->size()));
             if (flatArray->getRank() > 1)
@@ -83,9 +84,9 @@ namespace vm::jit
             return;
         }
 
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(*array))
+        if (value::isSparseMultiArray(*array))
         {
-            const auto& sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(*array);
+            const auto& sparseArray = value::asSparseMultiArray(*array);
             if (index < 0 || static_cast<size_t>(index) >= sparseArray->size())
                 jit_throw_array_oob(index, static_cast<int64_t>(sparseArray->size()));
             if (sparseArray->getRank() > 1)
@@ -106,25 +107,25 @@ namespace vm::jit
     void jit_array_set(const value::Value* array, int64_t index,
                         const value::Value* newValue)
     {
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        if (value::isNativeArray(*array))
         {
-            const auto& arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+            const auto& arr = value::asNativeArray(*array);
             arr->setUnchecked(index, *newValue);
             return;
         }
 
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(*array))
+        if (value::isFlatMultiArray(*array))
         {
-            const auto& flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(*array);
+            const auto& flatArray = value::asFlatMultiArray(*array);
             if (index < 0 || static_cast<size_t>(index) >= flatArray->size())
                 jit_throw_array_oob(index, static_cast<int64_t>(flatArray->size()));
             flatArray->set(static_cast<size_t>(index), *newValue);
             return;
         }
 
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(*array))
+        if (value::isSparseMultiArray(*array))
         {
-            const auto& sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(*array);
+            const auto& sparseArray = value::asSparseMultiArray(*array);
             if (index < 0 || static_cast<size_t>(index) >= sparseArray->size())
                 jit_throw_array_oob(index, static_cast<int64_t>(sparseArray->size()));
             std::vector<size_t> indices = {static_cast<size_t>(index)};
@@ -137,19 +138,19 @@ namespace vm::jit
 
     int64_t jit_array_length(const value::Value* array)
     {
-        if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        if (value::isNativeArray(*array))
         {
-            const auto& arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+            const auto& arr = value::asNativeArray(*array);
             return static_cast<int64_t>(arr->size());
         }
-        if (std::holds_alternative<std::shared_ptr<value::FlatMultiArray>>(*array))
+        if (value::isFlatMultiArray(*array))
         {
-            const auto& flatArray = std::get<std::shared_ptr<value::FlatMultiArray>>(*array);
+            const auto& flatArray = value::asFlatMultiArray(*array);
             return static_cast<int64_t>(flatArray->size());
         }
-        if (std::holds_alternative<std::shared_ptr<value::SparseMultiArray>>(*array))
+        if (value::isSparseMultiArray(*array))
         {
-            const auto& sparseArray = std::get<std::shared_ptr<value::SparseMultiArray>>(*array);
+            const auto& sparseArray = value::asSparseMultiArray(*array);
             return static_cast<int64_t>(sparseArray->size());
         }
         throw errors::RuntimeException("ARRAY_LENGTH on non-array value");
@@ -158,35 +159,35 @@ namespace vm::jit
     // Level 1: No Value construction, no atomic refcount
     int64_t jit_array_get_int(const value::Value* array, int64_t index)
     {
-        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        if (!value::isNativeArray(*array))
             throw errors::RuntimeException("ARRAY_GET_INT on non-array value");
-        const auto& arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        const auto& arr = value::asNativeArray(*array);
         return arr->getIntDirect(static_cast<size_t>(index));
     }
 
     void jit_array_set_int(const value::Value* array, int64_t index,
                            int64_t val)
     {
-        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        if (!value::isNativeArray(*array))
             throw errors::RuntimeException("ARRAY_SET_INT on non-array value");
-        const auto& arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        const auto& arr = value::asNativeArray(*array);
         arr->setIntDirect(static_cast<size_t>(index), val);
     }
 
     // Level 2: Extract raw int64_t* data pointer for JIT inline access
     int64_t* jit_array_get_raw_int_ptr(const value::Value* array)
     {
-        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        if (!value::isNativeArray(*array))
             throw errors::RuntimeException("ARRAY_GET_RAW_INT_PTR on non-array value");
-        const auto& arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        const auto& arr = value::asNativeArray(*array);
         return arr->getRawIntData();
     }
 
     void jit_array_extract_info(const value::Value* array, JitArrayInfo* out)
     {
-        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        if (!value::isNativeArray(*array))
             throw errors::RuntimeException("ARRAY_EXTRACT_INFO on non-array value");
-        const auto& arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        const auto& arr = value::asNativeArray(*array);
         out->data = arr->getRawIntData();
         out->length = static_cast<int64_t>(arr->size());
     }
@@ -196,9 +197,9 @@ namespace vm::jit
                              const vm::bytecode::BytecodeProgram* prog,
                              uint32_t fieldNameIndex)
     {
-        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        if (!value::isNativeArray(*array))
             throw errors::RuntimeException("ARRAY_GET_FIELD on non-array value");
-        auto arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        auto arr = value::asNativeArray(*array);
         const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
         size_t idx = static_cast<size_t>(index);
 
@@ -211,7 +212,7 @@ namespace vm::jit
 
         value::Value element = arr->getUnchecked(idx);
         auto objInstance =
-            std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element);
+            value::asObject(element);
         *dest = objInstance->getFieldValue(fieldName);
     }
 
@@ -220,9 +221,9 @@ namespace vm::jit
                              const vm::bytecode::BytecodeProgram* prog,
                              uint32_t fieldNameIndex)
     {
-        if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(*array))
+        if (!value::isNativeArray(*array))
             throw errors::RuntimeException("ARRAY_SET_FIELD on non-array value");
-        auto arr = std::get<std::shared_ptr<value::NativeArray>>(*array);
+        auto arr = value::asNativeArray(*array);
         const std::string& fieldName = prog->getConstantPool().getString(fieldNameIndex);
         size_t idx = static_cast<size_t>(index);
 
@@ -235,7 +236,7 @@ namespace vm::jit
 
         value::Value element = arr->getUnchecked(idx);
         auto objInstance =
-            std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(element);
+            value::asObject(element);
         objInstance->setField(fieldName, *newValue);
     }
 }

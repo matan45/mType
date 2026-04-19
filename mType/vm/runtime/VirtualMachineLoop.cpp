@@ -20,6 +20,7 @@
 #include "../../errors/SourceLocation.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/PromiseValue.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../debugger/DebugContext.hpp"
 #include "../../debugger/DebugHookHelper.hpp"
 #include "../profiler/ProfilerHookHelper.hpp"
@@ -224,18 +225,18 @@ namespace vm::runtime
 
                             // Build error message from exception
                             std::string errorMsg = e.getExceptionTypeName();
-                            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(e.getExceptionValue()))
+                            if (value::isObject(e.getExceptionValue()))
                             {
-                                auto objInstance = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(e.getExceptionValue());
+                                auto objInstance = value::asObject(e.getExceptionValue());
                                 if (objInstance)
                                 {
                                     // Try to get error message from common exception fields
                                     try
                                     {
                                         value::Value msgValue = objInstance->getFieldValue("msg");
-                                        if (std::holds_alternative<std::string>(msgValue))
+                                        if (value::isString(msgValue))
                                         {
-                                            errorMsg += ": " + std::get<std::string>(msgValue);
+                                            errorMsg += ": " + value::asString(msgValue);
                                         }
                                     }
                                     catch (...)
@@ -244,9 +245,9 @@ namespace vm::runtime
                                         try
                                         {
                                             value::Value messageValue = objInstance->getFieldValue("message");
-                                            if (std::holds_alternative<std::string>(messageValue))
+                                            if (value::isString(messageValue))
                                             {
-                                                errorMsg += ": " + std::get<std::string>(messageValue);
+                                                errorMsg += ": " + value::asString(messageValue);
                                             }
                                         }
                                         catch (...)

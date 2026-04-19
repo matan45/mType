@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include "../../value/ValueShim.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/NullPointerException.hpp"
 #include "../../environment/Environment.hpp"
@@ -50,8 +51,8 @@ namespace vm::jit
         std::shared_ptr<runtimeTypes::klass::ObjectInstance>
         asInstance(const value::Value& v)
         {
-            if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v))
-                return std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(v);
+            if (value::isObject(v))
+                return value::asObject(v);
             return nullptr;
         }
 
@@ -148,23 +149,23 @@ namespace vm::jit
                 iter->ensureFieldVector();
 
             const value::Value& idxVal = iter->getFieldByIndex(slots->idxSlot);
-            if (!std::holds_alternative<int64_t>(idxVal)) return false;
-            int64_t idx = std::get<int64_t>(idxVal);
+            if (!value::isInt(idxVal)) return false;
+            int64_t idx = value::asInt(idxVal);
 
             if (slots->shape == IteratorShape::ARRAY_ITERATOR)
             {
                 const value::Value& arrVal = iter->getFieldByIndex(slots->collSlot);
-                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrVal))
+                if (!value::isNativeArray(arrVal))
                     return false;
-                auto arr = std::get<std::shared_ptr<value::NativeArray>>(arrVal);
+                auto arr = value::asNativeArray(arrVal);
                 if (!arr) return false;
                 *dest = (idx < static_cast<int64_t>(arr->size()));
                 return true;
             }
             // LIST_ITERATOR
             const value::Value& sizeVal = iter->getFieldByIndex(slots->sizeSlot);
-            if (!std::holds_alternative<int64_t>(sizeVal)) return false;
-            *dest = (idx < std::get<int64_t>(sizeVal));
+            if (!value::isInt(sizeVal)) return false;
+            *dest = (idx < value::asInt(sizeVal));
             return true;
         }
 
@@ -179,15 +180,15 @@ namespace vm::jit
                 iter->ensureFieldVector();
 
             const value::Value& idxVal = iter->getFieldByIndex(slots->idxSlot);
-            if (!std::holds_alternative<int64_t>(idxVal)) return false;
-            int64_t idx = std::get<int64_t>(idxVal);
+            if (!value::isInt(idxVal)) return false;
+            int64_t idx = value::asInt(idxVal);
 
             if (slots->shape == IteratorShape::ARRAY_ITERATOR)
             {
                 const value::Value& arrVal = iter->getFieldByIndex(slots->collSlot);
-                if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(arrVal))
+                if (!value::isNativeArray(arrVal))
                     return false;
-                auto arr = std::get<std::shared_ptr<value::NativeArray>>(arrVal);
+                auto arr = value::asNativeArray(arrVal);
                 if (!arr) return false;
                 if (idx < 0 || static_cast<size_t>(idx) >= arr->size()) return false;
                 *dest = arr->getUnchecked(static_cast<size_t>(idx));
@@ -197,12 +198,12 @@ namespace vm::jit
             // LIST_ITERATOR
             const value::Value& sizeVal = iter->getFieldByIndex(slots->sizeSlot);
             const value::Value& dataVal = iter->getFieldByIndex(slots->collSlot);
-            if (!std::holds_alternative<int64_t>(sizeVal)) return false;
-            if (!std::holds_alternative<std::shared_ptr<value::NativeArray>>(dataVal))
+            if (!value::isInt(sizeVal)) return false;
+            if (!value::isNativeArray(dataVal))
                 return false;
-            auto arr = std::get<std::shared_ptr<value::NativeArray>>(dataVal);
+            auto arr = value::asNativeArray(dataVal);
             if (!arr) return false;
-            if (idx < 0 || idx >= std::get<int64_t>(sizeVal)) return false;
+            if (idx < 0 || idx >= value::asInt(sizeVal)) return false;
             if (static_cast<size_t>(idx) >= arr->size()) return false;
             *dest = arr->getUnchecked(static_cast<size_t>(idx));
             iter->setField(*slots->idxFieldName, static_cast<int64_t>(idx + 1));
@@ -218,15 +219,15 @@ namespace vm::jit
         {
             value::Value& receiver = ctx->callArgs[0];
 
-            if (std::holds_alternative<std::nullptr_t>(receiver) ||
-                std::holds_alternative<std::monostate>(receiver))
+            if (value::isNullType(receiver) ||
+                value::isVoid(receiver))
             {
                 throw errors::NullPointerException(
                     "Cannot get iterator from null collection");
             }
 
             // Array fast path: wrap in ArrayIteratorHelper directly.
-            if (std::holds_alternative<std::shared_ptr<value::NativeArray>>(receiver))
+            if (value::isNativeArray(receiver))
             {
                 *dest = buildArrayIteratorHelper(ctx->vm, receiver);
                 return;
@@ -256,8 +257,8 @@ namespace vm::jit
         {
             value::Value& receiver = ctx->callArgs[0];
 
-            if (std::holds_alternative<std::nullptr_t>(receiver) ||
-                std::holds_alternative<std::monostate>(receiver))
+            if (value::isNullType(receiver) ||
+                value::isVoid(receiver))
             {
                 throw errors::NullPointerException(
                     "Cannot call hasNext() on null iterator");
@@ -291,8 +292,8 @@ namespace vm::jit
         {
             value::Value& receiver = ctx->callArgs[0];
 
-            if (std::holds_alternative<std::nullptr_t>(receiver) ||
-                std::holds_alternative<std::monostate>(receiver))
+            if (value::isNullType(receiver) ||
+                value::isVoid(receiver))
             {
                 throw errors::NullPointerException(
                     "Cannot call next() on null iterator");
@@ -324,8 +325,8 @@ namespace vm::jit
         if (ctx->pendingException) return;
         value::Value& receiver = ctx->callArgs[0];
 
-        if (std::holds_alternative<std::nullptr_t>(receiver) ||
-            std::holds_alternative<std::monostate>(receiver))
+        if (value::isNullType(receiver) ||
+            value::isVoid(receiver))
         {
             return;  // null is fine - nothing to close
         }

@@ -7,6 +7,7 @@
 #include "../../value/NativeArray.hpp"
 #include "../../value/ValueObject.hpp"
 #include "../../value/StringPool.hpp"
+#include "../../value/ValueShim.hpp"
 #include <sstream>
 #include <string>
 
@@ -14,19 +15,19 @@ namespace vm::runtime
 {
     bool VirtualMachine::isTruthy(const value::Value& val) const
     {
-        if (std::holds_alternative<bool>(val))
+        if (value::isBool(val))
         {
-            return std::get<bool>(val);
+            return value::asBool(val);
         }
-        if (std::holds_alternative<int64_t>(val))
+        if (value::isInt(val))
         {
-            return std::get<int64_t>(val) != 0;
+            return value::asInt(val) != 0;
         }
-        if (std::holds_alternative<nullptr_t>(val))
+        if (value::isNullType(val))
         {
             return false;
         }
-        if (std::holds_alternative<std::monostate>(val))
+        if (value::isVoid(val))
         {
             return false;
         }
@@ -35,40 +36,40 @@ namespace vm::runtime
 
     std::string VirtualMachine::valueToString(const value::Value& val) const
     {
-        if (std::holds_alternative<int64_t>(val))
+        if (value::isInt(val))
         {
-            return std::to_string(std::get<int64_t>(val));
+            return std::to_string(value::asInt(val));
         }
-        if (std::holds_alternative<double>(val))
+        if (value::isFloat(val))
         {
             // Format float to match interpreter behavior (remove trailing zeros)
             std::ostringstream oss;
-            oss << std::get<double>(val);
+            oss << value::asFloat(val);
             return oss.str();
         }
-        if (std::holds_alternative<bool>(val))
+        if (value::isBool(val))
         {
-            return std::get<bool>(val) ? "true" : "false";
+            return value::asBool(val) ? "true" : "false";
         }
-        if (std::holds_alternative<std::string>(val))
+        if (value::isString(val))
         {
-            return std::get<std::string>(val);
+            return value::asString(val);
         }
-        if (std::holds_alternative<value::InternedString>(val))
+        if (value::isInternedString(val))
         {
-            return std::get<value::InternedString>(val).getString();
+            return value::asInternedString(val).getString();
         }
-        if (std::holds_alternative<std::monostate>(val))
+        if (value::isVoid(val))
         {
             return "void";  // monostate represents void/uninitialized - should not typically be printed
         }
-        if (std::holds_alternative<nullptr_t>(val))
+        if (value::isNullType(val))
         {
             return "null";
         }
-        if (std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val))
+        if (value::isObject(val))
         {
-            auto obj = std::get<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(val);
+            auto obj = value::asObject(val);
             if (obj)
             {
                 // First, try to call toString() if it exists (custom toString() takes priority)
@@ -126,9 +127,9 @@ namespace vm::runtime
             }
         }
         // Handle ValueObject (value types)
-        if (std::holds_alternative<std::shared_ptr<value::ValueObject>>(val))
+        if (value::isValueObject(val))
         {
-            auto obj = std::get<std::shared_ptr<value::ValueObject>>(val);
+            auto obj = value::asValueObject(val);
             if (obj)
             {
                 // For primitive wrapper value objects, extract "value" field
@@ -148,10 +149,10 @@ namespace vm::runtime
 
         // Debug output
         // Integer operations
-        if (std::holds_alternative<int64_t>(left) && std::holds_alternative<int64_t>(right))
+        if (value::isInt(left) && value::isInt(right))
         {
-            int64_t l = std::get<int64_t>(left);
-            int64_t r = std::get<int64_t>(right);
+            int64_t l = value::asInt(left);
+            int64_t r = value::asInt(right);
             switch (op)
             {
             case OpCode::ADD: return l + r;
@@ -168,15 +169,15 @@ namespace vm::runtime
         }
 
         // Float operations
-        if ((std::holds_alternative<double>(left) || std::holds_alternative<int64_t>(left)) &&
-            (std::holds_alternative<double>(right) || std::holds_alternative<int64_t>(right)))
+        if ((value::isFloat(left) || value::isInt(left)) &&
+            (value::isFloat(right) || value::isInt(right)))
         {
-            double l = std::holds_alternative<double>(left)
-                          ? std::get<double>(left)
-                          : static_cast<double>(std::get<int64_t>(left));
-            double r = std::holds_alternative<double>(right)
-                          ? std::get<double>(right)
-                          : static_cast<double>(std::get<int64_t>(right));
+            double l = value::isFloat(left)
+                          ? value::asFloat(left)
+                          : static_cast<double>(value::asInt(left));
+            double r = value::isFloat(right)
+                          ? value::asFloat(right)
+                          : static_cast<double>(value::asInt(right));
             switch (op)
             {
             case OpCode::ADD: return l + r;
@@ -191,11 +192,10 @@ namespace vm::runtime
 
         // String concatenation (includes objects, which should call toString())
         if (op == OpCode::ADD &&
-            (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right) ||
-                std::holds_alternative<value::InternedString>(left) || std::holds_alternative<
-                    value::InternedString>(right) ||
-                std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(left) ||
-                std::holds_alternative<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(right)))
+            (value::isString(left) || value::isString(right) ||
+                value::isInternedString(left) || value::isInternedString(right) ||
+                value::isObject(left) ||
+                value::isObject(right)))
         {
             // Convert both operands to string using valueToString
             // This will call toString() for objects via AST (cross-mode call)

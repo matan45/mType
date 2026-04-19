@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "HashCodeFunction.hpp"
 #include "../../../errors/ArgumentException.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
@@ -64,3 +66,5 @@ namespace environment::registry::builtin
         return "hashCode";
     }
 }
+
+#endif

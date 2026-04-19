@@ -76,6 +76,14 @@ namespace vm::runtime
 
     void VirtualMachine::setJitEnabled(bool enabled)
     {
+#ifdef MTYPE_TAGGED_VALUE
+        // MYT-126: JIT-emitted machine code bakes in the std::variant Value
+        // layout. Under the tagged-Value flag, force JIT off — the helpers
+        // still compile (via the shim) but never run.
+        (void)enabled;
+        jitEnabled = false;
+        return;
+#else
         jitEnabled = enabled;
         if (enabled && !jitProfiler)
         {
@@ -86,6 +94,7 @@ namespace vm::runtime
         }
         // JIT implies IC
         if (enabled) setICEnabled(true);
+#endif
     }
 
     void VirtualMachine::setICEnabled(bool enabled)

@@ -1,3 +1,5 @@
+// MYT-126: walled off under flag-on — variant accessors not migrated.
+#ifndef MTYPE_TAGGED_VALUE
 #include "NetNatives.hpp"
 
 #include "WinHttpClient.hpp"
@@ -500,3 +502,5 @@ namespace net
         return std::monostate{};
     }
 }
+
+#endif

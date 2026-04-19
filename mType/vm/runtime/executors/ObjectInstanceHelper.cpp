@@ -7,6 +7,7 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../gc/GC.hpp"
 #include <algorithm>
 #include  <iostream>
@@ -190,7 +191,7 @@ namespace vm::runtime
         for (const auto& classInHierarchy : hierarchy) {
             for (const auto& [fieldName, fieldDef] : classInHierarchy->getInstanceFields()) {
                 value::Value initialValue = fieldDef->getValue();
-                if (std::holds_alternative<std::monostate>(initialValue)) {
+                if (value::isVoid(initialValue)) {
                     switch (fieldDef->getType()) {
                         case value::ValueType::INT:
                             initialValue = static_cast<int64_t>(0);
@@ -610,7 +611,7 @@ namespace vm::runtime
         value::Value fieldValue = instance->getFieldValue(memberName);
 
         // Check if field exists
-        if (std::holds_alternative<std::monostate>(fieldValue)) {
+        if (value::isVoid(fieldValue)) {
             throw errors::RuntimeException("Field '" + memberName + "' not found in parent class");
         }
 
@@ -766,8 +767,8 @@ namespace vm::runtime
 
         // PHASE 2 OPTIMIZATION: Integer Caching
         // If creating Int object with single int argument in cacheable range, use cached instance
-        if (baseClassName == "Int" && argCount == 1 && std::holds_alternative<int64_t>(args[0])) {
-            int intValue = static_cast<int>(std::get<int64_t>(args[0]));
+        if (baseClassName == "Int" && argCount == 1 && value::isInt(args[0])) {
+            int intValue = static_cast<int>(value::asInt(args[0]));
 
             // Check if value is cacheable
             if (value::IntegerCache::isCacheable(intValue)) {
