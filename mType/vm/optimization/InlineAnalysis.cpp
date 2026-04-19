@@ -81,6 +81,16 @@ namespace vm::optimization
                         return InlineDecision::VALUE_OBJECT_WRITES_FIELDS;
                     break;
 
+                // MYT-185: STRING_BUILD has no JIT emitter. The emission loop
+                // in tryEmitInlinedMethodCall silently skips unknown opcodes
+                // (emitObjectOps's default case), leaving the compile-time
+                // stackDepth/slotTypes out of sync with runtime state. Any
+                // callee containing STRING_BUILD (e.g. `return a + ":" + b`
+                // where the compiler fuses concats into a single build) must
+                // bail to the generic slow path until a JIT handler lands.
+                case OpCode::STRING_BUILD:
+                    return InlineDecision::HAS_UNSUPPORTED_OPCODE;
+
                 default:
                     break;
             }

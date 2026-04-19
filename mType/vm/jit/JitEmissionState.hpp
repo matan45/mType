@@ -92,6 +92,15 @@ namespace vm::jit
         std::vector<InlineFrame> inlineStack;
         size_t inlineLocalsBase = 0;
 
+        // MYT-185/186/187: snapshot of the popped slotTypes top at every
+        // RETURN_VALUE emission, set BEFORE emitReturnValueOp calls popType,
+        // so inline onExit handlers can tell whether the return value lives
+        // in boxedBase (isBoxedSlotType true) or stackBase (INT/FLOAT/BOOL).
+        // The materialize helper boxes in one direction or mirrors in the
+        // other so the fast-path physical state matches the slow path's
+        // emitReturnValueCopyBoxed at endLabel.
+        SlotType lastReturnSlotType = SlotType::BOXED;
+
         static constexpr size_t MAX_OP_STACK = 64;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
 
@@ -152,6 +161,19 @@ namespace vm::jit
     // (or the final emitCleanup) runs.
     void emitInlineLocalDestroy(JitEmissionState& s, size_t localsBaseSlot,
                                 const bytecode::BytecodeProgram::FunctionMetadata& callee);
+
+    // MYT-185/186/187: at every inline fast-path RETURN_VALUE, converge the
+    // runtime physical state with the slow path's emitReturnValueCopyBoxed
+    // output so the join at endLabel is consistent regardless of which path
+    // executed. Dispatch by the snapshotted return SlotType:
+    //   - INT/BOOL/FLOAT: value is in stackBase (LOAD_LOCAL/PUSH_INT/ADD_INT
+    //     etc. in boxed-mode emission leave primitives raw in stackBase);
+    //     box into boxedBase so downstream boxed consumers get a valid Value.
+    //   - BOXED family: value is in boxedBase; mirror to stackBase via
+    //     jit_unbox_int (returns 0 for non-numeric variants — harmless, and
+    //     matches what the slow path writes for string/object returns).
+    void emitInlineReturnMaterialize(JitEmissionState& s, int receiverStackIdx,
+                                     SlotType returnSlotType);
 
     // MYT-165 Phase F-c inline-emission helpers for POLY guard chains.
     asmjit::x86::Gp emitExtractReceiverClassDef(JitEmissionState& s,

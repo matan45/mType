@@ -368,10 +368,21 @@ namespace vm::jit
 
         // onExit handler: when RETURN_VALUE fires in the callee, emitReturnValueOp
         // has already decremented s.stackDepth and popped the type. The boxed
-        // result sits at s.boxedBase[s.stackDepth * valueSize], which is
-        // exactly receiverStackIdx by construction — no copy needed. Just jump
-        // to the join label. RETURN (no value) writes monostate likewise.
-        ExitHandler onExit = [endLabel](JitEmissionState& es, size_t /*target*/) {
+        // result sits at s.boxedBase[receiverStackIdx], which matches the slow
+        // path's boxed write via emitReturnValueCopyBoxed.
+        //
+        // MYT-185/186/187: the slow path also mirrors the boxed value to
+        // s.stackBase via jit_unbox_int (see emitReturnValueCopyBoxed). The
+        // fast path must do the same so downstream boxed-mode consumers
+        // (ADD_INT, outer RETURN_VALUE, CONCAT_STRING, etc.) read consistent
+        // physical state at endLabel. Then release donated inline-local
+        // ownership and jump to the join label. This runs once per RETURN_VALUE
+        // emission; at runtime only one return path fires, preserving the
+        // destroy-once invariant.
+        ExitHandler onExit = [endLabel, receiverStackIdx, localsBaseSlot, callee]
+            (JitEmissionState& es, size_t /*target*/) {
+            emitInlineReturnMaterialize(es, receiverStackIdx, es.lastReturnSlotType);
+            emitInlineLocalDestroy(es, localsBaseSlot, *callee);
             es.cc.jmp(endLabel);
         };
 
@@ -423,15 +434,12 @@ namespace vm::jit
 
         if (s.compileFailed) return true;  // caller short-circuits; function aborts
 
-        // MYT-169 Fix B: release the donated shared_ptr ownership in each
-        // boxed inline-local slot before the fast path rejoins the caller.
-        // emitInlineLocalCopy aliased the receiver (and any boxed args) via
-        // raw memcpy + source-tag-reset; jit_value_destroy here runs the
-        // matching ~shared_ptr and resets the slot to monostate for the next
-        // iteration's memcpy.
-        emitInlineLocalDestroy(s, localsBaseSlot, *callee);
-
-        // Jump over the slow path to the join label.
+        // MYT-185/186/187: materialize + destroy are now emitted by onExit at
+        // every RETURN_VALUE in the callee body, not after the emission loop.
+        // Retain a trailing jmp(endLabel) as a fall-through terminator so any
+        // dead bytecode emitted after the final RETURN_VALUE can't leak control
+        // into the slow path's bound label below. At runtime this jmp is
+        // unreachable for well-formed callees.
         cc.jmp(endLabel);
 
         // --- Slow path: generic call when the shape guard misses ---
@@ -543,9 +551,10 @@ namespace vm::jit
         // Extract classDef once; reuse across all guard compares.
         Gp classDefReg = emitExtractReceiverClassDef(s, receiverStackIdx);
 
-        ExitHandler onExit = [endLabel](JitEmissionState& es, size_t /*target*/) {
-            es.cc.jmp(endLabel);
-        };
+        // MYT-185/186/187: onExit is constructed per-shape below so it captures
+        // each iteration's callee pointer (for emitInlineLocalDestroy) and the
+        // shared receiverStackIdx/localsBaseSlot/endLabel (by value). This
+        // matches the MONO path's handler shape.
 
         for (uint8_t i = 0; i < entryCount; ++i)
         {
@@ -588,6 +597,18 @@ namespace vm::jit
             s.stackDepth = receiverStackIdx;
             s.arrayInfoCache.clear();
 
+            // MYT-185/186/187: per-shape onExit. Captures this iteration's
+            // callee pointer so emitInlineLocalDestroy releases the correct
+            // parameter set, and mirrors the boxed return to stackBase so the
+            // shared endLabel join has consistent runtime state across all
+            // shapes and the slow path. See MONO path for the rationale.
+            ExitHandler onExit = [endLabel, receiverStackIdx, localsBaseSlot, callee]
+                (JitEmissionState& es, size_t /*target*/) {
+                emitInlineReturnMaterialize(es, receiverStackIdx, es.lastReturnSlotType);
+                emitInlineLocalDestroy(es, localsBaseSlot, *callee);
+                es.cc.jmp(endLabel);
+            };
+
             for (size_t ip = callee->startOffset;
                  ip < callee->startOffset + callee->instructionCount && !s.compileFailed;
                  ++ip)
@@ -620,10 +641,10 @@ namespace vm::jit
 
             if (s.compileFailed) return true;
 
-            // MYT-169 Fix B: release donated ownership for this shape's body
-            // before jumping to the shared join label (matches the MONO path).
-            emitInlineLocalDestroy(s, localsBaseSlot, *callee);
-
+            // MYT-185/186/187: destroy + jmp are now emitted by onExit per
+            // RETURN_VALUE (see MONO path for rationale). Retain a defensive
+            // trailing jmp to prevent dead-code fall-through into the next
+            // shape's guard or the slow path.
             cc.jmp(endLabel);
         }
 

@@ -430,7 +430,7 @@ namespace vm::jit
             // parameterTypes[0] is `this`'s class name for instance methods
             // — classified as BOXED by the default below. Subsequent entries
             // are user param types, where "int"/"float"/"bool" trigger the
-            // fast unbox/rebox path. Mirrors emitArgumentUnboxing in Core.
+            // primitive path. Mirrors emitArgumentUnboxing in Core.
             SlotType paramType = SlotType::INT;
             if (i < callee.parameterTypes.size())
             {
@@ -444,44 +444,144 @@ namespace vm::jit
                 paramType = SlotType::BOXED;
             }
 
-            Gp src = cc.new_gp64();
-            cc.lea(src, Mem(s.boxedBase,
-                            static_cast<int32_t>((receiverStackIdx + static_cast<int>(i)) * valueSize)));
+            // MYT-185/186/187: the caller's actual push slotType decides where
+            // the value physically lives. In boxed-mode emission:
+            //   - primitive (INT/FLOAT/BOOL) -> stackBase via emitLoadLocal's
+            //     unbox path (ControlFlow L49-72); boxedBase slot is stale.
+            //   - BOXED-family -> boxedBase via jit_value_copy.
+            // The callee's declared paramType MUST match the caller's push
+            // slotType (bytecode-compiler invariant), but the previous
+            // implementation raw-memcpy'd from boxedBase unconditionally,
+            // leaving primitive locals filled with stale boxedBase bytes ->
+            // LOAD_LOCAL in the callee read garbage via jit_unbox_int and
+            // consistently returned 0. Dispatch now: primitives box into the
+            // local slot from stackBase; BOXED values use the existing raw
+            // memcpy + tag-reset donation path.
+            const int srcSlot = receiverStackIdx + static_cast<int>(i);
+
             Gp dst = cc.new_gp64();
             cc.lea(dst, Mem(s.localsBase,
                             static_cast<int32_t>((localsBaseSlot + i) * s.localStride)));
 
-            // MYT-169 Fix B (boxed) + Fix C (primitive): unified raw byte copy.
-            // For ALL param types, memcpy the Value bytes from the caller's
-            // operand-stack slot into the callee's local slot. The bytecode
-            // compiler guarantees src already holds a Value of the declared
-            // parameter type (int64_t / double / bool / shared_ptr<...>), so
-            // the local ends up with a byte-identical Value — LOAD_LOCAL in
-            // the callee body reads it via jit_unbox_* (for primitives) or
-            // jit_value_copy (for boxed) exactly as before.
-            //
-            // For BOXED params (Fix B): also reset the source slot's variant
-            // tag to monostate so its destructor on subsequent overwrites is a
-            // no-op — we have donated ownership to the local slot. The local's
-            // matching ~shared_ptr runs at emitInlineLocalDestroy (end of the
-            // inline body). Saves the ~atomic refcount bump of jit_value_copy.
-            //
-            // For primitive params (Fix C): no tag reset / destroy needed —
-            // int64_t / double / bool Value alternatives have trivial dtors.
-            const auto& layout = getInlineShapeLayout();
-            Gp scratch = cc.new_gp64();
-            for (size_t k = 0; k < numQWords; ++k)
-            {
-                cc.mov(scratch, qword_ptr(src, static_cast<int32_t>(k * 8)));
-                cc.mov(qword_ptr(dst, static_cast<int32_t>(k * 8)), scratch);
-            }
             if (isBoxedSlotType(paramType))
             {
+                // BOXED param: raw memcpy from boxedBase (as before) + donate
+                // ownership by resetting source variant tag to monostate. The
+                // matching destroy runs at emitInlineLocalDestroy.
+                Gp src = cc.new_gp64();
+                cc.lea(src, Mem(s.boxedBase,
+                                static_cast<int32_t>(srcSlot * valueSize)));
+                const auto& layout = getInlineShapeLayout();
+                Gp scratch = cc.new_gp64();
+                for (size_t k = 0; k < numQWords; ++k)
+                {
+                    cc.mov(scratch, qword_ptr(src, static_cast<int32_t>(k * 8)));
+                    cc.mov(qword_ptr(dst, static_cast<int32_t>(k * 8)), scratch);
+                }
                 cc.mov(byte_ptr(src, static_cast<int32_t>(layout.variantTagOffset)),
                         static_cast<int32_t>(layout.monostateAltTag));
             }
+            else
+            {
+                // Primitive param: box the caller's stackBase raw primitive
+                // into the callee's local slot as a valid Value. LOAD_LOCAL
+                // in the callee body reads this via jit_unbox_* and gets the
+                // correct primitive. No destroy needed (trivial dtor).
+                // Also reset the stackBase source mirror to zero for hygiene
+                // is NOT required — stackBase slots are raw, not Values, and
+                // the caller's subsequent reuse of the slot overwrites.
+                if (paramType == SlotType::FLOAT)
+                {
+                    Vec srcVal = cc.new_xmm();
+                    cc.movsd(srcVal, Mem(s.stackBase, srcSlot * 8));
+                    InvokeNode* inv;
+                    cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_float),
+                              FuncSignature::build<void, value::Value*, double>());
+                    inv->set_arg(0, dst);
+                    inv->set_arg(1, srcVal);
+                }
+                else
+                {
+                    Gp srcVal = cc.new_gp64();
+                    cc.mov(srcVal, Mem(s.stackBase, srcSlot * 8));
+                    InvokeNode* inv;
+                    const uint64_t fn = (paramType == SlotType::BOOL)
+                        ? reinterpret_cast<uint64_t>(jit_box_bool)
+                        : reinterpret_cast<uint64_t>(jit_box_int);
+                    cc.invoke(Out(inv), fn,
+                              FuncSignature::build<void, value::Value*, int64_t>());
+                    inv->set_arg(0, dst);
+                    inv->set_arg(1, srcVal);
+                }
+            }
 
             s.localTypes[localsBaseSlot + i] = paramType;
+        }
+    }
+
+    // MYT-185/186/187: physical-state fix. The slow path's emitReturnValueCopyBoxed
+    // populates BOTH boxedBase[receiverStackIdx] (via jit_value_copy from
+    // ctx->returnValue) AND stackBase[receiverStackIdx] (via jit_unbox_int
+    // mirror), and pushes slotTypes BOXED. Compile-time state at endLabel
+    // therefore expects top = BOXED with both slots valid. The fast path's
+    // callee body in boxed-mode emission leaves the return value in exactly
+    // one of the two: INT/BOOL primitives live in stackBase (emitLoadLocal
+    // unboxes into stackBase; ADD_INT / arithmetic produce INT in stackBase);
+    // BOXED family values (GET_FIELD results, string concats, CALL_METHOD
+    // returns) live in boxedBase. This helper converges both slots so the
+    // endLabel join sees matching physical state regardless of which path
+    // ran.
+    void emitInlineReturnMaterialize(JitEmissionState& s, int receiverStackIdx,
+                                     SlotType returnSlotType)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        if (isBoxedSlotType(returnSlotType))
+        {
+            // Value in boxedBase; mirror to stackBase. jit_unbox_int returns
+            // 0 for non-numeric Value variants (harmless, matches slow path's
+            // behaviour for string/object returns).
+            Gp addr = cc.new_gp64();
+            cc.lea(addr, Mem(s.boxedBase,
+                             static_cast<int32_t>(receiverStackIdx * valueSize)));
+            InvokeNode* unbox;
+            cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                      FuncSignature::build<int64_t, const value::Value*>());
+            unbox->set_arg(0, addr);
+            Gp unboxed = cc.new_gp64();
+            unbox->set_ret(0, unboxed);
+            cc.mov(Mem(s.stackBase, receiverStackIdx * 8), unboxed);
+            return;
+        }
+
+        // Primitive: value in stackBase; box into boxedBase.
+        Gp destAddr = cc.new_gp64();
+        cc.lea(destAddr, Mem(s.boxedBase,
+                             static_cast<int32_t>(receiverStackIdx * valueSize)));
+
+        if (returnSlotType == SlotType::FLOAT)
+        {
+            Vec srcVal = cc.new_xmm();
+            cc.movsd(srcVal, Mem(s.stackBase, receiverStackIdx * 8));
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_float),
+                      FuncSignature::build<void, value::Value*, double>());
+            inv->set_arg(0, destAddr);
+            inv->set_arg(1, srcVal);
+        }
+        else
+        {
+            Gp srcVal = cc.new_gp64();
+            cc.mov(srcVal, Mem(s.stackBase, receiverStackIdx * 8));
+            InvokeNode* inv;
+            const uint64_t fn = (returnSlotType == SlotType::BOOL)
+                ? reinterpret_cast<uint64_t>(jit_box_bool)
+                : reinterpret_cast<uint64_t>(jit_box_int);
+            cc.invoke(Out(inv), fn,
+                      FuncSignature::build<void, value::Value*, int64_t>());
+            inv->set_arg(0, destAddr);
+            inv->set_arg(1, srcVal);
         }
     }
 
