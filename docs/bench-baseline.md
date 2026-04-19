@@ -668,3 +668,112 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 - `inline_branching.mt`: `acc=4000000000000`
 - `inline_polymorphic.mt`: `acc=2000049000000`
 - `inline_value_object_hot.mt`: `acc=14000000` *(new)*
+
+## 2026-04-18 — MYT-169 in-progress snapshot
+
+- Machine: dev machine (Windows 11 Home)
+- Commit:  `159fc356` (+ uncommitted MYT-169 Fix B work: `emitInlineLocalDestroy` in JitCompiler_EmitHelpers.cpp, ObjectInstance/ValueObject hooks)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1071.22 |    1072.95 |        20013 |       0 |
+| method_dispatch.mt            | 1312.73 |    1313.61 |        14039 |     506 |
+| object_alloc.mt               | 2162.86 |    2175.23 |        17509 | 2000000 |
+| string_ops.mt                 |  209.77 |     210.01 |        19014 |       0 |
+| recursive.mt                  | 1936.17 |    1938.65 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1493.26 |    1494.51 |        23014 |       0 |
+| short_circuit_chain.mt        |  410.95 |     411.70 |        24907 |       0 |
+| primitive_method_dispatch.mt  | 1122.65 |    1129.54 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   81.18 |      81.46 |        10909 |     500 |
+| array_multi_get.mt            | 1152.97 |    1160.17 |        50815 |     500 |
+| for_each_loop.mt              |  564.47 |     564.74 |        78650 |    6604 |
+| inline_monomorphic.mt         | 1660.94 |    1678.99 |        13013 |     501 |
+| inline_branching.mt           | 1746.70 |    1768.48 |        15013 |     501 |
+| inline_polymorphic.mt         | 1331.33 |    1340.41 |        14048 |     508 |
+| inline_value_object_hot.mt   | 1955.18 |    1955.58 |        12530 |     501 |
+
+### Notes
+
+- Run on current MYT-169 branch before Fix B is complete.
+- `for_each_loop.mt` and all library-using benchmarks complete cleanly — no crashes.
+- `inline_monomorphic.mt` still regresses vs. `method_dispatch.mt` baseline (1679 ms vs 1314 ms); MYT-169 Fix B is the in-progress lever to close this gap.
+- Investigation findings recorded on the MYT-169 Jira issue for the IC infrastructure gaps surfaced during diagnosis (mangled-name populate, cross-program dispatch in `tryDirectJitMethodDispatch`, `MethodInlineCache&` reference invalidation on rehash).
+
+## 2026-04-18 — MYT-181/182/183 + MYT-184 landed
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-181` (includes MYT-181 IC-populate fix, MYT-182 cross-program dispatch, MYT-183 rehash-invalidation fix, MYT-184 TDJM removal + /GS cookie corruption root-cause documented)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --jit-stats --benchmark` (jit=on, warmup=1, measured=3)
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1061.21 |    1065.24 |        20013 |       0 |
+| method_dispatch.mt            |  266.47 |     267.63 |        14039 |     506 |
+| object_alloc.mt               | 2098.98 |    2101.55 |        17509 | 2000000 |
+| string_ops.mt                 |  214.15 |     218.46 |        19014 |       0 |
+| recursive.mt                  | 1869.23 |    1870.64 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1482.96 |    1523.41 |        23014 |       0 |
+| short_circuit_chain.mt        |  411.79 |     448.60 |        24907 |       0 |
+| primitive_method_dispatch.mt  | 1127.49 |    1135.56 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   87.18 |      87.60 |        10909 |     500 |
+| array_multi_get.mt            | 1167.81 |    1203.21 |        50815 |     500 |
+| for_each_loop.mt              |  568.54 |     572.32 |        78650 |    6604 |
+| inline_monomorphic.mt         |  227.25 |     227.45 |        13013 |     501 |
+| inline_branching.mt           |  230.25 |     234.19 |        15013 |     501 |
+| inline_polymorphic.mt         |  267.57 |     268.07 |        14048 |     508 |
+| inline_value_object_hot.mt    | 1857.99 |    1859.31 |        12530 |     501 |
+
+### Notes
+
+- **MYT-169 AC met**: `inline_monomorphic.mt median (227.45 ms) ≤ method_dispatch.mt median (267.63 ms)`. ~40 ms headroom.
+- `for_each_loop.mt` now runs to completion — previously crashed inside JIT-compiled `ArrayList::add/T` invoked via `tryDirectJitMethodDispatch` with a `STATUS_STACK_BUFFER_OVERRUN` (0xC0000409, MSVC /GS cookie). MYT-184 deleted that dispatch path; method IC hits now route through `callMethodFromJitDirect`'s mini-interpret loop.
+- The 4–5× wins vs. the pre-MYT-181 snapshot on `method_dispatch.mt`, `inline_monomorphic.mt`, `inline_branching.mt`, `inline_polymorphic.mt` are driven by **MYT-181 unblocking IC populate**, which lets the F-a/F-c speculative inliner fire for the first time. TDJM removal itself is neutral — the workaround (and now the permanent fix) routes the same path.
+- `inline_value_object_hot.mt` barely moved (–5%) — confirms the ValueObject field-lookup overhead is the remaining MYT-169 residual, separate from method dispatch. Tracked for a follow-up (ValueObject field IC).
+- Per-benchmark output hashes unchanged vs. expected results above.
+
+## 2026-04-19 — MYT-185/186/187 landed (inliner correctness)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-181` (plus inliner-correctness patches for MYT-185/186/187)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Fixes in this snapshot
+
+- **MYT-186 / MYT-187**: `emitInlineLocalCopy` was raw-memcpy'ing primitive args from `boxedBase` unconditionally. In boxed-mode emission `emitLoadLocal` unboxes INT/FLOAT/BOOL into `stackBase`, leaving `boxedBase` with stale receiver bytes — so callee `LOAD_LOCAL x` via `jit_unbox_int` read garbage (consistently 0). Dispatcher now boxes primitive stackBase values into the callee local via `jit_box_int/bool/float`; BOXED params retain the donation memcpy + tag-reset path. Plus an `emitInlineReturnMaterialize` helper invoked from the inline `onExit` handler that converges fast-path runtime state with the slow path's `emitReturnValueCopyBoxed` (box stackBase→boxedBase for primitive returns; mirror boxedBase→stackBase for BOXED returns). `s.lastReturnSlotType` snapshotted in `emitReturnValueOp` before `popType` so the handler can choose direction.
+- **MYT-185**: JIT has no `STRING_BUILD` handler; the emission loop's default fallthrough silently no-op'd it, corrupting compile-time `stackDepth` and making subsequent RETURN_VALUE land on a stale slot. `InlineAnalysis::scanCalleeOpcodes` now returns `HAS_UNSUPPORTED_OPCODE` on `STRING_BUILD`, sending the callsite to the generic slow path where the interpreter handles STRING_BUILD correctly.
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1082.20 |    1083.03 |        20013 |       0 |
+| method_dispatch.mt            |  270.24 |     270.95 |        14039 |     506 |
+| object_alloc.mt               | 2174.65 |    2179.62 |        17509 | 2000000 |
+| string_ops.mt                 |  209.53 |     209.58 |        19014 |       0 |
+| recursive.mt                  | 1887.52 |    1888.30 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1475.70 |    1479.46 |        23014 |       0 |
+| short_circuit_chain.mt        |  405.46 |     406.39 |        24907 |       0 |
+| primitive_method_dispatch.mt  | 1082.95 |    1087.65 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   80.97 |      82.03 |        10909 |     500 |
+| array_multi_get.mt            | 1125.92 |    1129.20 |        50815 |     500 |
+| for_each_loop.mt              |  566.65 |     566.79 |        78650 |    6604 |
+| inline_monomorphic.mt         |  225.82 |     233.54 |        13013 |     501 |
+| inline_branching.mt           |  233.20 |     234.60 |        15013 |     501 |
+| inline_polymorphic.mt         |  268.76 |     269.94 |        14048 |     508 |
+| inline_value_object_hot.mt    | 1878.39 |    1880.89 |        12530 |     501 |
+
+### Notes
+
+- **MYT-169 AC holds**: `inline_monomorphic.mt median (233.54 ms) ≤ method_dispatch.mt median (270.95 ms)` — ~37 ms headroom, in-line with the 2026-04-18 snapshot (~40 ms).
+- **Correctness**: The 2026-04-18 inliner numbers were fast-but-wrong — `STRING_BUILD`-containing callees produced truncated strings (MYT-185), primitive-arg callees received garbage locals (MYT-186), and mono→poly transitions threw `MT-E5005` (MYT-187). This snapshot is the first with both the perf AC met **and** all three correctness tests passing.
+- **Run-to-run variance**: All deltas vs. the 2026-04-18 snapshot are within ±5%; no regression attributable to the new materialize / box dispatch. The onExit path adds one `jit_unbox_int` invoke (or one `jit_box_*`) per inlined RETURN_VALUE emission — negligible at the hot-loop scale since each inline body typically has one return.
+- **STRING_BUILD fallback cost**: Inliner bailout via `HAS_UNSUPPORTED_OPCODE` routes STRING_BUILD-containing callees (e.g. `Container::describe`) to the generic slow path. Not visible in this benchmark set — no bench currently exercises a hot STRING_BUILD site. Filed as a perf follow-up to implement a JIT handler (ticket TBD).
+- **Per-benchmark output hashes**: verified against `--no-jit` on the three inlining integration tests (`inline_arithmetic.mt` → `500500`, `inline_mono_to_poly.mt` → `33050`, `valueClassJitFieldAccess.mt` → `container: box:rgb(10,20,30)`).

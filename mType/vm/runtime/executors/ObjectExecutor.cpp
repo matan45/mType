@@ -16,6 +16,8 @@
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/IntegerCache.hpp"
 #include "../utils/BoxingUtils.hpp"
+#include "../utils/MethodResolver.hpp"
+#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include <algorithm>
 
 using vm::runtime::utils::autoBoxPrimitive;
@@ -511,19 +513,8 @@ namespace vm::runtime
 
         // Extract simple method name from mangled name
         // methodName may be: "Calculator::add/int,int" or just "add"
-        std::string simpleMethodName = methodName;
-
-        // Remove class prefix if present
-        size_t colonPos = methodName.find("::");
-        if (colonPos != std::string::npos) {
-            simpleMethodName = methodName.substr(colonPos + 2);
-        }
-
-        // Remove signature suffix if present
-        size_t slashPos = simpleMethodName.find('/');
-        if (slashPos != std::string::npos) {
-            simpleMethodName = simpleMethodName.substr(0, slashPos);
-        }
+        std::string simpleMethodName =
+            runtimeTypes::klass::SignatureUtils::extractSimpleName(methodName);
 
         // FIXED: If methodName already contains a signature (indicated by '/'),
         // use it directly instead of looking up by count only!
@@ -577,57 +568,12 @@ namespace vm::runtime
             }
         }
 
-        auto funcMetadata = context.program->getFunction(qualifiedName);
-        // Initialize from current call frame's program index (not hardcoded 0)
-        // so that if we're already executing in a library, the index is correct
-        size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
-        const bytecode::BytecodeProgram* targetProgram = context.program;
-
-        // Fallback: generic type erasure may produce a mangled name like
-        // "String::equals/object" when the compiled function is "String::equals/String".
-        // Search by class::method prefix to find the correct overload.
-        if (!funcMetadata)
-        {
-            std::string prefix = definingClassName + "::" + simpleMethodName;
-            for (const auto& [fname, fmeta] : context.program->getFunctions())
-            {
-                if (fname.rfind(prefix, 0) == 0 &&
-                    (fname.size() == prefix.size() || fname[prefix.size()] == '/'))
-                {
-                    funcMetadata = &fmeta;
-                    qualifiedName = fname;
-                    break;
-                }
-            }
-        }
-
-        // If not found in current program, search loaded library programs
-        if (!funcMetadata && context.loadedPrograms) {
-            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
-                auto libFunc = (*context.loadedPrograms)[i]->getFunction(qualifiedName);
-                if (libFunc) {
-                    funcMetadata = libFunc;
-                    targetProgramIndex = i;
-                    targetProgram = (*context.loadedPrograms)[i];
-                    break;
-                }
-                // Also try prefix-based fallback in each library program
-                if (!funcMetadata) {
-                    std::string prefix = definingClassName + "::" + simpleMethodName;
-                    for (const auto& [fname, fmeta] : (*context.loadedPrograms)[i]->getFunctions()) {
-                        if (fname.rfind(prefix, 0) == 0 &&
-                            (fname.size() == prefix.size() || fname[prefix.size()] == '/')) {
-                            funcMetadata = &fmeta;
-                            qualifiedName = fname;
-                            targetProgramIndex = i;
-                            targetProgram = (*context.loadedPrograms)[i];
-                            break;
-                        }
-                    }
-                }
-                if (funcMetadata) break;
-            }
-        }
+        auto resolution = utils::MethodResolver::resolve(
+            qualifiedName, definingClassName, simpleMethodName, context);
+        auto funcMetadata = resolution.funcMetadata;
+        size_t targetProgramIndex = resolution.programIndex;
+        const bytecode::BytecodeProgram* targetProgram = resolution.program;
+        qualifiedName = resolution.qualifiedName;
 
         if (!funcMetadata && (simpleMethodName == "toString" || simpleMethodName == "equals" ||
                               simpleMethodName == "hashCode" || simpleMethodName == "getClass")) {

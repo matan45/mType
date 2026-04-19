@@ -113,5 +113,11 @@ namespace runtimeTypes::klass
         void setGenericTypeBinding(const std::string& parameter, const std::string& concreteType);
         std::string resolveGenericType(const std::string& typeName) const;
         const std::unordered_map<std::string, std::string>& getGenericTypeBindings() const;
+
+        // MYT-169: byte offset of the classDefinition shared_ptr from the start
+        // of an ObjectInstance, consumed by JIT shape-guard emission to bypass
+        // the jit_extract_classdef helper call. Defined out-of-line in the .cpp
+        // where offsetof on this non-standard-layout type is guarded.
+        static size_t classDefinitionMemberOffset() noexcept;
     };
 }

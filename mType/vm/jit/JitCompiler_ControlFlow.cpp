@@ -244,6 +244,10 @@ namespace vm::jit
     {
         if (onExit)
         {
+            // MYT-185/186/187: snapshot the popped slot type so inline onExit
+            // handlers can choose the correct box/unbox direction when
+            // materializing the return value at endLabel.
+            s.lastReturnSlotType = topType(s);
             s.stackDepth--;
             popType(s);
             onExit(s, 0);

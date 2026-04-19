@@ -45,7 +45,12 @@ namespace vm::optimization
         VALUE_OBJECT_RECEIVER,       // MYT-167 (F-e): legacy — no longer emitted; kept for log stability
         VALUE_OBJECT_WRITES_FIELDS,  // MYT-167 (F-e): ValueObject receiver + write-containing callee
         CALLEE_NATIVE,
-        CALLEE_NOT_FOUND
+        CALLEE_NOT_FOUND,
+        // MYT-185: emitted for callee bodies containing opcodes the JIT
+        // inliner's codegen loop does not handle (e.g. STRING_BUILD). The
+        // slow-path generic dispatch honours these opcodes via the interpreter
+        // bailout, so rejecting inlining is safe and correct.
+        HAS_UNSUPPORTED_OPCODE
     };
 
     // Size gate — callee bytecode instruction count. Chosen small so the

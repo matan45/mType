@@ -2,13 +2,73 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
 #include "../bytecode/OpCode.hpp"
+#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ValueObject.hpp"
 #include <asmjit/x86.h>
+#include <cassert>
+#include <cstdint>
+#include <memory>
 
 namespace vm::jit
 {
     using namespace asmjit;
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
+
+    namespace {
+        // MYT-169: layout constants consumed by the inlined shape-guard emitter.
+        // Computed once at first use; cached in a function-local static.
+        struct InlineShapeLayout
+        {
+            size_t variantTagOffset;        // byte offset of discriminant in value::Value
+            size_t objInstClassDefOffset;   // ObjectInstance → classDefinition shared_ptr
+            size_t valueObjClassDefOffset;  // ValueObject    → classDefinition shared_ptr
+            uint8_t objInstAltTag;          // discriminant byte value for shared_ptr<ObjectInstance>
+            uint8_t valueObjAltTag;         // discriminant byte value for shared_ptr<ValueObject>
+            uint8_t monostateAltTag;        // discriminant byte value for std::monostate (trivial dtor)
+        };
+
+        const InlineShapeLayout& getInlineShapeLayout()
+        {
+            static const InlineShapeLayout layout = []() {
+                // Probe the std::variant discriminant byte position: construct two
+                // Values with known adjacent alternative indices (int64_t → 0,
+                // double → 1) and find the byte that flips 0 → 1. MSVC stores a
+                // single-byte _Which at the tail of the variant storage.
+                value::Value v0{int64_t{0}};
+                value::Value v1{double{0.0}};
+                const uint8_t* b0 = reinterpret_cast<const uint8_t*>(&v0);
+                const uint8_t* b1 = reinterpret_cast<const uint8_t*>(&v1);
+                size_t tagOffset = sizeof(value::Value) - 1;
+                for (size_t i = sizeof(value::Value); i-- > 0;)
+                {
+                    if (b0[i] == 0 && b1[i] == 1) { tagOffset = i; break; }
+                }
+
+                // Probe alt tags for the receiver-bearing alternatives and for
+                // std::monostate (used by MYT-169 Fix B as a no-op-destructor tag
+                // when donating receiver ownership from operand stack to local).
+                value::Value vObj{std::shared_ptr<runtimeTypes::klass::ObjectInstance>{}};
+                value::Value vVal{std::shared_ptr<value::ValueObject>{}};
+                value::Value vMono{std::monostate{}};
+
+                InlineShapeLayout l;
+                l.variantTagOffset       = tagOffset;
+                l.objInstAltTag          = reinterpret_cast<const uint8_t*>(&vObj)[tagOffset];
+                l.valueObjAltTag         = reinterpret_cast<const uint8_t*>(&vVal)[tagOffset];
+                l.monostateAltTag        = reinterpret_cast<const uint8_t*>(&vMono)[tagOffset];
+                l.objInstClassDefOffset  = runtimeTypes::klass::ObjectInstance::classDefinitionMemberOffset();
+                l.valueObjClassDefOffset = value::ValueObject::classDefinitionMemberOffset();
+
+                // Sanity: alt tags must match the variant alternative order in
+                // ValueType.hpp (ObjectInstance at index 6, ValueObject at 7,
+                // monostate at 5).
+                assert(l.objInstAltTag == 6 && l.valueObjAltTag == 7 && l.monostateAltTag == 5);
+                return l;
+            }();
+            return layout;
+        }
+    }
 
     void emitValueDestroy(JitEmissionState& s, int slotOffset)
     {
@@ -217,29 +277,76 @@ namespace vm::jit
         initBoxed->set_arg(1, bsCount);
     }
 
-    // MYT-163 (Phase F-a) inline-emission helpers.
+    // MYT-163 Phase F-a inline-emission helpers.
     //
-    // Call contract for emitInlineShapeGuard:
-    //   Receiver sits at `receiverStackIdx` in the boxed operand stack (caller's
-    //   stackDepth - argCount - 1 at the pre-call site). We call
-    //   jit_extract_classdef (returns nullptr for non-ObjectInstance receivers,
-    //   so a type-changed receiver naturally mismatches). Compare against the
-    //   baked ClassDefinition pointer; jne slowLabel.
+    // MYT-169 (Phase F-a follow-up): emit the receiver ClassDef* extract
+    // inline. Replaces the jit_extract_classdef helper call in both MONO
+    // (emitInlineShapeGuard) and POLY (emitExtractReceiverClassDef) paths,
+    // saving ~30 cyc/call on the hot inline-method path.
+    //
+    // Emitted sequence:
+    //   tag := (byte)[receiverAddr + variantTagOffset]
+    //   if (tag == valueObjAltTag) goto lblValueObj
+    //   if (tag != objInstAltTag)  goto slowLabel
+    //   rawPtr := [receiverAddr + 0]                        ; shared_ptr._Ptr
+    //   if (rawPtr == 0) goto slowLabel
+    //   classDef := [rawPtr + objInstClassDefOffset + 0]    ; ClassDef* via shared_ptr._Ptr
+    //   goto lblMerge
+    // lblValueObj:
+    //   rawPtr := [receiverAddr + 0]
+    //   if (rawPtr == 0) goto slowLabel
+    //   classDef := [rawPtr + valueObjClassDefOffset + 0]
+    // lblMerge:
+    static Gp emitInlineExtractClassDef(JitEmissionState& s, int receiverStackIdx,
+                                        asmjit::Label slowLabel)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        const auto& layout = getInlineShapeLayout();
+
+        Gp receiverAddr = cc.new_gp64();
+        cc.lea(receiverAddr, Mem(s.boxedBase,
+                                  static_cast<int32_t>(receiverStackIdx * valueSize)));
+
+        Gp tag = cc.new_gp32();
+        cc.movzx(tag, byte_ptr(receiverAddr,
+                                static_cast<int32_t>(layout.variantTagOffset)));
+
+        Label lblValueObj = cc.new_label();
+        Label lblMerge    = cc.new_label();
+
+        // Dispatch by receiver kind; ObjectInstance is the hot fall-through.
+        cc.cmp(tag, static_cast<int32_t>(layout.valueObjAltTag));
+        cc.je(lblValueObj);
+        cc.cmp(tag, static_cast<int32_t>(layout.objInstAltTag));
+        cc.jne(slowLabel);
+
+        Gp rawPtr   = cc.new_gp64();
+        Gp classDef = cc.new_gp64();
+
+        cc.mov(rawPtr, qword_ptr(receiverAddr, 0));
+        cc.test(rawPtr, rawPtr);
+        cc.jz(slowLabel);
+        cc.mov(classDef, qword_ptr(rawPtr,
+                                    static_cast<int32_t>(layout.objInstClassDefOffset)));
+        cc.jmp(lblMerge);
+
+        cc.bind(lblValueObj);
+        cc.mov(rawPtr, qword_ptr(receiverAddr, 0));
+        cc.test(rawPtr, rawPtr);
+        cc.jz(slowLabel);
+        cc.mov(classDef, qword_ptr(rawPtr,
+                                    static_cast<int32_t>(layout.valueObjClassDefOffset)));
+
+        cc.bind(lblMerge);
+        return classDef;
+    }
+
     void emitInlineShapeGuard(JitEmissionState& s, int receiverStackIdx,
                               const void* expectedShape, asmjit::Label slowLabel)
     {
         auto& cc = s.cc;
-        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-
-        Gp receiverAddr = cc.new_gp64();
-        cc.lea(receiverAddr, Mem(s.boxedBase, static_cast<int32_t>(receiverStackIdx * valueSize)));
-
-        Gp actualShape = cc.new_gp64();
-        InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_extract_classdef),
-                  FuncSignature::build<const void*, const value::Value*>());
-        inv->set_arg(0, receiverAddr);
-        inv->set_ret(0, actualShape);
+        Gp actualShape = emitInlineExtractClassDef(s, receiverStackIdx, slowLabel);
 
         Gp expectedReg = cc.new_gp64();
         cc.mov(expectedReg, reinterpret_cast<uint64_t>(expectedShape));
@@ -250,23 +357,24 @@ namespace vm::jit
     // MYT-165 (Phase F-c): extract the receiver's ClassDefinition pointer once
     // and return it in a reusable Gp register. The POLY emitter calls this
     // before the guard chain so the N shape-compares all share a single
-    // jit_extract_classdef invocation instead of N.
+    // extract instead of N. MYT-169: inlined extract, no helper call.
+    //
+    // Old helper returned nullptr on non-ObjectInstance / non-ValueObject
+    // receivers and the subsequent cmp mismatched; we preserve that contract
+    // here by steering the variant/null failure paths to a local "set classDef
+    // to 0" block so the POLY guard chain's N immediate-compares still
+    // mismatch naturally and fall through to its slowLabel.
     Gp emitExtractReceiverClassDef(JitEmissionState& s, int receiverStackIdx)
     {
         auto& cc = s.cc;
-        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-
-        Gp receiverAddr = cc.new_gp64();
-        cc.lea(receiverAddr, Mem(s.boxedBase,
-                                  static_cast<int32_t>(receiverStackIdx * valueSize)));
-
-        Gp actualShape = cc.new_gp64();
-        InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_extract_classdef),
-                  FuncSignature::build<const void*, const value::Value*>());
-        inv->set_arg(0, receiverAddr);
-        inv->set_ret(0, actualShape);
-        return actualShape;
+        Label lblBad  = cc.new_label();
+        Label lblDone = cc.new_label();
+        Gp classDef = emitInlineExtractClassDef(s, receiverStackIdx, lblBad);
+        cc.jmp(lblDone);
+        cc.bind(lblBad);
+        cc.xor_(classDef, classDef);  // classDef := 0 → all compares mismatch
+        cc.bind(lblDone);
+        return classDef;
     }
 
     // MYT-165 (Phase F-c): emit a single cmp/jne against the pre-extracted
@@ -286,12 +394,14 @@ namespace vm::jit
     }
 
     // Copy receiver + args from the caller's boxed operand stack into the
-    // inlined callee's local window, matching the emitArgumentUnboxing
-    // convention used by top-level JIT compilation. Primitive params
-    // (int/float/bool) are unbox/rebox'd so the callee's LOAD_LOCAL reads
-    // them via jit_unbox_* + raw arithmetic (~30 cycles) instead of
-    // jit_value_copy (~80 cycles). For non-primitive params (receiver `this`,
-    // objects, arrays, strings) a full jit_value_copy preserves the Value.
+    // inlined callee's local window. MYT-169 (Fixes B + C) replaces the
+    // previous per-type unbox/rebox helper-call chain with a unified raw
+    // byte-level memcpy of the Value struct. For BOXED params the source
+    // slot's variant tag is reset to monostate so ownership donation doesn't
+    // cost a refcount bump; a matching destroy at the inline body's exit
+    // (emitInlineLocalDestroy) releases the donated ownership. Primitive
+    // params (int/float/bool) skip the tag reset since their Value
+    // alternatives have trivial destructors.
     //
     // Records the resulting slot type into s.localTypes so subsequent
     // LOAD_LOCAL emits take the correct path.
@@ -310,6 +420,9 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        static_assert(valueSize % 8 == 0,
+                      "Fix B raw-memcpy assumes sizeof(Value) is 8-byte aligned");
+        constexpr size_t numQWords = valueSize / 8;
 
         const size_t total = callee.parameterCount;  // includes implicit `this`
         for (size_t i = 0; i < total; ++i)
@@ -317,7 +430,7 @@ namespace vm::jit
             // parameterTypes[0] is `this`'s class name for instance methods
             // — classified as BOXED by the default below. Subsequent entries
             // are user param types, where "int"/"float"/"bool" trigger the
-            // fast unbox/rebox path. Mirrors emitArgumentUnboxing in Core.
+            // primitive path. Mirrors emitArgumentUnboxing in Core.
             SlotType paramType = SlotType::INT;
             if (i < callee.parameterTypes.size())
             {
@@ -331,59 +444,182 @@ namespace vm::jit
                 paramType = SlotType::BOXED;
             }
 
-            Gp src = cc.new_gp64();
-            cc.lea(src, Mem(s.boxedBase,
-                            static_cast<int32_t>((receiverStackIdx + static_cast<int>(i)) * valueSize)));
+            // MYT-185/186/187: the caller's actual push slotType decides where
+            // the value physically lives. In boxed-mode emission:
+            //   - primitive (INT/FLOAT/BOOL) -> stackBase via emitLoadLocal's
+            //     unbox path (ControlFlow L49-72); boxedBase slot is stale.
+            //   - BOXED-family -> boxedBase via jit_value_copy.
+            // The callee's declared paramType MUST match the caller's push
+            // slotType (bytecode-compiler invariant), but the previous
+            // implementation raw-memcpy'd from boxedBase unconditionally,
+            // leaving primitive locals filled with stale boxedBase bytes ->
+            // LOAD_LOCAL in the callee read garbage via jit_unbox_int and
+            // consistently returned 0. Dispatch now: primitives box into the
+            // local slot from stackBase; BOXED values use the existing raw
+            // memcpy + tag-reset donation path.
+            const int srcSlot = receiverStackIdx + static_cast<int>(i);
+
             Gp dst = cc.new_gp64();
             cc.lea(dst, Mem(s.localsBase,
                             static_cast<int32_t>((localsBaseSlot + i) * s.localStride)));
 
             if (isBoxedSlotType(paramType))
             {
-                InvokeNode* inv;
-                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
-                          FuncSignature::build<void, value::Value*, const value::Value*>());
-                inv->set_arg(0, dst);
-                inv->set_arg(1, src);
-            }
-            else if (paramType == SlotType::FLOAT)
-            {
-                // unbox float from Value, then re-box into the local Value slot.
-                // The local slot is still Value-sized (boxed mode); the value's
-                // variant tag indicates FLOAT and LOAD_LOCAL will use jit_unbox_float.
-                InvokeNode* ub;
-                cc.invoke(Out(ub), reinterpret_cast<uint64_t>(jit_unbox_float),
-                          FuncSignature::build<double, const value::Value*>());
-                ub->set_arg(0, src);
-                Vec val = cc.new_xmm();
-                ub->set_ret(0, val);
-                InvokeNode* bx;
-                cc.invoke(Out(bx), reinterpret_cast<uint64_t>(jit_box_float),
-                          FuncSignature::build<void, value::Value*, double>());
-                bx->set_arg(0, dst);
-                bx->set_arg(1, val);
+                // BOXED param: raw memcpy from boxedBase (as before) + donate
+                // ownership by resetting source variant tag to monostate. The
+                // matching destroy runs at emitInlineLocalDestroy.
+                Gp src = cc.new_gp64();
+                cc.lea(src, Mem(s.boxedBase,
+                                static_cast<int32_t>(srcSlot * valueSize)));
+                const auto& layout = getInlineShapeLayout();
+                Gp scratch = cc.new_gp64();
+                for (size_t k = 0; k < numQWords; ++k)
+                {
+                    cc.mov(scratch, qword_ptr(src, static_cast<int32_t>(k * 8)));
+                    cc.mov(qword_ptr(dst, static_cast<int32_t>(k * 8)), scratch);
+                }
+                cc.mov(byte_ptr(src, static_cast<int32_t>(layout.variantTagOffset)),
+                        static_cast<int32_t>(layout.monostateAltTag));
             }
             else
             {
-                // INT or BOOL: unbox via jit_unbox_int (also works for bool,
-                // which stores a 0/1 int), then re-box with the correct helper.
-                InvokeNode* ub;
-                cc.invoke(Out(ub), reinterpret_cast<uint64_t>(jit_unbox_int),
-                          FuncSignature::build<int64_t, const value::Value*>());
-                ub->set_arg(0, src);
-                Gp val = cc.new_gp64();
-                ub->set_ret(0, val);
-                uint64_t boxFn = (paramType == SlotType::BOOL)
-                    ? reinterpret_cast<uint64_t>(jit_box_bool)
-                    : reinterpret_cast<uint64_t>(jit_box_int);
-                InvokeNode* bx;
-                cc.invoke(Out(bx), boxFn,
-                          FuncSignature::build<void, value::Value*, int64_t>());
-                bx->set_arg(0, dst);
-                bx->set_arg(1, val);
+                // Primitive param: box the caller's stackBase raw primitive
+                // into the callee's local slot as a valid Value. LOAD_LOCAL
+                // in the callee body reads this via jit_unbox_* and gets the
+                // correct primitive. No destroy needed (trivial dtor).
+                // Also reset the stackBase source mirror to zero for hygiene
+                // is NOT required — stackBase slots are raw, not Values, and
+                // the caller's subsequent reuse of the slot overwrites.
+                if (paramType == SlotType::FLOAT)
+                {
+                    Vec srcVal = cc.new_xmm();
+                    cc.movsd(srcVal, Mem(s.stackBase, srcSlot * 8));
+                    InvokeNode* inv;
+                    cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_float),
+                              FuncSignature::build<void, value::Value*, double>());
+                    inv->set_arg(0, dst);
+                    inv->set_arg(1, srcVal);
+                }
+                else
+                {
+                    Gp srcVal = cc.new_gp64();
+                    cc.mov(srcVal, Mem(s.stackBase, srcSlot * 8));
+                    InvokeNode* inv;
+                    const uint64_t fn = (paramType == SlotType::BOOL)
+                        ? reinterpret_cast<uint64_t>(jit_box_bool)
+                        : reinterpret_cast<uint64_t>(jit_box_int);
+                    cc.invoke(Out(inv), fn,
+                              FuncSignature::build<void, value::Value*, int64_t>());
+                    inv->set_arg(0, dst);
+                    inv->set_arg(1, srcVal);
+                }
             }
 
             s.localTypes[localsBaseSlot + i] = paramType;
+        }
+    }
+
+    // MYT-185/186/187: physical-state fix. The slow path's emitReturnValueCopyBoxed
+    // populates BOTH boxedBase[receiverStackIdx] (via jit_value_copy from
+    // ctx->returnValue) AND stackBase[receiverStackIdx] (via jit_unbox_int
+    // mirror), and pushes slotTypes BOXED. Compile-time state at endLabel
+    // therefore expects top = BOXED with both slots valid. The fast path's
+    // callee body in boxed-mode emission leaves the return value in exactly
+    // one of the two: INT/BOOL primitives live in stackBase (emitLoadLocal
+    // unboxes into stackBase; ADD_INT / arithmetic produce INT in stackBase);
+    // BOXED family values (GET_FIELD results, string concats, CALL_METHOD
+    // returns) live in boxedBase. This helper converges both slots so the
+    // endLabel join sees matching physical state regardless of which path
+    // ran.
+    void emitInlineReturnMaterialize(JitEmissionState& s, int receiverStackIdx,
+                                     SlotType returnSlotType)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        if (isBoxedSlotType(returnSlotType))
+        {
+            // Value in boxedBase; mirror to stackBase. jit_unbox_int returns
+            // 0 for non-numeric Value variants (harmless, matches slow path's
+            // behaviour for string/object returns).
+            Gp addr = cc.new_gp64();
+            cc.lea(addr, Mem(s.boxedBase,
+                             static_cast<int32_t>(receiverStackIdx * valueSize)));
+            InvokeNode* unbox;
+            cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                      FuncSignature::build<int64_t, const value::Value*>());
+            unbox->set_arg(0, addr);
+            Gp unboxed = cc.new_gp64();
+            unbox->set_ret(0, unboxed);
+            cc.mov(Mem(s.stackBase, receiverStackIdx * 8), unboxed);
+            return;
+        }
+
+        // Primitive: value in stackBase; box into boxedBase.
+        Gp destAddr = cc.new_gp64();
+        cc.lea(destAddr, Mem(s.boxedBase,
+                             static_cast<int32_t>(receiverStackIdx * valueSize)));
+
+        if (returnSlotType == SlotType::FLOAT)
+        {
+            Vec srcVal = cc.new_xmm();
+            cc.movsd(srcVal, Mem(s.stackBase, receiverStackIdx * 8));
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_float),
+                      FuncSignature::build<void, value::Value*, double>());
+            inv->set_arg(0, destAddr);
+            inv->set_arg(1, srcVal);
+        }
+        else
+        {
+            Gp srcVal = cc.new_gp64();
+            cc.mov(srcVal, Mem(s.stackBase, receiverStackIdx * 8));
+            InvokeNode* inv;
+            const uint64_t fn = (returnSlotType == SlotType::BOOL)
+                ? reinterpret_cast<uint64_t>(jit_box_bool)
+                : reinterpret_cast<uint64_t>(jit_box_int);
+            cc.invoke(Out(inv), fn,
+                      FuncSignature::build<void, value::Value*, int64_t>());
+            inv->set_arg(0, destAddr);
+            inv->set_arg(1, srcVal);
+        }
+    }
+
+    // MYT-169 Fix B: release the donated shared_ptr ownership that
+    // emitInlineLocalCopy's raw memcpy left aliased in each boxed inline-local
+    // slot. Primitive params (INT/FLOAT/BOOL) have trivial Value destructors
+    // and are skipped. jit_value_destroy leaves the slot as monostate so the
+    // next inline-call iteration's memcpy overwrites safely, and the final
+    // emitCleanup at function exit sees a monostate (no-op ~Value).
+    void emitInlineLocalDestroy(JitEmissionState& s, size_t localsBaseSlot,
+                                const bytecode::BytecodeProgram::FunctionMetadata& callee)
+    {
+        auto& cc = s.cc;
+        const size_t total = callee.parameterCount;
+        for (size_t i = 0; i < total; ++i)
+        {
+            SlotType paramType = SlotType::INT;
+            if (i < callee.parameterTypes.size())
+            {
+                const std::string& t = callee.parameterTypes[i];
+                if      (t == "float") paramType = SlotType::FLOAT;
+                else if (t == "bool")  paramType = SlotType::BOOL;
+                else if (t != "int")   paramType = SlotType::BOXED;
+            }
+            else
+            {
+                paramType = SlotType::BOXED;
+            }
+            if (!isBoxedSlotType(paramType))
+                continue;
+
+            Gp addr = cc.new_gp64();
+            cc.lea(addr, Mem(s.localsBase,
+                            static_cast<int32_t>((localsBaseSlot + i) * s.localStride)));
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_destroy),
+                      FuncSignature::build<void, value::Value*>());
+            inv->set_arg(0, addr);
         }
     }
 

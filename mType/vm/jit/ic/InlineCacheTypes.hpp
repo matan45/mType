@@ -77,10 +77,11 @@ namespace vm::jit::ic
 
     // ---- Method IC ----
 
-    // Forward-typed JIT function pointer (matches JitCodeCache.hpp's JitFunction).
-    // Declared as void(*)(void*) here to keep this header free of JitContext
-    // includes; cast at use site in jit_call_method_ic.
-    using JitEntryPtr = void(*)(void*);
+    // MYT-184: MYT-161's cached JitEntryPtr/jitEntry field was removed along
+    // with tryDirectJitMethodDispatch (see JitHelpers_Objects.cpp for the
+    // rationale). Method IC hits dispatch via callMethodFromJitDirect's
+    // mini-interpret loop — no cached native entry is consulted, so the
+    // per-entry pointer served no purpose.
 
     struct MethodICEntry
     {
@@ -89,19 +90,20 @@ namespace vm::jit::ic
         size_t startOffset = 0;
         // Pre-resolved qualified function name (pointer into constant pool or cached string)
         std::string qualifiedName;
-        // MYT-161: cached JIT entry from JitCodeCache for this qualifiedName.
-        // Populated lazily on first IC hit when the callee has a compiled entry
-        // (may initially be nullptr if the callee hadn't reached the hot
-        // threshold when this IC was first populated — tryDirectJitMethodDispatch
-        // then retries the lookup and caches the result). mutable so const
-        // MethodICEntry* from cache.lookup() can still refresh the slot.
-        mutable JitEntryPtr jitEntry = nullptr;
         // MYT-163: receiver kind recorded at IC populate time. F-a inlining is
         // restricted to ObjectInstance receivers; ValueObject sites fall through
         // to the generic jit_call_method_ic path. The flag is still set for
         // ObjectInstance entries (as `false`) so eligibility can reject a site
         // without chasing the ClassDefinition vtable at emit time.
         bool receiverIsValueObject = false;
+        // MYT-182: program that owns funcMetadata / startOffset. Library
+        // callees live in loadedPrograms[programIndex]; without this, the
+        // IC fast paths jump into the caller's bytecode and crash. Pointer
+        // is kept for immediate use on the hot path; the index is pushed
+        // onto CallFrame for restoration via ControlFlowExecutor return
+        // handling.
+        const bytecode::BytecodeProgram* program = nullptr;
+        size_t programIndex = 0;
     };
 
     struct MethodInlineCache

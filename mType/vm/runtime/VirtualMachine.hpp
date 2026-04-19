@@ -302,10 +302,15 @@ namespace vm::runtime
         // JIT IC fast-path: skip method resolution by accepting pre-resolved metadata.
         // qualifiedName must include defining class prefix (e.g. "Shape::area"); funcMetadata
         // must point to that function's bytecode metadata. Used by jit_call_method_ic on hit.
+        // MYT-182: calleeProgram, when non-null and different from the current
+        // executionCtx->program, causes this call to run its mini-interpret
+        // loop against the callee's program and restore on exit — required
+        // for cross-program (library) dispatch.
         value::Value callMethodFromJitDirect(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                              const std::string& qualifiedName,
                                              const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
-                                             const std::vector<value::Value>& args);
+                                             const std::vector<value::Value>& args,
+                                             const bytecode::BytecodeProgram* calleeProgram = nullptr);
 
         // JIT helper (MYT-146): allocate a multi-dimensional array. Mirrors
         // ArrayExecutor::handleNewArrayMulti's post-pop dispatch but takes

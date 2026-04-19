@@ -191,7 +191,8 @@ namespace vm::runtime
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
         const std::string& qualifiedName,
         const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
-        const std::vector<value::Value>& args)
+        const std::vector<value::Value>& args,
+        const bytecode::BytecodeProgram* calleeProgram)
     {
         if (!program || !instance || !funcMetadata)
         {
@@ -199,6 +200,27 @@ namespace vm::runtime
         }
 
         size_t argCount = args.size();
+
+        // MYT-182: if the callee lives in a different program (library),
+        // resolve its programIndex up front so the frame can carry it for
+        // return restoration, and so the mini-interpret loop below runs
+        // against the correct bytecode.
+        const bytecode::BytecodeProgram* savedProgram = executionCtx->program;
+        size_t calleeProgramIndex = callStack.empty() ? 0 : callStack.back().programIndex;
+        bool switchedProgram = false;
+        if (calleeProgram && calleeProgram != savedProgram)
+        {
+            for (size_t i = 0; i < loadedPrograms.size(); ++i)
+            {
+                if (loadedPrograms[i] == calleeProgram)
+                {
+                    calleeProgramIndex = i;
+                    break;
+                }
+            }
+            executionCtx->program = calleeProgram;
+            switchedProgram = true;
+        }
 
         // Defining class is the prefix of the qualified name (matches interpretation
         // path that walks the class hierarchy to find the introducing class).
@@ -242,6 +264,9 @@ namespace vm::runtime
         frame.functionName = qualifiedName;
         frame.thisInstance = instance;
         frame.definingClassName = definingClassName;
+        // MYT-182: carry the callee's programIndex so the normal return
+        // path in ControlFlowExecutor restores context.program correctly.
+        frame.programIndex = calleeProgramIndex;
         pushCallFrame(frame);
 
         // Track native depth
@@ -280,6 +305,11 @@ namespace vm::runtime
                 {
                     stackManager->pop();
                 }
+                // MYT-182: restore the pre-call program on exception too.
+                if (switchedProgram)
+                {
+                    executionCtx->program = savedProgram;
+                }
                 throw;
             }
 
@@ -303,6 +333,14 @@ namespace vm::runtime
 
         // Restore instruction pointer
         instructionPointer = savedIP;
+
+        // MYT-182: restore the pre-call program. The mini-interpret loop
+        // above exits on frame-depth check rather than running a RETURN
+        // handler, so restore explicitly here.
+        if (switchedProgram)
+        {
+            executionCtx->program = savedProgram;
+        }
 
         return result;
     }
