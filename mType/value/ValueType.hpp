@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 #include <memory>
+#include <cassert>
+#include <limits>
 #include "StringPool.hpp"
 #include "ValueBridge.hpp"
 
@@ -66,7 +68,12 @@ namespace value
         Value(int64_t v) noexcept : tag_(ValueType::INT) { payload_.i = v; }
         Value(int v) noexcept : tag_(ValueType::INT) { payload_.i = v; }
         Value(unsigned int v) noexcept : tag_(ValueType::INT) { payload_.i = v; }
-        Value(size_t v) noexcept : tag_(ValueType::INT) { payload_.i = static_cast<int64_t>(v); }
+        Value(size_t v) noexcept : tag_(ValueType::INT)
+        {
+            assert(v <= static_cast<size_t>((std::numeric_limits<int64_t>::max)())
+                   && "Value(size_t): truncation to int64_t");
+            payload_.i = static_cast<int64_t>(v);
+        }
         Value(double v) noexcept : tag_(ValueType::FLOAT) { payload_.d = v; }
         Value(float v) noexcept : tag_(ValueType::FLOAT) { payload_.d = v; }
         Value(bool v) noexcept : tag_(ValueType::BOOL) { payload_.b = v; }
@@ -224,20 +231,35 @@ namespace value
     // Heap-type accessors (isObject / asObject / etc.) live in ValueShim.hpp.
     // Template helpers for generic code (e.g. PrimitiveArray<T>::set).
     // holdsT<T> returns whether Value holds a T; getT<T> extracts it.
-    // Only primitive Ts are supported.
+    // Only primitive Ts (int64_t/double/bool) are supported — instantiating
+    // with a heap type (e.g. shared_ptr<ObjectInstance>) fires the
+    // static_assert at compile time instead of silently returning false / T{}.
+    namespace detail {
+        template <typename> inline constexpr bool dependent_false_v = false;
+    }
     template <typename T> inline bool holdsT(const Value& v) noexcept
     {
         if constexpr (std::is_same_v<T, int64_t>) return v.tag() == ValueType::INT;
         else if constexpr (std::is_same_v<T, double>) return v.tag() == ValueType::FLOAT;
         else if constexpr (std::is_same_v<T, bool>) return v.tag() == ValueType::BOOL;
-        else return false;
+        else
+        {
+            static_assert(detail::dependent_false_v<T>,
+                          "holdsT<T>: only int64_t/double/bool supported; use isObject/asObject/etc. for heap types");
+            return false;
+        }
     }
     template <typename T> inline T getT(const Value& v) noexcept
     {
         if constexpr (std::is_same_v<T, int64_t>) return static_cast<T>(v.rawInt());
         else if constexpr (std::is_same_v<T, double>) return static_cast<T>(v.rawFloat());
         else if constexpr (std::is_same_v<T, bool>) return v.rawBool();
-        else return T{};
+        else
+        {
+            static_assert(detail::dependent_false_v<T>,
+                          "getT<T>: only int64_t/double/bool supported; use asObject/asString/etc. for heap types");
+            return T{};
+        }
     }
 
     inline bool isInt(const Value& v) noexcept { return v.tag() == ValueType::INT; }
@@ -278,11 +300,13 @@ namespace value
     inline bool asBool(const Value& v) noexcept { return v.rawBool(); }
     inline const std::string& asString(const Value& v)
     {
+        assert(isString(v) && "asString(): tag/kind must be STRING/STD_STRING");
         using Bridge = TypedBridge<BridgeKind::STD_STRING, std::string>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }
     inline const InternedString& asInternedString(const Value& v)
     {
+        assert(isInternedString(v) && "asInternedString(): tag/kind must be STRING/INTERNED_STRING");
         using Bridge = TypedBridge<BridgeKind::INTERNED_STRING, InternedString>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }

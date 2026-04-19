@@ -7,6 +7,7 @@
 #include "arrays/object/FlatMultiObjectArray.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "PromiseValue.hpp"
+#include <cassert>
 // BytecodeLambda lives in mtype-vm; the bridge ctor below needs the complete
 // type, so this include crosses the mtype-core → mtype-vm layer.
 #include "../vm/runtime/context/ExecutionContext.hpp"
@@ -176,6 +177,7 @@ namespace value {
             // Handled by the tag_==STRING branch above.
             return false;
         }
+        assert(false && "equalsHeap: unhandled BridgeKind — add a case when introducing a new kind");
         return false;
     }
 
