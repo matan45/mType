@@ -55,12 +55,37 @@ namespace vm::runtime
                 throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
             }
 
-            if (fieldDef->isFinal() && fieldDef->isInitialized())
+            // Static finals share FieldDefinition's isInitialized bit; instance
+            // finals track state per-instance via the fieldValues map. MYT-189:
+            // match ObjectExecutor's SET_FIELD check so repeated construction
+            // of instances with final fields doesn't trip the check.
+            if (fieldDef->isFinal())
             {
-                throw errors::RuntimeException("Cannot assign to final field '" + fieldName + "'");
+                if (fieldDef->isStatic())
+                {
+                    if (fieldDef->isInitialized())
+                    {
+                        throw errors::RuntimeException("Cannot assign to final field '" + fieldName + "'");
+                    }
+                }
+                else
+                {
+                    const auto& instanceFields = instance->getAllFieldValues();
+                    if (instanceFields.find(fieldName) != instanceFields.end())
+                    {
+                        throw errors::RuntimeException("Cannot assign to final field '" + fieldName + "'");
+                    }
+                }
             }
 
-            fieldDef->setValue(value);
+            if (fieldDef->isStatic())
+            {
+                fieldDef->setValue(value);
+            }
+            else
+            {
+                instance->setField(fieldName, value);
+            }
         }
         catch (errors::ScriptException& e)
         {
