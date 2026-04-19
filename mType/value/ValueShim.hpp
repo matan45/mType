@@ -9,8 +9,12 @@
 // (asObject/asLambda/asNativeArray/...) — those need the complete types for
 // TypedBridge template instantiation.
 //
-// Accessors return a shared_ptr by value so `auto obj = value::asObject(v);`
-// compiles cleanly at call sites.
+// Accessors return `const shared_ptr<T>&` bound to the bridge's held_ — no
+// copy, no refcount bump. Callers that write `auto x = value::asObject(v);`
+// still compile (one copy at the caller's binding site); callers that switch
+// to `const auto& x = …` or `value::asObject(v)->method()` pay zero copies.
+// This matters on hot loops where MYT-190's bridge indirection otherwise
+// adds an atomic refcount bump per heap Value access.
 //
 
 #include "ValueType.hpp"
@@ -25,45 +29,45 @@
 
 namespace value
 {
-    inline std::shared_ptr<runtimeTypes::klass::ObjectInstance> asObject(const Value& v)
+    inline const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& asObject(const Value& v)
     {
         using Bridge = TypedBridge<BridgeKind::OBJECT_INSTANCE,
                                    std::shared_ptr<runtimeTypes::klass::ObjectInstance>>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }
-    inline std::shared_ptr<ValueObject> asValueObject(const Value& v)
+    inline const std::shared_ptr<ValueObject>& asValueObject(const Value& v)
     {
         using Bridge = TypedBridge<BridgeKind::VALUE_OBJECT, std::shared_ptr<ValueObject>>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }
-    inline std::shared_ptr<vm::runtime::BytecodeLambda> asLambda(const Value& v)
+    inline const std::shared_ptr<vm::runtime::BytecodeLambda>& asLambda(const Value& v)
     {
         using Bridge = TypedBridge<BridgeKind::BYTECODE_LAMBDA,
                                    std::shared_ptr<vm::runtime::BytecodeLambda>>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }
-    inline std::shared_ptr<NativeArray> asNativeArray(const Value& v)
+    inline const std::shared_ptr<NativeArray>& asNativeArray(const Value& v)
     {
         using Bridge = TypedBridge<BridgeKind::NATIVE_ARRAY, std::shared_ptr<NativeArray>>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }
-    inline std::shared_ptr<FlatMultiArray> asFlatMultiArray(const Value& v)
+    inline const std::shared_ptr<FlatMultiArray>& asFlatMultiArray(const Value& v)
     {
         using Bridge = TypedBridge<BridgeKind::FLAT_MULTI_ARRAY, std::shared_ptr<FlatMultiArray>>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }
-    inline std::shared_ptr<SparseMultiArray> asSparseMultiArray(const Value& v)
+    inline const std::shared_ptr<SparseMultiArray>& asSparseMultiArray(const Value& v)
     {
         using Bridge = TypedBridge<BridgeKind::SPARSE_MULTI_ARRAY, std::shared_ptr<SparseMultiArray>>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }
-    inline std::shared_ptr<mType::value::arrays::FlatMultiObjectArray> asFlatMultiObjectArray(const Value& v)
+    inline const std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>& asFlatMultiObjectArray(const Value& v)
     {
         using Bridge = TypedBridge<BridgeKind::FLAT_MULTI_OBJECT_ARRAY,
                                    std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>>;
         return static_cast<Bridge*>(v.rawBridge())->get();
     }
-    inline std::shared_ptr<PromiseValue> asPromise(const Value& v)
+    inline const std::shared_ptr<PromiseValue>& asPromise(const Value& v)
     {
         using Bridge = TypedBridge<BridgeKind::PROMISE, std::shared_ptr<PromiseValue>>;
         return static_cast<Bridge*>(v.rawBridge())->get();
