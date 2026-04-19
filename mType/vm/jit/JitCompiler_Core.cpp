@@ -531,7 +531,9 @@ namespace vm::jit
                                    const bytecode::BytecodeProgram& program,
                                    const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
                                    CompilationFrame& frame,
-                                   ic::TypeFeedbackCollector* typeFeedback)
+                                   ic::TypeFeedbackCollector* typeFeedback,
+                                   uint64_t* inlineFieldICHits,
+                                   uint64_t* inlineFieldICMisses)
     {
         emitArgumentUnboxing(cc, ctxPtr, frame.localsBase, funcMeta,
                              frame.usesBoxedTypes, frame.localStride, frame.localTypes);
@@ -558,6 +560,8 @@ namespace vm::jit
         // eligibility check can reject self-recursive inlining.
         s.currentCompilingFn = funcMeta.mangledName.empty()
             ? funcMeta.name : funcMeta.mangledName;
+        s.inlineFieldICHits = inlineFieldICHits;
+        s.inlineFieldICMisses = inlineFieldICMisses;
 
         emitCodegenLoop(s, startOffset, instrCount, program);
 
@@ -608,7 +612,8 @@ namespace vm::jit
 
         auto frame = setupCompilationFrame(cc, program, *funcMeta, localCount);
 
-        if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame, typeFeedback))
+        if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame, typeFeedback,
+                               &inlineFieldICHits, &inlineFieldICMisses))
         {
             bailoutCount++;
             return false;

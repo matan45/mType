@@ -42,6 +42,25 @@ namespace vm::jit
         return nullptr;
     }
 
+    const value::Value* jit_field_data_const(const value::Value* receiver) noexcept
+    {
+        if (!receiver) return nullptr;
+        if (value::isObject(*receiver))
+        {
+            const auto& instance = value::asObject(*receiver);
+            if (!instance) return nullptr;
+            if (!instance->hasFieldVector()) return nullptr;
+            return &instance->getFieldByIndex(0);
+        }
+        if (value::isValueObject(*receiver))
+        {
+            const auto& vobj = value::asValueObject(*receiver);
+            if (!vobj || vobj->getFieldCount() == 0) return nullptr;
+            return &vobj->getFieldByIndex(0);
+        }
+        return nullptr;
+    }
+
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount)
     {
         if (ctx->pendingException)

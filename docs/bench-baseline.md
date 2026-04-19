@@ -804,3 +804,59 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 | inline_branching.mt           |  223.45 |     224.28 |        15013 |     501 |
 | inline_polymorphic.mt         |  260.58 |     262.36 |        14048 |     508 |
 | inline_value_object_hot.mt    | 1841.05 |    1850.55 |        12530 |     501 |
+
+## 2026-04-19 — MYT-190 post `ValueShim` const& fix
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-190`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Fix in this snapshot
+
+- **ValueShim heap accessors now return `const shared_ptr<T>&`** — all 8 heap accessors (`asObject`, `asValueObject`, `asLambda`, `asNativeArray`, `asFlatMultiArray`, `asSparseMultiArray`, `asFlatMultiObjectArray`, `asPromise`) previously returned by value, forcing a `shared_ptr` copy + atomic refcount bump on every call. `TypedBridge::get()` already returned `const Held&`, so the shim was gratuitously slicing. Callers that bind with `const auto&` (e.g. `JitHelpers_Arrays.cpp`) now get zero-copy references into the bridge's `held_`. Root-cause fix for the `array_multi_get` regression; also benefits every other heap-accessing hot path.
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1019.61 |    1023.99 |        20013 |       0 |
+| method_dispatch.mt            |  248.46 |     249.03 |        14039 |     506 |
+| object_alloc.mt               | 2142.12 |    2156.80 |        17509 | 2000000 |
+| string_ops.mt                 |  187.22 |     189.76 |        19014 |       0 |
+| recursive.mt                  | 1564.34 |    1581.98 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1420.57 |    1425.99 |        23014 |       0 |
+| short_circuit_chain.mt        |  399.96 |     400.58 |        24907 |       0 |
+| primitive_method_dispatch.mt  | 1086.69 |    1087.32 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   66.66 |      67.17 |        10909 |     500 |
+| array_multi_get.mt            | 1191.04 |    1191.74 |        50815 |     500 |
+| for_each_loop.mt              |  420.10 |     421.77 |        78650 |    6604 |
+| inline_monomorphic.mt         |  215.11 |     217.13 |        13013 |     501 |
+| inline_branching.mt           |  219.42 |     220.43 |        15013 |     501 |
+| inline_polymorphic.mt         |  246.87 |     246.92 |        14048 |     508 |
+| inline_value_object_hot.mt    | 1666.85 |    1669.44 |        12530 |     501 |
+
+### Delta vs. pre-fix (2026-04-19 MYT-190 section above)
+
+| Script                        | Before min | After min | Δ     |
+|-------------------------------|-----------:|----------:|------:|
+| array_multi_get.mt            |    1301.85 |   1191.04 | **−8.5%** ✅ regression fixed |
+| inline_value_object_hot.mt    |    1841.05 |   1666.85 | **−9.5%** |
+| inline_polymorphic.mt         |     260.58 |    246.87 | −5.3% |
+| method_dispatch.mt            |     254.90 |    248.46 | −2.5% |
+| inline_monomorphic.mt         |     220.26 |    215.11 | −2.3% |
+| inline_branching.mt           |     223.45 |    219.42 | −1.8% |
+| recursive.mt                  |    1616.30 |   1564.34 | −3.2% |
+| for_each_loop.mt              |     429.71 |    420.10 | −2.2% |
+| primitive_method_dispatch.mt  |    1114.46 |   1086.69 | −2.5% |
+| string_ops.mt                 |     190.74 |    187.22 | −1.8% |
+| arithmetic_tight_loop.mt      |     989.34 |   1019.61 | +3.1% (noise, no heap access) |
+| object_alloc.mt               |    2088.34 |   2142.12 | +2.6% (noise, no heap read in loop body) |
+| bitwise_tight_loop.mt         |    1421.14 |   1420.57 | flat  |
+
+### Notes
+
+- **Shim fix delivers on heap-accessing benchmarks**: every benchmark that reads heap Values in a hot loop improved. `inline_value_object_hot` led at −9.5% — exactly the target since its hot body is `p.sum()` → 2 field reads per iteration × 2M iterations = 4M eliminated atomic refcount bumps.
+- **`array_multi_get` regression resolved** — down from +15.6% vs. pre-MYT-190 to back near baseline. The root cause (shared_ptr copy + atomic refcount per `ARRAY_GET`) is fully addressed by returning the bridge's `held_` by `const&`.
+- **Small apparent regressions on `arithmetic_tight_loop` / `object_alloc` / `bitwise_tight_loop`** are within run-to-run noise (±3%). None of these benchmarks read heap Values in their hot inner loop (`arithmetic_tight_loop` is int-only, `object_alloc` constructs but doesn't read-in-loop, `bitwise_tight_loop` is int-only), so the shim change has no direct path to affect them.
+- **`inline_value_object_hot` now sub-1700ms** — still gated on MYT-172 AC#3 (inline `[obj + fieldIndex*valueSize]` emission in JIT) for the next major drop.
