@@ -737,3 +737,43 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 - The 4–5× wins vs. the pre-MYT-181 snapshot on `method_dispatch.mt`, `inline_monomorphic.mt`, `inline_branching.mt`, `inline_polymorphic.mt` are driven by **MYT-181 unblocking IC populate**, which lets the F-a/F-c speculative inliner fire for the first time. TDJM removal itself is neutral — the workaround (and now the permanent fix) routes the same path.
 - `inline_value_object_hot.mt` barely moved (–5%) — confirms the ValueObject field-lookup overhead is the remaining MYT-169 residual, separate from method dispatch. Tracked for a follow-up (ValueObject field IC).
 - Per-benchmark output hashes unchanged vs. expected results above.
+
+## 2026-04-19 — MYT-185/186/187 landed (inliner correctness)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-181` (plus inliner-correctness patches for MYT-185/186/187)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Fixes in this snapshot
+
+- **MYT-186 / MYT-187**: `emitInlineLocalCopy` was raw-memcpy'ing primitive args from `boxedBase` unconditionally. In boxed-mode emission `emitLoadLocal` unboxes INT/FLOAT/BOOL into `stackBase`, leaving `boxedBase` with stale receiver bytes — so callee `LOAD_LOCAL x` via `jit_unbox_int` read garbage (consistently 0). Dispatcher now boxes primitive stackBase values into the callee local via `jit_box_int/bool/float`; BOXED params retain the donation memcpy + tag-reset path. Plus an `emitInlineReturnMaterialize` helper invoked from the inline `onExit` handler that converges fast-path runtime state with the slow path's `emitReturnValueCopyBoxed` (box stackBase→boxedBase for primitive returns; mirror boxedBase→stackBase for BOXED returns). `s.lastReturnSlotType` snapshotted in `emitReturnValueOp` before `popType` so the handler can choose direction.
+- **MYT-185**: JIT has no `STRING_BUILD` handler; the emission loop's default fallthrough silently no-op'd it, corrupting compile-time `stackDepth` and making subsequent RETURN_VALUE land on a stale slot. `InlineAnalysis::scanCalleeOpcodes` now returns `HAS_UNSUPPORTED_OPCODE` on `STRING_BUILD`, sending the callsite to the generic slow path where the interpreter handles STRING_BUILD correctly.
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1082.20 |    1083.03 |        20013 |       0 |
+| method_dispatch.mt            |  270.24 |     270.95 |        14039 |     506 |
+| object_alloc.mt               | 2174.65 |    2179.62 |        17509 | 2000000 |
+| string_ops.mt                 |  209.53 |     209.58 |        19014 |       0 |
+| recursive.mt                  | 1887.52 |    1888.30 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1475.70 |    1479.46 |        23014 |       0 |
+| short_circuit_chain.mt        |  405.46 |     406.39 |        24907 |       0 |
+| primitive_method_dispatch.mt  | 1082.95 |    1087.65 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   80.97 |      82.03 |        10909 |     500 |
+| array_multi_get.mt            | 1125.92 |    1129.20 |        50815 |     500 |
+| for_each_loop.mt              |  566.65 |     566.79 |        78650 |    6604 |
+| inline_monomorphic.mt         |  225.82 |     233.54 |        13013 |     501 |
+| inline_branching.mt           |  233.20 |     234.60 |        15013 |     501 |
+| inline_polymorphic.mt         |  268.76 |     269.94 |        14048 |     508 |
+| inline_value_object_hot.mt    | 1878.39 |    1880.89 |        12530 |     501 |
+
+### Notes
+
+- **MYT-169 AC holds**: `inline_monomorphic.mt median (233.54 ms) ≤ method_dispatch.mt median (270.95 ms)` — ~37 ms headroom, in-line with the 2026-04-18 snapshot (~40 ms).
+- **Correctness**: The 2026-04-18 inliner numbers were fast-but-wrong — `STRING_BUILD`-containing callees produced truncated strings (MYT-185), primitive-arg callees received garbage locals (MYT-186), and mono→poly transitions threw `MT-E5005` (MYT-187). This snapshot is the first with both the perf AC met **and** all three correctness tests passing.
+- **Run-to-run variance**: All deltas vs. the 2026-04-18 snapshot are within ±5%; no regression attributable to the new materialize / box dispatch. The onExit path adds one `jit_unbox_int` invoke (or one `jit_box_*`) per inlined RETURN_VALUE emission — negligible at the hot-loop scale since each inline body typically has one return.
+- **STRING_BUILD fallback cost**: Inliner bailout via `HAS_UNSUPPORTED_OPCODE` routes STRING_BUILD-containing callees (e.g. `Container::describe`) to the generic slow path. Not visible in this benchmark set — no bench currently exercises a hot STRING_BUILD site. Filed as a perf follow-up to implement a JIT handler (ticket TBD).
+- **Per-benchmark output hashes**: verified against `--no-jit` on the three inlining integration tests (`inline_arithmetic.mt` → `500500`, `inline_mono_to_poly.mt` → `33050`, `valueClassJitFieldAccess.mt` → `container: box:rgb(10,20,30)`).
