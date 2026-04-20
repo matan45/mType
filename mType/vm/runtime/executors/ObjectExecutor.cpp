@@ -37,6 +37,10 @@ namespace vm::runtime
         instanceHelper->handleNewObject(instr);
     }
 
+    void ObjectExecutor::handleNewStack(const bytecode::BytecodeProgram::Instruction& instr) {
+        instanceHelper->handleNewStack(instr);
+    }
+
     void ObjectExecutor::handleNewValueObject(const bytecode::BytecodeProgram::Instruction& instr) {
         // Value object construction uses the same mechanism as regular objects.
         // The constructor needs an ObjectInstance for 'this' (frame.thisInstance).

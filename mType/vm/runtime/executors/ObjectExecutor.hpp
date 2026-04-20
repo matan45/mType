@@ -34,6 +34,9 @@ namespace vm::runtime
 
         // Object creation
         void handleNewObject(const bytecode::BytecodeProgram::Instruction& instr);
+        // MYT-134: non-escaping allocation promoted by escape-analysis — pool-borrowed raw pointer
+        // tracked in the current call frame's stackObjects list.
+        void handleNewStack(const bytecode::BytecodeProgram::Instruction& instr);
         void handleNewValueObject(const bytecode::BytecodeProgram::Instruction& instr);
         void handleObjectToValue(const bytecode::BytecodeProgram::Instruction& instr);
 

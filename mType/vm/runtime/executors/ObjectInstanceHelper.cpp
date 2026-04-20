@@ -806,6 +806,60 @@ namespace vm::runtime
         invokeConstructor(instance, actualClassName, args.span());
     }
 
+    void ObjectInstanceHelper::handleNewStack(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("NEW_STACK requires 2 operands: class name index and arg count");
+        }
+        if (context.callStack.empty()) {
+            // NEW_STACK requires a live frame to own the borrowed pointer's lifetime.
+            // The compiler only emits NEW_STACK inside function/method/constructor
+            // bodies, so this should be unreachable in well-formed bytecode.
+            throw errors::RuntimeException("NEW_STACK emitted outside any call frame");
+        }
+
+        const std::string& fullClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+        std::string baseClassName = parseGenericTypeArguments(fullClassName, genericTypeBindings);
+
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i) {
+            args[i - 1] = context.stackManager->pop();
+        }
+
+        // Resolve class and pool-acquire a raw ObjectInstance. No GC registration —
+        // escape analysis proved the reference never leaves the enclosing frame.
+        auto classRegistry = context.environment->getClassRegistry();
+        if (!classRegistry) {
+            throw errors::RuntimeException("Class registry not available");
+        }
+        auto classDef = classRegistry->findClass(baseClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Class not found: " + baseClassName);
+        }
+
+        auto* raw = value::ObjectInstancePool::getInstance().acquireRaw(classDef, genericTypeBindings);
+        // Field defaults must be applied exactly as handleNewObject does so constructor
+        // semantics match byte-for-byte. initializeObjectFields takes a shared_ptr, so
+        // synthesize an aliasing shared_ptr with a no-op deleter — refcount churn is
+        // confined to this temporary; the raw pointer is owned by stackObjects below.
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> aliasing(
+            raw, [](runtimeTypes::klass::ObjectInstance*) noexcept {});
+        initializeObjectFields(aliasing, classDef);
+
+        // Transfer lifetime ownership to the current frame BEFORE the constructor runs.
+        // If the constructor throws, frame teardown still releases via StackFrameObjects.
+        context.callStack.back().stackObjects.push(raw);
+
+        // invokeConstructor will push the instance as local[0], set frame.thisInstance,
+        // and jump to the constructor entry. The aliasing shared_ptr's refcount rises
+        // inside that path but every decrement runs our no-op deleter, so pool release
+        // is controlled exclusively by frame teardown.
+        std::string actualClassName = aliasing->getClassDefinition()->getName();
+        invokeConstructor(std::move(aliasing), actualClassName, args.span());
+    }
+
     std::string ObjectInstanceHelper::getCurrentClassName() {
         if (!context.callStack.empty()) {
             if (context.callStack.back().thisInstance) {

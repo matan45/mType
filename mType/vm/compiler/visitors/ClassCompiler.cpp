@@ -304,8 +304,14 @@ namespace vm::compiler::visitors
                              static_cast<uint64_t>(arguments.size()), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, node);
         } else {
-            // Emit NEW_OBJECT instruction with full class name and argument count
-            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+            // MYT-134: escape analysis may have flagged this allocation as
+            // non-escaping; emit NEW_STACK so the runtime can pool-borrow and
+            // skip GC registration. NEW_STACK has the same operand shape so the
+            // emission differs only in the opcode byte.
+            bytecode::OpCode op = node->getIsStackAllocated()
+                ? bytecode::OpCode::NEW_STACK
+                : bytecode::OpCode::NEW_OBJECT;
+            ctx.emitter.emitWithLocation(op,
                              static_cast<uint64_t>(classNameIndex),
                              static_cast<uint64_t>(arguments.size()), node);
         }

@@ -90,4 +90,22 @@ namespace value
     {
         return Value(std::move(p));
     }
+
+    // MYT-134: borrowed raw ObjectInstance* (lifetime owned by CallFrame::stackObjects).
+    inline Value makeStackObjectValue(runtimeTypes::klass::ObjectInstance* raw) noexcept
+    {
+        return Value(raw, Value::StackObjectTag{});
+    }
+
+    // MYT-134: unwrap either OBJECT (shared_ptr via bridge) or STACK_OBJECT (borrowed raw)
+    // to a non-owning ObjectInstance*. Callers must not extend lifetime beyond the
+    // current frame for STACK_OBJECT values.
+    inline runtimeTypes::klass::ObjectInstance* asObjectInstanceRaw(const Value& v) noexcept
+    {
+        if (v.tag() == ValueType::STACK_OBJECT) return v.rawStackObject();
+        assert(v.tag() == ValueType::OBJECT && "asObjectInstanceRaw(): tag must be OBJECT or STACK_OBJECT");
+        using Bridge = TypedBridge<BridgeKind::OBJECT_INSTANCE,
+                                   std::shared_ptr<runtimeTypes::klass::ObjectInstance>>;
+        return static_cast<Bridge*>(v.rawBridge())->get().get();
+    }
 }

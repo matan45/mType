@@ -1,9 +1,63 @@
 #include "ExecutionContext.hpp"
 #include "../../../errors/RuntimeException.hpp"
+#include "../../../value/ObjectInstancePool.hpp"
+#include <cassert>
 #include <sstream>
 
 namespace vm::runtime
 {
+    // MYT-134: release every borrowed ObjectInstance* back to the pool in reverse
+    // order. Called from the destructor — must be noexcept so exception unwind
+    // does not call std::terminate.
+    void StackFrameObjects::releaseAll() noexcept
+    {
+        auto& pool = value::ObjectInstancePool::getInstance();
+        for (auto it = slots.rbegin(); it != slots.rend(); ++it)
+        {
+            pool.releaseRaw(*it);
+        }
+        slots.clear();
+    }
+
+    StackFrameObjects::~StackFrameObjects()
+    {
+        if (!slots.empty()) releaseAll();
+    }
+
+    StackFrameObjects::StackFrameObjects(const StackFrameObjects& other)
+    {
+        // Copy-as-empty: the source must not hold live pointers at the time of
+        // the copy. Call-frame lifecycle guarantees this (see struct doc).
+        assert(other.slots.empty()
+               && "StackFrameObjects: copy of a frame with live stack objects "
+                  "would orphan or double-release pool slots");
+        (void)other;
+    }
+
+    StackFrameObjects& StackFrameObjects::operator=(const StackFrameObjects& other)
+    {
+        if (this != &other)
+        {
+            assert(other.slots.empty()
+                   && "StackFrameObjects: copy-assign from a frame with live "
+                      "stack objects would orphan or double-release pool slots");
+            if (!slots.empty()) releaseAll();
+        }
+        return *this;
+    }
+
+    StackFrameObjects& StackFrameObjects::operator=(StackFrameObjects&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if (!slots.empty()) releaseAll();
+            slots = std::move(other.slots);
+            other.slots.clear();
+        }
+        return *this;
+    }
+
+
     void ExecutionContext::pushCallFrame(const CallFrame& frame)
     {
         // Check for stack overflow

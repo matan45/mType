@@ -200,6 +200,8 @@ namespace vm::runtime
         // Objects - delegated to ObjectExecutor
         case OpCode::NEW_OBJECT: objectExecutor->handleNewObject(instr);
             break;
+        case OpCode::NEW_STACK: objectExecutor->handleNewStack(instr);
+            break;
         case OpCode::NEW_VALUE_OBJECT: objectExecutor->handleNewValueObject(instr);
             break;
         case OpCode::OBJECT_TO_VALUE: objectExecutor->handleObjectToValue(instr);

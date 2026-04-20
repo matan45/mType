@@ -34,6 +34,7 @@
 #include "../tests/suites/ExeTestSuite.hpp"
 #include "../tests/suites/DependencyGraphTestSuite.hpp"
 #include "../tests/suites/LibraryTestSuite.hpp"
+#include "../tests/suites/EscapeAnalysisTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -188,6 +189,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<LibraryTestSuite>();
     }
+    else if (suiteName == "escape" || suiteName == "escape-analysis" || suiteName == "escapeanalysis")
+    {
+        return std::make_unique<EscapeAnalysisTestSuite>();
+    }
     return nullptr;
 }
 
@@ -228,6 +233,7 @@ void printAvailableTestSuites()
     std::cout << "  exe          - Standalone Executable Build Test Suite\n";
     std::cout << "  deps         - Dependency Graph Test Suite\n";
     std::cout << "  library      - Library Linking (.mtcLib) Test Suite\n";
+    std::cout << "  escape       - Escape Analysis Test Suite (MYT-134)\n";
 }
 
 void runSpecificTestSuite(const std::string& suiteName,
@@ -297,6 +303,7 @@ void runAllTests(constants::ExecutionMode execMode)
     suites.push_back(std::make_unique<ExeTestSuite>());
     suites.push_back(std::make_unique<DependencyGraphTestSuite>());
     suites.push_back(std::make_unique<LibraryTestSuite>());
+    suites.push_back(std::make_unique<EscapeAnalysisTestSuite>());
 
     for (auto& suite : suites)
     {

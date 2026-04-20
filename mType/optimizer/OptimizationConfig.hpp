@@ -12,6 +12,7 @@ namespace optimizer {
 	private:
 		bool enableDeadCodeElimination;
 		bool enableConstantFolding;
+		bool enableEscapeAnalysis;  // MYT-134
 
 		// Performance limits
 		size_t maxPassIterations;
@@ -27,10 +28,12 @@ namespace optimizer {
 		// Configuration accessors
 		bool isDeadCodeEliminationEnabled() const { return enableDeadCodeElimination; }
 		bool isConstantFoldingEnabled() const { return enableConstantFolding; }
+		bool isEscapeAnalysisEnabled() const { return enableEscapeAnalysis; }
 
 		// Pass-specific configuration
 		OptimizationConfig& setDeadCodeElimination(bool enable);
 		OptimizationConfig& setConstantFolding(bool enable);
+		OptimizationConfig& setEscapeAnalysis(bool enable);
 
 		// Performance limits
 		OptimizationConfig& setMaxPassIterations(size_t iterations);

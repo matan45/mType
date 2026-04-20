@@ -24,6 +24,15 @@ namespace vm::runtime
 
         // Object creation
         void handleNewObject(const bytecode::BytecodeProgram::Instruction& instr);
+        // MYT-134: escape-analysis-promoted allocation. Uses ObjectInstancePool::acquireRaw
+        // to skip shared_ptr wrapping's owning control block on the hot path AND skips
+        // GC registration; lifetime is tied to the current CallFrame's stackObjects list,
+        // which releases the pointer back to the pool at frame teardown. Constructor
+        // invocation uses an aliasing shared_ptr with a no-op deleter to keep the
+        // existing invokeConstructor machinery unchanged in this iteration — a follow-up
+        // ticket extends the field/method executors to accept STACK_OBJECT values
+        // directly and eliminate the aliasing shared_ptr entirely.
+        void handleNewStack(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Super calls
         void handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr);

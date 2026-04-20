@@ -106,6 +106,12 @@
     <Filter Include="testFiles\error\pass\modules">
       <UniqueIdentifier>{5F4DD884-4B08-C830-F4BF-407BE05912C1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\escapeAnalysis">
+      <UniqueIdentifier>{DCAA7BBD-C8CF-CA3D-F11A-B0CDDD9EC95B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\escapeAnalysis\pass">
+      <UniqueIdentifier>{626A16F4-CE82-FD1D-972F-8DB7030792B7}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\exe">
       <UniqueIdentifier>{C90EED9F-35CF-68D6-FE09-B2536A89ADB2}</UniqueIdentifier>
     </Filter>
@@ -669,6 +675,9 @@
     <ClInclude Include="tests\suites\ErrorTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\EscapeAnalysisTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ExeTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -780,6 +789,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ErrorTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\EscapeAnalysisTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ExeTestSuite.cpp">
@@ -5392,6 +5404,72 @@
     <None Include="tests\testFiles\error\pass\validTypeOperations.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\alias_chain.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\alias_chain.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\aliased_then_returned.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\aliased_then_returned.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\conditional_local.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\conditional_local.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\field_store.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\field_store.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\lambda_capture.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\lambda_capture.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\loop_local.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\loop_local.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\method_call_on_self.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\method_call_on_self.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\passed_as_arg.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\passed_as_arg.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\returned.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\returned.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\thrown.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\thrown.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\tight_local.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\tight_local.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
     <None Include="tests\testFiles\exe\ExeTest.expected">
       <Filter>testFiles\exe</Filter>
     </None>
@@ -7132,16 +7210,40 @@
     <None Include="tests\testFiles\integration\pass\ic\get_field_cached_mono.mt">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_local_bool_mono.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_local_bool_mono.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_local_boxed_mono.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_local_boxed_mono.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\ic\load_local_call_cached_fuse.expected">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\ic\load_local_call_cached_fuse.mt">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_local_float_mono.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_local_float_mono.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\ic\load_local_get_field_cached_fuse.expected">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\ic\load_local_get_field_cached_fuse.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_local_int_mono.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_local_int_mono.mt">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\ic\set_field_cached_deopt.expected">
