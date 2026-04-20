@@ -249,6 +249,9 @@
     <ClInclude Include="value\NativeArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\ObjectInstancePool.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\ParameterType.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -477,6 +480,9 @@
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\InternedString.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\ObjectInstancePool.cpp">
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\StringPool.cpp">

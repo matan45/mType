@@ -2155,6 +2155,9 @@
     <None Include="tests\testFiles\benchmarks\bitwise_tight_loop.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\field_write_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\for_each_loop.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>

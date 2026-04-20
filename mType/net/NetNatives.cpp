@@ -13,6 +13,7 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../value/AsyncPromiseValue.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/ObjectInstancePool.hpp"
 #include "../value/ValueShim.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/runtime/context/ExecutionContext.hpp"
@@ -120,7 +121,7 @@ namespace net
             auto classDef = env->findClass("TcpSocket");
             if (!classDef)
                 throw errors::RuntimeException("TcpSocket class not loaded");
-            auto inst = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+            auto inst = value::ObjectInstancePool::getInstance().acquire(classDef);
             inst->setField("handle", static_cast<int64_t>(handle));
             return inst;
         }
@@ -236,7 +237,7 @@ namespace net
                 auto classDef = env->findClass("HttpResponse");
                 if (!classDef)
                     throw errors::RuntimeException("HttpResponse class not loaded");
-                auto inst = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+                auto inst = value::ObjectInstancePool::getInstance().acquire(classDef);
                 inst->setField("status", static_cast<int64_t>(resp.status));
                 inst->setField("body", resp.body);
                 inst->setField("headers", stdMapToHashMap(env, resp.headers));
@@ -458,7 +459,7 @@ namespace net
                         value::Value excArg;
                         if (classDef)
                         {
-                            auto inst = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+                            auto inst = value::ObjectInstancePool::getInstance().acquire(classDef);
                             inst->setField("message", errMsg);
                             excArg = inst;
                         }

@@ -14,6 +14,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../value/ObjectInstancePool.hpp"
 #include "../../value/ValueObject.hpp"
 #include <vector>
 #include <memory>
@@ -137,7 +138,7 @@ namespace vm::jit
                 auto valueObj = value::asValueObject(objectValue);
                 auto classDef = valueObj->getClassDefinition();
 
-                auto tempInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+                auto tempInstance = value::ObjectInstancePool::getInstance().acquire(classDef);
                 const auto& fieldIndexMap = classDef->getFieldIndexMap();
                 for (const auto& [name, index] : fieldIndexMap)
                 {

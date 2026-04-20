@@ -11,6 +11,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
+#include "../../value/ObjectInstancePool.hpp"
 #include "../../value/PromiseValue.hpp"
 
 namespace vm::runtime
@@ -40,7 +41,7 @@ namespace vm::runtime
             }
 
             // Create object instance
-            auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+            auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
 
             // Find constructor using type-aware lookup
             auto constructor = classDef->findConstructorByTypes(args);

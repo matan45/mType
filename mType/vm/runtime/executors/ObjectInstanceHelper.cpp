@@ -7,6 +7,7 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
+#include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../gc/GC.hpp"
 #include <algorithm>
@@ -162,7 +163,7 @@ namespace vm::runtime
             throw errors::RuntimeException("Class not found: " + baseClassName);
         }
 
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, genericTypeBindings);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef, genericTypeBindings);
         initializeObjectFields(instance, classDef);
 
         // GC: Register the newly created object with the garbage collector
