@@ -374,12 +374,52 @@ namespace vm::runtime
         {
             const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
             inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+
+            // MYT-198: try to fuse ADD_INT with a preceding PUSH_INT into
+            // ADD_INT_CONST. Only ADD_INT is covered by the fused opcode set
+            // for MVP (the same pattern would extend to SUB/MUL/DIV trivially).
+            if (intOpcode == bytecode::OpCode::ADD_INT)
+            {
+                tryFuseAddIntConst();
+            }
         }
         else if (lt == jit::ic::ObservedType::FLOAT && rt == jit::ic::ObservedType::FLOAT)
         {
             const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = floatOpcode;
             inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
         }
+    }
+
+    void VirtualMachine::tryFuseAddIntConst()
+    {
+        const size_t ip = instructionPointer;
+        if (ip == 0) return;
+
+        // Prior must be PUSH_INT; its operand[0] is a constant-pool index
+        // (see StackOperationsExecutor::handlePushInt). ADD_INT_CONST stores
+        // that same index in fusedSlot and reads the literal from the pool
+        // at dispatch time — no eager resolution.
+        const auto& prev = program->getInstruction(ip - 1);
+        if (prev.opcode != bytecode::OpCode::PUSH_INT) return;
+        if (prev.operands.empty()) return;
+
+        // Same fusion-safety gates as the LOAD_LOCAL fusions: no control-flow
+        // target may land directly on the fused op, and sticky un-fuse blocks
+        // re-fusion.
+        if (program->isFusionUnsafeTarget(ip)) return;
+
+        auto& mut = const_cast<bytecode::BytecodeProgram*>(program)
+                        ->getMutableInstruction(ip);
+        if (mut.fusedDeoptCount >= 1) return;
+
+        uint64_t constIdx = prev.operands[0];
+        auto& prevMut = const_cast<bytecode::BytecodeProgram*>(program)
+                            ->getMutableInstruction(ip - 1);
+        prevMut.opcode = bytecode::OpCode::NOP;
+        prevMut.operands.clear();
+
+        mut.fusedSlot = static_cast<uint32_t>(constIdx);
+        mut.opcode = bytecode::OpCode::ADD_INT_CONST;
     }
 
     void VirtualMachine::executeCallWithJit(

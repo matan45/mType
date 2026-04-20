@@ -46,6 +46,14 @@ namespace vm::runtime
         void handleGetFieldCached(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSetFieldCached(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // MYT-198: superinstruction fast paths. Each fused handler reads the
+        // captured LOAD_LOCAL slot from instr.fusedSlot, pushes the receiver,
+        // then runs the underlying _CACHED logic. On any stack-shape or shape-
+        // miss deopt, tryUnfusePair restores {LOAD_LOCAL, _CACHED} before
+        // re-dispatching through the generic IC path.
+        void handleLoadLocalCallCached(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleLoadLocalGetFieldCached(const bytecode::BytecodeProgram::Instruction& instr);
+
     private:
         // Shared dispatch body used by the MONO-hit branch of handleCallMethodIC and
         // by handleCallMethodCached. Pops args + receiver, pushes a CallFrame, and
@@ -89,6 +97,22 @@ namespace vm::runtime
         // direct style (revert opcode + re-entry handler are hardcoded).
         void deoptGetFieldAndReprocess(const bytecode::BytecodeProgram::Instruction& instr);
         void deoptSetFieldAndReprocess(const bytecode::BytecodeProgram::Instruction& instr);
+
+        // MYT-198: attempt to fuse the just-promoted CACHED opcode at the
+        // current IP with a LOAD_LOCAL at IP-1. On success the LOAD_LOCAL
+        // becomes NOP, the current opcode becomes the given fused variant with
+        // its fusedSlot set, and all eligibility state is updated. No-op if
+        // any guard fails (no prior instr, prior not LOAD_LOCAL, lambda frame,
+        // control-flow target, sticky un-fuse). See buildFusionUnsafeTargets.
+        void tryFuseWithPriorLoadLocal(bytecode::OpCode fusedOp);
+
+        // MYT-198: restore a fused LOAD_LOCAL_* pair back to {LOAD_LOCAL,
+        // underlyingCached}. Called from deopt paths when the fused opcode
+        // itself can't dispatch (shape miss, stack shape wrong). Bumps
+        // fusedDeoptCount to make the un-fuse decision sticky — a later
+        // re-promotion of the CACHED opcode will observe the counter and skip
+        // re-fusion. Returns true iff a fusion was actually undone.
+        bool tryUnfusePair(bytecode::OpCode underlyingCached);
 
         ExecutionContext& context;
         vm::jit::ic::InlineCacheTable& icTable;

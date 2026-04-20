@@ -36,6 +36,12 @@ namespace vm::runtime
         void handleMulInt();
         void handleDivInt();
 
+        // MYT-198: fused PUSH_INT + ADD_INT. Reads the integer literal from the
+        // constant pool via instr.fusedSlot (populated at fusion time with the
+        // original PUSH_INT's operand[0]), adds it to the integer already on
+        // tos, and pushes the result. Deopts to handleAdd on non-int tos.
+        void handleAddIntConst(const bytecode::BytecodeProgram::Instruction& instr);
+
         // Optimized float operations
         void handleAddFloat();
         void handleSubFloat();

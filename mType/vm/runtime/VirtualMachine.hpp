@@ -341,6 +341,11 @@ namespace vm::runtime
         // Extracted dispatch helpers (reduce executeInstruction size)
         void trySpecializeArithmetic(const bytecode::BytecodeProgram::Instruction& instr,
                                      bytecode::OpCode intOpcode, bytecode::OpCode floatOpcode);
+        // MYT-198: runtime fusion of PUSH_INT + ADD_INT into ADD_INT_CONST.
+        // Called from trySpecializeArithmetic immediately after the ADD →
+        // ADD_INT promotion lands. Keeps the symmetry with the _CACHED
+        // fusions driven by InlineCacheExecutor::tryFuseWithPriorLoadLocal.
+        void tryFuseAddIntConst();
         void executeCallWithJit(const bytecode::BytecodeProgram::Instruction& instr);
         void executeCallFastWithJit(const bytecode::BytecodeProgram::Instruction& instr);
         void executeAwait();

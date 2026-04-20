@@ -79,6 +79,11 @@ namespace vm::runtime
             break;
         case OpCode::ADD_INT: arithmeticExecutor->handleAddInt();
             break;
+        case OpCode::ADD_INT_CONST:
+            // MYT-198: fused PUSH_INT + ADD_INT. Never emitted by the compiler;
+            // only reachable via runtime promotion inside trySpecializeArithmetic.
+            arithmeticExecutor->handleAddIntConst(instr);
+            break;
         case OpCode::SUB_INT: arithmeticExecutor->handleSubInt();
             break;
         case OpCode::MUL_INT: arithmeticExecutor->handleMulInt();
@@ -195,6 +200,19 @@ namespace vm::runtime
             else
                 objectExecutor->handleGetField(instr);
             break;
+        case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
+            // MYT-198: fused LOAD_LOCAL + GET_FIELD_CACHED. IC-only; if IC is
+            // disabled fall back by materialising the LOAD_LOCAL and running
+            // the generic GET_FIELD. fusedSlot carries the receiver slot.
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleLoadLocalGetFieldCached(instr);
+            else {
+                variableExecutor->handleLoadLocal(
+                    bytecode::BytecodeProgram::Instruction(
+                        bytecode::OpCode::LOAD_LOCAL, instr.fusedSlot));
+                objectExecutor->handleGetField(instr);
+            }
+            break;
         case OpCode::SET_FIELD:
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleSetFieldIC(instr);
@@ -240,6 +258,19 @@ namespace vm::runtime
                 inlineCacheExecutor->handleCallMethodCached(instr);
             else
                 objectExecutor->handleCallMethod(instr);
+            break;
+        case OpCode::LOAD_LOCAL_CALL_CACHED:
+            // MYT-198: fused LOAD_LOCAL + CALL_METHOD_CACHED. Same IC-only
+            // constraint as CALL_METHOD_CACHED. fusedSlot carries the receiver
+            // slot that the NOPed LOAD_LOCAL would have pushed.
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleLoadLocalCallCached(instr);
+            else {
+                variableExecutor->handleLoadLocal(
+                    bytecode::BytecodeProgram::Instruction(
+                        bytecode::OpCode::LOAD_LOCAL, instr.fusedSlot));
+                objectExecutor->handleCallMethod(instr);
+            }
             break;
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;

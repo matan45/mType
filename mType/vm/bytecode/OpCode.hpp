@@ -249,6 +249,14 @@ namespace vm::bytecode
         // Opcodes reserved for future extensions
         INLINE_GET_FIELD,   // Inlined trivial getter (operand: field name index, pushes field value)
 
+        // === Superinstruction Fusion (MYT-198) ===
+        // Runtime-fused adjacent pairs. First instr of the pair becomes NOP; this
+        // opcode occupies the second slot and does the combined work. fusedSlot on
+        // the Instruction carries the captured LOAD_LOCAL / PUSH_INT operand.
+        ADD_INT_CONST,            // PUSH_INT k + ADD_INT → int literal from operand[0] + tos (operand[0] = int literal)
+        LOAD_LOCAL_CALL_CACHED,   // LOAD_LOCAL s + CALL_METHOD_CACHED → shape-guard, direct dispatch (fusedSlot = s; operands + cached* reused from CALL_METHOD_CACHED)
+        LOAD_LOCAL_GET_FIELD_CACHED, // LOAD_LOCAL s + GET_FIELD_CACHED → shape-guard, indexed field read (fusedSlot = s; operands + cached* reused from GET_FIELD_CACHED)
+
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
         // without requiring manual updates each time a new opcode is added.
@@ -454,6 +462,10 @@ namespace vm::bytecode
             case OpCode::OBJECT_TO_VALUE: return "OBJECT_TO_VALUE";
 
             case OpCode::STRING_BUILD: return "STRING_BUILD";
+
+            case OpCode::ADD_INT_CONST: return "ADD_INT_CONST";
+            case OpCode::LOAD_LOCAL_CALL_CACHED: return "LOAD_LOCAL_CALL_CACHED";
+            case OpCode::LOAD_LOCAL_GET_FIELD_CACHED: return "LOAD_LOCAL_GET_FIELD_CACHED";
 
             default: return "UNKNOWN";
         }

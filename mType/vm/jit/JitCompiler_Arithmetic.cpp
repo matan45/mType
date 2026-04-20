@@ -815,6 +815,35 @@ namespace vm::jit
             case OpCode::NEG: case OpCode::INC: case OpCode::DEC:
                 return emitIntArithmeticOps(s, instr);
 
+            case OpCode::ADD_INT_CONST:
+            {
+                // MYT-198: de-fuse at JIT time — emit equivalent of PUSH_INT
+                // (from fusedSlot) + ADD_INT. Implemented inline rather than
+                // through emitSimpleIntArithOps since the right operand is an
+                // immediate, not a stack slot.
+                auto& cc = s.cc;
+                size_t constIdx = static_cast<size_t>(instr.fusedSlot);
+                if (constIdx >= s.program.getConstantPool().integers.size())
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
+                int64_t literal = s.program.getConstantPool().getInteger(constIdx);
+
+                // Unbox tos to INT if necessary (same pattern as
+                // emitSimpleIntArithOps). The interpreter won't have fused
+                // unless the site was stably int-typed, so this is the hot
+                // path; BOXED inputs still get coerced rather than bailing.
+                SlotType lType = popType(s);
+                emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
+
+                Gp right = cc.new_gp64();
+                cc.mov(right, literal);
+                cc.add(Mem(s.stackBase, (s.stackDepth - 1) * 8), right);
+                s.slotTypes.push_back(SlotType::INT);
+                return true;
+            }
+
             case OpCode::ADD_FLOAT: case OpCode::SUB_FLOAT:
             case OpCode::MUL_FLOAT: case OpCode::DIV_FLOAT:
             case OpCode::ADD: case OpCode::SUB: case OpCode::MUL:

@@ -8,6 +8,7 @@
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/SmallArgsBuffer.hpp"
+#include "../../../constants/SecurityConstants.hpp"
 
 namespace vm::runtime
 {
@@ -567,12 +568,28 @@ namespace vm::runtime
         // MYT-195: snapshot the pre-resolved class prefix alongside qualifiedName.
         mut.cachedMethodDefiningClassName = entry.definingClassName;
         mut.opcode = bytecode::OpCode::CALL_METHOD_CACHED;
+
+        // MYT-198: opportunistically fuse with a preceding LOAD_LOCAL.
+        tryFuseWithPriorLoadLocal(bytecode::OpCode::LOAD_LOCAL_CALL_CACHED);
     }
 
     void InlineCacheExecutor::deoptAndReprocess(
         const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        // MYT-198: if the CACHED opcode was itself the second half of a fused
+        // LOAD_LOCAL_CALL_CACHED pair, we must restore the NOPed LOAD_LOCAL
+        // before demoting, otherwise the subsequent CALL_METHOD re-entry
+        // would see a NOP predecessor and underflow on the receiver. The
+        // fused handler already pushed the receiver onto the stack for this
+        // dispatch, so the immediate re-entry below is fine; the un-fuse is
+        // for all *future* dispatches of this IP.
+        if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_CALL_CACHED)
+        {
+            tryUnfusePair(bytecode::OpCode::CALL_METHOD_CACHED);
+            // Fall through — mut.opcode is now CALL_METHOD_CACHED, demote to
+            // CALL_METHOD as usual.
+        }
         mut.opcode = bytecode::OpCode::CALL_METHOD;
         mut.cachedMethodShape = nullptr;
         mut.cachedMethodFunc = nullptr;
@@ -661,12 +678,26 @@ namespace vm::runtime
         mut.cachedFieldShape = shape;
         mut.cachedFieldIndex = fieldIndex;
         mut.opcode = cachedOp;
+
+        // MYT-198: only GET_FIELD_CACHED participates in fusion. SET_FIELD_CACHED
+        // pops both value + receiver, and a preceding LOAD_LOCAL at IP-1 would
+        // be the receiver — but the "value" has already been pushed by whatever
+        // sits at IP-2, so a two-instruction fusion can't cleanly fold the SET.
+        // Keep SET_FIELD_CACHED un-fused for MVP.
+        if (cachedOp == bytecode::OpCode::GET_FIELD_CACHED) {
+            tryFuseWithPriorLoadLocal(bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED);
+        }
     }
 
     void InlineCacheExecutor::deoptGetFieldAndReprocess(
         const bytecode::BytecodeProgram::Instruction& /*instr*/)
     {
         auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        // MYT-198: see deoptAndReprocess — same un-fuse-before-demote story.
+        if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED)
+        {
+            tryUnfusePair(bytecode::OpCode::GET_FIELD_CACHED);
+        }
         mut.opcode = bytecode::OpCode::GET_FIELD;
         mut.cachedFieldShape = nullptr;
         mut.cachedFieldIndex = SIZE_MAX;
@@ -802,5 +833,138 @@ namespace vm::runtime
         context.stackManager->pop();
         context.stackManager->pop();
         context.stackManager->push(newValue);
+    }
+
+    void InlineCacheExecutor::tryFuseWithPriorLoadLocal(bytecode::OpCode fusedOp)
+    {
+        const size_t ip = context.instructionPointer;
+        if (ip == 0) return;  // No predecessor slot.
+
+        // Prior must be LOAD_LOCAL within the same program. loadedPrograms
+        // routing isn't relevant — IP and program are already coherent for
+        // the currently-executing frame.
+        const auto& prev = context.program->getInstruction(ip - 1);
+        if (prev.opcode != bytecode::OpCode::LOAD_LOCAL) return;
+        if (prev.operands.empty()) return;
+
+        // Current IP must not be reachable via any control-flow path other
+        // than falling through from IP-1. Otherwise a jump landing directly
+        // on the fused op would execute LOAD_LOCAL(fusedSlot) on a stack
+        // that the jumping caller didn't set up for it.
+        if (context.program->isFusionUnsafeTarget(ip)) return;
+
+        auto& mut = context.getMutableInstructionAt(ip);
+
+        // Sticky un-fuse — a site that already had its fusion rolled back
+        // should not be re-fused. Mirrors cachedDeoptCount's sticky semantics.
+        if (mut.fusedDeoptCount >= 1) return;
+
+        // Lambda / shared-frame guard. LOAD_LOCAL inside a lambda frame has
+        // captured-variable semantics that the fused executor doesn't
+        // replicate (it reads from frameBase + slot directly). Skipping here
+        // is safer than duplicating VariableExecutor::handleLoadLocal's
+        // capture logic in every fused op; lambda-body fusion is follow-up.
+        if (!context.callStack.empty())
+        {
+            const auto& frame = context.callStack.back();
+            if (frame.originatingLambda || frame.sharedFrame) return;
+        }
+
+        // MYT-173 precedent: an in-place opcode rewrite (prev→NOP, current→
+        // fused) keeps the instruction vector length stable, so no jump
+        // offsets need fixing up. fusedSlot captures what used to be the
+        // LOAD_LOCAL's operand[0].
+        uint64_t slot = prev.operands[0];
+        auto& prevMut = context.getMutableInstructionAt(ip - 1);
+        prevMut.opcode = bytecode::OpCode::NOP;
+        prevMut.operands.clear();
+
+        mut.fusedSlot = static_cast<uint32_t>(slot);
+        mut.opcode = fusedOp;
+    }
+
+    void InlineCacheExecutor::handleLoadLocalCallCached(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Fast replay of the NOPed LOAD_LOCAL: the fusion trigger guaranteed
+        // a non-lambda, non-shared frame, so the simple localBase + slot read
+        // is sufficient — we don't need to replicate handleLoadLocal's
+        // capture-chain logic. SECURITY: same MAX_LOCAL_STACK_PER_FRAME cap
+        // as handleLoadLocal, on fusedSlot.
+        size_t slot = static_cast<size_t>(instr.fusedSlot);
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "LOAD_LOCAL_CALL_CACHED slot index " + std::to_string(slot) +
+                " exceeds per-frame limit");
+        }
+
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
+        if (stackPos >= context.stackManager->size())
+        {
+            // Stack shape doesn't match the fusion expectation — un-fuse and
+            // re-dispatch through the generic IC path. tryUnfusePair bumps
+            // fusedDeoptCount so we don't re-fuse.
+            tryUnfusePair(bytecode::OpCode::CALL_METHOD_CACHED);
+            // Receiver isn't on stack; replay through handleCallMethodIC
+            // which will fail with the correct error at the generic site.
+            handleCallMethodIC(
+                context.getMutableInstructionAt(context.instructionPointer));
+            return;
+        }
+        context.stackManager->push((*context.stackManager)[stackPos]);
+
+        // Receiver now on stack; delegate to the standard CACHED handler.
+        handleCallMethodCached(instr);
+    }
+
+    void InlineCacheExecutor::handleLoadLocalGetFieldCached(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        size_t slot = static_cast<size_t>(instr.fusedSlot);
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "LOAD_LOCAL_GET_FIELD_CACHED slot index " + std::to_string(slot) +
+                " exceeds per-frame limit");
+        }
+
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
+        if (stackPos >= context.stackManager->size())
+        {
+            tryUnfusePair(bytecode::OpCode::GET_FIELD_CACHED);
+            handleGetFieldIC(
+                context.getMutableInstructionAt(context.instructionPointer));
+            return;
+        }
+        context.stackManager->push((*context.stackManager)[stackPos]);
+
+        handleGetFieldCached(instr);
+    }
+
+    bool InlineCacheExecutor::tryUnfusePair(bytecode::OpCode underlyingCached)
+    {
+        const size_t ip = context.instructionPointer;
+        if (ip == 0) return false;
+
+        auto& mut = context.getMutableInstructionAt(ip);
+        if (mut.opcode != bytecode::OpCode::LOAD_LOCAL_CALL_CACHED &&
+            mut.opcode != bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED)
+        {
+            return false;
+        }
+
+        // Restore LOAD_LOCAL at IP-1 from the captured fusedSlot.
+        auto& prevMut = context.getMutableInstructionAt(ip - 1);
+        prevMut.opcode = bytecode::OpCode::LOAD_LOCAL;
+        prevMut.operands = { static_cast<uint64_t>(mut.fusedSlot) };
+
+        // Demote current back to the underlying CACHED opcode and make the
+        // un-fuse sticky so the next promotion here won't re-fuse.
+        mut.opcode = underlyingCached;
+        if (mut.fusedDeoptCount < 255) ++mut.fusedDeoptCount;
+        return true;
     }
 }

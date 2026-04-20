@@ -300,6 +300,20 @@ namespace tests::testSuite
         addOutputVerificationTest("SET_FIELD_CACHED Deopt Sticky",
                                   passPath + "ic/set_field_cached_deopt.mt");
 
+        // MYT-198: superinstruction fusion of adjacent CACHED / ADD_INT pairs.
+        addOutputVerificationTest("LOAD_LOCAL_CALL_CACHED Fusion",
+                                  passPath + "ic/load_local_call_cached_fuse.mt");
+        addOutputVerificationTest("LOAD_LOCAL_GET_FIELD_CACHED Fusion",
+                                  passPath + "ic/load_local_get_field_cached_fuse.mt");
+        addOutputVerificationTest("ADD_INT_CONST Fusion",
+                                  passPath + "ic/add_int_const_fuse.mt");
+        addOutputVerificationTest("Fused Pair Deopt Unfuse",
+                                  passPath + "ic/fused_deopt.mt");
+        addOutputVerificationTest("Fusion Skipped In Lambda Frame",
+                                  passPath + "ic/fused_lambda_safe.mt");
+        addOutputVerificationTest("Fusion Skipped At Jump Target",
+                                  passPath + "ic/fused_jump_target.mt");
+
         // ====================================
         // COMMENTED OUT - Test files were not created
         // ====================================

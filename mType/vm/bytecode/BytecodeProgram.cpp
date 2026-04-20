@@ -128,18 +128,22 @@ namespace vm::bytecode
 
     void BytecodeProgram::emit(OpCode opcode) {
         instructions.emplace_back(opcode);
+        invalidateFusionUnsafeTargets();
     }
 
     void BytecodeProgram::emit(OpCode opcode, uint64_t operand) {
         instructions.emplace_back(opcode, operand);
+        invalidateFusionUnsafeTargets();
     }
 
     void BytecodeProgram::emit(OpCode opcode, uint64_t operand1, uint64_t operand2) {
         instructions.emplace_back(opcode, operand1, operand2);
+        invalidateFusionUnsafeTargets();
     }
 
     void BytecodeProgram::emit(OpCode opcode, const std::vector<uint64_t>& operands) {
         instructions.emplace_back(opcode, operands);
+        invalidateFusionUnsafeTargets();
     }
 
     size_t BytecodeProgram::getCurrentOffset() const {
@@ -172,6 +176,68 @@ namespace vm::bytecode
 
     size_t BytecodeProgram::getInstructionCount() const {
         return instructions.size();
+    }
+
+    // MYT-198: lazy build of the fusion-unsafe set. Duplicates
+    // JumpTargetTracker's logic in miniature to avoid a circular include from
+    // bytecode/ into optimization/analysis/ (the tracker already depends on
+    // BytecodeProgram). Keep the two in sync if new control-flow opcodes land.
+    void BytecodeProgram::buildFusionUnsafeTargets() const {
+        fusionUnsafeTargets.clear();
+
+        for (size_t i = 0; i < instructions.size(); ++i) {
+            const auto& instr = instructions[i];
+
+            switch (instr.opcode) {
+                case OpCode::JUMP:
+                case OpCode::JUMP_IF_FALSE:
+                case OpCode::JUMP_IF_TRUE:
+                case OpCode::JUMP_IF_NULL:
+                case OpCode::JUMP_BACK:
+                case OpCode::JUMP_IF_FALSE_OR_POP:
+                case OpCode::JUMP_IF_TRUE_OR_POP:
+                    if (!instr.operands.empty()) {
+                        fusionUnsafeTargets.insert(instr.operands[0]);
+                    }
+                    break;
+
+                case OpCode::TRY_BEGIN:
+                case OpCode::CATCH:
+                case OpCode::FINALLY:
+                    // The handler offset itself is a control-flow target, as
+                    // is the jump operand (handler address) if present.
+                    fusionUnsafeTargets.insert(i);
+                    if (!instr.operands.empty()) {
+                        fusionUnsafeTargets.insert(instr.operands[0]);
+                    }
+                    break;
+
+                case OpCode::LOOP_START:
+                    // Loop backs target LOOP_START.
+                    fusionUnsafeTargets.insert(i);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        // Function entry points are reachable via CALL / CALL_FAST / CALL_METHOD
+        // dispatch — the VM sets instructionPointer to (startOffset - 1) and the
+        // loop advance lands on startOffset. Treat them as unsafe.
+        for (const auto& [name, metadata] : functions) {
+            fusionUnsafeTargets.insert(metadata.startOffset);
+        }
+        fusionUnsafeTargets.insert(entryPoint);
+
+        fusionUnsafeTargetsBuilt = true;
+    }
+
+    bool BytecodeProgram::isFusionUnsafeTarget(size_t offset) const {
+        if (!fusionUnsafeTargetsBuilt) {
+            buildFusionUnsafeTargets();
+        }
+        return fusionUnsafeTargets.count(offset) > 0;
     }
 
     // === Optimization Support ===
@@ -216,6 +282,8 @@ namespace vm::bytecode
         if (hasSourceLocation) {
             addSourceLocation(offset, firstInstrLocation.line, firstInstrLocation.column, firstInstrLocation.filename);
         }
+
+        invalidateFusionUnsafeTargets();
     }
 
     void BytecodeProgram::removeInstructions(size_t offset, size_t count) {
@@ -235,6 +303,8 @@ namespace vm::bytecode
 
         // STEP 3: Remove the instructions
         instructions.erase(instructions.begin() + offset, instructions.begin() + offset + count);
+
+        invalidateFusionUnsafeTargets();
     }
 
     std::vector<BytecodeProgram::Instruction> BytecodeProgram::getInstructionRange(size_t start, size_t end) const {
@@ -291,6 +361,8 @@ namespace vm::bytecode
                     break;
             }
         }
+
+        invalidateFusionUnsafeTargets();
     }
 
     void BytecodeProgram::updateFunctionOffsets(size_t removalOffset, int delta) {
@@ -801,7 +873,10 @@ namespace vm::bytecode
             // relying on the CACHED handler to deopt on first dispatch.
             if (instructions[i].opcode == OpCode::CALL_METHOD_CACHED ||
                 instructions[i].opcode == OpCode::GET_FIELD_CACHED ||
-                instructions[i].opcode == OpCode::SET_FIELD_CACHED) {
+                instructions[i].opcode == OpCode::SET_FIELD_CACHED ||
+                instructions[i].opcode == OpCode::ADD_INT_CONST ||
+                instructions[i].opcode == OpCode::LOAD_LOCAL_CALL_CACHED ||
+                instructions[i].opcode == OpCode::LOAD_LOCAL_GET_FIELD_CACHED) {
                 throw std::runtime_error(
                     std::string("Bytecode deserialization rejected: runtime-only opcode ") +
                     getOpCodeName(instructions[i].opcode) +

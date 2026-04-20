@@ -100,6 +100,18 @@ namespace vm::bytecode
             mutable size_t cachedFieldIndex = static_cast<size_t>(-1);
             mutable uint8_t cachedFieldDeoptCount = 0;
 
+            // MYT-198: Superinstruction fusion. When a CACHED / ADD_INT runtime
+            // rewrite fires, its predecessor LOAD_LOCAL / PUSH_INT may be fused
+            // into the current instruction: the prior op becomes NOP and this
+            // op is rewritten to a fused variant (LOAD_LOCAL_CALL_CACHED,
+            // LOAD_LOCAL_GET_FIELD_CACHED, or ADD_INT_CONST). fusedSlot carries
+            // the captured operand (local slot for _CACHED fusions, int
+            // constant pool index for ADD_INT_CONST). fusedDeoptCount makes the
+            // un-fuse decision sticky — once >= 1, the same pair is never
+            // re-fused at this site. Purely runtime state; never serialized.
+            mutable uint32_t fusedSlot = 0;
+            mutable uint8_t fusedDeoptCount = 0;
+
             Instruction();
             Instruction(OpCode op);
             Instruction(OpCode op, uint64_t operand1);
@@ -369,6 +381,15 @@ namespace vm::bytecode
         size_t topLevelLocalCount = 0;
         std::string sourceFilePath; // For class registration when loading cached bytecode
 
+        // MYT-198: lazy cache backing isFusionUnsafeTarget. `built` is the
+        // dirty bit; cleared by any mutation path. The set itself is small in
+        // practice (one entry per JUMP*, LOOP_START, function start, and
+        // exception handler), so a hash set is fine vs a bitset.
+        mutable std::unordered_set<size_t> fusionUnsafeTargets;
+        mutable bool fusionUnsafeTargetsBuilt = false;
+        void buildFusionUnsafeTargets() const;
+        void invalidateFusionUnsafeTargets() const { fusionUnsafeTargetsBuilt = false; fusionUnsafeTargets.clear(); }
+
     public:
         BytecodeProgram();
 
@@ -386,6 +407,19 @@ namespace vm::bytecode
         Instruction& getMutableInstruction(size_t offset);
         const std::vector<Instruction>& getInstructions() const;
         size_t getInstructionCount() const;
+
+        // MYT-198: control-flow target query for runtime superinstruction fusion.
+        // Returns true if `offset` is reachable from anywhere other than its
+        // immediate predecessor — i.e. any JUMP* target, loop header, exception
+        // handler entry, or function entry point. Fusion must NOT collapse a
+        // pair whose second slot is such a target, because jumping directly to
+        // the fused op would execute the prior (now-implicit) LOAD_LOCAL on a
+        // stack that the jumping caller didn't set up for it.
+        //
+        // Lazily built on first call and memoised; invalidated by any call that
+        // mutates the instruction vector (replaceInstructions / removeInstructions
+        // / emit / updateAllJumpOffsets). Single-threaded VM, so no locking.
+        bool isFusionUnsafeTarget(size_t offset) const;
 
         // Optimization Support (for peephole optimizer)
         void replaceInstructions(size_t offset, size_t count, const std::vector<Instruction>& newInstructions);
