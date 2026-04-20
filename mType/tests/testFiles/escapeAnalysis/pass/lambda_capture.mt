@@ -6,12 +6,12 @@ class Holder {
 }
 
 interface IntSupplier {
-    public function get(): int;
+    function get(): int;
 }
 
 function makeSupplier(): IntSupplier {
     Holder h = new Holder(21);
-    IntSupplier s = (): int -> h.n + 1;
+    IntSupplier s = () -> h.n + 1;
     return s;
 }
 

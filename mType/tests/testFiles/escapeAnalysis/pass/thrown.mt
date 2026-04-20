@@ -1,7 +1,7 @@
-class MyError {
-    public string message;
-    public constructor(string m) {
-        this.message = m;
+import * from "../../lib/exceptions/Exception.mt";
+
+class MyError extends Exception {
+    public constructor(string msg) : super(msg) {
     }
 }
 
@@ -16,6 +16,6 @@ function mayThrow(bool should): int {
 try {
     mayThrow(true);
 } catch (MyError ex) {
-    print(ex.message);
+    print(ex.getMessage());
 }
 print("after");
