@@ -1,10 +1,11 @@
 ﻿#include "Lexer.hpp"
 #include <cctype>
+#include <charconv>
 #include <stdexcept>
+#include <system_error>
 #include <limits>
 #include "TokenFactory.hpp"
 #include "../errors/ParseException.hpp"
-#include "../value/StringPool.hpp"
 #include "../constants/SecurityConstants.hpp"
 #include "../diagnostics/SourceFileCache.hpp"
 
@@ -209,7 +210,7 @@ namespace lexer
         // String literals
         if (current == '"')
         {
-            std::string value = parseStringLiteral();
+            std::string_view value = parseStringLiteral();
             return TokenFactory::createStringToken(value, location);
         }
 
@@ -285,23 +286,25 @@ namespace lexer
             }
             advance();
         }
-        std::string_view floatView(input.data() + start, pos - start);
-        try
+        const std::string_view floatView(input.data() + start, pos - start);
+
+        double value = 0.0;
+        const char* first = floatView.data();
+        const char* last  = floatView.data() + floatView.size();
+        const auto res = std::from_chars(first, last, value);
+
+        if (res.ec == std::errc::result_out_of_range)
         {
-            return std::stod(std::string(floatView)); // std::stod requires std::string
-        }
-        catch (const std::out_of_range&)
-        {
-            // Float literal is too large to fit in a double
             throw errors::ParseException(
                 "Float literal '" + std::string(floatView) + "' is out of range for type 'float'",
                 locationTracker->getCurrentLocation());
         }
-        catch (const std::invalid_argument&)
+        if (res.ec == std::errc::invalid_argument || res.ptr != last)
         {
             throw errors::ParseException("Invalid float format: " + std::string(floatView),
                                          locationTracker->getCurrentLocation());
         }
+        return value;
     }
 
     int64_t Lexer::parseInteger()
@@ -319,25 +322,26 @@ namespace lexer
             }
             advance();
         }
-        std::string_view intView(input.data() + start, pos - start);
+        const std::string_view intView(input.data() + start, pos - start);
 
-        try
+        int64_t value = 0;
+        const char* first = intView.data();
+        const char* last  = intView.data() + intView.size();
+        const auto res = std::from_chars(first, last, value, 10);
+
+        if (res.ec == std::errc::result_out_of_range)
         {
-            return std::stoll(std::string(intView));
-        }
-        catch (const std::out_of_range&)
-        {
-            // Integer literal is too large to fit in an int64_t
             throw errors::ParseException(
                 "Integer literal '" + std::string(intView) + "' is out of range for type 'int' (must be between " +
                 std::to_string(LLONG_MIN) + " and " + std::to_string(LLONG_MAX) + ")",
                 locationTracker->getCurrentLocation());
         }
-        catch (const std::invalid_argument&)
+        if (res.ec == std::errc::invalid_argument || res.ptr != last)
         {
             throw errors::ParseException("Invalid integer format: " + std::string(intView),
                                          locationTracker->getCurrentLocation());
         }
+        return value;
     }
 
     std::string_view Lexer::parseIdentifier()
@@ -377,7 +381,13 @@ namespace lexer
         }
     }
 
-    std::string Lexer::processEscapeSequences(size_t start, size_t end)
+    std::string_view Lexer::storeProcessed(std::string&& s)
+    {
+        processedLiteralArena.emplace_back(std::move(s));
+        return processedLiteralArena.back();
+    }
+
+    std::string_view Lexer::processEscapeSequences(size_t start, size_t end)
     {
         std::string result;
         result.reserve(end - start);
@@ -406,10 +416,10 @@ namespace lexer
         }
         advance(); // Skip closing quote
 
-        return result;
+        return storeProcessed(std::move(result));
     }
 
-    std::string Lexer::parseStringLiteral()
+    std::string_view Lexer::parseStringLiteral()
     {
         advance(); // Skip opening quote
         size_t start = pos;
@@ -443,10 +453,11 @@ namespace lexer
 
         if (!hasEscapes)
         {
-            // Optimization: no escapes, use string_view for direct copy
+            // Fast path: view directly into the source buffer (stable for
+            // Lexer lifetime). No allocation.
             std::string_view literalView(input.data() + start, end - start);
             pos = end + 1; // Skip closing quote
-            return std::string(literalView);
+            return literalView;
         }
 
         return processEscapeSequences(start, end);
@@ -648,9 +659,12 @@ namespace lexer
 
         if (input[pos] == '"')
         {
-            // No interpolation found, treat as regular string
+            // No interpolation found, treat as regular string.
+            // `text` is a local std::string (escapes already processed); the
+            // token needs a string_view that outlives this function, so move
+            // text into the arena.
             advance(); // skip closing '"'
-            return TokenFactory::createStringToken(text, location);
+            return TokenFactory::createStringToken(storeProcessed(std::move(text)), location);
         }
 
         // Found '{' - emit INTERP_STRING_BEGIN
@@ -658,7 +672,7 @@ namespace lexer
         interpolationState.active = true;
         interpolationState.braceDepth = 0;
         return Token{TokenType::INTERP_STRING_BEGIN, 0.0, 0,
-                     value::StringPool::getInstance().intern(text), location};
+                     storeProcessed(std::move(text)), location};
     }
 
     Token Lexer::scanInterpolatedSegment()
@@ -690,14 +704,14 @@ namespace lexer
             advance(); // skip '{'
             interpolationState.braceDepth = 0;
             return Token{TokenType::INTERP_STRING_MIDDLE, 0.0, 0,
-                         value::StringPool::getInstance().intern(text), location};
+                         storeProcessed(std::move(text)), location};
         }
 
         // Found closing '"'
         advance(); // skip '"'
         interpolationState.active = false;
         return Token{TokenType::INTERP_STRING_END, 0.0, 0,
-                     value::StringPool::getInstance().intern(text), location};
+                     storeProcessed(std::move(text)), location};
     }
 
     void Lexer::advanceMultiple(size_t count)

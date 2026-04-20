@@ -12,6 +12,8 @@
 #include "../value/StringPool.hpp"
 #include "../value/ArrayPool.hpp"
 #include "../gc/GC.hpp"
+#include "../lexer/Lexer.hpp"
+#include "../token/TokenType.hpp"
 
 #include <algorithm>
 #include <array>
@@ -442,6 +444,99 @@ namespace
         return result;
     }
 
+    struct LexerIterationSample
+    {
+        double wallMs = 0.0;
+        std::size_t tokenCount = 0;
+    };
+
+    LexerIterationSample runLexerOne(const std::string& path)
+    {
+        LexerIterationSample s{};
+        lexer::Lexer lexer(path);
+
+        const auto t0 = std::chrono::high_resolution_clock::now();
+        for (;;)
+        {
+            token::Token tok = lexer.getNextToken();
+            ++s.tokenCount;
+            if (tok.type == token::TokenType::END) break;
+        }
+        const auto t1 = std::chrono::high_resolution_clock::now();
+
+        s.wallMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        return s;
+    }
+
+    int runLexerBenchmark(const BenchmarkOptions& opts)
+    {
+        const std::string& path = opts.singleLexerScript;
+
+        std::error_code ec;
+        if (!std::filesystem::exists(path, ec))
+        {
+            std::cerr << "Error: lexer benchmark input not found: " << path << "\n";
+            return 2;
+        }
+
+        std::cout << "mType lexer microbenchmark  (warmup=" << opts.warmupIterations
+                  << ", measured=" << opts.measuredIterations << ")\n";
+        std::cout << "  input: " << path << "\n\n";
+
+        try
+        {
+            for (int i = 0; i < opts.warmupIterations; ++i)
+            {
+                (void)runLexerOne(path);
+            }
+
+            std::vector<LexerIterationSample> samples;
+            samples.reserve(opts.measuredIterations);
+            for (int i = 0; i < opts.measuredIterations; ++i)
+            {
+                samples.push_back(runLexerOne(path));
+            }
+
+            std::vector<double> wall;
+            wall.reserve(samples.size());
+            for (const auto& s : samples) wall.push_back(s.wallMs);
+            std::sort(wall.begin(), wall.end());
+
+            const double minMs = wall.front();
+            const std::size_t n = wall.size();
+            const double medianMs = (n % 2 == 0) ? (wall[n / 2 - 1] + wall[n / 2]) / 2.0 : wall[n / 2];
+            double sum = 0.0;
+            for (double v : wall) sum += v;
+            const double meanMs = sum / static_cast<double>(n);
+            double sqSum = 0.0;
+            for (double v : wall)
+            {
+                const double d = v - meanMs;
+                sqSum += d * d;
+            }
+            const double stddevMs = (n >= 2) ? std::sqrt(sqSum / static_cast<double>(n - 1)) : 0.0;
+
+            const std::size_t tokens = samples.front().tokenCount;
+            const double tokensPerSecMin = (minMs > 0.0)
+                ? static_cast<double>(tokens) / (minMs / 1000.0)
+                : 0.0;
+
+            std::cout << "  tokens         " << tokens << "\n";
+            std::cout << "  wall-clock ms  min=" << formatMs(minMs)
+                      << "  median=" << formatMs(medianMs)
+                      << "  mean=" << formatMs(meanMs)
+                      << "  stddev=" << formatMs(stddevMs) << "\n";
+            std::cout << "  tokens/sec     " << std::fixed << std::setprecision(0)
+                      << tokensPerSecMin << " (at min wall)\n\n";
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error: lexer benchmark failed: " << e.what() << "\n";
+            return 1;
+        }
+    }
+
     std::vector<std::string> resolveScriptPaths(const BenchmarkOptions& opts)
     {
         if (!opts.singleScript.empty())
@@ -464,6 +559,11 @@ namespace
 
 int runBenchmarks(const BenchmarkOptions& options)
 {
+    if (!options.singleLexerScript.empty())
+    {
+        return runLexerBenchmark(options);
+    }
+
     const auto paths = resolveScriptPaths(options);
     if (paths.empty())
     {

@@ -17,7 +17,7 @@ namespace parser::utilities
             throw ParseException("Expected annotation name after '@'", tokenStream.current().location);
         }
 
-        std::string annotationName = tokenStream.current().stringValue.getString();
+        std::string annotationName = std::string(tokenStream.current().stringValue);
         SourceLocation annotationLocation = tokenStream.current().location;
         tokenStream.advance();
 
@@ -97,7 +97,7 @@ namespace parser::utilities
                     throw ParseException("Expected class identifier in annotation argument list",
                                          tokenStream.current().location);
                 }
-                classNames.push_back(tokenStream.current().stringValue.getString());
+                classNames.push_back(std::string(tokenStream.current().stringValue));
                 tokenStream.advance();
                 if (tokenStream.current().type == TokenType::COMMA)
                 {
@@ -138,7 +138,7 @@ namespace parser::utilities
                     throw ParseException("Expected annotation parameter name",
                                          tokenStream.current().location);
                 }
-                std::string key = tokenStream.current().stringValue.getString();
+                std::string key = std::string(tokenStream.current().stringValue);
                 SourceLocation keyLoc = tokenStream.current().location;
                 tokenStream.advance();
 
@@ -216,13 +216,13 @@ namespace parser::utilities
             return TypedAnnotationValue::makeBool(false);
         case TokenType::STRING_LITERAL:
         {
-            std::string v = tok.stringValue.getString();
+            std::string v = std::string(tok.stringValue);
             tokenStream.advance();
             return TypedAnnotationValue::makeString(std::move(v));
         }
         case TokenType::IDENTIFIER:
         {
-            std::string v = tok.stringValue.getString();
+            std::string v = std::string(tok.stringValue);
             tokenStream.advance();
             return TypedAnnotationValue::makeClassRef(std::move(v));
         }
@@ -246,7 +246,7 @@ namespace parser::utilities
                 throw ParseException("Expected class identifier inside annotation array literal",
                                      tokenStream.current().location);
             }
-            entries.push_back(tokenStream.current().stringValue.getString());
+            entries.push_back(std::string(tokenStream.current().stringValue));
             tokenStream.advance();
             if (tokenStream.current().type == TokenType::COMMA)
             {

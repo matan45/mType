@@ -50,7 +50,7 @@ namespace parser
             tokenStream.current().type == TokenType::BOOL ||
             tokenStream.current().type == TokenType::STRING_TYPE)
         {
-            std::string paramType = tokenStream.current().stringValue.getString();
+            std::string paramType = std::string(tokenStream.current().stringValue);
             auto typeLocation = tokenStream.current().location;
             tokenStream.advance();
 
@@ -115,7 +115,7 @@ namespace parser
             throw ParseException("Expected generic type parameter name", tokenStream.current().location);
         }
 
-        std::string paramName = tokenStream.current().stringValue.getString();
+        std::string paramName = std::string(tokenStream.current().stringValue);
         auto location = tokenStream.current().location;
         validateGenericParameterName(paramName);
         tokenStream.advance();
@@ -133,7 +133,7 @@ namespace parser
                                      tokenStream.current().location);
             }
 
-            std::string constraintName = tokenStream.current().stringValue.getString();
+            std::string constraintName = std::string(tokenStream.current().stringValue);
             tokenStream.advance();
 
             // Handle generic parameters in constraints (e.g., Comparable<T>)

@@ -983,3 +983,65 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 - **Apparent gains on `string_ops` / `object_alloc` / `arithmetic_tight_loop`** are plausibly noise or bleed-through from interpreter dispatch-loop pressure reductions; none of these touch method calls heavily. Worth a re-run if they persist.
 - **Small regressions (`bitwise_tight_loop` +2.5%, `array_multi_alloc` +4.1%, `field_write_hot` +1.7%)** appear to be run-to-run noise — none of these workloads exercise CALL_METHOD. No regressions on the hot IC-using benchmarks.
 - **JIT-side CACHED fast path not yet implemented**; a follow-up ticket can emit a shape-guard + direct helper for non-inlineable CACHED sites to cut `jit_call_method_ic` overhead in JIT'd code.
+
+## 2026-04-20 — MYT-131 (TokenStream ring buffer for O(1) lookahead)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-131`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Change in this snapshot
+
+- **`TokenStream` lookahead** now backed by a fixed-capacity (8) circular array of `Token` instead of delegating every peek to `Lexer::peekNextToken()` / `Lexer::peekAhead()`. The Lexer capture/restore pattern (copies `pos`, line/column, bracket `std::stack<char>`, and `InterpolationState` on every peek) is removed from the hot peek path; refills now call `Lexer::getNextToken()` once per fresh slot and commit monotonically. Legacy semantics preserved: `peekAhead(0) == peekAhead(1) == first token after currentToken`.
+- Fallback to `Lexer::peekAhead(delta)` retained for the two unbounded-scan call sites (`AnnotationDeclarationParser::canParse`, `PostfixOperatorParser::isGenericMethodCall`) where depth may exceed the ring capacity.
+- Collateral: dropped `explicit` from `SourceLocation()` default ctor so `std::array<Token, 8>{}` can value-initialize through aggregate init on `Token`.
+
+### Summary
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt           1010.59       1013.71           20013         0
+  method_dispatch.mt                  249.11        249.19           14039       506
+  object_alloc.mt                    1782.98       1786.58           17509   2000000
+  field_write_hot.mt                  169.25        169.78            8016         1
+  string_ops.mt                       187.00        187.46           19014         0
+  recursive.mt                       1559.23       1562.13           17256   2763594
+  bitwise_tight_loop.mt              1405.92       1411.07           23014         0
+  short_circuit_chain.mt              400.28        401.10           24907         0
+  primitive_method_dispatch.mt       1007.99       1024.12           38061   1000005
+  array_multi_alloc.mt                 66.79         66.98           10909       500
+  array_multi_get.mt                 1203.03       1205.54           50815       500
+  for_each_loop.mt                    409.26        411.11           78650      6604
+  inline_monomorphic.mt               215.45        217.25           13013       501
+  inline_branching.mt                 216.81        217.71           15013       501
+  inline_polymorphic.mt               243.29        244.90           14048       508
+  inline_value_object_hot.mt         1554.50       1591.90           12530       501
+```
+
+### Delta vs. 2026-04-20 (MYT-173)
+
+| Script                        | Before min | After min |     Δ |
+|-------------------------------|-----------:|----------:|------:|
+| field_write_hot.mt            |     173.98 |    169.25 | −2.7% |
+| inline_monomorphic.mt         |     220.31 |    215.45 | −2.2% |
+| inline_branching.mt           |     221.72 |    216.81 | −2.2% |
+| bitwise_tight_loop.mt         |    1435.61 |   1405.92 | −2.1% |
+| array_multi_get.mt            |    1217.89 |   1203.03 | −1.2% |
+| array_multi_alloc.mt          |      67.59 |     66.79 | −1.2% |
+| for_each_loop.mt              |     413.91 |    409.26 | −1.1% |
+| inline_polymorphic.mt         |     245.00 |    243.29 | −0.7% |
+| arithmetic_tight_loop.mt      |    1015.33 |   1010.59 | −0.5% |
+| recursive.mt                  |    1553.80 |   1559.23 | +0.4% |
+| inline_value_object_hot.mt    |    1547.87 |   1554.50 | +0.4% |
+| string_ops.mt                 |     185.94 |    187.00 | +0.6% |
+| short_circuit_chain.mt        |     396.60 |    400.28 | +0.9% |
+| method_dispatch.mt            |     245.55 |    249.11 | +1.4% |
+| object_alloc.mt               |    1741.43 |   1782.98 | +2.4% |
+| primitive_method_dispatch.mt  |     981.94 |   1007.99 | +2.7% |
+
+### Notes
+
+- **All deltas within ±3%** — consistent with run-to-run noise. MYT-131 is a parser-phase change; benchmarks iterate millions of times over already-compiled bytecode, so parser work is a tiny fraction of wall-clock. A runtime-dominated suite isn't the right shape to expose this win — a parser-phase microbenchmark (repeatedly parsing large `.mt` sources) would be needed to quantify the reduction in `captureState`/`restoreState` overhead directly.
+- **Acceptance criterion met**: ticket asks for "measurable improvement or at least no regression"; no regression beyond noise on any script. Correctness confirmed — full benchmark suite (including the nested-generics and annotation-chain paths exercised by the fallback branch) parses and runs cleanly.
+- **Follow-up**: a parser-only microbench (e.g. `--bench-parser <file>` mode in `BenchmarkRunner`) would give a direct measurement of the peek-path win and let future parser changes guard against regression.

@@ -96,7 +96,7 @@ namespace parser::statement
         std::string varName;
         try
         {
-            varName = tokenStream.current().stringValue.getString();
+            varName = std::string(tokenStream.current().stringValue);
         }
         catch (const std::exception&)
         {

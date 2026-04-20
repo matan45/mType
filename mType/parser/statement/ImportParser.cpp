@@ -39,7 +39,7 @@ namespace parser::statement
 
         // Check for library import: import lib "name" or import lib {A, B} from "name"
         if (tokenStream.check(TokenType::IDENTIFIER) &&
-            tokenStream.current().stringValue.getString() == "lib")
+            tokenStream.current().stringValue == "lib")
         {
             tokenStream.advance(); // consume 'lib'
             return parseLibraryImport(loc);
@@ -72,7 +72,7 @@ namespace parser::statement
                 throw ParseException("Expected identifier in import list", tokenStream.current().location);
             }
 
-            std::string symbolName = tokenStream.current().stringValue.getString();
+            std::string symbolName = std::string(tokenStream.current().stringValue);
             SourceLocation symbolLocation = tokenStream.current().location;
 
             // Validate symbol name contains no special characters
@@ -83,7 +83,7 @@ namespace parser::statement
 
             // Check for "as" alias: import {MyClass as Alias} from "file.mt"
             if (tokenStream.check(TokenType::IDENTIFIER) &&
-                std::string(tokenStream.current().stringValue.getString()) == std::string("as"))
+                tokenStream.current().stringValue == "as")
             {
                 tokenStream.advance(); // consume "as"
 
@@ -92,7 +92,7 @@ namespace parser::statement
                     throw ParseException("Expected alias name after 'as'", tokenStream.current().location);
                 }
 
-                std::string aliasName = tokenStream.current().stringValue.getString();
+                std::string aliasName = std::string(tokenStream.current().stringValue);
                 ParserUtils::validateIdentifierName(aliasName, "Import alias", tokenStream.current().location);
                 aliases[symbolName] = aliasName;
                 tokenStream.advance();
@@ -124,7 +124,7 @@ namespace parser::statement
             throw ParseException("Expected string literal after 'from'", tokenStream.current().location);
         }
 
-        std::string filePath = tokenStream.current().stringValue.getString();
+        std::string filePath = std::string(tokenStream.current().stringValue);
         tokenStream.advance();
 
         validateImportPath(filePath);
@@ -150,7 +150,7 @@ namespace parser::statement
             throw ParseException("Expected string literal after 'from'", tokenStream.current().location);
         }
 
-        std::string filePath = tokenStream.current().stringValue.getString();
+        std::string filePath = std::string(tokenStream.current().stringValue);
         tokenStream.advance();
 
         validateImportPath(filePath);
@@ -178,7 +178,7 @@ namespace parser::statement
                     throw ParseException("Expected identifier in library import list", tokenStream.current().location);
                 }
 
-                std::string symbolName = tokenStream.current().stringValue.getString();
+                std::string symbolName = std::string(tokenStream.current().stringValue);
                 SourceLocation symbolLocation = tokenStream.current().location;
                 ParserUtils::validateIdentifierName(symbolName, "Library import symbol", symbolLocation);
                 symbols.push_back(symbolName);
@@ -186,7 +186,7 @@ namespace parser::statement
 
                 // Check for "as" alias: import lib {Vector2 as Vec2} from "lib"
                 if (tokenStream.check(TokenType::IDENTIFIER) &&
-                    tokenStream.current().stringValue.getString() == "as")
+                    tokenStream.current().stringValue == "as")
                 {
                     tokenStream.advance(); // consume "as"
 
@@ -195,7 +195,7 @@ namespace parser::statement
                         throw ParseException("Expected alias name after 'as'", tokenStream.current().location);
                     }
 
-                    std::string aliasName = tokenStream.current().stringValue.getString();
+                    std::string aliasName = std::string(tokenStream.current().stringValue);
                     ParserUtils::validateIdentifierName(aliasName, "Import alias", tokenStream.current().location);
                     aliases[symbolName] = aliasName;
                     tokenStream.advance();
@@ -225,7 +225,7 @@ namespace parser::statement
                 throw ParseException("Expected library name string after 'from'", tokenStream.current().location);
             }
 
-            std::string libraryName = tokenStream.current().stringValue.getString();
+            std::string libraryName = std::string(tokenStream.current().stringValue);
             tokenStream.advance();
 
             if (libraryName.empty())
@@ -249,7 +249,7 @@ namespace parser::statement
             throw ParseException("Expected library name string or '{' after 'lib'", tokenStream.current().location);
         }
 
-        std::string libraryName = tokenStream.current().stringValue.getString();
+        std::string libraryName = std::string(tokenStream.current().stringValue);
         tokenStream.advance();
 
         if (libraryName.empty())

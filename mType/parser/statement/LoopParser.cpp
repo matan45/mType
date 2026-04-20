@@ -87,7 +87,7 @@ namespace parser::statement
                     throw ParseException("Expected variable name", tokenStream.current().location);
                 }
 
-                std::string varName = tokenStream.current().stringValue.getString();
+                std::string varName = std::string(tokenStream.current().stringValue);
                 SourceLocation location = tokenStream.current().location;
                 tokenStream.advance();
 

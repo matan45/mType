@@ -43,7 +43,7 @@ namespace parser
 
         // We expect the stream to be positioned at the first identifier after the initial ::
         // Add that identifier to the parts
-        parts.push_back(stream.current().stringValue.getString());
+        parts.push_back(std::string(stream.current().stringValue));
         stream.advance();
 
         // Continue parsing if there are more :: tokens
@@ -56,7 +56,7 @@ namespace parser
                 throw ParseException("Expected identifier after '::'", stream.location());
             }
 
-            parts.push_back(stream.current().stringValue.getString());
+            parts.push_back(std::string(stream.current().stringValue));
             stream.advance();
         }
 

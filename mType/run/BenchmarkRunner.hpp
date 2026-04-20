@@ -15,6 +15,10 @@ namespace runMain
         // Non-empty = run a single .mt file at this path.
         std::string singleScript;
 
+        // Non-empty = run a lexer-only microbenchmark on this .mt file
+        // (drains tokens to END without parsing or executing). MYT-130.
+        std::string singleLexerScript;
+
         int measuredIterations = 3;
         int warmupIterations = 1;
         BenchmarkOutput outputFormat = BenchmarkOutput::Text;

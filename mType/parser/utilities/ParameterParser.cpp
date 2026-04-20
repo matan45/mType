@@ -44,7 +44,7 @@ namespace parser
                 throw ParseException("Expected parameter name", stream.location());
             }
 
-            std::string paramName = stream.current().stringValue.getString();
+            std::string paramName = std::string(stream.current().stringValue);
             SourceLocation paramLocation = stream.location();
             NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
             stream.advance();
@@ -99,7 +99,7 @@ namespace parser
                 throw ParseException("Expected parameter name", stream.location());
             }
 
-            std::string paramName = stream.current().stringValue.getString();
+            std::string paramName = std::string(stream.current().stringValue);
             SourceLocation paramLocation = stream.location();
             NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
             stream.advance();
@@ -150,7 +150,7 @@ namespace parser
                 throw ParseException("Expected parameter name", stream.location());
             }
 
-            std::string paramName = stream.current().stringValue.getString();
+            std::string paramName = std::string(stream.current().stringValue);
             SourceLocation paramLocation = stream.location();
             NameValidator::validateIdentifierName(paramName, "Parameter", paramLocation);
             stream.advance();

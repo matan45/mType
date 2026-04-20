@@ -76,7 +76,7 @@ namespace parser
             throw ParseException("Expected method name", tokenStream.current().location);
         }
 
-        std::string methodName = tokenStream.current().stringValue.getString();
+        std::string methodName = std::string(tokenStream.current().stringValue);
         tokenStream.advance();
 
         // Parse parameter list using ParameterParser

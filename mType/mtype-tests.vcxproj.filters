@@ -2176,6 +2176,9 @@
     <None Include="tests\testFiles\benchmarks\inline_value_object_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\lexer_stress.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\method_dispatch.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>

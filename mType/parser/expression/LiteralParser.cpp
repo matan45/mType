@@ -114,7 +114,7 @@ namespace parser::expression
 
     std::unique_ptr<ASTNode> LiteralParser::parseStringLiteral()
     {
-        std::string value = tokenStream.current().stringValue.getString();
+        std::string value = std::string(tokenStream.current().stringValue);
         auto stringLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<StringNode>(value, stringLocation);
@@ -137,7 +137,7 @@ namespace parser::expression
 
     std::unique_ptr<ASTNode> LiteralParser::parseIdentifier()
     {
-        std::string name = tokenStream.current().stringValue.getString();
+        std::string name = std::string(tokenStream.current().stringValue);
         auto identifierLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<VariableNode>(name, identifierLocation);
@@ -190,7 +190,7 @@ namespace parser::expression
                                      tokenStream.current().location);
             }
 
-            std::string memberName = tokenStream.current().stringValue.getString();
+            std::string memberName = std::string(tokenStream.current().stringValue);
             tokenStream.advance();
 
             // Check if this is a method call (has parentheses) or field access (no parentheses)
@@ -234,7 +234,7 @@ namespace parser::expression
         };
 
         // Start with the BEGIN segment text
-        std::string beginText = tokenStream.current().stringValue.getString();
+        std::string beginText = std::string(tokenStream.current().stringValue);
         tokenStream.advance(); // consume INTERP_STRING_BEGIN
 
         std::unique_ptr<ASTNode> result;
@@ -260,7 +260,7 @@ namespace parser::expression
         // Loop on MIDDLE segments
         while (tokenStream.check(TokenType::INTERP_STRING_MIDDLE))
         {
-            std::string middleText = tokenStream.current().stringValue.getString();
+            std::string middleText = std::string(tokenStream.current().stringValue);
             tokenStream.advance(); // consume INTERP_STRING_MIDDLE
 
             if (!middleText.empty())
@@ -281,7 +281,7 @@ namespace parser::expression
                                  tokenStream.current().location);
         }
 
-        std::string endText = tokenStream.current().stringValue.getString();
+        std::string endText = std::string(tokenStream.current().stringValue);
         tokenStream.advance(); // consume INTERP_STRING_END
 
         if (!endText.empty())

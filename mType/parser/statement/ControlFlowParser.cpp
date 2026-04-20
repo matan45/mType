@@ -192,10 +192,10 @@ namespace parser::statement
                 // Check for type pattern: type keyword or uppercase identifier followed by identifier
                 else if (isTypePatternStart())
                 {
-                    std::string typeName = tokenStream.current().stringValue.getString();
+                    std::string typeName = std::string(tokenStream.current().stringValue);
                     tokenStream.advance(); // consume type name
 
-                    std::string bindingName = tokenStream.current().stringValue.getString();
+                    std::string bindingName = std::string(tokenStream.current().stringValue);
                     expectToken(TokenType::IDENTIFIER);
                     expectToken(TokenType::ARROW);
 
@@ -285,8 +285,8 @@ namespace parser::statement
 
         // Or an uppercase identifier (class/interface name)
         bool isClassName = (currentType == TokenType::IDENTIFIER &&
-                            !tokenStream.current().stringValue.getString().empty() &&
-                            std::isupper(tokenStream.current().stringValue.getString()[0]));
+                            !tokenStream.current().stringValue.empty() &&
+                            std::isupper(tokenStream.current().stringValue[0]));
 
         if (!isTypeKeyword && !isClassName) return false;
 

@@ -5,7 +5,7 @@ namespace parser::utilities
     bool StatementTypeDetector::isValueKeyword(const Token& token) noexcept
     {
         return token.type == TokenType::IDENTIFIER &&
-               token.stringValue.getString() == "value";
+               token.stringValue == "value";
     }
 
     StatementType StatementTypeDetector::analyzeAccessModifier(const TokenStream& stream)
@@ -472,7 +472,7 @@ namespace parser::utilities
         // Pattern: "Type[]" or "Type<...>" - array or generic type declaration
         if (nextToken.type == TokenType::LBRACKET || nextToken.type == TokenType::LESS)
         {
-            std::string identifier = stream.current().stringValue.getString();
+            std::string identifier = std::string(stream.current().stringValue);
 
             // Check if this identifier is a type name
             if (identifier == "int" || identifier == "float" || identifier == "string" ||
