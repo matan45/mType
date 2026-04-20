@@ -150,7 +150,13 @@ namespace vm::compiler::visitors
                 }
             }
 
-            // Emit CALL_STATIC instruction with resolved (mangled) method name
+            // Emit CALL_STATIC instruction with resolved (mangled) method name.
+            // MYT-197: $static suffix must live in the constant pool — the
+            // runtime CALL_STATIC handler no longer appends it.
+            if (resolvedMethodName.find("$static") == std::string::npos)
+            {
+                resolvedMethodName += "$static";
+            }
             size_t methodNameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                              static_cast<uint64_t>(methodNameIndex),

@@ -481,7 +481,16 @@ namespace vm::runtime
         case OpCode::PROFILE_ENTER:
             if (jitEnabled && jitProfiler && !callStack.empty())
             {
-                const std::string& funcName = callStack.back().functionName;
+                // MYT-197: resolve the frame's handle to the owning program's
+                // interned name. JitProfiler + JitCompiler still key on
+                // std::string (cold path — PROFILE_ENTER only fires while
+                // tiering up).
+                const auto& frame = callStack.back();
+                const bytecode::BytecodeProgram* framePrg =
+                    (frame.programIndex < loadedPrograms.size())
+                        ? loadedPrograms[frame.programIndex]
+                        : program;
+                const std::string& funcName = framePrg->getFrameName(frame.functionName);
                 bool justBecameHot = jitProfiler->recordEntry(funcName);
                 if (justBecameHot && jitCompiler && jitCodeCache)
                 {

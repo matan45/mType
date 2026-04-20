@@ -54,7 +54,7 @@ namespace vm::runtime
         frame.returnAddress = savedIP;
         frame.frameBase = savedStackSize;
         frame.localBase = savedStackSize;
-        frame.functionName = funcName;
+        frame.functionName = program->internFrameName(funcName);
         frame.thisInstance = nullptr;
         pushCallFrame(frame);
 
@@ -262,7 +262,17 @@ namespace vm::runtime
         frame.returnAddress = savedIP;
         frame.frameBase = savedStackSize;
         frame.localBase = savedStackSize;
-        frame.functionName = qualifiedName;
+        // MYT-197: intern on the callee's owning program. Prefer calleeProgram
+        // (passed by the JIT caller) when it's set; fall back to whichever
+        // program `calleeProgramIndex` resolves to. Never index-dereference
+        // loadedPrograms blindly — if the lookup above didn't find calleeProgram
+        // in the list, calleeProgramIndex could point at the wrong program.
+        const bytecode::BytecodeProgram* ownerProgram =
+            calleeProgram ? calleeProgram
+                          : (calleeProgramIndex < loadedPrograms.size()
+                                 ? loadedPrograms[calleeProgramIndex]
+                                 : program);
+        frame.functionName = ownerProgram->internFrameName(qualifiedName);
         frame.thisInstance = instance;
         frame.definingClassName = definingClassName;
         // MYT-182: carry the callee's programIndex so the normal return

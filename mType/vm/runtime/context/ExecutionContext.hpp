@@ -84,7 +84,11 @@ namespace vm::runtime
         std::string creatingClassName;  // Class context where lambda was created (for access checks)
         std::vector<std::string> parameterNames;  // Names of lambda parameters (for debugging)
         std::vector<std::string> capturedNames;  // Names of captured variables (for debugging)
-        std::string functionName;  // Unique lambda function name (for metadata lookup)
+        // MYT-197: interned handle into the owning program's frame-name table.
+        // Set once at lambda creation (LambdaExecutor LAMBDA handler) and
+        // copied as 4 bytes per invocation instead of per-invocation
+        // std::string copy.
+        vm::bytecode::FunctionNameHandle functionName{ vm::bytecode::INVALID_FN_HANDLE };
     };
 
     /**
@@ -94,7 +98,10 @@ namespace vm::runtime
         size_t returnAddress;                    // Where to return after function completes
         size_t frameBase;                        // Base pointer in operand stack
         size_t localBase;                        // Base of local variables
-        std::string functionName;                // For debugging/stack traces
+        // MYT-197: interned handle into the owning program's frame-name table.
+        // Resolve via program->getFrameName(handle) for formatting; use
+        // program->getFunctionMeta(handle) for O(1) metadata lookup.
+        vm::bytecode::FunctionNameHandle functionName{ vm::bytecode::INVALID_FN_HANDLE };
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> thisInstance;  // For method calls
         std::shared_ptr<BytecodeLambda> originatingLambda;  // If this frame is for a lambda, reference to it (for debugging)
         std::string definingClassName;           // Class that defines the method (for access control in inheritance)
@@ -191,6 +198,23 @@ namespace vm::runtime
         bytecode::BytecodeProgram::Instruction& getMutableInstructionAt(size_t offset) const {
             return const_cast<bytecode::BytecodeProgram*>(program)
                 ->getMutableInstruction(offset);
+        }
+
+        // MYT-197: resolve the BytecodeProgram that owns a given frame's
+        // FunctionNameHandle. Use this when formatting a frame that isn't
+        // necessarily on the currently-executing program (stack-trace walks,
+        // exception unwinding, debugger frame inspection). Falls back to
+        // `program` when loadedPrograms isn't wired or programIndex is out
+        // of range.
+        const bytecode::BytecodeProgram* programForFrame(const CallFrame& frame) const {
+            if (loadedPrograms && frame.programIndex < loadedPrograms->size()) {
+                return (*loadedPrograms)[frame.programIndex];
+            }
+            return program;
+        }
+
+        const std::string& frameName(const CallFrame& frame) const {
+            return programForFrame(frame)->getFrameName(frame.functionName);
         }
     };
 }

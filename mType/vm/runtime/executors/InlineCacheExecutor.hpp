@@ -57,7 +57,7 @@ namespace vm::runtime
             size_t startOffset,
             const bytecode::BytecodeProgram* program,
             size_t programIndex,
-            const std::string& qualifiedName,
+            bytecode::FunctionNameHandle qualifiedName,
             const std::string& definingClassName,
             value::Value objectValue,
             size_t argCount);

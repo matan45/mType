@@ -116,12 +116,15 @@ namespace vm::runtime
 
             // Create an initial call frame for the implicit "main" function
             // This allows global scope variables to be captured by lambdas
-            // Use "__script_main__" to match the expected name for global scope access checks
+            // Use "__script_main__" to match the expected name for global scope access checks.
+            // MYT-197: pre-warm the sentinel handle once at bind time — subsequent
+            // equality checks in the hot interpretation path are integer compares.
+            scriptMainHandle = program->internFrameName("__script_main__");
             CallFrame mainFrame;
             mainFrame.returnAddress = program->getInstructionCount(); // Return past end (halt)
             mainFrame.frameBase = 0;
             mainFrame.localBase = 0;
-            mainFrame.functionName = "__script_main__";
+            mainFrame.functionName = scriptMainHandle;
             mainFrame.thisInstance = nullptr;
             mainFrame.definingClassName = "";
             callStack.push_back(mainFrame);
@@ -137,8 +140,9 @@ namespace vm::runtime
         {
             value::Value result = interpretLoop();
 
-            // Pop the main frame if it's still on the stack
-            if (!callStack.empty() && callStack.back().functionName == "__script_main__") {
+            // Pop the main frame if it's still on the stack.
+            // MYT-197: integer compare against the pre-warmed sentinel.
+            if (!callStack.empty() && callStack.back().functionName == scriptMainHandle) {
                 callStack.pop_back();
             }
 
@@ -233,10 +237,17 @@ namespace vm::runtime
             oss << "Call stack trace (most recent call first):\n";
 
             // Show last 10 frames to help identify recursion pattern
+            auto frameNameOf = [&](const CallFrame& f) -> const std::string& {
+                const bytecode::BytecodeProgram* p =
+                    (f.programIndex < loadedPrograms.size())
+                        ? loadedPrograms[f.programIndex]
+                        : program;
+                return p->getFrameName(f.functionName);
+            };
             size_t startIdx = callStack.size() > 10 ? callStack.size() - 10 : 0;
             for (size_t i = startIdx; i < callStack.size(); ++i)
             {
-                oss << "  [" << i << "] " << callStack[i].functionName;
+                oss << "  [" << i << "] " << frameNameOf(callStack[i]);
                 if (!callStack[i].definingClassName.empty())
                 {
                     oss << " (in class " << callStack[i].definingClassName << ")";
@@ -245,7 +256,7 @@ namespace vm::runtime
             }
 
             // Add the frame that would overflow
-            oss << "  [" << callStack.size() << "] " << frame.functionName;
+            oss << "  [" << callStack.size() << "] " << frameNameOf(frame);
             if (!frame.definingClassName.empty())
             {
                 oss << " (in class " << frame.definingClassName << ")";
@@ -279,8 +290,13 @@ namespace vm::runtime
         std::vector<std::string> trace;
         for (const auto& frame : callStack)
         {
+            const bytecode::BytecodeProgram* p =
+                (frame.programIndex < loadedPrograms.size())
+                    ? loadedPrograms[frame.programIndex]
+                    : program;
             std::ostringstream oss;
-            oss << frame.functionName << " at offset " << frame.returnAddress;
+            oss << p->getFrameName(frame.functionName)
+                << " at offset " << frame.returnAddress;
             trace.push_back(oss.str());
         }
         return trace;

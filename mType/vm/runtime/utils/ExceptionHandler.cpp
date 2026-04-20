@@ -30,23 +30,29 @@ namespace vm::runtime::utils
 
         if (!callStack.empty())
         {
-            // We're in a function - find its end boundary
-            const std::string& functionName = callStack.back().functionName;
-            auto* funcMetadata = program->getFunction(functionName);
+            // We're in a function - find its end boundary.
+            // MYT-197: O(1) handle lookup replaces the std::string hashmap probe.
+            bytecode::FunctionNameHandle functionNameHandle = callStack.back().functionName;
+            auto* funcMetadata = program->getFunctionMeta(functionNameHandle);
 
-            // If function metadata not found and this is a lambda, try using the lambda's actual function name
+            // If function metadata not found and this is a lambda, try using the lambda's actual function name.
             if (!funcMetadata && callStack.back().originatingLambda)
             {
-                const std::string& lambdaFuncName = callStack.back().originatingLambda->functionName;
-                funcMetadata = program->getFunction(lambdaFuncName);
+                bytecode::FunctionNameHandle lambdaFuncHandle = callStack.back().originatingLambda->functionName;
+                funcMetadata = program->getFunctionMeta(lambdaFuncHandle);
             }
 
             if (funcMetadata)
             {
                 searchLimit = funcMetadata->startOffset + funcMetadata->instructionCount;
             }
-            else if (functionName.find("<lambda>") != std::string::npos)
+            else if (callStack.back().originatingLambda)
             {
+                // MYT-197: lambda frames carry originatingLambda — use that as
+                // the lambda-detection signal instead of a <lambda> substring
+                // search on the resolved frame name. The old substring path
+                // fired for the "<lambda>" / "Class::<lambda>" display
+                // fallbacks set at lambda push sites.
                 // Lambda function without metadata - search forward to find the actual end
                 // Need to handle multiple RETURNs (e.g., one in try, one in catch, one in finally)
                 // Strategy: Find all RETURNs until we hit another LAMBDA (lambdas don't nest inline)
@@ -126,8 +132,9 @@ namespace vm::runtime::utils
                 break;
             }
 
-            // Check if the target IP is within the current function's range
-            auto* funcMetadata = program->getFunction(frame.functionName);
+            // Check if the target IP is within the current function's range.
+            // MYT-197: O(1) handle-keyed metadata lookup.
+            auto* funcMetadata = program->getFunctionMeta(frame.functionName);
             if (funcMetadata)
             {
                 size_t funcStart = funcMetadata->startOffset;
@@ -139,15 +146,20 @@ namespace vm::runtime::utils
                     break;
                 }
             }
-            else if (frame.functionName.find("<lambda>") != std::string::npos)
+            else if (frame.originatingLambda)
             {
-                // Lambda function - don't unwind if CATCH/FINALLY is inside the lambda
-                // This prevents incorrectly unwinding the lambda's call frame when
-                // the exception handler is within the lambda itself
+                // MYT-197: lambda frames carry originatingLambda — use that
+                // signal instead of a <lambda> substring search on the
+                // resolved frame name. Don't unwind if CATCH/FINALLY is
+                // inside the lambda itself.
                 break;
             }
 
-            vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
+            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
+            {
+                vm::profiler::ProfilerHookHelper::onFunctionExit(
+                    program->getFrameName(frame.functionName));
+            }
 
             // Target is outside this function - unwind the call frame
             callStack.pop_back();
@@ -189,11 +201,10 @@ namespace vm::runtime::utils
             return &program->getGlobalExceptionTable();
         }
 
-        // Get function name from current call frame
-        const std::string& functionName = callStack.back().functionName;
-
-        // Try to get function metadata (exact match)
-        const auto* funcMetadata = program->getFunction(functionName);
+        // Get function name from current call frame.
+        // MYT-197: try O(1) handle-keyed metadata first.
+        bytecode::FunctionNameHandle functionNameHandle = callStack.back().functionName;
+        const auto* funcMetadata = program->getFunctionMeta(functionNameHandle);
         if (funcMetadata && funcMetadata->exceptionTable.size() > 0)
         {
             return &funcMetadata->exceptionTable;
@@ -201,9 +212,11 @@ namespace vm::runtime::utils
 
         // Fallback: the call frame may store a bare name (e.g. "riskyDivide") while the
         // compiler registered the mangled name (e.g. "riskyDivide/int,int") with the
-        // exception table. Search for a matching function by prefix.
+        // exception table. Search for a matching function by prefix. Cold path
+        // — resolving the handle here is fine.
         if (!funcMetadata || funcMetadata->exceptionTable.size() == 0)
         {
+            const std::string& functionName = program->getFrameName(functionNameHandle);
             for (const auto& [fname, fmeta] : program->getFunctions())
             {
                 if (fname.rfind(functionName, 0) == 0 && fname.size() > functionName.size()
@@ -224,8 +237,9 @@ namespace vm::runtime::utils
         // Lambda without metadata - check if originatingLambda has a function name
         if (callStack.back().originatingLambda)
         {
-            const std::string& lambdaFuncName = callStack.back().originatingLambda->functionName;
-            const auto* lambdaMetadata = program->getFunction(lambdaFuncName);
+            bytecode::FunctionNameHandle lambdaFuncHandle =
+                callStack.back().originatingLambda->functionName;
+            const auto* lambdaMetadata = program->getFunctionMeta(lambdaFuncHandle);
             if (lambdaMetadata)
             {
                 return &lambdaMetadata->exceptionTable;
@@ -289,7 +303,8 @@ namespace vm::runtime::utils
         // uncaught exception into a rejection of the function's returned
         // Promise, rather than unwinding past it.
         auto isAsyncFrame = [&](const CallFrame& frame) -> bool {
-            const auto* fm = program->getFunction(frame.functionName);
+            // MYT-197: O(1) handle-keyed metadata lookup.
+            const auto* fm = program->getFunctionMeta(frame.functionName);
             return fm && fm->isAsync;
         };
 
@@ -307,7 +322,11 @@ namespace vm::runtime::utils
             CallFrame currentFrame = callStack.back();
             callSiteIP = currentFrame.returnAddress;  // Where this function was called from
 
-            vm::profiler::ProfilerHookHelper::onFunctionExit(currentFrame.functionName);
+            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
+            {
+                vm::profiler::ProfilerHookHelper::onFunctionExit(
+                    program->getFrameName(currentFrame.functionName));
+            }
 
             callStack.pop_back();
             cleanupStack(currentFrame.frameBase);
@@ -369,7 +388,11 @@ namespace vm::runtime::utils
 
             size_t frameCallSite = frame.returnAddress;
 
-            vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
+            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
+            {
+                vm::profiler::ProfilerHookHelper::onFunctionExit(
+                    program->getFrameName(frame.functionName));
+            }
 
             // Pop this frame FIRST, then check if the call site is covered by the caller's exception table
             callStack.pop_back();

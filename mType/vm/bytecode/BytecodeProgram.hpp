@@ -1,6 +1,9 @@
 ﻿#pragma once
+#include <cstdint>
+#include <deque>
 #include <vector>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <iosfwd>
@@ -13,6 +16,22 @@ namespace runtimeTypes::klass { class ClassDefinition; }
 
 namespace vm::bytecode
 {
+    // MYT-197: 4-byte handle into a BytecodeProgram's frame-name interner.
+    // Replaces std::string on hot-path carriers (CallFrame::functionName,
+    // BytecodeLambda::functionName, Instruction::cachedMethodQualifiedName)
+    // so per-call frame pushes do a 4-byte copy instead of a std::string
+    // allocation. Always interned by the program that owns the frame — see
+    // BytecodeProgram::internFrameName / getFrameName. Not serialized: the
+    // interner is rebuilt lazily at runtime as push sites call internFrameName.
+    struct FunctionNameHandle
+    {
+        uint32_t id;
+        constexpr bool operator==(FunctionNameHandle other) const { return id == other.id; }
+        constexpr bool operator!=(FunctionNameHandle other) const { return id != other.id; }
+    };
+
+    inline constexpr FunctionNameHandle INVALID_FN_HANDLE{ UINT32_MAX };
+
     /**
      * Represents a compiled bytecode program with constant pool and metadata
      * This is the output of the BytecodeCompiler and input to the VirtualMachine
@@ -57,7 +76,10 @@ namespace vm::bytecode
             mutable const FunctionMetadata* cachedMethodFunc = nullptr;
             mutable const BytecodeProgram* cachedMethodProgram = nullptr;
             mutable size_t cachedMethodProgramIndex = 0;
-            mutable std::string cachedMethodQualifiedName;
+            // MYT-197: interned handle into cachedMethodProgram's frame-name
+            // table. Snapshotted from MethodICEntry::qualifiedName at CACHED-
+            // promote time; cleared to INVALID_FN_HANDLE in deoptAndReprocess.
+            mutable FunctionNameHandle cachedMethodQualifiedName{ INVALID_FN_HANDLE };
             // MYT-195: pre-resolved class prefix of cachedMethodQualifiedName.
             // Snapshotted from MethodICEntry::definingClassName at CACHED-promote
             // time so dispatchDirectFromCachedTarget doesn't re-split the qualified
@@ -315,6 +337,23 @@ namespace vm::bytecode
         std::unordered_map<std::string, FunctionMetadata> functions;
         std::vector<std::string> functionIndexToName;
         std::unordered_map<std::string, size_t> functionNameToIndex;
+
+        // MYT-197: frame-name interner. Disjoint from functionIndexToName above
+        // (which backs CALL_FAST + .mtc serialization and must stay stable /
+        // not see runtime-only names). A deque is used so existing string_view
+        // keys in frameNameToId stay valid when new entries are pushed. Meta
+        // is a parallel vector holding either &functions[name] (registered
+        // function) or nullptr (runtime-only name like __script_main__,
+        // interop-built ctor names, or the "<lambda>" display fallback).
+        //
+        // mutable so const BytecodeProgram* consumers (VM/executor convention
+        // treats programs as read-mostly — see getMutableInstructionAt) can
+        // intern on the hot path without casting at every call site. The
+        // interner is effectively a runtime-filled cache, analogous to the
+        // Instruction::cached* fields, which are also `mutable`.
+        mutable std::deque<std::string> frameNameById;
+        mutable std::unordered_map<std::string_view, uint32_t> frameNameToId;
+        mutable std::vector<const FunctionMetadata*> frameNameToMeta;
         std::unordered_map<size_t, SourceLocation> sourceLocations;
         std::vector<ClassMetadata> classes; // Class metadata for cached bytecode
         std::vector<InterfaceMetadata> interfaces; // Interface metadata for cached bytecode
@@ -371,6 +410,15 @@ namespace vm::bytecode
         size_t getFunctionIndex(const std::string& name) const;
         const FunctionMetadata* getFunctionByIndex(size_t index) const;
         size_t getFunctionCount() const;
+
+        // MYT-197: frame-name interning. internFrameName is idempotent; a
+        // second call with the same text returns the same handle. registerFunction
+        // calls this itself, so handles created before registration have their
+        // metadata backfilled when the registration arrives. Callable on a
+        // const* — the interner is mutable cache state.
+        FunctionNameHandle internFrameName(std::string_view name) const;
+        const std::string& getFrameName(FunctionNameHandle handle) const;
+        const FunctionMetadata* getFunctionMeta(FunctionNameHandle handle) const;
 
         // Global Variable Management (for debugging)
         void registerGlobalVariable(const GlobalVariableMetadata& metadata);
@@ -455,5 +503,17 @@ namespace vm::bytecode
         void readInterfaceMethodSignature(std::istream& in, InterfaceMethodSignature& sig);
         void writeInterfaceMetadata(std::ostream& out, const InterfaceMetadata& meta) const;
         void readInterfaceMetadata(std::istream& in, InterfaceMetadata& meta);
+    };
+}
+
+namespace std
+{
+    template <>
+    struct hash<vm::bytecode::FunctionNameHandle>
+    {
+        size_t operator()(vm::bytecode::FunctionNameHandle h) const noexcept
+        {
+            return hash<uint32_t>{}(h.id);
+        }
     };
 }

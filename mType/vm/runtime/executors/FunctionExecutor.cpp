@@ -102,7 +102,9 @@ namespace vm::runtime
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase; // Use the frameBase calculated before popping args
             frame.localBase = context.stackManager->size(); // Locals start after arguments (which are now popped)
-            frame.functionName = functionName;
+            // MYT-197: intern on the target program so the handle belongs to
+            // whatever program owns the function (cross-library calls).
+            frame.functionName = targetProgram->internFrameName(functionName);
             frame.thisInstance = nullptr;
             frame.programIndex = targetProgramIndex;
 
@@ -189,7 +191,11 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;
         frame.frameBase = frameBase;
         frame.localBase = context.stackManager->size();
-        frame.functionName = funcMetadata->mangledName.empty() ? funcMetadata->name : funcMetadata->mangledName;
+        // MYT-197: intern once. mangledName is already registered with the
+        // program (see registerFunction), so this lookup is a hashmap hit
+        // after the first call site — no string rebuilding per call.
+        frame.functionName = context.program->internFrameName(
+            funcMetadata->mangledName.empty() ? funcMetadata->name : funcMetadata->mangledName);
         frame.thisInstance = nullptr;
         frame.programIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
 
@@ -299,12 +305,10 @@ namespace vm::runtime
             args[i - 1] = context.stackManager->pop();
         }
 
-        // Build base qualified name with $static suffix (needed for frame.functionName on all paths)
-        std::string staticQualifiedName = qualifiedName;
-        if (staticQualifiedName.find("$static") == std::string::npos)
-        {
-            staticQualifiedName += "$static";
-        }
+        // MYT-197: $static suffix is now baked into the constant pool at
+        // compile time (see FunctionCallHelper::emitStaticMethodCall), so
+        // qualifiedName already ends in $static — no per-call concat.
+        const std::string& staticQualifiedName = qualifiedName;
 
         // Check inline cache first, then fall back to full resolution
         const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = instr.cachedFuncMetadata;
@@ -426,7 +430,9 @@ namespace vm::runtime
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase; // Use the frameBase calculated before popping args
             frame.localBase = context.stackManager->size(); // Locals start after arguments (which are now popped)
-            frame.functionName = staticQualifiedName; // Use $static suffix for proper async method detection
+            // MYT-197: intern on the target program so the handle belongs to
+            // the program that actually owns the function.
+            frame.functionName = targetProgram->internFrameName(staticQualifiedName);
             frame.thisInstance = nullptr; // No 'this' for static methods
             frame.programIndex = targetProgramIndex;
 
@@ -652,10 +658,16 @@ namespace vm::runtime
                 // Instance method context
                 currentClassName = context.callStack.back().thisInstance->getClassDefinition()->getName();
             }
+            else if (!context.callStack.back().definingClassName.empty())
+            {
+                // Static method context - MYT-197: prefer frame.definingClassName
+                // (already set at push time) over resolving + splitting the
+                // interned function-name handle.
+                currentClassName = context.callStack.back().definingClassName;
+            }
             else
             {
-                // Static method context - extract class name from function name (ClassName::methodName)
-                const std::string& funcName = context.callStack.back().functionName;
+                const std::string& funcName = context.frameName(context.callStack.back());
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos)
                 {

@@ -41,11 +41,17 @@ namespace vm::jit
         const auto& callStack = ctx->vm->getCallStack();
         if (callStack.empty()) return false;
 
-        const std::string& functionName = callStack.back().functionName;
-        size_t colonPos = functionName.find("::");
-        if (colonPos == std::string::npos) return false;
-
-        std::string className = functionName.substr(0, colonPos);
+        // MYT-197: prefer frame.definingClassName; fall back to resolving
+        // the interned handle and splitting only for frames that lack it.
+        std::string className;
+        if (!callStack.back().definingClassName.empty()) {
+            className = callStack.back().definingClassName;
+        } else {
+            const std::string& functionName = ctx->program->getFrameName(callStack.back().functionName);
+            size_t colonPos = functionName.find("::");
+            if (colonPos == std::string::npos) return false;
+            className = functionName.substr(0, colonPos);
+        }
         auto classRegistry = ctx->environment->getClassRegistry();
         if (!classRegistry) return false;
 
@@ -138,11 +144,17 @@ namespace vm::jit
         const auto& callStack = ctx->vm->getCallStack();
         if (callStack.empty()) return false;
 
-        const std::string& functionName = callStack.back().functionName;
-        size_t colonPos = functionName.find("::");
-        if (colonPos == std::string::npos) return false;
-
-        std::string className = functionName.substr(0, colonPos);
+        // MYT-197: prefer frame.definingClassName; fall back to resolving
+        // the interned handle and splitting only when unset.
+        std::string className;
+        if (!callStack.back().definingClassName.empty()) {
+            className = callStack.back().definingClassName;
+        } else {
+            const std::string& functionName = ctx->program->getFrameName(callStack.back().functionName);
+            size_t colonPos = functionName.find("::");
+            if (colonPos == std::string::npos) return false;
+            className = functionName.substr(0, colonPos);
+        }
         auto classRegistry = ctx->environment->getClassRegistry();
         if (!classRegistry) return false;
 

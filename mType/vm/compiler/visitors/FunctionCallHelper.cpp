@@ -572,7 +572,15 @@ namespace vm::compiler::visitors
             arg->accept(ctx.visitor);
         }
 
-        // Note: resolvedMethodName already includes the $static suffix from overload resolution
+        // MYT-197: bake the $static suffix at compile time so the runtime
+        // CALL_STATIC handler doesn't rebuild the string on every call.
+        // resolveStaticMethodOverload already appends $static on the happy
+        // path; the guard covers the className-empty fallback above where
+        // resolvedMethodName was left as actualFunctionName unchanged.
+        if (resolvedMethodName.find("$static") == std::string::npos)
+        {
+            resolvedMethodName += "$static";
+        }
         size_t nameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
         // Static method call - use CALL_STATIC with source location
         ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
@@ -667,6 +675,14 @@ namespace vm::compiler::visitors
                     arg->accept(ctx.visitor);
                 }
 
+                // MYT-197: $static suffix must live in the constant pool —
+                // the runtime CALL_STATIC handler no longer appends it.
+                // resolveStaticMethodOverload appends on the happy path; the
+                // guard covers any bypass.
+                if (resolvedMethodName.find("$static") == std::string::npos)
+                {
+                    resolvedMethodName += "$static";
+                }
                 size_t nameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                                              static_cast<uint64_t>(nameIndex),
@@ -801,8 +817,13 @@ namespace vm::compiler::visitors
 
         if (isStaticMethodOfCurrentClass)
         {
-            // Emit CALL_STATIC for static method of current class (use plain name, not resolved)
-            std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + plainFunctionName;
+            // Emit CALL_STATIC for static method of current class (use plain name, not resolved).
+            // MYT-197: bake the $static suffix at compile time — the runtime
+            // CALL_STATIC handler no longer appends it on every call. Mirrors
+            // the guard in emitStaticMethodCall. The suffix must be here (not
+            // deferred to runtime) because removing the runtime concat was the
+            // point of the MYT-197 change.
+            std::string qualifiedName = ctx.currentClassNode->getClassName() + "::" + plainFunctionName + "$static";
             size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                                          static_cast<uint64_t>(nameIndex),

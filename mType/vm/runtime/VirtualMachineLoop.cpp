@@ -216,7 +216,8 @@ namespace vm::runtime
                     if (!callStack.empty())
                     {
                         const CallFrame& currentFrame = callStack.back();
-                        auto funcMetadata = program->getFunction(currentFrame.functionName);
+                        // MYT-197: O(1) handle-keyed metadata lookup.
+                        auto funcMetadata = program->getFunctionMeta(currentFrame.functionName);
 
                         if (funcMetadata && funcMetadata->isAsync)
                         {

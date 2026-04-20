@@ -308,7 +308,10 @@ namespace vm::runtime
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = constructorName;  // Use qualified name for proper exception handling
+            // MYT-197: intern on the target program. Constructor qualified
+            // names are already registered (see registerFunction), so this is
+            // a hashmap hit after first use.
+            frame.functionName = targetProgram->internFrameName(constructorName);
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for constructor
             frame.programIndex = targetProgramIndex;
@@ -416,7 +419,8 @@ namespace vm::runtime
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = constructorName;  // Use qualified name for proper exception handling
+            // MYT-197: intern on the target program.
+            frame.functionName = targetProgram->internFrameName(constructorName);
             frame.thisInstance = instance;
             frame.definingClassName = currentClassName;  // Same class as defining class
             frame.programIndex = targetProgramIndex;
@@ -544,7 +548,8 @@ namespace vm::runtime
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = qualifiedName;
+            // MYT-197: intern on the target program.
+            frame.functionName = targetProgram->internFrameName(qualifiedName);
             frame.thisInstance = instance;
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for access control
             frame.programIndex = targetProgramIndex;
@@ -705,7 +710,8 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;
         frame.frameBase = context.stackManager->size();
         frame.localBase = context.stackManager->size();
-        frame.functionName = constructorName;  // Use qualified name for proper exception handling
+        // MYT-197: intern on the target program.
+        frame.functionName = targetProgram->internFrameName(constructorName);
         frame.thisInstance = instance;
         frame.definingClassName = baseClassName;  // Set class as defining class for its own constructor
         frame.programIndex = targetProgramIndex;
@@ -804,13 +810,17 @@ namespace vm::runtime
         if (!context.callStack.empty()) {
             if (context.callStack.back().thisInstance) {
                 return context.callStack.back().thisInstance->getClassDefinition()->getName();
-            } else {
-                const std::string& funcName = context.callStack.back().functionName;
-                size_t colonPos = funcName.find("::");
-                if (colonPos != std::string::npos) {
-                    std::string className = funcName.substr(0, colonPos);
-                    return className;
-                }
+            }
+            // MYT-197: prefer frame.definingClassName (populated at push time)
+            // over resolving the interned handle and re-splitting.
+            if (!context.callStack.back().definingClassName.empty()) {
+                return context.callStack.back().definingClassName;
+            }
+            const std::string& funcName = context.frameName(context.callStack.back());
+            size_t colonPos = funcName.find("::");
+            if (colonPos != std::string::npos) {
+                std::string className = funcName.substr(0, colonPos);
+                return className;
             }
         }
         return "";

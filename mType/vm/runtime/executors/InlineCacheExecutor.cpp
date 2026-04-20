@@ -376,10 +376,15 @@ namespace vm::runtime
 
                 // MYT-173: shared with handleCallMethodCached — see the helper
                 // for the full pop/push-frame/jump sequence.
+                // MYT-197: intern on the callee's owning program. This path
+                // is pre-promotion to CALL_METHOD_CACHED — only hot for a
+                // handful of calls before tryPromoteToCached flips the opcode;
+                // the internFrameName hashmap hit is fine here.
                 dispatchDirectFromCachedTarget(
                     funcMeta, entry->startOffset,
                     entry->program, entry->programIndex,
-                    entry->qualifiedName, entry->definingClassName,
+                    entry->program->internFrameName(entry->qualifiedName),
+                    entry->definingClassName,
                     objectValue, argCount);
                 return;
             }
@@ -463,7 +468,7 @@ namespace vm::runtime
         size_t startOffset,
         const bytecode::BytecodeProgram* program,
         size_t programIndex,
-        const std::string& qualifiedName,
+        bytecode::FunctionNameHandle qualifiedName,
         const std::string& definingClassName,
         value::Value objectValue,
         size_t argCount)
@@ -480,7 +485,9 @@ namespace vm::runtime
         // Pop the object (this)
         context.stackManager->pop();
 
-        // Push call frame (with overflow protection)
+        // Push call frame (with overflow protection).
+        // MYT-197: 4-byte handle copy replaces std::string copy on the MYT-173
+        // fast dispatch path.
         CallFrame frame;
         frame.returnAddress = context.instructionPointer;
         frame.functionName = qualifiedName;
@@ -554,7 +561,9 @@ namespace vm::runtime
         mut.cachedMethodFunc         = fm;
         mut.cachedMethodProgram      = entry.program;
         mut.cachedMethodProgramIndex = entry.programIndex;
-        mut.cachedMethodQualifiedName = entry.qualifiedName;
+        // MYT-197: intern on the callee's owning program (same program the
+        // cached target lives in). Handle is copied 4 bytes at dispatch time.
+        mut.cachedMethodQualifiedName = entry.program->internFrameName(entry.qualifiedName);
         // MYT-195: snapshot the pre-resolved class prefix alongside qualifiedName.
         mut.cachedMethodDefiningClassName = entry.definingClassName;
         mut.opcode = bytecode::OpCode::CALL_METHOD_CACHED;
@@ -569,7 +578,11 @@ namespace vm::runtime
         mut.cachedMethodFunc = nullptr;
         mut.cachedMethodProgram = nullptr;
         mut.cachedMethodProgramIndex = 0;
-        mut.cachedMethodQualifiedName.clear();
+        // MYT-197: integer sentinel replaces std::string::clear(). A re-promote
+        // that happens to observe a stale handle value would index into the
+        // interner and return an unrelated qualified name; INVALID_FN_HANDLE
+        // prevents that.
+        mut.cachedMethodQualifiedName = bytecode::INVALID_FN_HANDLE;
         // MYT-195: clear the pre-resolved class prefix in lockstep with
         // qualifiedName so a subsequent re-promotion doesn't pick up a
         // stale class name from the prior shape.

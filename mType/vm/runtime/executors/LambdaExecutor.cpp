@@ -33,8 +33,11 @@ namespace vm::runtime
         lambda->instructionPointer = lambdaStart;
         lambda->parameterCount = paramCount;
 
-        // Store function name for metadata lookup
-        lambda->functionName = context.program->getConstantPool().getString(funcNameIdx);
+        // Store function name handle for metadata lookup (MYT-197).
+        // Intern the constant-pool string once at lambda creation; every
+        // subsequent invocation just copies the 4-byte handle.
+        lambda->functionName = context.program->internFrameName(
+            context.program->getConstantPool().getString(funcNameIdx));
 
         // Extract parameter names for debugging
         size_t paramNamesStart = 5 + captureCount;  // Now starts at 5 (was 4)
@@ -61,9 +64,14 @@ namespace vm::runtime
                 // Instance method context - get class from 'this'
                 lambda->creatingClassName = context.callStack.back().thisInstance->getClassDefinition()->getName();
                 lambda->capturedThis = context.callStack.back().thisInstance;
+            } else if (!context.callStack.back().definingClassName.empty()) {
+                // Static method context - MYT-197: prefer the frame's
+                // definingClassName (already set at push time) over re-splitting
+                // the qualified name. Keeps this path off std::string for
+                // interned frame names.
+                lambda->creatingClassName = context.callStack.back().definingClassName;
             } else {
-                // Static method context - extract class name from function name (ClassName::methodName)
-                const std::string& funcName = context.callStack.back().functionName;
+                const std::string& funcName = context.frameName(context.callStack.back());
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos) {
                     lambda->creatingClassName = funcName.substr(0, colonPos);
@@ -146,10 +154,18 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;  // Return to next instruction
         frame.frameBase = context.stackManager->size();
         frame.localBase = context.stackManager->size();
-        // Use the lambda's unique function name (e.g., __lambda_0) for metadata/exception table lookup
-        frame.functionName = lambda->functionName.empty() ?
-            (lambda->creatingClassName.empty() ? "<lambda>" : lambda->creatingClassName + "::<lambda>") :
-            lambda->functionName;
+        // Use the lambda's unique function name (e.g., __lambda_0) for metadata/exception table lookup.
+        // MYT-197: 4-byte handle copy on the hot path. Falls back to a
+        // program-interned "<lambda>" / "Class::<lambda>" display name only
+        // when the lambda was built without going through handleLambda.
+        if (lambda->functionName != bytecode::INVALID_FN_HANDLE) {
+            frame.functionName = lambda->functionName;
+        } else {
+            std::string fallback = lambda->creatingClassName.empty()
+                ? "<lambda>"
+                : lambda->creatingClassName + "::<lambda>";
+            frame.functionName = context.program->internFrameName(fallback);
+        }
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
         frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
         frame.originatingLambda = lambda;  // Store lambda reference for variable access
@@ -158,18 +174,19 @@ namespace vm::runtime
 
         // Notify debugger of lambda entry
         if (debugger::DebugHookHelper::isDebuggingEnabled()) {
+            const std::string& frameNameStr = context.program->getFrameName(frame.functionName);
             auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
             if (sourceLoc) {
                 errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
-                debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errorsLoc);
+                debugger::DebugHookHelper::enterFunctionHook(frameNameStr, errorsLoc);
             } else {
                 // Fallback: use lambda start location if current instruction has no location
                 auto lambdaStartLoc = context.program->getSourceLocation(lambdaStart);
                 if (lambdaStartLoc) {
                     errors::SourceLocation errorsLoc(lambdaStartLoc->filename, lambdaStartLoc->line, lambdaStartLoc->column);
-                    debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errorsLoc);
+                    debugger::DebugHookHelper::enterFunctionHook(frameNameStr, errorsLoc);
                 } else {
-                    debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errors::SourceLocation());
+                    debugger::DebugHookHelper::enterFunctionHook(frameNameStr, errors::SourceLocation());
                 }
             }
         }
@@ -196,8 +213,9 @@ namespace vm::runtime
             }
         }
 
-        // Get lambda metadata for parameter type information and local slot count
-        auto* lambdaMetadata = context.program->getFunction(lambda->functionName);
+        // Get lambda metadata for parameter type information and local slot count.
+        // MYT-197: O(1) handle lookup replaces the std::string hashmap probe.
+        auto* lambdaMetadata = context.program->getFunctionMeta(lambda->functionName);
 
         // Auto-box primitive arguments if lambda expects boxed types
         // (mirrors ObjectExecutor::invokeLambdaMethod behavior)

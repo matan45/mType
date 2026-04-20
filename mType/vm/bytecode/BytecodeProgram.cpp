@@ -422,6 +422,52 @@ namespace vm::bytecode
             functionIndexToName.push_back(name);
             functionNameToIndex[name] = idx;
         }
+
+        // MYT-197: intern the name into the frame-name interner and backfill
+        // its metadata pointer. Handle already present (interned at a prior
+        // push site) just gets its meta slot filled in. std::unordered_map
+        // does not invalidate pointers to values on rehash, so &functions[name]
+        // is stable for the lifetime of the program.
+        FunctionNameHandle handle = internFrameName(name);
+        frameNameToMeta[handle.id] = &functions[name];
+    }
+
+    FunctionNameHandle BytecodeProgram::internFrameName(std::string_view name) const {
+        auto it = frameNameToId.find(name);
+        if (it != frameNameToId.end()) {
+            return FunctionNameHandle{ it->second };
+        }
+        const uint32_t id = static_cast<uint32_t>(frameNameById.size());
+        if (id == INVALID_FN_HANDLE.id) {
+            throw std::runtime_error("BytecodeProgram: frame-name interner exhausted");
+        }
+        frameNameById.emplace_back(name);
+        frameNameToMeta.push_back(nullptr);
+        // Key the map on a string_view into the deque entry. deque::emplace_back
+        // does not invalidate references to existing elements, so views from
+        // earlier inserts remain valid.
+        frameNameToId.emplace(std::string_view(frameNameById.back()), id);
+        return FunctionNameHandle{ id };
+    }
+
+    const std::string& BytecodeProgram::getFrameName(FunctionNameHandle handle) const {
+        // MYT-197: degrade gracefully on stale/cross-program handles. The hot
+        // path that produces handles always interns them first, so invalid
+        // ids should not flow here in well-formed programs — but returning a
+        // stable empty string lets stack traces continue rather than throw
+        // mid-format.
+        static const std::string kEmpty;
+        if (handle.id >= frameNameById.size()) {
+            return kEmpty;
+        }
+        return frameNameById[handle.id];
+    }
+
+    const BytecodeProgram::FunctionMetadata* BytecodeProgram::getFunctionMeta(FunctionNameHandle handle) const {
+        if (handle.id >= frameNameToMeta.size()) {
+            return nullptr;
+        }
+        return frameNameToMeta[handle.id];
     }
 
     const BytecodeProgram::FunctionMetadata* BytecodeProgram::getFunction(const std::string& name) const {

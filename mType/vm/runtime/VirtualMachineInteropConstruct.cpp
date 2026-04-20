@@ -87,7 +87,7 @@ namespace vm::runtime
             frame.returnAddress = program->getInstructionCount();
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = qualifiedName;
+            frame.functionName = program->internFrameName(qualifiedName);
             frame.thisInstance = instance;
             frame.definingClassName = className;
 
@@ -221,9 +221,16 @@ namespace vm::runtime
             frame.returnAddress = program->getInstructionCount();
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = lambda->functionName.empty() ?
-                (lambda->creatingClassName.empty() ? "<lambda>" : lambda->creatingClassName + "::<lambda>") :
-                lambda->functionName;
+            // MYT-197: copy the lambda's 4-byte handle; fall back to an
+            // interned display name only for lambdas that skipped handleLambda.
+            if (lambda->functionName != bytecode::INVALID_FN_HANDLE) {
+                frame.functionName = lambda->functionName;
+            } else {
+                std::string fallback = lambda->creatingClassName.empty()
+                    ? "<lambda>"
+                    : lambda->creatingClassName + "::<lambda>";
+                frame.functionName = program->internFrameName(fallback);
+            }
             frame.thisInstance = lambda->capturedThis;
             frame.definingClassName = lambda->creatingClassName;
             frame.originatingLambda = lambda;
@@ -260,7 +267,7 @@ namespace vm::runtime
             }
 
             // Reserve additional local variable slots if needed
-            auto* lambdaMetadata = program->getFunction(lambda->functionName);
+            auto* lambdaMetadata = program->getFunctionMeta(lambda->functionName);
             if (lambdaMetadata)
             {
                 size_t pushedSlots = args.size() + lambda->capturedSlots.size();

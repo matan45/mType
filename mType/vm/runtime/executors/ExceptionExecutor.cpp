@@ -118,16 +118,18 @@ namespace vm::runtime
                 // The returnAddress points to the instruction AFTER the call
                 // We need to look at the CALL instruction itself (one before)
                 size_t callSite = frame.returnAddress > 0 ? frame.returnAddress - 1 : frame.returnAddress;
+                // MYT-197: resolve handle via the frame's own program.
+                const std::string& frameNameStr = context.frameName(frame);
                 auto* loc = context.program->getSourceLocation(callSite);
                 if (loc)
                 {
-                    stackTrace << "  at " << frame.functionName << " ("
+                    stackTrace << "  at " << frameNameStr << " ("
                               << loc->filename << ":" << loc->line << ":"
                               << loc->column << ")\n";
                 }
                 else
                 {
-                    stackTrace << "  at " << frame.functionName
+                    stackTrace << "  at " << frameNameStr
                               << " (bytecode offset " << frame.returnAddress << ")\n";
                 }
             }

@@ -36,14 +36,19 @@ namespace vm::runtime
             return false;
         }
 
-        const std::string& functionName = context.callStack.back().functionName;
-        // Static method names have format: ClassName::methodName
-        size_t colonPos = functionName.find("::");
-        if (colonPos == std::string::npos) {
-            return false;
+        // MYT-197: prefer frame.definingClassName (populated at push time)
+        // over resolving the interned handle and re-splitting.
+        std::string className;
+        if (!context.callStack.back().definingClassName.empty()) {
+            className = context.callStack.back().definingClassName;
+        } else {
+            const std::string& functionName = context.frameName(context.callStack.back());
+            size_t colonPos = functionName.find("::");
+            if (colonPos == std::string::npos) {
+                return false;
+            }
+            className = functionName.substr(0, colonPos);
         }
-
-        std::string className = functionName.substr(0, colonPos);
         auto classRegistry = context.environment->getClassRegistry();
         if (!classRegistry) {
             return false;
@@ -133,14 +138,18 @@ namespace vm::runtime
             return false;
         }
 
-        const std::string& functionName = context.callStack.back().functionName;
-        // Static method names have format: ClassName::methodName
-        size_t colonPos = functionName.find("::");
-        if (colonPos == std::string::npos) {
-            return false;
+        // MYT-197: prefer frame.definingClassName (populated at push time).
+        std::string className;
+        if (!context.callStack.back().definingClassName.empty()) {
+            className = context.callStack.back().definingClassName;
+        } else {
+            const std::string& functionName = context.frameName(context.callStack.back());
+            size_t colonPos = functionName.find("::");
+            if (colonPos == std::string::npos) {
+                return false;
+            }
+            className = functionName.substr(0, colonPos);
         }
-
-        std::string className = functionName.substr(0, colonPos);
         auto classRegistry = context.environment->getClassRegistry();
         if (!classRegistry) {
             return false;
