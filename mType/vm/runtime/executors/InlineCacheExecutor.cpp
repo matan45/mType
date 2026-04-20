@@ -7,6 +7,7 @@
 #include "../validation/AccessValidator.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../../value/ValueShim.hpp"
+#include "../../../value/SmallArgsBuffer.hpp"
 
 namespace vm::runtime
 {
@@ -469,8 +470,9 @@ namespace vm::runtime
     {
         auto instance = value::asObject(objectValue);
 
-        // Pop arguments
-        std::vector<value::Value> args(argCount);
+        // Pop arguments into a small-buffer-optimized scratch buffer
+        // (MYT-196: avoids per-call heap allocation on the MYT-173 hot path).
+        value::SmallArgsBuffer args(argCount);
         for (size_t i = argCount; i > 0; --i)
         {
             args[i - 1] = context.stackManager->pop();

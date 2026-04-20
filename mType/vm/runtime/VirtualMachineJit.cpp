@@ -2,6 +2,7 @@
 #include "../../errors/RuntimeException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../value/SmallArgsBuffer.hpp"
 #include "../jit/JitProfiler.hpp"
 #include "../jit/JitCodeCache.hpp"
 #include "../jit/JitCompiler.hpp"
@@ -384,11 +385,10 @@ namespace vm::runtime
             {
                 size_t argCount = instr.operands[1];
 
-                std::vector<value::Value> args;
-                args.reserve(argCount);
-                for (size_t i = 0; i < argCount; ++i)
-                    args.push_back(stackManager->pop());
-                std::reverse(args.begin(), args.end());
+                // MYT-196: small-buffer-optimized args for JIT entry.
+                value::SmallArgsBuffer args(argCount);
+                for (size_t i = argCount; i > 0; --i)
+                    args[i - 1] = stackManager->pop();
 
                 jit::JitContext jitCtx{};
                 jitCtx.args = args.data();
@@ -437,11 +437,10 @@ namespace vm::runtime
                 {
                     size_t argCount = instr.operands[1];
 
-                    std::vector<value::Value> args;
-                    args.reserve(argCount);
-                    for (size_t i = 0; i < argCount; ++i)
-                        args.push_back(stackManager->pop());
-                    std::reverse(args.begin(), args.end());
+                    // MYT-196: small-buffer-optimized args for JIT entry.
+                    value::SmallArgsBuffer args(argCount);
+                    for (size_t i = argCount; i > 0; --i)
+                        args[i - 1] = stackManager->pop();
 
                     jit::JitContext jitCtx{};
                     jitCtx.args = args.data();

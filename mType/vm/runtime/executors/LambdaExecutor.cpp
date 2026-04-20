@@ -4,6 +4,7 @@
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
+#include "../../../value/SmallArgsBuffer.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include <algorithm>
@@ -120,13 +121,12 @@ namespace vm::runtime
         // Pop argument count
         size_t argCount = instr.operands[0];
 
-        // Pop arguments from stack
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(context.stackManager->pop());
+        // Pop arguments into a small-buffer-optimized scratch buffer
+        // (MYT-196: avoids per-call heap allocation).
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i) {
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
         // Pop lambda value from stack
         value::Value lambdaVal = context.stackManager->pop();

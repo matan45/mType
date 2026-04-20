@@ -40,7 +40,7 @@ namespace runtimeTypes::klass
         return nullptr;
     }
 
-    ConstructorDefinition* ClassDefinition::findConstructorByTypes(const std::vector<value::Value>& args) const
+    ConstructorDefinition* ClassDefinition::findConstructorByTypes(std::span<const value::Value> args) const
     {
         size_t argCount = args.size();
 

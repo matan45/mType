@@ -9,6 +9,7 @@
 #include "../../../value/IntegerCache.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
+#include "../../../value/SmallArgsBuffer.hpp"
 #include "../../../gc/GC.hpp"
 #include <algorithm>
 #include  <iostream>
@@ -138,17 +139,6 @@ namespace vm::runtime
         return baseClassName;
     }
 
-    std::vector<value::Value> ObjectInstanceHelper::prepareConstructorArguments(size_t argCount)
-    {
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(context.stackManager->pop());
-        }
-        std::reverse(args.begin(), args.end());
-        return args;
-    }
-
     std::shared_ptr<runtimeTypes::klass::ObjectInstance> ObjectInstanceHelper::createObjectInstance(
         const std::string& baseClassName,
         const std::unordered_map<std::string, std::string>& genericTypeBindings)
@@ -235,12 +225,11 @@ namespace vm::runtime
         const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
 
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(context.stackManager->pop());
+        // MYT-196: small-buffer-optimized args buffer.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i) {
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
         if (context.callStack.empty() || !context.callStack.back().thisInstance) {
             throw errors::RuntimeException("SUPER_CONSTRUCTOR can only be called from within an instance context");
@@ -276,7 +265,7 @@ namespace vm::runtime
         }
 
         // Use type-aware constructor lookup for overload resolution
-        auto parentConstructor = parentClass->findConstructorByTypes(args);
+        auto parentConstructor = parentClass->findConstructorByTypes(args.span());
         if (!parentConstructor) {
             throw errors::RuntimeException("No constructor found in parent class " + baseParentClassName +
                                          " with " + std::to_string(argCount) + " arguments");
@@ -365,12 +354,11 @@ namespace vm::runtime
         const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
 
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(context.stackManager->pop());
+        // MYT-196: small-buffer-optimized args buffer.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i) {
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
         if (context.callStack.empty() || !context.callStack.back().thisInstance) {
             throw errors::RuntimeException("THIS_CONSTRUCTOR can only be called from within an instance context");
@@ -385,7 +373,7 @@ namespace vm::runtime
         }
 
         // Use type-aware constructor lookup for overload resolution
-        auto targetConstructor = classDef->findConstructorByTypes(args);
+        auto targetConstructor = classDef->findConstructorByTypes(args.span());
         if (!targetConstructor) {
             throw errors::RuntimeException("No constructor found in class " + currentClassName +
                                          " with " + std::to_string(argCount) + " arguments");
@@ -474,12 +462,11 @@ namespace vm::runtime
         const std::string& methodName = context.program->getConstantPool().getString(instr.operands[1]);
         size_t argCount = instr.operands[2];
 
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(context.stackManager->pop());
+        // MYT-196: small-buffer-optimized args buffer.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i) {
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
         if (context.callStack.empty() || !context.callStack.back().thisInstance) {
             throw errors::RuntimeException("SUPER_INVOKE can only be called from within an instance context");
@@ -661,7 +648,7 @@ namespace vm::runtime
 
     void ObjectInstanceHelper::invokeConstructor(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                                 const std::string& baseClassName,
-                                                const std::vector<value::Value>& args)
+                                                std::span<const value::Value> args)
     {
         size_t argCount = args.size();
         auto classRegistry = context.environment->getClassRegistry();
@@ -772,8 +759,11 @@ namespace vm::runtime
         std::unordered_map<std::string, std::string> genericTypeBindings;
         std::string baseClassName = parseGenericTypeArguments(fullClassName, genericTypeBindings);
 
-        // Prepare constructor arguments from stack
-        std::vector<value::Value> args = prepareConstructorArguments(argCount);
+        // MYT-196: pop constructor arguments into a small-buffer-optimized scratch.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i) {
+            args[i - 1] = context.stackManager->pop();
+        }
 
         // PHASE 2 OPTIMIZATION: Integer Caching
         // If creating Int object with single int argument in cacheable range, use cached instance
@@ -793,7 +783,7 @@ namespace vm::runtime
                     if (cachedInstance) {
                         // Cache hit! Return cached Int object (already initialized)
                         // Skip constructor invocation - cached object is already properly initialized
-                        invokeConstructor(cachedInstance, baseClassName, args);
+                        invokeConstructor(cachedInstance, baseClassName, args.span());
                         return;
                     }
                 }
@@ -807,7 +797,7 @@ namespace vm::runtime
         // (handles aliases: "MyInt" resolves to same ClassDef as "Int",
         //  but constructor bytecode is registered under "Int::<init>")
         std::string actualClassName = instance->getClassDefinition()->getName();
-        invokeConstructor(instance, actualClassName, args);
+        invokeConstructor(instance, actualClassName, args.span());
     }
 
     std::string ObjectInstanceHelper::getCurrentClassName() {

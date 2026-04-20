@@ -1,4 +1,5 @@
 #pragma once
+#include <span>
 #include "../context/ExecutionContext.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/AccessViolationException.hpp"
@@ -22,9 +23,11 @@ namespace vm::runtime
         void handleCallFast(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr);
 
-        // Public helper for lambda-to-interface conversion (used by ObjectExecutor too)
+        // Public helper for lambda-to-interface conversion (used by ObjectExecutor too).
+        // Mutates arg slots in place; does not resize. Accepts std::span<Value> so
+        // callers can pass a SmallArgsBuffer::span() or a std::vector implicitly.
         void convertLambdaArgumentsToInterfaces(
-            std::vector<value::Value>& args,
+            std::span<value::Value> args,
             const std::vector<std::string>& parameterTypes
         );
 

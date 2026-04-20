@@ -264,6 +264,9 @@
     <ClInclude Include="value\PromiseValue.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\SmallArgsBuffer.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\SparseMultiArray.hpp">
       <Filter>value</Filter>
     </ClInclude>

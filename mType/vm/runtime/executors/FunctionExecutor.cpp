@@ -9,6 +9,7 @@
 #include "../../../value/NativeArray.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
+#include "../../../value/SmallArgsBuffer.hpp"
 #include "../../jit/JitCodeCache.hpp"
 #include "../../jit/JitContext.hpp"
 #include <algorithm>
@@ -29,14 +30,13 @@ namespace vm::runtime
         // Calculate frameBase BEFORE popping arguments
         size_t frameBase = context.stackManager->size() - argCount;
 
-        // Pop arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i)
+        // Pop arguments from stack (in reverse order) into a small-buffer-optimized
+        // scratch buffer — MYT-196.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i)
         {
-            args.push_back(context.stackManager->pop());
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
         // Check inline cache first, then fall back to full resolution
         const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = instr.cachedFuncMetadata;
@@ -57,7 +57,10 @@ namespace vm::runtime
                 {
                     vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
 
-                    value::Value result = nativeFunc(args);
+                    // Native signature still takes std::vector<Value>&.
+                    // Materialize a vector only on this cold path; see MYT-197 follow-up.
+                    std::vector<value::Value> nativeArgs(args.begin(), args.end());
+                    value::Value result = nativeFunc(nativeArgs);
 
                     vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
 
@@ -92,7 +95,7 @@ namespace vm::runtime
         if (funcMetadata)
         {
             // Convert lambda arguments to interface implementations if needed
-            convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+            convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
 
             // Create call frame
             CallFrame frame;
@@ -173,15 +176,14 @@ namespace vm::runtime
 
         size_t frameBase = context.stackManager->size() - argCount;
 
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i)
+        // MYT-196: small-buffer-optimized args buffer.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i)
         {
-            args.push_back(context.stackManager->pop());
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
-        convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+        convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
 
         CallFrame frame;
         frame.returnAddress = context.instructionPointer;
@@ -290,14 +292,12 @@ namespace vm::runtime
         // Calculate frameBase BEFORE popping arguments
         size_t frameBase = context.stackManager->size() - argCount;
 
-        // Pop arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i)
+        // Pop arguments from stack (in reverse order) — MYT-196 small-buffer.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i)
         {
-            args.push_back(context.stackManager->pop());
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
         // Build base qualified name with $static suffix (needed for frame.functionName on all paths)
         std::string staticQualifiedName = qualifiedName;
@@ -419,7 +419,7 @@ namespace vm::runtime
         if (funcMetadata)
         {
             // Convert lambda arguments to interface implementations if needed
-            convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+            convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
 
             // Create call frame for static method
             CallFrame frame;
@@ -495,7 +495,7 @@ namespace vm::runtime
     }
 
     void FunctionExecutor::convertLambdaArgumentsToInterfaces(
-        std::vector<value::Value>& args,
+        std::span<value::Value> args,
         const std::vector<std::string>& parameterTypes
     )
     {
