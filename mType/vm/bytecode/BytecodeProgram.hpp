@@ -58,6 +58,11 @@ namespace vm::bytecode
             mutable const BytecodeProgram* cachedMethodProgram = nullptr;
             mutable size_t cachedMethodProgramIndex = 0;
             mutable std::string cachedMethodQualifiedName;
+            // MYT-195: pre-resolved class prefix of cachedMethodQualifiedName.
+            // Snapshotted from MethodICEntry::definingClassName at CACHED-promote
+            // time so dispatchDirectFromCachedTarget doesn't re-split the qualified
+            // name on every dispatch. Cleared in deoptAndReprocess.
+            mutable std::string cachedMethodDefiningClassName;
             mutable uint8_t cachedDeoptCount = 0;
 
             // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED embedded target.

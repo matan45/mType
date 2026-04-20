@@ -90,6 +90,12 @@ namespace vm::jit::ic
         size_t startOffset = 0;
         // Pre-resolved qualified function name (pointer into constant pool or cached string)
         std::string qualifiedName;
+        // MYT-195: pre-resolved class prefix of qualifiedName (the "Foo" in
+        // "Foo::bar"). Computed once at IC populate time so the hot dispatch
+        // path avoids a per-call find("::") + substr() on every method call.
+        // Empty when qualifiedName lacks "::" — matches the default-constructed
+        // CallFrame::definingClassName the old per-call path left behind.
+        std::string definingClassName;
         // MYT-163: receiver kind recorded at IC populate time. F-a inlining is
         // restricted to ObjectInstance receivers; ValueObject sites fall through
         // to the generic jit_call_method_ic path. The flag is still set for

@@ -378,7 +378,8 @@ namespace vm::runtime
                 dispatchDirectFromCachedTarget(
                     funcMeta, entry->startOffset,
                     entry->program, entry->programIndex,
-                    entry->qualifiedName, objectValue, argCount);
+                    entry->qualifiedName, entry->definingClassName,
+                    objectValue, argCount);
                 return;
             }
         }
@@ -429,6 +430,13 @@ namespace vm::runtime
                     entry.funcMetadata = resolution.funcMetadata;
                     entry.startOffset = resolution.funcMetadata->startOffset;
                     entry.qualifiedName = resolution.qualifiedName;
+                    // MYT-195: pre-resolve the class prefix once, here on the
+                    // slow path, so dispatchDirectFromCachedTarget can just
+                    // copy the string into the frame on every subsequent hit.
+                    size_t colonPos = entry.qualifiedName.find("::");
+                    if (colonPos != std::string::npos) {
+                        entry.definingClassName = entry.qualifiedName.substr(0, colonPos);
+                    }
                     entry.program = resolution.program;
                     entry.programIndex = resolution.programIndex;
                     // MYT-183: re-fetch cache reference immediately before
@@ -455,6 +463,7 @@ namespace vm::runtime
         const bytecode::BytecodeProgram* program,
         size_t programIndex,
         const std::string& qualifiedName,
+        const std::string& definingClassName,
         value::Value objectValue,
         size_t argCount)
     {
@@ -476,10 +485,10 @@ namespace vm::runtime
         frame.localBase = context.stackManager->size();
         frame.frameBase = context.stackManager->size();
         frame.thisInstance = instance;
-        size_t colonPos = qualifiedName.find("::");
-        if (colonPos != std::string::npos) {
-            frame.definingClassName = qualifiedName.substr(0, colonPos);
-        }
+        // MYT-195: pre-resolved at IC populate / CACHED-promote time. Empty
+        // when the qualified name carries no "::" prefix — same semantics as
+        // the old per-call find/substr that left the field untouched.
+        frame.definingClassName = definingClassName;
         // MYT-182: carry the callee's program identity on the frame so
         // ControlFlowExecutor restores context.program on return. If the
         // cached entry has no program recorded, fall back to the caller's.
@@ -544,6 +553,8 @@ namespace vm::runtime
         mut.cachedMethodProgram      = entry.program;
         mut.cachedMethodProgramIndex = entry.programIndex;
         mut.cachedMethodQualifiedName = entry.qualifiedName;
+        // MYT-195: snapshot the pre-resolved class prefix alongside qualifiedName.
+        mut.cachedMethodDefiningClassName = entry.definingClassName;
         mut.opcode = bytecode::OpCode::CALL_METHOD_CACHED;
     }
 
@@ -557,6 +568,10 @@ namespace vm::runtime
         mut.cachedMethodProgram = nullptr;
         mut.cachedMethodProgramIndex = 0;
         mut.cachedMethodQualifiedName.clear();
+        // MYT-195: clear the pre-resolved class prefix in lockstep with
+        // qualifiedName so a subsequent re-promotion doesn't pick up a
+        // stale class name from the prior shape.
+        mut.cachedMethodDefiningClassName.clear();
         if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
         // `instr` and `mut` alias the same slot; single-threaded VM, so this is
         // safe. Re-enter the generic IC path, which will observe the new shape
@@ -603,6 +618,7 @@ namespace vm::runtime
             instr.cachedMethodProgram,
             instr.cachedMethodProgramIndex,
             instr.cachedMethodQualifiedName,
+            instr.cachedMethodDefiningClassName,
             objectValue, argCount);
     }
 
