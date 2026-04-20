@@ -810,12 +810,6 @@ namespace vm::runtime
         if (instr.operands.size() < 2) {
             throw errors::RuntimeException("NEW_STACK requires 2 operands: class name index and arg count");
         }
-        if (context.callStack.empty()) {
-            // NEW_STACK requires a live frame to own the borrowed pointer's lifetime.
-            // The compiler only emits NEW_STACK inside function/method/constructor
-            // bodies, so this should be unreachable in well-formed bytecode.
-            throw errors::RuntimeException("NEW_STACK emitted outside any call frame");
-        }
 
         const std::string& fullClassName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
@@ -828,8 +822,6 @@ namespace vm::runtime
             args[i - 1] = context.stackManager->pop();
         }
 
-        // Resolve class and pool-acquire a raw ObjectInstance. No GC registration —
-        // escape analysis proved the reference never leaves the enclosing frame.
         auto classRegistry = context.environment->getClassRegistry();
         if (!classRegistry) {
             throw errors::RuntimeException("Class registry not available");
@@ -839,25 +831,24 @@ namespace vm::runtime
             throw errors::RuntimeException("Class not found: " + baseClassName);
         }
 
-        auto* raw = value::ObjectInstancePool::getInstance().acquireRaw(classDef, genericTypeBindings);
-        // Field defaults must be applied exactly as handleNewObject does so constructor
-        // semantics match byte-for-byte. initializeObjectFields takes a shared_ptr, so
-        // synthesize an aliasing shared_ptr with a no-op deleter — refcount churn is
-        // confined to this temporary; the raw pointer is owned by stackObjects below.
-        std::shared_ptr<runtimeTypes::klass::ObjectInstance> aliasing(
-            raw, [](runtimeTypes::klass::ObjectInstance*) noexcept {});
-        initializeObjectFields(aliasing, classDef);
+        // Pool-backed allocation identical to NEW_OBJECT — the shared_ptr's
+        // SlotDeleter gives us automatic pool recycling when the Value refcount
+        // hits zero. Critical for hot loops: without pool recycling, 2M
+        // allocations create 2M distinct ObjectInstances instead of reusing
+        // a small number of pooled slots.
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef, genericTypeBindings);
+        initializeObjectFields(instance, classDef);
 
-        // Transfer lifetime ownership to the current frame BEFORE the constructor runs.
-        // If the constructor throws, frame teardown still releases via StackFrameObjects.
-        context.callStack.back().stackObjects.push(raw);
+        // THE actual MYT-134 win: escape analysis proved the reference never
+        // leaves this frame, so we skip GC registration. That saves the mutex +
+        // hashmap insert cost (registerWithGC) AND keeps this object out of the
+        // cycle-detector's scan set for its entire lifetime. Follow-up tickets
+        // can layer additional savings on top (STACK_OBJECT Value tag to skip
+        // the TypedBridge alloc and atomic refcount ops, per-frame bump region
+        // to skip the pool entirely).
 
-        // invokeConstructor will push the instance as local[0], set frame.thisInstance,
-        // and jump to the constructor entry. The aliasing shared_ptr's refcount rises
-        // inside that path but every decrement runs our no-op deleter, so pool release
-        // is controlled exclusively by frame teardown.
-        std::string actualClassName = aliasing->getClassDefinition()->getName();
-        invokeConstructor(std::move(aliasing), actualClassName, args.span());
+        std::string actualClassName = instance->getClassDefinition()->getName();
+        invokeConstructor(std::move(instance), actualClassName, args.span());
     }
 
     std::string ObjectInstanceHelper::getCurrentClassName() {

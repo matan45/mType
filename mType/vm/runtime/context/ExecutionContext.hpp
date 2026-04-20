@@ -92,41 +92,6 @@ namespace vm::runtime
     };
 
     /**
-     * MYT-134: RAII lifetime wrapper for escape-analysis-promoted ObjectInstance*
-     * allocations inside a single call frame. On destruction, releases each
-     * borrowed pointer back to ObjectInstancePool in reverse order. The
-     * destructor runs on normal frame pop AND exception unwind (vector element
-     * destructors run as the stack unwinds).
-     *
-     * Copy and move semantics are intentionally asymmetric:
-     *   - Move transfers ownership (source becomes empty).
-     *   - Copy produces an EMPTY destination — the source retains its slots.
-     *
-     * Why copy-as-empty is safe: call-frame construction populates the frame
-     * first (fields, thisInstance, etc.) and only then pushes it. NEW_STACK
-     * only fires AFTER the frame is live in callStack, so there is no path
-     * that copies a frame with populated stackObjects. A debug assert guards
-     * the invariant.
-     */
-    struct StackFrameObjects {
-        StackFrameObjects() = default;
-        ~StackFrameObjects();
-
-        StackFrameObjects(const StackFrameObjects& other);
-        StackFrameObjects& operator=(const StackFrameObjects& other);
-        StackFrameObjects(StackFrameObjects&& other) noexcept
-            : slots(std::move(other.slots)) { other.slots.clear(); }
-        StackFrameObjects& operator=(StackFrameObjects&& other) noexcept;
-
-        void push(runtimeTypes::klass::ObjectInstance* p) { slots.push_back(p); }
-        bool empty() const noexcept { return slots.empty(); }
-
-    private:
-        void releaseAll() noexcept;
-        std::vector<runtimeTypes::klass::ObjectInstance*> slots;
-    };
-
-    /**
      * Call frame for function invocation
      */
     struct CallFrame {
@@ -142,8 +107,6 @@ namespace vm::runtime
         std::string definingClassName;           // Class that defines the method (for access control in inheritance)
         std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for closure capture (if this function creates lambdas)
         size_t programIndex = 0;                 // Which program in loadedPrograms this frame belongs to
-        // MYT-134: owns ObjectInstance* from NEW_STACK; released in reverse on frame teardown.
-        StackFrameObjects stackObjects;
     };
 
     /**
