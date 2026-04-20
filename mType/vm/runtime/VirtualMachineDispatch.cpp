@@ -185,9 +185,26 @@ namespace vm::runtime
             else
                 objectExecutor->handleGetField(instr);
             break;
+        case OpCode::GET_FIELD_CACHED:
+            // MYT-194: promoted from GET_FIELD once the IC stabilized. Never
+            // emitted by the compiler; only reachable if IC is enabled (the
+            // promoter guards on that). Fall back to the generic handler if
+            // somehow reached with IC disabled.
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleGetFieldCached(instr);
+            else
+                objectExecutor->handleGetField(instr);
+            break;
         case OpCode::SET_FIELD:
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleSetFieldIC(instr);
+            else
+                objectExecutor->handleSetField(instr);
+            break;
+        case OpCode::SET_FIELD_CACHED:
+            // MYT-194: see GET_FIELD_CACHED above.
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleSetFieldCached(instr);
             else
                 objectExecutor->handleSetField(instr);
             break;

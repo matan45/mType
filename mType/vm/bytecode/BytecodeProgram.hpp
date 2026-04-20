@@ -60,6 +60,19 @@ namespace vm::bytecode
             mutable std::string cachedMethodQualifiedName;
             mutable uint8_t cachedDeoptCount = 0;
 
+            // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED embedded target.
+            // Once the field IC at this IP has stabilized to MONOMORPHIC, the
+            // opcode is rewritten to the _CACHED variant and these fields
+            // snapshot the resolved shape + field slot — the hot path becomes a
+            // single shape compare + indexed field access, skipping the
+            // icTable hashmap probe and the FieldInlineCache linear scan. On
+            // shape miss the opcode is rewritten back and cachedFieldShape is
+            // cleared; cachedFieldDeoptCount>=1 makes the demote sticky.
+            // Kept parallel to cachedMethod* (rather than shared) per ticket.
+            mutable const runtimeTypes::klass::ClassDefinition* cachedFieldShape = nullptr;
+            mutable size_t cachedFieldIndex = static_cast<size_t>(-1);
+            mutable uint8_t cachedFieldDeoptCount = 0;
+
             Instruction();
             Instruction(OpCode op);
             Instruction(OpCode op, uint64_t operand1);

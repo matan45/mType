@@ -39,6 +39,13 @@ namespace vm::runtime
         // transitions to MONOMORPHIC.
         void handleCallMethodCached(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED fast paths. Same pattern
+        // as handleCallMethodCached — single shape compare against
+        // cachedFieldShape, then indexed field access. Shape miss reverts the
+        // opcode and re-enters handleGetFieldIC / handleSetFieldIC.
+        void handleGetFieldCached(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleSetFieldCached(const bytecode::BytecodeProgram::Instruction& instr);
+
     private:
         // Shared dispatch body used by the MONO-hit branch of handleCallMethodIC and
         // by handleCallMethodCached. Pops args + receiver, pushes a CallFrame, and
@@ -65,6 +72,22 @@ namespace vm::runtime
         // CALL_METHOD, clears cachedShape, bumps cachedDeoptCount (clamped), and
         // re-dispatches through handleCallMethodIC so the IC observes the new shape.
         void deoptAndReprocess(const bytecode::BytecodeProgram::Instruction& instr);
+
+        // MYT-194: promote GET_FIELD / SET_FIELD to their _CACHED variant once
+        // the field IC at the current IP has transitioned to MONOMORPHIC.
+        // `cachedOp` selects the target opcode (GET or SET); the cleared/set
+        // instruction fields are the same. Sticky via cachedFieldDeoptCount.
+        void tryPromoteFieldToCached(
+            const bytecode::BytecodeProgram::Instruction& instr,
+            const runtimeTypes::klass::ClassDefinition* shape,
+            size_t fieldIndex,
+            bytecode::OpCode cachedOp);
+
+        // MYT-194: shape miss on GET_FIELD_CACHED / SET_FIELD_CACHED. Two
+        // concrete helpers rather than one parameterized — matches MYT-173's
+        // direct style (revert opcode + re-entry handler are hardcoded).
+        void deoptGetFieldAndReprocess(const bytecode::BytecodeProgram::Instruction& instr);
+        void deoptSetFieldAndReprocess(const bytecode::BytecodeProgram::Instruction& instr);
 
         ExecutionContext& context;
         vm::jit::ic::InlineCacheTable& icTable;

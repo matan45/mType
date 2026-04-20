@@ -290,6 +290,16 @@ namespace tests::testSuite
         addOutputVerificationTest("CALL_METHOD_CACHED Deopt Sticky",
                                   passPath + "ic/call_method_cached_deopt.mt");
 
+        // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED promotion + sticky deopt.
+        addOutputVerificationTest("GET_FIELD_CACHED Monomorphic Promote",
+                                  passPath + "ic/get_field_cached_mono.mt");
+        addOutputVerificationTest("SET_FIELD_CACHED Monomorphic Promote",
+                                  passPath + "ic/set_field_cached_mono.mt");
+        addOutputVerificationTest("GET_FIELD_CACHED Deopt Sticky",
+                                  passPath + "ic/get_field_cached_deopt.mt");
+        addOutputVerificationTest("SET_FIELD_CACHED Deopt Sticky",
+                                  passPath + "ic/set_field_cached_deopt.mt");
+
         // ====================================
         // COMMENTED OUT - Test files were not created
         // ====================================

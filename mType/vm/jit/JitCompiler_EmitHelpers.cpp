@@ -113,6 +113,7 @@ namespace vm::jit
             switch (si.opcode)
             {
                 case OpCode::PUSH_STRING: case OpCode::GET_FIELD:
+                case OpCode::GET_FIELD_CACHED: case OpCode::SET_FIELD_CACHED:
                 case OpCode::SET_FIELD:   case OpCode::INLINE_SET_FIELD:
                 case OpCode::INLINE_GET_FIELD:
                 // MYT-152: LOAD_VAR / STORE_VAR produce / consume boxed Values

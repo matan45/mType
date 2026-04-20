@@ -112,6 +112,11 @@ namespace vm::bytecode
         // BytecodeProgram::readInstructions rejects it on deserialization — a .mtc
         // file containing it is malformed or tampered.
         CALL_METHOD_CACHED,
+        // MYT-194: IC-stable specialization of GET_FIELD / SET_FIELD. Embedded
+        // target (shape + fieldIndex) lives on the Instruction's mutable
+        // cachedField* fields. Same RUNTIME-ONLY invariant as CALL_METHOD_CACHED.
+        GET_FIELD_CACHED,
+        SET_FIELD_CACHED,
         CALL_STATIC,        // Call static method (operand: method name + arg count)
         INVOKE,             // Optimized method call (name + arg count)
         SUPER_INVOKE,       // Super method call
@@ -343,6 +348,8 @@ namespace vm::bytecode
             case OpCode::SET_STATIC: return "SET_STATIC";
             case OpCode::CALL_METHOD: return "CALL_METHOD";
             case OpCode::CALL_METHOD_CACHED: return "CALL_METHOD_CACHED";
+            case OpCode::GET_FIELD_CACHED: return "GET_FIELD_CACHED";
+            case OpCode::SET_FIELD_CACHED: return "SET_FIELD_CACHED";
             case OpCode::CALL_STATIC: return "CALL_STATIC";
             case OpCode::INVOKE: return "INVOKE";
             case OpCode::SUPER_INVOKE: return "SUPER_INVOKE";

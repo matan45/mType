@@ -746,17 +746,20 @@ namespace vm::bytecode
                     std::to_string(static_cast<unsigned>(instructions[i].opcode)) +
                     " at instruction " + std::to_string(i));
             }
-            // MYT-173: runtime-only specialized opcodes must never appear in a
-            // serialized bytecode stream. They're the product of interpreter-side
-            // opcode rewriting, have no compile-time emitter, and their auxiliary
-            // state (cachedMethodShape et al.) is not serialized — so accepting
-            // them here would leave the VM in an inconsistent state. Reject
-            // explicitly rather than relying on handleCallMethodCached to deopt
-            // on first dispatch.
-            if (instructions[i].opcode == OpCode::CALL_METHOD_CACHED) {
+            // MYT-173 / MYT-194: runtime-only specialized opcodes must never
+            // appear in a serialized bytecode stream. They're the product of
+            // interpreter-side opcode rewriting, have no compile-time emitter,
+            // and their auxiliary state (cachedMethodShape / cachedFieldShape
+            // et al.) is not serialized — so accepting them here would leave
+            // the VM in an inconsistent state. Reject explicitly rather than
+            // relying on the CACHED handler to deopt on first dispatch.
+            if (instructions[i].opcode == OpCode::CALL_METHOD_CACHED ||
+                instructions[i].opcode == OpCode::GET_FIELD_CACHED ||
+                instructions[i].opcode == OpCode::SET_FIELD_CACHED) {
                 throw std::runtime_error(
-                    "Bytecode deserialization rejected: runtime-only opcode "
-                    "CALL_METHOD_CACHED found at instruction " + std::to_string(i) +
+                    std::string("Bytecode deserialization rejected: runtime-only opcode ") +
+                    getOpCodeName(instructions[i].opcode) +
+                    " found at instruction " + std::to_string(i) +
                     " (this opcode is never emitted by the compiler and indicates "
                     "a malformed or tampered .mtc file)");
             }

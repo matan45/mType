@@ -103,6 +103,13 @@ namespace vm::runtime
                     instance->ensureFieldVector();
                 }
                 cache.addEntry(classDef, fieldIndex);
+
+                // MYT-194: once the site stabilizes to MONO, promote the opcode
+                // so subsequent accesses skip the icTable hashmap probe and the
+                // per-entry linear scan entirely. The helper internally gates
+                // on cache.state == MONOMORPHIC, so POLY/MEGA transitions no-op.
+                tryPromoteFieldToCached(instr, classDef, fieldIndex,
+                                         bytecode::OpCode::GET_FIELD_CACHED);
             }
         }
     }
@@ -190,6 +197,10 @@ namespace vm::runtime
                     instance->ensureFieldVector();
                 }
                 cache.addEntry(classDef, fieldIndex);
+
+                // MYT-194: see handleGetFieldIC — promote once IC hits MONO.
+                tryPromoteFieldToCached(instr, classDef, fieldIndex,
+                                         bytecode::OpCode::SET_FIELD_CACHED);
             }
         }
     }
@@ -593,5 +604,172 @@ namespace vm::runtime
             instr.cachedMethodProgramIndex,
             instr.cachedMethodQualifiedName,
             objectValue, argCount);
+    }
+
+    void InlineCacheExecutor::tryPromoteFieldToCached(
+        const bytecode::BytecodeProgram::Instruction& /*instr*/,
+        const runtimeTypes::klass::ClassDefinition* shape,
+        size_t fieldIndex,
+        bytecode::OpCode cachedOp)
+    {
+        using namespace vm::jit::ic;
+
+        // Sticky demote — a site that already deopted once stays on the generic
+        // path. Read through the mutable instruction since `instr` is an alias
+        // of the same slot and we're about to mutate it anyway.
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        if (mut.cachedFieldDeoptCount >= 1) return;
+
+        if (!shape || fieldIndex == SIZE_MAX) return;
+
+        // Only promote once the IC has settled to a single shape. POLY sites
+        // are a future CACHED_POLY variant (out of MVP scope).
+        FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
+        if (cache.state != ICState::MONOMORPHIC) return;
+
+        mut.cachedFieldShape = shape;
+        mut.cachedFieldIndex = fieldIndex;
+        mut.opcode = cachedOp;
+    }
+
+    void InlineCacheExecutor::deoptGetFieldAndReprocess(
+        const bytecode::BytecodeProgram::Instruction& /*instr*/)
+    {
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        mut.opcode = bytecode::OpCode::GET_FIELD;
+        mut.cachedFieldShape = nullptr;
+        mut.cachedFieldIndex = SIZE_MAX;
+        if (mut.cachedFieldDeoptCount < 255) ++mut.cachedFieldDeoptCount;
+        // Re-enter the generic IC path so the new shape is observed.
+        handleGetFieldIC(mut);
+    }
+
+    void InlineCacheExecutor::deoptSetFieldAndReprocess(
+        const bytecode::BytecodeProgram::Instruction& /*instr*/)
+    {
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        mut.opcode = bytecode::OpCode::SET_FIELD;
+        mut.cachedFieldShape = nullptr;
+        mut.cachedFieldIndex = SIZE_MAX;
+        if (mut.cachedFieldDeoptCount < 255) ++mut.cachedFieldDeoptCount;
+        handleSetFieldIC(mut);
+    }
+
+    void InlineCacheExecutor::handleGetFieldCached(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty() || !instr.cachedFieldShape
+            || instr.cachedFieldIndex == SIZE_MAX)
+        {
+            deoptGetFieldAndReprocess(instr);
+            return;
+        }
+        if (context.stackManager->size() < 1)
+        {
+            deoptGetFieldAndReprocess(instr);
+            return;
+        }
+
+        // Peek so that a deopt leaves the stack untouched — handleGetFieldIC
+        // pops the receiver itself on re-entry. Matches handleCallMethodCached.
+        value::Value objectValue = context.stackManager->peek(0);
+
+        // Null check (respect the compiler's NONNULL_RECEIVER flag). Match
+        // handleGetFieldIC's throw-on-null behavior rather than deopting —
+        // null at a previously-non-null site is a program error, not a
+        // type-feedback failure.
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
+        {
+            if (utils::isNullValue(objectValue))
+            {
+                const std::string& fieldName =
+                    context.program->getConstantPool().getString(instr.operands[0]);
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(
+                    context,
+                    "Cannot access field '" + fieldName + "' on null object");
+            }
+        }
+
+        if (!value::isObject(objectValue))
+        {
+            deoptGetFieldAndReprocess(instr);
+            return;
+        }
+
+        auto instance = value::asObject(objectValue);
+        auto* shape = instance->getClassDefinition().get();
+        if (shape != instr.cachedFieldShape)
+        {
+            deoptGetFieldAndReprocess(instr);
+            return;
+        }
+
+        // Hot path: shape matched — indexed read, no IC probe, no access check.
+        // Access validation was done at promote time; shape identity means the
+        // validated field layout still applies.
+        if (!instance->hasFieldVector())
+        {
+            instance->ensureFieldVector();
+        }
+        value::Value fieldValue = instance->getFieldByIndex(instr.cachedFieldIndex);
+        context.stackManager->pop();
+        context.stackManager->push(fieldValue);
+    }
+
+    void InlineCacheExecutor::handleSetFieldCached(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty() || !instr.cachedFieldShape
+            || instr.cachedFieldIndex == SIZE_MAX)
+        {
+            deoptSetFieldAndReprocess(instr);
+            return;
+        }
+        if (context.stackManager->size() < 2)
+        {
+            deoptSetFieldAndReprocess(instr);
+            return;
+        }
+
+        // Stack: [..., object, newValue]. peek(0)=newValue, peek(1)=object.
+        value::Value newValue = context.stackManager->peek(0);
+        value::Value objectValue = context.stackManager->peek(1);
+
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
+        {
+            if (utils::isNullValue(objectValue))
+            {
+                const std::string& fieldName =
+                    context.program->getConstantPool().getString(instr.operands[0]);
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(
+                    context,
+                    "Cannot set field '" + fieldName + "' on null object");
+            }
+        }
+
+        if (!value::isObject(objectValue))
+        {
+            deoptSetFieldAndReprocess(instr);
+            return;
+        }
+
+        auto instance = value::asObject(objectValue);
+        auto* shape = instance->getClassDefinition().get();
+        if (shape != instr.cachedFieldShape)
+        {
+            deoptSetFieldAndReprocess(instr);
+            return;
+        }
+
+        if (!instance->hasFieldVector())
+        {
+            instance->ensureFieldVector();
+        }
+        instance->setFieldByIndex(instr.cachedFieldIndex, newValue);
+        // Match handleSetFieldIC: consume both operands, push newValue for
+        // assignment chaining.
+        context.stackManager->pop();
+        context.stackManager->pop();
+        context.stackManager->push(newValue);
     }
 }

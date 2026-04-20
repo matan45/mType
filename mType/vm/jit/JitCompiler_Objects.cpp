@@ -1213,8 +1213,16 @@ namespace vm::jit
         switch (instr.opcode)
         {
             case OpCode::PUSH_STRING:    return emitPushStringOp(s, instr);
-            case OpCode::GET_FIELD:      return emitGetFieldOp(s, instr);
-            case OpCode::SET_FIELD:      return emitSetFieldOp(s, instr);
+            case OpCode::GET_FIELD:
+            case OpCode::GET_FIELD_CACHED:
+                // MYT-194: CACHED routes through the same emit path as GET_FIELD.
+                // tryEmitInlinedFieldGet consults the IC by IP, independent of
+                // opcode variant. Dedicated CACHED JIT emit is follow-up.
+                return emitGetFieldOp(s, instr);
+            case OpCode::SET_FIELD:
+            case OpCode::SET_FIELD_CACHED:
+                // MYT-194: see GET_FIELD_CACHED above.
+                return emitSetFieldOp(s, instr);
             case OpCode::INLINE_GET_FIELD: return emitGetFieldOp(s, instr);
             case OpCode::INLINE_SET_FIELD: return emitSetFieldOp(s, instr);
             case OpCode::CALL_STATIC:    return emitCallStaticOp(s, instr);

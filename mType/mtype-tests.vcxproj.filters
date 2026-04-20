@@ -2158,6 +2158,9 @@
     <None Include="tests\testFiles\benchmarks\bitwise_tight_loop.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\field_read_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\field_write_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -7091,6 +7094,30 @@
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\ic\call_method_cached_mono.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\get_field_cached_deopt.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\get_field_cached_deopt.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\get_field_cached_mono.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\get_field_cached_mono.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\set_field_cached_deopt.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\set_field_cached_deopt.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\set_field_cached_mono.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\set_field_cached_mono.mt">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.expected">
