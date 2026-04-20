@@ -28,6 +28,40 @@ namespace runtimeTypes::klass
             gcRegistered = true;
         }
     }
+
+    void ObjectInstance::resetForRecycle()
+    {
+        // unordered_map::clear() destroys nodes (releasing Value bridges and
+        // shared_ptr<MethodDefinition> entries) but keeps the bucket array.
+        fieldValues.clear();
+        methodCache.clear();
+        genericTypeBindings.clear();
+        fieldVector.clear();
+        fieldVectorInitialized = false;
+        gcRegistered = false;
+        primitiveTag_ = value::PrimitiveTypeTag::NONE;
+        classDefinition.reset();
+    }
+
+    void ObjectInstance::reinitForRecycle(
+        std::shared_ptr<ClassDefinition> classDef,
+        const std::unordered_map<std::string, std::string>& typeBindings)
+    {
+        classDefinition = std::move(classDef);
+        if (!typeBindings.empty())
+        {
+            genericTypeBindings = typeBindings;
+        }
+        if (classDefinition)
+        {
+            fieldValues.reserve(classDefinition->getTotalFieldCount());
+            primitiveTag_ = value::classNameToPrimitiveTag(classDefinition->getName());
+            if (primitiveTag_ != value::PrimitiveTypeTag::NONE)
+            {
+                ensureFieldVector();
+            }
+        }
+    }
     std::shared_ptr<FieldDefinition> ObjectInstance::getField(const std::string& fieldName) const
     {
         // Search in class hierarchy to support inherited fields

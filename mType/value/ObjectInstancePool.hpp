@@ -42,19 +42,28 @@ namespace value
      * When multi-threading lands, consider sharding buckets by thread-local cache
      * with a global overflow tier.
      *
-     * Lifecycle: acquire() pops a raw aligned slot (or allocates one), placement-news
-     * an ObjectInstance into it, and returns a shared_ptr with a custom deleter.
-     * The deleter explicitly invokes ~ObjectInstance() (releasing field shared_ptrs,
-     * classDefinition, methodCache, fieldVector) before returning the slot to the
-     * per-class freelist. GCTracker holds weak_ptrs that lazily expire — no extra
-     * coordination required.
+     * Lifecycle: the pool stores live ObjectInstance objects (not raw memory)
+     * in per-class freelists. acquire() pops one and calls reinitForRecycle to
+     * re-bind it to the requested classDefinition and generic bindings; on a
+     * miss it ::operator new + placement-news a fresh ObjectInstance. Either
+     * way the result is wrapped in a shared_ptr with a custom deleter that
+     * runs resetForRecycle (clears field state, releases child references,
+     * keeps the unordered_map bucket arrays) and pushes the object back. The
+     * second-to-Nth acquire on the same per-class slot therefore avoids the
+     * unordered_map bucket-array allocation entirely.
      *
-     * Invariant: placement-new MUST run on every acquire. It reinitializes the
-     * enable_shared_from_this base subobject (weak_this); skipping it would be UB.
+     * Discarded slots (when a bucket is at cap) are torn down with
+     * ~ObjectInstance + ::operator delete.
      *
-     * The singleton is intentionally leaked at process exit so the deleter never
-     * dereferences a destroyed pool when long-lived shared_ptrs (e.g. cached
-     * boxed primitives) outlive other static-local objects.
+     * GC interaction: GCTracker holds weak_ptrs that expire when strong_count
+     * hits zero (deleter runs); they are lazily swept by the next cycle
+     * detector pass. shared_from_this is correctly re-armed by each new
+     * shared_ptr we return — the enable_shared_from_this base's _M_weak_this
+     * is overwritten by the shared_ptr constructor.
+     *
+     * The singleton is intentionally leaked at process exit so the deleter
+     * never dereferences a destroyed pool when long-lived shared_ptrs
+     * (e.g. cached boxed primitives) outlive other static-local objects.
      */
     class ObjectInstancePool
     {
@@ -76,7 +85,7 @@ namespace value
     private:
         struct Bucket
         {
-            std::vector<void*> slots;
+            std::vector<runtimeTypes::klass::ObjectInstance*> slots;
             ObjectPoolStats stats;
             size_t maxSize = DEFAULT_BUCKET_CAP;
         };
@@ -92,8 +101,10 @@ namespace value
         ObjectInstancePool(const ObjectInstancePool&) = delete;
         ObjectInstancePool& operator=(const ObjectInstancePool&) = delete;
 
-        void* popSlotOrAllocate(runtimeTypes::klass::ClassDefinition* classDef);
-        void pushSlotOrDelete(runtimeTypes::klass::ClassDefinition* classDef, void* slot);
+        runtimeTypes::klass::ObjectInstance* popOrNull(
+            runtimeTypes::klass::ClassDefinition* classDef);
+        void pushOrDestroy(runtimeTypes::klass::ClassDefinition* classDef,
+                           runtimeTypes::klass::ObjectInstance* obj);
 
         std::unordered_map<runtimeTypes::klass::ClassDefinition*, Bucket> pools;
         mutable std::mutex poolMutex;

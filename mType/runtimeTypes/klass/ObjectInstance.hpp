@@ -119,5 +119,15 @@ namespace runtimeTypes::klass
         // the jit_extract_classdef helper call. Defined out-of-line in the .cpp
         // where offsetof on this non-standard-layout type is guarded.
         static size_t classDefinitionMemberOffset() noexcept;
+
+        // MYT-171: recycle hooks used by value::ObjectInstancePool. resetForRecycle
+        // clears per-instance state (field values, method cache, generic bindings)
+        // but keeps the unordered_map bucket arrays alive so the next acquire on
+        // this slot avoids re-allocating them. reinitForRecycle re-binds the slot
+        // to a fresh classDefinition + generic bindings without re-constructing
+        // the maps.
+        void resetForRecycle();
+        void reinitForRecycle(std::shared_ptr<ClassDefinition> classDef,
+                              const std::unordered_map<std::string, std::string>& typeBindings);
     };
 }

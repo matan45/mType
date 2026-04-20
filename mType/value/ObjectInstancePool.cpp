@@ -17,7 +17,8 @@ namespace value
         return *instance;
     }
 
-    void* ObjectInstancePool::popSlotOrAllocate(runtimeTypes::klass::ClassDefinition* classDef)
+    runtimeTypes::klass::ObjectInstance*
+    ObjectInstancePool::popOrNull(runtimeTypes::klass::ClassDefinition* classDef)
     {
         std::lock_guard<std::mutex> lock(poolMutex);
         ++globalStats.totalAllocations;
@@ -25,53 +26,74 @@ namespace value
         auto& bucket = pools[classDef];
         ++bucket.stats.totalAllocations;
 
-        if (!bucket.slots.empty()) {
-            void* slot = bucket.slots.back();
+        if (!bucket.slots.empty())
+        {
+            auto* obj = bucket.slots.back();
             bucket.slots.pop_back();
             ++bucket.stats.poolHits;
             ++globalStats.poolHits;
             bucket.stats.currentPoolSize = bucket.slots.size();
-            return slot;
+            return obj;
         }
 
         ++bucket.stats.poolMisses;
         ++globalStats.poolMisses;
-        return ::operator new(sizeof(runtimeTypes::klass::ObjectInstance));
+        return nullptr;
     }
 
-    void ObjectInstancePool::pushSlotOrDelete(runtimeTypes::klass::ClassDefinition* classDef, void* slot)
+    void ObjectInstancePool::pushOrDestroy(
+        runtimeTypes::klass::ClassDefinition* classDef,
+        runtimeTypes::klass::ObjectInstance* obj)
     {
         std::lock_guard<std::mutex> lock(poolMutex);
         auto& bucket = pools[classDef];
 
-        if (bucket.slots.size() < bucket.maxSize) {
-            bucket.slots.push_back(slot);
+        if (bucket.slots.size() < bucket.maxSize)
+        {
+            bucket.slots.push_back(obj);
             ++bucket.stats.poolReturns;
             ++globalStats.poolReturns;
             bucket.stats.currentPoolSize = bucket.slots.size();
-            if (bucket.stats.currentPoolSize > bucket.stats.maxPoolSize) {
+            if (bucket.stats.currentPoolSize > bucket.stats.maxPoolSize)
+            {
                 bucket.stats.maxPoolSize = bucket.stats.currentPoolSize;
             }
+            return;
         }
-        else {
-            ++bucket.stats.poolDiscards;
-            ++globalStats.poolDiscards;
-            ::operator delete(slot);
-        }
+
+        ++bucket.stats.poolDiscards;
+        ++globalStats.poolDiscards;
+        // Bucket is full: tear down completely.
+        obj->~ObjectInstance();
+        ::operator delete(obj);
     }
 
     void ObjectInstancePool::SlotDeleter::operator()(runtimeTypes::klass::ObjectInstance* p) const
     {
-        p->~ObjectInstance();
-        pool->pushSlotOrDelete(classDef, static_cast<void*>(p));
+        // Recycle path: drop per-instance state but keep the unordered_map
+        // bucket arrays so the next acquire on this slot avoids re-allocating
+        // them. Field destruction inside resetForRecycle releases child Value
+        // bridges and shared_ptr<MethodDefinition> entries; classDefinition
+        // is also released. GCTracker holds weak_ptrs that lazily expire on
+        // the next cycle-detector pass.
+        p->resetForRecycle();
+        pool->pushOrDestroy(classDef, p);
     }
 
     std::shared_ptr<runtimeTypes::klass::ObjectInstance> ObjectInstancePool::acquire(
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef)
     {
         auto* classKey = classDef.get();
-        void* slot = popSlotOrAllocate(classKey);
-        auto* obj = ::new (slot) runtimeTypes::klass::ObjectInstance(std::move(classDef));
+        auto* obj = popOrNull(classKey);
+        if (obj)
+        {
+            obj->reinitForRecycle(std::move(classDef), {});
+        }
+        else
+        {
+            void* slot = ::operator new(sizeof(runtimeTypes::klass::ObjectInstance));
+            obj = ::new (slot) runtimeTypes::klass::ObjectInstance(std::move(classDef));
+        }
         return std::shared_ptr<runtimeTypes::klass::ObjectInstance>(
             obj, SlotDeleter{this, classKey});
     }
@@ -81,8 +103,16 @@ namespace value
         const std::unordered_map<std::string, std::string>& genericBindings)
     {
         auto* classKey = classDef.get();
-        void* slot = popSlotOrAllocate(classKey);
-        auto* obj = ::new (slot) runtimeTypes::klass::ObjectInstance(std::move(classDef), genericBindings);
+        auto* obj = popOrNull(classKey);
+        if (obj)
+        {
+            obj->reinitForRecycle(std::move(classDef), genericBindings);
+        }
+        else
+        {
+            void* slot = ::operator new(sizeof(runtimeTypes::klass::ObjectInstance));
+            obj = ::new (slot) runtimeTypes::klass::ObjectInstance(std::move(classDef), genericBindings);
+        }
         return std::shared_ptr<runtimeTypes::klass::ObjectInstance>(
             obj, SlotDeleter{this, classKey});
     }
@@ -96,9 +126,12 @@ namespace value
     void ObjectInstancePool::clear()
     {
         std::lock_guard<std::mutex> lock(poolMutex);
-        for (auto& kv : pools) {
-            for (void* slot : kv.second.slots) {
-                ::operator delete(slot);
+        for (auto& kv : pools)
+        {
+            for (auto* obj : kv.second.slots)
+            {
+                obj->~ObjectInstance();
+                ::operator delete(obj);
             }
         }
         pools.clear();
