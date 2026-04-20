@@ -2,7 +2,12 @@
 // frame has captured-variable semantics that the fused executor doesn't
 // replicate (it reads directly from localBase + slot). The fusion trigger
 // guards on callStack.back().originatingLambda / sharedFrame; this test hits
-// that path by running a hot method call through a lambda body.
+// that path by running a hot method call through a lambda body that captures
+// the receiver.
+
+interface IntFunction {
+    function apply(int x) : int;
+}
 
 class Widget {
     public int count;
@@ -17,14 +22,11 @@ class Widget {
 
 Widget w = new Widget();
 
-function apply(function(int): int fn): int {
-    int r = 0;
-    for (int i = 0; i < 500; i = i + 1) {
-        r = r + fn(i);
-    }
-    return r;
-}
+IntFunction bumper = x -> w.bump(x);
 
-int r = apply((int x) => w.bump(x));
+int r = 0;
+for (int i = 0; i < 500; i = i + 1) {
+    r = r + bumper.apply(i);
+}
 print(r);
 print(w.count);
