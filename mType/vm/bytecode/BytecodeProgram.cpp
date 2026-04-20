@@ -746,6 +746,20 @@ namespace vm::bytecode
                     std::to_string(static_cast<unsigned>(instructions[i].opcode)) +
                     " at instruction " + std::to_string(i));
             }
+            // MYT-173: runtime-only specialized opcodes must never appear in a
+            // serialized bytecode stream. They're the product of interpreter-side
+            // opcode rewriting, have no compile-time emitter, and their auxiliary
+            // state (cachedMethodShape et al.) is not serialized — so accepting
+            // them here would leave the VM in an inconsistent state. Reject
+            // explicitly rather than relying on handleCallMethodCached to deopt
+            // on first dispatch.
+            if (instructions[i].opcode == OpCode::CALL_METHOD_CACHED) {
+                throw std::runtime_error(
+                    "Bytecode deserialization rejected: runtime-only opcode "
+                    "CALL_METHOD_CACHED found at instruction " + std::to_string(i) +
+                    " (this opcode is never emitted by the compiler and indicates "
+                    "a malformed or tampered .mtc file)");
+            }
             in.read(reinterpret_cast<char*>(&instructions[i].flags),
                    sizeof(instructions[i].flags));
             size_t opCount;

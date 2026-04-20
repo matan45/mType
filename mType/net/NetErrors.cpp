@@ -1,6 +1,7 @@
 #include "NetErrors.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../value/ObjectInstancePool.hpp"
 #include "../errors/UserException.hpp"
 #include "../errors/RuntimeException.hpp"
 
@@ -57,7 +58,7 @@ namespace net
             throw errors::RuntimeException(className + ": " + message);
         }
 
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
         instance->setField("message", message);
         if (statusCode != 0)
         {

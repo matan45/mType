@@ -27,6 +27,23 @@ namespace vm::jit
         size_t getCompileCount() const { return compileCount; }
         size_t getBailoutCount() const { return bailoutCount; }
 
+        // MYT-172 AC #3: inline field-IC hit/miss counters bumped from JIT
+        // emitted code. Pointers are baked as immediates at emit time, so
+        // these members must live as long as any compiled function — which
+        // they do, since JitCompiler is owned by the VirtualMachine.
+        uint64_t getInlineFieldICHits() const { return inlineFieldICHits; }
+        uint64_t getInlineFieldICMisses() const { return inlineFieldICMisses; }
+        uint64_t* inlineFieldICHitsPtr() { return &inlineFieldICHits; }
+        uint64_t* inlineFieldICMissesPtr() { return &inlineFieldICMisses; }
+
+        // MYT-191: separate SET counters (GET misses are dominated by non-
+        // primitive tags, SET misses by ValueObject CoW — merging hides
+        // regressions).
+        uint64_t getInlineFieldSetICHits() const { return inlineFieldSetICHits; }
+        uint64_t getInlineFieldSetICMisses() const { return inlineFieldSetICMisses; }
+        uint64_t* inlineFieldSetICHitsPtr() { return &inlineFieldSetICHits; }
+        uint64_t* inlineFieldSetICMissesPtr() { return &inlineFieldSetICMisses; }
+
         // MYT-148: extra out-parameters so the caller (OSRManager) can record
         // WHICH gate rejected the loop in the LoopProfile for --jit-stats.
         // Defaults preserve pre-MYT-148 behavior for any other call site.
@@ -55,5 +72,9 @@ namespace vm::jit
 
         size_t compileCount = 0;
         size_t bailoutCount = 0;
+        uint64_t inlineFieldICHits = 0;
+        uint64_t inlineFieldICMisses = 0;
+        uint64_t inlineFieldSetICHits = 0;
+        uint64_t inlineFieldSetICMisses = 0;
     };
 }

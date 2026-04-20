@@ -214,6 +214,16 @@ namespace vm::runtime
             else
                 objectExecutor->handleCallMethod(instr);
             break;
+        case OpCode::CALL_METHOD_CACHED:
+            // MYT-173: promoted from CALL_METHOD once the IC stabilized. Never
+            // emitted by the compiler; only reachable if IC is enabled (the
+            // promoter guards on that). Fall back to the generic handler if
+            // somehow reached with IC disabled.
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleCallMethodCached(instr);
+            else
+                objectExecutor->handleCallMethod(instr);
+            break;
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;
         case OpCode::THIS_CONSTRUCTOR: objectExecutor->handleThisConstructor(instr);

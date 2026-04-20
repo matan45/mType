@@ -292,6 +292,9 @@
     <Filter Include="testFiles\integration\pass">
       <UniqueIdentifier>{D1A92EAC-BDB9-DA7C-2673-3F9B12A2C915}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\integration\pass\ic">
+      <UniqueIdentifier>{0C7A8DC2-7892-74EC-413F-0486AD160986}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\integration\pass\inlining">
       <UniqueIdentifier>{18BF53E7-8478-BE91-0DD8-D86B79907401}</UniqueIdentifier>
     </Filter>
@@ -2153,6 +2156,9 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\bitwise_tight_loop.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\field_write_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\for_each_loop.mt">
@@ -7071,6 +7077,18 @@
     </None>
     <None Include="tests\testFiles\integration\pass\genericLibrary.mt">
       <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\call_method_cached_deopt.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\call_method_cached_deopt.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\call_method_cached_mono.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\call_method_cached_mono.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.expected">
       <Filter>testFiles\integration\pass</Filter>

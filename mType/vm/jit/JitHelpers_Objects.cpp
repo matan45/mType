@@ -14,6 +14,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../value/ObjectInstancePool.hpp"
 #include "../../value/ValueObject.hpp"
 #include <vector>
 #include <memory>
@@ -40,6 +41,78 @@ namespace vm::jit
             return valueObj ? valueObj->getClassDefinition().get() : nullptr;
         }
         return nullptr;
+    }
+
+    const value::Value* jit_field_data_const(const value::Value* receiver) noexcept
+    {
+        if (!receiver) return nullptr;
+        if (value::isObject(*receiver))
+        {
+            const auto& instance = value::asObject(*receiver);
+            if (!instance) return nullptr;
+            if (!instance->hasFieldVector()) return nullptr;
+            return &instance->getFieldByIndex(0);
+        }
+        if (value::isValueObject(*receiver))
+        {
+            const auto& vobj = value::asValueObject(*receiver);
+            if (!vobj || vobj->getFieldCount() == 0) return nullptr;
+            return &vobj->getFieldByIndex(0);
+        }
+        return nullptr;
+    }
+
+    // MYT-191: inline-IC SET fast path helper. Thin wrapper around
+    // ObjectInstance::setFieldByIndex that preserves the full write-barrier
+    // sequence (oldPtr refcount decrement, cycle-root mark, fieldValues map
+    // sync) while skipping the IC lookup and name resolution that
+    // jit_set_field_ic does unconditionally.
+    //
+    // The emitter gates on the shape cache being MONOMORPHIC and the shape
+    // not being a value class, so the receiver is guaranteed to be an
+    // ObjectInstance at a matching shape with the cached fieldIndex already
+    // resolved. Anything unexpected at runtime (null bridge, wrong variant,
+    // uninitialised fieldVector that ensureFieldVector can't recover) signals
+    // via a false return so the caller jumps to the original helper-invoke
+    // slow path — which handles ValueObject CoW, populates the IC on miss,
+    // and runs the same write barrier ObjectInstance::setFieldByIndex runs.
+    bool jit_field_set_at(value::Value* destSlot,
+                          const value::Value* receiverSlot,
+                          size_t fieldIndex,
+                          const value::Value* newValue) noexcept
+    {
+        if (!destSlot || !receiverSlot || !newValue) return false;
+        if (!value::isObject(*receiverSlot)) return false;
+        const auto& instance = value::asObject(*receiverSlot);
+        if (!instance) return false;
+        // Pin the raw ObjectInstance pointer BEFORE any operation that could
+        // overwrite *destSlot. When destSlot == receiverSlot (the common case —
+        // emitter passes the same pointer for both), writing through destSlot
+        // releases the shared_ptr that currently holds the only strong ref to
+        // this instance, dropping its refcount to zero and freeing the object.
+        // Any use of `instance` after the overwrite would be a use-after-free.
+        // Sequencing below: all work that touches `instance` runs first; the
+        // slot overwrite is strictly the last action. Pinning here makes the
+        // lifetime contract explicit and robust against future insertions
+        // between the setFieldByIndex call and *destSlot = *newValue.
+        auto* raw = instance.get();
+        if (!raw->hasFieldVector())
+            raw->ensureFieldVector();
+        const auto& classDef = raw->getClassDefinition();
+        if (!classDef || fieldIndex >= classDef->getTotalFieldCount())
+            return false;
+        // setFieldByIndex runs the write barrier: releases oldPtr if distinct
+        // from newPtr, marks `this` as cycle-suspect if the new value is a
+        // heap ref, keeps fieldValues map in sync. Value::operator= inside
+        // the vector assignment retains newPtr.
+        raw->setFieldByIndex(fieldIndex, *newValue);
+        // Last access to the instance completed above. Mirror jit_set_field_ic's
+        // `*destValue = *newValue` semantics. When destSlot == receiverSlot this
+        // releases the ObjectInstance bridge the slot held and retains newValue
+        // in its place. DO NOT insert any code that references `raw` / `instance`
+        // after this line — the backing object may be freed.
+        *destSlot = *newValue;
+        return true;
     }
 
     void jit_call_method(JitContext* ctx, uint32_t methodNameIndex, size_t argCount)
@@ -76,7 +149,7 @@ namespace vm::jit
                 auto valueObj = value::asValueObject(objectValue);
                 auto classDef = valueObj->getClassDefinition();
 
-                auto tempInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+                auto tempInstance = value::ObjectInstancePool::getInstance().acquire(classDef);
                 const auto& fieldIndexMap = classDef->getFieldIndexMap();
                 for (const auto& [name, index] : fieldIndexMap)
                 {

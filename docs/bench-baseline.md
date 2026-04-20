@@ -804,3 +804,182 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 | inline_branching.mt           |  223.45 |     224.28 |        15013 |     501 |
 | inline_polymorphic.mt         |  260.58 |     262.36 |        14048 |     508 |
 | inline_value_object_hot.mt    | 1841.05 |    1850.55 |        12530 |     501 |
+
+## 2026-04-19 — MYT-190 post `ValueShim` const& fix
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-190`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Fix in this snapshot
+
+- **ValueShim heap accessors now return `const shared_ptr<T>&`** — all 8 heap accessors (`asObject`, `asValueObject`, `asLambda`, `asNativeArray`, `asFlatMultiArray`, `asSparseMultiArray`, `asFlatMultiObjectArray`, `asPromise`) previously returned by value, forcing a `shared_ptr` copy + atomic refcount bump on every call. `TypedBridge::get()` already returned `const Held&`, so the shim was gratuitously slicing. Callers that bind with `const auto&` (e.g. `JitHelpers_Arrays.cpp`) now get zero-copy references into the bridge's `held_`. Root-cause fix for the `array_multi_get` regression; also benefits every other heap-accessing hot path.
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1019.61 |    1023.99 |        20013 |       0 |
+| method_dispatch.mt            |  248.46 |     249.03 |        14039 |     506 |
+| object_alloc.mt               | 2142.12 |    2156.80 |        17509 | 2000000 |
+| string_ops.mt                 |  187.22 |     189.76 |        19014 |       0 |
+| recursive.mt                  | 1564.34 |    1581.98 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1420.57 |    1425.99 |        23014 |       0 |
+| short_circuit_chain.mt        |  399.96 |     400.58 |        24907 |       0 |
+| primitive_method_dispatch.mt  | 1086.69 |    1087.32 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   66.66 |      67.17 |        10909 |     500 |
+| array_multi_get.mt            | 1191.04 |    1191.74 |        50815 |     500 |
+| for_each_loop.mt              |  420.10 |     421.77 |        78650 |    6604 |
+| inline_monomorphic.mt         |  215.11 |     217.13 |        13013 |     501 |
+| inline_branching.mt           |  219.42 |     220.43 |        15013 |     501 |
+| inline_polymorphic.mt         |  246.87 |     246.92 |        14048 |     508 |
+| inline_value_object_hot.mt    | 1666.85 |    1669.44 |        12530 |     501 |
+
+### Delta vs. pre-fix (2026-04-19 MYT-190 section above)
+
+| Script                        | Before min | After min | Δ     |
+|-------------------------------|-----------:|----------:|------:|
+| array_multi_get.mt            |    1301.85 |   1191.04 | **−8.5%** ✅ regression fixed |
+| inline_value_object_hot.mt    |    1841.05 |   1666.85 | **−9.5%** |
+| inline_polymorphic.mt         |     260.58 |    246.87 | −5.3% |
+| method_dispatch.mt            |     254.90 |    248.46 | −2.5% |
+| inline_monomorphic.mt         |     220.26 |    215.11 | −2.3% |
+| inline_branching.mt           |     223.45 |    219.42 | −1.8% |
+| recursive.mt                  |    1616.30 |   1564.34 | −3.2% |
+| for_each_loop.mt              |     429.71 |    420.10 | −2.2% |
+| primitive_method_dispatch.mt  |    1114.46 |   1086.69 | −2.5% |
+| string_ops.mt                 |     190.74 |    187.22 | −1.8% |
+| arithmetic_tight_loop.mt      |     989.34 |   1019.61 | +3.1% (noise, no heap access) |
+| object_alloc.mt               |    2088.34 |   2142.12 | +2.6% (noise, no heap read in loop body) |
+| bitwise_tight_loop.mt         |    1421.14 |   1420.57 | flat  |
+
+### Notes
+
+- **Shim fix delivers on heap-accessing benchmarks**: every benchmark that reads heap Values in a hot loop improved. `inline_value_object_hot` led at −9.5% — exactly the target since its hot body is `p.sum()` → 2 field reads per iteration × 2M iterations = 4M eliminated atomic refcount bumps.
+- **`array_multi_get` regression resolved** — down from +15.6% vs. pre-MYT-190 to back near baseline. The root cause (shared_ptr copy + atomic refcount per `ARRAY_GET`) is fully addressed by returning the bridge's `held_` by `const&`.
+- **Small apparent regressions on `arithmetic_tight_loop` / `object_alloc` / `bitwise_tight_loop`** are within run-to-run noise (±3%). None of these benchmarks read heap Values in their hot inner loop (`arithmetic_tight_loop` is int-only, `object_alloc` constructs but doesn't read-in-loop, `bitwise_tight_loop` is int-only), so the shim change has no direct path to affect them.
+- **`inline_value_object_hot` now sub-1700ms** — still gated on MYT-172 AC#3 (inline `[obj + fieldIndex*valueSize]` emission in JIT) for the next major drop.
+
+## 2026-04-20 — MYT-171 (per-class slab + reset-based recycling for ObjectInstance)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-191`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Change in this snapshot
+
+- **`value::ObjectInstancePool` now backs every `ObjectInstance` allocation** (29 of 30 call sites; `IntegerCache` intentionally bypassed). Per-class freelists keyed by `ClassDefinition*`, LIFO `vector<ObjectInstance*>`, bucket cap 32. Slot reuse via custom-deleter `shared_ptr` so reuse fires on strong-count→0 (GCTracker holds `weak_ptr`s that lazily expire).
+- **Reset-based recycling**: `ObjectInstance::resetForRecycle()` clears `fieldValues` / `methodCache` / `genericTypeBindings` / `fieldVector` but **keeps the unordered_map bucket arrays** alive across slot reuses. `reinitForRecycle()` re-binds the slot to a fresh `classDefinition` without re-constructing the maps. After the first allocation per class, no bucket-array allocation per `new`.
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1039.63 |    1055.07 |        20013 |       0 |
+| method_dispatch.mt            |  261.47 |     266.85 |        14039 |     506 |
+| object_alloc.mt               | 1807.86 |    1814.37 |        17509 | 2000000 |
+| field_write_hot.mt            |  171.01 |     172.67 |         8016 |       1 |
+| string_ops.mt                 |  196.27 |     197.27 |        19014 |       0 |
+| recursive.mt                  | 1544.84 |    1568.84 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1400.96 |    1407.28 |        23014 |       0 |
+| short_circuit_chain.mt        |  398.13 |     398.59 |        24907 |       0 |
+| primitive_method_dispatch.mt  |  984.07 |     995.78 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   64.90 |      65.70 |        10909 |     500 |
+| array_multi_get.mt            | 1204.40 |    1209.63 |        50815 |     500 |
+| for_each_loop.mt              |  409.58 |     414.58 |        78650 |    6604 |
+| inline_monomorphic.mt         |  222.04 |     222.57 |        13013 |     501 |
+| inline_branching.mt           |  223.93 |     225.62 |        15013 |     501 |
+| inline_polymorphic.mt         |  246.95 |     249.32 |        14048 |     508 |
+| inline_value_object_hot.mt    | 1526.04 |    1528.38 |        12530 |     501 |
+
+### Delta vs. 2026-04-19 (post `ValueShim` const& fix)
+
+| Script                        | Before min | After min |     Δ |
+|-------------------------------|-----------:|----------:|------:|
+| object_alloc.mt               |    2142.12 |   1807.86 | **−15.6%** ✅ target |
+| primitive_method_dispatch.mt  |    1086.69 |    984.07 | **−9.4%** (Int autoboxing pools) |
+| inline_value_object_hot.mt    |    1666.85 |   1526.04 | **−8.4%** (object alloc on hot path) |
+| for_each_loop.mt              |     420.10 |    409.58 | −2.5% |
+| array_multi_alloc.mt          |      66.66 |     64.90 | −2.6% |
+| recursive.mt                  |    1564.34 |   1544.84 | −1.2% |
+| bitwise_tight_loop.mt         |    1420.57 |   1400.96 | −1.4% |
+| short_circuit_chain.mt        |     399.96 |    398.13 | −0.5% |
+| inline_polymorphic.mt         |     246.87 |    246.95 |  flat |
+| array_multi_get.mt            |    1191.04 |   1204.40 | +1.1% (noise) |
+| arithmetic_tight_loop.mt      |    1019.61 |   1039.63 | +2.0% (noise, no heap) |
+| inline_branching.mt           |     219.42 |    223.93 | +2.1% (noise) |
+| inline_monomorphic.mt         |     215.11 |    222.04 | +3.2% (noise) |
+| string_ops.mt                 |     187.22 |    196.27 | +4.8% (noise) |
+| method_dispatch.mt            |     248.46 |    261.47 | +5.2% (likely noise; no fresh ObjectInstance per call) |
+
+### Notes
+
+- **Slab alone (placement-new + ~ObjectInstance per cycle) gave ~0% improvement** — the separate control-block alloc cancelled the saved ObjectInstance heap alloc, and the unordered_map bucket array was still re-allocated per `reserve(N)`. Reset-based recycling unlocked the win by keeping the bucket arrays alive across reuses.
+- **Wins concentrated on alloc-heavy workloads**: `object_alloc` (direct), `primitive_method_dispatch` (autoboxes 1M Ints via `FunctionExecutor`/`PrimitiveMethodExecutor` — both go through the pool), and `inline_value_object_hot` (boxes ValueObject→ObjectInstance per inlined call).
+- **Small apparent regressions on `string_ops` / `inline_monomorphic` / `inline_branching` / `method_dispatch`** are within run-to-run noise (±5%); no allocation-path change should affect them.
+- **Next major drop on `object_alloc` is gated on MYT-193** (vector-backed primary field storage) — even with bucket arrays pooled, every `setField` still does a string hash + per-field map node allocation on first use.
+
+## 2026-04-20 — MYT-173 (CALL_METHOD_CACHED specialized opcode)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-173`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Change in this snapshot
+
+- **`CALL_METHOD_CACHED` opcode** added as a runtime-rewritten specialization of `CALL_METHOD`. Interpreter promotes on first MONO IC transition; shape-guarded direct dispatch skips the `icTable.getMethodIC(IP)` hashmap probe and the per-entry linear scan. Sticky one-shot demote on shape miss (`cachedDeoptCount >= 1`) prevents flip/unflip churn.
+- MVP is interpreter-side + MONO-only. JIT routes CACHED through `emitCallMethodOp` unchanged (F-a/F-c inlining still wins when eligible); dedicated JIT CACHED emit branch and POLY variant deferred.
+
+### Summary
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt           1015.33       1017.34           20013         0
+  method_dispatch.mt                  245.55        246.83           14039       506
+  object_alloc.mt                    1741.43       1745.37           17509   2000000
+  field_write_hot.mt                  173.98        174.10            8016         1
+  string_ops.mt                       185.94        185.98           19014         0
+  recursive.mt                       1553.80       1565.22           17256   2763594
+  bitwise_tight_loop.mt              1435.61       1436.34           23014         0
+  short_circuit_chain.mt              396.60        398.38           24907         0
+  primitive_method_dispatch.mt        981.94       1002.17           38061   1000005
+  array_multi_alloc.mt                 67.59         68.18           10909       500
+  array_multi_get.mt                 1217.89       1235.47           50815       500
+  for_each_loop.mt                    413.91        416.30           78650      6604
+  inline_monomorphic.mt               220.31        223.43           13013       501
+  inline_branching.mt                 221.72        221.91           15013       501
+  inline_polymorphic.mt               245.00        246.38           14048       508
+  inline_value_object_hot.mt         1547.87       1555.91           12530       501
+```
+
+### Delta vs. 2026-04-20 (MYT-171)
+
+| Script                        | Before min | After min |     Δ |
+|-------------------------------|-----------:|----------:|------:|
+| method_dispatch.mt            |     261.47 |    245.55 | **−6.1%** ✅ target (primary CACHED win) |
+| string_ops.mt                 |     196.27 |    185.94 | −5.3% |
+| object_alloc.mt               |    1807.86 |   1741.43 | −3.7% |
+| arithmetic_tight_loop.mt      |    1039.63 |   1015.33 | −2.3% |
+| inline_branching.mt           |     223.93 |    221.72 | −1.0% |
+| inline_monomorphic.mt         |     222.04 |    220.31 | −0.8% |
+| inline_polymorphic.mt         |     246.95 |    245.00 | −0.8% |
+| short_circuit_chain.mt        |     398.13 |    396.60 | −0.4% |
+| primitive_method_dispatch.mt  |     984.07 |    981.94 | −0.2% |
+| recursive.mt                  |    1544.84 |   1553.80 | +0.6% |
+| array_multi_get.mt            |    1204.40 |   1217.89 | +1.1% |
+| for_each_loop.mt              |     409.58 |    413.91 | +1.1% |
+| inline_value_object_hot.mt    |    1526.04 |   1547.87 | +1.4% |
+| field_write_hot.mt            |     171.01 |    173.98 | +1.7% |
+| bitwise_tight_loop.mt         |    1400.96 |   1435.61 | +2.5% |
+| array_multi_alloc.mt          |      64.90 |     67.59 | +4.1% |
+
+### Notes
+
+- **`method_dispatch.mt` drop (−6.1%)** is the intended MYT-173 win: tight monomorphic call loop hits the CACHED shape-guarded fast path after ~2 iterations; hashmap probe + entry scan per call are replaced by a single pointer compare.
+- **`inline_monomorphic` / `inline_polymorphic` unchanged** — these sites are already F-a/F-c inlined by the JIT, so the CACHED fast path doesn't apply to them. Confirms CACHED + inliner coexist cleanly (AC #7).
+- **Apparent gains on `string_ops` / `object_alloc` / `arithmetic_tight_loop`** are plausibly noise or bleed-through from interpreter dispatch-loop pressure reductions; none of these touch method calls heavily. Worth a re-run if they persist.
+- **Small regressions (`bitwise_tight_loop` +2.5%, `array_multi_alloc` +4.1%, `field_write_hot` +1.7%)** appear to be run-to-run noise — none of these workloads exercise CALL_METHOD. No regressions on the hot IC-using benchmarks.
+- **JIT-side CACHED fast path not yet implemented**; a follow-up ticket can emit a shape-guard + direct helper for non-inlineable CACHED sites to cut `jit_call_method_ic` overhead in JIT'd code.

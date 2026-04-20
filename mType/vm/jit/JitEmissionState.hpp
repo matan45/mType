@@ -79,6 +79,20 @@ namespace vm::jit
         std::unordered_map<int, CachedArrayInfo> arrayInfoCache;
         std::unordered_set<size_t> backEdgeTargets;
 
+        // MYT-172 AC #3: counters bumped from emitted code on the inline
+        // field-IC fast path (hits) and slow path (misses). Pointers are
+        // baked as immediates by tryEmitInlinedFieldGet; the counters
+        // themselves live on JitCompiler. Placed after backEdgeTargets so
+        // the existing positional brace-init in JitCompiler_Core/_OSR.cpp
+        // stays untouched (these get default-initialized to nullptr and
+        // are then assigned via s.inlineFieldICHits = &this->...).
+        uint64_t* inlineFieldICHits = nullptr;
+        uint64_t* inlineFieldICMisses = nullptr;
+
+        // MYT-191: separate SET-site counters, plumbed the same way.
+        uint64_t* inlineFieldSetICHits = nullptr;
+        uint64_t* inlineFieldSetICMisses = nullptr;
+
         // MYT-163: name of the top-level function currently being compiled.
         // Used by InlineAnalysis::checkInlineEligibility to reject self-recursive
         // inline candidates. Empty for OSR emission (self-recursion already

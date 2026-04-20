@@ -362,63 +362,12 @@ namespace vm::runtime
                     return;
                 }
 
-                // Pop arguments
-                std::vector<value::Value> args(argCount);
-                for (size_t i = argCount; i > 0; --i)
-                {
-                    args[i - 1] = context.stackManager->pop();
-                }
-                // Pop the object (this)
-                context.stackManager->pop();
-
-                // Push call frame (with overflow protection)
-                CallFrame frame;
-                frame.returnAddress = context.instructionPointer;
-                frame.functionName = entry->qualifiedName;
-                frame.localBase = context.stackManager->size();
-                frame.frameBase = context.stackManager->size();
-                frame.thisInstance = instance;
-                size_t colonPos = entry->qualifiedName.find("::");
-                if (colonPos != std::string::npos) {
-                    frame.definingClassName = entry->qualifiedName.substr(0, colonPos);
-                }
-                // MYT-182: carry the callee's program identity on the frame
-                // so ControlFlowExecutor restores context.program on return.
-                // If entry has no program recorded (pre-MYT-182 cache, or
-                // populate path that didn't resolve), fall back to caller's.
-                frame.programIndex = entry->program
-                    ? entry->programIndex
-                    : (context.callStack.empty() ? 0 : context.callStack.back().programIndex);
-                context.pushCallFrame(frame);
-                context.stats.functionCalls++;
-
-                // MYT-182: switch context.program to the callee's owning
-                // program before jumping. startOffset is an index into
-                // entry->program's instruction stream, not context.program's.
-                if (entry->program && entry->program != context.program)
-                {
-                    context.program = entry->program;
-                }
-
-                // Push 'this' as first local
-                context.stackManager->push(objectValue);
-
-                // Push arguments as locals
-                for (const auto& arg : args)
-                {
-                    context.stackManager->push(arg);
-                }
-
-                // Reserve local variable slots beyond 'this' + arguments
-                size_t pushedSlots = 1 + argCount;
-                if (funcMeta->localCount > pushedSlots) {
-                    for (size_t i = 0; i < funcMeta->localCount - pushedSlots; ++i) {
-                        context.stackManager->push(std::monostate{});
-                    }
-                }
-
-                // Jump to function start
-                context.instructionPointer = entry->startOffset - 1; // -1 because loop increments
+                // MYT-173: shared with handleCallMethodCached — see the helper
+                // for the full pop/push-frame/jump sequence.
+                dispatchDirectFromCachedTarget(
+                    funcMeta, entry->startOffset,
+                    entry->program, entry->programIndex,
+                    entry->qualifiedName, objectValue, argCount);
                 return;
             }
         }
@@ -479,8 +428,170 @@ namespace vm::runtime
                     // path, which we already are on.
                     MethodInlineCache& freshCache = icTable.getMethodIC(icKey);
                     freshCache.addEntry(entry);
+
+                    // MYT-173: once the site stabilizes to MONO, promote the
+                    // opcode so subsequent dispatches skip the icTable hashmap
+                    // probe and per-entry scan entirely.
+                    tryPromoteToCached(instr, entry);
                 }
             }
         }
+    }
+
+    void InlineCacheExecutor::dispatchDirectFromCachedTarget(
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMeta,
+        size_t startOffset,
+        const bytecode::BytecodeProgram* program,
+        size_t programIndex,
+        const std::string& qualifiedName,
+        value::Value objectValue,
+        size_t argCount)
+    {
+        auto instance = value::asObject(objectValue);
+
+        // Pop arguments
+        std::vector<value::Value> args(argCount);
+        for (size_t i = argCount; i > 0; --i)
+        {
+            args[i - 1] = context.stackManager->pop();
+        }
+        // Pop the object (this)
+        context.stackManager->pop();
+
+        // Push call frame (with overflow protection)
+        CallFrame frame;
+        frame.returnAddress = context.instructionPointer;
+        frame.functionName = qualifiedName;
+        frame.localBase = context.stackManager->size();
+        frame.frameBase = context.stackManager->size();
+        frame.thisInstance = instance;
+        size_t colonPos = qualifiedName.find("::");
+        if (colonPos != std::string::npos) {
+            frame.definingClassName = qualifiedName.substr(0, colonPos);
+        }
+        // MYT-182: carry the callee's program identity on the frame so
+        // ControlFlowExecutor restores context.program on return. If the
+        // cached entry has no program recorded, fall back to the caller's.
+        frame.programIndex = program
+            ? programIndex
+            : (context.callStack.empty() ? 0 : context.callStack.back().programIndex);
+        context.pushCallFrame(frame);
+        context.stats.functionCalls++;
+
+        // MYT-182: switch context.program to the callee's owning program.
+        if (program && program != context.program)
+        {
+            context.program = program;
+        }
+
+        // Push 'this' as first local
+        context.stackManager->push(objectValue);
+
+        // Push arguments as locals
+        for (const auto& arg : args)
+        {
+            context.stackManager->push(arg);
+        }
+
+        // Reserve local variable slots beyond 'this' + arguments
+        size_t pushedSlots = 1 + argCount;
+        if (funcMeta->localCount > pushedSlots) {
+            for (size_t i = 0; i < funcMeta->localCount - pushedSlots; ++i) {
+                context.stackManager->push(std::monostate{});
+            }
+        }
+
+        // Jump to function start (-1 because the dispatch loop increments)
+        context.instructionPointer = startOffset - 1;
+    }
+
+    void InlineCacheExecutor::tryPromoteToCached(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const vm::jit::ic::MethodICEntry& entry)
+    {
+        using namespace vm::jit::ic;
+
+        // Sticky demote — a site that has already deopted stays on the generic
+        // CALL_METHOD path. Prevents flip/unflip ping-pong on unstable sites.
+        if (instr.cachedDeoptCount >= 1) return;
+
+        // ValueObject receivers use the MYT-167 temp-materialisation path in
+        // jit_call_method; CACHED fast-dispatch is ObjectInstance-only for MVP.
+        if (entry.receiverIsValueObject) return;
+
+        auto* fm = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry.funcMetadata);
+        if (!fm || fm->isNative || fm->startOffset == 0) return;
+
+        // Only promote once the IC has settled to a single shape. POLY sites
+        // are handled by a future CALL_METHOD_POLY_CACHED (out of MVP scope).
+        MethodInlineCache& cache = icTable.getMethodIC(context.instructionPointer);
+        if (cache.state != ICState::MONOMORPHIC) return;
+
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        mut.cachedMethodShape        = entry.shape;
+        mut.cachedMethodFunc         = fm;
+        mut.cachedMethodProgram      = entry.program;
+        mut.cachedMethodProgramIndex = entry.programIndex;
+        mut.cachedMethodQualifiedName = entry.qualifiedName;
+        mut.opcode = bytecode::OpCode::CALL_METHOD_CACHED;
+    }
+
+    void InlineCacheExecutor::deoptAndReprocess(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        mut.opcode = bytecode::OpCode::CALL_METHOD;
+        mut.cachedMethodShape = nullptr;
+        mut.cachedMethodFunc = nullptr;
+        mut.cachedMethodProgram = nullptr;
+        mut.cachedMethodProgramIndex = 0;
+        mut.cachedMethodQualifiedName.clear();
+        if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
+        // `instr` and `mut` alias the same slot; single-threaded VM, so this is
+        // safe. Re-enter the generic IC path, which will observe the new shape
+        // and (unless already MEGA) transition MONO -> POLY.
+        handleCallMethodIC(mut);
+    }
+
+    void InlineCacheExecutor::handleCallMethodCached(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.size() < 2 || !instr.cachedMethodFunc || !instr.cachedMethodShape)
+        {
+            deoptAndReprocess(instr);
+            return;
+        }
+
+        size_t argCount = instr.operands[1];
+        if (context.stackManager->size() <= argCount)
+        {
+            deoptAndReprocess(instr);
+            return;
+        }
+
+        value::Value objectValue = context.stackManager->peek(argCount);
+        if (!value::isObject(objectValue))
+        {
+            deoptAndReprocess(instr);
+            return;
+        }
+
+        auto instance = value::asObject(objectValue);
+        auto* shape = instance->getClassDefinition().get();
+        if (shape != instr.cachedMethodShape)
+        {
+            deoptAndReprocess(instr);
+            return;
+        }
+
+        // Hot path: shape matched — dispatch directly from the embedded target.
+        // No icTable.getMethodIC probe, no per-entry scan.
+        dispatchDirectFromCachedTarget(
+            instr.cachedMethodFunc,
+            instr.cachedMethodFunc->startOffset,
+            instr.cachedMethodProgram,
+            instr.cachedMethodProgramIndex,
+            instr.cachedMethodQualifiedName,
+            objectValue, argCount);
     }
 }

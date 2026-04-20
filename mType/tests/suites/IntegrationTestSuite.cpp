@@ -284,6 +284,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline MONO to POLY Transition",
                                   passPath + "inlining/inline_mono_to_poly.mt");
 
+        // MYT-173: CALL_METHOD_CACHED promotion + sticky deopt.
+        addOutputVerificationTest("CALL_METHOD_CACHED Monomorphic Promote",
+                                  passPath + "ic/call_method_cached_mono.mt");
+        addOutputVerificationTest("CALL_METHOD_CACHED Deopt Sticky",
+                                  passPath + "ic/call_method_cached_deopt.mt");
+
         // ====================================
         // COMMENTED OUT - Test files were not created
         // ====================================

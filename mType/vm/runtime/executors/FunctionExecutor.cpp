@@ -7,6 +7,7 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/NativeArray.hpp"
+#include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../jit/JitCodeCache.hpp"
 #include "../../jit/JitContext.hpp"
@@ -578,7 +579,7 @@ namespace vm::runtime
                 auto intClass = context.environment->findClass("Int");
                 if (intClass)
                 {
-                    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(intClass);
+                    auto instance = value::ObjectInstancePool::getInstance().acquire(intClass);
                     instance->setField("value", arg);
                     arg = instance;
                 }
@@ -590,7 +591,7 @@ namespace vm::runtime
                 auto floatClass = context.environment->findClass("Float");
                 if (floatClass)
                 {
-                    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(floatClass);
+                    auto instance = value::ObjectInstancePool::getInstance().acquire(floatClass);
                     instance->setField("value", arg);
                     arg = instance;
                 }
@@ -602,7 +603,7 @@ namespace vm::runtime
                 auto boolClass = context.environment->findClass("Bool");
                 if (boolClass)
                 {
-                    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(boolClass);
+                    auto instance = value::ObjectInstancePool::getInstance().acquire(boolClass);
                     instance->setField("value", arg);
                     arg = instance;
                 }
@@ -614,7 +615,7 @@ namespace vm::runtime
                 auto stringClass = context.environment->findClass("String");
                 if (stringClass)
                 {
-                    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(stringClass);
+                    auto instance = value::ObjectInstancePool::getInstance().acquire(stringClass);
                     instance->setField("value", arg);
                     arg = instance;
                 }

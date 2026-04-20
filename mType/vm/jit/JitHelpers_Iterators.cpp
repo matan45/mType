@@ -7,6 +7,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/NativeArray.hpp"
+#include "../../value/ObjectInstancePool.hpp"
 #include "../../value/ValueObject.hpp"
 #include "../runtime/VirtualMachine.hpp"
 #include <memory>
@@ -42,7 +43,7 @@ namespace vm::jit
                 throw errors::RuntimeException(
                     "ArrayIteratorHelper class not found - required for array iteration");
             auto iteratorInstance =
-                std::make_shared<runtimeTypes::klass::ObjectInstance>(iteratorHelperClass);
+                value::ObjectInstancePool::getInstance().acquire(iteratorHelperClass);
             iteratorInstance->setField("array", arrayVal);
             iteratorInstance->setField("index", static_cast<int64_t>(0));
             return value::Value(iteratorInstance);

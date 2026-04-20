@@ -2,6 +2,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../../errors/SourceLocation.hpp"
@@ -229,7 +230,7 @@ namespace vm::runtime
                             argValue = value::Value(valueObj);
                         } else {
                             std::unordered_map<std::string, std::string> emptyBindings;
-                            auto boxedInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, emptyBindings);
+                            auto boxedInstance = value::ObjectInstancePool::getInstance().acquire(classDef, emptyBindings);
                             boxedInstance->setField("value", argValue);
                             argValue = value::Value(boxedInstance);
                         }

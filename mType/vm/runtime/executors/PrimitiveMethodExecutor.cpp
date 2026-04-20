@@ -2,6 +2,7 @@
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
 #include <variant>
 #include <cassert>
@@ -120,7 +121,7 @@ std::shared_ptr<runtimeTypes::klass::ObjectInstance> PrimitiveMethodExecutor::bo
     if (cached) {
         return cached;
     }
-    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(
+    auto instance = value::ObjectInstancePool::getInstance().acquire(
         intClass, std::unordered_map<std::string, std::string>{});
     instance->setField("value", value);
     return instance;
@@ -128,7 +129,7 @@ std::shared_ptr<runtimeTypes::klass::ObjectInstance> PrimitiveMethodExecutor::bo
 
 std::shared_ptr<runtimeTypes::klass::ObjectInstance> PrimitiveMethodExecutor::boxFloat(double value) {
     auto floatClass = getFloatClass();
-    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(
+    auto instance = value::ObjectInstancePool::getInstance().acquire(
         floatClass, std::unordered_map<std::string, std::string>{});
     instance->setField("value", value);
     return instance;

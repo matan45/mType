@@ -1,6 +1,7 @@
 #include "ObjectArrayBase.hpp"
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../ValueTypeUtils.hpp"
+#include "../../ObjectInstancePool.hpp"
 
 namespace mType {
 namespace value {
@@ -62,7 +63,7 @@ std::shared_ptr<runtimeTypes::klass::ObjectInstance> ObjectArrayBase::materializ
 ) const
 {
     // Create new instance with class definition
-    auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDefinition_);
+    auto instance = ::value::ObjectInstancePool::getInstance().acquire(classDefinition_);
 
     // Populate fields from SoA storage
     for (const auto& [fieldName, fieldArray] : fieldArrays_)

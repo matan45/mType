@@ -4,6 +4,7 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/InternedString.hpp"
+#include "../value/ObjectInstancePool.hpp"
 #include "../value/ValueShim.hpp"
 #include "../types/UnifiedType.hpp"
 #include "../types/ReifiedTypeRegistry.hpp"
@@ -357,7 +358,7 @@ namespace reflection
             throw errors::RuntimeException("Cannot instantiate abstract class: " + classDef->getName());
         }
 
-        auto instance = std::make_shared<ObjectInstance>(classDef);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
         for (const auto& [name, fieldDef] : classDef->getInstanceFields())
         {
             instance->setField(name, fieldDef->getValue());

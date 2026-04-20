@@ -1,6 +1,7 @@
 #include "AnnotationInstanceFactory.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../value/ObjectInstancePool.hpp"
 
 namespace reflection
 {
@@ -74,7 +75,7 @@ namespace reflection
         auto cls = getOrCreateSyntheticClass(def);
         if (!cls || !annotation) return nullptr;
 
-        auto instance = std::make_shared<ObjectInstance>(cls);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(cls);
         for (const auto& schema : def->getParams())
         {
             const TypedAnnotationValue* value = annotation->getTypedParameter(schema.name);

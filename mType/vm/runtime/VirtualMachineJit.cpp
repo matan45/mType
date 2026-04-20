@@ -513,6 +513,26 @@ namespace vm::runtime
         if (jitCodeCache)
             std::cout << "  Cached functions:       " << jitCodeCache->size() << "\n";
 
+        // MYT-172 AC #3: inline field-IC stats. Hits = JIT fast-path took
+        // the inlined shape-guard + indexed load/store. Misses = shape
+        // guard failed and the slow-path helper handled the access.
+        // MYT-191: SET counters split out separately — GET misses are
+        // dominated by non-primitive tags, SET misses by ValueObject CoW,
+        // merging them hides regressions.
+        if (jitCompiler)
+        {
+            std::cout << "Field IC (GET):\n";
+            std::cout << "  Inline hits:            "
+                      << jitCompiler->getInlineFieldICHits() << "\n";
+            std::cout << "  Inline misses:          "
+                      << jitCompiler->getInlineFieldICMisses() << "\n";
+            std::cout << "Field IC (SET):\n";
+            std::cout << "  Inline hits:            "
+                      << jitCompiler->getInlineFieldSetICHits() << "\n";
+            std::cout << "  Inline misses:          "
+                      << jitCompiler->getInlineFieldSetICMisses() << "\n";
+        }
+
         // Loop OSR stats
         std::cout << "Loop OSR:\n";
         if (osrManager)

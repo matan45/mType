@@ -212,6 +212,10 @@ namespace vm::jit
                              size_t loopStartOffset, size_t loopEndOffset,
                              size_t jumpBackOffset,
                              ic::TypeFeedbackCollector* typeFeedback,
+                             uint64_t* inlineFieldICHits,
+                             uint64_t* inlineFieldICMisses,
+                             uint64_t* inlineFieldSetICHits,
+                             uint64_t* inlineFieldSetICMisses,
                              OSRBailoutReason& outReason,
                              uint8_t& outOffendingOpcode)
     {
@@ -246,6 +250,10 @@ namespace vm::jit
                            OSRBailoutReason::NONE, 0,
                            0, labels, program,
                            typeFeedback, {}, backEdges};
+        s.inlineFieldICHits = inlineFieldICHits;
+        s.inlineFieldICMisses = inlineFieldICMisses;
+        s.inlineFieldSetICHits = inlineFieldSetICHits;
+        s.inlineFieldSetICMisses = inlineFieldSetICMisses;
 
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
             emitLocalsWriteBack(es);
@@ -329,6 +337,8 @@ namespace vm::jit
         if (!emitOSRBody(cc, ctxPtr, program, frame, localSlotInfos,
                          localCount, loopStartOffset, loopEndOffset,
                          jumpBackOffset, typeFeedback,
+                         &inlineFieldICHits, &inlineFieldICMisses,
+                         &inlineFieldSetICHits, &inlineFieldSetICMisses,
                          bodyReason, bodyOpcode))
         {
             bailoutCount++;

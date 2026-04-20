@@ -4,6 +4,7 @@
 #include "ic/InlineCacheTable.hpp"
 #include "ic/TypeFeedbackCollector.hpp"
 #include "../optimization/InlineAnalysis.hpp"
+#include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include <asmjit/x86.h>
 #include <cassert>
 
@@ -84,8 +85,13 @@ namespace vm::jit
         return true;
     }
 
-    static bool emitGetFieldOp(JitEmissionState& s,
-                                const bytecode::BytecodeProgram::Instruction& instr)
+    // MYT-172 AC #3: emit the helper-call slow path for GET_FIELD. Used both
+    // by the original emitGetFieldOp (when the inline IC path can't fire) and
+    // as the fall-through tail of tryEmitInlinedFieldGet on shape miss / null
+    // data pointer / non-primitive field tag.
+    static void emitGetFieldHelperInvoke(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
@@ -110,20 +116,143 @@ namespace vm::jit
         inv->set_arg(3, ipReg);
         inv->set_arg(4, idx);
         inv->set_arg(5, flagsReg);
+    }
+
+    // MYT-172 AC #3: speculative-inline GET_FIELD when the field IC is in
+    // monomorphic state with a known shape + fieldIndex. Mirrors the
+    // method-IC inline pattern (emitInlinedMethodCallMono in this file).
+    //
+    // Fast path: shape guard → call jit_field_data_const for receiver's
+    // field-vector data → null check → primitive-tag check → release the
+    // receiver slot's refcount → 16-byte movdqu copy of the field Value
+    // into the same slot → bump hit counter → join.
+    //
+    // Slow path: bump miss counter → emit the existing helper-call
+    // (jit_get_field_ic), which transparently handles all variants and
+    // both populates and consults the IC.
+    //
+    // Returns true iff inline emission was produced (caller must NOT also
+    // emit the helper-only path). Returns false on cold IC, POLY/MEGA, or
+    // unboxed mode — caller falls back to emitGetFieldHelperInvoke alone.
+    static bool tryEmitInlinedFieldGet(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (!s.typeFeedback) return false;
+        if (!s.usesBoxedTypes) return false;
+        if (!s.inlineFieldICHits || !s.inlineFieldICMisses) return false;
+
+        auto& icTable = s.typeFeedback->getICTable();
+        if (!icTable.hasFieldIC(s.currentIP)) return false;
+
+        auto& cache = icTable.getFieldIC(s.currentIP);
+        if (cache.state != ic::ICState::MONOMORPHIC) return false;
+        if (cache.entryCount == 0) return false;
+
+        const auto* shape = cache.entries[0].shape;
+        size_t fieldIndex = cache.entries[0].fieldIndex;
+        if (!shape || fieldIndex == SIZE_MAX) return false;
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        const int receiverIdx = s.stackDepth - 1;
+
+        Label slowLabel = cc.new_label();
+        Label joinLabel = cc.new_label();
+
+        // 1. Shape guard. On mismatch / null bridge / wrong variant → slow.
+        emitInlineShapeGuard(s, receiverIdx, shape, slowLabel);
+
+        // 2. Get the field-vector data pointer. Returns nullptr on lazy
+        //    ObjectInstance (fieldVector not yet allocated) — slow path.
+        Gp receiverAddr = cc.new_gp64();
+        cc.lea(receiverAddr, Mem(s.boxedBase,
+                                 static_cast<int32_t>(receiverIdx * valueSize)));
+        Gp dataPtr = cc.new_gp64();
+        InvokeNode* dataInv;
+        cc.invoke(Out(dataInv), reinterpret_cast<uint64_t>(jit_field_data_const),
+                  FuncSignature::build<const value::Value*, const value::Value*>());
+        dataInv->set_arg(0, receiverAddr);
+        dataInv->set_ret(0, dataPtr);
+        cc.test(dataPtr, dataPtr);
+        cc.jz(slowLabel);
+
+        // 3. Source = dataPtr + fieldIndex * sizeof(Value).
+        Gp srcAddr = cc.new_gp64();
+        cc.lea(srcAddr, Mem(dataPtr,
+                            static_cast<int32_t>(fieldIndex * valueSize)));
+
+        // 4. Inline only when the field tag is a small primitive (INT/FLOAT/
+        //    BOOL = 0/1/2). VOID/NULL_TYPE and heap tags fall to the slow
+        //    path so the helper handles refcount / variant-correct assignment.
+        Gp tagReg = cc.new_gp32();
+        cc.movzx(tagReg, byte_ptr(srcAddr, 0));
+        cc.cmp(tagReg, static_cast<int32_t>(value::ValueType::BOOL));
+        cc.ja(slowLabel);
+
+        // 5. Release the receiver slot's refcount before overwriting it.
+        emitValueDestroy(s, receiverIdx);
+
+        // 6. Raw 16-byte copy of the (primitive) field Value into the slot.
+        Gp destAddr = cc.new_gp64();
+        cc.lea(destAddr, Mem(s.boxedBase,
+                             static_cast<int32_t>(receiverIdx * valueSize)));
+        Vec tmp = cc.new_xmm();
+        cc.movdqu(tmp, xmmword_ptr(srcAddr, 0));
+        cc.movdqu(xmmword_ptr(destAddr, 0), tmp);
+
+        // 7. Bump the inline-hit counter (address baked at compile time).
+        Gp hitsAddr = cc.new_gp64();
+        cc.mov(hitsAddr, reinterpret_cast<uint64_t>(s.inlineFieldICHits));
+        cc.inc(qword_ptr(hitsAddr));
+
+        cc.jmp(joinLabel);
+
+        // 8. Slow path. Bump miss counter, then run the original helper.
+        cc.bind(slowLabel);
+        Gp missesAddr = cc.new_gp64();
+        cc.mov(missesAddr, reinterpret_cast<uint64_t>(s.inlineFieldICMisses));
+        cc.inc(qword_ptr(missesAddr));
+        emitGetFieldHelperInvoke(s, instr);
+
+        cc.bind(joinLabel);
+
         popType(s);
         s.slotTypes.push_back(SlotType::BOXED);
         return true;
     }
 
-    static bool emitSetFieldOp(JitEmissionState& s,
+    static bool emitGetFieldOp(JitEmissionState& s,
                                 const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (tryEmitInlinedFieldGet(s, instr))
+            return true;
+
+        emitGetFieldHelperInvoke(s, instr);
+        popType(s);
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
+    // MYT-191: emit the helper-call slow path for SET_FIELD, without any
+    // slotType / stackDepth management. Used both by the original
+    // emitSetFieldOp fall-through and as the miss-branch tail of
+    // tryEmitInlinedFieldSet. Mirrors emitGetFieldHelperInvoke's split.
+    //
+    // Pre-condition: the emitter has already popped the two input slot
+    // types; stackDepth still points past the new-value slot so
+    // (stackDepth - 1) = new value and (stackDepth - 2) = object/dest.
+    // Caller provides newValAddr (already boxed if needed) so the boxing
+    // is emitted once even when this invoke runs on the miss branch of
+    // tryEmitInlinedFieldSet.
+    static void emitSetFieldHelperInvoke(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr,
+        Gp newValAddr)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         uint32_t fieldNameIndex = static_cast<uint32_t>(instr.operands[0]);
-        SlotType valType = popType(s);
-        popType(s);
-        Gp newValAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, valType);
         Gp objAddr = cc.new_gp64();
         cc.lea(objAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
         Gp dest = cc.new_gp64();
@@ -146,6 +275,124 @@ namespace vm::jit
         inv->set_arg(4, ipReg);
         inv->set_arg(5, idx);
         inv->set_arg(6, flagsReg);
+    }
+
+    // MYT-191: speculative-inline SET_FIELD when the field IC is in
+    // monomorphic state with a non-value-class shape. Mirrors
+    // tryEmitInlinedFieldGet's structure. Returns false on cold IC,
+    // POLY/MEGA, unboxed mode, or a value-class shape — caller falls back
+    // to the original emitSetFieldOp body.
+    //
+    // Fast path: shape guard → invoke jit_field_set_at (thin helper that
+    // runs ObjectInstance::setFieldByIndex with its full write barrier and
+    // mirrors `*dest = *newValue`) → bump hit counter.
+    // Slow path: bump miss counter → emitSetFieldHelperInvoke (jit_set_field_ic).
+    //
+    // ValueClass receivers are rejected at emit time because ValueObject
+    // SET is fundamentally CoW (deepCopy + reassign) — the existing helper
+    // is correct and the inline path would need an entirely different
+    // sequence. A MONO IC pins one shape, so the compile-time flag is
+    // authoritative.
+    static bool tryEmitInlinedFieldSet(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (!s.typeFeedback) return false;
+        if (!s.usesBoxedTypes) return false;
+        if (!s.inlineFieldSetICHits || !s.inlineFieldSetICMisses) return false;
+
+        auto& icTable = s.typeFeedback->getICTable();
+        if (!icTable.hasFieldIC(s.currentIP)) return false;
+
+        auto& cache = icTable.getFieldIC(s.currentIP);
+        if (cache.state != ic::ICState::MONOMORPHIC) return false;
+        if (cache.entryCount == 0) return false;
+
+        const auto* shape = cache.entries[0].shape;
+        size_t fieldIndex = cache.entries[0].fieldIndex;
+        if (!shape || fieldIndex == SIZE_MAX) return false;
+        if (shape->isValueClass()) return false;
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        SlotType valType = popType(s);
+        popType(s);
+        const int receiverIdx = s.stackDepth - 2;
+        const int newValIdx = s.stackDepth - 1;
+
+        Label slowLabel = cc.new_label();
+        Label joinLabel = cc.new_label();
+
+        // 1. Box new value once (shared by both paths). In boxed-types
+        //    mode the new value may still be a raw primitive slot type, so
+        //    emitGetBoxedValueAddr will materialise a boxed Value into
+        //    callArgs; we want that to happen exactly once.
+        Gp newValAddr = emitGetBoxedValueAddr(s, newValIdx, valType);
+
+        // 2. Shape guard. On mismatch / null bridge / wrong variant → slow.
+        emitInlineShapeGuard(s, receiverIdx, shape, slowLabel);
+
+        // 3. Invoke jit_field_set_at(destSlot, receiverSlot, fieldIndex,
+        //    newValue). destSlot and receiverSlot alias the same stack
+        //    position (stackDepth-2) — the helper runs setFieldByIndex
+        //    before overwriting it. A false return (null bridge at runtime,
+        //    unexpected ValueObject tag, out-of-range index) branches to
+        //    the slow path.
+        Gp slotAddr = cc.new_gp64();
+        cc.lea(slotAddr, Mem(s.boxedBase,
+                             static_cast<int32_t>(receiverIdx * valueSize)));
+        Gp fieldIdxReg = cc.new_gp64();
+        cc.mov(fieldIdxReg, static_cast<int64_t>(fieldIndex));
+        Gp retReg = cc.new_gp64();
+        InvokeNode* setInv;
+        cc.invoke(Out(setInv), reinterpret_cast<uint64_t>(jit_field_set_at),
+                  FuncSignature::build<bool, value::Value*, const value::Value*,
+                      size_t, const value::Value*>());
+        setInv->set_arg(0, slotAddr);
+        setInv->set_arg(1, slotAddr);
+        setInv->set_arg(2, fieldIdxReg);
+        setInv->set_arg(3, newValAddr);
+        setInv->set_ret(0, retReg);
+        // bool returns land in AL; test the low byte so the upper bits
+        // (undefined under the MS x64 ABI) don't affect the branch.
+        cc.test(retReg.r8(), retReg.r8());
+        cc.jz(slowLabel);
+
+        // 4. Fast-path hit. Bump counter, skip the slow-path helper.
+        Gp hitsAddr = cc.new_gp64();
+        cc.mov(hitsAddr, reinterpret_cast<uint64_t>(s.inlineFieldSetICHits));
+        cc.inc(qword_ptr(hitsAddr));
+        cc.jmp(joinLabel);
+
+        // 5. Slow path. Bump miss counter, then run jit_set_field_ic.
+        cc.bind(slowLabel);
+        Gp missesAddr = cc.new_gp64();
+        cc.mov(missesAddr, reinterpret_cast<uint64_t>(s.inlineFieldSetICMisses));
+        cc.inc(qword_ptr(missesAddr));
+        emitSetFieldHelperInvoke(s, instr, newValAddr);
+
+        cc.bind(joinLabel);
+
+        // 6. Both paths leave the dest slot (stackDepth-2) holding
+        //    newValue; destroy the original newValue slot at stackDepth-1
+        //    so its heap ref is released, then collapse the stack by one.
+        if (isBoxedSlotType(valType))
+            emitValueDestroy(s, s.stackDepth - 1);
+        s.stackDepth--;
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
+    static bool emitSetFieldOp(JitEmissionState& s,
+                                const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (tryEmitInlinedFieldSet(s, instr))
+            return true;
+
+        SlotType valType = popType(s);
+        popType(s);
+        Gp newValAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, valType);
+        emitSetFieldHelperInvoke(s, instr, newValAddr);
         if (isBoxedSlotType(valType))
             emitValueDestroy(s, s.stackDepth - 1);
         s.stackDepth--;
@@ -968,8 +1215,18 @@ namespace vm::jit
             case OpCode::PUSH_STRING:    return emitPushStringOp(s, instr);
             case OpCode::GET_FIELD:      return emitGetFieldOp(s, instr);
             case OpCode::SET_FIELD:      return emitSetFieldOp(s, instr);
+            case OpCode::INLINE_GET_FIELD: return emitGetFieldOp(s, instr);
+            case OpCode::INLINE_SET_FIELD: return emitSetFieldOp(s, instr);
             case OpCode::CALL_STATIC:    return emitCallStaticOp(s, instr);
-            case OpCode::CALL_METHOD:    return emitCallMethodOp(s, instr);
+            case OpCode::CALL_METHOD:
+            case OpCode::CALL_METHOD_CACHED:
+                // MYT-173: CACHED is treated identically to CALL_METHOD here —
+                // tryEmitInlinedMethodCall reads the IC (unaffected by opcode
+                // rewrite) and F-a/F-c inlining wins when eligible. The
+                // CACHED-specific shape-guard + direct helper fast path (for
+                // sites that aren't inline-eligible) is deferred to a follow-up;
+                // MVP relies on the interpreter side for the steady-state win.
+                return emitCallMethodOp(s, instr);
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
             case OpCode::CAST:           return emitCastOp(s, instr);
             case OpCode::NEW_OBJECT:

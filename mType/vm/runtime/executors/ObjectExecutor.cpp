@@ -16,6 +16,7 @@
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/IntegerCache.hpp"
+#include "../../../value/ObjectInstancePool.hpp"
 #include "../utils/BoxingUtils.hpp"
 #include "../utils/MethodResolver.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
@@ -453,7 +454,7 @@ namespace vm::runtime
                             argValue = value::Value(valueObj);
                         } else {
                             std::unordered_map<std::string, std::string> emptyBindings;
-                            auto boxedInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef, emptyBindings);
+                            auto boxedInstance = value::ObjectInstancePool::getInstance().acquire(classDef, emptyBindings);
                             boxedInstance->setField("value", argValue);
                             argValue = boxedInstance;
                         }
@@ -740,7 +741,7 @@ namespace vm::runtime
 
             // Create a temporary ObjectInstance to serve as 'this' for the method call
             // This reuses existing method invocation infrastructure
-            auto tempInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+            auto tempInstance = value::ObjectInstancePool::getInstance().acquire(classDef);
             // Copy fields from ValueObject to temporary ObjectInstance
             const auto& fieldIndexMap = classDef->getFieldIndexMap();
             for (const auto& [name, index] : fieldIndexMap) {
@@ -890,7 +891,7 @@ namespace vm::runtime
             }
 
             // Create an instance of ArrayIteratorHelper with the array as constructor argument
-            auto iteratorInstance = std::make_shared<runtimeTypes::klass::ObjectInstance>(iteratorHelperClass);
+            auto iteratorInstance = value::ObjectInstancePool::getInstance().acquire(iteratorHelperClass);
 
             // Find and invoke the constructor with 1 argument (the array)
             auto constructor = iteratorHelperClass->findConstructorByTypes({collectionValue});

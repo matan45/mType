@@ -4,6 +4,7 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/ObjectInstancePool.hpp"
 #include "../value/ValueObject.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/ValueShim.hpp"
@@ -138,7 +139,7 @@ namespace json
                 "Unknown class '" + className + "' during JSON deserialization");
         }
 
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
 
         // Restore generic bindings first (needed for typed field resolution)
         if (json->hasProperty("__generics"))
@@ -354,7 +355,7 @@ namespace json
         if (!classDef)
             throw errors::RuntimeException("Unknown class '" + className + "' during JSON deserialization");
 
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
 
         if (json->hasProperty("__generics"))
             applyGenericBindings(instance, json->getProperty("__generics"));
@@ -421,7 +422,7 @@ namespace json
         if (!nodeDef)
             throw errors::RuntimeException("Unknown class 'Node' during JSON deserialization");
 
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
 
         if (json->hasProperty("__generics"))
             applyGenericBindings(instance, json->getProperty("__generics"));
@@ -455,7 +456,7 @@ namespace json
 
         for (size_t i = 0; i < elements.size(); ++i)
         {
-            auto node = std::make_shared<runtimeTypes::klass::ObjectInstance>(nodeDef);
+            auto node = value::ObjectInstancePool::getInstance().acquire(nodeDef);
             if (!elemType.empty())
                 node->setGenericTypeBinding("T", elemType);
 
@@ -536,7 +537,7 @@ namespace json
         if (!classDef)
             throw errors::RuntimeException("Unknown class 'HashMap' during JSON deserialization");
 
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
 
         if (json->hasProperty("__generics"))
             applyGenericBindings(instance, json->getProperty("__generics"));
@@ -651,7 +652,7 @@ namespace json
         if (!classDef)
             throw errors::RuntimeException("Unknown class 'HashSet' during JSON deserialization");
 
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
 
         if (json->hasProperty("__generics"))
             applyGenericBindings(instance, json->getProperty("__generics"));

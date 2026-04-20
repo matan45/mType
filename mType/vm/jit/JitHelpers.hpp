@@ -79,6 +79,28 @@ namespace vm::jit
     // the generic jit_call_method_ic.
     const void* jit_extract_classdef(const value::Value* receiver);
 
+    // MYT-172 AC #3: returns a pointer to the receiver's field-vector data
+    // (Value[N]) for use by the JIT inline field-IC GET fast path. Returns
+    // nullptr when the receiver isn't an ObjectInstance/ValueObject, when
+    // the bridge is null, or when an ObjectInstance hasn't yet had its
+    // fieldVector populated (lazy init). Callers branch to the slow-path
+    // helper on null. Bypassing the IC table & name resolution is the
+    // entire point — this helper does no map lookups.
+    const value::Value* jit_field_data_const(const value::Value* receiver) noexcept;
+
+    // MYT-191: thin inline-IC SET helper. Writes *newValue into the
+    // ObjectInstance receiver's field[fieldIndex] using the write-barrier-
+    // correct setFieldByIndex path, then mirrors *destSlot = *newValue so
+    // the destination stack slot holds the assigned value (matching the
+    // semantics of jit_set_field_ic). Returns false on any bail condition
+    // (null pointers, non-ObjectInstance receiver including ValueObject, or
+    // out-of-range fieldIndex) so the caller can jump to the slow path
+    // which handles ValueObject CoW and IC table maintenance.
+    bool jit_field_set_at(value::Value* destSlot,
+                          const value::Value* receiverSlot,
+                          size_t fieldIndex,
+                          const value::Value* newValue) noexcept;
+
     // CALL_METHOD with inline-cache fast path. Mirrors emitGetFieldOp/jit_get_field_ic
     // pattern: emitter passes the bytecode IP, helper looks up MethodInlineCache by
     // offset, on monomorphic/polymorphic shape match dispatches via pre-resolved

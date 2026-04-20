@@ -2,6 +2,7 @@
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/ObjectInstancePool.hpp"
 #include "../value/ValueShim.hpp"
 #include "../errors/RuntimeException.hpp"
 
@@ -41,7 +42,7 @@ namespace net
             {
                 return s;  // fall back to raw string if String class not loaded
             }
-            auto inst = std::make_shared<runtimeTypes::klass::ObjectInstance>(stringClass);
+            auto inst = value::ObjectInstancePool::getInstance().acquire(stringClass);
             inst->setField("value", s);
             return inst;
         }
@@ -124,7 +125,7 @@ namespace net
         if (!classDef)
             throw errors::RuntimeException("HashMap class not loaded; import lib/collections/HashMap.mt");
 
-        auto instance = std::make_shared<runtimeTypes::klass::ObjectInstance>(classDef);
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
 
         int64_t count = static_cast<int64_t>(map.size());
         int64_t capacity = 16;
