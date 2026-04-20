@@ -106,6 +106,7 @@ namespace vm::bytecode
         GET_STATIC,         // Get static field (operand: class+field index)
         SET_STATIC,         // Set static field (operand: class+field index)
         CALL_METHOD,        // Call instance method (operand: method name + arg count)
+        CALL_METHOD_CACHED, // MYT-173: IC-stable CALL_METHOD with embedded target (shape+funcMeta on Instruction)
         CALL_STATIC,        // Call static method (operand: method name + arg count)
         INVOKE,             // Optimized method call (name + arg count)
         SUPER_INVOKE,       // Super method call
@@ -336,6 +337,7 @@ namespace vm::bytecode
             case OpCode::GET_STATIC: return "GET_STATIC";
             case OpCode::SET_STATIC: return "SET_STATIC";
             case OpCode::CALL_METHOD: return "CALL_METHOD";
+            case OpCode::CALL_METHOD_CACHED: return "CALL_METHOD_CACHED";
             case OpCode::CALL_STATIC: return "CALL_STATIC";
             case OpCode::INVOKE: return "INVOKE";
             case OpCode::SUPER_INVOKE: return "SUPER_INVOKE";

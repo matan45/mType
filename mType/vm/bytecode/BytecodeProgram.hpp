@@ -9,6 +9,8 @@
 #include "../../errors/SourceLocation.hpp"
 #include "../../value/ValueType.hpp"
 
+namespace runtimeTypes::klass { class ClassDefinition; }
+
 namespace vm::bytecode
 {
     /**
@@ -41,6 +43,22 @@ namespace vm::bytecode
             mutable size_t cachedStartOffset = 0;
             mutable const BytecodeProgram* cachedProgram = nullptr;
             mutable size_t cachedProgramIndex = 0;
+
+            // MYT-173: CALL_METHOD_CACHED embedded target. Once the method IC at
+            // this IP has stabilized to MONOMORPHIC, the opcode is rewritten to
+            // CALL_METHOD_CACHED and these fields snapshot the IC entry, so the
+            // hot path pays a single shape compare (no icTable hashmap probe, no
+            // per-entry linear scan). On shape miss the opcode is rewritten back
+            // to CALL_METHOD and cachedMethodShape is cleared; cachedDeoptCount>=1
+            // makes the demote sticky so we don't flip/unflip on unstable sites.
+            // These fields are disjoint from cachedFuncMetadata et al., which serve
+            // the CALL opcode (see FunctionExecutor).
+            mutable const runtimeTypes::klass::ClassDefinition* cachedMethodShape = nullptr;
+            mutable const FunctionMetadata* cachedMethodFunc = nullptr;
+            mutable const BytecodeProgram* cachedMethodProgram = nullptr;
+            mutable size_t cachedMethodProgramIndex = 0;
+            mutable std::string cachedMethodQualifiedName;
+            mutable uint8_t cachedDeoptCount = 0;
 
             Instruction();
             Instruction(OpCode op);

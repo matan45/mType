@@ -1218,7 +1218,15 @@ namespace vm::jit
             case OpCode::INLINE_GET_FIELD: return emitGetFieldOp(s, instr);
             case OpCode::INLINE_SET_FIELD: return emitSetFieldOp(s, instr);
             case OpCode::CALL_STATIC:    return emitCallStaticOp(s, instr);
-            case OpCode::CALL_METHOD:    return emitCallMethodOp(s, instr);
+            case OpCode::CALL_METHOD:
+            case OpCode::CALL_METHOD_CACHED:
+                // MYT-173: CACHED is treated identically to CALL_METHOD here —
+                // tryEmitInlinedMethodCall reads the IC (unaffected by opcode
+                // rewrite) and F-a/F-c inlining wins when eligible. The
+                // CACHED-specific shape-guard + direct helper fast path (for
+                // sites that aren't inline-eligible) is deferred to a follow-up;
+                // MVP relies on the interpreter side for the steady-state win.
+                return emitCallMethodOp(s, instr);
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
             case OpCode::CAST:           return emitCastOp(s, instr);
             case OpCode::NEW_OBJECT:

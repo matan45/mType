@@ -121,7 +121,7 @@ namespace vm::jit
                 case OpCode::LOAD_VAR:    case OpCode::STORE_VAR:
                 case OpCode::NEW_OBJECT:
                 case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
-                case OpCode::CALL_METHOD: case OpCode::CALL_STATIC:
+                case OpCode::CALL_METHOD: case OpCode::CALL_METHOD_CACHED: case OpCode::CALL_STATIC:
                 case OpCode::NEW_ARRAY:   case OpCode::NEW_ARRAY_MULTI:
                 case OpCode::ARRAY_GET:
                 case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:
