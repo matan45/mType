@@ -29,6 +29,14 @@ namespace parser
 
     void TokenStream::advance()
     {
+        if (lookaheadCount > 0)
+        {
+            currentToken = lookahead[lookaheadHead];
+            lookaheadHead = (lookaheadHead + 1) % LOOKAHEAD_CAPACITY;
+            --lookaheadCount;
+            return;
+        }
+
         try
         {
             currentToken = lexer.getNextToken();
@@ -117,12 +125,46 @@ namespace parser
 
     Token TokenStream::peek() const
     {
-        return lexer.peekNextToken();
+        return peekAhead(0);
     }
 
     Token TokenStream::peekAhead(size_t offset) const
     {
-        // Use the lexer's new deep lookahead capability
-        return lexer.peekAhead(offset);
+        // Legacy Lexer::peekAhead semantics (preserved for all callers):
+        //   peekAhead(0) == peekAhead(1) == first token after currentToken
+        //   peekAhead(N) for N >= 2 == Nth token after currentToken
+        // Normalize to a 0-based ring index.
+        const size_t ringIndex = (offset == 0) ? 0 : (offset - 1);
+
+        // Rare path: deeper than the ring. Ask the lexer directly; it
+        // captures/restores its own state. The lexer's cursor is already past
+        // the tokens we have buffered.
+        if (ringIndex >= LOOKAHEAD_CAPACITY)
+        {
+            return lexer.peekAhead(ringIndex - lookaheadCount + 1);
+        }
+
+        // Refill from the lexer until the requested slot is buffered.
+        while (lookaheadCount <= ringIndex)
+        {
+            const size_t tail = (lookaheadHead + lookaheadCount) % LOOKAHEAD_CAPACITY;
+            lookahead[tail] = lexer.getNextToken();
+            ++lookaheadCount;
+
+            if (lookahead[tail].type == TokenType::END)
+            {
+                // Pad remaining requested slots with END so peekAhead past EOF
+                // keeps returning END without re-driving the lexer.
+                while (lookaheadCount <= ringIndex && lookaheadCount < LOOKAHEAD_CAPACITY)
+                {
+                    const size_t pad = (lookaheadHead + lookaheadCount) % LOOKAHEAD_CAPACITY;
+                    lookahead[pad] = lookahead[tail];
+                    ++lookaheadCount;
+                }
+                break;
+            }
+        }
+
+        return lookahead[(lookaheadHead + ringIndex) % LOOKAHEAD_CAPACITY];
     }
 }

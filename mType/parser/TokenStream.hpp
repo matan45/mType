@@ -2,7 +2,8 @@
 #include "../token/Token.hpp"
 #include "../token/TokenType.hpp"
 #include "../lexer/Lexer.hpp"
-#include <vector>
+#include <array>
+#include <cstddef>
 
 namespace parser
 {
@@ -15,9 +16,18 @@ namespace parser
     class TokenStream
     {
     private:
+        static constexpr std::size_t LOOKAHEAD_CAPACITY = 8;
+
         Lexer& lexer;
         Token currentToken;
-        mutable std::vector<Token> lookaheadBuffer;
+        // Fixed-capacity ring of tokens already pulled from the Lexer but not
+        // yet exposed to the parser as currentToken. peek(n) hits this ring in
+        // O(1); refills only when the requested slot is empty. Mutable because
+        // the refill is a logical cache — IParser::canParse takes
+        // const TokenStream&.
+        mutable std::array<Token, LOOKAHEAD_CAPACITY> lookahead{};
+        mutable std::size_t lookaheadHead = 0;
+        mutable std::size_t lookaheadCount = 0;
         bool hasRightShiftPending = false;  // Track if we have a pending > from splitting >>
 
     public:

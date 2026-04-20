@@ -12,7 +12,7 @@ namespace errors
         int column;
 
     public:
-        explicit SourceLocation()
+        SourceLocation()
             : filename("<unknown>"), line(1), column(1)
         {
         }
