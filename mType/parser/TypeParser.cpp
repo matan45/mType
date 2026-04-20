@@ -291,7 +291,7 @@ namespace parser
 
     std::string TypeParser::parseQualifiedName(TokenStream& stream)
     {
-        std::string typeName = stream.current().stringValue.getString();
+        std::string typeName = std::string(stream.current().stringValue);
         stream.advance();
 
         // Handle qualified names like ClassName::staticMember
@@ -302,7 +302,7 @@ namespace parser
             {
                 throw ParseException("Expected identifier after '::'", stream.location());
             }
-            typeName += "::" + stream.current().stringValue.getString();
+            typeName += "::" + std::string(stream.current().stringValue);
             stream.advance();
         }
 

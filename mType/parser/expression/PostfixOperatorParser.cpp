@@ -158,7 +158,7 @@ namespace parser::expression
             throw ParseException("Expected member name after '.'", tokenStream.current().location);
         }
 
-        std::string memberName = tokenStream.current().stringValue.getString();
+        std::string memberName = std::string(tokenStream.current().stringValue);
         SourceLocation location = tokenStream.current().location;
         tokenStream.advance();
 

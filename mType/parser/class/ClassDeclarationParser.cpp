@@ -54,7 +54,7 @@ namespace parser
         // Check for optional 'value' contextual keyword (parsed as IDENTIFIER)
         bool isValueClass = false;
         if (tokenStream.current().type == TokenType::IDENTIFIER &&
-            tokenStream.current().stringValue.getString() == "value" &&
+            tokenStream.current().stringValue == "value" &&
             tokenStream.peek().type == TokenType::CLASS)
         {
             isValueClass = true;
@@ -92,7 +92,7 @@ namespace parser
             throw ParseException("Expected class name", tokenStream.current().location);
         }
 
-        std::string className = tokenStream.current().stringValue.getString();
+        std::string className = std::string(tokenStream.current().stringValue);
         SourceLocation classNameLocation = tokenStream.current().location; // Capture location before advancing
         validateClassName(className, classNameLocation);
         tokenStream.advance();
@@ -234,7 +234,7 @@ namespace parser
     std::string ClassDeclarationParser::parseQualifiedClassName()
     {
         std::vector<std::string> qualifiedParts;
-        qualifiedParts.push_back(tokenStream.current().stringValue.getString());
+        qualifiedParts.push_back(std::string(tokenStream.current().stringValue));
         tokenStream.advance();
 
         while (tokenStream.current().type == TokenType::SCOPE)
@@ -244,7 +244,7 @@ namespace parser
             {
                 throw ParseException("Expected identifier after '::'", tokenStream.current().location);
             }
-            qualifiedParts.push_back(tokenStream.current().stringValue.getString());
+            qualifiedParts.push_back(std::string(tokenStream.current().stringValue));
             tokenStream.advance();
         }
 
@@ -266,7 +266,7 @@ namespace parser
 
     std::string ClassDeclarationParser::parseGenericInterfaceName()
     {
-        std::string interfaceName = tokenStream.current().stringValue.getString();
+        std::string interfaceName = std::string(tokenStream.current().stringValue);
         tokenStream.advance();
 
         // Handle generic parameters for interface if present

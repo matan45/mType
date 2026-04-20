@@ -19,7 +19,8 @@ namespace parser
                 static_cast<int>(tokenStream.current().type));
             if (tokenStream.current().type == TokenType::IDENTIFIER)
             {
-                tokenInfo += ", value=" + tokenStream.current().stringValue.getString();
+                tokenInfo += ", value=";
+                tokenInfo += tokenStream.current().stringValue;
             }
             if (!tokenStream.isAtEnd())
             {
@@ -76,7 +77,7 @@ namespace parser
             !tokenStream.isAtEnd() && tokenStream.peek().type == TokenType::ARROW)
         {
             // Single parameter without parentheses: param ->
-            std::string paramName = tokenStream.current().stringValue.getString();
+            std::string paramName = std::string(tokenStream.current().stringValue);
             tokenStream.advance();
             parameters.emplace_back(paramName);
         }
@@ -117,7 +118,7 @@ namespace parser
             throw ParseException("Expected parameter name", tokenStream.current().location);
         }
 
-        std::string paramName = tokenStream.current().stringValue.getString();
+        std::string paramName = std::string(tokenStream.current().stringValue);
         tokenStream.advance();
 
         std::shared_ptr<ast::GenericType> paramType = nullptr;
@@ -131,7 +132,7 @@ namespace parser
                 throw ParseException("Expected type name after ':'", tokenStream.current().location);
             }
 
-            std::string typeName = tokenStream.current().stringValue.getString();
+            std::string typeName = std::string(tokenStream.current().stringValue);
             tokenStream.advance();
 
             // Create a simple type - this should be enhanced later for complex types

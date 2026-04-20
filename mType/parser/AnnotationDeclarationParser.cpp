@@ -80,7 +80,7 @@ namespace parser
                 tokenStream.current().location);
         }
 
-        std::string annotationName = tokenStream.current().stringValue.getString();
+        std::string annotationName = std::string(tokenStream.current().stringValue);
         SourceLocation nameLocation = tokenStream.current().location;
         tokenStream.advance();
 
@@ -139,7 +139,7 @@ namespace parser
                 "Expected annotation parameter name",
                 tokenStream.current().location);
         }
-        decl.name = tokenStream.current().stringValue.getString();
+        decl.name = std::string(tokenStream.current().stringValue);
         tokenStream.advance();
 
         if (tryConsumeToken(TokenType::ASSIGN))
@@ -164,7 +164,7 @@ namespace parser
         case TokenType::STRING_TYPE: spec.type = AnnotationValueType::STRING;    tokenStream.advance(); break;
         case TokenType::IDENTIFIER:
             // Only `Class` is accepted as a class-typed annotation parameter for v1.
-            if (tok.stringValue.getString() != "Class")
+            if (tok.stringValue != "Class")
             {
                 throw ParseException(
                     "Annotation parameter type must be one of: int, float, bool, string, Class, Class[]",
@@ -263,7 +263,7 @@ namespace parser
         {
             if (tok.type != TokenType::STRING_LITERAL)
                 throw ParseException("Expected string literal as default value", tok.location);
-            std::string v = tok.stringValue.getString();
+            std::string v = std::string(tok.stringValue);
             tokenStream.advance();
             return TypedAnnotationValue::makeString(std::move(v));
         }
@@ -271,7 +271,7 @@ namespace parser
         {
             if (tok.type != TokenType::IDENTIFIER)
                 throw ParseException("Expected class identifier as default value", tok.location);
-            std::string v = tok.stringValue.getString();
+            std::string v = std::string(tok.stringValue);
             tokenStream.advance();
             return TypedAnnotationValue::makeClassRef(std::move(v));
         }
@@ -287,7 +287,7 @@ namespace parser
                 {
                     throw ParseException("Expected class identifier in Class[] default", tokenStream.current().location);
                 }
-                entries.push_back(tokenStream.current().stringValue.getString());
+                entries.push_back(std::string(tokenStream.current().stringValue));
                 tokenStream.advance();
                 if (tokenStream.check(TokenType::COMMA)) tokenStream.advance();
                 else if (!tokenStream.check(TokenType::RBRACKET))

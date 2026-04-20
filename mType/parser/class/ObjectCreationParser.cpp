@@ -93,7 +93,7 @@ namespace parser
     {
         // Parse qualified class name
         std::vector<std::string> qualifiedParts;
-        qualifiedParts.push_back(tokenStream.current().stringValue.getString());
+        qualifiedParts.push_back(std::string(tokenStream.current().stringValue));
         tokenStream.advance();
 
         while (tokenStream.current().type == TokenType::SCOPE)
@@ -103,7 +103,7 @@ namespace parser
             {
                 throw ParseException("Expected identifier after '::'", tokenStream.current().location);
             }
-            qualifiedParts.push_back(tokenStream.current().stringValue.getString());
+            qualifiedParts.push_back(std::string(tokenStream.current().stringValue));
             tokenStream.advance();
         }
 

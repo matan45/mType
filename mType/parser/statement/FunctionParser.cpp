@@ -95,7 +95,7 @@ namespace parser::statement
             throw ParseException("Expected function name", tokenStream.current().location);
         }
 
-        std::string funcName = tokenStream.current().stringValue.getString();
+        std::string funcName = std::string(tokenStream.current().stringValue);
         auto funcLocation = tokenStream.current().location;
         validateFunctionName(funcName);
         tokenStream.advance();

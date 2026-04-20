@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <memory>
 #include <array>
+#include <deque>
 #include <string_view>
 #include <vector>
 #include "../token/TokenType.hpp"
@@ -21,6 +22,12 @@ namespace lexer
         std::string input;
         size_t pos;
         std::unique_ptr<FileReader> fileReader;
+
+        // Arena for processed string literals (escape-sequence expansion) and
+        // interpolated-string segments. std::deque guarantees stable element
+        // addresses under push_back, so string_views into entries stay valid
+        // for this Lexer's lifetime. See MYT-130 and Token.hpp.
+        std::deque<std::string> processedLiteralArena;
 
         // Separated concerns
         std::unique_ptr<SourceLocationTracker> locationTracker;
@@ -90,12 +97,15 @@ namespace lexer
         double parseFloat();
         int64_t parseInteger();
         std::string_view parseIdentifier();
-        std::string parseStringLiteral();
-        std::string processEscapeSequences(size_t start, size_t end);
+        std::string_view parseStringLiteral();
+        std::string_view processEscapeSequences(size_t start, size_t end);
         bool processEscapeChar(char escaped, std::string& out);
         Token parseInterpolatedString();
         Token scanInterpolatedSegment();
         void skipWhitespaceAndComments();
+
+        // Push a processed string into the arena and return a stable view into it.
+        std::string_view storeProcessed(std::string&& s);
 
         // Movement and positioning
         void advance();

@@ -142,7 +142,7 @@ namespace parser
             throw ParseException("Expected interface name", tokenStream.current().location);
         }
 
-        interfaceName = tokenStream.current().stringValue.getString();
+        interfaceName = std::string(tokenStream.current().stringValue);
         location = tokenStream.current().location;
 
         // Validate interface name using NameValidator

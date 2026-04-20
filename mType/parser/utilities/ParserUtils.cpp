@@ -130,7 +130,7 @@ namespace parser
                 throw ParseException(message, stream.location());
             }
 
-            std::string interfaceName = stream.current().stringValue.getString();
+            std::string interfaceName = std::string(stream.current().stringValue);
             stream.advance();
 
             // Handle generic parameters for the interface
@@ -200,7 +200,7 @@ namespace parser
             }
             else if (stream.current().type == TokenType::IDENTIFIER)
             {
-                result += stream.current().stringValue.getString();
+                result += std::string(stream.current().stringValue);
                 stream.advance();
             }
             else if (stream.current().type == TokenType::COMMA)

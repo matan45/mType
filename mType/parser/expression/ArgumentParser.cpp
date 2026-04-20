@@ -69,7 +69,7 @@ namespace parser::expression
 
         if (tokenStream.check(TokenType::IDENTIFIER))
         {
-            typeArg = tokenStream.current().stringValue.getString();
+            typeArg = std::string(tokenStream.current().stringValue);
             tokenStream.advance();
 
             // Handle nested generics like Array<String>

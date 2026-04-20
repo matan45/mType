@@ -80,7 +80,7 @@ namespace parser::expression
             // Check for array types: (Type[]), (Type[][]), etc.
             if (afterId.type == TokenType::LBRACKET)
             {
-                std::string idValue = nextToken.stringValue.getString();
+                std::string idValue = std::string(nextToken.stringValue);
                 // Check if first character is uppercase (type convention)
                 if (!idValue.empty() && std::isupper(idValue[0]))
                 {
@@ -93,7 +93,7 @@ namespace parser::expression
             // (by convention, types start with uppercase, variables with lowercase)
             if (afterId.type == TokenType::LESS)
             {
-                std::string idValue = nextToken.stringValue.getString();
+                std::string idValue = std::string(nextToken.stringValue);
                 // Check if first character is uppercase (type convention)
                 if (!idValue.empty() && std::isupper(idValue[0]))
                 {

@@ -105,7 +105,7 @@ namespace parser::statement
         {
             throw ParseException("Expected variable name in catch clause", tokenStream.current().location);
         }
-        std::string variableName = tokenStream.current().stringValue.getString();
+        std::string variableName = std::string(tokenStream.current().stringValue);
         tokenStream.advance();
 
         expectToken(TokenType::RPAREN);

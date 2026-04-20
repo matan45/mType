@@ -88,7 +88,7 @@ namespace parser
             throw ParseException("Expected field name", tokenStream.current().location);
         }
 
-        std::string fieldName = tokenStream.current().stringValue.getString();
+        std::string fieldName = std::string(tokenStream.current().stringValue);
         SourceLocation fieldLocation = tokenStream.current().location;
 
         // Validate field name contains no special characters

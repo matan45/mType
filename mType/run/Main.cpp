@@ -133,6 +133,7 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
         std::cout << "  " << argv[0] << " --benchmark                - Run the interpreter benchmark suite\n";
         std::cout << "  " << argv[0] << " --benchmark=<script.mt>    - Run a single benchmark script\n";
+        std::cout << "  " << argv[0] << " --benchmark-lexer=<path>   - Run a lexer-only microbenchmark on this .mt file\n";
         std::cout << "  " << argv[0] << " --benchmark-iterations=<N> - Measured iterations per script (default 3)\n";
         std::cout << "  " << argv[0] << " --benchmark-output=<fmt>   - Output format: text (default) or json\n";
         std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
@@ -905,6 +906,11 @@ int main(int argc, char* argv[])
         {
             benchmarkMode = true;
             benchmarkOptions.singleScript = arg.substr(std::string("--benchmark=").size());
+        }
+        else if (arg.rfind("--benchmark-lexer=", 0) == 0)
+        {
+            benchmarkMode = true;
+            benchmarkOptions.singleLexerScript = arg.substr(std::string("--benchmark-lexer=").size());
         }
         else if (arg.rfind("--benchmark-iterations=", 0) == 0)
         {
