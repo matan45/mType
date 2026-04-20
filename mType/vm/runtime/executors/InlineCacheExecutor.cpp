@@ -52,7 +52,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
@@ -151,7 +151,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
@@ -218,7 +218,7 @@ namespace vm::runtime
         value::Value objectValue = context.stackManager->pop();
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
@@ -279,7 +279,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
 
@@ -354,7 +354,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
@@ -635,7 +635,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* shape = instance->getClassDefinition().get();
+        auto* shape = instance->getClassDefinitionRaw();
         if (shape != instr.cachedMethodShape)
         {
             deoptAndReprocess(instr);
@@ -759,7 +759,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* shape = instance->getClassDefinition().get();
+        auto* shape = instance->getClassDefinitionRaw();
         if (shape != instr.cachedFieldShape)
         {
             deoptGetFieldAndReprocess(instr);
@@ -816,7 +816,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* shape = instance->getClassDefinition().get();
+        auto* shape = instance->getClassDefinitionRaw();
         if (shape != instr.cachedFieldShape)
         {
             deoptSetFieldAndReprocess(instr);
