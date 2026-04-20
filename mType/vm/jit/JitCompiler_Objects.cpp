@@ -1266,14 +1266,16 @@ namespace vm::jit
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
             case OpCode::CAST:           return emitCastOp(s, instr);
             case OpCode::NEW_OBJECT:
-            case OpCode::NEW_VALUE_OBJECT: return emitNewObjectOp(s, instr);
-            case OpCode::NEW_STACK:
-                // MYT-134: JIT support for NEW_STACK is deferred. Any function
-                // containing a NEW_STACK bails out of JIT compilation and runs
-                // through the interpreter. Follow-up ticket adds a dedicated
-                // jit_new_object_stack helper + CallFrame stackObjects hook.
-                s.compileFailed = true;
-                return true;
+            case OpCode::NEW_VALUE_OBJECT:
+            // MYT-134: reuse the NEW_OBJECT emission path for NEW_STACK on the
+            // JIT side. The JIT-side createObject helper (VirtualMachine::
+            // createObject) already does not call registerWithGC — the MYT-134
+            // interpreter-side win doesn't apply here anyway — so collapsing
+            // the two opcodes to the same JIT emission avoids forcing functions
+            // that contain promoted allocations into the interpreter. The
+            // STACK_OBJECT Value tag + executor plumbing (MYT-208) will
+            // introduce a distinct jit_new_stack helper with real savings.
+            case OpCode::NEW_STACK: return emitNewObjectOp(s, instr);
 
             case OpCode::GET_ITERATOR:       return emitGetIteratorOp(s);
             case OpCode::ITERATOR_HAS_NEXT:  return emitIteratorHasNextOp(s);
