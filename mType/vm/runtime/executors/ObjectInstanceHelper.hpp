@@ -4,6 +4,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
+#include <span>
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -37,13 +38,14 @@ namespace vm::runtime
         // Object creation helpers
         std::string parseGenericTypeArguments(const std::string& fullClassName,
                                               std::unordered_map<std::string, std::string>& genericTypeBindings);
-        std::vector<value::Value> prepareConstructorArguments(size_t argCount);
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> createObjectInstance(
             const std::string& baseClassName,
             const std::unordered_map<std::string, std::string>& genericTypeBindings);
+        // MYT-196: args passed as span so callers can back them with a
+        // SmallArgsBuffer and skip the per-call heap allocation.
         void invokeConstructor(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                               const std::string& baseClassName,
-                              const std::vector<value::Value>& args);
+                              std::span<const value::Value> args);
         void initializeObjectFields(
             std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef);

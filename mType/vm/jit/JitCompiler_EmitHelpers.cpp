@@ -113,6 +113,7 @@ namespace vm::jit
             switch (si.opcode)
             {
                 case OpCode::PUSH_STRING: case OpCode::GET_FIELD:
+                case OpCode::GET_FIELD_CACHED: case OpCode::SET_FIELD_CACHED:
                 case OpCode::SET_FIELD:   case OpCode::INLINE_SET_FIELD:
                 case OpCode::INLINE_GET_FIELD:
                 // MYT-152: LOAD_VAR / STORE_VAR produce / consume boxed Values
@@ -122,6 +123,11 @@ namespace vm::jit
                 case OpCode::NEW_OBJECT:
                 case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
                 case OpCode::CALL_METHOD: case OpCode::CALL_METHOD_CACHED: case OpCode::CALL_STATIC:
+                // MYT-198: fused _CACHED ops participate in boxed-types mode
+                // for the same reason their un-fused variants do — they
+                // produce / consume boxed Values on the operand stack.
+                case OpCode::LOAD_LOCAL_CALL_CACHED:
+                case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
                 case OpCode::NEW_ARRAY:   case OpCode::NEW_ARRAY_MULTI:
                 case OpCode::ARRAY_GET:
                 case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:

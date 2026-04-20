@@ -8,6 +8,7 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../ast/AccessModifier.hpp"
+#include <span>
 #include <unordered_map>
 #include <memory>
 
@@ -71,14 +72,15 @@ namespace vm::runtime
         FunctionExecutor* functionExecutor = nullptr;
         std::unique_ptr<ObjectInstanceHelper> instanceHelper;
 
-        // Helper methods for handleCallMethod
-        std::vector<value::Value> prepareMethodCallArguments(size_t argCount);
+        // Helper methods for handleCallMethod.
+        // MYT-196: args passed as std::span so callers can back them with a
+        // SmallArgsBuffer (no per-call heap alloc) or any vector-like.
         void invokeLambdaMethod(std::shared_ptr<BytecodeLambda> lambda,
-                               const std::vector<value::Value>& args,
+                               std::span<const value::Value> args,
                                const std::string& methodName);
         void invokeInstanceMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                  const std::string& methodName,
-                                 const std::vector<value::Value>& args,
+                                 std::span<const value::Value> args,
                                  size_t argCount);
     };
 }

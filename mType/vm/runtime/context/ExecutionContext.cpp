@@ -16,11 +16,12 @@ namespace vm::runtime
             oss << "This may indicate infinite recursion.\n";
             oss << "Call stack trace (most recent call first):\n";
 
-            // Show last 10 frames to help identify recursion pattern
+            // Show last 10 frames to help identify recursion pattern.
+            // MYT-197: resolve each frame's handle via its owning program.
             size_t startIdx = callStack.size() > 10 ? callStack.size() - 10 : 0;
             for (size_t i = startIdx; i < callStack.size(); ++i)
             {
-                oss << "  [" << i << "] " << callStack[i].functionName;
+                oss << "  [" << i << "] " << frameName(callStack[i]);
                 if (!callStack[i].definingClassName.empty())
                 {
                     oss << " (in class " << callStack[i].definingClassName << ")";
@@ -29,7 +30,7 @@ namespace vm::runtime
             }
 
             // Add the frame that would overflow
-            oss << "  [" << callStack.size() << "] " << frame.functionName;
+            oss << "  [" << callStack.size() << "] " << frameName(frame);
             if (!frame.definingClassName.empty())
             {
                 oss << " (in class " << frame.definingClassName << ")";

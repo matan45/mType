@@ -83,6 +83,12 @@ namespace vm::runtime
         // Program data
         const bytecode::BytecodeProgram* program;
 
+        // MYT-197: pre-warmed handle for the "__script_main__" sentinel. Set
+        // in execute() at program bind time so the top-of-interpret check
+        // `callStack.back().functionName == scriptMainHandle` is an integer
+        // compare instead of a hashmap-probe per pop.
+        bytecode::FunctionNameHandle scriptMainHandle{ bytecode::INVALID_FN_HANDLE };
+
         // Multi-program support: loaded library programs (index 0 = main)
         std::vector<const bytecode::BytecodeProgram*> loadedPrograms;
 
@@ -335,6 +341,11 @@ namespace vm::runtime
         // Extracted dispatch helpers (reduce executeInstruction size)
         void trySpecializeArithmetic(const bytecode::BytecodeProgram::Instruction& instr,
                                      bytecode::OpCode intOpcode, bytecode::OpCode floatOpcode);
+        // MYT-198: runtime fusion of PUSH_INT + ADD_INT into ADD_INT_CONST.
+        // Called from trySpecializeArithmetic immediately after the ADD →
+        // ADD_INT promotion lands. Keeps the symmetry with the _CACHED
+        // fusions driven by InlineCacheExecutor::tryFuseWithPriorLoadLocal.
+        void tryFuseAddIntConst();
         void executeCallWithJit(const bytecode::BytecodeProgram::Instruction& instr);
         void executeCallFastWithJit(const bytecode::BytecodeProgram::Instruction& instr);
         void executeAwait();

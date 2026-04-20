@@ -234,13 +234,16 @@ namespace vm::jit
                 return OSRBailoutReason::SHARED_FRAME_REJECTION;
         }
 
-        // Get function metadata for local count
+        // Get function metadata for local count.
+        // MYT-197: resolve the interned handle via the callee's program; OSR
+        // only runs on the frame's own program (no cross-program tier-up).
         std::string functionName;
         size_t localCount = 0;
         if (!context.callStack.empty())
         {
-            functionName = context.callStack.back().functionName;
-            auto funcMeta = program.getFunction(functionName);
+            const auto& frame = context.callStack.back();
+            functionName = program.getFrameName(frame.functionName);
+            auto funcMeta = program.getFunctionMeta(frame.functionName);
             if (funcMeta)
             {
                 localCount = funcMeta->localCount;

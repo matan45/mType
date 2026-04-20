@@ -73,6 +73,21 @@ namespace vm::bytecode
         DECLARE_VAR,        // Declare new variable
         LOAD_LOCAL,         // Load local variable (by slot index - faster)
         STORE_LOCAL,        // Store to local variable (by slot index)
+        // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL. Runtime-rewritten
+        // from LOAD_LOCAL / STORE_LOCAL once the slot's observed ValueType is
+        // monomorphic (N=1). The fast-path executor guards on the tag and
+        // skips variant discrimination; on guard failure the opcode is
+        // demoted back to the generic form and cachedDeoptCount is bumped
+        // sticky so we don't re-promote. RUNTIME-ONLY — same serialization
+        // invariant as CALL_METHOD_CACHED.
+        LOAD_LOCAL_INT,
+        LOAD_LOCAL_FLOAT,
+        LOAD_LOCAL_BOOL,
+        LOAD_LOCAL_BOXED_INST,
+        STORE_LOCAL_INT,
+        STORE_LOCAL_FLOAT,
+        STORE_LOCAL_BOOL,
+        STORE_LOCAL_BOXED_INST,
         LOAD_GLOBAL,        // Load global variable (by name index)
         STORE_GLOBAL,       // Store to global variable (by name index)
         LOAD_UPVALUE,       // Load closure upvalue (for lambdas)
@@ -112,6 +127,11 @@ namespace vm::bytecode
         // BytecodeProgram::readInstructions rejects it on deserialization — a .mtc
         // file containing it is malformed or tampered.
         CALL_METHOD_CACHED,
+        // MYT-194: IC-stable specialization of GET_FIELD / SET_FIELD. Embedded
+        // target (shape + fieldIndex) lives on the Instruction's mutable
+        // cachedField* fields. Same RUNTIME-ONLY invariant as CALL_METHOD_CACHED.
+        GET_FIELD_CACHED,
+        SET_FIELD_CACHED,
         CALL_STATIC,        // Call static method (operand: method name + arg count)
         INVOKE,             // Optimized method call (name + arg count)
         SUPER_INVOKE,       // Super method call
@@ -244,6 +264,14 @@ namespace vm::bytecode
         // Opcodes reserved for future extensions
         INLINE_GET_FIELD,   // Inlined trivial getter (operand: field name index, pushes field value)
 
+        // === Superinstruction Fusion (MYT-198) ===
+        // Runtime-fused adjacent pairs. First instr of the pair becomes NOP; this
+        // opcode occupies the second slot and does the combined work. fusedSlot on
+        // the Instruction carries the captured LOAD_LOCAL / PUSH_INT operand.
+        ADD_INT_CONST,            // PUSH_INT k + ADD_INT → int literal from operand[0] + tos (operand[0] = int literal)
+        LOAD_LOCAL_CALL_CACHED,   // LOAD_LOCAL s + CALL_METHOD_CACHED → shape-guard, direct dispatch (fusedSlot = s; operands + cached* reused from CALL_METHOD_CACHED)
+        LOAD_LOCAL_GET_FIELD_CACHED, // LOAD_LOCAL s + GET_FIELD_CACHED → shape-guard, indexed field read (fusedSlot = s; operands + cached* reused from GET_FIELD_CACHED)
+
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
         // without requiring manual updates each time a new opcode is added.
@@ -311,6 +339,14 @@ namespace vm::bytecode
             case OpCode::DECLARE_VAR: return "DECLARE_VAR";
             case OpCode::LOAD_LOCAL: return "LOAD_LOCAL";
             case OpCode::STORE_LOCAL: return "STORE_LOCAL";
+            case OpCode::LOAD_LOCAL_INT: return "LOAD_LOCAL_INT";
+            case OpCode::LOAD_LOCAL_FLOAT: return "LOAD_LOCAL_FLOAT";
+            case OpCode::LOAD_LOCAL_BOOL: return "LOAD_LOCAL_BOOL";
+            case OpCode::LOAD_LOCAL_BOXED_INST: return "LOAD_LOCAL_BOXED_INST";
+            case OpCode::STORE_LOCAL_INT: return "STORE_LOCAL_INT";
+            case OpCode::STORE_LOCAL_FLOAT: return "STORE_LOCAL_FLOAT";
+            case OpCode::STORE_LOCAL_BOOL: return "STORE_LOCAL_BOOL";
+            case OpCode::STORE_LOCAL_BOXED_INST: return "STORE_LOCAL_BOXED_INST";
             case OpCode::LOAD_GLOBAL: return "LOAD_GLOBAL";
             case OpCode::STORE_GLOBAL: return "STORE_GLOBAL";
             case OpCode::LOAD_UPVALUE: return "LOAD_UPVALUE";
@@ -343,6 +379,8 @@ namespace vm::bytecode
             case OpCode::SET_STATIC: return "SET_STATIC";
             case OpCode::CALL_METHOD: return "CALL_METHOD";
             case OpCode::CALL_METHOD_CACHED: return "CALL_METHOD_CACHED";
+            case OpCode::GET_FIELD_CACHED: return "GET_FIELD_CACHED";
+            case OpCode::SET_FIELD_CACHED: return "SET_FIELD_CACHED";
             case OpCode::CALL_STATIC: return "CALL_STATIC";
             case OpCode::INVOKE: return "INVOKE";
             case OpCode::SUPER_INVOKE: return "SUPER_INVOKE";
@@ -447,6 +485,10 @@ namespace vm::bytecode
             case OpCode::OBJECT_TO_VALUE: return "OBJECT_TO_VALUE";
 
             case OpCode::STRING_BUILD: return "STRING_BUILD";
+
+            case OpCode::ADD_INT_CONST: return "ADD_INT_CONST";
+            case OpCode::LOAD_LOCAL_CALL_CACHED: return "LOAD_LOCAL_CALL_CACHED";
+            case OpCode::LOAD_LOCAL_GET_FIELD_CACHED: return "LOAD_LOCAL_GET_FIELD_CACHED";
 
             default: return "UNKNOWN";
         }

@@ -31,7 +31,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 16> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 17> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -40,6 +40,10 @@ namespace
         // in Point.constructor and run interpreted), so this is the only
         // canonical script that exercises tryEmitInlinedFieldSet.
         "field_write_hot.mt",
+        // MYT-194: mirror of field_write_hot for the GET path. Primary
+        // acceptance benchmark for the GET_FIELD_CACHED interpreter fast
+        // path (and tryEmitInlinedFieldGet on the JIT side).
+        "field_read_hot.mt",
         "string_ops.mt",
         "recursive.mt",
         "bitwise_tight_loop.mt",

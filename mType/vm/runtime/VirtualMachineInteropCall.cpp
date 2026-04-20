@@ -95,7 +95,7 @@ namespace vm::runtime
             frame.returnAddress = program->getInstructionCount();
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = qualifiedName;
+            frame.functionName = program->internFrameName(qualifiedName);
             frame.thisInstance = instance;
             frame.definingClassName = definingClassName;
 
@@ -302,7 +302,7 @@ namespace vm::runtime
             frame.returnAddress = program->getInstructionCount();
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = qualifiedName;
+            frame.functionName = program->internFrameName(qualifiedName);
             frame.thisInstance = nullptr; // Static methods have no 'this'
             frame.definingClassName = className;
 

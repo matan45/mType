@@ -153,9 +153,10 @@ namespace debugger
                 // Also show locals declared inside the lambda
                 // Get their names from the lambda's function metadata
                 const auto* program = vm->getProgram();
-                if (program && !lambda->functionName.empty())
+                if (program && lambda->functionName != vm::bytecode::INVALID_FN_HANDLE)
                 {
-                    const auto* lambdaMetadata = program->getFunction(lambda->functionName);
+                    // MYT-197: O(1) handle-keyed metadata lookup.
+                    const auto* lambdaMetadata = program->getFunctionMeta(lambda->functionName);
                     if (lambdaMetadata && !lambdaMetadata->localVariableNames.empty())
                     {
                         // Show locals starting after parameters + captured variables
@@ -217,7 +218,8 @@ namespace debugger
                 return variables;
             }
 
-            const auto* funcMetadata = program->getFunction(currentFrame.functionName);
+            // MYT-197: O(1) handle-keyed metadata lookup.
+            const auto* funcMetadata = program->getFunctionMeta(currentFrame.functionName);
             if (!funcMetadata)
             {
                 return variables;

@@ -9,6 +9,7 @@
 #include "../../../value/NativeArray.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
+#include "../../../value/SmallArgsBuffer.hpp"
 #include "../../jit/JitCodeCache.hpp"
 #include "../../jit/JitContext.hpp"
 #include <algorithm>
@@ -29,14 +30,13 @@ namespace vm::runtime
         // Calculate frameBase BEFORE popping arguments
         size_t frameBase = context.stackManager->size() - argCount;
 
-        // Pop arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i)
+        // Pop arguments from stack (in reverse order) into a small-buffer-optimized
+        // scratch buffer — MYT-196.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i)
         {
-            args.push_back(context.stackManager->pop());
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
         // Check inline cache first, then fall back to full resolution
         const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = instr.cachedFuncMetadata;
@@ -57,7 +57,10 @@ namespace vm::runtime
                 {
                     vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
 
-                    value::Value result = nativeFunc(args);
+                    // Native signature still takes std::vector<Value>&.
+                    // Materialize a vector only on this cold path; see MYT-197 follow-up.
+                    std::vector<value::Value> nativeArgs(args.begin(), args.end());
+                    value::Value result = nativeFunc(nativeArgs);
 
                     vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
 
@@ -92,14 +95,16 @@ namespace vm::runtime
         if (funcMetadata)
         {
             // Convert lambda arguments to interface implementations if needed
-            convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+            convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
 
             // Create call frame
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase; // Use the frameBase calculated before popping args
             frame.localBase = context.stackManager->size(); // Locals start after arguments (which are now popped)
-            frame.functionName = functionName;
+            // MYT-197: intern on the target program so the handle belongs to
+            // whatever program owns the function (cross-library calls).
+            frame.functionName = targetProgram->internFrameName(functionName);
             frame.thisInstance = nullptr;
             frame.programIndex = targetProgramIndex;
 
@@ -173,21 +178,24 @@ namespace vm::runtime
 
         size_t frameBase = context.stackManager->size() - argCount;
 
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i)
+        // MYT-196: small-buffer-optimized args buffer.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i)
         {
-            args.push_back(context.stackManager->pop());
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
-        convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+        convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
 
         CallFrame frame;
         frame.returnAddress = context.instructionPointer;
         frame.frameBase = frameBase;
         frame.localBase = context.stackManager->size();
-        frame.functionName = funcMetadata->mangledName.empty() ? funcMetadata->name : funcMetadata->mangledName;
+        // MYT-197: intern once. mangledName is already registered with the
+        // program (see registerFunction), so this lookup is a hashmap hit
+        // after the first call site — no string rebuilding per call.
+        frame.functionName = context.program->internFrameName(
+            funcMetadata->mangledName.empty() ? funcMetadata->name : funcMetadata->mangledName);
         frame.thisInstance = nullptr;
         frame.programIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
 
@@ -290,21 +298,17 @@ namespace vm::runtime
         // Calculate frameBase BEFORE popping arguments
         size_t frameBase = context.stackManager->size() - argCount;
 
-        // Pop arguments from stack (in reverse order)
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i)
+        // Pop arguments from stack (in reverse order) — MYT-196 small-buffer.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i)
         {
-            args.push_back(context.stackManager->pop());
+            args[i - 1] = context.stackManager->pop();
         }
-        std::reverse(args.begin(), args.end());
 
-        // Build base qualified name with $static suffix (needed for frame.functionName on all paths)
-        std::string staticQualifiedName = qualifiedName;
-        if (staticQualifiedName.find("$static") == std::string::npos)
-        {
-            staticQualifiedName += "$static";
-        }
+        // MYT-197: $static suffix is now baked into the constant pool at
+        // compile time (see FunctionCallHelper::emitStaticMethodCall), so
+        // qualifiedName already ends in $static — no per-call concat.
+        const std::string& staticQualifiedName = qualifiedName;
 
         // Check inline cache first, then fall back to full resolution
         const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = instr.cachedFuncMetadata;
@@ -419,14 +423,16 @@ namespace vm::runtime
         if (funcMetadata)
         {
             // Convert lambda arguments to interface implementations if needed
-            convertLambdaArgumentsToInterfaces(args, funcMetadata->parameterTypes);
+            convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
 
             // Create call frame for static method
             CallFrame frame;
             frame.returnAddress = context.instructionPointer;
             frame.frameBase = frameBase; // Use the frameBase calculated before popping args
             frame.localBase = context.stackManager->size(); // Locals start after arguments (which are now popped)
-            frame.functionName = staticQualifiedName; // Use $static suffix for proper async method detection
+            // MYT-197: intern on the target program so the handle belongs to
+            // the program that actually owns the function.
+            frame.functionName = targetProgram->internFrameName(staticQualifiedName);
             frame.thisInstance = nullptr; // No 'this' for static methods
             frame.programIndex = targetProgramIndex;
 
@@ -495,7 +501,7 @@ namespace vm::runtime
     }
 
     void FunctionExecutor::convertLambdaArgumentsToInterfaces(
-        std::vector<value::Value>& args,
+        std::span<value::Value> args,
         const std::vector<std::string>& parameterTypes
     )
     {
@@ -652,10 +658,16 @@ namespace vm::runtime
                 // Instance method context
                 currentClassName = context.callStack.back().thisInstance->getClassDefinition()->getName();
             }
+            else if (!context.callStack.back().definingClassName.empty())
+            {
+                // Static method context - MYT-197: prefer frame.definingClassName
+                // (already set at push time) over resolving + splitting the
+                // interned function-name handle.
+                currentClassName = context.callStack.back().definingClassName;
+            }
             else
             {
-                // Static method context - extract class name from function name (ClassName::methodName)
-                const std::string& funcName = context.callStack.back().functionName;
+                const std::string& funcName = context.frameName(context.callStack.back());
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos)
                 {

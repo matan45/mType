@@ -36,14 +36,19 @@ namespace vm::runtime
             return false;
         }
 
-        const std::string& functionName = context.callStack.back().functionName;
-        // Static method names have format: ClassName::methodName
-        size_t colonPos = functionName.find("::");
-        if (colonPos == std::string::npos) {
-            return false;
+        // MYT-197: prefer frame.definingClassName (populated at push time)
+        // over resolving the interned handle and re-splitting.
+        std::string className;
+        if (!context.callStack.back().definingClassName.empty()) {
+            className = context.callStack.back().definingClassName;
+        } else {
+            const std::string& functionName = context.frameName(context.callStack.back());
+            size_t colonPos = functionName.find("::");
+            if (colonPos == std::string::npos) {
+                return false;
+            }
+            className = functionName.substr(0, colonPos);
         }
-
-        std::string className = functionName.substr(0, colonPos);
         auto classRegistry = context.environment->getClassRegistry();
         if (!classRegistry) {
             return false;
@@ -133,14 +138,18 @@ namespace vm::runtime
             return false;
         }
 
-        const std::string& functionName = context.callStack.back().functionName;
-        // Static method names have format: ClassName::methodName
-        size_t colonPos = functionName.find("::");
-        if (colonPos == std::string::npos) {
-            return false;
+        // MYT-197: prefer frame.definingClassName (populated at push time).
+        std::string className;
+        if (!context.callStack.back().definingClassName.empty()) {
+            className = context.callStack.back().definingClassName;
+        } else {
+            const std::string& functionName = context.frameName(context.callStack.back());
+            size_t colonPos = functionName.find("::");
+            if (colonPos == std::string::npos) {
+                return false;
+            }
+            className = functionName.substr(0, colonPos);
         }
-
-        std::string className = functionName.substr(0, colonPos);
         auto classRegistry = context.environment->getClassRegistry();
         if (!classRegistry) {
             return false;
@@ -324,6 +333,12 @@ namespace vm::runtime
         // Load value from stack
         value::Value val = (*context.stackManager)[stackPos];
         context.stackManager->push(val);
+
+        // MYT-199: observe the loaded type and, on a stable monomorphic
+        // observation, promote this instruction to LOAD_LOCAL_<TAG>. Gated
+        // on a simple frame: lambda / sharedFrame frames have divergent
+        // read paths above that the specialized executor can't replicate.
+        tryPromoteLoadLocal(val.tag());
     }
 
     void VariableExecutor::handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr)
@@ -429,5 +444,299 @@ namespace vm::runtime
 
         // Push value back for assignment expressions (e.g., int i = 0 in for loop)
         context.stackManager->push(val);
+
+        // MYT-199: observe the stored type and, on a stable monomorphic
+        // observation, promote this instruction to STORE_LOCAL_<TAG>.
+        tryPromoteStoreLocal(val.tag());
+    }
+
+    // ------------------------------------------------------------------
+    // MYT-199: type-quickening helpers and specialized handlers.
+    // ------------------------------------------------------------------
+
+    bool VariableExecutor::isCurrentFrameSimple() const
+    {
+        // Top-level script frame has no capture machinery — treat as simple.
+        if (context.callStack.empty()) return true;
+        const auto& frame = context.callStack.back();
+        // Lambda bodies route LOAD_LOCAL through capturedFrame — we can't
+        // replicate that here, so lambda frames are always non-simple.
+        if (frame.originatingLambda) return false;
+        // sharedFrame with use_count == 1 is speculative bookkeeping:
+        // handleStoreLocal allocates one on every store-with-varName in case
+        // a lambda later captures the slot, but no external holder exists
+        // yet. Mirrors OSRManager::captureState's check — only treat the
+        // frame as non-simple when a lambda (or interop path) is actually
+        // holding a reference (use_count > 1).
+        if (frame.sharedFrame && frame.sharedFrame.use_count() > 1) return false;
+        return true;
+    }
+
+    void VariableExecutor::tryPromoteLoadLocal(value::ValueType observedTag)
+    {
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        // Sticky demote — once the site has deopted, it stays on the generic
+        // path for good. Mirrors InlineCacheExecutor::tryPromoteToCached.
+        if (mut.cachedDeoptCount >= 1) return;
+        if (!isCurrentFrameSimple()) return;
+
+        bytecode::OpCode specialized;
+        switch (observedTag)
+        {
+        case value::ValueType::INT:
+            specialized = bytecode::OpCode::LOAD_LOCAL_INT;
+            break;
+        case value::ValueType::FLOAT:
+            specialized = bytecode::OpCode::LOAD_LOCAL_FLOAT;
+            break;
+        case value::ValueType::BOOL:
+            specialized = bytecode::OpCode::LOAD_LOCAL_BOOL;
+            break;
+        case value::ValueType::OBJECT:
+            specialized = bytecode::OpCode::LOAD_LOCAL_BOXED_INST;
+            break;
+        default:
+            // VOID / NULL_TYPE / STRING / VALUE_OBJECT / ARRAY / LAMBDA /
+            // PROMISE — no specialized variant for MVP. Leave generic.
+            return;
+        }
+
+        // observedValueType doubles as the "have we seen this site?" flag:
+        // 0xFF sentinel on a fresh Instruction, any other byte is a prior
+        // ValueType observation. A mismatch on a subsequent generic dispatch
+        // (which only happens after a sticky demote re-entry) will bail via
+        // the cachedDeoptCount gate above, so recording the first observation
+        // is always safe.
+        mut.observedValueType = static_cast<uint8_t>(observedTag);
+        mut.opcode = specialized;
+    }
+
+    void VariableExecutor::tryPromoteStoreLocal(value::ValueType observedTag)
+    {
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        if (mut.cachedDeoptCount >= 1) return;
+        if (!isCurrentFrameSimple()) return;
+
+        bytecode::OpCode specialized;
+        switch (observedTag)
+        {
+        case value::ValueType::INT:
+            specialized = bytecode::OpCode::STORE_LOCAL_INT;
+            break;
+        case value::ValueType::FLOAT:
+            specialized = bytecode::OpCode::STORE_LOCAL_FLOAT;
+            break;
+        case value::ValueType::BOOL:
+            specialized = bytecode::OpCode::STORE_LOCAL_BOOL;
+            break;
+        case value::ValueType::OBJECT:
+            specialized = bytecode::OpCode::STORE_LOCAL_BOXED_INST;
+            break;
+        default:
+            return;
+        }
+        mut.observedValueType = static_cast<uint8_t>(observedTag);
+        mut.opcode = specialized;
+    }
+
+    void VariableExecutor::deoptLoadLocal(const bytecode::BytecodeProgram::Instruction& /*instr*/)
+    {
+        // Rewrite opcode back to generic and mark sticky. `instr` aliases
+        // `mut` (single-threaded VM). Re-enter the generic handler so the
+        // current dispatch completes correctly with the observed value.
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        mut.opcode = bytecode::OpCode::LOAD_LOCAL;
+        if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
+        handleLoadLocal(mut);
+    }
+
+    void VariableExecutor::deoptStoreLocal(const bytecode::BytecodeProgram::Instruction& /*instr*/)
+    {
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        mut.opcode = bytecode::OpCode::STORE_LOCAL;
+        if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
+        handleStoreLocal(mut);
+    }
+
+    void VariableExecutor::handleLoadLocalSpecialized(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        value::ValueType expectedTag)
+    {
+        if (instr.operands.empty())
+        {
+            throw errors::RuntimeException("LOAD_LOCAL requires operand");
+        }
+
+        size_t slot = instr.operands[0];
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "LOAD_LOCAL slot index " + std::to_string(slot) +
+                " exceeds per-frame limit " +
+                std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
+        }
+
+        // Non-simple frames (lambda body / shared-frame function) require the
+        // capture-aware read paths in handleLoadLocal. We didn't promote from
+        // these, but this Instruction is shared across all invocations of
+        // this IP — if a later call happens to enter via a lambda/shared
+        // frame, defer to the generic handler. No sticky bump: the frame
+        // condition is orthogonal to the type observation.
+        if (!isCurrentFrameSimple())
+        {
+            handleLoadLocal(instr);
+            return;
+        }
+
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
+        if (stackPos >= context.stackManager->size())
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Local variable slot out of bounds: " + std::to_string(slot));
+        }
+
+        const value::Value& val = (*context.stackManager)[stackPos];
+        if (val.tag() != expectedTag)
+        {
+            // Type guard miss — stickily demote and let the generic handler
+            // finish this dispatch on the correct path.
+            deoptLoadLocal(instr);
+            return;
+        }
+
+        // Tag matched — this is the MYT-199 fast path. The read skips the
+        // lambda / shared-frame probes above, and the pushed value carries
+        // a known-good tag so future fusion (MYT-198 successors) can elide
+        // their own isInt / isFloat / isBool / isObject checks.
+        context.stackManager->push(val);
+    }
+
+    void VariableExecutor::handleStoreLocalSpecialized(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        value::ValueType expectedTag)
+    {
+        if (instr.operands.empty())
+        {
+            throw errors::RuntimeException("STORE_LOCAL requires operand");
+        }
+
+        size_t slot = instr.operands[0];
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "STORE_LOCAL slot index " + std::to_string(slot) +
+                " exceeds per-frame limit " +
+                std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
+        }
+
+        if (!isCurrentFrameSimple())
+        {
+            handleStoreLocal(instr);
+            return;
+        }
+
+        // Peek first so a type miss leaves the stack intact for the generic
+        // handler to re-run on deopt (mirrors handleCallMethodCached).
+        if (context.stackManager->size() == 0)
+        {
+            deoptStoreLocal(instr);
+            return;
+        }
+        const value::Value& tos = context.stackManager->peek(0);
+        if (tos.tag() != expectedTag)
+        {
+            deoptStoreLocal(instr);
+            return;
+        }
+
+        // Keep the varName resolution exactly as the generic handler — the
+        // sharedFrame pre-allocation that happens on the first STORE of a
+        // named slot is relied on by LAMBDA / CAPTURE_VARIABLE (the compiler
+        // emits STORE_LOCAL with operand[1]=nameIndex precisely so that a
+        // lambda defined later can capture the slot).
+        std::string varName;
+        if (instr.operands.size() > 1)
+        {
+            varName = context.program->getConstantPool().getString(instr.operands[1]);
+        }
+
+        value::Value val = context.stackManager->pop();
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
+
+        while (context.stackManager->size() < stackPos)
+        {
+            context.stackManager->getStack().push_back(std::monostate{});
+        }
+        if (stackPos >= context.stackManager->size())
+        {
+            context.stackManager->getStack().push_back(val);
+        }
+        else
+        {
+            (*context.stackManager)[stackPos] = val;
+        }
+
+        // SharedStackFrame propagation — identical to handleStoreLocal's
+        // post-write block. isCurrentFrameSimple() has already ruled out
+        // originatingLambda, so we don't duplicate that check here. The
+        // existing sharedFrame may have been pre-allocated by a prior
+        // (pre-promotion) store; keep it in sync so a lambda captured later
+        // sees current values.
+        if (!context.callStack.empty())
+        {
+            if (context.callStack.back().sharedFrame)
+            {
+                context.callStack.back().sharedFrame->setLocal(slot, val);
+            }
+            else if (!varName.empty())
+            {
+                context.callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
+                context.callStack.back().sharedFrame->setLocal(varName, slot, val);
+            }
+        }
+
+        context.stackManager->push(val);
+    }
+
+    void VariableExecutor::handleLoadLocalInt(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        handleLoadLocalSpecialized(instr, value::ValueType::INT);
+    }
+
+    void VariableExecutor::handleLoadLocalFloat(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        handleLoadLocalSpecialized(instr, value::ValueType::FLOAT);
+    }
+
+    void VariableExecutor::handleLoadLocalBool(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        handleLoadLocalSpecialized(instr, value::ValueType::BOOL);
+    }
+
+    void VariableExecutor::handleLoadLocalBoxedInst(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        handleLoadLocalSpecialized(instr, value::ValueType::OBJECT);
+    }
+
+    void VariableExecutor::handleStoreLocalInt(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        handleStoreLocalSpecialized(instr, value::ValueType::INT);
+    }
+
+    void VariableExecutor::handleStoreLocalFloat(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        handleStoreLocalSpecialized(instr, value::ValueType::FLOAT);
+    }
+
+    void VariableExecutor::handleStoreLocalBool(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        handleStoreLocalSpecialized(instr, value::ValueType::BOOL);
+    }
+
+    void VariableExecutor::handleStoreLocalBoxedInst(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        handleStoreLocalSpecialized(instr, value::ValueType::OBJECT);
     }
 }

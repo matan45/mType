@@ -17,6 +17,7 @@
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/IntegerCache.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
+#include "../../../value/SmallArgsBuffer.hpp"
 #include "../utils/BoxingUtils.hpp"
 #include "../utils/MethodResolver.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
@@ -345,18 +346,8 @@ namespace vm::runtime
         fieldDef->setValue(newValue);
     }
 
-    std::vector<value::Value> ObjectExecutor::prepareMethodCallArguments(size_t argCount) {
-        std::vector<value::Value> args;
-        args.reserve(argCount);
-        for (size_t i = 0; i < argCount; ++i) {
-            args.push_back(context.stackManager->pop());
-        }
-        std::reverse(args.begin(), args.end());
-        return args;
-    }
-
     void ObjectExecutor::invokeLambdaMethod(std::shared_ptr<BytecodeLambda> lambda,
-                                           const std::vector<value::Value>& args,
+                                           std::span<const value::Value> args,
                                            const std::string& methodName) {
         size_t lambdaStart = lambda->instructionPointer;
         size_t paramCount = lambda->parameterCount;
@@ -373,32 +364,40 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;  // Return to next instruction
         frame.frameBase = context.stackManager->size();
         frame.localBase = context.stackManager->size();
-        // Use the lambda's unique function name (e.g., __lambda_0) for metadata/exception table lookup
-        frame.functionName = lambda->functionName.empty() ?
-            (lambda->creatingClassName.empty() ? "<lambda>" : lambda->creatingClassName + "::<lambda>") :
-            lambda->functionName;
+        // Use the lambda's unique function name (e.g., __lambda_0) for metadata/exception table lookup.
+        // MYT-197: 4-byte handle copy; fall back to an interned display name
+        // only for lambdas created outside handleLambda.
+        if (lambda->functionName != bytecode::INVALID_FN_HANDLE) {
+            frame.functionName = lambda->functionName;
+        } else {
+            std::string fallback = lambda->creatingClassName.empty()
+                ? "<lambda>"
+                : lambda->creatingClassName + "::<lambda>";
+            frame.functionName = context.program->internFrameName(fallback);
+        }
         frame.thisInstance = lambda->capturedThis;  // Restore captured 'this'
         frame.originatingLambda = lambda;  // Store lambda reference for variable access
         frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
 
         context.pushCallFrame(frame);
 
-        vm::profiler::ProfilerHookHelper::onFunctionEntry(frame.functionName);
+        const std::string& frameNameStr = context.program->getFrameName(frame.functionName);
+        vm::profiler::ProfilerHookHelper::onFunctionEntry(frameNameStr);
 
         // Notify debugger of lambda entry
         if (debugger::DebugHookHelper::isDebuggingEnabled()) {
             auto sourceLoc = context.program->getSourceLocation(context.instructionPointer);
             if (sourceLoc) {
                 errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
-                debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errorsLoc);
+                debugger::DebugHookHelper::enterFunctionHook(frameNameStr, errorsLoc);
             } else {
                 // Fallback: use lambda start location if current instruction has no location
                 auto lambdaStartLoc = context.program->getSourceLocation(lambdaStart);
                 if (lambdaStartLoc) {
                     errors::SourceLocation errorsLoc(lambdaStartLoc->filename, lambdaStartLoc->line, lambdaStartLoc->column);
-                    debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errorsLoc);
+                    debugger::DebugHookHelper::enterFunctionHook(frameNameStr, errorsLoc);
                 } else {
-                    debugger::DebugHookHelper::enterFunctionHook(frame.functionName, errors::SourceLocation());
+                    debugger::DebugHookHelper::enterFunctionHook(frameNameStr, errors::SourceLocation());
                 }
             }
         }
@@ -411,8 +410,9 @@ namespace vm::runtime
             context.callStack.back().sharedFrame = newSharedFrame;
         }
 
-        // Get lambda metadata for parameter type information
-        auto* lambdaMetadata = context.program->getFunction(lambda->functionName);
+        // Get lambda metadata for parameter type information.
+        // MYT-197: O(1) handle lookup.
+        auto* lambdaMetadata = context.program->getFunctionMeta(lambda->functionName);
 
         // Push arguments onto stack (they become local variables at indices 0, 1, 2, ...)
         // Also register them by name in SharedStackFrame so nested lambdas can capture them
@@ -509,7 +509,7 @@ namespace vm::runtime
 
     void ObjectExecutor::invokeInstanceMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                              const std::string& methodName,
-                                             const std::vector<value::Value>& args,
+                                             std::span<const value::Value> args,
                                              size_t argCount) {
         auto classDef = instance->getClassDefinition();
 
@@ -638,8 +638,9 @@ namespace vm::runtime
                 "Method '" + qualifiedName + "' has no bytecode. All methods must be compiled to bytecode for VM execution.");
         }
 
-        // Convert lambda arguments to interface implementations if needed
-        std::vector<value::Value> modifiedArgs = args;
+        // Convert lambda arguments to interface implementations if needed.
+        // Copy span into a local vector so we can mutate slots for auto-boxing.
+        std::vector<value::Value> modifiedArgs(args.begin(), args.end());
         if (functionExecutor) {
             functionExecutor->convertLambdaArgumentsToInterfaces(modifiedArgs, funcMetadata->parameterTypes);
         }
@@ -655,7 +656,9 @@ namespace vm::runtime
         frame.returnAddress = context.instructionPointer;
         frame.frameBase = frameBase;
         frame.localBase = frameBase;
-        frame.functionName = qualifiedName;
+        // MYT-197: intern on the target program so the handle is resolvable
+        // by the same program that owns the FunctionMetadata.
+        frame.functionName = targetProgram->internFrameName(qualifiedName);
         frame.thisInstance = instance;
         frame.definingClassName = definingClassName;  // Store the class that defines this method
         frame.programIndex = targetProgramIndex;
@@ -706,8 +709,13 @@ namespace vm::runtime
         const std::string& methodName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
 
-        // Prepare arguments from stack
-        std::vector<value::Value> args = prepareMethodCallArguments(argCount);
+        // MYT-196: pop arguments into a small-buffer-optimized scratch buffer.
+        // Buffer outlives the invokeLambdaMethod / invokeInstanceMethod call,
+        // so the span handed to them remains valid.
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i) {
+            args[i - 1] = context.stackManager->pop();
+        }
 
         // Pop object and check for null (skip if compiler guarantees non-null)
         value::Value objectValue = context.stackManager->pop();
@@ -724,7 +732,7 @@ namespace vm::runtime
         // Handle lambda invocation
         if (value::isLambda(objectValue)) {
             auto lambda = value::asLambda(objectValue);
-            invokeLambdaMethod(lambda, args, methodName);
+            invokeLambdaMethod(lambda, args.span(), methodName);
             return;
         }
 
@@ -754,7 +762,7 @@ namespace vm::runtime
                 tempInstance->setGenericTypeBinding(param, type);
             }
 
-            invokeInstanceMethod(tempInstance, methodName, args, argCount);
+            invokeInstanceMethod(tempInstance, methodName, args.span(), argCount);
             return;
         }
 
@@ -765,7 +773,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        invokeInstanceMethod(instance, methodName, args, argCount);
+        invokeInstanceMethod(instance, methodName, args.span(), argCount);
     }
 
     void ObjectExecutor::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -799,8 +807,9 @@ namespace vm::runtime
             if (context.callStack.back().thisInstance) {
                 return context.callStack.back().thisInstance->getClassDefinition()->getName();
             } else {
-                // Fallback: extract class name from function name (static methods)
-                const std::string& funcName = context.callStack.back().functionName;
+                // Fallback: extract class name from function name (static methods).
+                // MYT-197: resolve the interned handle before splitting.
+                const std::string& funcName = context.frameName(context.callStack.back());
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos) {
                     return funcName.substr(0, colonPos);
@@ -846,9 +855,11 @@ namespace vm::runtime
         bool isSubclassCheck = isSubclass(currentClassName, targetClassName);
 
         // Special case: Static field initialization (SET operations) happens in global scope
-        // Allow SET during static initialization (either no call stack or in __script_main__)
+        // Allow SET during static initialization (either no call stack or in __script_main__).
+        // MYT-197: compare interned handles (integer compare) instead of std::strings.
         bool inScriptMain = !context.callStack.empty() &&
-                           context.callStack.back().functionName == "__script_main__";
+                           context.callStack.back().functionName
+                               == context.program->internFrameName("__script_main__");
         if (currentClassName.empty() && (context.callStack.empty() || inScriptMain) && isSetter) {
             // Allow initialization by treating it as same class access
             isSameClass = true;
@@ -893,8 +904,11 @@ namespace vm::runtime
             // Create an instance of ArrayIteratorHelper with the array as constructor argument
             auto iteratorInstance = value::ObjectInstancePool::getInstance().acquire(iteratorHelperClass);
 
-            // Find and invoke the constructor with 1 argument (the array)
-            auto constructor = iteratorHelperClass->findConstructorByTypes({collectionValue});
+            // Find and invoke the constructor with 1 argument (the array).
+            // Local array lets us hand a span without allocating a vector.
+            value::Value oneArg[] = { collectionValue };
+            auto constructor = iteratorHelperClass->findConstructorByTypes(
+                std::span<const value::Value>(oneArg, 1));
             if (!constructor) {
                 utils::ErrorLocationHelper::throwRuntimeError(context,
                     "ArrayIteratorHelper constructor not found");
@@ -917,11 +931,9 @@ namespace vm::runtime
 
         auto collection = value::asObject(collectionValue);
 
-        // Call the iterator() method on the collection
+        // Call the iterator() method on the collection — no args, no buffer.
         std::string methodName = "iterator";
-        std::vector<value::Value> args; // No arguments for iterator()
-
-        invokeInstanceMethod(collection, methodName, args, 0);
+        invokeInstanceMethod(collection, methodName, std::span<const value::Value>{}, 0);
 
         // The iterator object is now on the stack (pushed by invokeInstanceMethod)
     }
@@ -943,11 +955,9 @@ namespace vm::runtime
 
         auto iterator = value::asObject(iteratorValue);
 
-        // Call hasNext() method on the iterator
+        // Call hasNext() method on the iterator — no args, no buffer.
         std::string methodName = "hasNext";
-        std::vector<value::Value> args;
-
-        invokeInstanceMethod(iterator, methodName, args, 0);
+        invokeInstanceMethod(iterator, methodName, std::span<const value::Value>{}, 0);
 
         // The boolean result is now on the stack
     }
@@ -966,11 +976,9 @@ namespace vm::runtime
 
         auto iterator = value::asObject(iteratorValue);
 
-        // Call next() method on the iterator
+        // Call next() method on the iterator — no args, no buffer.
         std::string methodName = "next";
-        std::vector<value::Value> args;
-
-        invokeInstanceMethod(iterator, methodName, args, 0);
+        invokeInstanceMethod(iterator, methodName, std::span<const value::Value>{}, 0);
 
         // The next element is now on the stack
     }
@@ -992,12 +1000,10 @@ namespace vm::runtime
 
         auto iterator = value::asObject(iteratorValue);
 
-        // Call close() method on the iterator (for cleanup)
+        // Call close() method on the iterator (for cleanup) — no args, no buffer.
         std::string methodName = "close";
-        std::vector<value::Value> args;
-
         try {
-            invokeInstanceMethod(iterator, methodName, args, 0);
+            invokeInstanceMethod(iterator, methodName, std::span<const value::Value>{}, 0);
             // Pop the return value (close() returns void)
             context.stackManager->pop();
         }

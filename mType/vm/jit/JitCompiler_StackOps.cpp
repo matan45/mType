@@ -65,6 +65,17 @@ namespace vm::jit
 
             static_cast<uint8_t>(OpCode::LOAD_LOCAL),
             static_cast<uint8_t>(OpCode::STORE_LOCAL),
+            // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL variants are
+            // jittable via the generic emit path — see the switch arms in
+            // JitCompiler_ControlFlow.cpp.
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_INT),
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_FLOAT),
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_BOOL),
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_BOXED_INST),
+            static_cast<uint8_t>(OpCode::STORE_LOCAL_INT),
+            static_cast<uint8_t>(OpCode::STORE_LOCAL_FLOAT),
+            static_cast<uint8_t>(OpCode::STORE_LOCAL_BOOL),
+            static_cast<uint8_t>(OpCode::STORE_LOCAL_BOXED_INST),
             static_cast<uint8_t>(OpCode::LOAD_VAR),
             static_cast<uint8_t>(OpCode::STORE_VAR),
 
@@ -83,12 +94,17 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::PUSH_STRING),
 
             static_cast<uint8_t>(OpCode::GET_FIELD),
+            static_cast<uint8_t>(OpCode::GET_FIELD_CACHED),    // MYT-194
             static_cast<uint8_t>(OpCode::SET_FIELD),
+            static_cast<uint8_t>(OpCode::SET_FIELD_CACHED),    // MYT-194
             static_cast<uint8_t>(OpCode::INLINE_GET_FIELD),
             static_cast<uint8_t>(OpCode::INLINE_SET_FIELD),
 
             static_cast<uint8_t>(OpCode::CALL_METHOD),
             static_cast<uint8_t>(OpCode::CALL_METHOD_CACHED),  // MYT-173
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_CALL_CACHED),   // MYT-198
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_GET_FIELD_CACHED), // MYT-198
+            static_cast<uint8_t>(OpCode::ADD_INT_CONST),       // MYT-198
             static_cast<uint8_t>(OpCode::CALL_STATIC),
 
             static_cast<uint8_t>(OpCode::NEW_OBJECT),

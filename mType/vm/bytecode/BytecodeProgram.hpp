@@ -1,6 +1,9 @@
 ﻿#pragma once
+#include <cstdint>
+#include <deque>
 #include <vector>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <iosfwd>
@@ -13,6 +16,22 @@ namespace runtimeTypes::klass { class ClassDefinition; }
 
 namespace vm::bytecode
 {
+    // MYT-197: 4-byte handle into a BytecodeProgram's frame-name interner.
+    // Replaces std::string on hot-path carriers (CallFrame::functionName,
+    // BytecodeLambda::functionName, Instruction::cachedMethodQualifiedName)
+    // so per-call frame pushes do a 4-byte copy instead of a std::string
+    // allocation. Always interned by the program that owns the frame — see
+    // BytecodeProgram::internFrameName / getFrameName. Not serialized: the
+    // interner is rebuilt lazily at runtime as push sites call internFrameName.
+    struct FunctionNameHandle
+    {
+        uint32_t id;
+        constexpr bool operator==(FunctionNameHandle other) const { return id == other.id; }
+        constexpr bool operator!=(FunctionNameHandle other) const { return id != other.id; }
+    };
+
+    inline constexpr FunctionNameHandle INVALID_FN_HANDLE{ UINT32_MAX };
+
     /**
      * Represents a compiled bytecode program with constant pool and metadata
      * This is the output of the BytecodeCompiler and input to the VirtualMachine
@@ -53,12 +72,64 @@ namespace vm::bytecode
             // makes the demote sticky so we don't flip/unflip on unstable sites.
             // These fields are disjoint from cachedFuncMetadata et al., which serve
             // the CALL opcode (see FunctionExecutor).
+            //
+            // LIFETIME: cachedMethodShape / cachedFieldShape below are raw
+            // pointers into the class registry. The registry owns
+            // ClassDefinition objects for the program's lifetime (they're
+            // registered at bytecode-load time and never freed until shutdown),
+            // so these pointers remain stable across all dispatches that could
+            // read them. They are cleared to nullptr on deopt (see
+            // deoptAndReprocess / deoptGetFieldAndReprocess) — never dangling,
+            // only null. Do NOT copy into any data structure with a longer
+            // lifetime than a BytecodeProgram instance without revisiting this.
             mutable const runtimeTypes::klass::ClassDefinition* cachedMethodShape = nullptr;
             mutable const FunctionMetadata* cachedMethodFunc = nullptr;
             mutable const BytecodeProgram* cachedMethodProgram = nullptr;
             mutable size_t cachedMethodProgramIndex = 0;
-            mutable std::string cachedMethodQualifiedName;
+            // MYT-197: interned handle into cachedMethodProgram's frame-name
+            // table. Snapshotted from MethodICEntry::qualifiedName at CACHED-
+            // promote time; cleared to INVALID_FN_HANDLE in deoptAndReprocess.
+            mutable FunctionNameHandle cachedMethodQualifiedName{ INVALID_FN_HANDLE };
+            // MYT-195: pre-resolved class prefix of cachedMethodQualifiedName.
+            // Snapshotted from MethodICEntry::definingClassName at CACHED-promote
+            // time so dispatchDirectFromCachedTarget doesn't re-split the qualified
+            // name on every dispatch. Cleared in deoptAndReprocess.
+            mutable std::string cachedMethodDefiningClassName;
             mutable uint8_t cachedDeoptCount = 0;
+
+            // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED embedded target.
+            // Once the field IC at this IP has stabilized to MONOMORPHIC, the
+            // opcode is rewritten to the _CACHED variant and these fields
+            // snapshot the resolved shape + field slot — the hot path becomes a
+            // single shape compare + indexed field access, skipping the
+            // icTable hashmap probe and the FieldInlineCache linear scan. On
+            // shape miss the opcode is rewritten back and cachedFieldShape is
+            // cleared; cachedFieldDeoptCount>=1 makes the demote sticky.
+            // Kept parallel to cachedMethod* (rather than shared) per ticket.
+            mutable const runtimeTypes::klass::ClassDefinition* cachedFieldShape = nullptr;
+            mutable size_t cachedFieldIndex = static_cast<size_t>(-1);
+            mutable uint8_t cachedFieldDeoptCount = 0;
+
+            // MYT-198: Superinstruction fusion. When a CACHED / ADD_INT runtime
+            // rewrite fires, its predecessor LOAD_LOCAL / PUSH_INT may be fused
+            // into the current instruction: the prior op becomes NOP and this
+            // op is rewritten to a fused variant (LOAD_LOCAL_CALL_CACHED,
+            // LOAD_LOCAL_GET_FIELD_CACHED, or ADD_INT_CONST). fusedSlot carries
+            // the captured operand (local slot for _CACHED fusions, int
+            // constant pool index for ADD_INT_CONST). fusedDeoptCount makes the
+            // un-fuse decision sticky — once >= 1, the same pair is never
+            // re-fused at this site. Purely runtime state; never serialized.
+            mutable uint32_t fusedSlot = 0;
+            mutable uint8_t fusedDeoptCount = 0;
+
+            // MYT-199: per-site observed-type tag for LOAD_LOCAL / STORE_LOCAL
+            // type-quickening. 0xFF is the "never observed" sentinel; any other
+            // value is a value::ValueType cast to uint8_t, captured on the
+            // first generic dispatch at this IP. The sticky-demote gate reuses
+            // cachedDeoptCount above — a site with cachedDeoptCount >= 1
+            // permanently stays on the generic LOAD_LOCAL / STORE_LOCAL path.
+            // Purely runtime state; never serialized.
+            mutable uint8_t observedValueType = 0xFF;
 
             Instruction();
             Instruction(OpCode op);
@@ -297,6 +368,23 @@ namespace vm::bytecode
         std::unordered_map<std::string, FunctionMetadata> functions;
         std::vector<std::string> functionIndexToName;
         std::unordered_map<std::string, size_t> functionNameToIndex;
+
+        // MYT-197: frame-name interner. Disjoint from functionIndexToName above
+        // (which backs CALL_FAST + .mtc serialization and must stay stable /
+        // not see runtime-only names). A deque is used so existing string_view
+        // keys in frameNameToId stay valid when new entries are pushed. Meta
+        // is a parallel vector holding either &functions[name] (registered
+        // function) or nullptr (runtime-only name like __script_main__,
+        // interop-built ctor names, or the "<lambda>" display fallback).
+        //
+        // mutable so const BytecodeProgram* consumers (VM/executor convention
+        // treats programs as read-mostly — see getMutableInstructionAt) can
+        // intern on the hot path without casting at every call site. The
+        // interner is effectively a runtime-filled cache, analogous to the
+        // Instruction::cached* fields, which are also `mutable`.
+        mutable std::deque<std::string> frameNameById;
+        mutable std::unordered_map<std::string_view, uint32_t> frameNameToId;
+        mutable std::vector<const FunctionMetadata*> frameNameToMeta;
         std::unordered_map<size_t, SourceLocation> sourceLocations;
         std::vector<ClassMetadata> classes; // Class metadata for cached bytecode
         std::vector<InterfaceMetadata> interfaces; // Interface metadata for cached bytecode
@@ -311,6 +399,15 @@ namespace vm::bytecode
         // (e.g. deserialized .mtc files pre-dating this field).
         size_t topLevelLocalCount = 0;
         std::string sourceFilePath; // For class registration when loading cached bytecode
+
+        // MYT-198: lazy cache backing isFusionUnsafeTarget. `built` is the
+        // dirty bit; cleared by any mutation path. The set itself is small in
+        // practice (one entry per JUMP*, LOOP_START, function start, and
+        // exception handler), so a hash set is fine vs a bitset.
+        mutable std::unordered_set<size_t> fusionUnsafeTargets;
+        mutable bool fusionUnsafeTargetsBuilt = false;
+        void buildFusionUnsafeTargets() const;
+        void invalidateFusionUnsafeTargets() const { fusionUnsafeTargetsBuilt = false; fusionUnsafeTargets.clear(); }
 
     public:
         BytecodeProgram();
@@ -329,6 +426,19 @@ namespace vm::bytecode
         Instruction& getMutableInstruction(size_t offset);
         const std::vector<Instruction>& getInstructions() const;
         size_t getInstructionCount() const;
+
+        // MYT-198: control-flow target query for runtime superinstruction fusion.
+        // Returns true if `offset` is reachable from anywhere other than its
+        // immediate predecessor — i.e. any JUMP* target, loop header, exception
+        // handler entry, or function entry point. Fusion must NOT collapse a
+        // pair whose second slot is such a target, because jumping directly to
+        // the fused op would execute the prior (now-implicit) LOAD_LOCAL on a
+        // stack that the jumping caller didn't set up for it.
+        //
+        // Lazily built on first call and memoised; invalidated by any call that
+        // mutates the instruction vector (replaceInstructions / removeInstructions
+        // / emit / updateAllJumpOffsets). Single-threaded VM, so no locking.
+        bool isFusionUnsafeTarget(size_t offset) const;
 
         // Optimization Support (for peephole optimizer)
         void replaceInstructions(size_t offset, size_t count, const std::vector<Instruction>& newInstructions);
@@ -353,6 +463,15 @@ namespace vm::bytecode
         size_t getFunctionIndex(const std::string& name) const;
         const FunctionMetadata* getFunctionByIndex(size_t index) const;
         size_t getFunctionCount() const;
+
+        // MYT-197: frame-name interning. internFrameName is idempotent; a
+        // second call with the same text returns the same handle. registerFunction
+        // calls this itself, so handles created before registration have their
+        // metadata backfilled when the registration arrives. Callable on a
+        // const* — the interner is mutable cache state.
+        FunctionNameHandle internFrameName(std::string_view name) const;
+        const std::string& getFrameName(FunctionNameHandle handle) const;
+        const FunctionMetadata* getFunctionMeta(FunctionNameHandle handle) const;
 
         // Global Variable Management (for debugging)
         void registerGlobalVariable(const GlobalVariableMetadata& metadata);
@@ -437,5 +556,17 @@ namespace vm::bytecode
         void readInterfaceMethodSignature(std::istream& in, InterfaceMethodSignature& sig);
         void writeInterfaceMetadata(std::ostream& out, const InterfaceMetadata& meta) const;
         void readInterfaceMetadata(std::istream& in, InterfaceMetadata& meta);
+    };
+}
+
+namespace std
+{
+    template <>
+    struct hash<vm::bytecode::FunctionNameHandle>
+    {
+        size_t operator()(vm::bytecode::FunctionNameHandle h) const noexcept
+        {
+            return hash<uint32_t>{}(h.id);
+        }
     };
 }

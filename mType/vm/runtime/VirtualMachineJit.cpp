@@ -1,7 +1,9 @@
 #include "VirtualMachine.hpp"
+#include <cassert>
 #include "../../errors/RuntimeException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../value/SmallArgsBuffer.hpp"
 #include "../jit/JitProfiler.hpp"
 #include "../jit/JitCodeCache.hpp"
 #include "../jit/JitCompiler.hpp"
@@ -53,7 +55,7 @@ namespace vm::runtime
         frame.returnAddress = savedIP;
         frame.frameBase = savedStackSize;
         frame.localBase = savedStackSize;
-        frame.functionName = funcName;
+        frame.functionName = program->internFrameName(funcName);
         frame.thisInstance = nullptr;
         pushCallFrame(frame);
 
@@ -261,7 +263,17 @@ namespace vm::runtime
         frame.returnAddress = savedIP;
         frame.frameBase = savedStackSize;
         frame.localBase = savedStackSize;
-        frame.functionName = qualifiedName;
+        // MYT-197: intern on the callee's owning program. Prefer calleeProgram
+        // (passed by the JIT caller) when it's set; fall back to whichever
+        // program `calleeProgramIndex` resolves to. Never index-dereference
+        // loadedPrograms blindly — if the lookup above didn't find calleeProgram
+        // in the list, calleeProgramIndex could point at the wrong program.
+        const bytecode::BytecodeProgram* ownerProgram =
+            calleeProgram ? calleeProgram
+                          : (calleeProgramIndex < loadedPrograms.size()
+                                 ? loadedPrograms[calleeProgramIndex]
+                                 : program);
+        frame.functionName = ownerProgram->internFrameName(qualifiedName);
         frame.thisInstance = instance;
         frame.definingClassName = definingClassName;
         // MYT-182: carry the callee's programIndex so the normal return
@@ -363,12 +375,58 @@ namespace vm::runtime
         {
             const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
             inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+
+            // MYT-198: try to fuse ADD_INT with a preceding PUSH_INT into
+            // ADD_INT_CONST. Only ADD_INT is covered by the fused opcode set
+            // for MVP (the same pattern would extend to SUB/MUL/DIV trivially).
+            if (intOpcode == bytecode::OpCode::ADD_INT)
+            {
+                tryFuseAddIntConst();
+            }
         }
         else if (lt == jit::ic::ObservedType::FLOAT && rt == jit::ic::ObservedType::FLOAT)
         {
             const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = floatOpcode;
             inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
         }
+    }
+
+    void VirtualMachine::tryFuseAddIntConst()
+    {
+        const size_t ip = instructionPointer;
+        if (ip == 0) return;
+
+        // Prior must be PUSH_INT; its operand[0] is a constant-pool index
+        // (see StackOperationsExecutor::handlePushInt). ADD_INT_CONST stores
+        // that same index in fusedSlot and reads the literal from the pool
+        // at dispatch time — no eager resolution.
+        const auto& prev = program->getInstruction(ip - 1);
+        if (prev.opcode != bytecode::OpCode::PUSH_INT) return;
+        if (prev.operands.empty()) return;
+
+        // Same fusion-safety gates as the LOAD_LOCAL fusions: no control-flow
+        // target may land directly on the fused op, and sticky un-fuse blocks
+        // re-fusion.
+        if (program->isFusionUnsafeTarget(ip)) return;
+
+        auto& mut = const_cast<bytecode::BytecodeProgram*>(program)
+                        ->getMutableInstruction(ip);
+        if (mut.fusedDeoptCount >= 1) return;
+
+        uint64_t constIdx = prev.operands[0];
+        // fusedSlot is uint32_t — assert before truncation so an oversized
+        // constant-pool index surfaces as a clean failure rather than silent
+        // data loss. Constant pools are bounded by the compiler, but the
+        // cast is attacker-reachable via a malformed .mtc operand.
+        assert(constIdx <= UINT32_MAX &&
+               "ADD_INT_CONST fusion: PUSH_INT operand exceeds fusedSlot width");
+        auto& prevMut = const_cast<bytecode::BytecodeProgram*>(program)
+                            ->getMutableInstruction(ip - 1);
+        prevMut.opcode = bytecode::OpCode::NOP;
+        prevMut.operands.clear();
+
+        mut.fusedSlot = static_cast<uint32_t>(constIdx);
+        mut.opcode = bytecode::OpCode::ADD_INT_CONST;
     }
 
     void VirtualMachine::executeCallWithJit(
@@ -384,11 +442,10 @@ namespace vm::runtime
             {
                 size_t argCount = instr.operands[1];
 
-                std::vector<value::Value> args;
-                args.reserve(argCount);
-                for (size_t i = 0; i < argCount; ++i)
-                    args.push_back(stackManager->pop());
-                std::reverse(args.begin(), args.end());
+                // MYT-196: small-buffer-optimized args for JIT entry.
+                value::SmallArgsBuffer args(argCount);
+                for (size_t i = argCount; i > 0; --i)
+                    args[i - 1] = stackManager->pop();
 
                 jit::JitContext jitCtx{};
                 jitCtx.args = args.data();
@@ -437,11 +494,10 @@ namespace vm::runtime
                 {
                     size_t argCount = instr.operands[1];
 
-                    std::vector<value::Value> args;
-                    args.reserve(argCount);
-                    for (size_t i = 0; i < argCount; ++i)
-                        args.push_back(stackManager->pop());
-                    std::reverse(args.begin(), args.end());
+                    // MYT-196: small-buffer-optimized args for JIT entry.
+                    value::SmallArgsBuffer args(argCount);
+                    for (size_t i = argCount; i > 0; --i)
+                        args[i - 1] = stackManager->pop();
 
                     jit::JitContext jitCtx{};
                     jitCtx.args = args.data();

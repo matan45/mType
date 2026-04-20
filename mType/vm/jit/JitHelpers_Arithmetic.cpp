@@ -78,12 +78,13 @@ namespace vm::jit
         if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
             return false;
 
-        // Track on the VM call stack for overflow protection
+        // Track on the VM call stack for overflow protection.
+        // MYT-197: intern on ctx->program (owner of the JIT-dispatched function).
         vm::runtime::CallFrame frame;
         frame.returnAddress = 0;
         frame.frameBase = 0;
         frame.localBase = 0;
-        frame.functionName = funcName;
+        frame.functionName = ctx->program->internFrameName(funcName);
         frame.thisInstance = nullptr;
         ctx->vm->pushCallFrame(frame);
         ctx->vm->incrementJitNativeDepth();

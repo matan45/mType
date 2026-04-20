@@ -118,11 +118,17 @@ namespace vm::runtime
         } else {
             CallFrame frame = context.callStack.back();
 
-            vm::profiler::ProfilerHookHelper::onFunctionExit(frame.functionName);
+            // MYT-197: resolve the frame's interned handle to a string only
+            // when the gated profiler / debugger hook actually fires. Both
+            // gates short-circuit when disabled, keeping the hot path free
+            // of std::string materialisation.
+            if (vm::profiler::ProfilerHookHelper::isProfilingEnabled()) {
+                vm::profiler::ProfilerHookHelper::onFunctionExit(context.frameName(frame));
+            }
 
             // Notify debugger of function exit BEFORE popping the call stack
             if (debugger::DebugHookHelper::isDebuggingEnabled()) {
-                debugger::DebugHookHelper::exitFunctionHook(frame.functionName);
+                debugger::DebugHookHelper::exitFunctionHook(context.frameName(frame));
             }
 
             context.callStack.pop_back();
@@ -152,7 +158,8 @@ namespace vm::runtime
         // If so, wrap the return value in a PromiseValue (unless already wrapped by CREATE_PROMISE)
         if (!context.callStack.empty()) {
             const CallFrame& frame = context.callStack.back();
-            auto funcMetadata = context.program->getFunction(frame.functionName);
+            // MYT-197: O(1) handle-keyed metadata lookup.
+            auto funcMetadata = context.program->getFunctionMeta(frame.functionName);
 
             if (funcMetadata && funcMetadata->isAsync) {
                 // Check if already wrapped in Promise (by CREATE_PROMISE opcode)

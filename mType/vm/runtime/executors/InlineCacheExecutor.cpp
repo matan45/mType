@@ -1,4 +1,5 @@
 #include "InlineCacheExecutor.hpp"
+#include <cassert>
 #include "ObjectExecutor.hpp"
 #include "FunctionExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
@@ -7,6 +8,8 @@
 #include "../validation/AccessValidator.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../../value/ValueShim.hpp"
+#include "../../../value/SmallArgsBuffer.hpp"
+#include "../../../constants/SecurityConstants.hpp"
 
 namespace vm::runtime
 {
@@ -50,7 +53,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
@@ -103,6 +106,13 @@ namespace vm::runtime
                     instance->ensureFieldVector();
                 }
                 cache.addEntry(classDef, fieldIndex);
+
+                // MYT-194: once the site stabilizes to MONO, promote the opcode
+                // so subsequent accesses skip the icTable hashmap probe and the
+                // per-entry linear scan entirely. The helper internally gates
+                // on cache.state == MONOMORPHIC, so POLY/MEGA transitions no-op.
+                tryPromoteFieldToCached(instr, classDef, fieldIndex,
+                                         bytecode::OpCode::GET_FIELD_CACHED);
             }
         }
     }
@@ -142,7 +152,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
@@ -190,6 +200,10 @@ namespace vm::runtime
                     instance->ensureFieldVector();
                 }
                 cache.addEntry(classDef, fieldIndex);
+
+                // MYT-194: see handleGetFieldIC — promote once IC hits MONO.
+                tryPromoteFieldToCached(instr, classDef, fieldIndex,
+                                         bytecode::OpCode::SET_FIELD_CACHED);
             }
         }
     }
@@ -205,7 +219,7 @@ namespace vm::runtime
         value::Value objectValue = context.stackManager->pop();
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
@@ -266,7 +280,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
 
@@ -341,7 +355,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinition().get();
+        auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
@@ -364,10 +378,16 @@ namespace vm::runtime
 
                 // MYT-173: shared with handleCallMethodCached — see the helper
                 // for the full pop/push-frame/jump sequence.
+                // MYT-197: intern on the callee's owning program. This path
+                // is pre-promotion to CALL_METHOD_CACHED — only hot for a
+                // handful of calls before tryPromoteToCached flips the opcode;
+                // the internFrameName hashmap hit is fine here.
                 dispatchDirectFromCachedTarget(
                     funcMeta, entry->startOffset,
                     entry->program, entry->programIndex,
-                    entry->qualifiedName, objectValue, argCount);
+                    entry->program->internFrameName(entry->qualifiedName),
+                    entry->definingClassName,
+                    objectValue, argCount);
                 return;
             }
         }
@@ -418,6 +438,13 @@ namespace vm::runtime
                     entry.funcMetadata = resolution.funcMetadata;
                     entry.startOffset = resolution.funcMetadata->startOffset;
                     entry.qualifiedName = resolution.qualifiedName;
+                    // MYT-195: pre-resolve the class prefix once, here on the
+                    // slow path, so dispatchDirectFromCachedTarget can just
+                    // copy the string into the frame on every subsequent hit.
+                    size_t colonPos = entry.qualifiedName.find("::");
+                    if (colonPos != std::string::npos) {
+                        entry.definingClassName = entry.qualifiedName.substr(0, colonPos);
+                    }
                     entry.program = resolution.program;
                     entry.programIndex = resolution.programIndex;
                     // MYT-183: re-fetch cache reference immediately before
@@ -443,14 +470,16 @@ namespace vm::runtime
         size_t startOffset,
         const bytecode::BytecodeProgram* program,
         size_t programIndex,
-        const std::string& qualifiedName,
+        bytecode::FunctionNameHandle qualifiedName,
+        const std::string& definingClassName,
         value::Value objectValue,
         size_t argCount)
     {
         auto instance = value::asObject(objectValue);
 
-        // Pop arguments
-        std::vector<value::Value> args(argCount);
+        // Pop arguments into a small-buffer-optimized scratch buffer
+        // (MYT-196: avoids per-call heap allocation on the MYT-173 hot path).
+        value::SmallArgsBuffer args(argCount);
         for (size_t i = argCount; i > 0; --i)
         {
             args[i - 1] = context.stackManager->pop();
@@ -458,17 +487,19 @@ namespace vm::runtime
         // Pop the object (this)
         context.stackManager->pop();
 
-        // Push call frame (with overflow protection)
+        // Push call frame (with overflow protection).
+        // MYT-197: 4-byte handle copy replaces std::string copy on the MYT-173
+        // fast dispatch path.
         CallFrame frame;
         frame.returnAddress = context.instructionPointer;
         frame.functionName = qualifiedName;
         frame.localBase = context.stackManager->size();
         frame.frameBase = context.stackManager->size();
         frame.thisInstance = instance;
-        size_t colonPos = qualifiedName.find("::");
-        if (colonPos != std::string::npos) {
-            frame.definingClassName = qualifiedName.substr(0, colonPos);
-        }
+        // MYT-195: pre-resolved at IC populate / CACHED-promote time. Empty
+        // when the qualified name carries no "::" prefix — same semantics as
+        // the old per-call find/substr that left the field untouched.
+        frame.definingClassName = definingClassName;
         // MYT-182: carry the callee's program identity on the frame so
         // ControlFlowExecutor restores context.program on return. If the
         // cached entry has no program recorded, fall back to the caller's.
@@ -532,20 +563,52 @@ namespace vm::runtime
         mut.cachedMethodFunc         = fm;
         mut.cachedMethodProgram      = entry.program;
         mut.cachedMethodProgramIndex = entry.programIndex;
-        mut.cachedMethodQualifiedName = entry.qualifiedName;
+        // MYT-197: intern on the callee's owning program (same program the
+        // cached target lives in). Handle is copied 4 bytes at dispatch time.
+        mut.cachedMethodQualifiedName = entry.program->internFrameName(entry.qualifiedName);
+        // MYT-195: snapshot the pre-resolved class prefix alongside qualifiedName.
+        mut.cachedMethodDefiningClassName = entry.definingClassName;
         mut.opcode = bytecode::OpCode::CALL_METHOD_CACHED;
+
+        // MYT-198: opportunistically fuse with a preceding LOAD_LOCAL.
+        tryFuseWithPriorLoadLocal(bytecode::OpCode::LOAD_LOCAL_CALL_CACHED);
     }
 
     void InlineCacheExecutor::deoptAndReprocess(
         const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        // MYT-198: if the CACHED opcode was itself the second half of a fused
+        // LOAD_LOCAL_CALL_CACHED pair, we must restore the NOPed LOAD_LOCAL
+        // before demoting, otherwise the subsequent CALL_METHOD re-entry
+        // would see a NOP predecessor and underflow on the receiver. The
+        // fused handler already pushed the receiver onto the stack for this
+        // dispatch, so the immediate re-entry below is fine; the un-fuse is
+        // for all *future* dispatches of this IP.
+        if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_CALL_CACHED)
+        {
+            tryUnfusePair(bytecode::OpCode::CALL_METHOD_CACHED);
+            // Fall through — mut.opcode is now CALL_METHOD_CACHED, demote to
+            // CALL_METHOD as usual. Invariant-assert so a future change to
+            // tryUnfusePair that leaves the opcode in a different state
+            // surfaces loudly instead of silently breaking the demote.
+            assert(mut.opcode == bytecode::OpCode::CALL_METHOD_CACHED &&
+                   "tryUnfusePair must demote to CALL_METHOD_CACHED");
+        }
         mut.opcode = bytecode::OpCode::CALL_METHOD;
         mut.cachedMethodShape = nullptr;
         mut.cachedMethodFunc = nullptr;
         mut.cachedMethodProgram = nullptr;
         mut.cachedMethodProgramIndex = 0;
-        mut.cachedMethodQualifiedName.clear();
+        // MYT-197: integer sentinel replaces std::string::clear(). A re-promote
+        // that happens to observe a stale handle value would index into the
+        // interner and return an unrelated qualified name; INVALID_FN_HANDLE
+        // prevents that.
+        mut.cachedMethodQualifiedName = bytecode::INVALID_FN_HANDLE;
+        // MYT-195: clear the pre-resolved class prefix in lockstep with
+        // qualifiedName so a subsequent re-promotion doesn't pick up a
+        // stale class name from the prior shape.
+        mut.cachedMethodDefiningClassName.clear();
         if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
         // `instr` and `mut` alias the same slot; single-threaded VM, so this is
         // safe. Re-enter the generic IC path, which will observe the new shape
@@ -577,7 +640,7 @@ namespace vm::runtime
         }
 
         auto instance = value::asObject(objectValue);
-        auto* shape = instance->getClassDefinition().get();
+        auto* shape = instance->getClassDefinitionRaw();
         if (shape != instr.cachedMethodShape)
         {
             deoptAndReprocess(instr);
@@ -592,6 +655,330 @@ namespace vm::runtime
             instr.cachedMethodProgram,
             instr.cachedMethodProgramIndex,
             instr.cachedMethodQualifiedName,
+            instr.cachedMethodDefiningClassName,
             objectValue, argCount);
+    }
+
+    void InlineCacheExecutor::tryPromoteFieldToCached(
+        const bytecode::BytecodeProgram::Instruction& /*instr*/,
+        const runtimeTypes::klass::ClassDefinition* shape,
+        size_t fieldIndex,
+        bytecode::OpCode cachedOp)
+    {
+        using namespace vm::jit::ic;
+
+        // Sticky demote — a site that already deopted once stays on the generic
+        // path. Read through the mutable instruction since `instr` is an alias
+        // of the same slot and we're about to mutate it anyway.
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        if (mut.cachedFieldDeoptCount >= 1) return;
+
+        if (!shape || fieldIndex == SIZE_MAX) return;
+
+        // Only promote once the IC has settled to a single shape. POLY sites
+        // are a future CACHED_POLY variant (out of MVP scope).
+        FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
+        if (cache.state != ICState::MONOMORPHIC) return;
+
+        mut.cachedFieldShape = shape;
+        mut.cachedFieldIndex = fieldIndex;
+        mut.opcode = cachedOp;
+
+        // MYT-198: only GET_FIELD_CACHED participates in fusion. SET_FIELD_CACHED
+        // pops both value + receiver, and a preceding LOAD_LOCAL at IP-1 would
+        // be the receiver — but the "value" has already been pushed by whatever
+        // sits at IP-2, so a two-instruction fusion can't cleanly fold the SET.
+        // Keep SET_FIELD_CACHED un-fused for MVP.
+        if (cachedOp == bytecode::OpCode::GET_FIELD_CACHED) {
+            tryFuseWithPriorLoadLocal(bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED);
+        }
+    }
+
+    void InlineCacheExecutor::deoptGetFieldAndReprocess(
+        const bytecode::BytecodeProgram::Instruction& /*instr*/)
+    {
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        // MYT-198: see deoptAndReprocess — same un-fuse-before-demote story.
+        if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED)
+        {
+            tryUnfusePair(bytecode::OpCode::GET_FIELD_CACHED);
+            assert(mut.opcode == bytecode::OpCode::GET_FIELD_CACHED &&
+                   "tryUnfusePair must demote to GET_FIELD_CACHED");
+        }
+        mut.opcode = bytecode::OpCode::GET_FIELD;
+        mut.cachedFieldShape = nullptr;
+        mut.cachedFieldIndex = SIZE_MAX;
+        if (mut.cachedFieldDeoptCount < 255) ++mut.cachedFieldDeoptCount;
+        // Re-enter the generic IC path so the new shape is observed.
+        handleGetFieldIC(mut);
+    }
+
+    void InlineCacheExecutor::deoptSetFieldAndReprocess(
+        const bytecode::BytecodeProgram::Instruction& /*instr*/)
+    {
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        mut.opcode = bytecode::OpCode::SET_FIELD;
+        mut.cachedFieldShape = nullptr;
+        mut.cachedFieldIndex = SIZE_MAX;
+        if (mut.cachedFieldDeoptCount < 255) ++mut.cachedFieldDeoptCount;
+        handleSetFieldIC(mut);
+    }
+
+    void InlineCacheExecutor::handleGetFieldCached(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty() || !instr.cachedFieldShape
+            || instr.cachedFieldIndex == SIZE_MAX)
+        {
+            deoptGetFieldAndReprocess(instr);
+            return;
+        }
+        if (context.stackManager->size() < 1)
+        {
+            deoptGetFieldAndReprocess(instr);
+            return;
+        }
+
+        // Peek so that a deopt leaves the stack untouched — handleGetFieldIC
+        // pops the receiver itself on re-entry. Matches handleCallMethodCached.
+        value::Value objectValue = context.stackManager->peek(0);
+
+        // Null check (respect the compiler's NONNULL_RECEIVER flag). Match
+        // handleGetFieldIC's throw-on-null behavior rather than deopting —
+        // null at a previously-non-null site is a program error, not a
+        // type-feedback failure.
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
+        {
+            if (utils::isNullValue(objectValue))
+            {
+                const std::string& fieldName =
+                    context.program->getConstantPool().getString(instr.operands[0]);
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(
+                    context,
+                    "Cannot access field '" + fieldName + "' on null object");
+            }
+        }
+
+        if (!value::isObject(objectValue))
+        {
+            deoptGetFieldAndReprocess(instr);
+            return;
+        }
+
+        auto instance = value::asObject(objectValue);
+        auto* shape = instance->getClassDefinitionRaw();
+        if (shape != instr.cachedFieldShape)
+        {
+            deoptGetFieldAndReprocess(instr);
+            return;
+        }
+
+        // Hot path: shape matched — indexed read, no IC probe, no access check.
+        // Access validation was done at promote time; shape identity means the
+        // validated field layout still applies.
+        if (!instance->hasFieldVector())
+        {
+            instance->ensureFieldVector();
+        }
+        value::Value fieldValue = instance->getFieldByIndex(instr.cachedFieldIndex);
+        context.stackManager->pop();
+        context.stackManager->push(fieldValue);
+    }
+
+    void InlineCacheExecutor::handleSetFieldCached(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty() || !instr.cachedFieldShape
+            || instr.cachedFieldIndex == SIZE_MAX)
+        {
+            deoptSetFieldAndReprocess(instr);
+            return;
+        }
+        if (context.stackManager->size() < 2)
+        {
+            deoptSetFieldAndReprocess(instr);
+            return;
+        }
+
+        // Stack: [..., object, newValue]. peek(0)=newValue, peek(1)=object.
+        value::Value newValue = context.stackManager->peek(0);
+        value::Value objectValue = context.stackManager->peek(1);
+
+        if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
+        {
+            if (utils::isNullValue(objectValue))
+            {
+                const std::string& fieldName =
+                    context.program->getConstantPool().getString(instr.operands[0]);
+                utils::ErrorLocationHelper::throwError<errors::NullPointerException>(
+                    context,
+                    "Cannot set field '" + fieldName + "' on null object");
+            }
+        }
+
+        if (!value::isObject(objectValue))
+        {
+            deoptSetFieldAndReprocess(instr);
+            return;
+        }
+
+        auto instance = value::asObject(objectValue);
+        auto* shape = instance->getClassDefinitionRaw();
+        if (shape != instr.cachedFieldShape)
+        {
+            deoptSetFieldAndReprocess(instr);
+            return;
+        }
+
+        if (!instance->hasFieldVector())
+        {
+            instance->ensureFieldVector();
+        }
+        instance->setFieldByIndex(instr.cachedFieldIndex, newValue);
+        // Match handleSetFieldIC: consume both operands, push newValue for
+        // assignment chaining.
+        context.stackManager->pop();
+        context.stackManager->pop();
+        context.stackManager->push(newValue);
+    }
+
+    void InlineCacheExecutor::tryFuseWithPriorLoadLocal(bytecode::OpCode fusedOp)
+    {
+        const size_t ip = context.instructionPointer;
+        if (ip == 0) return;  // No predecessor slot.
+
+        // Prior must be LOAD_LOCAL within the same program. loadedPrograms
+        // routing isn't relevant — IP and program are already coherent for
+        // the currently-executing frame.
+        const auto& prev = context.program->getInstruction(ip - 1);
+        if (prev.opcode != bytecode::OpCode::LOAD_LOCAL) return;
+        if (prev.operands.empty()) return;
+
+        // Current IP must not be reachable via any control-flow path other
+        // than falling through from IP-1. Otherwise a jump landing directly
+        // on the fused op would execute LOAD_LOCAL(fusedSlot) on a stack
+        // that the jumping caller didn't set up for it.
+        if (context.program->isFusionUnsafeTarget(ip)) return;
+
+        auto& mut = context.getMutableInstructionAt(ip);
+
+        // Sticky un-fuse — a site that already had its fusion rolled back
+        // should not be re-fused. Mirrors cachedDeoptCount's sticky semantics.
+        if (mut.fusedDeoptCount >= 1) return;
+
+        // Lambda / shared-frame guard. LOAD_LOCAL inside a lambda frame has
+        // captured-variable semantics that the fused executor doesn't
+        // replicate (it reads from frameBase + slot directly). Skipping here
+        // is safer than duplicating VariableExecutor::handleLoadLocal's
+        // capture logic in every fused op; lambda-body fusion is follow-up.
+        if (!context.callStack.empty())
+        {
+            const auto& frame = context.callStack.back();
+            if (frame.originatingLambda || frame.sharedFrame) return;
+        }
+
+        // MYT-173 precedent: an in-place opcode rewrite (prev→NOP, current→
+        // fused) keeps the instruction vector length stable, so no jump
+        // offsets need fixing up. fusedSlot captures what used to be the
+        // LOAD_LOCAL's operand[0].
+        uint64_t slot = prev.operands[0];
+        // fusedSlot is uint32_t — assert before truncation. Slot indices are
+        // capped by constants::security::MAX_LOCAL_STACK_PER_FRAME at every
+        // LOAD_LOCAL / STORE_LOCAL entry, so this should never fire in a
+        // well-formed program, but an oversized operand would otherwise
+        // silently alias a different slot at the fused site.
+        assert(slot <= UINT32_MAX &&
+               "LOAD_LOCAL fusion: slot index exceeds fusedSlot width");
+        auto& prevMut = context.getMutableInstructionAt(ip - 1);
+        prevMut.opcode = bytecode::OpCode::NOP;
+        prevMut.operands.clear();
+
+        mut.fusedSlot = static_cast<uint32_t>(slot);
+        mut.opcode = fusedOp;
+    }
+
+    void InlineCacheExecutor::handleLoadLocalCallCached(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Fast replay of the NOPed LOAD_LOCAL: the fusion trigger guaranteed
+        // a non-lambda, non-shared frame, so the simple localBase + slot read
+        // is sufficient — we don't need to replicate handleLoadLocal's
+        // capture-chain logic. SECURITY: same MAX_LOCAL_STACK_PER_FRAME cap
+        // as handleLoadLocal, on fusedSlot.
+        size_t slot = static_cast<size_t>(instr.fusedSlot);
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "LOAD_LOCAL_CALL_CACHED slot index " + std::to_string(slot) +
+                " exceeds per-frame limit");
+        }
+
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
+        if (stackPos >= context.stackManager->size())
+        {
+            // Stack shape doesn't match the fusion expectation — un-fuse and
+            // re-dispatch through the generic IC path. tryUnfusePair bumps
+            // fusedDeoptCount so we don't re-fuse.
+            tryUnfusePair(bytecode::OpCode::CALL_METHOD_CACHED);
+            // Receiver isn't on stack; replay through handleCallMethodIC
+            // which will fail with the correct error at the generic site.
+            handleCallMethodIC(
+                context.getMutableInstructionAt(context.instructionPointer));
+            return;
+        }
+        context.stackManager->push((*context.stackManager)[stackPos]);
+
+        // Receiver now on stack; delegate to the standard CACHED handler.
+        handleCallMethodCached(instr);
+    }
+
+    void InlineCacheExecutor::handleLoadLocalGetFieldCached(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        size_t slot = static_cast<size_t>(instr.fusedSlot);
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "LOAD_LOCAL_GET_FIELD_CACHED slot index " + std::to_string(slot) +
+                " exceeds per-frame limit");
+        }
+
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
+        if (stackPos >= context.stackManager->size())
+        {
+            tryUnfusePair(bytecode::OpCode::GET_FIELD_CACHED);
+            handleGetFieldIC(
+                context.getMutableInstructionAt(context.instructionPointer));
+            return;
+        }
+        context.stackManager->push((*context.stackManager)[stackPos]);
+
+        handleGetFieldCached(instr);
+    }
+
+    bool InlineCacheExecutor::tryUnfusePair(bytecode::OpCode underlyingCached)
+    {
+        const size_t ip = context.instructionPointer;
+        if (ip == 0) return false;
+
+        auto& mut = context.getMutableInstructionAt(ip);
+        if (mut.opcode != bytecode::OpCode::LOAD_LOCAL_CALL_CACHED &&
+            mut.opcode != bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED)
+        {
+            return false;
+        }
+
+        // Restore LOAD_LOCAL at IP-1 from the captured fusedSlot.
+        auto& prevMut = context.getMutableInstructionAt(ip - 1);
+        prevMut.opcode = bytecode::OpCode::LOAD_LOCAL;
+        prevMut.operands = { static_cast<uint64_t>(mut.fusedSlot) };
+
+        // Demote current back to the underlying CACHED opcode and make the
+        // un-fuse sticky so the next promotion here won't re-fuse.
+        mut.opcode = underlyingCached;
+        if (mut.fusedDeoptCount < 255) ++mut.fusedDeoptCount;
+        return true;
     }
 }

@@ -37,14 +37,21 @@ namespace vm::runtime::utils
             size_t site = frame.returnAddress > 0
                               ? frame.returnAddress - 1
                               : frame.returnAddress;
+            // MYT-197: resolve the frame's interned handle via the caller-
+            // supplied program. For frames from loaded-library programs the
+            // handle may not be present in `program`'s interner; getFrameName
+            // throws in that case, which is correct exception behavior — but
+            // we guard by using the frame's programIndex when the caller
+            // supplies loadedPrograms via the parent utility.
+            const std::string& frameNameStr = program->getFrameName(frame.functionName);
             std::ostringstream line;
             if (auto* frameLoc = program->getSourceLocation(site)) {
-                line << "  at " << frame.functionName << " ("
+                line << "  at " << frameNameStr << " ("
                      << frameLoc->filename << ":"
                      << frameLoc->line << ":"
                      << frameLoc->column << ")";
             } else {
-                line << "  at " << frame.functionName
+                line << "  at " << frameNameStr
                      << " (bytecode offset " << frame.returnAddress << ")";
             }
             trace.push_back(line.str());

@@ -79,6 +79,11 @@ namespace vm::runtime
             break;
         case OpCode::ADD_INT: arithmeticExecutor->handleAddInt();
             break;
+        case OpCode::ADD_INT_CONST:
+            // MYT-198: fused PUSH_INT + ADD_INT. Never emitted by the compiler;
+            // only reachable via runtime promotion inside trySpecializeArithmetic.
+            arithmeticExecutor->handleAddIntConst(instr);
+            break;
         case OpCode::SUB_INT: arithmeticExecutor->handleSubInt();
             break;
         case OpCode::MUL_INT: arithmeticExecutor->handleMulInt();
@@ -141,6 +146,26 @@ namespace vm::runtime
             break;
         case OpCode::STORE_LOCAL: variableExecutor->handleStoreLocal(instr);
             break;
+        // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL. Runtime-only;
+        // the generic handlers above rewrite to these after observing a
+        // monomorphic ValueType on the first dispatch. Each variant guards
+        // on its expected tag and demotes to generic on miss (sticky).
+        case OpCode::LOAD_LOCAL_INT: variableExecutor->handleLoadLocalInt(instr);
+            break;
+        case OpCode::LOAD_LOCAL_FLOAT: variableExecutor->handleLoadLocalFloat(instr);
+            break;
+        case OpCode::LOAD_LOCAL_BOOL: variableExecutor->handleLoadLocalBool(instr);
+            break;
+        case OpCode::LOAD_LOCAL_BOXED_INST: variableExecutor->handleLoadLocalBoxedInst(instr);
+            break;
+        case OpCode::STORE_LOCAL_INT: variableExecutor->handleStoreLocalInt(instr);
+            break;
+        case OpCode::STORE_LOCAL_FLOAT: variableExecutor->handleStoreLocalFloat(instr);
+            break;
+        case OpCode::STORE_LOCAL_BOOL: variableExecutor->handleStoreLocalBool(instr);
+            break;
+        case OpCode::STORE_LOCAL_BOXED_INST: variableExecutor->handleStoreLocalBoxedInst(instr);
+            break;
 
         // Control flow - delegated to ControlFlowExecutor
         case OpCode::JUMP: controlFlowExecutor->handleJump(instr);
@@ -185,9 +210,39 @@ namespace vm::runtime
             else
                 objectExecutor->handleGetField(instr);
             break;
+        case OpCode::GET_FIELD_CACHED:
+            // MYT-194: promoted from GET_FIELD once the IC stabilized. Never
+            // emitted by the compiler; only reachable if IC is enabled (the
+            // promoter guards on that). Fall back to the generic handler if
+            // somehow reached with IC disabled.
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleGetFieldCached(instr);
+            else
+                objectExecutor->handleGetField(instr);
+            break;
+        case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
+            // MYT-198: fused LOAD_LOCAL + GET_FIELD_CACHED. IC-only; if IC is
+            // disabled fall back by materialising the LOAD_LOCAL and running
+            // the generic GET_FIELD. fusedSlot carries the receiver slot.
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleLoadLocalGetFieldCached(instr);
+            else {
+                variableExecutor->handleLoadLocal(
+                    bytecode::BytecodeProgram::Instruction(
+                        bytecode::OpCode::LOAD_LOCAL, instr.fusedSlot));
+                objectExecutor->handleGetField(instr);
+            }
+            break;
         case OpCode::SET_FIELD:
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleSetFieldIC(instr);
+            else
+                objectExecutor->handleSetField(instr);
+            break;
+        case OpCode::SET_FIELD_CACHED:
+            // MYT-194: see GET_FIELD_CACHED above.
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleSetFieldCached(instr);
             else
                 objectExecutor->handleSetField(instr);
             break;
@@ -223,6 +278,19 @@ namespace vm::runtime
                 inlineCacheExecutor->handleCallMethodCached(instr);
             else
                 objectExecutor->handleCallMethod(instr);
+            break;
+        case OpCode::LOAD_LOCAL_CALL_CACHED:
+            // MYT-198: fused LOAD_LOCAL + CALL_METHOD_CACHED. Same IC-only
+            // constraint as CALL_METHOD_CACHED. fusedSlot carries the receiver
+            // slot that the NOPed LOAD_LOCAL would have pushed.
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleLoadLocalCallCached(instr);
+            else {
+                variableExecutor->handleLoadLocal(
+                    bytecode::BytecodeProgram::Instruction(
+                        bytecode::OpCode::LOAD_LOCAL, instr.fusedSlot));
+                objectExecutor->handleCallMethod(instr);
+            }
             break;
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;
@@ -464,7 +532,16 @@ namespace vm::runtime
         case OpCode::PROFILE_ENTER:
             if (jitEnabled && jitProfiler && !callStack.empty())
             {
-                const std::string& funcName = callStack.back().functionName;
+                // MYT-197: resolve the frame's handle to the owning program's
+                // interned name. JitProfiler + JitCompiler still key on
+                // std::string (cold path — PROFILE_ENTER only fires while
+                // tiering up).
+                const auto& frame = callStack.back();
+                const bytecode::BytecodeProgram* framePrg =
+                    (frame.programIndex < loadedPrograms.size())
+                        ? loadedPrograms[frame.programIndex]
+                        : program;
+                const std::string& funcName = framePrg->getFrameName(frame.functionName);
                 bool justBecameHot = jitProfiler->recordEntry(funcName);
                 if (justBecameHot && jitCompiler && jitCodeCache)
                 {

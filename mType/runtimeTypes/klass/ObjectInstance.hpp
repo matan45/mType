@@ -79,6 +79,15 @@ namespace runtimeTypes::klass
         std::shared_ptr<FieldDefinition> getField(const std::string& fieldName) const;
         Value getFieldValue(const std::string& fieldName) const;
         std::shared_ptr<ClassDefinition> getClassDefinition() const;
+        // MYT-200: raw-pointer fast path for IC hot sites. Skips the non-inline
+        // getClassDefinition() call and its by-value shared_ptr copy (atomic
+        // refcount++/--). Caller MUST NOT outlive the instance — for ownership
+        // (GC roots, error context, ValueObject construction) keep using
+        // getClassDefinition(). Must stay header-only to inline.
+        const ClassDefinition* getClassDefinitionRaw() const noexcept
+        {
+            return classDefinition.get();
+        }
         void setField(const std::string& fieldName, const Value& value);
 
         // Get all field values (for debugging/inspection)
