@@ -106,7 +106,12 @@ namespace vm::bytecode
         GET_STATIC,         // Get static field (operand: class+field index)
         SET_STATIC,         // Set static field (operand: class+field index)
         CALL_METHOD,        // Call instance method (operand: method name + arg count)
-        CALL_METHOD_CACHED, // MYT-173: IC-stable CALL_METHOD with embedded target (shape+funcMeta on Instruction)
+        // MYT-173: IC-stable specialization of CALL_METHOD. Embedded target
+        // (shape+funcMeta) lives on the Instruction's mutable cachedMethod* fields.
+        // INVARIANT: RUNTIME-ONLY. BytecodeCompiler never emits this opcode and
+        // BytecodeProgram::readInstructions rejects it on deserialization — a .mtc
+        // file containing it is malformed or tampered.
+        CALL_METHOD_CACHED,
         CALL_STATIC,        // Call static method (operand: method name + arg count)
         INVOKE,             // Optimized method call (name + arg count)
         SUPER_INVOKE,       // Super method call

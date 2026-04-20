@@ -85,21 +85,32 @@ namespace vm::jit
         if (!value::isObject(*receiverSlot)) return false;
         const auto& instance = value::asObject(*receiverSlot);
         if (!instance) return false;
-        if (!instance->hasFieldVector())
-            instance->ensureFieldVector();
-        const auto& classDef = instance->getClassDefinition();
+        // Pin the raw ObjectInstance pointer BEFORE any operation that could
+        // overwrite *destSlot. When destSlot == receiverSlot (the common case —
+        // emitter passes the same pointer for both), writing through destSlot
+        // releases the shared_ptr that currently holds the only strong ref to
+        // this instance, dropping its refcount to zero and freeing the object.
+        // Any use of `instance` after the overwrite would be a use-after-free.
+        // Sequencing below: all work that touches `instance` runs first; the
+        // slot overwrite is strictly the last action. Pinning here makes the
+        // lifetime contract explicit and robust against future insertions
+        // between the setFieldByIndex call and *destSlot = *newValue.
+        auto* raw = instance.get();
+        if (!raw->hasFieldVector())
+            raw->ensureFieldVector();
+        const auto& classDef = raw->getClassDefinition();
         if (!classDef || fieldIndex >= classDef->getTotalFieldCount())
             return false;
         // setFieldByIndex runs the write barrier: releases oldPtr if distinct
         // from newPtr, marks `this` as cycle-suspect if the new value is a
         // heap ref, keeps fieldValues map in sync. Value::operator= inside
         // the vector assignment retains newPtr.
-        instance->setFieldByIndex(fieldIndex, *newValue);
-        // Mirror jit_set_field_ic's `*destValue = *newValue` semantics. When
-        // destSlot == receiverSlot (the emitter passes the same pointer for
-        // both) this releases the ObjectInstance bridge the slot held and
-        // retains newValue in its place. The local `instance` reference is
-        // not touched after this assignment.
+        raw->setFieldByIndex(fieldIndex, *newValue);
+        // Last access to the instance completed above. Mirror jit_set_field_ic's
+        // `*destValue = *newValue` semantics. When destSlot == receiverSlot this
+        // releases the ObjectInstance bridge the slot held and retains newValue
+        // in its place. DO NOT insert any code that references `raw` / `instance`
+        // after this line — the backing object may be freed.
         *destSlot = *newValue;
         return true;
     }

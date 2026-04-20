@@ -64,6 +64,20 @@ namespace value
      * The singleton is intentionally leaked at process exit so the deleter
      * never dereferences a destroyed pool when long-lived shared_ptrs
      * (e.g. cached boxed primitives) outlive other static-local objects.
+     *
+     * Why skipping ~ObjectInstance on pooled slots at exit is safe:
+     * ObjectInstance has no explicit destructor — the compiler-generated one
+     * only runs member destructors. By the time a slot lives in the pool,
+     * resetForRecycle has already torn down all owning state: classDefinition
+     * (.reset()), fieldValues / methodCache / genericTypeBindings / fieldVector
+     * (.clear()), plus the gcRegistered flag. The only memory still attached
+     * to a pooled slot is the unordered_map bucket arrays we deliberately keep
+     * for reuse; leaking those at process exit is reclaimed by the OS. There
+     * are NO side effects (GC deregistration, logging, file I/O, cycle-detector
+     * notifications, etc.) in ~ObjectInstance — audited MYT-171 post-review.
+     * If a future change adds a side-effecting destructor to ObjectInstance,
+     * reconsider the exit leak: either run `clear()` on an atexit handler or
+     * add explicit teardown semantics to the pool.
      */
     class ObjectInstancePool
     {

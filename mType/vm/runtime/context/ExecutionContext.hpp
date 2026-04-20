@@ -177,5 +177,20 @@ namespace vm::runtime
 
         // Call stack management with overflow protection
         void pushCallFrame(const CallFrame& frame);
+
+        // MYT-173: obtain a mutable reference to the instruction at `offset` in
+        // the current program. Runtime opcode rewriting (CALL_METHOD <->
+        // CALL_METHOD_CACHED and analogous future specializations) legitimately
+        // needs to mutate the `Instruction::opcode` field. `program` is typed as
+        // `const BytecodeProgram*` by convention (read-mostly), but the pointee
+        // is never declared `const` at the object level — every
+        // `BytecodeProgram` in the VM is created as a non-const object and owned
+        // non-const by the VM/loadedPrograms storage. Centralising the cast here
+        // keeps that invariant documented in exactly one place; callers stay
+        // agnostic.
+        bytecode::BytecodeProgram::Instruction& getMutableInstructionAt(size_t offset) const {
+            return const_cast<bytecode::BytecodeProgram*>(program)
+                ->getMutableInstruction(offset);
+        }
     };
 }

@@ -527,8 +527,7 @@ namespace vm::runtime
         MethodInlineCache& cache = icTable.getMethodIC(context.instructionPointer);
         if (cache.state != ICState::MONOMORPHIC) return;
 
-        auto& mut = const_cast<bytecode::BytecodeProgram*>(context.program)
-            ->getMutableInstruction(context.instructionPointer);
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
         mut.cachedMethodShape        = entry.shape;
         mut.cachedMethodFunc         = fm;
         mut.cachedMethodProgram      = entry.program;
@@ -540,8 +539,7 @@ namespace vm::runtime
     void InlineCacheExecutor::deoptAndReprocess(
         const bytecode::BytecodeProgram::Instruction& instr)
     {
-        auto& mut = const_cast<bytecode::BytecodeProgram*>(context.program)
-            ->getMutableInstruction(context.instructionPointer);
+        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
         mut.opcode = bytecode::OpCode::CALL_METHOD;
         mut.cachedMethodShape = nullptr;
         mut.cachedMethodFunc = nullptr;
