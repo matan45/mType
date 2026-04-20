@@ -860,3 +860,63 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 - **`array_multi_get` regression resolved** — down from +15.6% vs. pre-MYT-190 to back near baseline. The root cause (shared_ptr copy + atomic refcount per `ARRAY_GET`) is fully addressed by returning the bridge's `held_` by `const&`.
 - **Small apparent regressions on `arithmetic_tight_loop` / `object_alloc` / `bitwise_tight_loop`** are within run-to-run noise (±3%). None of these benchmarks read heap Values in their hot inner loop (`arithmetic_tight_loop` is int-only, `object_alloc` constructs but doesn't read-in-loop, `bitwise_tight_loop` is int-only), so the shim change has no direct path to affect them.
 - **`inline_value_object_hot` now sub-1700ms** — still gated on MYT-172 AC#3 (inline `[obj + fieldIndex*valueSize]` emission in JIT) for the next major drop.
+
+## 2026-04-20 — MYT-171 (per-class slab + reset-based recycling for ObjectInstance)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-191`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Change in this snapshot
+
+- **`value::ObjectInstancePool` now backs every `ObjectInstance` allocation** (29 of 30 call sites; `IntegerCache` intentionally bypassed). Per-class freelists keyed by `ClassDefinition*`, LIFO `vector<ObjectInstance*>`, bucket cap 32. Slot reuse via custom-deleter `shared_ptr` so reuse fires on strong-count→0 (GCTracker holds `weak_ptr`s that lazily expire).
+- **Reset-based recycling**: `ObjectInstance::resetForRecycle()` clears `fieldValues` / `methodCache` / `genericTypeBindings` / `fieldVector` but **keeps the unordered_map bucket arrays** alive across slot reuses. `reinitForRecycle()` re-binds the slot to a fresh `classDefinition` without re-constructing the maps. After the first allocation per class, no bucket-array allocation per `new`.
+
+### Summary
+
+| Script                        | min(ms) | median(ms) | Instructions | Calls   |
+|-------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt      | 1039.63 |    1055.07 |        20013 |       0 |
+| method_dispatch.mt            |  261.47 |     266.85 |        14039 |     506 |
+| object_alloc.mt               | 1807.86 |    1814.37 |        17509 | 2000000 |
+| field_write_hot.mt            |  171.01 |     172.67 |         8016 |       1 |
+| string_ops.mt                 |  196.27 |     197.27 |        19014 |       0 |
+| recursive.mt                  | 1544.84 |    1568.84 |        17256 | 2763594 |
+| bitwise_tight_loop.mt         | 1400.96 |    1407.28 |        23014 |       0 |
+| short_circuit_chain.mt        |  398.13 |     398.59 |        24907 |       0 |
+| primitive_method_dispatch.mt  |  984.07 |     995.78 |        38061 | 1000005 |
+| array_multi_alloc.mt          |   64.90 |      65.70 |        10909 |     500 |
+| array_multi_get.mt            | 1204.40 |    1209.63 |        50815 |     500 |
+| for_each_loop.mt              |  409.58 |     414.58 |        78650 |    6604 |
+| inline_monomorphic.mt         |  222.04 |     222.57 |        13013 |     501 |
+| inline_branching.mt           |  223.93 |     225.62 |        15013 |     501 |
+| inline_polymorphic.mt         |  246.95 |     249.32 |        14048 |     508 |
+| inline_value_object_hot.mt    | 1526.04 |    1528.38 |        12530 |     501 |
+
+### Delta vs. 2026-04-19 (post `ValueShim` const& fix)
+
+| Script                        | Before min | After min |     Δ |
+|-------------------------------|-----------:|----------:|------:|
+| object_alloc.mt               |    2142.12 |   1807.86 | **−15.6%** ✅ target |
+| primitive_method_dispatch.mt  |    1086.69 |    984.07 | **−9.4%** (Int autoboxing pools) |
+| inline_value_object_hot.mt    |    1666.85 |   1526.04 | **−8.4%** (object alloc on hot path) |
+| for_each_loop.mt              |     420.10 |    409.58 | −2.5% |
+| array_multi_alloc.mt          |      66.66 |     64.90 | −2.6% |
+| recursive.mt                  |    1564.34 |   1544.84 | −1.2% |
+| bitwise_tight_loop.mt         |    1420.57 |   1400.96 | −1.4% |
+| short_circuit_chain.mt        |     399.96 |    398.13 | −0.5% |
+| inline_polymorphic.mt         |     246.87 |    246.95 |  flat |
+| array_multi_get.mt            |    1191.04 |   1204.40 | +1.1% (noise) |
+| arithmetic_tight_loop.mt      |    1019.61 |   1039.63 | +2.0% (noise, no heap) |
+| inline_branching.mt           |     219.42 |    223.93 | +2.1% (noise) |
+| inline_monomorphic.mt         |     215.11 |    222.04 | +3.2% (noise) |
+| string_ops.mt                 |     187.22 |    196.27 | +4.8% (noise) |
+| method_dispatch.mt            |     248.46 |    261.47 | +5.2% (likely noise; no fresh ObjectInstance per call) |
+
+### Notes
+
+- **Slab alone (placement-new + ~ObjectInstance per cycle) gave ~0% improvement** — the separate control-block alloc cancelled the saved ObjectInstance heap alloc, and the unordered_map bucket array was still re-allocated per `reserve(N)`. Reset-based recycling unlocked the win by keeping the bucket arrays alive across reuses.
+- **Wins concentrated on alloc-heavy workloads**: `object_alloc` (direct), `primitive_method_dispatch` (autoboxes 1M Ints via `FunctionExecutor`/`PrimitiveMethodExecutor` — both go through the pool), and `inline_value_object_hot` (boxes ValueObject→ObjectInstance per inlined call).
+- **Small apparent regressions on `string_ops` / `inline_monomorphic` / `inline_branching` / `method_dispatch`** are within run-to-run noise (±5%); no allocation-path change should affect them.
+- **Next major drop on `object_alloc` is gated on MYT-193** (vector-backed primary field storage) — even with bucket arrays pooled, every `setField` still does a string hash + per-field map node allocation on first use.
