@@ -112,6 +112,15 @@ namespace vm::bytecode
             mutable uint32_t fusedSlot = 0;
             mutable uint8_t fusedDeoptCount = 0;
 
+            // MYT-199: per-site observed-type tag for LOAD_LOCAL / STORE_LOCAL
+            // type-quickening. 0xFF is the "never observed" sentinel; any other
+            // value is a value::ValueType cast to uint8_t, captured on the
+            // first generic dispatch at this IP. The sticky-demote gate reuses
+            // cachedDeoptCount above — a site with cachedDeoptCount >= 1
+            // permanently stays on the generic LOAD_LOCAL / STORE_LOCAL path.
+            // Purely runtime state; never serialized.
+            mutable uint8_t observedValueType = 0xFF;
+
             Instruction();
             Instruction(OpCode op);
             Instruction(OpCode op, uint64_t operand1);

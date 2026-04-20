@@ -26,6 +26,21 @@ namespace vm::runtime
         void handleLoadLocal(const bytecode::BytecodeProgram::Instruction& instr);
         void handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL. The generic
+        // handlers above record their first observed ValueType and rewrite
+        // the opcode in place to one of these variants. The specialized
+        // handler guards on the expected tag; on a guard miss it demotes
+        // back to the generic opcode with a sticky counter so the site
+        // isn't re-promoted (mirrors MYT-173's CALL_METHOD_CACHED policy).
+        void handleLoadLocalInt(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleLoadLocalFloat(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleLoadLocalBool(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleLoadLocalBoxedInst(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleStoreLocalInt(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleStoreLocalFloat(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleStoreLocalBool(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleStoreLocalBoxedInst(const bytecode::BytecodeProgram::Instruction& instr);
+
     private:
         ExecutionContext& context;
 
@@ -39,5 +54,16 @@ namespace vm::runtime
         void validateAndStoreGlobalVariable(const std::string& varName,
                                            const value::Value& val,
                                            std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef);
+
+        // MYT-199 helpers. See .cpp for policy details.
+        bool isCurrentFrameSimple() const;
+        void tryPromoteLoadLocal(value::ValueType observedTag);
+        void tryPromoteStoreLocal(value::ValueType observedTag);
+        void deoptLoadLocal(const bytecode::BytecodeProgram::Instruction& instr);
+        void deoptStoreLocal(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleLoadLocalSpecialized(const bytecode::BytecodeProgram::Instruction& instr,
+                                        value::ValueType expectedTag);
+        void handleStoreLocalSpecialized(const bytecode::BytecodeProgram::Instruction& instr,
+                                         value::ValueType expectedTag);
     };
 }

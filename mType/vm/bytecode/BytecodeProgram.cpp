@@ -876,7 +876,15 @@ namespace vm::bytecode
                 instructions[i].opcode == OpCode::SET_FIELD_CACHED ||
                 instructions[i].opcode == OpCode::ADD_INT_CONST ||
                 instructions[i].opcode == OpCode::LOAD_LOCAL_CALL_CACHED ||
-                instructions[i].opcode == OpCode::LOAD_LOCAL_GET_FIELD_CACHED) {
+                instructions[i].opcode == OpCode::LOAD_LOCAL_GET_FIELD_CACHED ||
+                instructions[i].opcode == OpCode::LOAD_LOCAL_INT ||
+                instructions[i].opcode == OpCode::LOAD_LOCAL_FLOAT ||
+                instructions[i].opcode == OpCode::LOAD_LOCAL_BOOL ||
+                instructions[i].opcode == OpCode::LOAD_LOCAL_BOXED_INST ||
+                instructions[i].opcode == OpCode::STORE_LOCAL_INT ||
+                instructions[i].opcode == OpCode::STORE_LOCAL_FLOAT ||
+                instructions[i].opcode == OpCode::STORE_LOCAL_BOOL ||
+                instructions[i].opcode == OpCode::STORE_LOCAL_BOXED_INST) {
                 throw std::runtime_error(
                     std::string("Bytecode deserialization rejected: runtime-only opcode ") +
                     getOpCodeName(instructions[i].opcode) +

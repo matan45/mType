@@ -146,6 +146,26 @@ namespace vm::runtime
             break;
         case OpCode::STORE_LOCAL: variableExecutor->handleStoreLocal(instr);
             break;
+        // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL. Runtime-only;
+        // the generic handlers above rewrite to these after observing a
+        // monomorphic ValueType on the first dispatch. Each variant guards
+        // on its expected tag and demotes to generic on miss (sticky).
+        case OpCode::LOAD_LOCAL_INT: variableExecutor->handleLoadLocalInt(instr);
+            break;
+        case OpCode::LOAD_LOCAL_FLOAT: variableExecutor->handleLoadLocalFloat(instr);
+            break;
+        case OpCode::LOAD_LOCAL_BOOL: variableExecutor->handleLoadLocalBool(instr);
+            break;
+        case OpCode::LOAD_LOCAL_BOXED_INST: variableExecutor->handleLoadLocalBoxedInst(instr);
+            break;
+        case OpCode::STORE_LOCAL_INT: variableExecutor->handleStoreLocalInt(instr);
+            break;
+        case OpCode::STORE_LOCAL_FLOAT: variableExecutor->handleStoreLocalFloat(instr);
+            break;
+        case OpCode::STORE_LOCAL_BOOL: variableExecutor->handleStoreLocalBool(instr);
+            break;
+        case OpCode::STORE_LOCAL_BOXED_INST: variableExecutor->handleStoreLocalBoxedInst(instr);
+            break;
 
         // Control flow - delegated to ControlFlowExecutor
         case OpCode::JUMP: controlFlowExecutor->handleJump(instr);

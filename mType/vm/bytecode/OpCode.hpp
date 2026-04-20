@@ -73,6 +73,21 @@ namespace vm::bytecode
         DECLARE_VAR,        // Declare new variable
         LOAD_LOCAL,         // Load local variable (by slot index - faster)
         STORE_LOCAL,        // Store to local variable (by slot index)
+        // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL. Runtime-rewritten
+        // from LOAD_LOCAL / STORE_LOCAL once the slot's observed ValueType is
+        // monomorphic (N=1). The fast-path executor guards on the tag and
+        // skips variant discrimination; on guard failure the opcode is
+        // demoted back to the generic form and cachedDeoptCount is bumped
+        // sticky so we don't re-promote. RUNTIME-ONLY — same serialization
+        // invariant as CALL_METHOD_CACHED.
+        LOAD_LOCAL_INT,
+        LOAD_LOCAL_FLOAT,
+        LOAD_LOCAL_BOOL,
+        LOAD_LOCAL_BOXED_INST,
+        STORE_LOCAL_INT,
+        STORE_LOCAL_FLOAT,
+        STORE_LOCAL_BOOL,
+        STORE_LOCAL_BOXED_INST,
         LOAD_GLOBAL,        // Load global variable (by name index)
         STORE_GLOBAL,       // Store to global variable (by name index)
         LOAD_UPVALUE,       // Load closure upvalue (for lambdas)
@@ -324,6 +339,14 @@ namespace vm::bytecode
             case OpCode::DECLARE_VAR: return "DECLARE_VAR";
             case OpCode::LOAD_LOCAL: return "LOAD_LOCAL";
             case OpCode::STORE_LOCAL: return "STORE_LOCAL";
+            case OpCode::LOAD_LOCAL_INT: return "LOAD_LOCAL_INT";
+            case OpCode::LOAD_LOCAL_FLOAT: return "LOAD_LOCAL_FLOAT";
+            case OpCode::LOAD_LOCAL_BOOL: return "LOAD_LOCAL_BOOL";
+            case OpCode::LOAD_LOCAL_BOXED_INST: return "LOAD_LOCAL_BOXED_INST";
+            case OpCode::STORE_LOCAL_INT: return "STORE_LOCAL_INT";
+            case OpCode::STORE_LOCAL_FLOAT: return "STORE_LOCAL_FLOAT";
+            case OpCode::STORE_LOCAL_BOOL: return "STORE_LOCAL_BOOL";
+            case OpCode::STORE_LOCAL_BOXED_INST: return "STORE_LOCAL_BOXED_INST";
             case OpCode::LOAD_GLOBAL: return "LOAD_GLOBAL";
             case OpCode::STORE_GLOBAL: return "STORE_GLOBAL";
             case OpCode::LOAD_UPVALUE: return "LOAD_UPVALUE";

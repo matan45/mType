@@ -65,6 +65,17 @@ namespace vm::jit
 
             static_cast<uint8_t>(OpCode::LOAD_LOCAL),
             static_cast<uint8_t>(OpCode::STORE_LOCAL),
+            // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL variants are
+            // jittable via the generic emit path — see the switch arms in
+            // JitCompiler_ControlFlow.cpp.
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_INT),
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_FLOAT),
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_BOOL),
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_BOXED_INST),
+            static_cast<uint8_t>(OpCode::STORE_LOCAL_INT),
+            static_cast<uint8_t>(OpCode::STORE_LOCAL_FLOAT),
+            static_cast<uint8_t>(OpCode::STORE_LOCAL_BOOL),
+            static_cast<uint8_t>(OpCode::STORE_LOCAL_BOXED_INST),
             static_cast<uint8_t>(OpCode::LOAD_VAR),
             static_cast<uint8_t>(OpCode::STORE_VAR),
 

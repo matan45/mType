@@ -1045,3 +1045,37 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 - **All deltas within ±3%** — consistent with run-to-run noise. MYT-131 is a parser-phase change; benchmarks iterate millions of times over already-compiled bytecode, so parser work is a tiny fraction of wall-clock. A runtime-dominated suite isn't the right shape to expose this win — a parser-phase microbenchmark (repeatedly parsing large `.mt` sources) would be needed to quantify the reduction in `captureState`/`restoreState` overhead directly.
 - **Acceptance criterion met**: ticket asks for "measurable improvement or at least no regression"; no regression beyond noise on any script. Correctness confirmed — full benchmark suite (including the nested-generics and annotation-chain paths exercised by the fallback branch) parses and runs cleanly.
 - **Follow-up**: a parser-only microbench (e.g. `--bench-parser <file>` mode in `BenchmarkRunner`) would give a direct measurement of the peek-path win and let future parser changes guard against regression.
+
+## 2026-04-20 — MYT-199 (type-quickening LOAD_LOCAL / STORE_LOCAL)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-199`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Change in this snapshot
+
+- **`LOAD_LOCAL` / `STORE_LOCAL`** are runtime-rewritten to type-specific variants (`LOAD_LOCAL_INT` / `_FLOAT` / `_BOOL` / `_BOXED_INST` and matching `STORE_LOCAL_*`) after one monomorphic observation. The specialized fast path skips the generic handler's lambda / shared-frame probes and guarantees a known tag on the operand stack for downstream consumers. Reuses MYT-173's opcode-rewrite + `cachedDeoptCount` sticky-demote infrastructure; an `observedValueType` byte was added to `Instruction`. JIT CACHED-specific emit deferred (same deferral as `CALL_METHOD_CACHED`).
+
+### Summary
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt           1037.46       1063.34           20013         0
+  method_dispatch.mt                  256.04        258.41           14039       506
+  object_alloc.mt                    1630.64       1663.13           17509   2000000
+  field_write_hot.mt                  181.08        182.68            8016         1
+  field_read_hot.mt                   212.56        212.61            9017         1
+  string_ops.mt                       190.25        191.68           19014         0
+  recursive.mt                       1600.88       1605.07           17256   2763594
+  bitwise_tight_loop.mt              1455.31       1455.88           23014         0
+  short_circuit_chain.mt              397.88        401.18           24907         0
+  primitive_method_dispatch.mt        936.41        939.37           38061   1000005
+  array_multi_alloc.mt                 65.86         65.93           10909       500
+  array_multi_get.mt                 1189.80       1189.89           50815       500
+  for_each_loop.mt                    411.31        412.14           78650      6604
+  inline_monomorphic.mt               218.72        220.97           13013       501
+  inline_branching.mt                 222.06        222.68           15013       501
+  inline_polymorphic.mt               247.06        248.78           14048       508
+  inline_value_object_hot.mt         1525.74       1526.32           12530       501
+```

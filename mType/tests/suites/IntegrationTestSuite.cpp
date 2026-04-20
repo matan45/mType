@@ -300,6 +300,20 @@ namespace tests::testSuite
         addOutputVerificationTest("SET_FIELD_CACHED Deopt Sticky",
                                   passPath + "ic/set_field_cached_deopt.mt");
 
+        // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL. Four mono tests
+        // drive each specialized variant through its fast path; sticky-deopt
+        // is exercised indirectly by any pre-existing test whose locals hold
+        // heterogeneous tags (e.g. nullable slots), which re-enter the
+        // generic path after one miss.
+        addOutputVerificationTest("LOAD_LOCAL_INT Monomorphic Promote",
+                                  passPath + "ic/load_local_int_mono.mt");
+        addOutputVerificationTest("LOAD_LOCAL_FLOAT Monomorphic Promote",
+                                  passPath + "ic/load_local_float_mono.mt");
+        addOutputVerificationTest("LOAD_LOCAL_BOOL Monomorphic Promote",
+                                  passPath + "ic/load_local_bool_mono.mt");
+        addOutputVerificationTest("LOAD_LOCAL_BOXED_INST Monomorphic Promote",
+                                  passPath + "ic/load_local_boxed_mono.mt");
+
         // MYT-198: superinstruction fusion of adjacent CACHED / ADD_INT pairs.
         addOutputVerificationTest("LOAD_LOCAL_CALL_CACHED Fusion",
                                   passPath + "ic/load_local_call_cached_fuse.mt");

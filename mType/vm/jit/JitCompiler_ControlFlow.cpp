@@ -420,10 +420,23 @@ namespace vm::jit
         switch (instr.opcode)
         {
             case OpCode::LOAD_LOCAL:
+            // MYT-199: the interpreter-side type-quickened variants emit
+            // identically to their generic base here — emitLoadLocal /
+            // emitStoreLocal already infer slot types from JitEmissionState
+            // analysis, and a CACHED-specific JIT emit is a follow-up (same
+            // deferral as CALL_METHOD_CACHED at JitCompiler_Objects.cpp:1244).
+            case OpCode::LOAD_LOCAL_INT:
+            case OpCode::LOAD_LOCAL_FLOAT:
+            case OpCode::LOAD_LOCAL_BOOL:
+            case OpCode::LOAD_LOCAL_BOXED_INST:
                 emitLoadLocal(s, instr.operands[0]);
                 return true;
 
             case OpCode::STORE_LOCAL:
+            case OpCode::STORE_LOCAL_INT:
+            case OpCode::STORE_LOCAL_FLOAT:
+            case OpCode::STORE_LOCAL_BOOL:
+            case OpCode::STORE_LOCAL_BOXED_INST:
                 emitStoreLocal(s, instr.operands[0]);
                 return true;
 
