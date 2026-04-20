@@ -1,4 +1,5 @@
 #include "InlineCacheExecutor.hpp"
+#include <cassert>
 #include "ObjectExecutor.hpp"
 #include "FunctionExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
@@ -588,7 +589,11 @@ namespace vm::runtime
         {
             tryUnfusePair(bytecode::OpCode::CALL_METHOD_CACHED);
             // Fall through — mut.opcode is now CALL_METHOD_CACHED, demote to
-            // CALL_METHOD as usual.
+            // CALL_METHOD as usual. Invariant-assert so a future change to
+            // tryUnfusePair that leaves the opcode in a different state
+            // surfaces loudly instead of silently breaking the demote.
+            assert(mut.opcode == bytecode::OpCode::CALL_METHOD_CACHED &&
+                   "tryUnfusePair must demote to CALL_METHOD_CACHED");
         }
         mut.opcode = bytecode::OpCode::CALL_METHOD;
         mut.cachedMethodShape = nullptr;
@@ -697,6 +702,8 @@ namespace vm::runtime
         if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED)
         {
             tryUnfusePair(bytecode::OpCode::GET_FIELD_CACHED);
+            assert(mut.opcode == bytecode::OpCode::GET_FIELD_CACHED &&
+                   "tryUnfusePair must demote to GET_FIELD_CACHED");
         }
         mut.opcode = bytecode::OpCode::GET_FIELD;
         mut.cachedFieldShape = nullptr;
@@ -875,6 +882,13 @@ namespace vm::runtime
         // offsets need fixing up. fusedSlot captures what used to be the
         // LOAD_LOCAL's operand[0].
         uint64_t slot = prev.operands[0];
+        // fusedSlot is uint32_t — assert before truncation. Slot indices are
+        // capped by constants::security::MAX_LOCAL_STACK_PER_FRAME at every
+        // LOAD_LOCAL / STORE_LOCAL entry, so this should never fire in a
+        // well-formed program, but an oversized operand would otherwise
+        // silently alias a different slot at the fused site.
+        assert(slot <= UINT32_MAX &&
+               "LOAD_LOCAL fusion: slot index exceeds fusedSlot width");
         auto& prevMut = context.getMutableInstructionAt(ip - 1);
         prevMut.opcode = bytecode::OpCode::NOP;
         prevMut.operands.clear();

@@ -132,16 +132,27 @@ namespace vm::runtime
         }
         const auto& tos = context.stackManager->peek(0);
         if (!value::isInt(tos)) {
-            // Un-fuse on type miss: restore PUSH_INT + ADD at the pair, push
+            // Un-fuse on type miss: restore PUSH_INT + <add> at the pair, push
             // the literal so the stack matches the pre-fusion shape, bump
-            // fusedDeoptCount sticky, then bounce through the generic ADD.
+            // fusedDeoptCount sticky.
+            //
+            // Demote the pair to PUSH_INT + ADD_INT, not PUSH_INT + ADD:
+            // tryFuseAddIntConst only fires after trySpecializeArithmetic has
+            // already promoted ADD → ADD_INT, so the pre-fusion opcode was
+            // ADD_INT. Restoring to ADD would waste the next dispatch on a
+            // trySpecialize → promote cycle that re-derives ADD_INT. ADD_INT
+            // already has a built-in type-guard fallback to handleAdd() for
+            // genuinely non-int operands, so this is safe for heterogeneous
+            // sites too. Handle *this* dispatch directly through handleAdd()
+            // since tos is known non-int — the rewrite only affects the next
+            // dispatch of this IP.
             int64_t literal = context.program->getConstantPool().getInteger(instr.fusedSlot);
             context.stackManager->push(literal);
             auto& mut = context.getMutableInstructionAt(context.instructionPointer);
             auto& prevMut = context.getMutableInstructionAt(context.instructionPointer - 1);
             prevMut.opcode = bytecode::OpCode::PUSH_INT;
             prevMut.operands = { static_cast<uint64_t>(mut.fusedSlot) };
-            mut.opcode = bytecode::OpCode::ADD;
+            mut.opcode = bytecode::OpCode::ADD_INT;
             if (mut.fusedDeoptCount < 255) ++mut.fusedDeoptCount;
             handleAdd();
             return;

@@ -26,6 +26,28 @@ namespace runtimeTypes::klass
     {
     public:
         /**
+         * Mangling suffix that marks a method as static. Appended to a
+         * resolved qualified name (after the signature) by the overload
+         * resolver on the happy path. Centralised here so bypass call
+         * sites can use the same literal via ensureStaticSuffix() rather
+         * than re-hardcoding "$static" inline.
+         */
+        static constexpr const char* STATIC_SUFFIX = "$static";
+
+        /**
+         * Idempotently append STATIC_SUFFIX to `name`. Callers that go
+         * through resolveStaticMethodOverload() already have the suffix;
+         * callers that bypass it (className-empty fallbacks, plain-name
+         * emit paths in FunctionCallHelper / ClassMethodCallCompiler)
+         * use this helper so the runtime CALL_STATIC dispatcher can
+         * trust the suffix is present. Consolidates what was three
+         * inline `if (name.find("$static") == npos) name += "$static";`
+         * sites that had to be kept in sync.
+         */
+        static void ensureStaticSuffix(std::string& name);
+
+
+        /**
          * Generate type signature from parameter types
          * Returns empty string for no parameters
          *

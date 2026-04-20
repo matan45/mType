@@ -1,5 +1,6 @@
 #include "ClassCompiler.hpp"
 #include "../validation/CompileTimeValidator.hpp"
+#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../optimization/PrimitiveMethodOptimizer.hpp"
@@ -152,11 +153,10 @@ namespace vm::compiler::visitors
 
             // Emit CALL_STATIC instruction with resolved (mangled) method name.
             // MYT-197: $static suffix must live in the constant pool — the
-            // runtime CALL_STATIC handler no longer appends it.
-            if (resolvedMethodName.find("$static") == std::string::npos)
-            {
-                resolvedMethodName += "$static";
-            }
+            // runtime CALL_STATIC handler no longer appends it. Idempotent
+            // helper covers both happy-path (already suffixed by overload
+            // resolution) and bypass paths in one call.
+            runtimeTypes::klass::SignatureUtils::ensureStaticSuffix(resolvedMethodName);
             size_t methodNameIndex = ctx.program.getConstantPool().addString(resolvedMethodName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_STATIC,
                              static_cast<uint64_t>(methodNameIndex),

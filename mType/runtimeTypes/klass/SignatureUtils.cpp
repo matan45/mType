@@ -5,6 +5,17 @@
 
 namespace runtimeTypes::klass
 {
+    void SignatureUtils::ensureStaticSuffix(std::string& name)
+    {
+        // find() avoids a substring allocation and handles the
+        // suffix-anywhere-in-name case (pedantic: the suffix should only
+        // ever appear at the end, but the prior inline checks also used
+        // find() so we keep identical semantics).
+        if (name.find(STATIC_SUFFIX) == std::string::npos) {
+            name += STATIC_SUFFIX;
+        }
+    }
+
     std::string SignatureUtils::getTypeName(const value::ParameterType& paramType)
     {
         if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {

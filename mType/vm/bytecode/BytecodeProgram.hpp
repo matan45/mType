@@ -72,6 +72,16 @@ namespace vm::bytecode
             // makes the demote sticky so we don't flip/unflip on unstable sites.
             // These fields are disjoint from cachedFuncMetadata et al., which serve
             // the CALL opcode (see FunctionExecutor).
+            //
+            // LIFETIME: cachedMethodShape / cachedFieldShape below are raw
+            // pointers into the class registry. The registry owns
+            // ClassDefinition objects for the program's lifetime (they're
+            // registered at bytecode-load time and never freed until shutdown),
+            // so these pointers remain stable across all dispatches that could
+            // read them. They are cleared to nullptr on deopt (see
+            // deoptAndReprocess / deoptGetFieldAndReprocess) — never dangling,
+            // only null. Do NOT copy into any data structure with a longer
+            // lifetime than a BytecodeProgram instance without revisiting this.
             mutable const runtimeTypes::klass::ClassDefinition* cachedMethodShape = nullptr;
             mutable const FunctionMetadata* cachedMethodFunc = nullptr;
             mutable const BytecodeProgram* cachedMethodProgram = nullptr;

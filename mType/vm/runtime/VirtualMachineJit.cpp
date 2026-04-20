@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cassert>
 #include "../../errors/RuntimeException.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
@@ -413,6 +414,12 @@ namespace vm::runtime
         if (mut.fusedDeoptCount >= 1) return;
 
         uint64_t constIdx = prev.operands[0];
+        // fusedSlot is uint32_t — assert before truncation so an oversized
+        // constant-pool index surfaces as a clean failure rather than silent
+        // data loss. Constant pools are bounded by the compiler, but the
+        // cast is attacker-reachable via a malformed .mtc operand.
+        assert(constIdx <= UINT32_MAX &&
+               "ADD_INT_CONST fusion: PUSH_INT operand exceeds fusedSlot width");
         auto& prevMut = const_cast<bytecode::BytecodeProgram*>(program)
                             ->getMutableInstruction(ip - 1);
         prevMut.opcode = bytecode::OpCode::NOP;
