@@ -5,7 +5,7 @@
 
 class Counter {
     public int value;
-    public function Counter() {
+    public constructor() {
         this.value = 0;
     }
     public function tick(int step): int {
