@@ -689,6 +689,27 @@ namespace vm::runtime
         auto accessContext = createAccessContext(baseClassName, false);
         validation::AccessValidator::validateConstructorAccess(baseClassName, constructor->getAccessModifier(), accessContext);
 
+        // Phase 3 (allocation perf): trivial ctor — body is strictly
+        // `this.F_k = param_k`. Copy args directly into instance fields and
+        // leave the instance on the operand stack (matching the default-ctor
+        // early-return convention above). Skips CallFrame setup + ctor
+        // bytecode interpret loop entirely. Debugger/profiler will not see
+        // an explicit function-entry event for these ctors — that's the
+        // cost of the fast path.
+        if (constructor->isTrivialConstructor())
+        {
+            const auto& assigns = constructor->getTrivialFieldAssignments();
+            for (const auto& [fieldName, paramIdx] : assigns)
+            {
+                if (paramIdx < argCount)
+                {
+                    instance->setField(fieldName, args[paramIdx]);
+                }
+            }
+            context.stackManager->push(instance);
+            return;
+        }
+
         // Build type signature from runtime argument values for overload resolution
         std::string typeSignature = constructor->getTypeSignature();
 
