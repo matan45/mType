@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <utility>
@@ -40,6 +41,25 @@ namespace runtimeTypes::klass
         std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> parameterAnnotations;
 
       public:
+        // Phase 2b (allocation perf): opaque per-constructor cache for the
+        // jit_new_object → VirtualMachine::createObject hot path. Without it
+        // every allocation pays a string concat (`className + "::<init>/" +
+        // typeSignature`) + two hashmap lookups (getFunction + internFrameName).
+        // The cache is keyed by programTag so reloading a program invalidates.
+        // Types are void* / uint32_t to avoid pulling BytecodeProgram.hpp into
+        // mtype-core — callers static_cast back to the concrete types.
+        struct CallSiteCache
+        {
+            const void* programTag = nullptr;     // BytecodeProgram* (identity tag)
+            const void* funcMetadata = nullptr;   // BytecodeProgram::FunctionMetadata*
+            uint32_t frameNameHandle = UINT32_MAX;// FunctionNameHandle::id
+        };
+
+      private:
+        mutable CallSiteCache callSiteCache;
+
+      public:
+        CallSiteCache& getCallSiteCache() const { return callSiteCache; }
        // Legacy constructor with ParameterType (preserves class/interface information)
        explicit ConstructorDefinition(const std::vector<std::pair<std::string, ParameterType>>& params,
                              std::shared_ptr<ASTNode> b,

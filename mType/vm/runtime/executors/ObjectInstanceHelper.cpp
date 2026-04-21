@@ -179,7 +179,14 @@ namespace vm::runtime
         // Reverse once at end: O(n) total instead of O(n²)
         std::reverse(hierarchy.begin(), hierarchy.end());
 
-        for (const auto& classInHierarchy : hierarchy) {
+        // Phase 2 (allocation perf): only the top-of-hierarchy class (the one
+        // being allocated) is safe to skip-default-init for. Parent fields
+        // stay fully default-initialised because a child constructor may
+        // read `this.<parent_field>` before calling super(), and we don't
+        // know the ctor ordering for inherited state at this point.
+        for (size_t i = 0; i < hierarchy.size(); ++i) {
+            const auto& classInHierarchy = hierarchy[i];
+            const bool isSelf = (i == hierarchy.size() - 1);
             for (const auto& [fieldName, fieldDef] : classInHierarchy->getInstanceFields()) {
                 // Final fields are always written by the constructor: inline
                 // initializers fire in the prologue, ctor-initialized fields
@@ -189,6 +196,12 @@ namespace vm::runtime
                 // FieldInitializationValidator catches uninitialized finals
                 // at compile time.
                 if (fieldDef->isFinal()) continue;
+
+                // Phase 2: the compiler proved every constructor of this
+                // class assigns this field before any read. Skipping avoids
+                // the unordered_map<string,Value>::insert + write barrier on
+                // the allocation hot path.
+                if (isSelf && classInHierarchy->shouldSkipDefaultInit(fieldName)) continue;
 
                 value::Value initialValue = fieldDef->getValue();
                 if (value::isVoid(initialValue)) {

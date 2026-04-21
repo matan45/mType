@@ -13,6 +13,9 @@
     <Filter Include="vm\compiler">
       <UniqueIdentifier>{72FADB43-DEAF-5439-67A4-4E10D3584B3D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\compiler\analysis">
+      <UniqueIdentifier>{856A25CE-71F9-AE97-1A18-C3920686BF3D}</UniqueIdentifier>
+    </Filter>
     <Filter Include="vm\compiler\control">
       <UniqueIdentifier>{42957084-AEF6-4D92-3764-9444A3C48451}</UniqueIdentifier>
     </Filter>
@@ -98,6 +101,9 @@
     </ClInclude>
     <ClInclude Include="vm\compiler\ImportHelper.hpp">
       <Filter>vm\compiler</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\analysis\DefiniteAssignmentAnalyzer.hpp">
+      <Filter>vm\compiler\analysis</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\control\ExceptionContextManager.hpp">
       <Filter>vm\compiler\control</Filter>
@@ -379,6 +385,9 @@
     </ClCompile>
     <ClCompile Include="vm\compiler\ImportHelper.cpp">
       <Filter>vm\compiler</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\analysis\DefiniteAssignmentAnalyzer.cpp">
+      <Filter>vm\compiler\analysis</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\control\ExceptionContextManager.cpp">
       <Filter>vm\compiler\control</Filter>

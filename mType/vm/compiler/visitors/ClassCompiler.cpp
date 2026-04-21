@@ -1,4 +1,5 @@
 #include "ClassCompiler.hpp"
+#include "../analysis/DefiniteAssignmentAnalyzer.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../optimization/PrimitiveMethodOptimizer.hpp"
@@ -60,10 +61,84 @@ namespace vm::compiler::visitors
             field->accept(ctx.visitor);
         }
 
+        // Phase 2 (allocation perf): record the set of own-class instance
+        // fields that every constructor definitely assigns before any read.
+        // initializeObjectFields() uses this to skip redundant default-init
+        // setField() calls. Intersection across all constructors — a field
+        // is safe to skip only if every ctor writes it first.
+        computeSkipDefaultInitFields(node);
+
         // Restore previous class context
         ctx.currentClassNode = previousClassNode;
 
         return std::monostate{};
+    }
+
+    void ClassCompiler::computeSkipDefaultInitFields(ast::ClassNode* node)
+    {
+        auto classDef = ctx.environment->findClass(node->getClassName());
+        if (!classDef) return;
+
+        const auto& ctorNodes = node->getConstructors();
+        if (ctorNodes.empty()) return;  // implicit default ctor touches nothing — leave empty
+
+        std::unordered_set<std::string> intersection;
+        bool first = true;
+
+        for (const auto& ctorNode : ctorNodes)
+        {
+            auto* ctor = dynamic_cast<ast::nodes::classes::ConstructorNode*>(ctorNode.get());
+            if (!ctor)
+            {
+                intersection.clear();
+                break;
+            }
+
+            // A super() / this() call running before body statements could
+            // read this.X via super's own constructor. The analyser rejects
+            // any non-trivial shape, but being explicit here keeps future
+            // readers honest: if there's any super-initialiser, bail.
+            if (ctor->hasSuperInitializer())
+            {
+                intersection.clear();
+                break;
+            }
+
+            auto assigned = analysis::DefiniteAssignmentAnalyzer::analyzeConstructor(ctor->getBodyPtr());
+            if (assigned.empty())
+            {
+                intersection.clear();
+                break;
+            }
+
+            if (first)
+            {
+                intersection = std::move(assigned);
+                first = false;
+            }
+            else
+            {
+                std::unordered_set<std::string> next;
+                for (const auto& name : intersection)
+                {
+                    if (assigned.count(name) > 0) next.insert(name);
+                }
+                intersection = std::move(next);
+                if (intersection.empty()) break;
+            }
+        }
+
+        // Only keep fields that belong to *this* class (not inherited). Parent
+        // classes handle their own fields via their own initializeObjectFields
+        // pass / their own skip set.
+        std::unordered_set<std::string> ownFieldsOnly;
+        const auto& ownInstanceFields = classDef->getInstanceFields();
+        for (const auto& name : intersection)
+        {
+            if (ownInstanceFields.count(name) > 0) ownFieldsOnly.insert(name);
+        }
+
+        classDef->setSkipDefaultInitFields(std::move(ownFieldsOnly));
     }
 
     value::Value ClassCompiler::compileMethod(ast::MethodNode* node)
