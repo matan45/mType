@@ -107,4 +107,44 @@ namespace vm::compiler::analysis
 
         return assigned;
     }
+
+    std::optional<std::vector<std::pair<std::string, size_t>>>
+    DefiniteAssignmentAnalyzer::analyzeTrivialCtor(ast::ASTNode* body,
+                                                   const std::vector<std::string>& paramNames)
+    {
+        std::vector<std::pair<std::string, size_t>> result;
+        if (!body) return result;  // empty body is trivially "trivial"
+
+        auto* block = dynamic_cast<ast::nodes::statements::BlockNode*>(body);
+        if (!block) return std::nullopt;
+
+        for (const auto& stmtUniq : block->getStatements())
+        {
+            auto* memberAssign =
+                dynamic_cast<ast::nodes::statements::MemberAssignmentNode*>(stmtUniq.get());
+            if (!memberAssign) return std::nullopt;
+
+            if (!isThisReceiver(memberAssign->getObject())) return std::nullopt;
+
+            // RHS must be a direct parameter reference. Literals and
+            // arithmetic don't qualify — we need to evaluate-free copy the
+            // arg into the slot, and the fast path doesn't run expression
+            // bytecode.
+            auto* var = dynamic_cast<ast::nodes::expressions::VariableNode*>(
+                memberAssign->getValue());
+            if (!var) return std::nullopt;
+            if (var->getName() == "this") return std::nullopt;
+
+            size_t paramIdx = SIZE_MAX;
+            for (size_t i = 0; i < paramNames.size(); ++i)
+            {
+                if (paramNames[i] == var->getName()) { paramIdx = i; break; }
+            }
+            if (paramIdx == SIZE_MAX) return std::nullopt;  // not a param
+
+            result.emplace_back(memberAssign->getMemberName(), paramIdx);
+        }
+
+        return result;
+    }
 }

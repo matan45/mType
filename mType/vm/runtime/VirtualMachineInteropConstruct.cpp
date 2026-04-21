@@ -58,6 +58,24 @@ namespace vm::runtime
                 throw errors::ConstructorNotFoundException(className, args.size());
             }
 
+            // Phase 3 (allocation perf): trivial ctor — `this.F_k = param_k`
+            // only, no super-initialiser, all fields own-class. Copy args
+            // directly into instance fields and skip the CallFrame + bytecode
+            // interpret loop entirely. Compiler flags this at class-compile
+            // time in ClassCompiler::markTrivialConstructors.
+            if (constructor->isTrivialConstructor())
+            {
+                const auto& assigns = constructor->getTrivialFieldAssignments();
+                for (const auto& [fieldName, paramIdx] : assigns)
+                {
+                    if (paramIdx < args.size())
+                    {
+                        instance->setField(fieldName, args[paramIdx]);
+                    }
+                }
+                return value::Value(instance);
+            }
+
             // Phase 2b (allocation perf): resolve constructor bytecode + frame
             // name once per (ctor, program) pair and cache on ConstructorDefinition.
             // Eliminates a per-call string concat + getFunction hashmap hit +

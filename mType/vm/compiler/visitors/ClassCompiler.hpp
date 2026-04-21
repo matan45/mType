@@ -72,5 +72,9 @@ namespace vm::compiler::visitors
         // Phase 2 (allocation perf): intersect definite-assignment sets across
         // all constructors of the class and push the result onto ClassDefinition.
         void computeSkipDefaultInitFields(ast::ClassNode* node);
+
+        // Phase 3 (allocation perf): flag trivial constructors for the
+        // VM's fast-path copy-args-into-fields path.
+        void markTrivialConstructors(ast::ClassNode* node);
     };
 }

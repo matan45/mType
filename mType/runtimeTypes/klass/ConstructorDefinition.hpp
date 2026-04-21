@@ -58,8 +58,27 @@ namespace runtimeTypes::klass
       private:
         mutable CallSiteCache callSiteCache;
 
+        // Phase 3 (allocation perf): the body is strictly `this.F_k = param_k`
+        // assignments. When true, trivialFieldAssignments lists the (fieldName,
+        // paramIndex) pairs in body order; the VM can copy args directly into
+        // instance fields and skip the CallFrame + bytecode interpret loop.
+        // Populated by ClassCompiler after constructor analysis.
+        bool trivialConstructor = false;
+        std::vector<std::pair<std::string, size_t>> trivialFieldAssignments;
+
       public:
         CallSiteCache& getCallSiteCache() const { return callSiteCache; }
+
+        bool isTrivialConstructor() const { return trivialConstructor; }
+        const std::vector<std::pair<std::string, size_t>>& getTrivialFieldAssignments() const
+        {
+            return trivialFieldAssignments;
+        }
+        void setTrivialFieldAssignments(std::vector<std::pair<std::string, size_t>> assignments)
+        {
+            trivialFieldAssignments = std::move(assignments);
+            trivialConstructor = true;
+        }
        // Legacy constructor with ParameterType (preserves class/interface information)
        explicit ConstructorDefinition(const std::vector<std::pair<std::string, ParameterType>>& params,
                              std::shared_ptr<ASTNode> b,

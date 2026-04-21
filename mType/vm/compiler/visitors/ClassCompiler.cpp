@@ -68,10 +68,63 @@ namespace vm::compiler::visitors
         // is safe to skip only if every ctor writes it first.
         computeSkipDefaultInitFields(node);
 
+        // Phase 3 (allocation perf): flag constructors whose body is strictly
+        // `this.F_k = param_k`. The VM's createObject / invokeConstructor
+        // fast-paths copy args straight into instance fields, skipping the
+        // whole CallFrame push + ctor-bytecode interpret loop.
+        markTrivialConstructors(node);
+
         // Restore previous class context
         ctx.currentClassNode = previousClassNode;
 
         return std::monostate{};
+    }
+
+    void ClassCompiler::markTrivialConstructors(ast::ClassNode* node)
+    {
+        auto classDef = ctx.environment->findClass(node->getClassName());
+        if (!classDef) return;
+
+        const auto& ctorNodes = node->getConstructors();
+        const auto& ctorDefs = classDef->getConstructors();
+
+        // Order must line up — ClassRegistrar adds each ctor in AST order.
+        // If they don't match (e.g., an implicit default ctor snuck in),
+        // bail rather than guess.
+        if (ctorNodes.size() != ctorDefs.size()) return;
+
+        for (size_t i = 0; i < ctorNodes.size(); ++i)
+        {
+            auto* ctor = dynamic_cast<ast::nodes::classes::ConstructorNode*>(ctorNodes[i].get());
+            if (!ctor) continue;
+            if (ctor->hasSuperInitializer()) continue;
+
+            // Build parameter name list in declaration order for the analyser.
+            std::vector<std::string> paramNames;
+            const auto& params = ctor->getParametersWithTypes();
+            paramNames.reserve(params.size());
+            for (const auto& p : params) paramNames.push_back(p.first);
+
+            auto trivial = analysis::DefiniteAssignmentAnalyzer::analyzeTrivialCtor(
+                ctor->getBodyPtr(), paramNames);
+            if (!trivial.has_value()) continue;
+
+            // Keep only assignments to this-class instance fields. Inherited
+            // fields could legitimately live on the slow path; we don't want
+            // to silently skip parent-side initialiser bytecode.
+            const auto& ownInstanceFields = classDef->getInstanceFields();
+            std::vector<std::pair<std::string, size_t>> filtered;
+            filtered.reserve(trivial->size());
+            bool allOwned = true;
+            for (const auto& pr : *trivial)
+            {
+                if (ownInstanceFields.count(pr.first) == 0) { allOwned = false; break; }
+                filtered.push_back(pr);
+            }
+            if (!allOwned) continue;
+
+            ctorDefs[i]->setTrivialFieldAssignments(std::move(filtered));
+        }
     }
 
     void ClassCompiler::computeSkipDefaultInitFields(ast::ClassNode* node)
