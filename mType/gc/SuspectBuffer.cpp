@@ -13,8 +13,6 @@ namespace gc
     {
         if (!object) return;
 
-        std::lock_guard<std::mutex> lock(bufferMutex);
-
         // Already in buffer
         if (suspectSet.count(object) > 0)
         {
@@ -35,8 +33,6 @@ namespace gc
     {
         if (!object) return;
 
-        std::lock_guard<std::mutex> lock(bufferMutex);
-
         if (suspectSet.erase(object) > 0)
         {
             auto it = std::find(suspects.begin(), suspects.end(), object);
@@ -51,13 +47,11 @@ namespace gc
 
     bool SuspectBuffer::isSuspect(void* object) const
     {
-        std::lock_guard<std::mutex> lock(bufferMutex);
         return suspectSet.count(object) > 0;
     }
 
     std::vector<void*> SuspectBuffer::extractSuspects()
     {
-        std::lock_guard<std::mutex> lock(bufferMutex);
         std::vector<void*> result = std::move(suspects);
         suspects.clear();
         suspects.reserve(config::SUSPECT_BUFFER_INITIAL_SIZE);
@@ -67,31 +61,26 @@ namespace gc
 
     std::vector<void*> SuspectBuffer::getSuspectsCopy() const
     {
-        std::lock_guard<std::mutex> lock(bufferMutex);
         return suspects;
     }
 
     size_t SuspectBuffer::size() const
     {
-        std::lock_guard<std::mutex> lock(bufferMutex);
         return suspects.size();
     }
 
     bool SuspectBuffer::shouldTriggerCollection() const
     {
-        std::lock_guard<std::mutex> lock(bufferMutex);
         return suspects.size() >= config::SUSPECT_THRESHOLD;
     }
 
     bool SuspectBuffer::isEmpty() const
     {
-        std::lock_guard<std::mutex> lock(bufferMutex);
         return suspects.empty();
     }
 
     void SuspectBuffer::clear()
     {
-        std::lock_guard<std::mutex> lock(bufferMutex);
         suspects.clear();
         suspects.reserve(config::SUSPECT_BUFFER_INITIAL_SIZE);
         suspectSet.clear();

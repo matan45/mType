@@ -20,7 +20,6 @@ namespace value
     runtimeTypes::klass::ObjectInstance*
     ObjectInstancePool::popOrNull(runtimeTypes::klass::ClassDefinition* classDef)
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         ++globalStats.totalAllocations;
 
         auto& bucket = pools[classDef];
@@ -45,7 +44,6 @@ namespace value
         runtimeTypes::klass::ClassDefinition* classDef,
         runtimeTypes::klass::ObjectInstance* obj)
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         auto& bucket = pools[classDef];
 
         if (bucket.slots.size() < bucket.maxSize)
@@ -147,13 +145,11 @@ namespace value
 
     ObjectPoolStats ObjectInstancePool::getGlobalStats() const
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         return globalStats;
     }
 
     void ObjectInstancePool::clear()
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         for (auto& kv : pools)
         {
             for (auto* obj : kv.second.slots)

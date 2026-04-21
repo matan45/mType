@@ -18,8 +18,7 @@ namespace gc
     void GCTracker::unregisterObject(void* rawPtr)
     {
         if (!rawPtr) return;
-
-        std::lock_guard<std::mutex> lock(trackerMutex);
+        
         auto it = objectHeaders.find(rawPtr);
         if (it != objectHeaders.end())
         {
@@ -34,7 +33,6 @@ namespace gc
 
     GCObjectHeader* GCTracker::getHeader(void* rawPtr)
     {
-        std::lock_guard<std::mutex> lock(trackerMutex);
         auto it = objectHeaders.find(rawPtr);
         if (it != objectHeaders.end())
         {
@@ -45,7 +43,6 @@ namespace gc
 
     const GCObjectHeader* GCTracker::getHeader(void* rawPtr) const
     {
-        std::lock_guard<std::mutex> lock(trackerMutex);
         auto it = objectHeaders.find(rawPtr);
         if (it != objectHeaders.end())
         {
@@ -56,7 +53,6 @@ namespace gc
 
     bool GCTracker::isObjectAlive(void* rawPtr) const
     {
-        std::lock_guard<std::mutex> lock(trackerMutex);
         auto it = weakReferences.find(rawPtr);
         if (it != weakReferences.end())
         {
@@ -67,7 +63,6 @@ namespace gc
 
     std::vector<void*> GCTracker::getAllTrackedPointers() const
     {
-        std::lock_guard<std::mutex> lock(trackerMutex);
         std::vector<void*> pointers;
         pointers.reserve(objectHeaders.size());
         for (const auto& [ptr, _] : objectHeaders)
@@ -79,7 +74,6 @@ namespace gc
 
     size_t GCTracker::cleanupDeadObjects()
     {
-        std::lock_guard<std::mutex> lock(trackerMutex);
         size_t removed = 0;
 
         std::vector<void*> toRemove;
@@ -112,7 +106,6 @@ namespace gc
 
     void GCTracker::reset()
     {
-        std::lock_guard<std::mutex> lock(trackerMutex);
         objectHeaders.clear();
         weakReferences.clear();
         allocationCount = 0;

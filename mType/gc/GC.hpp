@@ -21,7 +21,6 @@ namespace gc
     {
     private:
         static std::unique_ptr<GCCoordinator> coordinator;
-        static std::mutex initMutex;
         static bool initialized;
 
     public:

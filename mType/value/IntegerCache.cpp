@@ -1,7 +1,6 @@
 #include "IntegerCache.hpp"
 #include "../environment/Environment.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include <mutex>
 
 namespace value {
 

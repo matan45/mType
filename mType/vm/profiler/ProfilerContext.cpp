@@ -4,7 +4,6 @@
 namespace vm::profiler
 {
     std::unique_ptr<ProfilerContext> ProfilerContext::instance = nullptr;
-    std::mutex ProfilerContext::instanceMutex;
     bool ProfilerContext::enabledFlag = false;
 
     ProfilerContext::ProfilerContext()
@@ -15,7 +14,6 @@ namespace vm::profiler
 
     ProfilerContext& ProfilerContext::getInstance()
     {
-        std::lock_guard<std::mutex> lock(instanceMutex);
         if (!instance)
         {
             instance = std::unique_ptr<ProfilerContext>(new ProfilerContext());
@@ -39,7 +37,6 @@ namespace vm::profiler
 
     void ProfilerContext::shutdown()
     {
-        std::lock_guard<std::mutex> lock(instanceMutex);
         enabledFlag = false;
         if (instance)
         {

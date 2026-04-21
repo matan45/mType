@@ -2,7 +2,6 @@
 
 #include "UnifiedType.hpp"
 #include <unordered_map>
-#include <mutex>
 #include <vector>
 #include <memory>
 
@@ -157,12 +156,10 @@ namespace types
 
     private:
         // Type interning cache: canonical string -> type
-        mutable std::mutex typeCacheMutex;
         std::unordered_map<std::string, UnifiedTypePtr> typeCache;
 
         // Object type registrations: object pointer -> reified type
         // Uses weak_ptr to avoid preventing object destruction
-        mutable std::mutex objectRegistryMutex;
         std::unordered_map<const void*, std::pair<std::weak_ptr<runtimeTypes::klass::ObjectInstance>, UnifiedTypePtr>>
         objectTypes;
 

@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
-#include <mutex>
 #include "ProfilerMode.hpp"
 #include "ProfilerData.hpp"
 
@@ -14,7 +13,6 @@ namespace vm::profiler
     {
     private:
         static std::unique_ptr<ProfilerContext> instance;
-        static std::mutex instanceMutex;
 
         // Fast-path flag: avoids mutex/getInstance() on every profiling check
         static bool enabledFlag;

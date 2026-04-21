@@ -3,20 +3,32 @@
 #include <memory>
 #include <unordered_set>
 #include <unordered_map>
-#include <mutex>
 #include <atomic>
 #include <functional>
 #include "GCConfig.hpp"
 
-namespace runtimeTypes::klass { class ObjectInstance; }
-namespace vm::runtime { struct BytecodeLambda; }
-namespace value {
+namespace runtimeTypes::klass
+{
+    class ObjectInstance;
+}
+
+namespace vm::runtime
+{
+    struct BytecodeLambda;
+}
+
+namespace value
+{
     class NativeArray;
     class FlatMultiArray;
     class SparseMultiArray;
     class PromiseValue;
 }
-namespace mType::value::arrays { class FlatMultiObjectArray; }
+
+namespace mType::value::arrays
+{
+    class FlatMultiObjectArray;
+}
 
 namespace gc
 {
@@ -30,10 +42,10 @@ namespace gc
     {
         config::ObjectColor color = config::ObjectColor::BLACK;
         config::GCObjectType type = config::GCObjectType::UNKNOWN;
-        bool buffered = false;           // Is this object in the suspect buffer?
-        int32_t actualRefCount = 1;      // Actual shared_ptr refcount at registration
-        int32_t virtualRefCount = 0;     // Virtual refcount for cycle detection
-        uint32_t cycleCount = 0;         // Number of times this object was in a cycle
+        bool buffered = false; // Is this object in the suspect buffer?
+        int32_t actualRefCount = 1; // Actual shared_ptr refcount at registration
+        int32_t virtualRefCount = 0; // Virtual refcount for cycle detection
+        uint32_t cycleCount = 0; // Number of times this object was in a cycle
 
         void reset()
         {
@@ -66,7 +78,6 @@ namespace gc
         // Weak references to tracked objects for safe iteration
         std::unordered_map<void*, std::weak_ptr<void>> weakReferences;
 
-        mutable std::mutex trackerMutex;
         std::atomic<size_t> allocationCount{0};
         std::atomic<size_t> totalTrackedObjects{0};
 
@@ -75,12 +86,11 @@ namespace gc
         static void destroyInstance();
 
         // Object registration
-        template<typename T>
+        template <typename T>
         void registerObject(std::shared_ptr<T> obj, config::GCObjectType type)
         {
             if (!obj) return;
 
-            std::lock_guard<std::mutex> lock(trackerMutex);
             void* rawPtr = obj.get();
 
             if (objectHeaders.find(rawPtr) == objectHeaders.end())
@@ -111,10 +121,9 @@ namespace gc
         void resetAllocationCount() { allocationCount = 0; }
 
         // Iteration for cycle detection (callback receives ptr, header, and current refcount)
-        template<typename Func>
+        template <typename Func>
         void forEachTrackedObject(Func&& callback)
         {
-            std::lock_guard<std::mutex> lock(trackerMutex);
             for (auto& [ptr, header] : objectHeaders)
             {
                 // Get current refcount while we hold the lock
@@ -131,7 +140,6 @@ namespace gc
         // Get shared_ptr for an object (to keep it alive during GC operations)
         std::shared_ptr<void> getSharedPtr(void* rawPtr)
         {
-            std::lock_guard<std::mutex> lock(trackerMutex);
             auto it = weakReferences.find(rawPtr);
             if (it != weakReferences.end())
             {

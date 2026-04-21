@@ -1,8 +1,6 @@
 #pragma once
 
-#include <cstddef>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -133,7 +131,6 @@ namespace value
                            runtimeTypes::klass::ObjectInstance* obj);
 
         std::unordered_map<runtimeTypes::klass::ClassDefinition*, Bucket> pools;
-        mutable std::mutex poolMutex;
         ObjectPoolStats globalStats;
     };
 }

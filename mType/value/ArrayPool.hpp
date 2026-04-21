@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
-#include <mutex>
 #include <string>
 
 namespace value
@@ -50,7 +49,6 @@ namespace value
         };
 
         std::unordered_map<std::string, PoolEntry> pools;
-        mutable std::mutex poolMutex;
         PoolStats globalStats;
 
         // Configuration
@@ -241,7 +239,6 @@ namespace value
         std::shared_ptr<FlatMultiArray> acquire(const std::vector<size_t>& dimensions,
                                               const Value& defaultValue = std::monostate{})
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             globalStats.totalAllocations++;
 
             if (!shouldPool(dimensions)) {
@@ -269,7 +266,6 @@ namespace value
         Value acquireAdaptive(const std::vector<size_t>& dimensions,
                              const Value& defaultValue = std::monostate{})
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             globalStats.totalAllocations++;
 
             // Determine optimal array type based on size characteristics
@@ -311,8 +307,6 @@ namespace value
             auto dimensions = array->getDimensions();
             if (!shouldPool(dimensions)) return;
 
-            std::lock_guard<std::mutex> lock(poolMutex);
-
             std::string key = getDimensionKey(dimensions);
             auto& pool = pools[key];
 
@@ -334,7 +328,6 @@ namespace value
          */
         PoolStats getGlobalStats() const
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             return globalStats;
         }
 
@@ -343,7 +336,6 @@ namespace value
          */
         PoolStats getPoolStats(const std::vector<size_t>& dimensions) const
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             std::string key = getDimensionKey(dimensions);
             auto it = pools.find(key);
             return it != pools.end() ? it->second.stats : PoolStats{};
@@ -354,7 +346,6 @@ namespace value
          */
         std::vector<std::pair<std::string, PoolStats>> getAllPoolStats() const
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             std::vector<std::pair<std::string, PoolStats>> result;
             for (const auto& [key, pool] : pools) {
                 result.emplace_back(key, pool.stats);
@@ -367,7 +358,6 @@ namespace value
          */
         void clear()
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             pools.clear();
             globalStats = PoolStats{};
         }
@@ -378,8 +368,7 @@ namespace value
         void setPoolSize(const std::vector<size_t>& dimensions, size_t maxSize)
         {
             if (!shouldPool(dimensions)) return;
-
-            std::lock_guard<std::mutex> lock(poolMutex);
+            
             std::string key = getDimensionKey(dimensions);
             pools[key].maxSize = maxSize;
             cleanupPool(pools[key]);
