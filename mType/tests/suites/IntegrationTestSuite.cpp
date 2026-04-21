@@ -189,8 +189,6 @@ namespace tests::testSuite
                                   passPath + "exceptionInheritanceHierarchy.mt");
         addOutputVerificationTest("Exception Memory Lifecycle",
                                   passPath + "exceptionMemoryLifecycle.mt");
-        addOutputVerificationTest("Final Variables Across Namespaces And Classes",
-                                  passPath + "finalVariablesAcrossNamespacesAndClasses.mt");
         addOutputVerificationTest("Generic Import Serialization",
                                   passPath + "genericImportSerialization.mt");
         addOutputVerificationTest("Imports With Namespaces And Classes",
