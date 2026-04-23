@@ -123,6 +123,34 @@ namespace vm::compiler::visitors
             }
             if (!allOwned) continue;
 
+            // Final instance fields with inline initializers (e.g.,
+            // `final int CHANNELS = 32`) are set by the constructor's
+            // bytecode prologue. The trivial fast path skips the entire
+            // constructor bytecode, so those initialisations would be
+            // lost. Reject trivial classification when any final instance
+            // field exists in this class or its hierarchy.
+            bool hasFinalFields = false;
+            for (const auto& [fname, fdef] : ownInstanceFields)
+            {
+                if (fdef->isFinal()) { hasFinalFields = true; break; }
+            }
+            if (!hasFinalFields)
+            {
+                // Also check parent classes — their final fields are
+                // initialised in the parent constructor prologue that
+                // the trivial fast path would skip.
+                auto parent = classDef->getParentClass();
+                while (parent && !hasFinalFields)
+                {
+                    for (const auto& [fname, fdef] : parent->getInstanceFields())
+                    {
+                        if (fdef->isFinal()) { hasFinalFields = true; break; }
+                    }
+                    parent = parent->getParentClass();
+                }
+            }
+            if (hasFinalFields) continue;
+
             ctorDefs[i]->setTrivialFieldAssignments(std::move(filtered));
         }
     }
