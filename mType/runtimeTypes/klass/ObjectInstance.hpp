@@ -115,6 +115,18 @@ namespace runtimeTypes::klass
         void setFieldByIndex(size_t index, const Value& value);
         bool hasFieldVector() const { return fieldVectorInitialized; }
 
+        // Value-class fast-dispatch fix: bulk-init this instance from a
+        // ValueObject's field vector. Used by invokeValueObjectMethod /
+        // callMethodFromJitDirect(Value) when materialising a temporary `this`
+        // for a value-class method call. The previous per-call hot loop ran
+        // setField(name, value) once per declared field — three hashmap ops
+        // and a write barrier each. This batch path assumes the receiving
+        // instance is freshly recycled (no live references, fieldValues empty,
+        // gcRegistered false), so it skips the GC write barrier and the
+        // gcRegistered probe and folds the per-field machinery into a single
+        // vector copy plus one synchronised hashmap fill.
+        void loadFromValueObject(const value::ValueObject& src);
+
         // Fast primitive type tag (avoids string comparisons in hot paths)
         value::PrimitiveTypeTag getPrimitiveTag() const { return primitiveTag_; }
 

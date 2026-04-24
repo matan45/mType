@@ -121,6 +121,7 @@ namespace vm::jit
                 // type), so the enclosing loop must emit in boxed mode.
                 case OpCode::LOAD_VAR:    case OpCode::STORE_VAR:
                 case OpCode::NEW_OBJECT:
+                case OpCode::NEW_STACK:   // MYT-134
                 case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
                 case OpCode::CALL_METHOD: case OpCode::CALL_METHOD_CACHED: case OpCode::CALL_STATIC:
                 // MYT-198: fused _CACHED ops participate in boxed-types mode

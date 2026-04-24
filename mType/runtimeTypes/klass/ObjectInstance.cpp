@@ -2,6 +2,7 @@
 #include "../../gc/GC.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../value/ValueBridge.hpp"
+#include "../../value/ValueObject.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <vector>
@@ -214,16 +215,49 @@ namespace runtimeTypes::klass
 
         fieldVector[index] = value;
 
-        // Keep fieldValues map in sync
+        // Phase 4: O(1) map sync — look up the name for this index in the
+        // class's fieldIndexToName vector. The prior implementation scanned
+        // the entire indexMap linearly to find the matching entry.
         if (!classDefinition) return;
-        const auto& indexMap = classDefinition->getFieldIndexMap();
-        for (const auto& [name, idx] : indexMap)
+        const auto& names = classDefinition->getFieldIndexToName();
+        if (index < names.size())
         {
-            if (idx == index)
-            {
-                fieldValues[name] = value;
-                break;
-            }
+            fieldValues[names[index]] = value;
+        }
+    }
+
+    void ObjectInstance::loadFromValueObject(const value::ValueObject& src)
+    {
+        if (!classDefinition) return;
+
+        // Direct vector copy: std::vector::operator= retains heap-typed Values
+        // exactly once (one atomic per heap field). The previous setField path
+        // touched fieldValues and fieldVector twice and ran the GC write
+        // barrier per field — for a freshly recycled instance the barrier is
+        // pure overhead because the old slot is monostate.
+        const auto& srcFields = src.getFields();
+        fieldVector = srcFields;
+        fieldVectorInitialized = true;
+
+        // Mirror the vector into fieldValues so getFieldValue(name) — which
+        // is what GET_FIELD on the slow path consults — sees the same data.
+        // Single hashmap insert per field with no setField machinery
+        // (no getField hierarchy walk, no extractPointer, no gcRegistered
+        // probe, no per-field write barrier branch).
+        const auto& names = classDefinition->getFieldIndexToName();
+        const size_t n = std::min(srcFields.size(), names.size());
+        for (size_t i = 0; i < n; ++i)
+        {
+            fieldValues[names[i]] = srcFields[i];
+        }
+
+        // Generic-type bindings carry over too — the previous code copied
+        // them via a per-entry setGenericTypeBinding loop that landed in the
+        // same hashmap; assignment is one bucket-copy.
+        const auto& srcBindings = src.getGenericTypeBindings();
+        if (!srcBindings.empty())
+        {
+            genericTypeBindings = srcBindings;
         }
     }
 

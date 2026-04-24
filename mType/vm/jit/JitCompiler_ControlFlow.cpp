@@ -316,6 +316,123 @@ namespace vm::jit
         s.stackDepth++;
     }
 
+    // Phase 1: lower a self-recursive tail call (CALL/CALL_FAST immediately
+    // followed by RETURN_VALUE) to an argument-overwrite + jmp to the
+    // function's entry label. Eliminates the per-call dispatch plumbing
+    // (jit_call_function, JitContext construction, CallFrame push, try/catch)
+    // for self-recursive tail calls — e.g. gcd in recursive.mt collapses
+    // from 50k recursive invocations into a tight loop.
+    //
+    // Returns true iff the call site was lowered. False → caller falls
+    // through to the generic helper invoke unchanged.
+    //
+    // Preconditions:
+    //   - callee is the currently compiling function (self-recursion)
+    //   - next instruction is RETURN_VALUE, and that RETURN_VALUE is not a
+    //     jump target (so lowering leaves it as dead-code-after-jmp)
+    //   - frame is !usesBoxedTypes and all params are primitive (int/float/
+    //     bool); boxed-frame TCO is deferred (requires ref-count-correct
+    //     local overwrite via emitInlineLocalCopy)
+    //   - argCount matches parameterCount, and the top-of-stack arg
+    //     SlotTypes match the declared param types exactly
+    static bool tryEmitSelfTailCall(JitEmissionState& s,
+                                     size_t argCount,
+                                     const bytecode::BytecodeProgram::FunctionMetadata* calleeMeta)
+    {
+        if (!s.selfTailCallEnabled) return false;
+        if (s.usesBoxedTypes) return false;
+        if (!calleeMeta) return false;
+        if (argCount != calleeMeta->parameterCount) return false;
+        if (s.currentCompilingFn.empty()) return false;
+
+        const std::string& calleeKey = calleeMeta->mangledName.empty()
+            ? calleeMeta->name : calleeMeta->mangledName;
+        if (calleeKey != s.currentCompilingFn &&
+            calleeMeta->name != s.currentCompilingFn &&
+            calleeMeta->mangledName != s.currentCompilingFn)
+            return false;
+
+        // The next IP must be inside the currently compiling function's
+        // bytecode range — otherwise we'd be peeking at the following
+        // function's first instruction, which is unrelated to this call
+        // site's control flow. calleeMeta == the compiling function by
+        // the self-recursion check above.
+        const size_t nextIP = s.currentIP + 1;
+        const size_t funcEnd = calleeMeta->startOffset + calleeMeta->instructionCount;
+        if (nextIP >= funcEnd) return false;
+        const auto& next = s.program.getInstruction(nextIP);
+        if (next.opcode != OpCode::RETURN_VALUE) return false;
+        if (s.labels.find(nextIP) != s.labels.end()) return false;
+
+        if (s.slotTypes.size() < argCount) return false;
+        if (static_cast<size_t>(s.stackDepth) < argCount) return false;
+        const size_t firstArgIdx = static_cast<size_t>(s.stackDepth) - argCount;
+
+        for (size_t i = 0; i < argCount; ++i)
+        {
+            SlotType expected = SlotType::INT;
+            if (i < calleeMeta->parameterTypes.size())
+            {
+                const std::string& t = calleeMeta->parameterTypes[i];
+                if (t == "float")      expected = SlotType::FLOAT;
+                else if (t == "bool")  expected = SlotType::BOOL;
+                else if (t != "int")   return false;  // BOXED param: defer.
+            }
+            if (s.slotTypes[firstArgIdx + i] != expected) return false;
+        }
+
+        // Return type must be primitive so the phantom slot-type we push
+        // below (for the dead-code RETURN_VALUE) stays consistent with the
+        // function's declared return shape.
+        SlotType retSlot = SlotType::INT;
+        if (calleeMeta->returnType == "float")      retSlot = SlotType::FLOAT;
+        else if (calleeMeta->returnType == "bool")  retSlot = SlotType::BOOL;
+        else if (calleeMeta->returnType != "int")   return false;
+
+        auto& cc = s.cc;
+
+        // Copy stackBase[firstArgIdx + i] → localsBase[i] for each arg.
+        // localStride == 8 in !usesBoxedTypes mode — primitive slots only,
+        // no ref-count traffic needed.
+        for (size_t i = 0; i < argCount; ++i)
+        {
+            const int32_t srcOff = static_cast<int32_t>((firstArgIdx + i) * 8);
+            const int32_t dstOff = static_cast<int32_t>(i * 8);
+            SlotType pt = s.slotTypes[firstArgIdx + i];
+            if (pt == SlotType::FLOAT)
+            {
+                Vec v = cc.new_xmm();
+                cc.movsd(v, Mem(s.stackBase, srcOff));
+                cc.movsd(Mem(s.localsBase, dstOff), v);
+            }
+            else
+            {
+                Gp reg = cc.new_gp64();
+                cc.mov(reg, Mem(s.stackBase, srcOff));
+                cc.mov(Mem(s.localsBase, dstOff), reg);
+            }
+        }
+
+        // Logical state after the tail call: argCount args consumed, 1
+        // return-typed value pushed. The following (dead) RETURN_VALUE
+        // will pop this phantom slot to stay consistent at the asmjit
+        // level — runtime never reaches it, the jmp below leaves the block.
+        for (size_t i = 0; i < argCount; ++i) popType(s);
+        s.stackDepth -= static_cast<int>(argCount);
+        s.slotTypes.push_back(retSlot);
+        s.stackDepth++;
+
+        // GC safepoint: tail calls can iterate indefinitely without
+        // reaching the interpreter's per-N-instruction GC tick (gcd runs
+        // 50k iterations). Mirror JUMP_BACK's safepoint.
+        InvokeNode* gc;
+        cc.invoke(Out(gc), reinterpret_cast<uint64_t>(jit_gc_safepoint),
+                  FuncSignature::build<void>());
+
+        cc.jmp(s.functionEntryLabel);
+        return true;
+    }
+
     static bool emitCallOp(JitEmissionState& s,
                             const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -328,6 +445,25 @@ namespace vm::jit
             s.compileFailed = true;
             return true;
         }
+
+        // Phase 1: self-recursive tail-call optimization. Checked before
+        // the inliner because self-recursion is rejected by the inliner
+        // (InlineAnalysis.cpp:141-145 SELF_RECURSIVE), so TCO is the only
+        // opportunity to elide the call dispatch for recursive functions.
+        if (nameIndex < s.program.getConstantPool().strings.size())
+        {
+            const std::string& funcName = s.program.getConstantPool().getString(nameIndex);
+            const auto* calleeMeta = s.program.getFunction(funcName);
+            if (tryEmitSelfTailCall(s, argCount, calleeMeta))
+                return true;
+        }
+
+        // MYT-210: speculative inlining for plain CALL. On success the
+        // helper has emitted the inlined body; we're done. On ineligible
+        // sites it returns false and we emit the generic helper invoke
+        // unchanged.
+        if (tryEmitInlinedFunctionCall(s, instr))
+            return true;
 
         std::string returnType = resolveCallReturnType(s, instr);
         if (s.compileFailed) return true;
@@ -375,6 +511,17 @@ namespace vm::jit
         }
 
         const auto* calleeMeta = s.program.getFunctionByIndex(funcIndex);
+
+        // Phase 1: self-recursive tail-call optimization. See emitCallOp
+        // for rationale — checked before the inliner.
+        if (tryEmitSelfTailCall(s, argCount, calleeMeta))
+            return true;
+
+        // MYT-210: speculative inlining for CALL_FAST. Same dispatcher as
+        // plain CALL — resolveInlineableCallee branches on the opcode.
+        if (tryEmitInlinedFunctionCall(s, instr))
+            return true;
+
         if (!calleeMeta)
         {
             s.compileFailed = true;

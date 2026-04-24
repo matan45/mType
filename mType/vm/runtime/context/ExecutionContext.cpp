@@ -4,6 +4,7 @@
 
 namespace vm::runtime
 {
+
     void ExecutionContext::pushCallFrame(const CallFrame& frame)
     {
         // Check for stack overflow

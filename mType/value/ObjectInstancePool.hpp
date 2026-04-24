@@ -1,8 +1,6 @@
 #pragma once
 
-#include <cstddef>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -91,6 +89,18 @@ namespace value
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
             const std::unordered_map<std::string, std::string>& genericBindings);
 
+        // MYT-134: borrowed-pointer path for escape-analysis-promoted allocations.
+        // Returns the bare ObjectInstance* (no shared_ptr wrap, no SlotDeleter) so
+        // we pay zero atomic refcount ops during the object's lifetime. Caller
+        // (NEW_STACK handler) must track the pointer in CallFrame::stackObjects
+        // and call releaseRaw() at frame teardown. No GC registration — the
+        // pointer cannot escape its enclosing frame by construction.
+        runtimeTypes::klass::ObjectInstance* acquireRaw(
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+            const std::unordered_map<std::string, std::string>& genericBindings);
+
+        void releaseRaw(runtimeTypes::klass::ObjectInstance* obj);
+
         ObjectPoolStats getGlobalStats() const;
         void clear();
 
@@ -121,7 +131,6 @@ namespace value
                            runtimeTypes::klass::ObjectInstance* obj);
 
         std::unordered_map<runtimeTypes::klass::ClassDefinition*, Bucket> pools;
-        mutable std::mutex poolMutex;
         ObjectPoolStats globalStats;
     };
 }

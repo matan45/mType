@@ -62,15 +62,16 @@ namespace vm::jit
         throw errors::RuntimeException("Unsupported operand types for arithmetic");
     }
 
-    static bool tryJitDispatch(JitContext* ctx,
-                               const std::string& funcName,
-                               size_t argCount)
+    // Phase 2: resolved dispatch — callers supply the pre-resolved JitFunction
+    // and an already-interned frame-name handle, skipping both the name
+    // hashmap lookup and the per-call internFrameName hash. tryJitDispatch
+    // below is kept as the name-keyed fallback for CALL / deopt paths.
+    static bool tryJitDispatchResolved(JitContext* ctx,
+                                        JitFunction jitFn,
+                                        bytecode::FunctionNameHandle frameName,
+                                        size_t argCount)
     {
-        if (!ctx->jitCodeCache || !ctx->vm)
-            return false;
-
-        auto jitFn = ctx->jitCodeCache->lookup(funcName);
-        if (!jitFn)
+        if (!jitFn || !ctx->vm)
             return false;
 
         // If native recursion is too deep, fall back to interpreter to avoid
@@ -78,13 +79,11 @@ namespace vm::jit
         if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
             return false;
 
-        // Track on the VM call stack for overflow protection.
-        // MYT-197: intern on ctx->program (owner of the JIT-dispatched function).
         vm::runtime::CallFrame frame;
         frame.returnAddress = 0;
         frame.frameBase = 0;
         frame.localBase = 0;
-        frame.functionName = ctx->program->internFrameName(funcName);
+        frame.functionName = frameName;
         frame.thisInstance = nullptr;
         ctx->vm->pushCallFrame(frame);
         ctx->vm->incrementJitNativeDepth();
@@ -116,6 +115,22 @@ namespace vm::jit
         ctx->returnValue = nestedCtx.returnValue;
         ctx->hasReturnValue = nestedCtx.hasReturnValue;
         return true;
+    }
+
+    static bool tryJitDispatch(JitContext* ctx,
+                               const std::string& funcName,
+                               size_t argCount)
+    {
+        if (!ctx->jitCodeCache || !ctx->vm)
+            return false;
+
+        auto jitFn = ctx->jitCodeCache->lookup(funcName);
+        if (!jitFn)
+            return false;
+
+        // MYT-197: intern on ctx->program (owner of the JIT-dispatched function).
+        auto frameName = ctx->program->internFrameName(funcName);
+        return tryJitDispatchResolved(ctx, jitFn, frameName, argCount);
     }
 
     static bool tryNativeDispatch(JitContext* ctx,
@@ -177,6 +192,24 @@ namespace vm::jit
 
         try
         {
+            // Phase 2 fast path: vector-indexed lookup in JitCodeCache. On
+            // a hit we already have the JitFunction and a pre-interned frame
+            // name — skip the name hashmap and per-call internFrameName.
+            // This is the dominant path for recursive self-calls inside
+            // compiled functions (e.g. fib/ack/gcd in recursive.mt).
+            if (ctx->jitCodeCache)
+            {
+                auto cached = ctx->jitCodeCache->lookupByIndex(funcIndex);
+                if (cached.fn)
+                {
+                    if (tryJitDispatchResolved(ctx, cached.fn,
+                                                cached.frameName, argCount))
+                        return;
+                    // Falls through to slow path only when dispatch was
+                    // rejected by the JitNativeDepth guard.
+                }
+            }
+
             const auto* meta = ctx->program->getFunctionByIndex(funcIndex);
             if (!meta)
                 throw errors::RuntimeException(

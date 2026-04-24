@@ -37,6 +37,10 @@ namespace vm::runtime
         instanceHelper->handleNewObject(instr);
     }
 
+    void ObjectExecutor::handleNewStack(const bytecode::BytecodeProgram::Instruction& instr) {
+        instanceHelper->handleNewStack(instr);
+    }
+
     void ObjectExecutor::handleNewValueObject(const bytecode::BytecodeProgram::Instruction& instr) {
         // Value object construction uses the same mechanism as regular objects.
         // The constructor needs an ObjectInstance for 'this' (frame.thisInstance).
@@ -705,6 +709,31 @@ namespace vm::runtime
         context.instructionPointer = funcMetadata->startOffset - 1;
     }
 
+    void ObjectExecutor::invokeValueObjectMethod(
+        std::shared_ptr<value::ValueObject> valueObj,
+        const std::string& methodName,
+        std::span<const value::Value> args,
+        size_t argCount)
+    {
+        auto classDef = valueObj->getClassDefinition();
+        if (!classDef) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Value object has no class definition");
+        }
+
+        // Materialise the receiver as a temp ObjectInstance so the method body
+        // gets the in-place mutation semantics that value-class tests rely on
+        // (see inline_value_object_write_skip.mt — `this.n = this.n + 1` must
+        // be visible within the call). The previous hot loop ran setField per
+        // declared field; loadFromValueObject batch-copies the vector and
+        // syncs fieldValues in one pass — no GC write barrier, no per-field
+        // hashmap probes, no gcRegistered branch.
+        auto tempInstance = value::ObjectInstancePool::getInstance().acquire(classDef);
+        tempInstance->loadFromValueObject(*valueObj);
+
+        invokeInstanceMethod(tempInstance, methodName, args, argCount);
+    }
+
     void ObjectExecutor::handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr) {
         const std::string& methodName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
@@ -736,33 +765,13 @@ namespace vm::runtime
             return;
         }
 
-        // Handle value object method invocation
+        // Value-class receiver — materialise via the batch-load helper so the
+        // per-call cost is a single vector copy plus one synchronised
+        // hashmap fill, instead of the N × setField thrash the previous
+        // inline temp-materialisation did.
         if (value::isValueObject(objectValue)) {
             auto valueObj = value::asValueObject(objectValue);
-            // Value types use the same method dispatch as regular objects
-            // but 'this' is a copy (value semantics — mutations don't propagate back)
-            auto classDef = valueObj->getClassDefinition();
-            if (!classDef) {
-                utils::ErrorLocationHelper::throwRuntimeError(context,
-                    "Value object has no class definition");
-            }
-
-            // Create a temporary ObjectInstance to serve as 'this' for the method call
-            // This reuses existing method invocation infrastructure
-            auto tempInstance = value::ObjectInstancePool::getInstance().acquire(classDef);
-            // Copy fields from ValueObject to temporary ObjectInstance
-            const auto& fieldIndexMap = classDef->getFieldIndexMap();
-            for (const auto& [name, index] : fieldIndexMap) {
-                if (index < valueObj->getFieldCount()) {
-                    tempInstance->setField(name, valueObj->getFieldByIndex(index));
-                }
-            }
-            // Copy generic type bindings
-            for (const auto& [param, type] : valueObj->getGenericTypeBindings()) {
-                tempInstance->setGenericTypeBinding(param, type);
-            }
-
-            invokeInstanceMethod(tempInstance, methodName, args.span(), argCount);
+            invokeValueObjectMethod(valueObj, methodName, args.span(), argCount);
             return;
         }
 

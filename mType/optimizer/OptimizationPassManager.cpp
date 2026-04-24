@@ -1,6 +1,7 @@
 #include "OptimizationPassManager.hpp"
 #include "passes/ConstantFoldingPass.hpp"
 #include "passes/DeadCodeEliminationPass.hpp"
+#include "passes/EscapeAnalysisPass.hpp"
 
 namespace optimizer
 {
@@ -44,6 +45,15 @@ namespace optimizer
         if (config.isDeadCodeEliminationEnabled())
         {
             registerPass(std::make_unique<passes::DeadCodeEliminationPass>());
+        }
+
+        // MYT-134: Escape analysis runs after constant folding + dead-code
+        // elimination. The earlier passes can remove branches that would
+        // otherwise have made locals appear to escape (e.g., unreachable
+        // `return local;` in a dead branch).
+        if (config.isEscapeAnalysisEnabled())
+        {
+            registerPass(std::make_unique<passes::EscapeAnalysisPass>());
         }
     }
 

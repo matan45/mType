@@ -113,6 +113,11 @@ namespace vm::bytecode
 
         // === Object/Class Operations (65-79) ===
         NEW_OBJECT,         // Create new object (operand: class index)
+        // MYT-134: escape-analysis-promoted allocation. Same operands as
+        // NEW_OBJECT (class index, arg count) but pool-borrowed raw
+        // ObjectInstance* tracked in CallFrame::stackObjects and released at
+        // frame teardown. Serializable (emitted by BytecodeCompiler).
+        NEW_STACK,
         GET_FIELD,          // Get object field (operand: field name index)
         SET_FIELD,          // Set object field (operand: field name index)
         GET_FIELD_FAST,     // Get field with cached offset
@@ -369,6 +374,7 @@ namespace vm::bytecode
             case OpCode::CLOSURE: return "CLOSURE";
 
             case OpCode::NEW_OBJECT: return "NEW_OBJECT";
+            case OpCode::NEW_STACK: return "NEW_STACK";
             case OpCode::GET_FIELD: return "GET_FIELD";
             case OpCode::SET_FIELD: return "SET_FIELD";
             case OpCode::GET_FIELD_FAST: return "GET_FIELD_FAST";

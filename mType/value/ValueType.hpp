@@ -46,7 +46,12 @@ namespace value
         ARRAY,
         LAMBDA,
         NULL_TYPE,
-        PROMISE
+        PROMISE,
+        // MYT-134: non-owning borrowed raw ObjectInstance*. Lifetime is owned by
+        // CallFrame::stackObjects (released at frame teardown). No refcount ops;
+        // not a heap tag. Never serialized to .mtc — only produced by NEW_STACK
+        // at runtime.
+        STACK_OBJECT
     };
 
     //
@@ -79,6 +84,15 @@ namespace value
         Value(bool v) noexcept : tag_(ValueType::BOOL) { payload_.b = v; }
         Value(std::nullptr_t) noexcept : tag_(ValueType::NULL_TYPE) { payload_.i = 0; }
         Value(std::monostate) noexcept : tag_(ValueType::VOID) { payload_.i = 0; }
+
+        // MYT-134: non-owning borrowed ObjectInstance*. Tag struct disambiguates
+        // from the shared_ptr<ObjectInstance> ctor below.
+        struct StackObjectTag {};
+        Value(runtimeTypes::klass::ObjectInstance* raw, StackObjectTag) noexcept
+            : tag_(ValueType::STACK_OBJECT)
+        {
+            payload_.stackObject = raw;
+        }
 
         // Implicit ctors from each shared_ptr heap type + string types.
         // Each wraps the argument in a TypedBridge<Kind, Held> and stores
@@ -150,6 +164,8 @@ namespace value
         double rawFloat() const noexcept { return payload_.d; }
         bool rawBool() const noexcept { return payload_.b; }
         BridgeBase* rawBridge() const noexcept { return static_cast<BridgeBase*>(payload_.ptr); }
+        // MYT-134: raw pointer accessor for STACK_OBJECT values. Undefined unless tag_ == STACK_OBJECT.
+        runtimeTypes::klass::ObjectInstance* rawStackObject() const noexcept { return payload_.stackObject; }
 
         // Byte offset of payload_ within Value. Consumed by the JIT emitter
         // to synthesize inline loads of the bridge pointer without calling a
@@ -167,12 +183,13 @@ namespace value
             if (tag_ != other.tag_) return false;
             switch (tag_)
             {
-            case ValueType::INT:       return payload_.i == other.payload_.i;
-            case ValueType::FLOAT:     return payload_.d == other.payload_.d;
-            case ValueType::BOOL:      return payload_.b == other.payload_.b;
+            case ValueType::INT:          return payload_.i == other.payload_.i;
+            case ValueType::FLOAT:        return payload_.d == other.payload_.d;
+            case ValueType::BOOL:         return payload_.b == other.payload_.b;
             case ValueType::VOID:
-            case ValueType::NULL_TYPE: return true;
-            default:                   return equalsHeap(other);
+            case ValueType::NULL_TYPE:    return true;
+            case ValueType::STACK_OBJECT: return payload_.stackObject == other.payload_.stackObject;
+            default:                      return equalsHeap(other);
             }
         }
         bool operator!=(const Value& other) const noexcept { return !(*this == other); }
@@ -186,6 +203,9 @@ namespace value
             double d;
             bool b;
             RefCounted* ptr;
+            // MYT-134: non-owning raw pointer. Set only when tag_ == STACK_OBJECT.
+            // Not reference-counted — CallFrame owns the lifetime.
+            runtimeTypes::klass::ObjectInstance* stackObject;
         };
 
         ValueType tag_;
@@ -268,6 +288,13 @@ namespace value
     inline bool isVoid(const Value& v) noexcept { return v.tag() == ValueType::VOID; }
     inline bool isNullType(const Value& v) noexcept { return v.tag() == ValueType::NULL_TYPE; }
     inline bool isObject(const Value& v) noexcept { return v.tag() == ValueType::OBJECT; }
+    inline bool isStackObject(const Value& v) noexcept { return v.tag() == ValueType::STACK_OBJECT; }
+    // MYT-134: either OBJECT (shared_ptr via bridge) or STACK_OBJECT (raw borrowed). Use when the
+    // executor treats both storage kinds uniformly (field get/set, method call).
+    inline bool isAnyObject(const Value& v) noexcept
+    {
+        return v.tag() == ValueType::OBJECT || v.tag() == ValueType::STACK_OBJECT;
+    }
     inline bool isValueObject(const Value& v) noexcept { return v.tag() == ValueType::VALUE_OBJECT; }
     inline bool isLambda(const Value& v) noexcept { return v.tag() == ValueType::LAMBDA; }
     inline bool isPromise(const Value& v) noexcept { return v.tag() == ValueType::PROMISE; }

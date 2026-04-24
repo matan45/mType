@@ -12,7 +12,7 @@ namespace reflection
     }
 
     std::string ReflectionHandleRegistry::makeMethodKey(int64_t classHandle, const std::string& methodName,
-                                                         const std::vector<std::string>& paramTypes)
+                                                        const std::vector<std::string>& paramTypes)
     {
         // Use length-prefixed encoding to avoid delimiter collisions with generic types like Foo<A,B>
         // Format: "classHandle:methodName#count:len1:type1:len2:type2:..."
@@ -37,14 +37,14 @@ namespace reflection
 
     // ========== Class Handle Management ==========
 
-    int64_t ReflectionHandleRegistry::registerClass(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef)
+    int64_t ReflectionHandleRegistry::registerClass(
+        const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef)
     {
         if (!classDef)
         {
             throw std::invalid_argument("registerClass: classDef cannot be null");
         }
 
-        std::lock_guard<std::mutex> lock(mutex);
 
         // Check if already registered
         const std::string& className = classDef->getName();
@@ -65,8 +65,6 @@ namespace reflection
 
     std::shared_ptr<runtimeTypes::klass::ClassDefinition> ReflectionHandleRegistry::getClass(int64_t handle) const
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         auto it = classHandles.find(handle);
         if (it != classHandles.end())
         {
@@ -77,8 +75,6 @@ namespace reflection
 
     int64_t ReflectionHandleRegistry::findClassHandle(const std::string& className) const
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         auto it = classNameToHandle.find(className);
         if (it != classNameToHandle.end())
         {
@@ -87,7 +83,8 @@ namespace reflection
         return -1;
     }
 
-    int64_t ReflectionHandleRegistry::getOrCreateClassHandle(const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef)
+    int64_t ReflectionHandleRegistry::getOrCreateClassHandle(
+        const std::shared_ptr<runtimeTypes::klass::ClassDefinition>& classDef)
     {
         if (!classDef)
         {
@@ -120,8 +117,6 @@ namespace reflection
 
         const std::string canonical = reified->toCanonicalString();
 
-        std::lock_guard<std::mutex> lock(mutex);
-
         // Dedup: reuse the closed handle for this canonical form if one exists.
         auto it = canonicalStringToHandle.find(canonical);
         if (it != canonicalStringToHandle.end())
@@ -147,8 +142,6 @@ namespace reflection
 
     ::types::UnifiedTypePtr ReflectionHandleRegistry::getReifiedType(int64_t handle) const
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         auto it = closedHandleReified.find(handle);
         if (it != closedHandleReified.end())
         {
@@ -159,28 +152,26 @@ namespace reflection
 
     bool ReflectionHandleRegistry::isClosedHandle(int64_t handle) const
     {
-        std::lock_guard<std::mutex> lock(mutex);
         return closedHandleReified.find(handle) != closedHandleReified.end();
     }
 
     // ========== Field Handle Management ==========
 
     int64_t ReflectionHandleRegistry::registerField(const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
-                                                int64_t classHandle, const std::string& fieldName)
+                                                    int64_t classHandle, const std::string& fieldName)
     {
         if (!field)
         {
             throw std::invalid_argument("registerField: field cannot be null");
         }
 
-        std::lock_guard<std::mutex> lock(mutex);
 
         // Check cache first - reuse existing handle if available
         std::string key = makeFieldKey(classHandle, fieldName);
         auto it = fieldKeyToHandle.find(key);
         if (it != fieldKeyToHandle.end())
         {
-            return it->second;  // Reuse existing handle
+            return it->second; // Reuse existing handle
         }
 
         // Create new handle
@@ -194,8 +185,6 @@ namespace reflection
 
     FieldHandleInfo ReflectionHandleRegistry::getField(int64_t handle) const
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         auto it = fieldHandles.find(handle);
         if (it != fieldHandles.end())
         {
@@ -206,15 +195,15 @@ namespace reflection
 
     // ========== Method Handle Management ==========
 
-    int64_t ReflectionHandleRegistry::registerMethod(const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& method,
-                                                 int64_t classHandle, const std::string& methodName)
+    int64_t ReflectionHandleRegistry::registerMethod(
+        const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& method,
+        int64_t classHandle, const std::string& methodName)
     {
         if (!method)
         {
             throw std::invalid_argument("registerMethod: method cannot be null");
         }
 
-        std::lock_guard<std::mutex> lock(mutex);
 
         // Build parameter type list for signature-based cache key
         std::vector<std::string> paramTypes;
@@ -228,7 +217,7 @@ namespace reflection
         auto it = methodKeyToHandle.find(key);
         if (it != methodKeyToHandle.end())
         {
-            return it->second;  // Reuse existing handle
+            return it->second; // Reuse existing handle
         }
 
         // Create new handle
@@ -242,8 +231,6 @@ namespace reflection
 
     MethodHandleInfo ReflectionHandleRegistry::getMethod(int64_t handle) const
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         auto it = methodHandles.find(handle);
         if (it != methodHandles.end())
         {
@@ -254,22 +241,22 @@ namespace reflection
 
     // ========== Constructor Handle Management ==========
 
-    int64_t ReflectionHandleRegistry::registerConstructor(const std::shared_ptr<runtimeTypes::klass::ConstructorDefinition>& constructor,
-                                                      int64_t classHandle, int constructorIndex)
+    int64_t ReflectionHandleRegistry::registerConstructor(
+        const std::shared_ptr<runtimeTypes::klass::ConstructorDefinition>& constructor,
+        int64_t classHandle, int constructorIndex)
     {
         if (!constructor)
         {
             throw std::invalid_argument("registerConstructor: constructor cannot be null");
         }
 
-        std::lock_guard<std::mutex> lock(mutex);
 
         // Check cache first - reuse existing handle if available
         std::string key = makeConstructorKey(classHandle, constructorIndex);
         auto it = constructorKeyToHandle.find(key);
         if (it != constructorKeyToHandle.end())
         {
-            return it->second;  // Reuse existing handle
+            return it->second; // Reuse existing handle
         }
 
         // Create new handle
@@ -283,8 +270,6 @@ namespace reflection
 
     ConstructorHandleInfo ReflectionHandleRegistry::getConstructor(int64_t handle) const
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         auto it = constructorHandles.find(handle);
         if (it != constructorHandles.end())
         {
@@ -295,22 +280,22 @@ namespace reflection
 
     // ========== Annotation Handle Management ==========
 
-    int64_t ReflectionHandleRegistry::registerAnnotation(const std::shared_ptr<ast::nodes::annotations::AnnotationNode>& annotation,
-                                                     const std::string& annotationName)
+    int64_t ReflectionHandleRegistry::registerAnnotation(
+        const std::shared_ptr<ast::nodes::annotations::AnnotationNode>& annotation,
+        const std::string& annotationName)
     {
         if (!annotation)
         {
             throw std::invalid_argument("registerAnnotation: annotation cannot be null");
         }
 
-        std::lock_guard<std::mutex> lock(mutex);
 
         // Check cache first using pointer address - reuse existing handle if available
         std::uintptr_t ptrKey = reinterpret_cast<std::uintptr_t>(annotation.get());
         auto it = annotationPtrToHandle.find(ptrKey);
         if (it != annotationPtrToHandle.end())
         {
-            return it->second;  // Reuse existing handle
+            return it->second; // Reuse existing handle
         }
 
         // Create new handle
@@ -324,8 +309,6 @@ namespace reflection
 
     AnnotationHandleInfo ReflectionHandleRegistry::getAnnotation(int64_t handle) const
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         auto it = annotationHandles.find(handle);
         if (it != annotationHandles.end())
         {
@@ -338,13 +321,11 @@ namespace reflection
 
     void ReflectionHandleRegistry::releaseHandle(int64_t handle)
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         // O(1) lookup of handle type
         auto typeIt = handleTypeMap.find(handle);
         if (typeIt == handleTypeMap.end())
         {
-            return;  // Handle not found
+            return; // Handle not found
         }
 
         HandleType type = typeIt->second;
@@ -352,7 +333,7 @@ namespace reflection
 
         switch (type)
         {
-            case HandleType::CLASS:
+        case HandleType::CLASS:
             {
                 // Erase closed-form entries first so we don't leave orphan
                 // side-map state if this handle was a parameterized closed form.
@@ -386,7 +367,7 @@ namespace reflection
                 }
                 break;
             }
-            case HandleType::FIELD:
+        case HandleType::FIELD:
             {
                 auto fieldIt = fieldHandles.find(handle);
                 if (fieldIt != fieldHandles.end())
@@ -397,7 +378,7 @@ namespace reflection
                 }
                 break;
             }
-            case HandleType::METHOD:
+        case HandleType::METHOD:
             {
                 auto methodIt = methodHandles.find(handle);
                 if (methodIt != methodHandles.end())
@@ -409,14 +390,15 @@ namespace reflection
                         {
                             paramTypes.push_back(param.second.toString());
                         }
-                        std::string key = makeMethodKey(methodIt->second.classHandle, methodIt->second.methodName, paramTypes);
+                        std::string key = makeMethodKey(methodIt->second.classHandle, methodIt->second.methodName,
+                                                        paramTypes);
                         methodKeyToHandle.erase(key);
                     }
                     methodHandles.erase(methodIt);
                 }
                 break;
             }
-            case HandleType::CONSTRUCTOR:
+        case HandleType::CONSTRUCTOR:
             {
                 auto ctorIt = constructorHandles.find(handle);
                 if (ctorIt != constructorHandles.end())
@@ -427,7 +409,7 @@ namespace reflection
                 }
                 break;
             }
-            case HandleType::ANNOTATION:
+        case HandleType::ANNOTATION:
             {
                 auto annoIt = annotationHandles.find(handle);
                 if (annoIt != annotationHandles.end())
@@ -446,8 +428,6 @@ namespace reflection
 
     void ReflectionHandleRegistry::clear()
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         // Clear primary handle maps
         classHandles.clear();
         fieldHandles.clear();
@@ -474,10 +454,7 @@ namespace reflection
 
     size_t ReflectionHandleRegistry::getTotalHandleCount() const
     {
-        std::lock_guard<std::mutex> lock(mutex);
-
         return classHandles.size() + fieldHandles.size() + methodHandles.size() +
-               constructorHandles.size() + annotationHandles.size();
+            constructorHandles.size() + annotationHandles.size();
     }
-
 } // namespace reflection

@@ -4,12 +4,11 @@ namespace gc
 {
     // Static member initialization
     std::unique_ptr<GCCoordinator> GC::coordinator = nullptr;
-    std::mutex GC::initMutex;
     bool GC::initialized = false;
 
     void GC::initialize()
     {
-        std::lock_guard<std::mutex> lock(initMutex);
+        
         if (!initialized)
         {
             coordinator = std::make_unique<GCCoordinator>();
@@ -29,7 +28,7 @@ namespace gc
 
     void GC::shutdown()
     {
-        std::lock_guard<std::mutex> lock(initMutex);
+       
         if (initialized)
         {
             coordinator.reset();

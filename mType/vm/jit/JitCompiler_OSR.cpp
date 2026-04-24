@@ -216,6 +216,7 @@ namespace vm::jit
                              uint64_t* inlineFieldICMisses,
                              uint64_t* inlineFieldSetICHits,
                              uint64_t* inlineFieldSetICMisses,
+                             InlineDecisionCounters* inlineDecisions,
                              OSRBailoutReason& outReason,
                              uint8_t& outOffendingOpcode)
     {
@@ -254,6 +255,11 @@ namespace vm::jit
         s.inlineFieldICMisses = inlineFieldICMisses;
         s.inlineFieldSetICHits = inlineFieldSetICHits;
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
+        s.inlineDecisions = inlineDecisions;
+        // Phase 1 (self-recursive TCO): OSR frames don't bind functionEntryLabel
+        // (the generated code enters at the loop's back-edge target, not a
+        // function prologue), so suppress tail-call lowering in OSR emission.
+        s.selfTailCallEnabled = false;
 
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
             emitLocalsWriteBack(es);
@@ -339,6 +345,7 @@ namespace vm::jit
                          jumpBackOffset, typeFeedback,
                          &inlineFieldICHits, &inlineFieldICMisses,
                          &inlineFieldSetICHits, &inlineFieldSetICMisses,
+                         &inlineDecisions,
                          bodyReason, bodyOpcode))
         {
             bailoutCount++;

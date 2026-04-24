@@ -12,8 +12,6 @@ namespace types
 
         std::string canonicalStr = type->toCanonicalString();
 
-        std::lock_guard<std::mutex> lock(typeCacheMutex);
-
         auto it = typeCache.find(canonicalStr);
         if (it != typeCache.end())
         {
@@ -34,15 +32,12 @@ namespace types
 
         std::string canonicalStr = type->toCanonicalString();
 
-        std::lock_guard<std::mutex> lock(typeCacheMutex);
         return typeCache.find(canonicalStr) != typeCache.end();
     }
 
     UnifiedTypePtr ReifiedTypeRegistry::findByCanonicalString(
         const std::string& canonicalString) const
     {
-        std::lock_guard<std::mutex> lock(typeCacheMutex);
-
         auto it = typeCache.find(canonicalString);
         if (it != typeCache.end())
         {
@@ -99,8 +94,6 @@ namespace types
 
         const void* key = obj.get();
 
-        std::lock_guard<std::mutex> lock(objectRegistryMutex);
-
         auto it = objectTypes.find(key);
         if (it != objectTypes.end())
         {
@@ -129,7 +122,6 @@ namespace types
         const void* key = obj.get();
 
         {
-            std::lock_guard<std::mutex> lock(objectRegistryMutex);
             objectTypes[key] = std::make_pair(
                 std::weak_ptr<runtimeTypes::klass::ObjectInstance>(obj),
                 internedType);
@@ -154,7 +146,6 @@ namespace types
 
         const void* key = obj.get();
 
-        std::lock_guard<std::mutex> lock(objectRegistryMutex);
         objectTypes.erase(key);
     }
 
@@ -181,12 +172,12 @@ namespace types
 
         if (!type1 && !type2)
         {
-            return true;  // Both unregistered
+            return true; // Both unregistered
         }
 
         if (!type1 || !type2)
         {
-            return false;  // One registered, one not
+            return false; // One registered, one not
         }
 
         return type1->equals(type2);
@@ -194,8 +185,6 @@ namespace types
 
     std::vector<UnifiedTypePtr> ReifiedTypeRegistry::getAllInternedTypes() const
     {
-        std::lock_guard<std::mutex> lock(typeCacheMutex);
-
         std::vector<UnifiedTypePtr> result;
         result.reserve(typeCache.size());
 
@@ -209,33 +198,23 @@ namespace types
 
     size_t ReifiedTypeRegistry::getInternedTypeCount() const
     {
-        std::lock_guard<std::mutex> lock(typeCacheMutex);
         return typeCache.size();
     }
 
     size_t ReifiedTypeRegistry::getRegisteredObjectCount() const
     {
-        std::lock_guard<std::mutex> lock(objectRegistryMutex);
         return objectTypes.size();
     }
 
     void ReifiedTypeRegistry::clear()
     {
-        {
-            std::lock_guard<std::mutex> lock(typeCacheMutex);
-            typeCache.clear();
-        }
-
-        {
-            std::lock_guard<std::mutex> lock(objectRegistryMutex);
-            objectTypes.clear();
-        }
+        typeCache.clear();
+        
+        objectTypes.clear();
     }
 
     size_t ReifiedTypeRegistry::cleanupOrphanedRegistrations()
     {
-        std::lock_guard<std::mutex> lock(objectRegistryMutex);
-
         std::vector<const void*> toRemove;
 
         for (const auto& [key, pair] : objectTypes)

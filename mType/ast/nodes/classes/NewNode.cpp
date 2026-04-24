@@ -51,6 +51,8 @@ namespace ast::nodes::classes
                 clonedArgs.push_back(arg->clone());
             }
         }
-        return std::make_unique<NewNode>(className, std::move(clonedArgs), location);
+        auto cloned = std::make_unique<NewNode>(className, std::move(clonedArgs), location);
+        cloned->isStackAllocated = isStackAllocated;
+        return cloned;
     }
 }

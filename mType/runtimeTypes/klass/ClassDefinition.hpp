@@ -372,6 +372,30 @@ namespace runtimeTypes::klass
         size_t getIndexedFieldCount() const;
         const std::unordered_map<std::string, size_t>& getFieldIndexMap() const;
 
+        // Phase 4 (allocation perf): reverse of getFieldIndex — O(1) index-to-name
+        // lookup for the setFieldByIndex hot path (needed to keep the fieldValues
+        // map in sync after a direct fieldVector write without iterating the
+        // indexMap linearly).
+        const std::vector<std::string>& getFieldIndexToName() const;
+
+        // Phase 2 (allocation perf): set of this-class instance field names
+        // that every constructor of this class definitely assigns before any
+        // read. initializeObjectFields() consults this to skip redundant
+        // default-init writes. Populated by ClassCompiler after constructor
+        // AST analysis; empty set means "do full default-init" (safe fallback).
+        bool shouldSkipDefaultInit(const std::string& fieldName) const
+        {
+            return skipDefaultInitFields.count(fieldName) > 0;
+        }
+        void setSkipDefaultInitFields(std::unordered_set<std::string> fields)
+        {
+            skipDefaultInitFields = std::move(fields);
+        }
+        const std::unordered_set<std::string>& getSkipDefaultInitFields() const
+        {
+            return skipDefaultInitFields;
+        }
+
     private:
         // PERFORMANCE: Method resolution cache - avoids repeated hierarchy traversals
         // Key: "methodName/argCount", Value: cached lookup result
@@ -386,6 +410,9 @@ namespace runtimeTypes::klass
         mutable std::unordered_map<std::string, size_t> fieldIndexMap;
         mutable std::vector<std::string> fieldIndexToName;
         mutable bool fieldIndexMapBuilt = false;
+
+        // Phase 2 (allocation perf): fields whose default-init NEW_OBJECT can skip.
+        std::unordered_set<std::string> skipDefaultInitFields;
 
         // Depth protection for interface and class inheritance chains
         static constexpr int MAX_INTERFACE_DEPTH = 20;

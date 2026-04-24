@@ -19,7 +19,6 @@ namespace gc
     private:
         std::vector<void*> suspects;
         std::unordered_set<void*> suspectSet;  // For O(1) contains check
-        mutable std::mutex bufferMutex;
         size_t maxSize;
 
     public:

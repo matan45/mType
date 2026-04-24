@@ -305,6 +305,15 @@ namespace vm::runtime
                                        const std::string& methodName,
                                        const std::vector<value::Value>& args);
 
+        // Value-class overload: dispatches without materialising a temp ObjectInstance.
+        // The Value receiver carries either an ObjectInstance bridge or a ValueObject
+        // shared_ptr; the method body's GET_FIELD / SET_FIELD / LOAD_LOCAL handlers
+        // already accept value-object receivers so the only difference vs the
+        // shared_ptr<ObjectInstance> overload is what gets pushed as local-0.
+        value::Value callMethodFromJit(const value::Value& receiver,
+                                       const std::string& methodName,
+                                       const std::vector<value::Value>& args);
+
         // JIT IC fast-path: skip method resolution by accepting pre-resolved metadata.
         // qualifiedName must include defining class prefix (e.g. "Shape::area"); funcMetadata
         // must point to that function's bytecode metadata. Used by jit_call_method_ic on hit.
@@ -313,6 +322,15 @@ namespace vm::runtime
         // loop against the callee's program and restore on exit — required
         // for cross-program (library) dispatch.
         value::Value callMethodFromJitDirect(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+                                             const std::string& qualifiedName,
+                                             const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+                                             const std::vector<value::Value>& args,
+                                             const bytecode::BytecodeProgram* calleeProgram = nullptr);
+
+        // Value-class overload — same protocol as the shared_ptr form, but
+        // pushes the receiver Value directly as local-0. Required by the
+        // unified IC-hit fast-dispatch (Stage B).
+        value::Value callMethodFromJitDirect(const value::Value& receiver,
                                              const std::string& qualifiedName,
                                              const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
                                              const std::vector<value::Value>& args,

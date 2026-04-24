@@ -7,6 +7,7 @@
 #include "../../../errors/AccessViolationException.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ValueObject.hpp"
 #include "../../../ast/AccessModifier.hpp"
 #include <span>
 #include <unordered_map>
@@ -34,6 +35,9 @@ namespace vm::runtime
 
         // Object creation
         void handleNewObject(const bytecode::BytecodeProgram::Instruction& instr);
+        // MYT-134: non-escaping allocation promoted by escape-analysis — pool-borrowed raw pointer
+        // tracked in the current call frame's stackObjects list.
+        void handleNewStack(const bytecode::BytecodeProgram::Instruction& instr);
         void handleNewValueObject(const bytecode::BytecodeProgram::Instruction& instr);
         void handleObjectToValue(const bytecode::BytecodeProgram::Instruction& instr);
 
@@ -82,5 +86,16 @@ namespace vm::runtime
                                  const std::string& methodName,
                                  std::span<const value::Value> args,
                                  size_t argCount);
+
+        // Value-class receiver dispatch — batch-materialises a temp
+        // ObjectInstance from the ValueObject's field vector (via
+        // ObjectInstance::loadFromValueObject) and delegates to the regular
+        // instance path. Preserves in-method mutation semantics while
+        // avoiding the per-field setField hashmap thrash of the previous
+        // per-call hot loop.
+        void invokeValueObjectMethod(std::shared_ptr<value::ValueObject> valueObj,
+                                     const std::string& methodName,
+                                     std::span<const value::Value> args,
+                                     size_t argCount);
     };
 }

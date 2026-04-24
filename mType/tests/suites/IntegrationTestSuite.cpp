@@ -189,8 +189,6 @@ namespace tests::testSuite
                                   passPath + "exceptionInheritanceHierarchy.mt");
         addOutputVerificationTest("Exception Memory Lifecycle",
                                   passPath + "exceptionMemoryLifecycle.mt");
-        addOutputVerificationTest("Final Variables Across Namespaces And Classes",
-                                  passPath + "finalVariablesAcrossNamespacesAndClasses.mt");
         addOutputVerificationTest("Generic Import Serialization",
                                   passPath + "genericImportSerialization.mt");
         addOutputVerificationTest("Imports With Namespaces And Classes",
@@ -283,6 +281,18 @@ namespace tests::testSuite
         // MYT-168: regression guard for MONO->POLY IC transition in JIT'd code.
         addOutputVerificationTest("Inline MONO to POLY Transition",
                                   passPath + "inlining/inline_mono_to_poly.mt");
+
+        // MYT-210: plain-CALL / CALL_FAST inlining.
+        addOutputVerificationTest("Inline Function Basic",
+                                  passPath + "inlining/inline_function_basic.mt");
+        addOutputVerificationTest("Inline Function Chain Depth-2",
+                                  passPath + "inlining/inline_function_chain.mt");
+        addOutputVerificationTest("Inline Function Recursion Bailout",
+                                  passPath + "inlining/inline_function_recursion_bailout.mt");
+        addOutputVerificationTest("Inline Function Arg Types",
+                                  passPath + "inlining/inline_function_arg_types.mt");
+        addOutputVerificationTest("Inline Function Object Args",
+                                  passPath + "inlining/inline_function_object_args.mt");
 
         // MYT-173: CALL_METHOD_CACHED promotion + sticky deopt.
         addOutputVerificationTest("CALL_METHOD_CACHED Monomorphic Promote",

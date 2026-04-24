@@ -5,6 +5,7 @@ namespace optimizer
     OptimizationConfig::OptimizationConfig()
         : enableDeadCodeElimination(true)
         , enableConstantFolding(true)
+        , enableEscapeAnalysis(true)
         , maxPassIterations(50)
         , timeoutPerPass(std::chrono::milliseconds(5000))
     {
@@ -20,6 +21,7 @@ namespace optimizer
         OptimizationConfig config;
         config.enableDeadCodeElimination = false;
         config.enableConstantFolding = false;
+        config.enableEscapeAnalysis = false;
         return config;
     }
 
@@ -32,6 +34,12 @@ namespace optimizer
     OptimizationConfig& OptimizationConfig::setConstantFolding(bool enable)
     {
         enableConstantFolding = enable;
+        return *this;
+    }
+
+    OptimizationConfig& OptimizationConfig::setEscapeAnalysis(bool enable)
+    {
+        enableEscapeAnalysis = enable;
         return *this;
     }
 

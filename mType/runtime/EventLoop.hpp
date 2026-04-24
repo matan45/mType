@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <functional>
 #include <chrono>
-#include <mutex>
 
 namespace vm::runtime {
     // Forward declarations
@@ -137,9 +136,6 @@ namespace runtime {
         // Age bonus = (wait_time_ms / agingInterval)
         // Default: 1 priority point per 100ms of waiting
         int agingInterval;
-
-        // Thread safety for cross-thread promise resolution
-        std::mutex queueMutex;
 
     public:
         EventLoop();

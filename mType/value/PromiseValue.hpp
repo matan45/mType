@@ -1,6 +1,5 @@
 #pragma once
 #include "ValueType.hpp"
-#include <mutex>
 #include <condition_variable>
 
 namespace value

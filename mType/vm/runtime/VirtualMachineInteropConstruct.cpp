@@ -58,16 +58,57 @@ namespace vm::runtime
                 throw errors::ConstructorNotFoundException(className, args.size());
             }
 
-            // Look for constructor bytecode using type signature (matches compiler naming)
-            std::string typeSignature = constructor->getTypeSignature();
-            std::string qualifiedName = typeSignature.empty()
-                ? className + "::<init>"
-                : className + "::<init>/" + typeSignature;
-            auto* ctorMetadata = program->getFunction(qualifiedName);
-            if (!ctorMetadata)
+            // Phase 3 (allocation perf): trivial ctor — `this.F_k = param_k`
+            // only, no super-initialiser, all fields own-class. Copy args
+            // directly into instance fields and skip the CallFrame + bytecode
+            // interpret loop entirely. Compiler flags this at class-compile
+            // time in ClassCompiler::markTrivialConstructors.
+            //
+            // Phase 4: use pre-resolved field indices + setFieldByIndex to
+            // bypass string-hashed fieldValues::insert on every write.
+            if (constructor->isTrivialConstructor())
             {
-                throw errors::RuntimeException("Constructor '" + qualifiedName +
-                    "' has no bytecode. Bytecode compilation is required for VM execution.");
+                const auto& indexed = constructor->getTrivialFieldIndexAssignments();
+                instance->ensureFieldVector();
+                for (const auto& [fieldIdx, paramIdx] : indexed)
+                {
+                    if (paramIdx < args.size())
+                    {
+                        instance->setFieldByIndex(fieldIdx, args[paramIdx]);
+                    }
+                }
+                return value::Value(instance);
+            }
+
+            // Phase 2b (allocation perf): resolve constructor bytecode + frame
+            // name once per (ctor, program) pair and cache on ConstructorDefinition.
+            // Eliminates a per-call string concat + getFunction hashmap hit +
+            // internFrameName hashmap hit — hot for jit_new_object → createObject.
+            auto& cache = constructor->getCallSiteCache();
+            const bytecode::BytecodeProgram::FunctionMetadata* ctorMetadata = nullptr;
+            bytecode::FunctionNameHandle frameNameHandle{cache.frameNameHandle};
+
+            if (cache.programTag == program && cache.funcMetadata != nullptr)
+            {
+                ctorMetadata = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
+                    cache.funcMetadata);
+            }
+            else
+            {
+                std::string typeSignature = constructor->getTypeSignature();
+                std::string qualifiedName = typeSignature.empty()
+                    ? className + "::<init>"
+                    : className + "::<init>/" + typeSignature;
+                ctorMetadata = program->getFunction(qualifiedName);
+                if (!ctorMetadata)
+                {
+                    throw errors::RuntimeException("Constructor '" + qualifiedName +
+                        "' has no bytecode. Bytecode compilation is required for VM execution.");
+                }
+                frameNameHandle = program->internFrameName(qualifiedName);
+                cache.programTag = program;
+                cache.funcMetadata = ctorMetadata;
+                cache.frameNameHandle = frameNameHandle.id;
             }
 
             // Reset finally offset for new function call
@@ -87,7 +128,7 @@ namespace vm::runtime
             frame.returnAddress = program->getInstructionCount();
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
-            frame.functionName = program->internFrameName(qualifiedName);
+            frame.functionName = frameNameHandle;
             frame.thisInstance = instance;
             frame.definingClassName = className;
 

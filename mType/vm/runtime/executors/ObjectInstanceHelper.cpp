@@ -7,6 +7,7 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
+#include "../../../value/BoolCache.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/SmallArgsBuffer.hpp"
@@ -179,7 +180,14 @@ namespace vm::runtime
         // Reverse once at end: O(n) total instead of O(n²)
         std::reverse(hierarchy.begin(), hierarchy.end());
 
-        for (const auto& classInHierarchy : hierarchy) {
+        // Phase 2 (allocation perf): only the top-of-hierarchy class (the one
+        // being allocated) is safe to skip-default-init for. Parent fields
+        // stay fully default-initialised because a child constructor may
+        // read `this.<parent_field>` before calling super(), and we don't
+        // know the ctor ordering for inherited state at this point.
+        for (size_t i = 0; i < hierarchy.size(); ++i) {
+            const auto& classInHierarchy = hierarchy[i];
+            const bool isSelf = (i == hierarchy.size() - 1);
             for (const auto& [fieldName, fieldDef] : classInHierarchy->getInstanceFields()) {
                 // Final fields are always written by the constructor: inline
                 // initializers fire in the prologue, ctor-initialized fields
@@ -189,6 +197,12 @@ namespace vm::runtime
                 // FieldInitializationValidator catches uninitialized finals
                 // at compile time.
                 if (fieldDef->isFinal()) continue;
+
+                // Phase 2: the compiler proved every constructor of this
+                // class assigns this field before any read. Skipping avoids
+                // the unordered_map<string,Value>::insert + write barrier on
+                // the allocation hot path.
+                if (isSelf && classInHierarchy->shouldSkipDefaultInit(fieldName)) continue;
 
                 value::Value initialValue = fieldDef->getValue();
                 if (value::isVoid(initialValue)) {
@@ -676,6 +690,31 @@ namespace vm::runtime
         auto accessContext = createAccessContext(baseClassName, false);
         validation::AccessValidator::validateConstructorAccess(baseClassName, constructor->getAccessModifier(), accessContext);
 
+        // Phase 3 (allocation perf): trivial ctor — body is strictly
+        // `this.F_k = param_k`. Copy args directly into instance fields and
+        // leave the instance on the operand stack (matching the default-ctor
+        // early-return convention above). Skips CallFrame setup + ctor
+        // bytecode interpret loop entirely. Debugger/profiler will not see
+        // an explicit function-entry event for these ctors — that's the
+        // cost of the fast path.
+        //
+        // Phase 4: use pre-resolved field indices + setFieldByIndex to
+        // bypass string-hashed fieldValues::insert on every write.
+        if (constructor->isTrivialConstructor())
+        {
+            const auto& indexed = constructor->getTrivialFieldIndexAssignments();
+            instance->ensureFieldVector();
+            for (const auto& [fieldIdx, paramIdx] : indexed)
+            {
+                if (paramIdx < argCount)
+                {
+                    instance->setFieldByIndex(fieldIdx, args[paramIdx]);
+                }
+            }
+            context.stackManager->push(instance);
+            return;
+        }
+
         // Build type signature from runtime argument values for overload resolution
         std::string typeSignature = constructor->getTypeSignature();
 
@@ -796,6 +835,19 @@ namespace vm::runtime
             }
         }
 
+        // Bool caching: only two values, so cache hit rate is 100%.
+        if (baseClassName == "Bool" && argCount == 1 && value::isBool(args[0])) {
+            auto classRegistry = context.environment->getClassRegistry();
+            auto boolClassDef = classRegistry ? classRegistry->findClass("Bool") : nullptr;
+            if (boolClassDef) {
+                auto cachedInstance = value::BoolCache::getBool(value::asBool(args[0]), boolClassDef);
+                if (cachedInstance) {
+                    invokeConstructor(cachedInstance, baseClassName, args.span());
+                    return;
+                }
+            }
+        }
+
         // Normal object creation path (non-cached or cache miss)
         auto instance = createObjectInstance(baseClassName, genericTypeBindings);
 
@@ -804,6 +856,51 @@ namespace vm::runtime
         //  but constructor bytecode is registered under "Int::<init>")
         std::string actualClassName = instance->getClassDefinition()->getName();
         invokeConstructor(instance, actualClassName, args.span());
+    }
+
+    void ObjectInstanceHelper::handleNewStack(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (instr.operands.size() < 2) {
+            throw errors::RuntimeException("NEW_STACK requires 2 operands: class name index and arg count");
+        }
+
+        const std::string& fullClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+        std::string baseClassName = parseGenericTypeArguments(fullClassName, genericTypeBindings);
+
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i) {
+            args[i - 1] = context.stackManager->pop();
+        }
+
+        auto classRegistry = context.environment->getClassRegistry();
+        if (!classRegistry) {
+            throw errors::RuntimeException("Class registry not available");
+        }
+        auto classDef = classRegistry->findClass(baseClassName);
+        if (!classDef) {
+            throw errors::RuntimeException("Class not found: " + baseClassName);
+        }
+
+        // Pool-backed allocation identical to NEW_OBJECT — the shared_ptr's
+        // SlotDeleter gives us automatic pool recycling when the Value refcount
+        // hits zero. Critical for hot loops: without pool recycling, 2M
+        // allocations create 2M distinct ObjectInstances instead of reusing
+        // a small number of pooled slots.
+        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef, genericTypeBindings);
+        initializeObjectFields(instance, classDef);
+
+        // THE actual MYT-134 win: escape analysis proved the reference never
+        // leaves this frame, so we skip GC registration. That saves the mutex +
+        // hashmap insert cost (registerWithGC) AND keeps this object out of the
+        // cycle-detector's scan set for its entire lifetime. Follow-up tickets
+        // can layer additional savings on top (STACK_OBJECT Value tag to skip
+        // the TypedBridge alloc and atomic refcount ops, per-frame bump region
+        // to skip the pool entirely).
+
+        std::string actualClassName = instance->getClassDefinition()->getName();
+        invokeConstructor(std::move(instance), actualClassName, args.span());
     }
 
     std::string ObjectInstanceHelper::getCurrentClassName() {

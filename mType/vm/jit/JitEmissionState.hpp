@@ -14,6 +14,7 @@
 namespace vm::jit
 {
     class JitCodeCache;
+    struct InlineDecisionCounters;
     namespace ic { class TypeFeedbackCollector; }
     enum class CmpOp { EQ, NE, LT, GT, LE, GE };
 
@@ -93,6 +94,13 @@ namespace vm::jit
         uint64_t* inlineFieldSetICHits = nullptr;
         uint64_t* inlineFieldSetICMisses = nullptr;
 
+        // MYT-210 (fills MYT-179 stub): per-decision inline-eligibility
+        // counters, bumped at compile time inside tryEmitInlinedMethodCall and
+        // tryEmitInlinedFunctionCall after checkInlineEligibility /
+        // checkFunctionInlineEligibility returns. Pointer-to-shared instance
+        // owned by JitCompiler.
+        InlineDecisionCounters* inlineDecisions = nullptr;
+
         // MYT-163: name of the top-level function currently being compiled.
         // Used by InlineAnalysis::checkInlineEligibility to reject self-recursive
         // inline candidates. Empty for OSR emission (self-recursion already
@@ -114,6 +122,16 @@ namespace vm::jit
         // other so the fast-path physical state matches the slow path's
         // emitReturnValueCopyBoxed at endLabel.
         SlotType lastReturnSlotType = SlotType::BOXED;
+
+        // Self-recursive tail-call optimization: entry label for the function
+        // body, bound in emitFunctionBody right before emitCodegenLoop begins.
+        // CALL / CALL_FAST emitters detect `return self(...)` shapes and lower
+        // them to an argument-overwrite + jmp to this label, collapsing
+        // tail recursion into a tight loop (e.g. gcd in recursive.mt). OSR-
+        // compiled frames leave this unbound and set selfTailCallEnabled=false
+        // so the emitter falls through to the generic helper invoke.
+        asmjit::Label functionEntryLabel;
+        bool selfTailCallEnabled = true;
 
         static constexpr size_t MAX_OP_STACK = 64;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
@@ -196,6 +214,14 @@ namespace vm::jit
                                               asmjit::x86::Gp classDefReg,
                                               const void* expectedShape,
                                               asmjit::Label missLabel);
+
+    // MYT-210: inline a plain CALL / CALL_FAST. Returns true iff the call
+    // site was inlined; false → caller falls through to the existing
+    // jit_call_function[_fast] helper invoke unchanged. No IC, no shape
+    // guard — the callee is statically known from the constant pool /
+    // function index at JIT-compile time.
+    bool tryEmitInlinedFunctionCall(JitEmissionState& s,
+                                     const bytecode::BytecodeProgram::Instruction& instr);
 
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount,
                          size_t destStartSlot = 0);

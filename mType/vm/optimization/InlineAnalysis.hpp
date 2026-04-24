@@ -1,9 +1,9 @@
 #pragma once
 
+#include "../bytecode/BytecodeProgram.hpp"
+
 #include <cstddef>
 #include <string>
-
-namespace vm::bytecode { class BytecodeProgram; }
 
 namespace vm::jit::ic {
     struct MethodICEntry;
@@ -53,9 +53,12 @@ namespace vm::optimization
         HAS_UNSUPPORTED_OPCODE
     };
 
-    // Size gate — callee bytecode instruction count. Chosen small so the
-    // emitted code stays dense; F-a callees are tiny getters / arithmetic.
-    constexpr size_t INLINE_SIZE_LIMIT = 16;
+    // Size gate — callee bytecode instruction count. MYT-210: bumped from
+    // 16 to 32 so multi-statement leaves (e.g. distanceSq with 4 args + two
+    // intermediate locals + a sum-of-squares return) clear the gate. The
+    // tighter 16 was set in MYT-163 for one-liner getters; plain functions
+    // and non-trivial methods routinely run 17-30 ops.
+    constexpr size_t INLINE_SIZE_LIMIT = 32;
 
     // Max nested inline depth. The caller tracks depth in JitEmissionState
     // (inlineStack.size()). F-a ships with depth 1 only (restriction forbids
@@ -68,4 +71,19 @@ namespace vm::optimization
         const vm::jit::ic::MethodInlineCache& cache,
         const std::string& currentCompilingFn,
         size_t currentInlineDepth);
+
+    // MYT-210: plain-CALL / CALL_FAST inlining eligibility. Mirrors
+    // checkInlineEligibility but the callee is statically known (no IC, no
+    // receiver shape, no MONO/POLY split). Reuses the same per-callee gate
+    // helpers — size, opcode scan, recursion, native, void-return.
+    InlineDecision checkFunctionInlineEligibility(
+        const vm::bytecode::BytecodeProgram& program,
+        const vm::bytecode::BytecodeProgram::FunctionMetadata& callee,
+        const std::string& currentCompilingFn,
+        size_t currentInlineDepth);
+
+    // MYT-210: human-readable name for telemetry / --jit-stats output. Mirrors
+    // osrBailoutReasonName in shape. One-to-one with the InlineDecision enum;
+    // returns "UNKNOWN" for out-of-range values (defensive).
+    const char* inlineDecisionName(InlineDecision d);
 }

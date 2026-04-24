@@ -78,6 +78,9 @@
     <ClInclude Include="optimizer\passes\DeadCodeEliminationPass.hpp">
       <Filter>optimizer\passes</Filter>
     </ClInclude>
+    <ClInclude Include="optimizer\passes\EscapeAnalysisPass.hpp">
+      <Filter>optimizer\passes</Filter>
+    </ClInclude>
     <ClInclude Include="optimizer\passes\constant_folding\ConstantEvaluator.hpp">
       <Filter>optimizer\passes\constant_folding</Filter>
     </ClInclude>
@@ -261,6 +264,9 @@
       <Filter>optimizer\passes</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\DeadCodeEliminationPass.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\EscapeAnalysisPass.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\constant_folding\ConstantEvaluator.cpp">

@@ -68,5 +68,13 @@ namespace vm::compiler::visitors
 
         // Check if receiver expression is known to be non-nullable
         bool isReceiverNonNullable(ast::ASTNode* receiverNode);
+
+        // Phase 2 (allocation perf): intersect definite-assignment sets across
+        // all constructors of the class and push the result onto ClassDefinition.
+        void computeSkipDefaultInitFields(ast::ClassNode* node);
+
+        // Phase 3 (allocation perf): flag trivial constructors for the
+        // VM's fast-path copy-args-into-fields path.
+        void markTrivialConstructors(ast::ClassNode* node);
     };
 }

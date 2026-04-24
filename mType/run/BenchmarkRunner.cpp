@@ -31,7 +31,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 17> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 18> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -69,6 +69,10 @@ namespace
         // post-F-e the IC populates with receiverIsValueObject=true and the
         // body inlines identically to inline_monomorphic.mt.
         "inline_value_object_hot.mt",
+        // MYT-210: plain-CALL inliner acceptance benchmark. 4-arg leaf
+        // distanceSq in a tight 2 M-iter loop — measures the per-call
+        // overhead removed by inlining versus the jit_call_function helper.
+        "function_call_hot.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";

@@ -1,4 +1,5 @@
 #include "ClassCompiler.hpp"
+#include "../analysis/DefiniteAssignmentAnalyzer.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../optimization/PrimitiveMethodOptimizer.hpp"
@@ -60,10 +61,170 @@ namespace vm::compiler::visitors
             field->accept(ctx.visitor);
         }
 
+        // Phase 2 (allocation perf): record the set of own-class instance
+        // fields that every constructor definitely assigns before any read.
+        // initializeObjectFields() uses this to skip redundant default-init
+        // setField() calls. Intersection across all constructors — a field
+        // is safe to skip only if every ctor writes it first.
+        computeSkipDefaultInitFields(node);
+
+        // Phase 3 (allocation perf): flag constructors whose body is strictly
+        // `this.F_k = param_k`. The VM's createObject / invokeConstructor
+        // fast-paths copy args straight into instance fields, skipping the
+        // whole CallFrame push + ctor-bytecode interpret loop.
+        markTrivialConstructors(node);
+
         // Restore previous class context
         ctx.currentClassNode = previousClassNode;
 
         return std::monostate{};
+    }
+
+    void ClassCompiler::markTrivialConstructors(ast::ClassNode* node)
+    {
+        auto classDef = ctx.environment->findClass(node->getClassName());
+        if (!classDef) return;
+
+        const auto& ctorNodes = node->getConstructors();
+        const auto& ctorDefs = classDef->getConstructors();
+
+        // Order must line up — ClassRegistrar adds each ctor in AST order.
+        // If they don't match (e.g., an implicit default ctor snuck in),
+        // bail rather than guess.
+        if (ctorNodes.size() != ctorDefs.size()) return;
+
+        for (size_t i = 0; i < ctorNodes.size(); ++i)
+        {
+            auto* ctor = dynamic_cast<ast::nodes::classes::ConstructorNode*>(ctorNodes[i].get());
+            if (!ctor) continue;
+            if (ctor->hasSuperInitializer()) continue;
+
+            // Build parameter name list in declaration order for the analyser.
+            std::vector<std::string> paramNames;
+            const auto& params = ctor->getParametersWithTypes();
+            paramNames.reserve(params.size());
+            for (const auto& p : params) paramNames.push_back(p.first);
+
+            auto trivial = analysis::DefiniteAssignmentAnalyzer::analyzeTrivialCtor(
+                ctor->getBodyPtr(), paramNames);
+            if (!trivial.has_value()) continue;
+
+            // Keep only assignments to this-class instance fields. Inherited
+            // fields could legitimately live on the slow path; we don't want
+            // to silently skip parent-side initialiser bytecode.
+            const auto& ownInstanceFields = classDef->getInstanceFields();
+            std::vector<std::pair<std::string, size_t>> filtered;
+            std::vector<std::pair<size_t, size_t>> indexed;  // Phase 4: pre-resolved field indices
+            filtered.reserve(trivial->size());
+            indexed.reserve(trivial->size());
+            bool allOwned = true;
+            for (const auto& pr : *trivial)
+            {
+                if (ownInstanceFields.count(pr.first) == 0) { allOwned = false; break; }
+                size_t fieldIdx = classDef->getFieldIndex(pr.first);
+                if (fieldIdx == SIZE_MAX) { allOwned = false; break; }
+                filtered.push_back(pr);
+                indexed.emplace_back(fieldIdx, pr.second);
+            }
+            if (!allOwned) continue;
+
+            // Final instance fields with inline initializers (e.g.,
+            // `final int CHANNELS = 32`) are set by the constructor's
+            // bytecode prologue. The trivial fast path skips the entire
+            // constructor bytecode, so those initialisations would be
+            // lost. Reject trivial classification when any final instance
+            // field exists in this class or its hierarchy.
+            bool hasFinalFields = false;
+            for (const auto& [fname, fdef] : ownInstanceFields)
+            {
+                if (fdef->isFinal()) { hasFinalFields = true; break; }
+            }
+            if (!hasFinalFields)
+            {
+                // Also check parent classes — their final fields are
+                // initialised in the parent constructor prologue that
+                // the trivial fast path would skip.
+                auto parent = classDef->getParentClass();
+                while (parent && !hasFinalFields)
+                {
+                    for (const auto& [fname, fdef] : parent->getInstanceFields())
+                    {
+                        if (fdef->isFinal()) { hasFinalFields = true; break; }
+                    }
+                    parent = parent->getParentClass();
+                }
+            }
+            if (hasFinalFields) continue;
+
+            ctorDefs[i]->setTrivialFieldAssignments(std::move(filtered), std::move(indexed));
+        }
+    }
+
+    void ClassCompiler::computeSkipDefaultInitFields(ast::ClassNode* node)
+    {
+        auto classDef = ctx.environment->findClass(node->getClassName());
+        if (!classDef) return;
+
+        const auto& ctorNodes = node->getConstructors();
+        if (ctorNodes.empty()) return;  // implicit default ctor touches nothing — leave empty
+
+        std::unordered_set<std::string> intersection;
+        bool first = true;
+
+        for (const auto& ctorNode : ctorNodes)
+        {
+            auto* ctor = dynamic_cast<ast::nodes::classes::ConstructorNode*>(ctorNode.get());
+            if (!ctor)
+            {
+                intersection.clear();
+                break;
+            }
+
+            // A super() / this() call running before body statements could
+            // read this.X via super's own constructor. The analyser rejects
+            // any non-trivial shape, but being explicit here keeps future
+            // readers honest: if there's any super-initialiser, bail.
+            if (ctor->hasSuperInitializer())
+            {
+                intersection.clear();
+                break;
+            }
+
+            auto assigned = analysis::DefiniteAssignmentAnalyzer::analyzeConstructor(ctor->getBodyPtr());
+            if (assigned.empty())
+            {
+                intersection.clear();
+                break;
+            }
+
+            if (first)
+            {
+                intersection = std::move(assigned);
+                first = false;
+            }
+            else
+            {
+                std::unordered_set<std::string> next;
+                for (const auto& name : intersection)
+                {
+                    if (assigned.count(name) > 0) next.insert(name);
+                }
+                intersection = std::move(next);
+                if (intersection.empty()) break;
+            }
+        }
+
+        // Only keep fields that belong to *this* class (not inherited). Parent
+        // classes handle their own fields via their own initializeObjectFields
+        // pass / their own skip set.
+        std::unordered_set<std::string> ownFieldsOnly;
+        const auto& ownInstanceFields = classDef->getInstanceFields();
+        for (const auto& name : intersection)
+        {
+            if (ownInstanceFields.count(name) > 0) ownFieldsOnly.insert(name);
+        }
+
+        classDef->setSkipDefaultInitFields(std::move(ownFieldsOnly));
     }
 
     value::Value ClassCompiler::compileMethod(ast::MethodNode* node)
@@ -304,8 +465,14 @@ namespace vm::compiler::visitors
                              static_cast<uint64_t>(arguments.size()), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::OBJECT_TO_VALUE, node);
         } else {
-            // Emit NEW_OBJECT instruction with full class name and argument count
-            ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_OBJECT,
+            // MYT-134: escape analysis may have flagged this allocation as
+            // non-escaping; emit NEW_STACK so the runtime can pool-borrow and
+            // skip GC registration. NEW_STACK has the same operand shape so the
+            // emission differs only in the opcode byte.
+            bytecode::OpCode op = node->getIsStackAllocated()
+                ? bytecode::OpCode::NEW_STACK
+                : bytecode::OpCode::NEW_OBJECT;
+            ctx.emitter.emitWithLocation(op,
                              static_cast<uint64_t>(classNameIndex),
                              static_cast<uint64_t>(arguments.size()), node);
         }

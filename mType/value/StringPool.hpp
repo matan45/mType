@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
-#include <mutex>
 #include <atomic>
 #include <chrono>
 
@@ -59,7 +58,6 @@ namespace value
 
         std::unordered_map<std::string, size_t> stringToId;
         std::unordered_map<size_t, std::unique_ptr<PoolEntry>> idToEntry;
-        mutable std::mutex poolMutex;
         std::atomic<size_t> nextId{1};
         StringPoolStats stats;
 
@@ -124,7 +122,6 @@ namespace value
          */
         bool contains(const std::string& str) const
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             return stringToId.find(str) != stringToId.end();
         }
 
@@ -140,7 +137,6 @@ namespace value
          */
         StringPoolStats getStats() const
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             auto currentStats = stats;
             currentStats.currentPoolSize = idToEntry.size();
             currentStats.maxPoolSize = std::max(currentStats.maxPoolSize, currentStats.currentPoolSize);
@@ -152,7 +148,6 @@ namespace value
          */
         void clear()
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             stringToId.clear();
             idToEntry.clear();
             stats = StringPoolStats{};
@@ -164,7 +159,6 @@ namespace value
          */
         void cleanup()
         {
-            std::lock_guard<std::mutex> lock(poolMutex);
             cleanupExpiredEntries();
         }
 

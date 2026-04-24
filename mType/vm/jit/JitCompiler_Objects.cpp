@@ -1,4 +1,5 @@
 #include "JitEmissionState.hpp"
+#include "JitCompiler.hpp"
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "ic/InlineCacheTable.hpp"
@@ -457,6 +458,59 @@ namespace vm::jit
         s.currentIP      = snap.currentIP;
     }
 
+    // MYT-210: shared bytecode-paste loop for the inliner. Both
+    // emitInlinedMethodCallMono / emitInlinedMethodCallPoly (CALL_METHOD path)
+    // and emitInlinedFunctionCallDirect (plain CALL / CALL_FAST) push an
+    // InlineFrame onto s.inlineStack first, then call this helper to walk the
+    // callee bytecode range. The frame is read from s.inlineStack.back(), so
+    // the helper itself is fully frame-agnostic.
+    //
+    // stackBaselineIdx is the operand-stack depth at which the callee starts
+    // with an empty operand stack (= receiverStackIdx for methods,
+    // firstArgStackIdx for plain functions). At every callee-local label we
+    // bind it and reset (stackDepth, slotTypes, arrayInfoCache) so the next
+    // basic block sees the expected pre-call shape — bytecode-compiler
+    // invariant: labels are always at statement boundaries with empty operand
+    // stack.
+    //
+    // The MYT-185/186/187 slot-type-bookkeeping fix lives entirely inside
+    // emitReturnValueOp + the caller-supplied onExit; this helper just routes
+    // opcodes through the existing emit*Ops dispatchers.
+    static void emitInlineCalleeBody(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::FunctionMetadata& callee,
+        int stackBaselineIdx,
+        const ExitHandler& onExit)
+    {
+        auto& cc = s.cc;
+        for (size_t ip = callee.startOffset;
+             ip < callee.startOffset + callee.instructionCount && !s.compileFailed;
+             ++ip)
+        {
+            auto& topFrame = s.inlineStack.back();
+            auto lit = topFrame.localJumpLabels.find(ip);
+            if (lit != topFrame.localJumpLabels.end())
+            {
+                cc.bind(lit->second);
+                s.stackDepth = stackBaselineIdx;
+                s.slotTypes.resize(static_cast<size_t>(stackBaselineIdx));
+                s.arrayInfoCache.clear();
+            }
+
+            const auto& cinstr = s.program.getInstruction(ip);
+            s.currentIP = ip;
+            if (cinstr.opcode == OpCode::PROFILE_ENTER)
+                continue;  // no-op inside an inline frame
+
+            bool handled = false;
+            if (emitCoreOps(s, cinstr)) handled = true;
+            else if (emitArithmeticOps(s, cinstr)) handled = true;
+            else if (emitControlFlowOps(s, cinstr, onExit)) handled = true;
+            else { emitObjectOps(s, cinstr); handled = true; }
+            (void)handled;
+        }
+    }
+
     // Original (non-inlined) CALL_METHOD emission. Used as the slow path of
     // tryEmitInlinedMethodCall when the shape guard misses, and as the direct
     // emission when the site is not eligible for inlining.
@@ -633,46 +687,14 @@ namespace vm::jit
             es.cc.jmp(endLabel);
         };
 
-        // Emit the callee's bytecode. MYT-164: internal jumps are permitted;
-        // bind per-IP labels at the top of each iteration so JUMP/JUMP_IF_*/
-        // JUMP_BACK targets inside the callee resolve through the inline
-        // frame's localJumpLabels. RETURN_VALUE / RETURN still trip onExit
-        // and jump to endLabel, so multiple return paths all converge there.
-        // Iterate the full range — trailing unreachable ops emit dead asmjit
-        // instructions, which the outer codegen loop already tolerates.
-        for (size_t ip = callee->startOffset;
-             ip < callee->startOffset + callee->instructionCount && !s.compileFailed;
-             ++ip)
-        {
-            // Bind a callee-local label at this IP if the pre-scan registered
-            // one. At a join point the inline operand stack is empty by
-            // bytecode-compiler invariant (ControlFlowCompiler emits labels
-            // at statement boundaries, never mid-expression), so reset
-            // stackDepth / slotTypes to match the expected shape of the
-            // next basic block. Conservative arrayInfoCache reset mirrors
-            // emitCodegenLoop in JitCompiler_Core.cpp.
-            auto& topFrame = s.inlineStack.back();
-            auto lit = topFrame.localJumpLabels.find(ip);
-            if (lit != topFrame.localJumpLabels.end())
-            {
-                cc.bind(lit->second);
-                s.stackDepth = receiverStackIdx;
-                s.slotTypes.resize(static_cast<size_t>(receiverStackIdx));
-                s.arrayInfoCache.clear();
-            }
-
-            const auto& cinstr = s.program.getInstruction(ip);
-            s.currentIP = ip;
-            if (cinstr.opcode == OpCode::PROFILE_ENTER)
-                continue;  // no-op inside an inline frame
-
-            bool handled = false;
-            if (emitCoreOps(s, cinstr)) handled = true;
-            else if (emitArithmeticOps(s, cinstr)) handled = true;
-            else if (emitControlFlowOps(s, cinstr, onExit)) handled = true;
-            else { emitObjectOps(s, cinstr); handled = true; }
-            (void)handled;
-        }
+        // Emit the callee's bytecode via the shared helper. MYT-164: internal
+        // jumps are permitted; the helper binds per-IP labels and resets
+        // (stackDepth, slotTypes, arrayInfoCache) to the receiver-baseline at
+        // each join point. RETURN_VALUE / RETURN trip onExit and jump to
+        // endLabel, so multiple return paths all converge there. Trailing
+        // unreachable ops emit dead asmjit instructions, which the outer
+        // codegen loop already tolerates.
+        emitInlineCalleeBody(s, *callee, receiverStackIdx, onExit);
 
         // Exit callee scope (regardless of compileFailed — we still need
         // matching state for the slow path).
@@ -856,32 +878,8 @@ namespace vm::jit
                 es.cc.jmp(endLabel);
             };
 
-            for (size_t ip = callee->startOffset;
-                 ip < callee->startOffset + callee->instructionCount && !s.compileFailed;
-                 ++ip)
-            {
-                auto& topFrame = s.inlineStack.back();
-                auto lit = topFrame.localJumpLabels.find(ip);
-                if (lit != topFrame.localJumpLabels.end())
-                {
-                    cc.bind(lit->second);
-                    s.stackDepth = receiverStackIdx;
-                    s.slotTypes.resize(static_cast<size_t>(receiverStackIdx));
-                    s.arrayInfoCache.clear();
-                }
-
-                const auto& cinstr = s.program.getInstruction(ip);
-                s.currentIP = ip;
-                if (cinstr.opcode == OpCode::PROFILE_ENTER)
-                    continue;
-
-                bool handled = false;
-                if (emitCoreOps(s, cinstr)) handled = true;
-                else if (emitArithmeticOps(s, cinstr)) handled = true;
-                else if (emitControlFlowOps(s, cinstr, onExit)) handled = true;
-                else { emitObjectOps(s, cinstr); handled = true; }
-                (void)handled;
-            }
+            // MYT-210: shared paste loop, identical between MONO and POLY.
+            emitInlineCalleeBody(s, *callee, receiverStackIdx, onExit);
 
             s.inlineStack.pop_back();
             s.inlineLocalsBase = prevInlineBase;
@@ -923,6 +921,9 @@ namespace vm::jit
         auto& cache = icTable.getMethodIC(s.currentIP);
         auto decision = optimization::checkInlineEligibility(
             s.program, cache, s.currentCompilingFn, s.inlineStack.size());
+        // MYT-210: telemetry — every site decision (including INLINE) is
+        // counted so --jit-stats can report the eligibility breakdown.
+        if (s.inlineDecisions) s.inlineDecisions->bumpMethod(decision);
         if (decision != optimization::InlineDecision::INLINE) return false;
 
         // Boxed-mode callee only: inlining assumes the caller emits in boxed
@@ -935,6 +936,186 @@ namespace vm::jit
         if (cache.state == ic::ICState::POLYMORPHIC)
             return emitInlinedMethodCallPoly(s, instr, cache);
         return false;
+    }
+
+    // MYT-210: route a CALL or CALL_FAST instruction to its statically-known
+    // callee FunctionMetadata, or nullptr if the site is ineligible for
+    // inlining (unknown name, native callee, out-of-range index). Native
+    // callees return nullptr because the slow-path helper handles native
+    // dispatch — the inliner only operates on bytecode-defined callees.
+    static const bytecode::BytecodeProgram::FunctionMetadata* resolveInlineableCallee(
+        const JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        const bytecode::BytecodeProgram::FunctionMetadata* callee = nullptr;
+        if (instr.opcode == OpCode::CALL_FAST)
+        {
+            const auto funcIndex = static_cast<size_t>(instr.operands[0]);
+            callee = s.program.getFunctionByIndex(funcIndex);
+        }
+        else if (instr.opcode == OpCode::CALL)
+        {
+            const auto nameIndex = static_cast<uint32_t>(instr.operands[0]);
+            const std::string& name = s.program.getConstantPool().getString(nameIndex);
+            callee = s.program.getFunction(name);
+        }
+        if (!callee || callee->isNative)
+            return nullptr;
+        return callee;
+    }
+
+    // MYT-210: emit the inlined body of a plain CALL / CALL_FAST. Mirrors
+    // emitInlinedMethodCallMono minus the receiver and shape guard — the
+    // callee is statically known so the body executes unconditionally and
+    // there is no fast/slow split.
+    //
+    // Slot layout differences from the method path:
+    //   * No implicit `this` — first arg lives at stackDepth - argCount,
+    //     not stackDepth - argCount - 1.
+    //   * parameterCount must equal argCount (no implicit-this offset).
+    //   * Return slot lands where the first arg used to live, with the
+    //     slow-path-matching push slotType (INT/FLOAT/BOOL for primitive
+    //     returns, BOXED otherwise — to match emitCallReturnValue).
+    static bool emitInlinedFunctionCallDirect(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::FunctionMetadata& callee)
+    {
+        const size_t argCount = instr.operands[1];
+
+        // Arity match: plain CALL has no implicit `this`. Defensive bail —
+        // if the bytecode compiler emits an arity-mismatched site, we'd
+        // rather fall through to the generic helper which will surface the
+        // mismatch through the regular runtime path.
+        if (callee.parameterCount != argCount) return false;
+
+        // Locals overflow guard — same formula as the method path.
+        const size_t localsBaseSlot = s.inlineStack.empty()
+            ? s.localCount
+            : s.inlineStack.back().localsBaseSlot
+              + s.inlineStack.back().calleeMeta->localCount;
+        if (localsBaseSlot + callee.localCount
+            > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+            return false;
+
+        auto& cc = s.cc;
+        asmjit::Label endLabel = cc.new_label();
+
+        // Pre-scan the callee's bytecode range for jump targets — same
+        // mechanism the method path uses (MYT-164 F-b).
+        auto localJumpLabels = createJumpLabels(
+            cc, s.program, callee.startOffset,
+            callee.startOffset + callee.instructionCount);
+
+        // First-arg slot (no -1 for receiver).
+        const int firstArgStackIdx = s.stackDepth - static_cast<int>(argCount);
+
+        // Copy args into the callee's locals window. emitInlineLocalCopy
+        // iterates callee.parameterCount slots from firstArgStackIdx; for
+        // plain functions parameterCount == argCount so no implicit slot is
+        // touched. Primitive args get boxed into the local; BOXED args are
+        // donated via raw memcpy + tag-reset (matches method path).
+        emitInlineLocalCopy(s, firstArgStackIdx, localsBaseSlot, callee);
+
+        // Push InlineFrame so emitInlineCalleeBody and the LOAD/STORE_LOCAL
+        // remap (s.inlineLocalsBase) see the right context.
+        InlineFrame frame;
+        frame.calleeMeta = &callee;
+        frame.localsBaseSlot = localsBaseSlot;
+        frame.inlineEndLabel = endLabel;
+        frame.returnResultStackIdx = firstArgStackIdx;
+        frame.localJumpLabels = std::move(localJumpLabels);
+
+        const size_t prevInlineBase = s.inlineLocalsBase;
+        s.inlineStack.push_back(frame);
+        s.inlineLocalsBase = localsBaseSlot;
+
+        // Drop argCount slots from slotTypes; reset stackDepth so callee
+        // emission begins with an empty operand stack at firstArgStackIdx.
+        s.slotTypes.resize(s.slotTypes.size() - argCount);
+        s.stackDepth = firstArgStackIdx;
+        s.arrayInfoCache.clear();
+
+        // onExit: at every callee RETURN_VALUE (handled inside
+        // emitReturnValueOp), materialize physical state at firstArgStackIdx,
+        // release donated boxed-local ownership, jump to the join. Identical
+        // shape to the method path's onExit (MYT-185/186/187 fix point) —
+        // s.lastReturnSlotType is set by emitReturnValueOp before popType.
+        ExitHandler onExit = [endLabel, firstArgStackIdx, localsBaseSlot, &callee]
+            (JitEmissionState& es, size_t /*target*/) {
+            emitInlineReturnMaterialize(es, firstArgStackIdx, es.lastReturnSlotType);
+            emitInlineLocalDestroy(es, localsBaseSlot, callee);
+            es.cc.jmp(endLabel);
+        };
+
+        // Emit body via the shared MYT-210 helper.
+        emitInlineCalleeBody(s, callee, firstArgStackIdx, onExit);
+
+        // Exit callee scope — must happen even if compileFailed so the
+        // outer compile sees a consistent inlineStack on the abort path.
+        s.inlineStack.pop_back();
+        s.inlineLocalsBase = prevInlineBase;
+
+        if (s.compileFailed) return true;
+
+        // Defensive trailing jmp: any dead bytecode after the final
+        // RETURN_VALUE shouldn't fall through into the join label and skip
+        // its post-bind state setup. At runtime well-formed callees always
+        // exit through onExit.
+        cc.jmp(endLabel);
+
+        // --- Join ---
+        cc.bind(endLabel);
+
+        // Push a slotType matching what the slow path's emitCallReturnValue
+        // would push (ControlFlow.cpp emitCallOp / emitCallFastOp): for
+        // primitive returns, the raw value lives in stackBase with the
+        // matching primitive SlotType; for non-primitive returns, BOXED.
+        // emitInlineReturnMaterialize has already populated both boxedBase
+        // and stackBase for primitive returns, so either consumer sees a
+        // consistent value.
+        SlotType retSlot;
+        if      (callee.returnType == "int")   retSlot = SlotType::INT;
+        else if (callee.returnType == "float") retSlot = SlotType::FLOAT;
+        else if (callee.returnType == "bool")  retSlot = SlotType::BOOL;
+        else                                    retSlot = SlotType::BOXED;
+        s.slotTypes.push_back(retSlot);
+        s.stackDepth = firstArgStackIdx + 1;
+        s.arrayInfoCache.clear();
+
+        return true;
+    }
+
+    // MYT-210: entry point invoked from emitCallOp / emitCallFastOp before
+    // the existing helper-invoke slow path. Returns true iff the call site
+    // was inlined; false → caller emits the unchanged generic dispatch.
+    //
+    // Differences from tryEmitInlinedMethodCall:
+    //   * No IC — callee is statically resolvable from the constant pool /
+    //     function index table at JIT-compile time.
+    //   * No shape guard, no fast/slow split, no state snapshot.
+    //   * Decision is recorded into perReasonFunction (vs perReasonMethod).
+    bool tryEmitInlinedFunctionCall(JitEmissionState& s,
+                                     const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // Boxed-mode gate. Mirrors the method-path check at line 931 — the
+        // inline-locals window assumes a boxed-mode caller. Plain-CALL
+        // callers don't always force boxed mode (only non-primitive returns
+        // do, see emitCallOp at ControlFlow.cpp), so non-boxed callers
+        // safely fall through to the generic invoke.
+        if (!s.usesBoxedTypes) return false;
+
+        // Resolve callee (CALL via name → constant pool, CALL_FAST via index).
+        // Native callees return nullptr — the inliner only handles bytecode.
+        const auto* callee = resolveInlineableCallee(s, instr);
+        if (!callee) return false;
+
+        const auto decision = optimization::checkFunctionInlineEligibility(
+            s.program, *callee, s.currentCompilingFn, s.inlineStack.size());
+        if (s.inlineDecisions) s.inlineDecisions->bumpFunction(decision);
+        if (decision != optimization::InlineDecision::INLINE) return false;
+
+        return emitInlinedFunctionCallDirect(s, instr, *callee);
     }
 
     static bool emitCallMethodOp(JitEmissionState& s,
@@ -1266,7 +1447,16 @@ namespace vm::jit
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
             case OpCode::CAST:           return emitCastOp(s, instr);
             case OpCode::NEW_OBJECT:
-            case OpCode::NEW_VALUE_OBJECT: return emitNewObjectOp(s, instr);
+            case OpCode::NEW_VALUE_OBJECT:
+            // MYT-134: reuse the NEW_OBJECT emission path for NEW_STACK on the
+            // JIT side. The JIT-side createObject helper (VirtualMachine::
+            // createObject) already does not call registerWithGC — the MYT-134
+            // interpreter-side win doesn't apply here anyway — so collapsing
+            // the two opcodes to the same JIT emission avoids forcing functions
+            // that contain promoted allocations into the interpreter. The
+            // STACK_OBJECT Value tag + executor plumbing (MYT-208) will
+            // introduce a distinct jit_new_stack helper with real savings.
+            case OpCode::NEW_STACK: return emitNewObjectOp(s, instr);
 
             case OpCode::GET_ITERATOR:       return emitGetIteratorOp(s);
             case OpCode::ITERATOR_HAS_NEXT:  return emitIteratorHasNextOp(s);

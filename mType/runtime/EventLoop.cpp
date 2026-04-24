@@ -2,24 +2,23 @@
 #include "../value/PromiseValue.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include <algorithm>
-#include <iostream>
 
-namespace runtime {
-
+namespace runtime
+{
     EventLoop::EventLoop()
         : nextTaskId(1)
-        , currentTask(nullptr)
-        , running(false)
-        , shouldStop(false)
-        , agingInterval(100)  // Default: 1 priority point per 100ms
+          , currentTask(nullptr)
+          , running(false)
+          , shouldStop(false)
+          , agingInterval(100) // Default: 1 priority point per 100ms
     {
     }
 
-    EventLoop::~EventLoop() {
+    EventLoop::~EventLoop()
+    {
         stop();
 
         // Clean up all remaining tasks to prevent memory leaks
-        std::lock_guard<std::mutex> lock(queueMutex);
         allTasks.clear();
         suspendedTasks.clear();
         readyQueue.clear();
@@ -30,12 +29,10 @@ namespace runtime {
     size_t EventLoop::scheduleTask(
         std::function<value::Value()> asyncFunction)
     {
-        std::lock_guard<std::mutex> lock(queueMutex);
-
         size_t taskId = nextTaskId++;
         auto task = std::make_shared<Task>(taskId);
         task->function = asyncFunction;
-        task->priority = 0;  // Default priority managed by EventLoop
+        task->priority = 0; // Default priority managed by EventLoop
         task->state = TaskState::PENDING;
 
         // Create a promise for this task's result
@@ -52,8 +49,6 @@ namespace runtime {
         int delayMs,
         int priority)
     {
-        std::lock_guard<std::mutex> lock(queueMutex);
-
         size_t taskId = nextTaskId++;
         auto task = std::make_shared<Task>(taskId);
         task->function = asyncFunction;
@@ -67,19 +62,20 @@ namespace runtime {
         DelayedTask delayed;
         delayed.task = task;
         delayed.executeAt = std::chrono::steady_clock::now() +
-                           std::chrono::milliseconds(delayMs);
+            std::chrono::milliseconds(delayMs);
 
         delayedTasks.push_back(delayed);
 
         return taskId;
     }
 
-    void EventLoop::suspendCurrentTask(std::shared_ptr<value::PromiseValue> promise) {
-        if (!currentTask) {
+    void EventLoop::suspendCurrentTask(std::shared_ptr<value::PromiseValue> promise)
+    {
+        if (!currentTask)
+        {
             throw std::runtime_error("Cannot suspend - no current task");
         }
 
-        std::lock_guard<std::mutex> lock(queueMutex);
 
         currentTask->state = TaskState::SUSPENDED;
         currentTask->waitingOn = promise;
@@ -88,14 +84,14 @@ namespace runtime {
         suspendedTasks[currentTask->taskId] = currentTask;
     }
 
-    void EventLoop::resumeTask(size_t taskId, value::Value resolvedValue) {
+    void EventLoop::resumeTask(size_t taskId, value::Value resolvedValue)
+    {
         std::function<void(value::Value)> callback;
 
         {
-            std::lock_guard<std::mutex> lock(queueMutex);
-
             auto it = suspendedTasks.find(taskId);
-            if (it == suspendedTasks.end()) {
+            if (it == suspendedTasks.end())
+            {
                 return;
             }
 
@@ -113,16 +109,17 @@ namespace runtime {
 
         // Execute callback outside queueMutex to prevent lock inversion
         // (resolve path holds callbackMutex -> calls resumeTask -> would acquire queueMutex)
-        if (callback) {
+        if (callback)
+        {
             callback(resolvedValue);
         }
     }
 
-    void EventLoop::cancelTask(size_t taskId) {
-        std::lock_guard<std::mutex> lock(queueMutex);
-
+    void EventLoop::cancelTask(size_t taskId)
+    {
         auto it = allTasks.find(taskId);
-        if (it != allTasks.end()) {
+        if (it != allTasks.end())
+        {
             auto task = it->second;
             task->state = TaskState::FAILED;
             task->errorMessage = "Task cancelled";
@@ -131,7 +128,7 @@ namespace runtime {
             suspendedTasks.erase(taskId);
             readyQueue.erase(
                 std::remove_if(readyQueue.begin(), readyQueue.end(),
-                    [taskId](const auto& t) { return t->taskId == taskId; }),
+                               [taskId](const auto& t) { return t->taskId == taskId; }),
                 readyQueue.end()
             );
 
@@ -139,16 +136,17 @@ namespace runtime {
         }
     }
 
-    void EventLoop::setTaskVM(size_t taskId, std::shared_ptr<vm::runtime::VirtualMachine> vmPtr) {
-        std::lock_guard<std::mutex> lock(queueMutex);
-
+    void EventLoop::setTaskVM(size_t taskId, std::shared_ptr<vm::runtime::VirtualMachine> vmPtr)
+    {
         auto it = allTasks.find(taskId);
-        if (it != allTasks.end()) {
-            it->second->vm = vmPtr;  // Assigns shared_ptr to weak_ptr
+        if (it != allTasks.end())
+        {
+            it->second->vm = vmPtr; // Assigns shared_ptr to weak_ptr
         }
     }
 
-    void EventLoop::run() {
+    void EventLoop::run()
+    {
         running = true;
         shouldStop = false;
 
@@ -159,14 +157,16 @@ namespace runtime {
         constexpr int MAX_SECONDS = 10;
         int iterations = 0;
 
-        while (!shouldStop && tick()) {
+        while (!shouldStop && tick())
+        {
             iterations++;
 
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::steady_clock::now() - startTime
             ).count();
 
-            if (elapsed > MAX_SECONDS || iterations > MAX_ITERATIONS) {
+            if (elapsed > MAX_SECONDS || iterations > MAX_ITERATIONS)
+            {
                 break;
             }
         }
@@ -174,7 +174,8 @@ namespace runtime {
         running = false;
     }
 
-    bool EventLoop::tick() {
+    bool EventLoop::tick()
+    {
         // Process callbacks from background threads. Drain the queue under
         // the lock, then execute callbacks WITHOUT the lock held — callbacks
         // may legitimately call post() / scheduleTask() / resumeTask() (e.g.
@@ -184,10 +185,10 @@ namespace runtime {
         // resource_deadlock_would_occur.
         std::deque<std::function<void()>> drained;
         {
-            std::lock_guard<std::mutex> lock(queueMutex);
             drained.swap(pendingCallbacks);
         }
-        while (!drained.empty()) {
+        while (!drained.empty())
+        {
             auto callback = std::move(drained.front());
             drained.pop_front();
             callback();
@@ -202,12 +203,13 @@ namespace runtime {
         // Select next task to execute
         auto task = selectNextTask();
 
-        if (!task) {
+        if (!task)
+        {
             // No tasks ready - check if we have suspended or delayed tasks
-            std::lock_guard<std::mutex> lock(queueMutex);
             bool hasWork = !suspendedTasks.empty() || !delayedTasks.empty();
 
-            if (hasWork) {
+            if (hasWork)
+            {
                 // Sleep briefly to avoid busy-waiting
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 return true;
@@ -225,31 +227,36 @@ namespace runtime {
         return true; // More work might be available
     }
 
-    void EventLoop::stop() {
+    void EventLoop::stop()
+    {
         shouldStop = true;
     }
 
-    void EventLoop::post(std::function<void()> callback) {
-        std::lock_guard<std::mutex> lock(queueMutex);
+    void EventLoop::post(std::function<void()> callback)
+    {
         pendingCallbacks.push_back(callback);
     }
 
-    void EventLoop::executeTask(std::shared_ptr<Task> task) {
+    void EventLoop::executeTask(std::shared_ptr<Task> task)
+    {
         currentTask = task;
         task->state = TaskState::RUNNING;
 
         // Set task ID in VM if available (safely check if VM still exists)
-        if (auto vmPtr = task->vm.lock()) {
+        if (auto vmPtr = task->vm.lock())
+        {
             vmPtr->setCurrentTaskId(task->taskId);
         }
 
-        try {
+        try
+        {
             // Execute the task's function
             value::Value result = task->function();
 
             // Check if task was suspended during execution
             // If suspended, the task state was changed by suspendCurrentTask()
-            if (task->state == TaskState::SUSPENDED) {
+            if (task->state == TaskState::SUSPENDED)
+            {
                 // Don't mark as completed, task is in suspendedTasks map
                 return;
             }
@@ -258,19 +265,22 @@ namespace runtime {
             task->state = TaskState::COMPLETED;
 
             // Resolve the task's result promise
-            if (task->resultPromise) {
+            if (task->resultPromise)
+            {
                 task->resultPromise->resolve(result);
             }
 
             // Keep task in allTasks so caller can check its status
             // Caller is responsible for cleanup
         }
-        catch (const std::exception& e) {
+        catch (const std::exception& e)
+        {
             task->state = TaskState::FAILED;
             task->errorMessage = e.what();
 
             // Reject the promise
-            if (task->resultPromise) {
+            if (task->resultPromise)
+            {
                 task->resultPromise->reject(e.what());
             }
 
@@ -281,36 +291,42 @@ namespace runtime {
         currentTask = nullptr;
     }
 
-    void EventLoop::checkCompletedPromises() {
+    void EventLoop::checkCompletedPromises()
+    {
         // Collect rejections under the lock, then invoke promise->reject() after
         // release. reject() synchronously runs .then/.catch handlers, which may
         // call post() / scheduleTask() and re-lock queueMutex on this thread.
         std::vector<std::pair<std::shared_ptr<Task>, std::string>> rejectedTasks;
 
         {
-            std::lock_guard<std::mutex> lock(queueMutex);
-
             std::vector<size_t> toResume;
-            for (const auto& [taskId, task] : suspendedTasks) {
-                if (task->waitingOn && (task->waitingOn->isFulfilled() || task->waitingOn->isRejected())) {
+            for (const auto& [taskId, task] : suspendedTasks)
+            {
+                if (task->waitingOn && (task->waitingOn->isFulfilled() || task->waitingOn->isRejected()))
+                {
                     toResume.push_back(taskId);
                 }
             }
 
-            for (size_t taskId : toResume) {
+            for (size_t taskId : toResume)
+            {
                 auto task = suspendedTasks[taskId];
 
-                if (task->waitingOn->isRejected()) {
+                if (task->waitingOn->isRejected())
+                {
                     // Mark task as failed — the VM's pendingAwaitRejection mechanism
                     // handles proper error propagation for tasks resumed via callbacks.
                     // This path catches tasks waiting on plain PromiseValue (no callbacks).
                     task->state = TaskState::FAILED;
                     task->errorMessage = task->waitingOn->getError();
 
-                    if (task->resultPromise) {
+                    if (task->resultPromise)
+                    {
                         rejectedTasks.emplace_back(task, task->errorMessage);
                     }
-                } else {
+                }
+                else
+                {
                     task->state = TaskState::PENDING;
                     readyQueue.push_back(task);
                 }
@@ -320,33 +336,37 @@ namespace runtime {
             }
         }
 
-        for (auto& [task, err] : rejectedTasks) {
+        for (auto& [task, err] : rejectedTasks)
+        {
             task->resultPromise->reject(err);
         }
     }
 
-    void EventLoop::moveReadyDelayedTasks() {
-        std::lock_guard<std::mutex> lock(queueMutex);
-
+    void EventLoop::moveReadyDelayedTasks()
+    {
         auto now = std::chrono::steady_clock::now();
 
         // Find all delayed tasks that are ready
         auto it = delayedTasks.begin();
-        while (it != delayedTasks.end()) {
-            if (it->executeAt <= now) {
+        while (it != delayedTasks.end())
+        {
+            if (it->executeAt <= now)
+            {
                 // Move to ready queue
                 readyQueue.push_back(it->task);
                 it = delayedTasks.erase(it);
-            } else {
+            }
+            else
+            {
                 ++it;
             }
         }
     }
 
-    std::shared_ptr<Task> EventLoop::selectNextTask() {
-        std::lock_guard<std::mutex> lock(queueMutex);
-
-        if (readyQueue.empty()) {
+    std::shared_ptr<Task> EventLoop::selectNextTask()
+    {
+        if (readyQueue.empty())
+        {
             return nullptr;
         }
 
@@ -366,14 +386,16 @@ namespace runtime {
         int highestEffectivePriority = (*highestPriorityIt)->priority + ageBonus;
 
         // Find task with highest effective priority
-        for (auto it = readyQueue.begin(); it != readyQueue.end(); ++it) {
+        for (auto it = readyQueue.begin(); it != readyQueue.end(); ++it)
+        {
             waitTime = std::chrono::duration_cast<std::chrono::milliseconds>(
                 now - (*it)->scheduledAt
             ).count();
             ageBonus = static_cast<int>(waitTime / agingInterval);
             int effectivePriority = (*it)->priority + ageBonus;
 
-            if (effectivePriority > highestEffectivePriority) {
+            if (effectivePriority > highestEffectivePriority)
+            {
                 highestEffectivePriority = effectivePriority;
                 highestPriorityIt = it;
             }
@@ -385,31 +407,34 @@ namespace runtime {
         return task;
     }
 
-    std::shared_ptr<Task> EventLoop::getTask(size_t taskId) const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(queueMutex));
+    std::shared_ptr<Task> EventLoop::getTask(size_t taskId) const
+    {
         auto it = allTasks.find(taskId);
-        if (it != allTasks.end()) {
+        if (it != allTasks.end())
+        {
             return it->second;
         }
         return nullptr;
     }
 
-    void EventLoop::cleanupCompletedTasks() {
-        std::lock_guard<std::mutex> lock(queueMutex);
-
+    void EventLoop::cleanupCompletedTasks()
+    {
         std::vector<size_t> toRemove;
-        for (const auto& [taskId, task] : allTasks) {
-            if (task->state == TaskState::COMPLETED || task->state == TaskState::FAILED) {
+        for (const auto& [taskId, task] : allTasks)
+        {
+            if (task->state == TaskState::COMPLETED || task->state == TaskState::FAILED)
+            {
                 // Only remove if not in any active queue
-                if (suspendedTasks.find(taskId) == suspendedTasks.end()) {
+                if (suspendedTasks.find(taskId) == suspendedTasks.end())
+                {
                     toRemove.push_back(taskId);
                 }
             }
         }
 
-        for (size_t taskId : toRemove) {
+        for (size_t taskId : toRemove)
+        {
             allTasks.erase(taskId);
         }
     }
-
 } // namespace runtime

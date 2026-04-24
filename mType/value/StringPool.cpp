@@ -10,8 +10,7 @@ namespace value
             stats.poolMisses++;
             return InternedString{};
         }
-
-        std::lock_guard<std::mutex> lock(poolMutex);
+        
         stats.totalRequests++;
 
         auto it = stringToId.find(str);
@@ -42,8 +41,7 @@ namespace value
             stats.poolMisses++;
             return InternedString{};
         }
-
-        std::lock_guard<std::mutex> lock(poolMutex);
+        
         stats.totalRequests++;
 
         auto it = stringToId.find(str);
@@ -71,7 +69,6 @@ namespace value
 
     InternedString StringPool::getById(size_t id) const
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         auto it = idToEntry.find(id);
         if (it != idToEntry.end()) {
             it->second->refCount.fetch_add(1);
@@ -83,7 +80,6 @@ namespace value
 
     void StringPool::incrementRef(size_t id)
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         auto it = idToEntry.find(id);
         if (it != idToEntry.end()) {
             it->second->refCount.fetch_add(1);
@@ -93,7 +89,6 @@ namespace value
 
     void StringPool::decrementRef(size_t id)
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         auto it = idToEntry.find(id);
         if (it != idToEntry.end()) {
             size_t refs = it->second->refCount.fetch_sub(1);
@@ -114,7 +109,6 @@ namespace value
 
     const std::string& StringPool::getStringById(size_t id) const
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         auto it = idToEntry.find(id);
         if (it != idToEntry.end()) {
             return it->second->value;
@@ -142,7 +136,6 @@ namespace value
 
     size_t StringPool::getTotalMemoryUsage() const
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         size_t total = 0;
 
         for (const auto& pair : idToEntry) {
@@ -157,7 +150,6 @@ namespace value
 
     std::vector<std::pair<std::string, size_t>> StringPool::getTopStrings(size_t count) const
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         std::vector<std::pair<std::string, size_t>> result;
 
         for (const auto& pair : idToEntry) {

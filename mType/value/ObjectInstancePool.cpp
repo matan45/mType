@@ -20,7 +20,6 @@ namespace value
     runtimeTypes::klass::ObjectInstance*
     ObjectInstancePool::popOrNull(runtimeTypes::klass::ClassDefinition* classDef)
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         ++globalStats.totalAllocations;
 
         auto& bucket = pools[classDef];
@@ -45,7 +44,6 @@ namespace value
         runtimeTypes::klass::ClassDefinition* classDef,
         runtimeTypes::klass::ObjectInstance* obj)
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         auto& bucket = pools[classDef];
 
         if (bucket.slots.size() < bucket.maxSize)
@@ -117,15 +115,41 @@ namespace value
             obj, SlotDeleter{this, classKey});
     }
 
+    runtimeTypes::klass::ObjectInstance* ObjectInstancePool::acquireRaw(
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+        const std::unordered_map<std::string, std::string>& genericBindings)
+    {
+        auto* classKey = classDef.get();
+        auto* obj = popOrNull(classKey);
+        if (obj)
+        {
+            obj->reinitForRecycle(std::move(classDef), genericBindings);
+        }
+        else
+        {
+            void* slot = ::operator new(sizeof(runtimeTypes::klass::ObjectInstance));
+            obj = ::new (slot) runtimeTypes::klass::ObjectInstance(std::move(classDef), genericBindings);
+        }
+        return obj;
+    }
+
+    void ObjectInstancePool::releaseRaw(runtimeTypes::klass::ObjectInstance* obj)
+    {
+        if (!obj) return;
+        // Snapshot classKey before resetForRecycle nulls it out.
+        auto* classKey = const_cast<runtimeTypes::klass::ClassDefinition*>(
+            obj->getClassDefinitionRaw());
+        obj->resetForRecycle();
+        pushOrDestroy(classKey, obj);
+    }
+
     ObjectPoolStats ObjectInstancePool::getGlobalStats() const
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         return globalStats;
     }
 
     void ObjectInstancePool::clear()
     {
-        std::lock_guard<std::mutex> lock(poolMutex);
         for (auto& kv : pools)
         {
             for (auto* obj : kv.second.slots)

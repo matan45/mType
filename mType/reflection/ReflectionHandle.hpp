@@ -3,7 +3,6 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
-#include <mutex>
 #include <atomic>
 #include <vector>
 #include <cstdint>
@@ -11,7 +10,6 @@
 #include "../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include "../runtimeTypes/klass/ConstructorDefinition.hpp"
-#include "../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../types/UnifiedType.hpp"
 
@@ -82,7 +80,6 @@ namespace reflection
     {
     private:
         std::atomic<int64_t> nextHandle{1};
-        mutable std::mutex mutex;
 
         // Handle -> ClassDefinition mapping
         std::unordered_map<int64_t, std::shared_ptr<runtimeTypes::klass::ClassDefinition>> classHandles;
@@ -145,10 +142,6 @@ namespace reflection
         // Destructor - clears all maps to avoid issues with static destruction order
         ~ReflectionHandleRegistry()
         {
-            // Lock mutex for thread safety - static destruction order is undefined,
-            // so another thread could still be accessing the registry
-            std::lock_guard<std::mutex> lock(mutex);
-
             // Clear all maps to release shared_ptr references before other static objects are destroyed
             classHandles.clear();
             classNameToHandle.clear();
