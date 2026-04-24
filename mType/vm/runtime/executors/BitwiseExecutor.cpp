@@ -113,4 +113,72 @@ namespace vm::runtime
         int64_t v = value::asInt(val);
         context.stackManager->push(~v);
     }
+
+    // Type-specialized INT variants. Preconditions (established at runtime by
+    // trySpecializeBitwise once the operand types are observed monomorphic):
+    // operands should be INT. Each still includes a type guard that falls
+    // back to the generic handler on miss — mirrors the handleAddInt pattern
+    // so polymorphic call sites stay correct even after promotion.
+    void BitwiseExecutor::handleBitwiseAndInt() {
+        auto& stack = context.stackManager->getStack();
+        const value::Value& r = stack.back();
+        const value::Value& l = stack[stack.size() - 2];
+        if (!value::isInt(l) || !value::isInt(r)) { handleBitwiseAnd(); return; }
+        int64_t rv = r.rawInt(); int64_t lv = l.rawInt();
+        stack.pop_back();
+        stack.back() = value::Value(lv & rv);
+    }
+
+    void BitwiseExecutor::handleBitwiseOrInt() {
+        auto& stack = context.stackManager->getStack();
+        const value::Value& r = stack.back();
+        const value::Value& l = stack[stack.size() - 2];
+        if (!value::isInt(l) || !value::isInt(r)) { handleBitwiseOr(); return; }
+        int64_t rv = r.rawInt(); int64_t lv = l.rawInt();
+        stack.pop_back();
+        stack.back() = value::Value(lv | rv);
+    }
+
+    void BitwiseExecutor::handleBitwiseXorInt() {
+        auto& stack = context.stackManager->getStack();
+        const value::Value& r = stack.back();
+        const value::Value& l = stack[stack.size() - 2];
+        if (!value::isInt(l) || !value::isInt(r)) { handleBitwiseXor(); return; }
+        int64_t rv = r.rawInt(); int64_t lv = l.rawInt();
+        stack.pop_back();
+        stack.back() = value::Value(lv ^ rv);
+    }
+
+    void BitwiseExecutor::handleLeftShiftInt() {
+        auto& stack = context.stackManager->getStack();
+        const value::Value& r = stack.back();
+        const value::Value& l = stack[stack.size() - 2];
+        if (!value::isInt(l) || !value::isInt(r)) { handleLeftShift(); return; }
+        int64_t rv = r.rawInt(); int64_t lv = l.rawInt();
+        if (rv < 0 || rv > 63) {
+            utils::ErrorLocationHelper::throwRuntimeError(context, "Shift amount must be between 0 and 63");
+        }
+        stack.pop_back();
+        stack.back() = value::Value(lv << rv);
+    }
+
+    void BitwiseExecutor::handleRightShiftInt() {
+        auto& stack = context.stackManager->getStack();
+        const value::Value& r = stack.back();
+        const value::Value& l = stack[stack.size() - 2];
+        if (!value::isInt(l) || !value::isInt(r)) { handleRightShift(); return; }
+        int64_t rv = r.rawInt(); int64_t lv = l.rawInt();
+        if (rv < 0 || rv > 63) {
+            utils::ErrorLocationHelper::throwRuntimeError(context, "Shift amount must be between 0 and 63");
+        }
+        stack.pop_back();
+        stack.back() = value::Value(lv >> rv);
+    }
+
+    void BitwiseExecutor::handleBitwiseNotInt() {
+        auto& stack = context.stackManager->getStack();
+        const value::Value& v = stack.back();
+        if (!value::isInt(v)) { handleBitwiseNot(); return; }
+        stack.back() = value::Value(~v.rawInt());
+    }
 }

@@ -468,6 +468,66 @@ namespace vm::runtime
         }
     }
 
+    void VirtualMachine::trySpecializeBitwise(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        bytecode::OpCode intOpcode)
+    {
+        if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 2)
+            return;
+
+        // Sticky-demote gate. The TypeFeedback.specialized flag already
+        // blocks re-entry via shouldSpecialize, but if any future demote
+        // path clears it (mirroring MYT-173 CALL_METHOD_CACHED deopts), the
+        // cachedDeoptCount check prevents oscillation on a site that has
+        // already un-specialized once.
+        if (auto* existing = program->findCachedState(instructionPointer))
+        {
+            if (existing->cachedDeoptCount >= 1) return;
+        }
+
+        typeFeedbackCollector->recordBinaryOp(
+            instructionPointer, stackManager->peek(1), stackManager->peek(0));
+
+        if (!typeFeedbackCollector->shouldSpecialize(instructionPointer))
+            return;
+
+        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+        if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
+        {
+            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
+            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+        }
+    }
+
+    void VirtualMachine::trySpecializeBitwiseUnary(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        bytecode::OpCode intOpcode)
+    {
+        if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 1)
+            return;
+
+        if (auto* existing = program->findCachedState(instructionPointer))
+        {
+            if (existing->cachedDeoptCount >= 1) return;
+        }
+
+        // Reuse recordBinaryOp with the same operand twice — the feedback
+        // collector only inspects tag, and duplicating avoids adding a
+        // separate unary path for a one-operand promotion.
+        const value::Value& tos = stackManager->peek(0);
+        typeFeedbackCollector->recordBinaryOp(instructionPointer, tos, tos);
+
+        if (!typeFeedbackCollector->shouldSpecialize(instructionPointer))
+            return;
+
+        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+        if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
+        {
+            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
+            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+        }
+    }
+
     void VirtualMachine::tryFuseAddIntConst()
     {
         const size_t ip = instructionPointer;
@@ -486,9 +546,13 @@ namespace vm::runtime
         // re-fusion.
         if (program->isFusionUnsafeTarget(ip)) return;
 
-        auto& mut = const_cast<bytecode::BytecodeProgram*>(program)
-                        ->getMutableInstruction(ip);
-        if (mut.fusedDeoptCount >= 1) return;
+        // MYT-201: fused state lives in the per-IP side table. Sticky un-fuse
+        // gate reads via findCachedState so a never-fused site doesn't
+        // allocate an entry just to check the default 0.
+        if (auto* existing = program->findCachedState(ip))
+        {
+            if (existing->fusedDeoptCount >= 1) return;
+        }
 
         uint64_t constIdx = prev.operands[0];
         // fusedSlot is uint32_t — assert before truncation so an oversized
@@ -502,7 +566,11 @@ namespace vm::runtime
         prevMut.opcode = bytecode::OpCode::NOP;
         prevMut.operands.clear();
 
-        mut.fusedSlot = static_cast<uint32_t>(constIdx);
+        auto& state = program->getOrCreateCachedState(ip);
+        state.fusedSlot = static_cast<uint32_t>(constIdx);
+
+        auto& mut = const_cast<bytecode::BytecodeProgram*>(program)
+                        ->getMutableInstruction(ip);
         mut.opcode = bytecode::OpCode::ADD_INT_CONST;
     }
 

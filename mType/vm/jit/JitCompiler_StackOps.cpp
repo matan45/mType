@@ -62,6 +62,12 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::LEFT_SHIFT_OP),
             static_cast<uint8_t>(OpCode::RIGHT_SHIFT_OP),
             static_cast<uint8_t>(OpCode::BITWISE_NOT_OP),
+            static_cast<uint8_t>(OpCode::BITWISE_AND_INT),
+            static_cast<uint8_t>(OpCode::BITWISE_OR_INT),
+            static_cast<uint8_t>(OpCode::BITWISE_XOR_INT),
+            static_cast<uint8_t>(OpCode::LEFT_SHIFT_INT),
+            static_cast<uint8_t>(OpCode::RIGHT_SHIFT_INT),
+            static_cast<uint8_t>(OpCode::BITWISE_NOT_INT),
 
             static_cast<uint8_t>(OpCode::LOAD_LOCAL),
             static_cast<uint8_t>(OpCode::STORE_LOCAL),
@@ -105,6 +111,19 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::LOAD_LOCAL_CALL_CACHED),   // MYT-198
             static_cast<uint8_t>(OpCode::LOAD_LOCAL_GET_FIELD_CACHED), // MYT-198
             static_cast<uint8_t>(OpCode::ADD_INT_CONST),       // MYT-198
+
+            // MYT-202: compile-time fused superinstructions. Emitted natively
+            // as the equivalent unfused sequence (two LOAD_LOCALs + arith,
+            // etc.) by the per-category emit switches — the JIT-side speedup
+            // over the interpreter comes for free once each component is
+            // already JIT-emittable.
+            static_cast<uint8_t>(OpCode::LOAD_LOAD_ADD_INT),
+            static_cast<uint8_t>(OpCode::LOAD_LOAD_SUB_INT),
+            static_cast<uint8_t>(OpCode::LOAD_LOAD_MUL_INT),
+            static_cast<uint8_t>(OpCode::LOAD_GET_FIELD),
+            static_cast<uint8_t>(OpCode::LOAD_STORE_LOCAL),
+            static_cast<uint8_t>(OpCode::ADD_INT_STORE_LOCAL),
+
             static_cast<uint8_t>(OpCode::CALL_STATIC),
 
             static_cast<uint8_t>(OpCode::NEW_OBJECT),

@@ -24,6 +24,17 @@ namespace vm::runtime
         // Unary bitwise operation
         void handleBitwiseNot();    // ~
 
+        // Type-specialized INT variants: compiler / trySpecializeBitwise has
+        // already guaranteed both operands are INT, so these skip the
+        // isInt/asInt dispatch and read the payload directly. Shift variants
+        // still range-check the operand (runtime value, not static type).
+        void handleBitwiseAndInt();
+        void handleBitwiseOrInt();
+        void handleBitwiseXorInt();
+        void handleLeftShiftInt();
+        void handleRightShiftInt();
+        void handleBitwiseNotInt();
+
     private:
         ExecutionContext& context;
     };

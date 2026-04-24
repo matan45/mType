@@ -10,6 +10,28 @@ namespace vm::bytecode {
 
 namespace vm::jit
 {
+    // GC safepoint polling counter. JIT-emitted code (JUMP_BACK back-edge,
+    // self-recursive tail call) inlines the inc + threshold check and only
+    // invokes jit_gc_safepoint() once per gc::config::GC_CHECK_INTERVAL
+    // crossings.
+    //
+    // THREADING INVARIANT: plain size_t, not thread_local / not std::atomic.
+    // This is load-bearing on the VM being single-threaded — async/await in
+    // mType runs on the same OS thread via an event loop (see AsyncPromise
+    // and VirtualMachine::driveAsyncInvocation). If the VM ever grows
+    // multi-threaded (worker threads sharing a single VirtualMachine
+    // instance, true parallel JIT execution, etc.), this counter MUST become
+    // either:
+    //   - thread_local (simplest, pays TLS access cost per JIT back-edge) or
+    //   - std::atomic<size_t> with relaxed ordering (benign race on the
+    //     threshold crossing is acceptable for GC polling cadence).
+    // The current single-threaded assumption is what makes the plain-size_t
+    // choice safe; maybeCollect() itself is internally thread-safe via its
+    // own atomic flags, so a benign race on the counter only shifts polling
+    // cadence — but a race on the store-back could lose an increment and
+    // never trigger the threshold on a pathological schedule.
+    extern size_t g_jit_gc_poll_counter;
+
     /**
      * C-linkage helper functions callable from JIT-compiled code.
      * These handle the Value variant manipulation at JIT boundaries,

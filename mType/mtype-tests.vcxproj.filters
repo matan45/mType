@@ -7054,6 +7054,12 @@
     <None Include="tests\testFiles\integration\error\modules\StrictInterface.mt">
       <Filter>testFiles\integration\error\modules</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\bitwiseSpecialization.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\bitwiseSpecialization.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>
@@ -7493,6 +7499,12 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\stressTestWithManyClasses.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\superinstructionFusion.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\superinstructionFusion.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\switchNestedInLoops.expected">

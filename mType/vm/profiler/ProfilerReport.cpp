@@ -39,6 +39,7 @@ namespace vm::profiler
         if (context.getMode() == ProfilerMode::FULL)
         {
             printConsoleOpcodeCounts(context);
+            printConsoleOpcodePairs(context);
         }
 
         std::cout << "=============================\n";
@@ -177,6 +178,44 @@ namespace vm::profiler
         std::cout << "\n";
     }
 
+    void ProfilerReport::printConsoleOpcodePairs(const ProfilerContext& context)
+    {
+        const auto& opcodeProfile = context.getOpcodeProfile();
+
+        // pairCounts is allocated lazily — skip the walk if FULL mode never
+        // fired recordOpcodeExecuted with a prior opcode.
+        if (!opcodeProfile.pairCounts) return;
+
+        std::vector<std::pair<uint16_t, uint64_t>> pairs;
+        for (size_t i = 0; i < OpcodeProfile::pairCountsSize(); ++i)
+        {
+            uint64_t count = (*opcodeProfile.pairCounts)[i];
+            if (count > 0)
+            {
+                pairs.emplace_back(static_cast<uint16_t>(i), count);
+            }
+        }
+
+        if (pairs.empty()) return;
+
+        std::sort(pairs.begin(), pairs.end(),
+            [](const auto& a, const auto& b) { return a.second > b.second; });
+
+        size_t limit = std::min(pairs.size(), static_cast<size_t>(30));
+        std::cout << "\n--- Opcode Pair Counts (top " << limit << ") [MYT-202 fusion targets] ---\n";
+
+        for (size_t i = 0; i < limit; ++i)
+        {
+            uint16_t key = pairs[i].first;
+            auto prev = static_cast<bytecode::OpCode>(static_cast<uint8_t>(key >> 8));
+            auto curr = static_cast<bytecode::OpCode>(static_cast<uint8_t>(key & 0xFF));
+            std::cout << "  " << std::setw(4) << (i + 1) << "  "
+                      << bytecode::getOpCodeName(prev) << " + "
+                      << bytecode::getOpCodeName(curr) << " : "
+                      << pairs[i].second << "\n";
+        }
+    }
+
     void ProfilerReport::generateJsonReport(const ProfilerContext& context)
     {
         std::ostringstream json;
@@ -191,6 +230,7 @@ namespace vm::profiler
         emitJsonCallGraph(json, context);
         emitJsonGcStats(json);
         emitJsonOpcodes(json, context);
+        emitJsonOpcodePairs(json, context);
 
         json << "}\n";
         std::cout << json.str();
@@ -265,7 +305,44 @@ namespace vm::profiler
                 }
             }
         }
-        json << "}\n";
+        json << "},\n";
+    }
+
+    void ProfilerReport::emitJsonOpcodePairs(std::ostringstream& json, const ProfilerContext& context)
+    {
+        json << "  \"opcodePairs\": [";
+        if (context.getMode() == ProfilerMode::FULL)
+        {
+            const auto& opcodeProfile = context.getOpcodeProfile();
+
+            std::vector<std::pair<uint16_t, uint64_t>> pairs;
+            if (opcodeProfile.pairCounts)
+            {
+                for (size_t i = 0; i < OpcodeProfile::pairCountsSize(); ++i)
+                {
+                    uint64_t count = (*opcodeProfile.pairCounts)[i];
+                    if (count > 0)
+                    {
+                        pairs.emplace_back(static_cast<uint16_t>(i), count);
+                    }
+                }
+            }
+            std::sort(pairs.begin(), pairs.end(),
+                [](const auto& a, const auto& b) { return a.second > b.second; });
+
+            size_t limit = std::min(pairs.size(), static_cast<size_t>(100));
+            for (size_t i = 0; i < limit; ++i)
+            {
+                if (i > 0) json << ", ";
+                uint16_t key = pairs[i].first;
+                auto prev = static_cast<bytecode::OpCode>(static_cast<uint8_t>(key >> 8));
+                auto curr = static_cast<bytecode::OpCode>(static_cast<uint8_t>(key & 0xFF));
+                json << "{\"prev\": \"" << bytecode::getOpCodeName(prev)
+                     << "\", \"curr\": \"" << bytecode::getOpCodeName(curr)
+                     << "\", \"count\": " << pairs[i].second << "}";
+            }
+        }
+        json << "]\n";
     }
 
     std::string ProfilerReport::escapeJsonString(const std::string& str)

@@ -32,6 +32,11 @@ namespace vm::profiler
         // Opcode execution counts (full mode only)
         OpcodeProfile opcodeProfile;
 
+        // MYT-202: adjacent-pair tracking state. Cleared on function boundaries
+        // so pairs don't bleed across frames.
+        uint8_t lastOpcode = 0;
+        bool hasLast = false;
+
         // Total profiling time
         std::chrono::high_resolution_clock::time_point profilingStartTime;
         uint64_t totalProfilingTimeNs = 0;

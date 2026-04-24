@@ -49,87 +49,99 @@ namespace vm::bytecode
         // Instruction flags for runtime optimization
         static constexpr uint8_t INSTR_FLAG_NONNULL_RECEIVER = 0x01;
 
+        // MYT-201: all runtime-only IC / specialization / fusion state lives
+        // in a sparse side table on BytecodeProgram, keyed by instruction
+        // offset (see cachedStates below). Instruction itself is trimmed to
+        // opcode + operands + flags so the interpreter hot path fits ~4x more
+        // instructions per L1-D line.
+        //
+        // LIFETIME: cachedMethodShape / cachedFieldShape are raw pointers into
+        // the class registry. The registry owns ClassDefinition objects for
+        // the program's lifetime (registered at bytecode-load time and never
+        // freed until shutdown), so these pointers remain stable across all
+        // dispatches that could read them. They are cleared to nullptr on
+        // deopt (see deoptAndReprocess / deoptGetFieldAndReprocess) — never
+        // dangling, only null. Do NOT copy into any data structure with a
+        // longer lifetime than a BytecodeProgram instance without revisiting
+        // this.
+        //
+        // NEVER SERIALIZED: cachedStates is lazy runtime cache state, filled
+        // by promote paths as opcodes specialize during execution. The .mtc
+        // format rejects all CACHED/specialized opcodes on load (see
+        // readInstructions), so a deserialized program always starts with an
+        // empty side table and refills it through normal dispatch.
+        struct CachedInstructionState
+        {
+            // CALL IC (generic function call — FunctionExecutor::handleCall).
+            // Cached after first resolution; safe because the functions map
+            // is immutable after compilation.
+            const FunctionMetadata* cachedFuncMetadata = nullptr;
+            size_t                  cachedStartOffset  = 0;
+            const BytecodeProgram*  cachedProgram      = nullptr;
+            size_t                  cachedProgramIndex = 0;
+
+            // MYT-173: CALL_METHOD_CACHED embedded target. Once the method IC
+            // at this IP stabilises to MONOMORPHIC, the opcode is rewritten
+            // to CALL_METHOD_CACHED and these fields snapshot the IC entry,
+            // so the hot path pays a single shape compare (no icTable probe,
+            // no per-entry linear scan). On shape miss the opcode is rewritten
+            // back and cachedMethodShape is cleared; cachedDeoptCount >= 1
+            // makes the demote sticky.
+            const runtimeTypes::klass::ClassDefinition* cachedMethodShape        = nullptr;
+            const FunctionMetadata*                     cachedMethodFunc         = nullptr;
+            const BytecodeProgram*                      cachedMethodProgram      = nullptr;
+            size_t                                      cachedMethodProgramIndex = 0;
+            // MYT-197: interned handle into cachedMethodProgram's frame-name
+            // table. Snapshotted from MethodICEntry::qualifiedName at CACHED-
+            // promote time; cleared to INVALID_FN_HANDLE in deoptAndReprocess.
+            FunctionNameHandle                          cachedMethodQualifiedName{ INVALID_FN_HANDLE };
+            // MYT-195: pre-resolved class prefix of cachedMethodQualifiedName.
+            // Snapshotted from MethodICEntry::definingClassName at CACHED-
+            // promote time so dispatchDirectFromCachedTarget doesn't re-split
+            // the qualified name on every dispatch. Cleared in
+            // deoptAndReprocess.
+            std::string                                 cachedMethodDefiningClassName;
+            // Shared sticky-demote gate: used by CALL_METHOD promotion AND by
+            // LOAD_LOCAL / STORE_LOCAL type-quickening (MYT-199). Once >= 1,
+            // the site permanently stays on the generic path.
+            uint8_t                                     cachedDeoptCount         = 0;
+
+            // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED embedded target.
+            // Once the field IC at this IP stabilises to MONOMORPHIC, the
+            // opcode is rewritten to the _CACHED variant and these fields
+            // snapshot the resolved shape + field slot — the hot path becomes
+            // a single shape compare + indexed field access. Kept parallel to
+            // cachedMethod* (rather than shared) per ticket.
+            const runtimeTypes::klass::ClassDefinition* cachedFieldShape     = nullptr;
+            size_t                                      cachedFieldIndex     = static_cast<size_t>(-1);
+            uint8_t                                     cachedFieldDeoptCount = 0;
+
+            // MYT-198: Superinstruction fusion. When a CACHED / ADD_INT
+            // runtime rewrite fires, its predecessor LOAD_LOCAL / PUSH_INT
+            // may be fused into the current instruction: the prior op becomes
+            // NOP and this op is rewritten to a fused variant
+            // (LOAD_LOCAL_CALL_CACHED, LOAD_LOCAL_GET_FIELD_CACHED, or
+            // ADD_INT_CONST). fusedSlot carries the captured operand (local
+            // slot for _CACHED fusions, int constant pool index for
+            // ADD_INT_CONST). fusedDeoptCount makes the un-fuse decision
+            // sticky — once >= 1, the same pair is never re-fused at this
+            // site.
+            uint32_t fusedSlot       = 0;
+            uint8_t  fusedDeoptCount = 0;
+
+            // MYT-199: per-site observed-type tag for LOAD_LOCAL / STORE_LOCAL
+            // type-quickening. 0xFF is the "never observed" sentinel; any
+            // other value is a value::ValueType cast to uint8_t, captured on
+            // the first generic dispatch at this IP. The sticky-demote gate
+            // reuses cachedDeoptCount above.
+            uint8_t  observedValueType = 0xFF;
+        };
+
         struct Instruction
         {
             OpCode opcode;
             std::vector<uint64_t> operands;
             uint8_t flags = 0; // Optimization flags (e.g., INSTR_FLAG_NONNULL_RECEIVER)
-
-            // PERFORMANCE: Inline cache for method calls - avoids repeated hash lookups
-            // Cached after first resolution, used on subsequent calls.
-            // Safe because the functions map is immutable after compilation.
-            mutable const FunctionMetadata* cachedFuncMetadata = nullptr;
-            mutable size_t cachedStartOffset = 0;
-            mutable const BytecodeProgram* cachedProgram = nullptr;
-            mutable size_t cachedProgramIndex = 0;
-
-            // MYT-173: CALL_METHOD_CACHED embedded target. Once the method IC at
-            // this IP has stabilized to MONOMORPHIC, the opcode is rewritten to
-            // CALL_METHOD_CACHED and these fields snapshot the IC entry, so the
-            // hot path pays a single shape compare (no icTable hashmap probe, no
-            // per-entry linear scan). On shape miss the opcode is rewritten back
-            // to CALL_METHOD and cachedMethodShape is cleared; cachedDeoptCount>=1
-            // makes the demote sticky so we don't flip/unflip on unstable sites.
-            // These fields are disjoint from cachedFuncMetadata et al., which serve
-            // the CALL opcode (see FunctionExecutor).
-            //
-            // LIFETIME: cachedMethodShape / cachedFieldShape below are raw
-            // pointers into the class registry. The registry owns
-            // ClassDefinition objects for the program's lifetime (they're
-            // registered at bytecode-load time and never freed until shutdown),
-            // so these pointers remain stable across all dispatches that could
-            // read them. They are cleared to nullptr on deopt (see
-            // deoptAndReprocess / deoptGetFieldAndReprocess) — never dangling,
-            // only null. Do NOT copy into any data structure with a longer
-            // lifetime than a BytecodeProgram instance without revisiting this.
-            mutable const runtimeTypes::klass::ClassDefinition* cachedMethodShape = nullptr;
-            mutable const FunctionMetadata* cachedMethodFunc = nullptr;
-            mutable const BytecodeProgram* cachedMethodProgram = nullptr;
-            mutable size_t cachedMethodProgramIndex = 0;
-            // MYT-197: interned handle into cachedMethodProgram's frame-name
-            // table. Snapshotted from MethodICEntry::qualifiedName at CACHED-
-            // promote time; cleared to INVALID_FN_HANDLE in deoptAndReprocess.
-            mutable FunctionNameHandle cachedMethodQualifiedName{ INVALID_FN_HANDLE };
-            // MYT-195: pre-resolved class prefix of cachedMethodQualifiedName.
-            // Snapshotted from MethodICEntry::definingClassName at CACHED-promote
-            // time so dispatchDirectFromCachedTarget doesn't re-split the qualified
-            // name on every dispatch. Cleared in deoptAndReprocess.
-            mutable std::string cachedMethodDefiningClassName;
-            mutable uint8_t cachedDeoptCount = 0;
-
-            // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED embedded target.
-            // Once the field IC at this IP has stabilized to MONOMORPHIC, the
-            // opcode is rewritten to the _CACHED variant and these fields
-            // snapshot the resolved shape + field slot — the hot path becomes a
-            // single shape compare + indexed field access, skipping the
-            // icTable hashmap probe and the FieldInlineCache linear scan. On
-            // shape miss the opcode is rewritten back and cachedFieldShape is
-            // cleared; cachedFieldDeoptCount>=1 makes the demote sticky.
-            // Kept parallel to cachedMethod* (rather than shared) per ticket.
-            mutable const runtimeTypes::klass::ClassDefinition* cachedFieldShape = nullptr;
-            mutable size_t cachedFieldIndex = static_cast<size_t>(-1);
-            mutable uint8_t cachedFieldDeoptCount = 0;
-
-            // MYT-198: Superinstruction fusion. When a CACHED / ADD_INT runtime
-            // rewrite fires, its predecessor LOAD_LOCAL / PUSH_INT may be fused
-            // into the current instruction: the prior op becomes NOP and this
-            // op is rewritten to a fused variant (LOAD_LOCAL_CALL_CACHED,
-            // LOAD_LOCAL_GET_FIELD_CACHED, or ADD_INT_CONST). fusedSlot carries
-            // the captured operand (local slot for _CACHED fusions, int
-            // constant pool index for ADD_INT_CONST). fusedDeoptCount makes the
-            // un-fuse decision sticky — once >= 1, the same pair is never
-            // re-fused at this site. Purely runtime state; never serialized.
-            mutable uint32_t fusedSlot = 0;
-            mutable uint8_t fusedDeoptCount = 0;
-
-            // MYT-199: per-site observed-type tag for LOAD_LOCAL / STORE_LOCAL
-            // type-quickening. 0xFF is the "never observed" sentinel; any other
-            // value is a value::ValueType cast to uint8_t, captured on the
-            // first generic dispatch at this IP. The sticky-demote gate reuses
-            // cachedDeoptCount above — a site with cachedDeoptCount >= 1
-            // permanently stays on the generic LOAD_LOCAL / STORE_LOCAL path.
-            // Purely runtime state; never serialized.
-            mutable uint8_t observedValueType = 0xFF;
 
             Instruction();
             Instruction(OpCode op);
@@ -409,6 +421,14 @@ namespace vm::bytecode
         void buildFusionUnsafeTargets() const;
         void invalidateFusionUnsafeTargets() const { fusionUnsafeTargetsBuilt = false; fusionUnsafeTargets.clear(); }
 
+        // MYT-201: sparse side table for per-IP runtime cache state. Only
+        // promoted / specialized / fused instructions ever carry an entry —
+        // the <5% of sites that use it. Generic dispatch never touches this
+        // map. `mutable` because executors access it through a
+        // `const BytecodeProgram*` (same convention as the frame-name
+        // interner and getMutableInstruction). Never serialized.
+        mutable std::unordered_map<size_t, CachedInstructionState> cachedStates;
+
     public:
         BytecodeProgram();
 
@@ -426,6 +446,21 @@ namespace vm::bytecode
         Instruction& getMutableInstruction(size_t offset);
         const std::vector<Instruction>& getInstructions() const;
         size_t getInstructionCount() const;
+
+        // MYT-201: sparse cached-state accessors. getOrCreateCachedState
+        // auto-inserts (use on write paths: promote / deopt / fuse).
+        // findCachedState returns nullptr when no entry exists (use on
+        // read paths: generic-path sticky-demote gate, plus hot CACHED
+        // dispatch where an entry is invariant and can be asserted).
+        CachedInstructionState& getOrCreateCachedState(size_t ip) const
+        {
+            return cachedStates[ip];
+        }
+        const CachedInstructionState* findCachedState(size_t ip) const
+        {
+            auto it = cachedStates.find(ip);
+            return it == cachedStates.end() ? nullptr : &it->second;
+        }
 
         // MYT-198: control-flow target query for runtime superinstruction fusion.
         // Returns true if `offset` is reachable from anywhere other than its

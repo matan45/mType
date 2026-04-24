@@ -255,6 +255,9 @@
     <ClInclude Include="vm\optimization\patterns\StrengthReductionPattern.hpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClInclude>
+    <ClInclude Include="vm\optimization\patterns\SuperinstructionPattern.hpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClInclude>
     <ClInclude Include="vm\optimization\patterns\TypeSpecializationPattern.hpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClInclude>
@@ -537,6 +540,9 @@
       <Filter>vm\optimization\patterns</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\patterns\StrengthReductionPattern.cpp">
+      <Filter>vm\optimization\patterns</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\patterns\SuperinstructionPattern.cpp">
       <Filter>vm\optimization\patterns</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\patterns\TypeSpecializationPattern.cpp">

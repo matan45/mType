@@ -20,12 +20,14 @@ namespace vm::profiler
         static void printConsoleCallGraph(const ProfilerContext& context);
         static void printConsoleGCImpact(double totalTimeMs);
         static void printConsoleOpcodeCounts(const ProfilerContext& context);
+        static void printConsoleOpcodePairs(const ProfilerContext& context);
 
         // JSON report sections
         static void emitJsonFunctions(std::ostringstream& json, const ProfilerContext& context);
         static void emitJsonCallGraph(std::ostringstream& json, const ProfilerContext& context);
         static void emitJsonGcStats(std::ostringstream& json);
         static void emitJsonOpcodes(std::ostringstream& json, const ProfilerContext& context);
+        static void emitJsonOpcodePairs(std::ostringstream& json, const ProfilerContext& context);
 
         static std::string escapeJsonString(const std::string& str);
     };

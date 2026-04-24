@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cassert>
 #include "executors/StackOperationsExecutor.hpp"
 #include "executors/ComparisonExecutor.hpp"
 #include "executors/LogicalExecutor.hpp"
@@ -80,10 +81,20 @@ namespace vm::runtime
         case OpCode::ADD_INT: arithmeticExecutor->handleAddInt();
             break;
         case OpCode::ADD_INT_CONST:
+        {
             // MYT-198: fused PUSH_INT + ADD_INT. Never emitted by the compiler;
             // only reachable via runtime promotion inside trySpecializeArithmetic.
-            arithmeticExecutor->handleAddIntConst(instr);
+            // MYT-201: fused state lives on the side table — one lookup here
+            // hands the reference to the handler. If the entry is somehow
+            // missing (deserialization corruption, edge in the deopt cycle),
+            // throw rather than assert — in release assert is a no-op and
+            // the following *state deref would segfault with no diagnostic.
+            const auto* state = program->findCachedState(instructionPointer);
+            if (!state)
+                throw errors::RuntimeException("ADD_INT_CONST dispatched without side-table entry");
+            arithmeticExecutor->handleAddIntConst(instr, *state);
             break;
+        }
         case OpCode::SUB_INT: arithmeticExecutor->handleSubInt();
             break;
         case OpCode::MUL_INT: arithmeticExecutor->handleMulInt();
@@ -122,17 +133,41 @@ namespace vm::runtime
             break;
 
         // Bitwise - delegated to BitwiseExecutor
-        case OpCode::BITWISE_AND_OP: bitwiseExecutor->handleBitwiseAnd();
+        case OpCode::BITWISE_AND_OP:
+            trySpecializeBitwise(instr, OpCode::BITWISE_AND_INT);
+            bitwiseExecutor->handleBitwiseAnd();
             break;
-        case OpCode::BITWISE_OR_OP: bitwiseExecutor->handleBitwiseOr();
+        case OpCode::BITWISE_OR_OP:
+            trySpecializeBitwise(instr, OpCode::BITWISE_OR_INT);
+            bitwiseExecutor->handleBitwiseOr();
             break;
-        case OpCode::BITWISE_XOR_OP: bitwiseExecutor->handleBitwiseXor();
+        case OpCode::BITWISE_XOR_OP:
+            trySpecializeBitwise(instr, OpCode::BITWISE_XOR_INT);
+            bitwiseExecutor->handleBitwiseXor();
             break;
-        case OpCode::LEFT_SHIFT_OP: bitwiseExecutor->handleLeftShift();
+        case OpCode::LEFT_SHIFT_OP:
+            trySpecializeBitwise(instr, OpCode::LEFT_SHIFT_INT);
+            bitwiseExecutor->handleLeftShift();
             break;
-        case OpCode::RIGHT_SHIFT_OP: bitwiseExecutor->handleRightShift();
+        case OpCode::RIGHT_SHIFT_OP:
+            trySpecializeBitwise(instr, OpCode::RIGHT_SHIFT_INT);
+            bitwiseExecutor->handleRightShift();
             break;
-        case OpCode::BITWISE_NOT_OP: bitwiseExecutor->handleBitwiseNot();
+        case OpCode::BITWISE_NOT_OP:
+            trySpecializeBitwiseUnary(instr, OpCode::BITWISE_NOT_INT);
+            bitwiseExecutor->handleBitwiseNot();
+            break;
+        case OpCode::BITWISE_AND_INT: bitwiseExecutor->handleBitwiseAndInt();
+            break;
+        case OpCode::BITWISE_OR_INT: bitwiseExecutor->handleBitwiseOrInt();
+            break;
+        case OpCode::BITWISE_XOR_INT: bitwiseExecutor->handleBitwiseXorInt();
+            break;
+        case OpCode::LEFT_SHIFT_INT: bitwiseExecutor->handleLeftShiftInt();
+            break;
+        case OpCode::RIGHT_SHIFT_INT: bitwiseExecutor->handleRightShiftInt();
+            break;
+        case OpCode::BITWISE_NOT_INT: bitwiseExecutor->handleBitwiseNotInt();
             break;
 
         // Variables - delegated to VariableExecutor
@@ -165,6 +200,49 @@ namespace vm::runtime
         case OpCode::STORE_LOCAL_BOOL: variableExecutor->handleStoreLocalBool(instr);
             break;
         case OpCode::STORE_LOCAL_BOXED_INST: variableExecutor->handleStoreLocalBoxedInst(instr);
+            break;
+
+        // MYT-202: compile-time superinstruction fusion. Handlers call the
+        // slot-based fast-path entries (loadLocalSlot / storeLocalSlot) to
+        // skip the per-dispatch Instruction::operands shim allocation that
+        // the original implementation paid per fused op. Semantics are bit-
+        // identical to the unfused LOAD_LOCAL + arith + STORE_LOCAL path.
+        case OpCode::LOAD_LOAD_ADD_INT:
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            variableExecutor->loadLocalSlot(instr.operands[1]);
+            arithmeticExecutor->handleAddInt();
+            break;
+        case OpCode::LOAD_LOAD_SUB_INT:
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            variableExecutor->loadLocalSlot(instr.operands[1]);
+            arithmeticExecutor->handleSubInt();
+            break;
+        case OpCode::LOAD_LOAD_MUL_INT:
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            variableExecutor->loadLocalSlot(instr.operands[1]);
+            arithmeticExecutor->handleMulInt();
+            break;
+        case OpCode::LOAD_GET_FIELD:
+        {
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            // GET_FIELD still needs an Instruction shim — ObjectExecutor /
+            // InlineCacheExecutor interfaces key off operands. Field fusion
+            // fires far less often per iteration than LOAD_LOCAL pairs, so
+            // the residual shim cost here is acceptable.
+            bytecode::BytecodeProgram::Instruction getField(OpCode::GET_FIELD, instr.operands[1]);
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleGetFieldIC(getField);
+            else
+                objectExecutor->handleGetField(getField);
+            break;
+        }
+        case OpCode::LOAD_STORE_LOCAL:
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            variableExecutor->storeLocalSlot(instr.operands[1]);
+            break;
+        case OpCode::ADD_INT_STORE_LOCAL:
+            arithmeticExecutor->handleAddInt();
+            variableExecutor->storeLocalSlot(instr.operands[0]);
             break;
 
         // Control flow - delegated to ControlFlowExecutor
@@ -213,28 +291,44 @@ namespace vm::runtime
                 objectExecutor->handleGetField(instr);
             break;
         case OpCode::GET_FIELD_CACHED:
+        {
             // MYT-194: promoted from GET_FIELD once the IC stabilized. Never
             // emitted by the compiler; only reachable if IC is enabled (the
             // promoter guards on that). Fall back to the generic handler if
             // somehow reached with IC disabled.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleGetFieldCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                if (!state)
+                    throw errors::RuntimeException("GET_FIELD_CACHED dispatched without side-table entry");
+                inlineCacheExecutor->handleGetFieldCached(instr, *state);
+            }
             else
                 objectExecutor->handleGetField(instr);
             break;
+        }
         case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
+        {
             // MYT-198: fused LOAD_LOCAL + GET_FIELD_CACHED. IC-only; if IC is
             // disabled fall back by materialising the LOAD_LOCAL and running
-            // the generic GET_FIELD. fusedSlot carries the receiver slot.
+            // the generic GET_FIELD. state.fusedSlot carries the receiver slot.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleLoadLocalGetFieldCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                if (!state)
+                    throw errors::RuntimeException("LOAD_LOCAL_GET_FIELD_CACHED dispatched without side-table entry");
+                inlineCacheExecutor->handleLoadLocalGetFieldCached(instr, *state);
+            }
             else {
+                const auto* state = program->findCachedState(instructionPointer);
+                uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 variableExecutor->handleLoadLocal(
                     bytecode::BytecodeProgram::Instruction(
-                        bytecode::OpCode::LOAD_LOCAL, instr.fusedSlot));
+                        bytecode::OpCode::LOAD_LOCAL, slot));
                 objectExecutor->handleGetField(instr);
             }
             break;
+        }
         case OpCode::SET_FIELD:
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleSetFieldIC(instr);
@@ -242,12 +336,19 @@ namespace vm::runtime
                 objectExecutor->handleSetField(instr);
             break;
         case OpCode::SET_FIELD_CACHED:
+        {
             // MYT-194: see GET_FIELD_CACHED above.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleSetFieldCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                if (!state)
+                    throw errors::RuntimeException("SET_FIELD_CACHED dispatched without side-table entry");
+                inlineCacheExecutor->handleSetFieldCached(instr, *state);
+            }
             else
                 objectExecutor->handleSetField(instr);
             break;
+        }
         case OpCode::INLINE_SET_FIELD:
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleInlineSetFieldIC(instr);
@@ -272,28 +373,44 @@ namespace vm::runtime
                 objectExecutor->handleCallMethod(instr);
             break;
         case OpCode::CALL_METHOD_CACHED:
+        {
             // MYT-173: promoted from CALL_METHOD once the IC stabilized. Never
             // emitted by the compiler; only reachable if IC is enabled (the
             // promoter guards on that). Fall back to the generic handler if
             // somehow reached with IC disabled.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleCallMethodCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                if (!state)
+                    throw errors::RuntimeException("CALL_METHOD_CACHED dispatched without side-table entry");
+                inlineCacheExecutor->handleCallMethodCached(instr, *state);
+            }
             else
                 objectExecutor->handleCallMethod(instr);
             break;
+        }
         case OpCode::LOAD_LOCAL_CALL_CACHED:
+        {
             // MYT-198: fused LOAD_LOCAL + CALL_METHOD_CACHED. Same IC-only
-            // constraint as CALL_METHOD_CACHED. fusedSlot carries the receiver
-            // slot that the NOPed LOAD_LOCAL would have pushed.
+            // constraint as CALL_METHOD_CACHED. state.fusedSlot carries the
+            // receiver slot that the NOPed LOAD_LOCAL would have pushed.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleLoadLocalCallCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                if (!state)
+                    throw errors::RuntimeException("LOAD_LOCAL_CALL_CACHED dispatched without side-table entry");
+                inlineCacheExecutor->handleLoadLocalCallCached(instr, *state);
+            }
             else {
+                const auto* state = program->findCachedState(instructionPointer);
+                uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 variableExecutor->handleLoadLocal(
                     bytecode::BytecodeProgram::Instruction(
-                        bytecode::OpCode::LOAD_LOCAL, instr.fusedSlot));
+                        bytecode::OpCode::LOAD_LOCAL, slot));
                 objectExecutor->handleCallMethod(instr);
             }
             break;
+        }
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;
         case OpCode::THIS_CONSTRUCTOR: objectExecutor->handleThisConstructor(instr);

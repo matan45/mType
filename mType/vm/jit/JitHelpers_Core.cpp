@@ -7,6 +7,11 @@
 
 namespace vm::jit
 {
+    // Defined in header (extern). JIT JUMP_BACK / tail-call emit inlines the
+    // increment and threshold check; this function only runs once per
+    // GC_CHECK_INTERVAL crossings.
+    size_t g_jit_gc_poll_counter = 0;
+
     namespace
     {
         // Boxed Int / Float primitives always keep their scalar under field index 0;
@@ -82,6 +87,10 @@ namespace vm::jit
 
         void jit_gc_safepoint()
         {
+            // Reached only when the inline polling counter emitted by JIT
+            // JUMP_BACK / tail-call crosses gc::config::GC_CHECK_INTERVAL.
+            // Reset the counter here, not on the hot emitted path.
+            g_jit_gc_poll_counter = 0;
             gc::GC::maybeCollect();
         }
 

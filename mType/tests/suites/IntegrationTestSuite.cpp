@@ -240,6 +240,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Type System Edge Cases",
                                   passPath + "typeSystemEdgeCases.mt");
 
+        // MYT-202: compile-time superinstruction fusion correctness.
+        addOutputVerificationTest("Superinstruction Fusion",
+                                  passPath + "superinstructionFusion.mt");
+
+        // INT-specialized bitwise opcodes + trySpecializeBitwise promotion.
+        addOutputVerificationTest("Bitwise Specialization",
+                                  passPath + "bitwiseSpecialization.mt");
+
         // Lazy re-boxing optimization tests
         addOutputVerificationTest("Lazy Reboxing Chained Arithmetic",
                                   passPath + "lazyReboxingChainedArithmetic.mt");

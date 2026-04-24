@@ -359,6 +359,15 @@ namespace vm::runtime
         // Extracted dispatch helpers (reduce executeInstruction size)
         void trySpecializeArithmetic(const bytecode::BytecodeProgram::Instruction& instr,
                                      bytecode::OpCode intOpcode, bytecode::OpCode floatOpcode);
+        // Bitwise-op runtime promotion. Mirrors trySpecializeArithmetic but
+        // only INT is valid — bitwise on float is a type error, so there's no
+        // FLOAT variant to pick. Callers pass the binary or unary INT opcode
+        // to promote to after observing monomorphic-INT operands via type
+        // feedback.
+        void trySpecializeBitwise(const bytecode::BytecodeProgram::Instruction& instr,
+                                  bytecode::OpCode intOpcode);
+        void trySpecializeBitwiseUnary(const bytecode::BytecodeProgram::Instruction& instr,
+                                       bytecode::OpCode intOpcode);
         // MYT-198: runtime fusion of PUSH_INT + ADD_INT into ADD_INT_CONST.
         // Called from trySpecializeArithmetic immediately after the ADD →
         // ADD_INT promotion lands. Keeps the symmetry with the _CACHED

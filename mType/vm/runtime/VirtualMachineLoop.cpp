@@ -110,93 +110,124 @@ namespace vm::runtime
         bool profilerFull = vm::profiler::ProfilerHookHelper::isProfilingEnabled()
                             && vm::profiler::ProfilerContext::getInstance().isFullMode();
 
+        // Cache debug-active state. isDebuggingEnabled() routes through a
+        // singleton + member call, so checking it per instruction isn't
+        // free. Refresh inside the periodic GC block so a mid-run debug
+        // attach still gets picked up within GC_CHECK_INTERVAL ops.
+        bool debugActive = debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled();
+
         // Use executionCtx->program for instruction fetch so cross-library calls
         // (which switch executionCtx->program to a library) fetch from the correct bytecode.
         auto& currentProgram = executionCtx->program;
 
-        while (instructionPointer < currentProgram->getInstructionCount())
+        // MYT-??? Step 5: hoist the try/catch out of the per-iteration dispatch
+        // loop. MSVC SEH has measurable per-try setup cost; on exception-free
+        // code paths (the common case) we used to pay that cost per opcode.
+        // Outer while re-enters the inner fast loop after a caught exception;
+        // control-flow semantics (async rejected promises, finally suppression
+        // of pending exceptions, debugger hooks) are preserved bit-identically.
+        bool interpretDone = false;
+        while (!interpretDone)
         {
-            // Check for pending rejection from an awaited promise
-            // This is set by the catch_ callback when a suspended task resumes after rejection
-            if (pendingAwaitRejection.has_value())
-            {
-                auto rejection = std::move(pendingAwaitRejection.value());
-                pendingAwaitRejection.reset();
-                throw errors::UserException(
-                    rejection.exceptionValue,
-                    rejection.exceptionTypeName.empty() ? "RuntimeException" : rejection.exceptionTypeName
-                );
-            }
-
-            // GC: Periodic collection check
-            if (++instructionsSinceGC >= gc::config::GC_CHECK_INTERVAL)
-            {
-                instructionsSinceGC = 0;
-                gc::GC::maybeCollect();
-            }
-
-            const auto& instr = currentProgram->getInstruction(instructionPointer);
-
-            // Check if we have a pending exception and we're hitting RETURN
-            // According to Java/C# semantics: a return in finally SUPPRESSES the pending exception
-            // The function returns normally and the exception is discarded
-            // IMPORTANT: Only suppress if:
-            // 1. We're inside a finally block (currentFinallyOffset is set)
-            // 2. The IP is between FINALLY and TRY_END (we're executing finally body)
-            // We can check #2 by seeing if IP > currentFinallyOffset (after FINALLY instruction)
-            if (pendingException != nullptr &&
-                (instr.opcode == bytecode::OpCode::RETURN || instr.opcode == bytecode::OpCode::RETURN_VALUE) &&
-                currentFinallyOffset != SIZE_MAX &&
-                currentFinallyOffset == pendingFinallyOffset &&
-                instructionPointer > currentFinallyOffset)
-            {
-                // Clear the pending exception - the return inside finally overrides it
-                pendingException.reset();
-                pendingFinallyOffset = SIZE_MAX;
-                // Continue with normal return (do NOT re-throw)
-            }
-
-            // PERFORMANCE: Source location is tracked via LINE and SOURCE_FILE opcodes
-            // No per-instruction lookup needed - saves hash map lookup on every instruction
-
-            // Debug hook: Check for breakpoints and stepping before executing instruction
-            // Only do expensive checks when debugging is actually enabled
-            if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
-            {
-                // Look up source location from the bytecode program's source map
-                // (LINE/SOURCE_FILE opcodes are not emitted; use the compiler's map instead)
-                auto* loc = program->getSourceLocation(instructionPointer);
-                if (loc && loc->line > 0 && !loc->filename.empty())
-                {
-                    errors::SourceLocation location(loc->filename,
-                                                    static_cast<int>(loc->line),
-                                                    static_cast<int>(loc->column));
-
-                    if (debugger::DebugHookHelper::shouldPause(location))
-                    {
-                        debugger::DebugHookHelper::waitForResume();
-                    }
-                }
-            }
-
-            // Profiler: count opcode execution (full mode only)
-            if (profilerFull)
-            {
-                vm::profiler::ProfilerHookHelper::onOpcodeExecuted(static_cast<uint8_t>(instr.opcode));
-            }
-
             try
             {
-                // Execute instruction
-                executeInstruction(instr);
+                while (instructionPointer < currentProgram->getInstructionCount())
+                {
+                    // Check for pending rejection from an awaited promise.
+                    // Set by the catch_ callback when a suspended task resumes
+                    // after rejection.
+                    if (pendingAwaitRejection.has_value())
+                    {
+                        auto rejection = std::move(pendingAwaitRejection.value());
+                        pendingAwaitRejection.reset();
+                        throw errors::UserException(
+                            rejection.exceptionValue,
+                            rejection.exceptionTypeName.empty() ? "RuntimeException" : rejection.exceptionTypeName
+                        );
+                    }
+
+                    // GC: Periodic collection check. Also the cadence at which we
+                    // refresh debugActive / profilerFull so a mid-run debug attach
+                    // or profiler mode change takes effect within the interval.
+                    if (++instructionsSinceGC >= gc::config::GC_CHECK_INTERVAL)
+                    {
+                        instructionsSinceGC = 0;
+                        gc::GC::maybeCollect();
+                        debugActive = debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled();
+                        profilerFull = vm::profiler::ProfilerHookHelper::isProfilingEnabled()
+                                       && vm::profiler::ProfilerContext::getInstance().isFullMode();
+                    }
+
+                    const auto& instr = currentProgram->getInstruction(instructionPointer);
+
+                    // Pending-exception suppression on RETURN inside a finally
+                    // block (Java/C# semantics: a return inside finally
+                    // suppresses the pending exception).
+                    if (pendingException != nullptr &&
+                        (instr.opcode == bytecode::OpCode::RETURN || instr.opcode == bytecode::OpCode::RETURN_VALUE) &&
+                        currentFinallyOffset != SIZE_MAX &&
+                        currentFinallyOffset == pendingFinallyOffset &&
+                        instructionPointer > currentFinallyOffset)
+                    {
+                        pendingException.reset();
+                        pendingFinallyOffset = SIZE_MAX;
+                    }
+
+                    // Debug hook: breakpoints / stepping. debugActive is
+                    // cached + refreshed inside the GC block above.
+                    if (debugActive)
+                    {
+                        auto* loc = program->getSourceLocation(instructionPointer);
+                        if (loc && loc->line > 0 && !loc->filename.empty())
+                        {
+                            errors::SourceLocation location(loc->filename,
+                                                            static_cast<int>(loc->line),
+                                                            static_cast<int>(loc->column));
+                            if (debugger::DebugHookHelper::shouldPause(location))
+                            {
+                                debugger::DebugHookHelper::waitForResume();
+                            }
+                        }
+                    }
+
+                    // Profiler: count opcode execution (full mode only)
+                    if (profilerFull)
+                    {
+                        vm::profiler::ProfilerHookHelper::onOpcodeExecuted(static_cast<uint8_t>(instr.opcode));
+                    }
+
+                    // Execute — may throw UserException. Caught by the outer
+                    // try; the inner loop body pays no per-iter SEH setup.
+                    executeInstruction(instr);
+
+                    stats.instructionsExecuted++;
+
+                    if (suspendedByAwait)
+                    {
+                        suspendedByAwait = false;
+                        interpretDone = true;
+                        break;
+                    }
+
+                    if (instr.opcode == bytecode::OpCode::HALT)
+                    {
+                        interpretDone = true;
+                        break;
+                    }
+
+                    instructionPointer++;
+                }
+                // Inner loop exited without setting interpretDone → normal
+                // completion (IP reached end). End the outer loop too.
+                if (!interpretDone) interpretDone = true;
             }
             catch (errors::UserException& e)
             {
-                // Delegate exception handling to ExceptionHandler
+                // Delegate exception handling to ExceptionHandler.
                 auto result = exceptionHandler->handleUserException(e, instructionPointer, currentFinallyOffset);
 
-                // Debug hook: check if debugger wants to break on this exception
-                if (debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled())
+                // Debug hook: break on thrown exception.
+                if (debugActive)
                 {
                     bool isUncaught = !result.handled;
                     auto* exLoc = program->getSourceLocation(instructionPointer);
@@ -212,26 +243,23 @@ namespace vm::runtime
 
                 if (!result.handled)
                 {
-                    // No matching catch found - check if we're in an async function
+                    // No matching catch. Check for async-function rejected-
+                    // promise propagation — the async body swallows the
+                    // exception and returns a rejected promise.
+                    bool asyncRejected = false;
                     if (!callStack.empty())
                     {
                         const CallFrame& currentFrame = callStack.back();
-                        // MYT-197: O(1) handle-keyed metadata lookup.
                         auto funcMetadata = program->getFunctionMeta(currentFrame.functionName);
 
                         if (funcMetadata && funcMetadata->isAsync)
                         {
-                            // We're in an async function - don't propagate exception
-                            // Instead, create a rejected promise and return it
-
-                            // Build error message from exception
                             std::string errorMsg = e.getExceptionTypeName();
                             if (value::isObject(e.getExceptionValue()))
                             {
                                 auto objInstance = value::asObject(e.getExceptionValue());
                                 if (objInstance)
                                 {
-                                    // Try to get error message from common exception fields
                                     try
                                     {
                                         value::Value msgValue = objInstance->getFieldValue("msg");
@@ -242,7 +270,6 @@ namespace vm::runtime
                                     }
                                     catch (...)
                                     {
-                                        // Field doesn't exist, try "message" field
                                         try
                                         {
                                             value::Value messageValue = objInstance->getFieldValue("message");
@@ -253,71 +280,51 @@ namespace vm::runtime
                                         }
                                         catch (...)
                                         {
-                                            // Neither field exists, use just the type name
+                                            // Neither field exists; keep the type name
                                         }
                                     }
                                 }
                             }
 
-                            // Create a rejected promise with the full exception object
                             auto rejectedPromise = std::make_shared<value::PromiseValue>();
                             rejectedPromise->rejectWithException(e.getExceptionValue(), e.getExceptionTypeName(), errorMsg);
 
-                            // Clean up call frame and return the rejected promise
                             controlFlowExecutor->handleReturn();
                             stackManager->push(std::static_pointer_cast<value::PromiseValue>(rejectedPromise));
 
-                            // Move past the CALL instruction (handleReturn set IP to CALL position)
-                            // We must increment here because continue skips the normal IP increment
                             instructionPointer++;
                             stats.instructionsExecuted++;
-                            continue; // Continue execution with the rejected promise on stack
+                            asyncRejected = true;
                         }
                     }
 
-                    // Not in an async function, or no call stack - re-throw
-                    throw;
-                }
-
-                // Jump to the catch/finally block
-                instructionPointer = result.newInstructionPointer;
-
-                // If we jumped to a finally block (not a catch), store the exception as pending
-                // It needs to be re-thrown after the finally block completes
-                if (result.jumpedToFinally)
-                {
-                    pendingException = std::make_unique<errors::UserException>(e);
-                    pendingFinallyOffset = result.newInstructionPointer;  // Store which finally has the pending exception
+                    if (!asyncRejected)
+                    {
+                        // Not in an async function, or no call stack — escape.
+                        throw;
+                    }
+                    // Async-rejection path: fall through, outer while re-enters.
                 }
                 else
                 {
-                    // Jumped to a catch block - exception is caught, clear any pending exception
-                    pendingException.reset();
-                    pendingFinallyOffset = SIZE_MAX;
+                    // Handled: jump to catch/finally; record pending exception
+                    // if we went to finally.
+                    instructionPointer = result.newInstructionPointer;
+                    if (result.jumpedToFinally)
+                    {
+                        pendingException = std::make_unique<errors::UserException>(e);
+                        pendingFinallyOffset = result.newInstructionPointer;
+                    }
+                    else
+                    {
+                        pendingException.reset();
+                        pendingFinallyOffset = SIZE_MAX;
+                    }
+                    stats.instructionsExecuted++;
                 }
-
-                // Continue execution from the catch/finally block
-                // Don't increment IP here - the normal loop will handle it
-                stats.instructionsExecuted++;
-                continue; // Skip the rest of the loop iteration
+                // Fall through: outer while re-enters the inner fast loop
+                // with updated instructionPointer / pending state.
             }
-
-            stats.instructionsExecuted++;
-
-            // Check if we suspended due to AWAIT - if so, break without incrementing IP
-            if (suspendedByAwait)
-            {
-                suspendedByAwait = false; // Reset flag
-                break; // Exit loop without incrementing IP (already done by AWAIT handler)
-            }
-
-            // Check for halt
-            if (instr.opcode == bytecode::OpCode::HALT)
-            {
-                break;
-            }
-
-            instructionPointer++;
         }
 
         // Calculate execution time

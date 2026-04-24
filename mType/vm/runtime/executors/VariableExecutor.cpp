@@ -255,10 +255,12 @@ namespace vm::runtime
         {
             throw errors::RuntimeException("LOAD_LOCAL requires operand");
         }
+        loadLocalSlot(instr.operands[0]);
+    }
 
-        size_t slot = instr.operands[0];
-
-        // SECURITY: cap the slot index symmetrically with handleStoreLocal.
+    void VariableExecutor::loadLocalSlot(size_t slot)
+    {
+        // SECURITY: cap the slot index symmetrically with storeLocalSlot.
         // The attacker controls `slot` via bytecode operands; without this
         // cap a near-SIZE_MAX value would wrap when added to frameBase
         // below (line `frameBase + slot`) and could land inside a valid
@@ -348,6 +350,14 @@ namespace vm::runtime
             throw errors::RuntimeException("STORE_LOCAL requires operand");
         }
 
+        // Fast path: no varName (shared-frame late-binding) — delegate to the
+        // slot-based entry so MYT-202 fused handlers share the same body.
+        if (instr.operands.size() == 1)
+        {
+            storeLocalSlot(instr.operands[0]);
+            return;
+        }
+
         size_t slot = instr.operands[0];
 
         // SECURITY: cap the slot index directly. The attacker controls `slot`
@@ -361,12 +371,7 @@ namespace vm::runtime
                 std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
         }
 
-        std::string varName = "";
-        if (instr.operands.size() > 1)
-        {
-            // Variable name provided (for shared frame late-binding)
-            varName = context.program->getConstantPool().getString(instr.operands[1]);
-        }
+        std::string varName = context.program->getConstantPool().getString(instr.operands[1]);
 
         // Pop value from top of stack
         value::Value val = context.stackManager->pop();
@@ -450,6 +455,71 @@ namespace vm::runtime
         tryPromoteStoreLocal(val.tag());
     }
 
+    void VariableExecutor::storeLocalSlot(size_t slot)
+    {
+        // SECURITY: symmetric cap with handleStoreLocal (attacker-controlled
+        // slot → unbounded stack extension would DoS).
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "STORE_LOCAL slot index " + std::to_string(slot) +
+                " exceeds per-frame limit " +
+                std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
+        }
+
+        value::Value val = context.stackManager->pop();
+
+        // Lambda-captured path.
+        if (!context.callStack.empty() && context.callStack.back().originatingLambda)
+        {
+            auto lambda = context.callStack.back().originatingLambda;
+            size_t paramCount = lambda->parameterCount;
+            size_t capturedCount = lambda->capturedSlots.size();
+            if (slot >= paramCount && slot < paramCount + capturedCount)
+            {
+                size_t capturedIndex = slot - paramCount;
+                if (capturedIndex < lambda->capturedNames.size())
+                {
+                    std::string capturedVarName = lambda->capturedNames[capturedIndex];
+                    if (!capturedVarName.empty() && lambda->capturedFrame)
+                    {
+                        lambda->capturedFrame->setLocalByName(capturedVarName, val);
+                        context.stackManager->push(val);
+                        return;
+                    }
+                }
+            }
+        }
+
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
+
+        while (context.stackManager->size() < stackPos)
+        {
+            context.stackManager->getStack().push_back(std::monostate{});
+        }
+        if (stackPos >= context.stackManager->size())
+        {
+            context.stackManager->getStack().push_back(val);
+        }
+        else
+        {
+            (*context.stackManager)[stackPos] = val;
+        }
+
+        // Mirror into an existing SharedStackFrame. Skip the "create on
+        // varName" path — fused dispatch never carries a varName, and the
+        // handleStoreLocal varName branch above remains the only creator.
+        if (!context.callStack.empty() && !context.callStack.back().originatingLambda
+            && context.callStack.back().sharedFrame)
+        {
+            context.callStack.back().sharedFrame->setLocal(slot, val);
+        }
+
+        context.stackManager->push(val);
+        tryPromoteStoreLocal(val.tag());
+    }
+
     // ------------------------------------------------------------------
     // MYT-199: type-quickening helpers and specialized handlers.
     // ------------------------------------------------------------------
@@ -474,10 +544,25 @@ namespace vm::runtime
 
     void VariableExecutor::tryPromoteLoadLocal(value::ValueType observedTag)
     {
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        const size_t ip = context.instructionPointer;
+
+        // MYT-202: only promote if the IP actually holds a generic LOAD_LOCAL.
+        // handleLoadLocal can be dispatched as a shim by fused-opcode handlers
+        // (LOAD_GET_FIELD, LOAD_LOAD_ADD_INT, …), in which case the IP holds
+        // the fused opcode — rewriting that would destroy the fusion. This
+        // invariant check makes the rewrite contract explicit: we only
+        // specialize the exact opcode we were dispatched as.
+        if (context.getMutableInstructionAt(ip).opcode != bytecode::OpCode::LOAD_LOCAL)
+            return;
+
         // Sticky demote — once the site has deopted, it stays on the generic
         // path for good. Mirrors InlineCacheExecutor::tryPromoteToCached.
-        if (mut.cachedDeoptCount >= 1) return;
+        // MYT-201: read via findCachedState so a never-observed site doesn't
+        // allocate an entry just to check the default 0.
+        if (auto* existing = context.findCachedState(ip))
+        {
+            if (existing->cachedDeoptCount >= 1) return;
+        }
         if (!isCurrentFrameSimple()) return;
 
         bytecode::OpCode specialized;
@@ -501,20 +586,30 @@ namespace vm::runtime
             return;
         }
 
-        // observedValueType doubles as the "have we seen this site?" flag:
-        // 0xFF sentinel on a fresh Instruction, any other byte is a prior
-        // ValueType observation. A mismatch on a subsequent generic dispatch
-        // (which only happens after a sticky demote re-entry) will bail via
-        // the cachedDeoptCount gate above, so recording the first observation
-        // is always safe.
-        mut.observedValueType = static_cast<uint8_t>(observedTag);
+        // observedValueType records the first observation for invariant /
+        // debug purposes. The specialized dispatch path reads `expectedTag`
+        // from the opcode itself, not from this field, so a mismatch on a
+        // later dispatch (which only happens after a sticky demote re-entry)
+        // is caught by the cachedDeoptCount gate above.
+        auto& state = context.getOrCreateCachedState(ip);
+        state.observedValueType = static_cast<uint8_t>(observedTag);
+
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = specialized;
     }
 
     void VariableExecutor::tryPromoteStoreLocal(value::ValueType observedTag)
     {
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
-        if (mut.cachedDeoptCount >= 1) return;
+        const size_t ip = context.instructionPointer;
+
+        // MYT-202: see tryPromoteLoadLocal.
+        if (context.getMutableInstructionAt(ip).opcode != bytecode::OpCode::STORE_LOCAL)
+            return;
+
+        if (auto* existing = context.findCachedState(ip))
+        {
+            if (existing->cachedDeoptCount >= 1) return;
+        }
         if (!isCurrentFrameSimple()) return;
 
         bytecode::OpCode specialized;
@@ -535,26 +630,34 @@ namespace vm::runtime
         default:
             return;
         }
-        mut.observedValueType = static_cast<uint8_t>(observedTag);
+        auto& state = context.getOrCreateCachedState(ip);
+        state.observedValueType = static_cast<uint8_t>(observedTag);
+
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = specialized;
     }
 
     void VariableExecutor::deoptLoadLocal(const bytecode::BytecodeProgram::Instruction& /*instr*/)
     {
-        // Rewrite opcode back to generic and mark sticky. `instr` aliases
-        // `mut` (single-threaded VM). Re-enter the generic handler so the
-        // current dispatch completes correctly with the observed value.
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        // Rewrite opcode back to generic and mark sticky. Re-enter the
+        // generic handler so the current dispatch completes correctly with
+        // the observed value. MYT-201: entry is guaranteed to exist here —
+        // a specialized opcode implies prior promote.
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = bytecode::OpCode::LOAD_LOCAL;
-        if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
+        auto& state = context.getOrCreateCachedState(ip);
+        if (state.cachedDeoptCount < 255) ++state.cachedDeoptCount;
         handleLoadLocal(mut);
     }
 
     void VariableExecutor::deoptStoreLocal(const bytecode::BytecodeProgram::Instruction& /*instr*/)
     {
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = bytecode::OpCode::STORE_LOCAL;
-        if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
+        auto& state = context.getOrCreateCachedState(ip);
+        if (state.cachedDeoptCount < 255) ++state.cachedDeoptCount;
         handleStoreLocal(mut);
     }
 

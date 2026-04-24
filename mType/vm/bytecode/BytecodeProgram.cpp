@@ -684,7 +684,7 @@ namespace vm::bytecode
         out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
         // Write version
-        uint32_t version = 7;  // Version 7: MYT-110 parameter-level annotations
+        uint32_t version = 8;  // Version 8: MYT-202 compile-time fused superinstructions
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
         // Write entry point
@@ -733,12 +733,12 @@ namespace vm::bytecode
         // Read version
         uint32_t version;
         in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version < 7) {
+        if (version < 8) {
             throw std::runtime_error(
                 "Bytecode file uses an outdated format (version " + std::to_string(version) + "). "
                 "Please recompile from source using the current compiler.");
         }
-        if (version != 7) {
+        if (version != 8) {
             throw std::runtime_error("Unsupported bytecode version: " + std::to_string(version));
         }
 
@@ -871,6 +871,12 @@ namespace vm::bytecode
             // et al.) is not serialized — so accepting them here would leave
             // the VM in an inconsistent state. Reject explicitly rather than
             // relying on the CACHED handler to deopt on first dispatch.
+            //
+            // MYT-202 note: the compile-time superinstruction fusions
+            // (LOAD_LOAD_ADD_INT et al.) are intentionally ABSENT from this
+            // rejection list. They are emitted by the compile-time peephole
+            // pass, carry their operands inside Instruction::operands (no
+            // side-table state), and round-trip through .mtc normally.
             if (instructions[i].opcode == OpCode::CALL_METHOD_CACHED ||
                 instructions[i].opcode == OpCode::GET_FIELD_CACHED ||
                 instructions[i].opcode == OpCode::SET_FIELD_CACHED ||
@@ -884,7 +890,15 @@ namespace vm::bytecode
                 instructions[i].opcode == OpCode::STORE_LOCAL_INT ||
                 instructions[i].opcode == OpCode::STORE_LOCAL_FLOAT ||
                 instructions[i].opcode == OpCode::STORE_LOCAL_BOOL ||
-                instructions[i].opcode == OpCode::STORE_LOCAL_BOXED_INST) {
+                instructions[i].opcode == OpCode::STORE_LOCAL_BOXED_INST ||
+                // Runtime-only: emitted only by trySpecializeBitwise after
+                // observing monomorphic-INT operands. Never serialized.
+                instructions[i].opcode == OpCode::BITWISE_AND_INT ||
+                instructions[i].opcode == OpCode::BITWISE_OR_INT ||
+                instructions[i].opcode == OpCode::BITWISE_XOR_INT ||
+                instructions[i].opcode == OpCode::LEFT_SHIFT_INT ||
+                instructions[i].opcode == OpCode::RIGHT_SHIFT_INT ||
+                instructions[i].opcode == OpCode::BITWISE_NOT_INT) {
                 throw std::runtime_error(
                     std::string("Bytecode deserialization rejected: runtime-only opcode ") +
                     getOpCodeName(instructions[i].opcode) +

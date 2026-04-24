@@ -1,6 +1,7 @@
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"
+#include "../../gc/GCConfig.hpp"
 #include <asmjit/x86.h>
 
 namespace vm::jit
@@ -8,6 +9,29 @@ namespace vm::jit
     using namespace asmjit;
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
+
+    // Emit an inline GC poll: bump g_jit_gc_poll_counter and only invoke
+    // jit_gc_safepoint (which resets the counter and calls GC::maybeCollect)
+    // when it crosses GC_CHECK_INTERVAL. Skips the ABI register-spill
+    // overhead of cc.invoke on the common path — critical for tight loops
+    // where JUMP_BACK fires millions of times.
+    static void emitInlineGcSafepoint(JitEmissionState& s)
+    {
+        auto& cc = s.cc;
+        asmjit::x86::Gp cntAddr = cc.new_gp64();
+        asmjit::x86::Gp cnt = cc.new_gp64();
+        cc.mov(cntAddr, reinterpret_cast<uint64_t>(&g_jit_gc_poll_counter));
+        cc.mov(cnt, asmjit::x86::qword_ptr(cntAddr));
+        cc.inc(cnt);
+        cc.mov(asmjit::x86::qword_ptr(cntAddr), cnt);
+        cc.cmp(cnt, static_cast<int32_t>(gc::config::GC_CHECK_INTERVAL));
+        asmjit::Label skipLabel = cc.new_label();
+        cc.jb(skipLabel);
+        asmjit::InvokeNode* inv;
+        cc.invoke(asmjit::Out(inv), reinterpret_cast<uint64_t>(jit_gc_safepoint),
+                  asmjit::FuncSignature::build<void>());
+        cc.bind(skipLabel);
+    }
 
     // MYT-164 (Phase F-b): resolve a jump target against the innermost active
     // inline frame's localJumpLabels. Returns nullptr when no inline frame is
@@ -425,9 +449,7 @@ namespace vm::jit
         // GC safepoint: tail calls can iterate indefinitely without
         // reaching the interpreter's per-N-instruction GC tick (gcd runs
         // 50k iterations). Mirror JUMP_BACK's safepoint.
-        InvokeNode* gc;
-        cc.invoke(Out(gc), reinterpret_cast<uint64_t>(jit_gc_safepoint),
-                  FuncSignature::build<void>());
+        emitInlineGcSafepoint(s);
 
         cc.jmp(s.functionEntryLabel);
         return true;
@@ -587,6 +609,14 @@ namespace vm::jit
                 emitStoreLocal(s, instr.operands[0]);
                 return true;
 
+            case OpCode::LOAD_STORE_LOCAL:
+                // MYT-202: compile-time fused LOAD_LOCAL src + STORE_LOCAL dst.
+                // De-fuse at JIT time — chained emitLoadLocal + emitStoreLocal
+                // produces the same native code as the unfused sequence.
+                emitLoadLocal(s, instr.operands[0]);
+                emitStoreLocal(s, instr.operands[1]);
+                return true;
+
             case OpCode::LOAD_VAR:
                 emitLoadVar(s, static_cast<uint32_t>(instr.operands[0]));
                 return true;
@@ -713,9 +743,7 @@ namespace vm::jit
 
             case OpCode::JUMP_BACK:
             {
-                InvokeNode* gc;
-                cc.invoke(Out(gc), reinterpret_cast<uint64_t>(jit_gc_safepoint),
-                          FuncSignature::build<void>());
+                emitInlineGcSafepoint(s);
                 size_t target = instr.operands[0];
                 if (auto* lbl = findInlineJumpLabel(s, target))
                     cc.jmp(*lbl);
