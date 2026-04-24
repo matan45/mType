@@ -130,17 +130,41 @@ namespace vm::runtime
             break;
 
         // Bitwise - delegated to BitwiseExecutor
-        case OpCode::BITWISE_AND_OP: bitwiseExecutor->handleBitwiseAnd();
+        case OpCode::BITWISE_AND_OP:
+            trySpecializeBitwise(instr, OpCode::BITWISE_AND_INT);
+            bitwiseExecutor->handleBitwiseAnd();
             break;
-        case OpCode::BITWISE_OR_OP: bitwiseExecutor->handleBitwiseOr();
+        case OpCode::BITWISE_OR_OP:
+            trySpecializeBitwise(instr, OpCode::BITWISE_OR_INT);
+            bitwiseExecutor->handleBitwiseOr();
             break;
-        case OpCode::BITWISE_XOR_OP: bitwiseExecutor->handleBitwiseXor();
+        case OpCode::BITWISE_XOR_OP:
+            trySpecializeBitwise(instr, OpCode::BITWISE_XOR_INT);
+            bitwiseExecutor->handleBitwiseXor();
             break;
-        case OpCode::LEFT_SHIFT_OP: bitwiseExecutor->handleLeftShift();
+        case OpCode::LEFT_SHIFT_OP:
+            trySpecializeBitwise(instr, OpCode::LEFT_SHIFT_INT);
+            bitwiseExecutor->handleLeftShift();
             break;
-        case OpCode::RIGHT_SHIFT_OP: bitwiseExecutor->handleRightShift();
+        case OpCode::RIGHT_SHIFT_OP:
+            trySpecializeBitwise(instr, OpCode::RIGHT_SHIFT_INT);
+            bitwiseExecutor->handleRightShift();
             break;
-        case OpCode::BITWISE_NOT_OP: bitwiseExecutor->handleBitwiseNot();
+        case OpCode::BITWISE_NOT_OP:
+            trySpecializeBitwiseUnary(instr, OpCode::BITWISE_NOT_INT);
+            bitwiseExecutor->handleBitwiseNot();
+            break;
+        case OpCode::BITWISE_AND_INT: bitwiseExecutor->handleBitwiseAndInt();
+            break;
+        case OpCode::BITWISE_OR_INT: bitwiseExecutor->handleBitwiseOrInt();
+            break;
+        case OpCode::BITWISE_XOR_INT: bitwiseExecutor->handleBitwiseXorInt();
+            break;
+        case OpCode::LEFT_SHIFT_INT: bitwiseExecutor->handleLeftShiftInt();
+            break;
+        case OpCode::RIGHT_SHIFT_INT: bitwiseExecutor->handleRightShiftInt();
+            break;
+        case OpCode::BITWISE_NOT_INT: bitwiseExecutor->handleBitwiseNotInt();
             break;
 
         // Variables - delegated to VariableExecutor
@@ -175,42 +199,34 @@ namespace vm::runtime
         case OpCode::STORE_LOCAL_BOXED_INST: variableExecutor->handleStoreLocalBoxedInst(instr);
             break;
 
-        // MYT-202: compile-time superinstruction fusion. Each handler delegates
-        // to the existing unfused executors via shim Instructions — preserves
-        // all security/bounds/lambda handling bit-identically and still saves
-        // two interpreter switch dispatches + operand decodes per fused op.
+        // MYT-202: compile-time superinstruction fusion. Handlers call the
+        // slot-based fast-path entries (loadLocalSlot / storeLocalSlot) to
+        // skip the per-dispatch Instruction::operands shim allocation that
+        // the original implementation paid per fused op. Semantics are bit-
+        // identical to the unfused LOAD_LOCAL + arith + STORE_LOCAL path.
         case OpCode::LOAD_LOAD_ADD_INT:
-        {
-            bytecode::BytecodeProgram::Instruction load1(OpCode::LOAD_LOCAL, instr.operands[0]);
-            bytecode::BytecodeProgram::Instruction load2(OpCode::LOAD_LOCAL, instr.operands[1]);
-            variableExecutor->handleLoadLocal(load1);
-            variableExecutor->handleLoadLocal(load2);
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            variableExecutor->loadLocalSlot(instr.operands[1]);
             arithmeticExecutor->handleAddInt();
             break;
-        }
         case OpCode::LOAD_LOAD_SUB_INT:
-        {
-            bytecode::BytecodeProgram::Instruction load1(OpCode::LOAD_LOCAL, instr.operands[0]);
-            bytecode::BytecodeProgram::Instruction load2(OpCode::LOAD_LOCAL, instr.operands[1]);
-            variableExecutor->handleLoadLocal(load1);
-            variableExecutor->handleLoadLocal(load2);
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            variableExecutor->loadLocalSlot(instr.operands[1]);
             arithmeticExecutor->handleSubInt();
             break;
-        }
         case OpCode::LOAD_LOAD_MUL_INT:
-        {
-            bytecode::BytecodeProgram::Instruction load1(OpCode::LOAD_LOCAL, instr.operands[0]);
-            bytecode::BytecodeProgram::Instruction load2(OpCode::LOAD_LOCAL, instr.operands[1]);
-            variableExecutor->handleLoadLocal(load1);
-            variableExecutor->handleLoadLocal(load2);
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            variableExecutor->loadLocalSlot(instr.operands[1]);
             arithmeticExecutor->handleMulInt();
             break;
-        }
         case OpCode::LOAD_GET_FIELD:
         {
-            bytecode::BytecodeProgram::Instruction load(OpCode::LOAD_LOCAL, instr.operands[0]);
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            // GET_FIELD still needs an Instruction shim — ObjectExecutor /
+            // InlineCacheExecutor interfaces key off operands. Field fusion
+            // fires far less often per iteration than LOAD_LOCAL pairs, so
+            // the residual shim cost here is acceptable.
             bytecode::BytecodeProgram::Instruction getField(OpCode::GET_FIELD, instr.operands[1]);
-            variableExecutor->handleLoadLocal(load);
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleGetFieldIC(getField);
             else
@@ -218,20 +234,13 @@ namespace vm::runtime
             break;
         }
         case OpCode::LOAD_STORE_LOCAL:
-        {
-            bytecode::BytecodeProgram::Instruction load(OpCode::LOAD_LOCAL, instr.operands[0]);
-            bytecode::BytecodeProgram::Instruction store(OpCode::STORE_LOCAL, instr.operands[1]);
-            variableExecutor->handleLoadLocal(load);
-            variableExecutor->handleStoreLocal(store);
+            variableExecutor->loadLocalSlot(instr.operands[0]);
+            variableExecutor->storeLocalSlot(instr.operands[1]);
             break;
-        }
         case OpCode::ADD_INT_STORE_LOCAL:
-        {
-            bytecode::BytecodeProgram::Instruction store(OpCode::STORE_LOCAL, instr.operands[0]);
             arithmeticExecutor->handleAddInt();
-            variableExecutor->handleStoreLocal(store);
+            variableExecutor->storeLocalSlot(instr.operands[0]);
             break;
-        }
 
         // Control flow - delegated to ControlFlowExecutor
         case OpCode::JUMP: controlFlowExecutor->handleJump(instr);

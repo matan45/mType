@@ -255,10 +255,12 @@ namespace vm::runtime
         {
             throw errors::RuntimeException("LOAD_LOCAL requires operand");
         }
+        loadLocalSlot(instr.operands[0]);
+    }
 
-        size_t slot = instr.operands[0];
-
-        // SECURITY: cap the slot index symmetrically with handleStoreLocal.
+    void VariableExecutor::loadLocalSlot(size_t slot)
+    {
+        // SECURITY: cap the slot index symmetrically with storeLocalSlot.
         // The attacker controls `slot` via bytecode operands; without this
         // cap a near-SIZE_MAX value would wrap when added to frameBase
         // below (line `frameBase + slot`) and could land inside a valid
@@ -348,6 +350,14 @@ namespace vm::runtime
             throw errors::RuntimeException("STORE_LOCAL requires operand");
         }
 
+        // Fast path: no varName (shared-frame late-binding) — delegate to the
+        // slot-based entry so MYT-202 fused handlers share the same body.
+        if (instr.operands.size() == 1)
+        {
+            storeLocalSlot(instr.operands[0]);
+            return;
+        }
+
         size_t slot = instr.operands[0];
 
         // SECURITY: cap the slot index directly. The attacker controls `slot`
@@ -361,12 +371,7 @@ namespace vm::runtime
                 std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
         }
 
-        std::string varName = "";
-        if (instr.operands.size() > 1)
-        {
-            // Variable name provided (for shared frame late-binding)
-            varName = context.program->getConstantPool().getString(instr.operands[1]);
-        }
+        std::string varName = context.program->getConstantPool().getString(instr.operands[1]);
 
         // Pop value from top of stack
         value::Value val = context.stackManager->pop();
@@ -447,6 +452,71 @@ namespace vm::runtime
 
         // MYT-199: observe the stored type and, on a stable monomorphic
         // observation, promote this instruction to STORE_LOCAL_<TAG>.
+        tryPromoteStoreLocal(val.tag());
+    }
+
+    void VariableExecutor::storeLocalSlot(size_t slot)
+    {
+        // SECURITY: symmetric cap with handleStoreLocal (attacker-controlled
+        // slot → unbounded stack extension would DoS).
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "STORE_LOCAL slot index " + std::to_string(slot) +
+                " exceeds per-frame limit " +
+                std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
+        }
+
+        value::Value val = context.stackManager->pop();
+
+        // Lambda-captured path.
+        if (!context.callStack.empty() && context.callStack.back().originatingLambda)
+        {
+            auto lambda = context.callStack.back().originatingLambda;
+            size_t paramCount = lambda->parameterCount;
+            size_t capturedCount = lambda->capturedSlots.size();
+            if (slot >= paramCount && slot < paramCount + capturedCount)
+            {
+                size_t capturedIndex = slot - paramCount;
+                if (capturedIndex < lambda->capturedNames.size())
+                {
+                    std::string capturedVarName = lambda->capturedNames[capturedIndex];
+                    if (!capturedVarName.empty() && lambda->capturedFrame)
+                    {
+                        lambda->capturedFrame->setLocalByName(capturedVarName, val);
+                        context.stackManager->push(val);
+                        return;
+                    }
+                }
+            }
+        }
+
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
+
+        while (context.stackManager->size() < stackPos)
+        {
+            context.stackManager->getStack().push_back(std::monostate{});
+        }
+        if (stackPos >= context.stackManager->size())
+        {
+            context.stackManager->getStack().push_back(val);
+        }
+        else
+        {
+            (*context.stackManager)[stackPos] = val;
+        }
+
+        // Mirror into an existing SharedStackFrame. Skip the "create on
+        // varName" path — fused dispatch never carries a varName, and the
+        // handleStoreLocal varName branch above remains the only creator.
+        if (!context.callStack.empty() && !context.callStack.back().originatingLambda
+            && context.callStack.back().sharedFrame)
+        {
+            context.callStack.back().sharedFrame->setLocal(slot, val);
+        }
+
+        context.stackManager->push(val);
         tryPromoteStoreLocal(val.tag());
     }
 

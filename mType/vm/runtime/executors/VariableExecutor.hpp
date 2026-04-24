@@ -26,6 +26,15 @@ namespace vm::runtime
         void handleLoadLocal(const bytecode::BytecodeProgram::Instruction& instr);
         void handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // Slot-based fast-path entry used by MYT-202 fused opcode handlers.
+        // Skips the Instruction::operands shim construction — the fused
+        // dispatch already has the raw slot index from its own operands.
+        // Semantics identical to handleLoadLocal / handleStoreLocal's
+        // no-varName path; tryPromote{Load,Store}Local still correctly bails
+        // when the current IP holds a fused opcode, not the generic form.
+        void loadLocalSlot(size_t slot);
+        void storeLocalSlot(size_t slot);
+
         // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL. The generic
         // handlers above record their first observed ValueType and rewrite
         // the opcode in place to one of these variants. The specialized

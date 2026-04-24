@@ -113,6 +113,7 @@ namespace vm::jit
                 return true;
             }
             case OpCode::BITWISE_NOT_OP:
+            case OpCode::BITWISE_NOT_INT:
                 cc.not_(Mem(s.stackBase, (s.stackDepth - 1) * 8));
                 return true;
             default: return false;
@@ -123,9 +124,16 @@ namespace vm::jit
                                    const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        if (instr.opcode != OpCode::BITWISE_AND_OP &&
-            instr.opcode != OpCode::BITWISE_OR_OP &&
-            instr.opcode != OpCode::BITWISE_XOR_OP)
+        // Accept both the generic _OP form and the INT-specialized form; the
+        // INT variant carries the same semantics — compiler/runtime has just
+        // proven the operand types are INT at the bytecode level.
+        OpCode opcode = instr.opcode;
+        if (opcode == OpCode::BITWISE_AND_INT) opcode = OpCode::BITWISE_AND_OP;
+        else if (opcode == OpCode::BITWISE_OR_INT)  opcode = OpCode::BITWISE_OR_OP;
+        else if (opcode == OpCode::BITWISE_XOR_INT) opcode = OpCode::BITWISE_XOR_OP;
+        if (opcode != OpCode::BITWISE_AND_OP &&
+            opcode != OpCode::BITWISE_OR_OP &&
+            opcode != OpCode::BITWISE_XOR_OP)
             return false;
 
         s.stackDepth--;
@@ -136,7 +144,7 @@ namespace vm::jit
 
         Gp right = cc.new_gp64();
         cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
-        switch (instr.opcode)
+        switch (opcode)
         {
             case OpCode::BITWISE_AND_OP:
                 cc.and_(Mem(s.stackBase, (s.stackDepth - 1) * 8), right);
@@ -157,8 +165,11 @@ namespace vm::jit
                              const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        if (instr.opcode != OpCode::LEFT_SHIFT_OP &&
-            instr.opcode != OpCode::RIGHT_SHIFT_OP)
+        OpCode opcode = instr.opcode;
+        if (opcode == OpCode::LEFT_SHIFT_INT)  opcode = OpCode::LEFT_SHIFT_OP;
+        else if (opcode == OpCode::RIGHT_SHIFT_INT) opcode = OpCode::RIGHT_SHIFT_OP;
+        if (opcode != OpCode::LEFT_SHIFT_OP &&
+            opcode != OpCode::RIGHT_SHIFT_OP)
             return false;
 
         s.stackDepth--;
@@ -180,7 +191,7 @@ namespace vm::jit
         invOob->set_arg(0, count);
         cc.bind(inRange);
 
-        if (instr.opcode == OpCode::LEFT_SHIFT_OP)
+        if (opcode == OpCode::LEFT_SHIFT_OP)
             cc.sal(Mem(s.stackBase, (s.stackDepth - 1) * 8), count.r8());
         else
             cc.sar(Mem(s.stackBase, (s.stackDepth - 1) * 8), count.r8());
@@ -200,10 +211,13 @@ namespace vm::jit
                 return emitDivIntOp(s);
             case OpCode::NEG: case OpCode::INC: case OpCode::DEC:
             case OpCode::BITWISE_NOT_OP:
+            case OpCode::BITWISE_NOT_INT:
                 return emitUnaryIntOps(s, instr);
             case OpCode::BITWISE_AND_OP: case OpCode::BITWISE_OR_OP: case OpCode::BITWISE_XOR_OP:
+            case OpCode::BITWISE_AND_INT: case OpCode::BITWISE_OR_INT: case OpCode::BITWISE_XOR_INT:
                 return emitBitwiseIntOps(s, instr);
             case OpCode::LEFT_SHIFT_OP: case OpCode::RIGHT_SHIFT_OP:
+            case OpCode::LEFT_SHIFT_INT: case OpCode::RIGHT_SHIFT_INT:
                 return emitShiftOp(s, instr);
             default: return false;
         }

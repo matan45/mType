@@ -67,6 +67,18 @@ namespace vm::bytecode
         RIGHT_SHIFT_OP,     // Right shift (>>)
         BITWISE_NOT_OP,     // Bitwise NOT (~) - unary
 
+        // Type-specialized bitwise (INT). Emitted by the compiler when both
+        // operands type-infer to INT (mirrors ADD_INT / SUB_INT) and promoted
+        // at runtime by trySpecializeBitwise when the generic opcode observes
+        // monomorphic-INT operands via type feedback. Handlers skip the tag
+        // check and call rawInt() directly.
+        BITWISE_AND_INT,
+        BITWISE_OR_INT,
+        BITWISE_XOR_INT,
+        LEFT_SHIFT_INT,
+        RIGHT_SHIFT_INT,
+        BITWISE_NOT_INT,
+
         // === Variable Operations (40-49) ===
         LOAD_VAR,           // Load variable (by name from environment)
         STORE_VAR,          // Store to variable (by name)
@@ -352,6 +364,12 @@ namespace vm::bytecode
             case OpCode::LEFT_SHIFT_OP: return "LEFT_SHIFT_OP";
             case OpCode::RIGHT_SHIFT_OP: return "RIGHT_SHIFT_OP";
             case OpCode::BITWISE_NOT_OP: return "BITWISE_NOT_OP";
+            case OpCode::BITWISE_AND_INT: return "BITWISE_AND_INT";
+            case OpCode::BITWISE_OR_INT: return "BITWISE_OR_INT";
+            case OpCode::BITWISE_XOR_INT: return "BITWISE_XOR_INT";
+            case OpCode::LEFT_SHIFT_INT: return "LEFT_SHIFT_INT";
+            case OpCode::RIGHT_SHIFT_INT: return "RIGHT_SHIFT_INT";
+            case OpCode::BITWISE_NOT_INT: return "BITWISE_NOT_INT";
 
             case OpCode::LOAD_VAR: return "LOAD_VAR";
             case OpCode::STORE_VAR: return "STORE_VAR";

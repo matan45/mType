@@ -468,6 +468,51 @@ namespace vm::runtime
         }
     }
 
+    void VirtualMachine::trySpecializeBitwise(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        bytecode::OpCode intOpcode)
+    {
+        if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 2)
+            return;
+
+        typeFeedbackCollector->recordBinaryOp(
+            instructionPointer, stackManager->peek(1), stackManager->peek(0));
+
+        if (!typeFeedbackCollector->shouldSpecialize(instructionPointer))
+            return;
+
+        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+        if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
+        {
+            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
+            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+        }
+    }
+
+    void VirtualMachine::trySpecializeBitwiseUnary(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        bytecode::OpCode intOpcode)
+    {
+        if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 1)
+            return;
+
+        // Reuse recordBinaryOp with the same operand twice — the feedback
+        // collector only inspects tag, and duplicating avoids adding a
+        // separate unary path for a one-operand promotion.
+        const value::Value& tos = stackManager->peek(0);
+        typeFeedbackCollector->recordBinaryOp(instructionPointer, tos, tos);
+
+        if (!typeFeedbackCollector->shouldSpecialize(instructionPointer))
+            return;
+
+        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+        if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
+        {
+            const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
+            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+        }
+    }
+
     void VirtualMachine::tryFuseAddIntConst()
     {
         const size_t ip = instructionPointer;

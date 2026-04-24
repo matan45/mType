@@ -890,7 +890,15 @@ namespace vm::bytecode
                 instructions[i].opcode == OpCode::STORE_LOCAL_INT ||
                 instructions[i].opcode == OpCode::STORE_LOCAL_FLOAT ||
                 instructions[i].opcode == OpCode::STORE_LOCAL_BOOL ||
-                instructions[i].opcode == OpCode::STORE_LOCAL_BOXED_INST) {
+                instructions[i].opcode == OpCode::STORE_LOCAL_BOXED_INST ||
+                // Runtime-only: emitted only by trySpecializeBitwise after
+                // observing monomorphic-INT operands. Never serialized.
+                instructions[i].opcode == OpCode::BITWISE_AND_INT ||
+                instructions[i].opcode == OpCode::BITWISE_OR_INT ||
+                instructions[i].opcode == OpCode::BITWISE_XOR_INT ||
+                instructions[i].opcode == OpCode::LEFT_SHIFT_INT ||
+                instructions[i].opcode == OpCode::RIGHT_SHIFT_INT ||
+                instructions[i].opcode == OpCode::BITWISE_NOT_INT) {
                 throw std::runtime_error(
                     std::string("Bytecode deserialization rejected: runtime-only opcode ") +
                     getOpCodeName(instructions[i].opcode) +

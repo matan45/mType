@@ -62,6 +62,12 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::LEFT_SHIFT_OP),
             static_cast<uint8_t>(OpCode::RIGHT_SHIFT_OP),
             static_cast<uint8_t>(OpCode::BITWISE_NOT_OP),
+            static_cast<uint8_t>(OpCode::BITWISE_AND_INT),
+            static_cast<uint8_t>(OpCode::BITWISE_OR_INT),
+            static_cast<uint8_t>(OpCode::BITWISE_XOR_INT),
+            static_cast<uint8_t>(OpCode::LEFT_SHIFT_INT),
+            static_cast<uint8_t>(OpCode::RIGHT_SHIFT_INT),
+            static_cast<uint8_t>(OpCode::BITWISE_NOT_INT),
 
             static_cast<uint8_t>(OpCode::LOAD_LOCAL),
             static_cast<uint8_t>(OpCode::STORE_LOCAL),

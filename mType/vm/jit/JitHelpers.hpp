@@ -10,6 +10,14 @@ namespace vm::bytecode {
 
 namespace vm::jit
 {
+    // GC safepoint polling counter. JIT-emitted code (JUMP_BACK back-edge,
+    // self-recursive tail call) inlines the inc + threshold check and only
+    // invokes jit_gc_safepoint() once per gc::config::GC_CHECK_INTERVAL
+    // crossings. Plain size_t — the VM is single-threaded and a benign race
+    // would only shift GC polling cadence; maybeCollect() is internally
+    // thread-safe via atomic flags.
+    extern size_t g_jit_gc_poll_counter;
+
     /**
      * C-linkage helper functions callable from JIT-compiled code.
      * These handle the Value variant manipulation at JIT boundaries,
