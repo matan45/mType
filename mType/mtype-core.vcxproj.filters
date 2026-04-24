@@ -225,6 +225,9 @@
     <ClInclude Include="value\AsyncPromiseValue.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\BoolCache.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\CapturedVariable.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -477,6 +480,9 @@
       <Filter>types</Filter>
     </ClCompile>
     <ClCompile Include="value\AsyncPromiseValue.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\BoolCache.cpp">
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\IntegerCache.cpp">

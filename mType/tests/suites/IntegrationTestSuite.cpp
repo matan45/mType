@@ -282,6 +282,18 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline MONO to POLY Transition",
                                   passPath + "inlining/inline_mono_to_poly.mt");
 
+        // MYT-210: plain-CALL / CALL_FAST inlining.
+        addOutputVerificationTest("Inline Function Basic",
+                                  passPath + "inlining/inline_function_basic.mt");
+        addOutputVerificationTest("Inline Function Chain Depth-2",
+                                  passPath + "inlining/inline_function_chain.mt");
+        addOutputVerificationTest("Inline Function Recursion Bailout",
+                                  passPath + "inlining/inline_function_recursion_bailout.mt");
+        addOutputVerificationTest("Inline Function Arg Types",
+                                  passPath + "inlining/inline_function_arg_types.mt");
+        addOutputVerificationTest("Inline Function Object Args",
+                                  passPath + "inlining/inline_function_object_args.mt");
+
         // MYT-173: CALL_METHOD_CACHED promotion + sticky deopt.
         addOutputVerificationTest("CALL_METHOD_CACHED Monomorphic Promote",
                                   passPath + "ic/call_method_cached_mono.mt");

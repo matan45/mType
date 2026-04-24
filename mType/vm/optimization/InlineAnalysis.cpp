@@ -98,23 +98,19 @@ namespace vm::optimization
         return InlineDecision::INLINE;
     }
 
-    // Per-entry eligibility: checks that apply independently to one IC entry's
-    // callee. MONO uses this once; POLY (MYT-165) loops over every entry and
-    // requires all to return INLINE.
-    static InlineDecision checkEntryEligibility(
+    // MYT-210: shared per-callee gate, reused by both the method-IC path
+    // (one entry at a time) and the plain-CALL path. Checks that depend
+    // purely on the callee's metadata + the receiver's runtime classification
+    // (boolean instead of MethodICEntry, so plain CALL can pass `false`).
+    static InlineDecision checkCalleeEligibility(
         const BytecodeProgram& program,
-        const MethodICEntry& entry,
+        const BytecodeProgram::FunctionMetadata* callee,
+        bool receiverIsValueObject,
+        const std::string& qualifiedName,
         const std::string& currentCompilingFn)
     {
-        if (!entry.shape || !entry.funcMetadata)
+        if (!callee)
             return InlineDecision::UNKNOWN_SHAPE;
-
-        // MYT-167 (F-e): ValueObject receivers are eligible for read-only
-        // methods only. Rejection deferred to scanCalleeOpcodes, which rejects
-        // SET_FIELD / INLINE_SET_FIELD when the receiver is a ValueObject.
-
-        const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
-            entry.funcMetadata);
 
         if (callee->isNative)
             return InlineDecision::CALLEE_NATIVE;
@@ -132,21 +128,42 @@ namespace vm::optimization
             return InlineDecision::CALLEE_TOO_BIG;
 
         // F-a emits only the RETURN_VALUE substitution; void-returning
-        // methods (RETURN without a value) would leave the caller's operand
+        // callees (RETURN without a value) would leave the caller's operand
         // stack out of sync with the generic path (which always pushes a
-        // monostate via emitReturnValueCopyBoxed). Reject until F-b handles
-        // the void-return case.
+        // monostate via emitReturnValueCopyBoxed). Reject until a void-return
+        // path is added (out of scope for MYT-210).
         if (callee->returnType == "void")
             return InlineDecision::CALLEE_NOT_FOUND;
 
         // Self-recursive inlining is forbidden — would chase unbounded emit.
+        // For plain CALL the qualifiedName is empty; the mangled/name compare
+        // still catches direct self-recursion on the function table.
         if (!currentCompilingFn.empty() &&
             (callee->mangledName == currentCompilingFn ||
              callee->name == currentCompilingFn ||
-             entry.qualifiedName == currentCompilingFn))
+             qualifiedName == currentCompilingFn))
             return InlineDecision::SELF_RECURSIVE;
 
-        return scanCalleeOpcodes(program, *callee, entry.receiverIsValueObject);
+        return scanCalleeOpcodes(program, *callee, receiverIsValueObject);
+    }
+
+    // Per-entry eligibility: checks that apply independently to one IC entry's
+    // callee. MONO uses this once; POLY (MYT-165) loops over every entry and
+    // requires all to return INLINE. MYT-210: thin wrapper over the shared
+    // checkCalleeEligibility helper.
+    static InlineDecision checkEntryEligibility(
+        const BytecodeProgram& program,
+        const MethodICEntry& entry,
+        const std::string& currentCompilingFn)
+    {
+        if (!entry.shape || !entry.funcMetadata)
+            return InlineDecision::UNKNOWN_SHAPE;
+
+        const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
+            entry.funcMetadata);
+
+        return checkCalleeEligibility(program, callee, entry.receiverIsValueObject,
+                                       entry.qualifiedName, currentCompilingFn);
     }
 
     InlineDecision checkInlineEligibility(
@@ -189,5 +206,51 @@ namespace vm::optimization
             return InlineDecision::CALLEE_TOO_BIG;
 
         return InlineDecision::INLINE;
+    }
+
+    // MYT-210: plain-CALL / CALL_FAST eligibility. No IC, no combined-size cap
+    // (single statically-known callee), no receiver shape — just depth gate and
+    // the shared per-callee checks. receiverIsValueObject = false because plain
+    // functions have no `this`.
+    InlineDecision checkFunctionInlineEligibility(
+        const BytecodeProgram& program,
+        const BytecodeProgram::FunctionMetadata& callee,
+        const std::string& currentCompilingFn,
+        size_t currentInlineDepth)
+    {
+        if (currentInlineDepth >= INLINE_DEPTH_LIMIT)
+            return InlineDecision::DEPTH_EXCEEDED;
+
+        return checkCalleeEligibility(program, &callee,
+                                       /*receiverIsValueObject=*/false,
+                                       /*qualifiedName=*/std::string(),
+                                       currentCompilingFn);
+    }
+
+    // MYT-210: human-readable name for --jit-stats output. Mirrors the shape of
+    // osrBailoutReasonName (one switch, no map lookup).
+    const char* inlineDecisionName(InlineDecision d)
+    {
+        switch (d)
+        {
+            case InlineDecision::INLINE:                     return "INLINE";
+            case InlineDecision::CALLEE_TOO_BIG:             return "CALLEE_TOO_BIG";
+            case InlineDecision::HAS_TRY_CATCH:              return "HAS_TRY_CATCH";
+            case InlineDecision::HAS_ASYNC:                  return "HAS_ASYNC";
+            case InlineDecision::HAS_UPVALUES:               return "HAS_UPVALUES";
+            case InlineDecision::HAS_SUPER_CALL:             return "HAS_SUPER_CALL";
+            case InlineDecision::HAS_NESTED_CALL:            return "HAS_NESTED_CALL";
+            case InlineDecision::HAS_INTERNAL_JUMPS:         return "HAS_INTERNAL_JUMPS";
+            case InlineDecision::SELF_RECURSIVE:             return "SELF_RECURSIVE";
+            case InlineDecision::DEPTH_EXCEEDED:             return "DEPTH_EXCEEDED";
+            case InlineDecision::IC_NOT_MONOMORPHIC:         return "IC_NOT_MONOMORPHIC";
+            case InlineDecision::UNKNOWN_SHAPE:              return "UNKNOWN_SHAPE";
+            case InlineDecision::VALUE_OBJECT_RECEIVER:      return "VALUE_OBJECT_RECEIVER";
+            case InlineDecision::VALUE_OBJECT_WRITES_FIELDS: return "VALUE_OBJECT_WRITES_FIELDS";
+            case InlineDecision::CALLEE_NATIVE:              return "CALLEE_NATIVE";
+            case InlineDecision::CALLEE_NOT_FOUND:           return "CALLEE_NOT_FOUND";
+            case InlineDecision::HAS_UNSUPPORTED_OPCODE:     return "HAS_UNSUPPORTED_OPCODE";
+        }
+        return "UNKNOWN";
     }
 }

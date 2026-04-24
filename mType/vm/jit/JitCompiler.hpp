@@ -1,4 +1,6 @@
 #pragma once
+#include <array>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -8,12 +10,36 @@
 #include "SlotType.hpp"
 #include "OSRState.hpp"
 #include "LoopProfiler.hpp"
+#include "../optimization/InlineAnalysis.hpp"
 namespace vm::jit::ic { class TypeFeedbackCollector; }
 #include "../bytecode/BytecodeProgram.hpp"
 #include <asmjit/x86.h>
 
 namespace vm::jit
 {
+    // MYT-210 (fills MYT-179 stub): per-decision inline telemetry. Counters are
+    // bumped at compile time inside tryEmitInlinedMethodCall /
+    // tryEmitInlinedFunctionCall and printed by --jit-stats. The array index
+    // is the underlying ordinal of optimization::InlineDecision.
+    struct InlineDecisionCounters
+    {
+        // Sized to match the InlineDecision enum. The enum currently has 17
+        // values (INLINE..HAS_UNSUPPORTED_OPCODE); kept loose at 32 so adding
+        // a new reason in InlineAnalysis.hpp doesn't break this layout.
+        static constexpr size_t SIZE = 32;
+        std::array<uint64_t, SIZE> perReasonMethod   = {};
+        std::array<uint64_t, SIZE> perReasonFunction = {};
+
+        void bumpMethod(optimization::InlineDecision d) {
+            const auto idx = static_cast<size_t>(d);
+            if (idx < SIZE) perReasonMethod[idx]++;
+        }
+        void bumpFunction(optimization::InlineDecision d) {
+            const auto idx = static_cast<size_t>(d);
+            if (idx < SIZE) perReasonFunction[idx]++;
+        }
+    };
+
     class JitCompiler
     {
     public:
@@ -43,6 +69,11 @@ namespace vm::jit
         uint64_t getInlineFieldSetICMisses() const { return inlineFieldSetICMisses; }
         uint64_t* inlineFieldSetICHitsPtr() { return &inlineFieldSetICHits; }
         uint64_t* inlineFieldSetICMissesPtr() { return &inlineFieldSetICMisses; }
+
+        // MYT-210: per-InlineDecision counters for both method-call and plain
+        // function inlining. Read by VirtualMachine::printJitStats.
+        const InlineDecisionCounters& getInlineDecisions() const { return inlineDecisions; }
+        InlineDecisionCounters* inlineDecisionsPtr() { return &inlineDecisions; }
 
         // MYT-148: extra out-parameters so the caller (OSRManager) can record
         // WHICH gate rejected the loop in the LoopProfile for --jit-stats.
@@ -76,5 +107,6 @@ namespace vm::jit
         uint64_t inlineFieldICMisses = 0;
         uint64_t inlineFieldSetICHits = 0;
         uint64_t inlineFieldSetICMisses = 0;
+        InlineDecisionCounters inlineDecisions;
     };
 }

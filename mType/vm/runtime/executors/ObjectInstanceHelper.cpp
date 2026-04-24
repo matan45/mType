@@ -7,6 +7,7 @@
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
+#include "../../../value/BoolCache.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/SmallArgsBuffer.hpp"
@@ -830,6 +831,19 @@ namespace vm::runtime
                         invokeConstructor(cachedInstance, baseClassName, args.span());
                         return;
                     }
+                }
+            }
+        }
+
+        // Bool caching: only two values, so cache hit rate is 100%.
+        if (baseClassName == "Bool" && argCount == 1 && value::isBool(args[0])) {
+            auto classRegistry = context.environment->getClassRegistry();
+            auto boolClassDef = classRegistry ? classRegistry->findClass("Bool") : nullptr;
+            if (boolClassDef) {
+                auto cachedInstance = value::BoolCache::getBool(value::asBool(args[0]), boolClassDef);
+                if (cachedInstance) {
+                    invokeConstructor(cachedInstance, baseClassName, args.span());
+                    return;
                 }
             }
         }

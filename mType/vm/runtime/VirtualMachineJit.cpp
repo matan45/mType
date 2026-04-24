@@ -587,6 +587,32 @@ namespace vm::runtime
                       << jitCompiler->getInlineFieldSetICHits() << "\n";
             std::cout << "  Inline misses:          "
                       << jitCompiler->getInlineFieldSetICMisses() << "\n";
+
+            // MYT-210 (fills MYT-179 stub): per-decision inline-eligibility
+            // breakdown for both method-call and plain-function inlining.
+            // Print only non-zero rows to keep output compact; if every row
+            // is zero (no JIT-compiled function reached an inlineable site),
+            // skip the section entirely.
+            const auto& dec = jitCompiler->getInlineDecisions();
+            auto anyNonZero = [](const std::array<uint64_t, jit::InlineDecisionCounters::SIZE>& a) {
+                for (auto v : a) if (v) return true;
+                return false;
+            };
+            auto printSection = [](const char* label,
+                                    const std::array<uint64_t, jit::InlineDecisionCounters::SIZE>& a) {
+                std::cout << label << "\n";
+                for (size_t i = 0; i < jit::InlineDecisionCounters::SIZE; ++i)
+                {
+                    if (!a[i]) continue;
+                    const auto reason = static_cast<optimization::InlineDecision>(i);
+                    std::cout << "  " << optimization::inlineDecisionName(reason)
+                              << ": " << a[i] << "\n";
+                }
+            };
+            if (anyNonZero(dec.perReasonMethod))
+                printSection("Inline decisions (method):", dec.perReasonMethod);
+            if (anyNonZero(dec.perReasonFunction))
+                printSection("Inline decisions (function):", dec.perReasonFunction);
         }
 
         // Loop OSR stats

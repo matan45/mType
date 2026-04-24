@@ -535,7 +535,8 @@ namespace vm::jit
                                    uint64_t* inlineFieldICHits,
                                    uint64_t* inlineFieldICMisses,
                                    uint64_t* inlineFieldSetICHits,
-                                   uint64_t* inlineFieldSetICMisses)
+                                   uint64_t* inlineFieldSetICMisses,
+                                   InlineDecisionCounters* inlineDecisions)
     {
         emitArgumentUnboxing(cc, ctxPtr, frame.localsBase, funcMeta,
                              frame.usesBoxedTypes, frame.localStride, frame.localTypes);
@@ -566,6 +567,7 @@ namespace vm::jit
         s.inlineFieldICMisses = inlineFieldICMisses;
         s.inlineFieldSetICHits = inlineFieldSetICHits;
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
+        s.inlineDecisions = inlineDecisions;
 
         emitCodegenLoop(s, startOffset, instrCount, program);
 
@@ -618,7 +620,8 @@ namespace vm::jit
 
         if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame, typeFeedback,
                                &inlineFieldICHits, &inlineFieldICMisses,
-                               &inlineFieldSetICHits, &inlineFieldSetICMisses))
+                               &inlineFieldSetICHits, &inlineFieldSetICMisses,
+                               &inlineDecisions))
         {
             bailoutCount++;
             return false;
