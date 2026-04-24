@@ -122,11 +122,13 @@ namespace vm::runtime
         context.stackManager->push(utils::wrappingAdd64(l, r));
     }
 
-    void ArithmeticExecutor::handleAddIntConst(const bytecode::BytecodeProgram::Instruction& instr) {
+    void ArithmeticExecutor::handleAddIntConst(
+        const bytecode::BytecodeProgram::Instruction& /*instr*/,
+        const bytecode::BytecodeProgram::CachedInstructionState& state) {
         // MYT-198: fused PUSH_INT + ADD_INT. At entry, tos is the left operand
         // (the value that was on stack before the NOPed PUSH_INT would have
         // pushed its literal). The literal is in the constant pool at
-        // instr.fusedSlot — set by tryFuseAddIntConst.
+        // state.fusedSlot — set by tryFuseAddIntConst.
         if (context.stackManager->size() < 1) {
             throw errors::RuntimeException("Stack underflow: ADD_INT_CONST requires 1 value");
         }
@@ -146,18 +148,22 @@ namespace vm::runtime
             // sites too. Handle *this* dispatch directly through handleAdd()
             // since tos is known non-int — the rewrite only affects the next
             // dispatch of this IP.
-            int64_t literal = context.program->getConstantPool().getInteger(instr.fusedSlot);
+            int64_t literal = context.program->getConstantPool().getInteger(state.fusedSlot);
             context.stackManager->push(literal);
-            auto& mut = context.getMutableInstructionAt(context.instructionPointer);
-            auto& prevMut = context.getMutableInstructionAt(context.instructionPointer - 1);
+            const size_t ip = context.instructionPointer;
+            auto& mut = context.getMutableInstructionAt(ip);
+            auto& prevMut = context.getMutableInstructionAt(ip - 1);
             prevMut.opcode = bytecode::OpCode::PUSH_INT;
-            prevMut.operands = { static_cast<uint64_t>(mut.fusedSlot) };
+            // MYT-201: fused state now lives on the side table. Same entry as
+            // `state` above, but we need a mutable view to bump fusedDeoptCount.
+            auto& mutState = context.getOrCreateCachedState(ip);
+            prevMut.operands = { static_cast<uint64_t>(mutState.fusedSlot) };
             mut.opcode = bytecode::OpCode::ADD_INT;
-            if (mut.fusedDeoptCount < 255) ++mut.fusedDeoptCount;
+            if (mutState.fusedDeoptCount < 255) ++mutState.fusedDeoptCount;
             handleAdd();
             return;
         }
-        int64_t literal = context.program->getConstantPool().getInteger(instr.fusedSlot);
+        int64_t literal = context.program->getConstantPool().getInteger(state.fusedSlot);
         int64_t l = value::asInt(context.stackManager->pop());
         context.stackManager->push(utils::wrappingAdd64(l, literal));
     }

@@ -37,10 +37,14 @@ namespace vm::runtime
         void handleDivInt();
 
         // MYT-198: fused PUSH_INT + ADD_INT. Reads the integer literal from the
-        // constant pool via instr.fusedSlot (populated at fusion time with the
+        // constant pool via state.fusedSlot (populated at fusion time with the
         // original PUSH_INT's operand[0]), adds it to the integer already on
         // tos, and pushes the result. Deopts to handleAdd on non-int tos.
-        void handleAddIntConst(const bytecode::BytecodeProgram::Instruction& instr);
+        // MYT-201: `state` is the per-IP cached state; dispatch loop looks it
+        // up once and hands the reference down.
+        void handleAddIntConst(
+            const bytecode::BytecodeProgram::Instruction& instr,
+            const bytecode::BytecodeProgram::CachedInstructionState& state);
 
         // Optimized float operations
         void handleAddFloat();

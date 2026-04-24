@@ -200,6 +200,17 @@ namespace vm::runtime
                 ->getMutableInstruction(offset);
         }
 
+        // MYT-201: sparse per-IP cached state (IC shape + specialisation
+        // snapshots + fusion slot + observed type). Use getOrCreateCachedState
+        // on write paths (promote / deopt / fuse); use findCachedState on
+        // read paths (returns nullptr when no entry exists).
+        bytecode::BytecodeProgram::CachedInstructionState& getOrCreateCachedState(size_t ip) const {
+            return program->getOrCreateCachedState(ip);
+        }
+        const bytecode::BytecodeProgram::CachedInstructionState* findCachedState(size_t ip) const {
+            return program->findCachedState(ip);
+        }
+
         // MYT-197: resolve the BytecodeProgram that owns a given frame's
         // FunctionNameHandle. Use this when formatting a frame that isn't
         // necessarily on the currently-executing program (stack-trace walks,

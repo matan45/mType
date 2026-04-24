@@ -578,14 +578,21 @@ namespace vm::runtime
     }
 
     void InlineCacheExecutor::tryPromoteToCached(
-        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::Instruction& /*instr*/,
         const vm::jit::ic::MethodICEntry& entry)
     {
         using namespace vm::jit::ic;
 
+        const size_t ip = context.instructionPointer;
+
         // Sticky demote — a site that has already deopted stays on the generic
         // CALL_METHOD path. Prevents flip/unflip ping-pong on unstable sites.
-        if (instr.cachedDeoptCount >= 1) return;
+        // MYT-201: read via findCachedState so a never-promoted site doesn't
+        // allocate an entry just to read the default 0.
+        if (auto* existing = context.findCachedState(ip))
+        {
+            if (existing->cachedDeoptCount >= 1) return;
+        }
 
         // ValueObject receivers use the MYT-167 temp-materialisation path in
         // jit_call_method; CACHED fast-dispatch is ObjectInstance-only for MVP.
@@ -596,19 +603,22 @@ namespace vm::runtime
 
         // Only promote once the IC has settled to a single shape. POLY sites
         // are handled by a future CALL_METHOD_POLY_CACHED (out of MVP scope).
-        MethodInlineCache& cache = icTable.getMethodIC(context.instructionPointer);
+        MethodInlineCache& cache = icTable.getMethodIC(ip);
         if (cache.state != ICState::MONOMORPHIC) return;
 
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
-        mut.cachedMethodShape        = entry.shape;
-        mut.cachedMethodFunc         = fm;
-        mut.cachedMethodProgram      = entry.program;
-        mut.cachedMethodProgramIndex = entry.programIndex;
+        // MYT-201: writes go into the sparse side table.
+        auto& state = context.getOrCreateCachedState(ip);
+        state.cachedMethodShape        = entry.shape;
+        state.cachedMethodFunc         = fm;
+        state.cachedMethodProgram      = entry.program;
+        state.cachedMethodProgramIndex = entry.programIndex;
         // MYT-197: intern on the callee's owning program (same program the
         // cached target lives in). Handle is copied 4 bytes at dispatch time.
-        mut.cachedMethodQualifiedName = entry.program->internFrameName(entry.qualifiedName);
+        state.cachedMethodQualifiedName = entry.program->internFrameName(entry.qualifiedName);
         // MYT-195: snapshot the pre-resolved class prefix alongside qualifiedName.
-        mut.cachedMethodDefiningClassName = entry.definingClassName;
+        state.cachedMethodDefiningClassName = entry.definingClassName;
+
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = bytecode::OpCode::CALL_METHOD_CACHED;
 
         // MYT-198: opportunistically fuse with a preceding LOAD_LOCAL.
@@ -616,9 +626,10 @@ namespace vm::runtime
     }
 
     void InlineCacheExecutor::deoptAndReprocess(
-        const bytecode::BytecodeProgram::Instruction& instr)
+        const bytecode::BytecodeProgram::Instruction& /*instr*/)
     {
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
         // MYT-198: if the CACHED opcode was itself the second half of a fused
         // LOAD_LOCAL_CALL_CACHED pair, we must restore the NOPed LOAD_LOCAL
         // before demoting, otherwise the subsequent CALL_METHOD re-entry
@@ -637,30 +648,34 @@ namespace vm::runtime
                    "tryUnfusePair must demote to CALL_METHOD_CACHED");
         }
         mut.opcode = bytecode::OpCode::CALL_METHOD;
-        mut.cachedMethodShape = nullptr;
-        mut.cachedMethodFunc = nullptr;
-        mut.cachedMethodProgram = nullptr;
-        mut.cachedMethodProgramIndex = 0;
+
+        // MYT-201: clear cached fields via the side table. Entry is guaranteed
+        // to exist here — a CACHED opcode implies a prior promote.
+        auto& state = context.getOrCreateCachedState(ip);
+        state.cachedMethodShape = nullptr;
+        state.cachedMethodFunc = nullptr;
+        state.cachedMethodProgram = nullptr;
+        state.cachedMethodProgramIndex = 0;
         // MYT-197: integer sentinel replaces std::string::clear(). A re-promote
         // that happens to observe a stale handle value would index into the
         // interner and return an unrelated qualified name; INVALID_FN_HANDLE
         // prevents that.
-        mut.cachedMethodQualifiedName = bytecode::INVALID_FN_HANDLE;
+        state.cachedMethodQualifiedName = bytecode::INVALID_FN_HANDLE;
         // MYT-195: clear the pre-resolved class prefix in lockstep with
         // qualifiedName so a subsequent re-promotion doesn't pick up a
         // stale class name from the prior shape.
-        mut.cachedMethodDefiningClassName.clear();
-        if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
-        // `instr` and `mut` alias the same slot; single-threaded VM, so this is
-        // safe. Re-enter the generic IC path, which will observe the new shape
+        state.cachedMethodDefiningClassName.clear();
+        if (state.cachedDeoptCount < 255) ++state.cachedDeoptCount;
+        // Re-enter the generic IC path, which will observe the new shape
         // and (unless already MEGA) transition MONO -> POLY.
         handleCallMethodIC(mut);
     }
 
     void InlineCacheExecutor::handleCallMethodCached(
-        const bytecode::BytecodeProgram::Instruction& instr)
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
-        if (instr.operands.size() < 2 || !instr.cachedMethodFunc || !instr.cachedMethodShape)
+        if (instr.operands.size() < 2 || !state.cachedMethodFunc || !state.cachedMethodShape)
         {
             deoptAndReprocess(instr);
             return;
@@ -682,7 +697,7 @@ namespace vm::runtime
 
         auto instance = value::asObject(objectValue);
         auto* shape = instance->getClassDefinitionRaw();
-        if (shape != instr.cachedMethodShape)
+        if (shape != state.cachedMethodShape)
         {
             deoptAndReprocess(instr);
             return;
@@ -691,12 +706,12 @@ namespace vm::runtime
         // Hot path: shape matched — dispatch directly from the embedded target.
         // No icTable.getMethodIC probe, no per-entry scan.
         dispatchDirectFromCachedTarget(
-            instr.cachedMethodFunc,
-            instr.cachedMethodFunc->startOffset,
-            instr.cachedMethodProgram,
-            instr.cachedMethodProgramIndex,
-            instr.cachedMethodQualifiedName,
-            instr.cachedMethodDefiningClassName,
+            state.cachedMethodFunc,
+            state.cachedMethodFunc->startOffset,
+            state.cachedMethodProgram,
+            state.cachedMethodProgramIndex,
+            state.cachedMethodQualifiedName,
+            state.cachedMethodDefiningClassName,
             objectValue, argCount);
     }
 
@@ -708,21 +723,28 @@ namespace vm::runtime
     {
         using namespace vm::jit::ic;
 
+        const size_t ip = context.instructionPointer;
+
         // Sticky demote — a site that already deopted once stays on the generic
-        // path. Read through the mutable instruction since `instr` is an alias
-        // of the same slot and we're about to mutate it anyway.
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
-        if (mut.cachedFieldDeoptCount >= 1) return;
+        // path. MYT-201: read via findCachedState so a never-promoted site
+        // doesn't allocate an entry just to check the default 0.
+        if (auto* existing = context.findCachedState(ip))
+        {
+            if (existing->cachedFieldDeoptCount >= 1) return;
+        }
 
         if (!shape || fieldIndex == SIZE_MAX) return;
 
         // Only promote once the IC has settled to a single shape. POLY sites
         // are a future CACHED_POLY variant (out of MVP scope).
-        FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
+        FieldInlineCache& cache = icTable.getFieldIC(ip);
         if (cache.state != ICState::MONOMORPHIC) return;
 
-        mut.cachedFieldShape = shape;
-        mut.cachedFieldIndex = fieldIndex;
+        auto& state = context.getOrCreateCachedState(ip);
+        state.cachedFieldShape = shape;
+        state.cachedFieldIndex = fieldIndex;
+
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = cachedOp;
 
         // MYT-198: only GET_FIELD_CACHED participates in fusion. SET_FIELD_CACHED
@@ -738,7 +760,8 @@ namespace vm::runtime
     void InlineCacheExecutor::deoptGetFieldAndReprocess(
         const bytecode::BytecodeProgram::Instruction& /*instr*/)
     {
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
         // MYT-198: see deoptAndReprocess — same un-fuse-before-demote story.
         if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED)
         {
@@ -747,9 +770,11 @@ namespace vm::runtime
                    "tryUnfusePair must demote to GET_FIELD_CACHED");
         }
         mut.opcode = bytecode::OpCode::GET_FIELD;
-        mut.cachedFieldShape = nullptr;
-        mut.cachedFieldIndex = SIZE_MAX;
-        if (mut.cachedFieldDeoptCount < 255) ++mut.cachedFieldDeoptCount;
+
+        auto& state = context.getOrCreateCachedState(ip);
+        state.cachedFieldShape = nullptr;
+        state.cachedFieldIndex = SIZE_MAX;
+        if (state.cachedFieldDeoptCount < 255) ++state.cachedFieldDeoptCount;
         // Re-enter the generic IC path so the new shape is observed.
         handleGetFieldIC(mut);
     }
@@ -757,19 +782,23 @@ namespace vm::runtime
     void InlineCacheExecutor::deoptSetFieldAndReprocess(
         const bytecode::BytecodeProgram::Instruction& /*instr*/)
     {
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = bytecode::OpCode::SET_FIELD;
-        mut.cachedFieldShape = nullptr;
-        mut.cachedFieldIndex = SIZE_MAX;
-        if (mut.cachedFieldDeoptCount < 255) ++mut.cachedFieldDeoptCount;
+
+        auto& state = context.getOrCreateCachedState(ip);
+        state.cachedFieldShape = nullptr;
+        state.cachedFieldIndex = SIZE_MAX;
+        if (state.cachedFieldDeoptCount < 255) ++state.cachedFieldDeoptCount;
         handleSetFieldIC(mut);
     }
 
     void InlineCacheExecutor::handleGetFieldCached(
-        const bytecode::BytecodeProgram::Instruction& instr)
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
-        if (instr.operands.empty() || !instr.cachedFieldShape
-            || instr.cachedFieldIndex == SIZE_MAX)
+        if (instr.operands.empty() || !state.cachedFieldShape
+            || state.cachedFieldIndex == SIZE_MAX)
         {
             deoptGetFieldAndReprocess(instr);
             return;
@@ -808,7 +837,7 @@ namespace vm::runtime
 
         auto instance = value::asObject(objectValue);
         auto* shape = instance->getClassDefinitionRaw();
-        if (shape != instr.cachedFieldShape)
+        if (shape != state.cachedFieldShape)
         {
             deoptGetFieldAndReprocess(instr);
             return;
@@ -821,16 +850,17 @@ namespace vm::runtime
         {
             instance->ensureFieldVector();
         }
-        value::Value fieldValue = instance->getFieldByIndex(instr.cachedFieldIndex);
+        value::Value fieldValue = instance->getFieldByIndex(state.cachedFieldIndex);
         context.stackManager->pop();
         context.stackManager->push(fieldValue);
     }
 
     void InlineCacheExecutor::handleSetFieldCached(
-        const bytecode::BytecodeProgram::Instruction& instr)
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
-        if (instr.operands.empty() || !instr.cachedFieldShape
-            || instr.cachedFieldIndex == SIZE_MAX)
+        if (instr.operands.empty() || !state.cachedFieldShape
+            || state.cachedFieldIndex == SIZE_MAX)
         {
             deoptSetFieldAndReprocess(instr);
             return;
@@ -865,7 +895,7 @@ namespace vm::runtime
 
         auto instance = value::asObject(objectValue);
         auto* shape = instance->getClassDefinitionRaw();
-        if (shape != instr.cachedFieldShape)
+        if (shape != state.cachedFieldShape)
         {
             deoptSetFieldAndReprocess(instr);
             return;
@@ -875,7 +905,7 @@ namespace vm::runtime
         {
             instance->ensureFieldVector();
         }
-        instance->setFieldByIndex(instr.cachedFieldIndex, newValue);
+        instance->setFieldByIndex(state.cachedFieldIndex, newValue);
         // Match handleSetFieldIC: consume both operands, push newValue for
         // assignment chaining.
         context.stackManager->pop();
@@ -901,11 +931,13 @@ namespace vm::runtime
         // that the jumping caller didn't set up for it.
         if (context.program->isFusionUnsafeTarget(ip)) return;
 
-        auto& mut = context.getMutableInstructionAt(ip);
+        // MYT-201: fusion reads/writes live on the side-table entry. Current
+        // IP's entry is guaranteed to exist (caller just promoted to CACHED).
+        auto& state = context.getOrCreateCachedState(ip);
 
         // Sticky un-fuse — a site that already had its fusion rolled back
         // should not be re-fused. Mirrors cachedDeoptCount's sticky semantics.
-        if (mut.fusedDeoptCount >= 1) return;
+        if (state.fusedDeoptCount >= 1) return;
 
         // Lambda / shared-frame guard. LOAD_LOCAL inside a lambda frame has
         // captured-variable semantics that the fused executor doesn't
@@ -934,19 +966,21 @@ namespace vm::runtime
         prevMut.opcode = bytecode::OpCode::NOP;
         prevMut.operands.clear();
 
-        mut.fusedSlot = static_cast<uint32_t>(slot);
+        state.fusedSlot = static_cast<uint32_t>(slot);
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = fusedOp;
     }
 
     void InlineCacheExecutor::handleLoadLocalCallCached(
-        const bytecode::BytecodeProgram::Instruction& instr)
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
         // Fast replay of the NOPed LOAD_LOCAL: the fusion trigger guaranteed
         // a non-lambda, non-shared frame, so the simple localBase + slot read
         // is sufficient — we don't need to replicate handleLoadLocal's
         // capture-chain logic. SECURITY: same MAX_LOCAL_STACK_PER_FRAME cap
         // as handleLoadLocal, on fusedSlot.
-        size_t slot = static_cast<size_t>(instr.fusedSlot);
+        size_t slot = static_cast<size_t>(state.fusedSlot);
         if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context,
@@ -971,13 +1005,15 @@ namespace vm::runtime
         context.stackManager->push((*context.stackManager)[stackPos]);
 
         // Receiver now on stack; delegate to the standard CACHED handler.
-        handleCallMethodCached(instr);
+        // Same state entry — no second side-table lookup needed.
+        handleCallMethodCached(instr, state);
     }
 
     void InlineCacheExecutor::handleLoadLocalGetFieldCached(
-        const bytecode::BytecodeProgram::Instruction& instr)
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
-        size_t slot = static_cast<size_t>(instr.fusedSlot);
+        size_t slot = static_cast<size_t>(state.fusedSlot);
         if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context,
@@ -996,7 +1032,7 @@ namespace vm::runtime
         }
         context.stackManager->push((*context.stackManager)[stackPos]);
 
-        handleGetFieldCached(instr);
+        handleGetFieldCached(instr, state);
     }
 
     bool InlineCacheExecutor::tryUnfusePair(bytecode::OpCode underlyingCached)
@@ -1011,15 +1047,19 @@ namespace vm::runtime
             return false;
         }
 
+        // MYT-201: fused state lives in the side table. Entry is guaranteed
+        // to exist (this IP was fused → promoted → an entry was created).
+        auto& state = context.getOrCreateCachedState(ip);
+
         // Restore LOAD_LOCAL at IP-1 from the captured fusedSlot.
         auto& prevMut = context.getMutableInstructionAt(ip - 1);
         prevMut.opcode = bytecode::OpCode::LOAD_LOCAL;
-        prevMut.operands = { static_cast<uint64_t>(mut.fusedSlot) };
+        prevMut.operands = { static_cast<uint64_t>(state.fusedSlot) };
 
         // Demote current back to the underlying CACHED opcode and make the
         // un-fuse sticky so the next promotion here won't re-fuse.
         mut.opcode = underlyingCached;
-        if (mut.fusedDeoptCount < 255) ++mut.fusedDeoptCount;
+        if (state.fusedDeoptCount < 255) ++state.fusedDeoptCount;
         return true;
     }
 }

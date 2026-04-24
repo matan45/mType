@@ -486,9 +486,13 @@ namespace vm::runtime
         // re-fusion.
         if (program->isFusionUnsafeTarget(ip)) return;
 
-        auto& mut = const_cast<bytecode::BytecodeProgram*>(program)
-                        ->getMutableInstruction(ip);
-        if (mut.fusedDeoptCount >= 1) return;
+        // MYT-201: fused state lives in the per-IP side table. Sticky un-fuse
+        // gate reads via findCachedState so a never-fused site doesn't
+        // allocate an entry just to check the default 0.
+        if (auto* existing = program->findCachedState(ip))
+        {
+            if (existing->fusedDeoptCount >= 1) return;
+        }
 
         uint64_t constIdx = prev.operands[0];
         // fusedSlot is uint32_t — assert before truncation so an oversized
@@ -502,7 +506,11 @@ namespace vm::runtime
         prevMut.opcode = bytecode::OpCode::NOP;
         prevMut.operands.clear();
 
-        mut.fusedSlot = static_cast<uint32_t>(constIdx);
+        auto& state = program->getOrCreateCachedState(ip);
+        state.fusedSlot = static_cast<uint32_t>(constIdx);
+
+        auto& mut = const_cast<bytecode::BytecodeProgram*>(program)
+                        ->getMutableInstruction(ip);
         mut.opcode = bytecode::OpCode::ADD_INT_CONST;
     }
 

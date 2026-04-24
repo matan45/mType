@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cassert>
 #include "executors/StackOperationsExecutor.hpp"
 #include "executors/ComparisonExecutor.hpp"
 #include "executors/LogicalExecutor.hpp"
@@ -80,10 +81,17 @@ namespace vm::runtime
         case OpCode::ADD_INT: arithmeticExecutor->handleAddInt();
             break;
         case OpCode::ADD_INT_CONST:
+        {
             // MYT-198: fused PUSH_INT + ADD_INT. Never emitted by the compiler;
             // only reachable via runtime promotion inside trySpecializeArithmetic.
-            arithmeticExecutor->handleAddIntConst(instr);
+            // MYT-201: fused state lives on the side table — one lookup here
+            // hands the reference to the handler.
+            const auto* state = program->findCachedState(instructionPointer);
+            assert(state &&
+                "ADD_INT_CONST opcode implies a promoted side-table entry");
+            arithmeticExecutor->handleAddIntConst(instr, *state);
             break;
+        }
         case OpCode::SUB_INT: arithmeticExecutor->handleSubInt();
             break;
         case OpCode::MUL_INT: arithmeticExecutor->handleMulInt();
@@ -213,28 +221,44 @@ namespace vm::runtime
                 objectExecutor->handleGetField(instr);
             break;
         case OpCode::GET_FIELD_CACHED:
+        {
             // MYT-194: promoted from GET_FIELD once the IC stabilized. Never
             // emitted by the compiler; only reachable if IC is enabled (the
             // promoter guards on that). Fall back to the generic handler if
             // somehow reached with IC disabled.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleGetFieldCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                assert(state &&
+                    "GET_FIELD_CACHED opcode implies a promoted side-table entry");
+                inlineCacheExecutor->handleGetFieldCached(instr, *state);
+            }
             else
                 objectExecutor->handleGetField(instr);
             break;
+        }
         case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
+        {
             // MYT-198: fused LOAD_LOCAL + GET_FIELD_CACHED. IC-only; if IC is
             // disabled fall back by materialising the LOAD_LOCAL and running
-            // the generic GET_FIELD. fusedSlot carries the receiver slot.
+            // the generic GET_FIELD. state.fusedSlot carries the receiver slot.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleLoadLocalGetFieldCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                assert(state &&
+                    "LOAD_LOCAL_GET_FIELD_CACHED opcode implies a promoted side-table entry");
+                inlineCacheExecutor->handleLoadLocalGetFieldCached(instr, *state);
+            }
             else {
+                const auto* state = program->findCachedState(instructionPointer);
+                uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 variableExecutor->handleLoadLocal(
                     bytecode::BytecodeProgram::Instruction(
-                        bytecode::OpCode::LOAD_LOCAL, instr.fusedSlot));
+                        bytecode::OpCode::LOAD_LOCAL, slot));
                 objectExecutor->handleGetField(instr);
             }
             break;
+        }
         case OpCode::SET_FIELD:
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleSetFieldIC(instr);
@@ -242,12 +266,19 @@ namespace vm::runtime
                 objectExecutor->handleSetField(instr);
             break;
         case OpCode::SET_FIELD_CACHED:
+        {
             // MYT-194: see GET_FIELD_CACHED above.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleSetFieldCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                assert(state &&
+                    "SET_FIELD_CACHED opcode implies a promoted side-table entry");
+                inlineCacheExecutor->handleSetFieldCached(instr, *state);
+            }
             else
                 objectExecutor->handleSetField(instr);
             break;
+        }
         case OpCode::INLINE_SET_FIELD:
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleInlineSetFieldIC(instr);
@@ -272,28 +303,44 @@ namespace vm::runtime
                 objectExecutor->handleCallMethod(instr);
             break;
         case OpCode::CALL_METHOD_CACHED:
+        {
             // MYT-173: promoted from CALL_METHOD once the IC stabilized. Never
             // emitted by the compiler; only reachable if IC is enabled (the
             // promoter guards on that). Fall back to the generic handler if
             // somehow reached with IC disabled.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleCallMethodCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                assert(state &&
+                    "CALL_METHOD_CACHED opcode implies a promoted side-table entry");
+                inlineCacheExecutor->handleCallMethodCached(instr, *state);
+            }
             else
                 objectExecutor->handleCallMethod(instr);
             break;
+        }
         case OpCode::LOAD_LOCAL_CALL_CACHED:
+        {
             // MYT-198: fused LOAD_LOCAL + CALL_METHOD_CACHED. Same IC-only
-            // constraint as CALL_METHOD_CACHED. fusedSlot carries the receiver
-            // slot that the NOPed LOAD_LOCAL would have pushed.
+            // constraint as CALL_METHOD_CACHED. state.fusedSlot carries the
+            // receiver slot that the NOPed LOAD_LOCAL would have pushed.
             if (icEnabled && inlineCacheExecutor)
-                inlineCacheExecutor->handleLoadLocalCallCached(instr);
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                assert(state &&
+                    "LOAD_LOCAL_CALL_CACHED opcode implies a promoted side-table entry");
+                inlineCacheExecutor->handleLoadLocalCallCached(instr, *state);
+            }
             else {
+                const auto* state = program->findCachedState(instructionPointer);
+                uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 variableExecutor->handleLoadLocal(
                     bytecode::BytecodeProgram::Instruction(
-                        bytecode::OpCode::LOAD_LOCAL, instr.fusedSlot));
+                        bytecode::OpCode::LOAD_LOCAL, slot));
                 objectExecutor->handleCallMethod(instr);
             }
             break;
+        }
         case OpCode::SUPER_CONSTRUCTOR: objectExecutor->handleSuperConstructor(instr);
             break;
         case OpCode::THIS_CONSTRUCTOR: objectExecutor->handleThisConstructor(instr);

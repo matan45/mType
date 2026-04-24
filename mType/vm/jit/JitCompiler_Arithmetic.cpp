@@ -821,8 +821,17 @@ namespace vm::jit
                 // (from fusedSlot) + ADD_INT. Implemented inline rather than
                 // through emitSimpleIntArithOps since the right operand is an
                 // immediate, not a stack slot.
+                // MYT-201: fused state lives on the side table; bail on
+                // compile failure if the entry is missing (would indicate
+                // an inconsistent program — should never happen in practice).
                 auto& cc = s.cc;
-                size_t constIdx = static_cast<size_t>(instr.fusedSlot);
+                const auto* state = s.program.findCachedState(s.currentIP);
+                if (!state)
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
+                size_t constIdx = static_cast<size_t>(state->fusedSlot);
                 if (constIdx >= s.program.getConstantPool().integers.size())
                 {
                     s.compileFailed = true;

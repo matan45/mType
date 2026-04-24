@@ -1406,8 +1406,13 @@ namespace vm::jit
                 // followed by the generic GET_FIELD. The synthesised LOAD_LOCAL
                 // carries operand[0] = fusedSlot; emitControlFlowOps reads it
                 // identically to a real LOAD_LOCAL.
+                // MYT-201: fused state lives on the BytecodeProgram side table,
+                // keyed by currentIP. Entry is guaranteed (the fused opcode
+                // only exists post-promote).
+                const auto* state = s.program.findCachedState(s.currentIP);
+                uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 bytecode::BytecodeProgram::Instruction loadLocal(
-                    OpCode::LOAD_LOCAL, instr.fusedSlot);
+                    OpCode::LOAD_LOCAL, slot);
                 if (!emitControlFlowOps(s, loadLocal, nullptr))
                 {
                     s.compileFailed = true;
@@ -1435,8 +1440,11 @@ namespace vm::jit
             {
                 // MYT-198: de-fuse at JIT time (see LOAD_LOCAL_GET_FIELD_CACHED
                 // above). Synthesise LOAD_LOCAL + CALL_METHOD.
+                // MYT-201: fused state lives on the side table.
+                const auto* state = s.program.findCachedState(s.currentIP);
+                uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 bytecode::BytecodeProgram::Instruction loadLocal(
-                    OpCode::LOAD_LOCAL, instr.fusedSlot);
+                    OpCode::LOAD_LOCAL, slot);
                 if (!emitControlFlowOps(s, loadLocal, nullptr))
                 {
                     s.compileFailed = true;

@@ -474,10 +474,16 @@ namespace vm::runtime
 
     void VariableExecutor::tryPromoteLoadLocal(value::ValueType observedTag)
     {
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        const size_t ip = context.instructionPointer;
+
         // Sticky demote — once the site has deopted, it stays on the generic
         // path for good. Mirrors InlineCacheExecutor::tryPromoteToCached.
-        if (mut.cachedDeoptCount >= 1) return;
+        // MYT-201: read via findCachedState so a never-observed site doesn't
+        // allocate an entry just to check the default 0.
+        if (auto* existing = context.findCachedState(ip))
+        {
+            if (existing->cachedDeoptCount >= 1) return;
+        }
         if (!isCurrentFrameSimple()) return;
 
         bytecode::OpCode specialized;
@@ -501,20 +507,26 @@ namespace vm::runtime
             return;
         }
 
-        // observedValueType doubles as the "have we seen this site?" flag:
-        // 0xFF sentinel on a fresh Instruction, any other byte is a prior
-        // ValueType observation. A mismatch on a subsequent generic dispatch
-        // (which only happens after a sticky demote re-entry) will bail via
-        // the cachedDeoptCount gate above, so recording the first observation
-        // is always safe.
-        mut.observedValueType = static_cast<uint8_t>(observedTag);
+        // observedValueType records the first observation for invariant /
+        // debug purposes. The specialized dispatch path reads `expectedTag`
+        // from the opcode itself, not from this field, so a mismatch on a
+        // later dispatch (which only happens after a sticky demote re-entry)
+        // is caught by the cachedDeoptCount gate above.
+        auto& state = context.getOrCreateCachedState(ip);
+        state.observedValueType = static_cast<uint8_t>(observedTag);
+
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = specialized;
     }
 
     void VariableExecutor::tryPromoteStoreLocal(value::ValueType observedTag)
     {
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
-        if (mut.cachedDeoptCount >= 1) return;
+        const size_t ip = context.instructionPointer;
+
+        if (auto* existing = context.findCachedState(ip))
+        {
+            if (existing->cachedDeoptCount >= 1) return;
+        }
         if (!isCurrentFrameSimple()) return;
 
         bytecode::OpCode specialized;
@@ -535,26 +547,34 @@ namespace vm::runtime
         default:
             return;
         }
-        mut.observedValueType = static_cast<uint8_t>(observedTag);
+        auto& state = context.getOrCreateCachedState(ip);
+        state.observedValueType = static_cast<uint8_t>(observedTag);
+
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = specialized;
     }
 
     void VariableExecutor::deoptLoadLocal(const bytecode::BytecodeProgram::Instruction& /*instr*/)
     {
-        // Rewrite opcode back to generic and mark sticky. `instr` aliases
-        // `mut` (single-threaded VM). Re-enter the generic handler so the
-        // current dispatch completes correctly with the observed value.
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        // Rewrite opcode back to generic and mark sticky. Re-enter the
+        // generic handler so the current dispatch completes correctly with
+        // the observed value. MYT-201: entry is guaranteed to exist here —
+        // a specialized opcode implies prior promote.
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = bytecode::OpCode::LOAD_LOCAL;
-        if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
+        auto& state = context.getOrCreateCachedState(ip);
+        if (state.cachedDeoptCount < 255) ++state.cachedDeoptCount;
         handleLoadLocal(mut);
     }
 
     void VariableExecutor::deoptStoreLocal(const bytecode::BytecodeProgram::Instruction& /*instr*/)
     {
-        auto& mut = context.getMutableInstructionAt(context.instructionPointer);
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
         mut.opcode = bytecode::OpCode::STORE_LOCAL;
-        if (mut.cachedDeoptCount < 255) ++mut.cachedDeoptCount;
+        auto& state = context.getOrCreateCachedState(ip);
+        if (state.cachedDeoptCount < 255) ++state.cachedDeoptCount;
         handleStoreLocal(mut);
     }
 

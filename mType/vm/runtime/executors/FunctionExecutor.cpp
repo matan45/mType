@@ -38,16 +38,26 @@ namespace vm::runtime
             args[i - 1] = context.stackManager->pop();
         }
 
-        // Check inline cache first, then fall back to full resolution
-        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = instr.cachedFuncMetadata;
+        // Check inline cache first, then fall back to full resolution.
+        // MYT-201: CALL IC state lives in the per-IP side table. The first
+        // dispatch at this IP has no entry; subsequent ones hit the cache.
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = nullptr;
         size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
-        if (funcMetadata) {
-            // Cache hit — skip native check and hash lookup
-            targetProgram = instr.cachedProgram;
-            targetProgramIndex = instr.cachedProgramIndex;
-        } else {
+        const size_t callIp = context.instructionPointer;
+        if (auto* cached = context.findCachedState(callIp))
+        {
+            if (cached->cachedFuncMetadata)
+            {
+                // Cache hit — skip native check and hash lookup
+                funcMetadata = cached->cachedFuncMetadata;
+                targetProgram = cached->cachedProgram;
+                targetProgramIndex = cached->cachedProgramIndex;
+            }
+        }
+
+        if (!funcMetadata) {
             // Cache miss — check native first, then bytecode lookup
             auto nativeRegistry = context.environment->getNativeRegistry();
             if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName))
@@ -83,12 +93,15 @@ namespace vm::runtime
                 }
             }
 
-            // Populate cache for subsequent calls
+            // Populate cache for subsequent calls. Only allocate the side-
+            // table entry on first successful resolve — keeps the generic
+            // path allocation-free for native-only and missing-function sites.
             if (funcMetadata) {
-                instr.cachedFuncMetadata = funcMetadata;
-                instr.cachedStartOffset = funcMetadata->startOffset;
-                instr.cachedProgram = targetProgram;
-                instr.cachedProgramIndex = targetProgramIndex;
+                auto& cached = context.getOrCreateCachedState(callIp);
+                cached.cachedFuncMetadata = funcMetadata;
+                cached.cachedStartOffset = funcMetadata->startOffset;
+                cached.cachedProgram = targetProgram;
+                cached.cachedProgramIndex = targetProgramIndex;
             }
         }
 
@@ -310,16 +323,25 @@ namespace vm::runtime
         // qualifiedName already ends in $static — no per-call concat.
         const std::string& staticQualifiedName = qualifiedName;
 
-        // Check inline cache first, then fall back to full resolution
-        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = instr.cachedFuncMetadata;
+        // Check inline cache first, then fall back to full resolution.
+        // MYT-201: CALL IC state lives in the per-IP side table.
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = nullptr;
         size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
-        if (funcMetadata) {
-            // Cache hit — skip type-signature building and hash lookups
-            targetProgram = instr.cachedProgram;
-            targetProgramIndex = instr.cachedProgramIndex;
-        } else {
+        const size_t callIp = context.instructionPointer;
+        if (auto* cached = context.findCachedState(callIp))
+        {
+            if (cached->cachedFuncMetadata)
+            {
+                // Cache hit — skip type-signature building and hash lookups
+                funcMetadata = cached->cachedFuncMetadata;
+                targetProgram = cached->cachedProgram;
+                targetProgramIndex = cached->cachedProgramIndex;
+            }
+        }
+
+        if (!funcMetadata) {
             // Cache miss — full resolution with type-signature-based overload lookup
 
             // Build type signature from runtime argument types
@@ -411,12 +433,14 @@ namespace vm::runtime
                 }
             }
 
-            // Populate cache for subsequent calls
+            // Populate cache for subsequent calls. Only allocate the side-
+            // table entry on first successful resolve.
             if (funcMetadata) {
-                instr.cachedFuncMetadata = funcMetadata;
-                instr.cachedStartOffset = funcMetadata->startOffset;
-                instr.cachedProgram = targetProgram;
-                instr.cachedProgramIndex = targetProgramIndex;
+                auto& cached = context.getOrCreateCachedState(callIp);
+                cached.cachedFuncMetadata = funcMetadata;
+                cached.cachedStartOffset = funcMetadata->startOffset;
+                cached.cachedProgram = targetProgram;
+                cached.cachedProgramIndex = targetProgramIndex;
             }
         }
 
