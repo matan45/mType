@@ -1079,3 +1079,43 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
   inline_polymorphic.mt               247.06        248.78           14048       508
   inline_value_object_hot.mt         1525.74       1526.32           12530       501
 ```
+
+## 2026-04-24 — Phase 1 + Phase 2 (JIT self-recursive TCO + index-based CALL_FAST dispatch)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `MYT-210`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Change in this snapshot
+
+- **Phase 1 (self-recursive TCO)**: CALL / CALL_FAST emitters in `JitCompiler_ControlFlow.cpp` detect `return self(...)` shapes (self-recursive call immediately followed by a non-jump-target `RETURN_VALUE`) and lower them to an in-frame argument overwrite + `jmp` to a prologue-bound `functionEntryLabel`. Collapses `gcd`'s recursion into a tight loop and elides 2 of `ack`'s 3 call sites (the two tail ones). `fib` is unaffected — neither of its calls is tail. Gated on `!usesBoxedTypes` + primitive param/return types; OSR frames set `selfTailCallEnabled=false`. Inserts a `jit_gc_safepoint` per tail iteration mirroring `JUMP_BACK`.
+- **Phase 2 (index-based CALL_FAST dispatch)**: `JitCodeCache` gained a parallel `std::vector<JitIndexedEntry>` (fn + pre-interned `FunctionNameHandle`) alongside the name hashmap. `JitCompiler::compile` populates both on store; `jit_call_function_fast` tries the O(1) index lookup first and passes the cached frame-name handle directly to a new `tryJitDispatchResolved` helper, eliminating both the `std::unordered_map<std::string, JitFunction>::find` and the per-call `internFrameName` hash from the nested-call hot path for `fib`'s ~2M+ calls.
+
+### Summary
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            777.93        793.41           20013         0
+  method_dispatch.mt                  203.93        204.68           14039       506
+  object_alloc.mt                     795.00        804.77           12509         0
+  field_write_hot.mt                  134.70        135.35            8016         1
+  field_read_hot.mt                   164.57        165.40            9017         1
+  string_ops.mt                       147.81        148.21           19014         0
+  recursive.mt                       1285.65       1286.27           17256   2762961
+  bitwise_tight_loop.mt              1191.58       1191.76           23014         0
+  short_circuit_chain.mt              298.99        300.09           24907         0
+  primitive_method_dispatch.mt        612.75        613.83           32031         0
+  array_multi_alloc.mt                 40.44         40.49           10909       500
+  array_multi_get.mt                 1089.24       1093.34           50815       500
+  for_each_loop.mt                    395.00        397.45           75650      5604
+  inline_monomorphic.mt               181.86        181.99           13013       501
+  inline_branching.mt                 182.87        184.11           15013       501
+  inline_polymorphic.mt               202.11        205.01           14048       508
+  inline_value_object_hot.mt         1413.19       1414.81           12514       500
+  function_call_hot.mt                169.89        171.72           15409       500
+```
+
+### Notes
+
+- `recursive.mt`: **1511 → 1286 ms (14.9% improvement)** vs. the user-reported pre-work baseline. Phase 1 alone landed ~4.4%, Phase 2 added ~11%. `calls` stat barely moves (2763594 → 2762961) because it counts interpreter→JIT entries only; JIT-nested recursion doesn't increment it, so TCO's per-call savings show up only in wall-clock.

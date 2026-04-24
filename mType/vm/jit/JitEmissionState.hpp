@@ -123,6 +123,16 @@ namespace vm::jit
         // emitReturnValueCopyBoxed at endLabel.
         SlotType lastReturnSlotType = SlotType::BOXED;
 
+        // Self-recursive tail-call optimization: entry label for the function
+        // body, bound in emitFunctionBody right before emitCodegenLoop begins.
+        // CALL / CALL_FAST emitters detect `return self(...)` shapes and lower
+        // them to an argument-overwrite + jmp to this label, collapsing
+        // tail recursion into a tight loop (e.g. gcd in recursive.mt). OSR-
+        // compiled frames leave this unbound and set selfTailCallEnabled=false
+        // so the emitter falls through to the generic helper invoke.
+        asmjit::Label functionEntryLabel;
+        bool selfTailCallEnabled = true;
+
         static constexpr size_t MAX_OP_STACK = 64;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
 

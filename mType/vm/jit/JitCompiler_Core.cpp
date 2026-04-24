@@ -569,6 +569,23 @@ namespace vm::jit
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
         s.inlineDecisions = inlineDecisions;
 
+        // Phase 1 (self-recursive TCO): bind the function-entry label right
+        // after argument unboxing and local init, so a tail self-call can
+        // jmp back here after overwriting locals with new arg values without
+        // re-running the ctx->args unboxing prologue. Gated on the same
+        // precondition TCO uses (!usesBoxedTypes) — binding a bound-but-
+        // unreachable label in a boxed frame corrupted asmjit codegen for
+        // functions containing InvokeNode arg unboxing (e.g. int[] params).
+        if (!frame.usesBoxedTypes)
+        {
+            s.functionEntryLabel = cc.new_label();
+            cc.bind(s.functionEntryLabel);
+        }
+        else
+        {
+            s.selfTailCallEnabled = false;
+        }
+
         emitCodegenLoop(s, startOffset, instrCount, program);
 
         if (s.compileFailed)
@@ -628,7 +645,22 @@ namespace vm::jit
         }
 
         cc.end_func();
-        return finalizeAndStore(cc, code, codeCache, functionName,
-                               compileCount, bailoutCount);
+        if (!finalizeAndStore(cc, code, codeCache, functionName,
+                              compileCount, bailoutCount))
+            return false;
+
+        // Phase 2: populate the index-keyed fast-path slot so
+        // jit_call_function_fast can skip the name-hashmap lookup. Using
+        // `functionName` as-is — it's the same key the cache already stores
+        // under (matches VirtualMachine::executeCallFastWithJit's lookup via
+        // funcMeta->mangledName).
+        JitFunction fn = codeCache.lookup(functionName);
+        size_t funcIndex = program.getFunctionIndex(functionName);
+        if (fn && funcIndex != SIZE_MAX)
+        {
+            auto frameName = program.internFrameName(functionName);
+            codeCache.storeByIndex(funcIndex, fn, frameName);
+        }
+        return true;
     }
 }

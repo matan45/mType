@@ -22,14 +22,35 @@ namespace vm::jit
         cache[functionName] = code;
     }
 
+    void JitCodeCache::storeByIndex(size_t funcIndex, JitFunction code,
+                                    bytecode::FunctionNameHandle frameName)
+    {
+        if (funcIndex == SIZE_MAX) return;
+        if (funcIndex >= byIndex.size()) byIndex.resize(funcIndex + 1);
+        byIndex[funcIndex] = JitIndexedEntry{code, frameName};
+    }
+
     void JitCodeCache::invalidate(const std::string& functionName)
     {
         auto it = cache.find(functionName);
         if (it != cache.end())
         {
+            JitFunction removed = it->second;
             // Release the native code memory
-            runtime.release(reinterpret_cast<void*>(it->second));
+            runtime.release(reinterpret_cast<void*>(removed));
             cache.erase(it);
+
+            // Phase 2: also clear any matching index slot so stale pointers
+            // aren't served from the fast path. Linear scan — invalidate is
+            // only called on deopt, a rare event.
+            for (auto& entry : byIndex)
+            {
+                if (entry.fn == removed)
+                {
+                    entry = {};
+                    break;
+                }
+            }
         }
     }
 
@@ -45,5 +66,6 @@ namespace vm::jit
             runtime.release(reinterpret_cast<void*>(code));
         }
         cache.clear();
+        byIndex.clear();
     }
 }

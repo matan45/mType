@@ -256,6 +256,10 @@ namespace vm::jit
         s.inlineFieldSetICHits = inlineFieldSetICHits;
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
         s.inlineDecisions = inlineDecisions;
+        // Phase 1 (self-recursive TCO): OSR frames don't bind functionEntryLabel
+        // (the generated code enters at the loop's back-edge target, not a
+        // function prologue), so suppress tail-call lowering in OSR emission.
+        s.selfTailCallEnabled = false;
 
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
             emitLocalsWriteBack(es);
