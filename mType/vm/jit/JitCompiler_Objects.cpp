@@ -1452,6 +1452,23 @@ namespace vm::jit
                 }
                 return emitCallMethodOp(s, instr);
             }
+            case OpCode::LOAD_GET_FIELD:
+            {
+                // MYT-202: compile-time fused LOAD_LOCAL + GET_FIELD. Operands
+                // are [slot, field_name_idx]. De-fuse at JIT time by chaining
+                // the existing emitters — net machine code is equivalent to
+                // the unfused sequence, which is already well-optimised.
+                bytecode::BytecodeProgram::Instruction loadLocal(
+                    OpCode::LOAD_LOCAL, instr.operands[0]);
+                if (!emitControlFlowOps(s, loadLocal, nullptr))
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
+                bytecode::BytecodeProgram::Instruction getField(
+                    OpCode::GET_FIELD, instr.operands[1]);
+                return emitGetFieldOp(s, getField);
+            }
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
             case OpCode::CAST:           return emitCastOp(s, instr);
             case OpCode::NEW_OBJECT:

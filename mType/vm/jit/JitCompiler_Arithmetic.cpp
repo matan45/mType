@@ -815,6 +815,46 @@ namespace vm::jit
             case OpCode::NEG: case OpCode::INC: case OpCode::DEC:
                 return emitIntArithmeticOps(s, instr);
 
+            case OpCode::LOAD_LOAD_ADD_INT:
+            case OpCode::LOAD_LOAD_SUB_INT:
+            case OpCode::LOAD_LOAD_MUL_INT:
+            {
+                // MYT-202: compile-time fused LOAD_LOCAL s1 + LOAD_LOCAL s2 +
+                // {ADD,SUB,MUL}_INT. De-fuse at JIT time; the JIT machine-code
+                // output is the same as the unfused sequence.
+                bytecode::BytecodeProgram::Instruction load1(
+                    OpCode::LOAD_LOCAL, instr.operands[0]);
+                bytecode::BytecodeProgram::Instruction load2(
+                    OpCode::LOAD_LOCAL, instr.operands[1]);
+                if (!emitControlFlowOps(s, load1, nullptr) ||
+                    !emitControlFlowOps(s, load2, nullptr))
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
+                OpCode arith =
+                    (instr.opcode == OpCode::LOAD_LOAD_ADD_INT) ? OpCode::ADD_INT :
+                    (instr.opcode == OpCode::LOAD_LOAD_SUB_INT) ? OpCode::SUB_INT :
+                                                                   OpCode::MUL_INT;
+                bytecode::BytecodeProgram::Instruction arithInstr(arith);
+                return emitIntArithmeticOps(s, arithInstr);
+            }
+
+            case OpCode::ADD_INT_STORE_LOCAL:
+            {
+                // MYT-202: fused ADD_INT + STORE_LOCAL dst. Emit unfused
+                // equivalent via the existing emitters.
+                bytecode::BytecodeProgram::Instruction addInt(OpCode::ADD_INT);
+                if (!emitIntArithmeticOps(s, addInt))
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
+                bytecode::BytecodeProgram::Instruction store(
+                    OpCode::STORE_LOCAL, instr.operands[0]);
+                return emitControlFlowOps(s, store, nullptr);
+            }
+
             case OpCode::ADD_INT_CONST:
             {
                 // MYT-198: de-fuse at JIT time — emit equivalent of PUSH_INT

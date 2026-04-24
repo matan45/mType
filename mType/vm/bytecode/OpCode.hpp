@@ -277,6 +277,20 @@ namespace vm::bytecode
         LOAD_LOCAL_CALL_CACHED,   // LOAD_LOCAL s + CALL_METHOD_CACHED → shape-guard, direct dispatch (fusedSlot = s; operands + cached* reused from CALL_METHOD_CACHED)
         LOAD_LOCAL_GET_FIELD_CACHED, // LOAD_LOCAL s + GET_FIELD_CACHED → shape-guard, indexed field read (fusedSlot = s; operands + cached* reused from GET_FIELD_CACHED)
 
+        // === Superinstruction Fusion (MYT-202, compile-time, SERIALIZABLE) ===
+        // Emitted by the compile-time peephole pass. Unlike MYT-198, these are
+        // NOT runtime-only — they round-trip through .mtc and are accepted by
+        // the deserializer. Operands live in Instruction::operands directly; no
+        // CachedInstructionState side-table use. Shrink the instruction vector
+        // by (K-1) on fusion of K original ops, actually halving/thirding the
+        // interpreter dispatch count for the fused sequence.
+        LOAD_LOAD_ADD_INT,        // LOAD_LOCAL s1 + LOAD_LOCAL s2 + ADD_INT   (operands: [s1, s2])
+        LOAD_LOAD_SUB_INT,        // LOAD_LOCAL s1 + LOAD_LOCAL s2 + SUB_INT   (operands: [s1, s2])
+        LOAD_LOAD_MUL_INT,        // LOAD_LOCAL s1 + LOAD_LOCAL s2 + MUL_INT   (operands: [s1, s2])
+        LOAD_GET_FIELD,           // LOAD_LOCAL s  + GET_FIELD name_idx        (operands: [s, name_idx])
+        LOAD_STORE_LOCAL,         // LOAD_LOCAL src + STORE_LOCAL dst          (operands: [src, dst])
+        ADD_INT_STORE_LOCAL,      // ADD_INT + STORE_LOCAL dst                 (operands: [dst])
+
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
         // without requiring manual updates each time a new opcode is added.
@@ -495,6 +509,13 @@ namespace vm::bytecode
             case OpCode::ADD_INT_CONST: return "ADD_INT_CONST";
             case OpCode::LOAD_LOCAL_CALL_CACHED: return "LOAD_LOCAL_CALL_CACHED";
             case OpCode::LOAD_LOCAL_GET_FIELD_CACHED: return "LOAD_LOCAL_GET_FIELD_CACHED";
+
+            case OpCode::LOAD_LOAD_ADD_INT: return "LOAD_LOAD_ADD_INT";
+            case OpCode::LOAD_LOAD_SUB_INT: return "LOAD_LOAD_SUB_INT";
+            case OpCode::LOAD_LOAD_MUL_INT: return "LOAD_LOAD_MUL_INT";
+            case OpCode::LOAD_GET_FIELD: return "LOAD_GET_FIELD";
+            case OpCode::LOAD_STORE_LOCAL: return "LOAD_STORE_LOCAL";
+            case OpCode::ADD_INT_STORE_LOCAL: return "ADD_INT_STORE_LOCAL";
 
             default: return "UNKNOWN";
         }

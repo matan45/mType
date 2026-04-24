@@ -1,0 +1,9 @@
+copy = 7
+sum = 10
+diff = 4
+prod = 21
+total = 15
+p.x = 11
+p.y = 13
+p.x + p.y = 24
+acc = 10

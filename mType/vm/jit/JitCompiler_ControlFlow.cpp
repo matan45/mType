@@ -587,6 +587,14 @@ namespace vm::jit
                 emitStoreLocal(s, instr.operands[0]);
                 return true;
 
+            case OpCode::LOAD_STORE_LOCAL:
+                // MYT-202: compile-time fused LOAD_LOCAL src + STORE_LOCAL dst.
+                // De-fuse at JIT time — chained emitLoadLocal + emitStoreLocal
+                // produces the same native code as the unfused sequence.
+                emitLoadLocal(s, instr.operands[0]);
+                emitStoreLocal(s, instr.operands[1]);
+                return true;
+
             case OpCode::LOAD_VAR:
                 emitLoadVar(s, static_cast<uint32_t>(instr.operands[0]));
                 return true;

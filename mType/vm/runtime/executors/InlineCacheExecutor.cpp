@@ -585,6 +585,11 @@ namespace vm::runtime
 
         const size_t ip = context.instructionPointer;
 
+        // MYT-202: only promote when IP actually holds a generic CALL_METHOD.
+        // See tryPromoteLoadLocal.
+        if (context.getMutableInstructionAt(ip).opcode != bytecode::OpCode::CALL_METHOD)
+            return;
+
         // Sticky demote — a site that has already deopted stays on the generic
         // CALL_METHOD path. Prevents flip/unflip ping-pong on unstable sites.
         // MYT-201: read via findCachedState so a never-promoted site doesn't
@@ -724,6 +729,17 @@ namespace vm::runtime
         using namespace vm::jit::ic;
 
         const size_t ip = context.instructionPointer;
+
+        // MYT-202: only promote when the IP actually holds the generic
+        // GET_FIELD / SET_FIELD we're specializing. handleGetFieldIC /
+        // handleSetFieldIC can be dispatched as shims by fused-opcode handlers
+        // (LOAD_GET_FIELD) — rewriting the fused opcode to CACHED would
+        // destroy the fusion.
+        const auto currentOp = context.getMutableInstructionAt(ip).opcode;
+        if (cachedOp == bytecode::OpCode::GET_FIELD_CACHED &&
+            currentOp != bytecode::OpCode::GET_FIELD) return;
+        if (cachedOp == bytecode::OpCode::SET_FIELD_CACHED &&
+            currentOp != bytecode::OpCode::SET_FIELD) return;
 
         // Sticky demote — a site that already deopted once stays on the generic
         // path. MYT-201: read via findCachedState so a never-promoted site

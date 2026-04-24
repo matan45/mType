@@ -7495,6 +7495,12 @@
     <None Include="tests\testFiles\integration\pass\stressTestWithManyClasses.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\superinstructionFusion.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\superinstructionFusion.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\switchNestedInLoops.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>

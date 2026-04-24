@@ -476,6 +476,15 @@ namespace vm::runtime
     {
         const size_t ip = context.instructionPointer;
 
+        // MYT-202: only promote if the IP actually holds a generic LOAD_LOCAL.
+        // handleLoadLocal can be dispatched as a shim by fused-opcode handlers
+        // (LOAD_GET_FIELD, LOAD_LOAD_ADD_INT, …), in which case the IP holds
+        // the fused opcode — rewriting that would destroy the fusion. This
+        // invariant check makes the rewrite contract explicit: we only
+        // specialize the exact opcode we were dispatched as.
+        if (context.getMutableInstructionAt(ip).opcode != bytecode::OpCode::LOAD_LOCAL)
+            return;
+
         // Sticky demote — once the site has deopted, it stays on the generic
         // path for good. Mirrors InlineCacheExecutor::tryPromoteToCached.
         // MYT-201: read via findCachedState so a never-observed site doesn't
@@ -522,6 +531,10 @@ namespace vm::runtime
     void VariableExecutor::tryPromoteStoreLocal(value::ValueType observedTag)
     {
         const size_t ip = context.instructionPointer;
+
+        // MYT-202: see tryPromoteLoadLocal.
+        if (context.getMutableInstructionAt(ip).opcode != bytecode::OpCode::STORE_LOCAL)
+            return;
 
         if (auto* existing = context.findCachedState(ip))
         {

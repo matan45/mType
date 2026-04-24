@@ -30,6 +30,8 @@ namespace vm::profiler
         ctx.callGraphEdges.clear();
         ctx.timingStack.clear();
         ctx.opcodeProfile = OpcodeProfile{};
+        ctx.lastOpcode = 0;
+        ctx.hasLast = false;
         ctx.totalProfilingTimeNs = 0;
         ctx.profilingStartTime = std::chrono::high_resolution_clock::now();
         enabledFlag = (mode != ProfilerMode::DISABLED);
@@ -46,6 +48,9 @@ namespace vm::profiler
 
     void ProfilerContext::recordFunctionEntry(const std::string& functionName)
     {
+        // MYT-202: pair-tracking resets at frame boundaries.
+        hasLast = false;
+
         if (mode == ProfilerMode::FULL && !timingStack.empty())
         {
             recordCallGraphEntry(timingStack.back().functionName, functionName);
@@ -67,6 +72,9 @@ namespace vm::profiler
 
     void ProfilerContext::recordFunctionExit(const std::string& functionName)
     {
+        // MYT-202: pair-tracking resets at frame boundaries.
+        hasLast = false;
+
         if (timingStack.empty())
         {
             return;
@@ -130,6 +138,14 @@ namespace vm::profiler
     void ProfilerContext::recordOpcodeExecuted(uint8_t opcode)
     {
         opcodeProfile.counts[opcode]++;
+        // MYT-202: track adjacent-pair frequency so the peephole pass can be
+        // retargeted from data rather than guesswork.
+        if (hasLast)
+        {
+            opcodeProfile.pairCounts[(static_cast<uint16_t>(lastOpcode) << 8) | opcode]++;
+        }
+        lastOpcode = opcode;
+        hasLast = true;
     }
 
     void ProfilerContext::unwindToDepth(size_t targetDepth)

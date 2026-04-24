@@ -33,5 +33,8 @@ namespace vm::profiler
     struct OpcodeProfile
     {
         std::array<uint64_t, 256> counts{};
+        // MYT-202: adjacent-pair counts indexed by (prev<<8 | cur). 64 KiB;
+        // only populated in FULL mode. Feeds the peephole-target selection.
+        std::array<uint64_t, 65536> pairCounts{};
     };
 }

@@ -175,6 +175,64 @@ namespace vm::runtime
         case OpCode::STORE_LOCAL_BOXED_INST: variableExecutor->handleStoreLocalBoxedInst(instr);
             break;
 
+        // MYT-202: compile-time superinstruction fusion. Each handler delegates
+        // to the existing unfused executors via shim Instructions — preserves
+        // all security/bounds/lambda handling bit-identically and still saves
+        // two interpreter switch dispatches + operand decodes per fused op.
+        case OpCode::LOAD_LOAD_ADD_INT:
+        {
+            bytecode::BytecodeProgram::Instruction load1(OpCode::LOAD_LOCAL, instr.operands[0]);
+            bytecode::BytecodeProgram::Instruction load2(OpCode::LOAD_LOCAL, instr.operands[1]);
+            variableExecutor->handleLoadLocal(load1);
+            variableExecutor->handleLoadLocal(load2);
+            arithmeticExecutor->handleAddInt();
+            break;
+        }
+        case OpCode::LOAD_LOAD_SUB_INT:
+        {
+            bytecode::BytecodeProgram::Instruction load1(OpCode::LOAD_LOCAL, instr.operands[0]);
+            bytecode::BytecodeProgram::Instruction load2(OpCode::LOAD_LOCAL, instr.operands[1]);
+            variableExecutor->handleLoadLocal(load1);
+            variableExecutor->handleLoadLocal(load2);
+            arithmeticExecutor->handleSubInt();
+            break;
+        }
+        case OpCode::LOAD_LOAD_MUL_INT:
+        {
+            bytecode::BytecodeProgram::Instruction load1(OpCode::LOAD_LOCAL, instr.operands[0]);
+            bytecode::BytecodeProgram::Instruction load2(OpCode::LOAD_LOCAL, instr.operands[1]);
+            variableExecutor->handleLoadLocal(load1);
+            variableExecutor->handleLoadLocal(load2);
+            arithmeticExecutor->handleMulInt();
+            break;
+        }
+        case OpCode::LOAD_GET_FIELD:
+        {
+            bytecode::BytecodeProgram::Instruction load(OpCode::LOAD_LOCAL, instr.operands[0]);
+            bytecode::BytecodeProgram::Instruction getField(OpCode::GET_FIELD, instr.operands[1]);
+            variableExecutor->handleLoadLocal(load);
+            if (icEnabled && inlineCacheExecutor)
+                inlineCacheExecutor->handleGetFieldIC(getField);
+            else
+                objectExecutor->handleGetField(getField);
+            break;
+        }
+        case OpCode::LOAD_STORE_LOCAL:
+        {
+            bytecode::BytecodeProgram::Instruction load(OpCode::LOAD_LOCAL, instr.operands[0]);
+            bytecode::BytecodeProgram::Instruction store(OpCode::STORE_LOCAL, instr.operands[1]);
+            variableExecutor->handleLoadLocal(load);
+            variableExecutor->handleStoreLocal(store);
+            break;
+        }
+        case OpCode::ADD_INT_STORE_LOCAL:
+        {
+            bytecode::BytecodeProgram::Instruction store(OpCode::STORE_LOCAL, instr.operands[0]);
+            arithmeticExecutor->handleAddInt();
+            variableExecutor->handleStoreLocal(store);
+            break;
+        }
+
         // Control flow - delegated to ControlFlowExecutor
         case OpCode::JUMP: controlFlowExecutor->handleJump(instr);
             break;

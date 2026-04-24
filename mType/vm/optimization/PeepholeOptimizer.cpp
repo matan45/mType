@@ -8,6 +8,7 @@
 #include "patterns/StackOptimizationPattern.hpp"
 #include "patterns/TypeSpecializationPattern.hpp"
 #include "patterns/AbstractClassPattern.hpp"
+#include "patterns/SuperinstructionPattern.hpp"
 #include <algorithm>
 #include <chrono>
 #include <sstream>
@@ -196,6 +197,12 @@ namespace vm::optimization
 
         // Priority 20: Abstract Class Validation (validation pattern)
         registerPattern(std::make_unique<patterns::AbstractClassPattern>());
+
+        // Priority 5: MYT-202 superinstruction fusion — runs after other
+        // reductions have converged so we fuse the final, settled instruction
+        // sequence. Fusion doesn't expose further reductions, so running last
+        // is correct and avoids re-ordering sensitivity.
+        registerPattern(std::make_unique<patterns::SuperinstructionPattern>());
 
         // Patterns are automatically sorted by priority in registerPattern()
     }
