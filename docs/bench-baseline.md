@@ -1119,3 +1119,49 @@ Result: 1932ms, **414ms slower** than `inline_monomorphic.mt` (1518ms) on the sa
 ### Notes
 
 - `recursive.mt`: **1511 → 1286 ms (14.9% improvement)** vs. the user-reported pre-work baseline. Phase 1 alone landed ~4.4%, Phase 2 added ~11%. `calls` stat barely moves (2763594 → 2762961) because it counts interpreter→JIT entries only; JIT-nested recursion doesn't increment it, so TCO's per-call savings show up only in wall-clock.
+
+## 2026-04-24 — value-class method dispatch fix (Stage A + B + C)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  `class-value`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Change in this snapshot
+
+Three stacked fixes for value-class method dispatch, closing a 6.7× gap vs. regular-class inlining on `inline_value_object_hot.mt`:
+
+- **Stage A (materialisation batch-load)**: The interpreter + JIT slow paths previously called `tempInstance->setField(name, value)` per declared field — N hashmap probes + N write-barrier branches per call. Replaced with a single `ObjectInstance::loadFromValueObject(src)` helper: one `fieldVector = src.getFields()` vector copy + one synchronised `fieldValues` fill. Added `callMethodFromJit(Value, …)` / `callMethodFromJitDirect(Value, …)` overloads that delegate here. Alone: 1450 → 1317 ms (~9%).
+- **Stage B (JIT IC-hit unblock)**: `jit_call_method_ic` previously split on `receiverIsValueObject` — ObjectInstance hits took `callMethodFromJitDirect` with pre-resolved funcMetadata, ValueObject hits fell through to `jit_call_method` which re-resolved the method every call. Unified the hit path through the new `callMethodFromJitDirect(Value, …)` overload, skipping the per-iter `findInstanceMethodInHierarchy` + `program->getFunction` lookups. Stage A+B: 1317 → 1098 ms.
+- **Stage C (interpreter IC populate)**: `InlineCacheExecutor::handleCallMethodIC` bailed early for non-`isObject` receivers and never populated the IC for value-class sites. By OSR-compile time the IC was still `UNINITIALIZED`, so `tryEmitInlinedMethodCall` had nothing to consume and fell back to a `jit_call_method_ic` emit. Teaching the handler to accept value-object receivers and record `entry.receiverIsValueObject = true` means the OSR recompile sees a populated MONO IC and the existing speculative inliner (`emitInlinedMethodCallMono`, already value-object-capable via `jit_extract_classdef` / `jit_field_data_const` / raw-memcpy `emitInlineLocalCopy`) emits the inlined body — no dispatch, no materialisation, no mini-interpret for the 1.999M hot iterations. Stage A+B+C: 1098 → 217 ms.
+
+Correctness preserved: `inline_value_object_write_skip.mt` still prints `200` (in-method `this.x = ...` visibility kept via the temp-ObjectInstance fallback path for write-method callees; read-only callees take the inlined path). `tryPromoteToCached` still skips value-class entries — interpreter `CALL_METHOD_CACHED` fast-dispatch stays ObjectInstance-only by design.
+
+### Summary
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            838.58        840.55           20013         0
+  method_dispatch.mt                  215.70        215.88           14039       506
+  object_alloc.mt                     800.95        817.88           12509         0
+  field_write_hot.mt                  140.85        141.31            8016         1
+  field_read_hot.mt                   173.74        174.16            9017         1
+  string_ops.mt                       157.18        157.79           19014         0
+  recursive.mt                       1316.81       1321.17           17256   2762961
+  bitwise_tight_loop.mt              1258.88       1264.44           23014         0
+  short_circuit_chain.mt              311.35        313.15           24907         0
+  primitive_method_dispatch.mt        626.02        626.30           32031         0
+  array_multi_alloc.mt                 41.44         41.51           10909       500
+  array_multi_get.mt                 1102.47       1114.04           50815       500
+  for_each_loop.mt                    350.33        351.29           75650      5604
+  inline_monomorphic.mt               190.98        191.73           13013       501
+  inline_branching.mt                 195.05        195.54           15013       501
+  inline_polymorphic.mt               215.13        215.73           14048       508
+  inline_value_object_hot.mt          214.68        216.65           12514       500
+  function_call_hot.mt                172.32        172.50           15409       500
+```
+
+### Notes
+
+- `inline_value_object_hot.mt`: **1450 → 217 ms (6.7× speedup)**. Now within 13% of `inline_monomorphic.mt` (191.73) and essentially tied with `inline_polymorphic.mt` (215.73) — value-class dispatch has reached parity with regular-class inlining, matching the original design intent.
+- No other benchmark regressed beyond noise (~1–2% on a few, well inside run-to-run variation).
