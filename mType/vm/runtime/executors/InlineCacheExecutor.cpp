@@ -347,15 +347,36 @@ namespace vm::runtime
 
         value::Value objectValue = context.stackManager->peek(argCount);
 
-        if (!value::isObject(objectValue))
+        // Value-class perf fix (Stage C): accept both ObjectInstance and
+        // ValueObject receivers. Without this, handleCallMethod runs — which
+        // never populates the IC for value-class sites — so by the time OSR
+        // fires the IC at a `p.sum()` site is still UNINITIALIZED and the
+        // speculative inliner has nothing to consume. Populating here lets
+        // the OSR recompile inline the value-class method body.
+        const runtimeTypes::klass::ClassDefinition* classDef = nullptr;
+        bool receiverIsValueObject = false;
+        std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance;
+        if (value::isObject(objectValue))
         {
-            // Not a simple object — delegate to full handler (handles lambdas, etc.)
+            instance = value::asObject(objectValue);
+            classDef = instance->getClassDefinitionRaw();
+        }
+        else if (value::isValueObject(objectValue))
+        {
+            auto valueObj = value::asValueObject(objectValue);
+            if (valueObj)
+            {
+                classDef = valueObj->getClassDefinition().get();
+                receiverIsValueObject = true;
+            }
+        }
+
+        if (!classDef)
+        {
+            // Lambdas, primitives, nulls — delegate to the full handler.
             objectExecutor->handleCallMethod(instr);
             return;
         }
-
-        auto instance = value::asObject(objectValue);
-        auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
@@ -371,6 +392,19 @@ namespace vm::runtime
                 // Fall through to the generic handler, which dispatches native
                 // calls correctly.
                 if (funcMeta->isNative || funcMeta->startOffset == 0)
+                {
+                    objectExecutor->handleCallMethod(instr);
+                    return;
+                }
+
+                // ValueObject IC hits take the generic handler's path —
+                // invokeValueObjectMethod batch-materialises a temp
+                // ObjectInstance via loadFromValueObject. This fires at most
+                // ~osrThreshold times per site (500 today) before OSR tiers
+                // up, and dispatchDirectFromCachedTarget is ObjectInstance-
+                // only by design. The critical bit of Stage C is the populate
+                // path below — not this hit path.
+                if (entry->receiverIsValueObject || receiverIsValueObject)
                 {
                     objectExecutor->handleCallMethod(instr);
                     return;
@@ -447,6 +481,10 @@ namespace vm::runtime
                     }
                     entry.program = resolution.program;
                     entry.programIndex = resolution.programIndex;
+                    // Stage C: record the receiver kind so the JIT speculative
+                    // inliner sees the same IC data whether population happened
+                    // here or in jit_call_method_ic.
+                    entry.receiverIsValueObject = receiverIsValueObject;
                     // MYT-183: re-fetch cache reference immediately before
                     // the write. The reference captured at the top of this
                     // method may have been invalidated by nested CALL_METHODs
@@ -458,7 +496,10 @@ namespace vm::runtime
 
                     // MYT-173: once the site stabilizes to MONO, promote the
                     // opcode so subsequent dispatches skip the icTable hashmap
-                    // probe and per-entry scan entirely.
+                    // probe and per-entry scan entirely. tryPromoteToCached
+                    // itself skips value-class entries (CACHED fast-dispatch
+                    // is ObjectInstance-only), so passing receiverIsValueObject
+                    // through the entry is safe.
                     tryPromoteToCached(instr, entry);
                 }
             }
