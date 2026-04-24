@@ -63,14 +63,18 @@ namespace vm::runtime
             // directly into instance fields and skip the CallFrame + bytecode
             // interpret loop entirely. Compiler flags this at class-compile
             // time in ClassCompiler::markTrivialConstructors.
+            //
+            // Phase 4: use pre-resolved field indices + setFieldByIndex to
+            // bypass string-hashed fieldValues::insert on every write.
             if (constructor->isTrivialConstructor())
             {
-                const auto& assigns = constructor->getTrivialFieldAssignments();
-                for (const auto& [fieldName, paramIdx] : assigns)
+                const auto& indexed = constructor->getTrivialFieldIndexAssignments();
+                instance->ensureFieldVector();
+                for (const auto& [fieldIdx, paramIdx] : indexed)
                 {
                     if (paramIdx < args.size())
                     {
-                        instance->setField(fieldName, args[paramIdx]);
+                        instance->setFieldByIndex(fieldIdx, args[paramIdx]);
                     }
                 }
                 return value::Value(instance);

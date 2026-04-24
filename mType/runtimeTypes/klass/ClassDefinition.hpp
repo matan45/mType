@@ -372,6 +372,12 @@ namespace runtimeTypes::klass
         size_t getIndexedFieldCount() const;
         const std::unordered_map<std::string, size_t>& getFieldIndexMap() const;
 
+        // Phase 4 (allocation perf): reverse of getFieldIndex — O(1) index-to-name
+        // lookup for the setFieldByIndex hot path (needed to keep the fieldValues
+        // map in sync after a direct fieldVector write without iterating the
+        // indexMap linearly).
+        const std::vector<std::string>& getFieldIndexToName() const;
+
         // Phase 2 (allocation perf): set of this-class instance field names
         // that every constructor of this class definitely assigns before any
         // read. initializeObjectFields() consults this to skip redundant

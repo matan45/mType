@@ -214,16 +214,14 @@ namespace runtimeTypes::klass
 
         fieldVector[index] = value;
 
-        // Keep fieldValues map in sync
+        // Phase 4: O(1) map sync — look up the name for this index in the
+        // class's fieldIndexToName vector. The prior implementation scanned
+        // the entire indexMap linearly to find the matching entry.
         if (!classDefinition) return;
-        const auto& indexMap = classDefinition->getFieldIndexMap();
-        for (const auto& [name, idx] : indexMap)
+        const auto& names = classDefinition->getFieldIndexToName();
+        if (index < names.size())
         {
-            if (idx == index)
-            {
-                fieldValues[name] = value;
-                break;
-            }
+            fieldValues[names[index]] = value;
         }
     }
 

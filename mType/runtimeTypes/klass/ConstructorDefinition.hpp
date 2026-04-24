@@ -66,6 +66,12 @@ namespace runtimeTypes::klass
         bool trivialConstructor = false;
         std::vector<std::pair<std::string, size_t>> trivialFieldAssignments;
 
+        // Phase 4 (allocation perf): the same mapping pre-resolved to field
+        // indices (via ClassDefinition::getFieldIndex at compile time) so the
+        // fast path can call setFieldByIndex and avoid per-write string hashing.
+        // Parallel to trivialFieldAssignments; always same length.
+        std::vector<std::pair<size_t, size_t>> trivialFieldIndexAssignments;
+
       public:
         CallSiteCache& getCallSiteCache() const { return callSiteCache; }
 
@@ -74,9 +80,15 @@ namespace runtimeTypes::klass
         {
             return trivialFieldAssignments;
         }
-        void setTrivialFieldAssignments(std::vector<std::pair<std::string, size_t>> assignments)
+        const std::vector<std::pair<size_t, size_t>>& getTrivialFieldIndexAssignments() const
+        {
+            return trivialFieldIndexAssignments;
+        }
+        void setTrivialFieldAssignments(std::vector<std::pair<std::string, size_t>> assignments,
+                                        std::vector<std::pair<size_t, size_t>> indexAssignments)
         {
             trivialFieldAssignments = std::move(assignments);
+            trivialFieldIndexAssignments = std::move(indexAssignments);
             trivialConstructor = true;
         }
        // Legacy constructor with ParameterType (preserves class/interface information)

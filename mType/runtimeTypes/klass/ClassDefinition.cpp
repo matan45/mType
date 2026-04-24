@@ -241,6 +241,12 @@ namespace runtimeTypes::klass
         return fieldIndexMap;
     }
 
+    const std::vector<std::string>& ClassDefinition::getFieldIndexToName() const
+    {
+        buildFieldIndexMap();
+        return fieldIndexToName;
+    }
+
     size_t ClassDefinition::getInstanceMethodCount() const
     {
         return instanceMethods.size();

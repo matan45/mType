@@ -114,12 +114,17 @@ namespace vm::compiler::visitors
             // to silently skip parent-side initialiser bytecode.
             const auto& ownInstanceFields = classDef->getInstanceFields();
             std::vector<std::pair<std::string, size_t>> filtered;
+            std::vector<std::pair<size_t, size_t>> indexed;  // Phase 4: pre-resolved field indices
             filtered.reserve(trivial->size());
+            indexed.reserve(trivial->size());
             bool allOwned = true;
             for (const auto& pr : *trivial)
             {
                 if (ownInstanceFields.count(pr.first) == 0) { allOwned = false; break; }
+                size_t fieldIdx = classDef->getFieldIndex(pr.first);
+                if (fieldIdx == SIZE_MAX) { allOwned = false; break; }
                 filtered.push_back(pr);
+                indexed.emplace_back(fieldIdx, pr.second);
             }
             if (!allOwned) continue;
 
@@ -151,7 +156,7 @@ namespace vm::compiler::visitors
             }
             if (hasFinalFields) continue;
 
-            ctorDefs[i]->setTrivialFieldAssignments(std::move(filtered));
+            ctorDefs[i]->setTrivialFieldAssignments(std::move(filtered), std::move(indexed));
         }
     }
 

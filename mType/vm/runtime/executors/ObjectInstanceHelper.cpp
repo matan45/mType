@@ -696,14 +696,18 @@ namespace vm::runtime
         // bytecode interpret loop entirely. Debugger/profiler will not see
         // an explicit function-entry event for these ctors — that's the
         // cost of the fast path.
+        //
+        // Phase 4: use pre-resolved field indices + setFieldByIndex to
+        // bypass string-hashed fieldValues::insert on every write.
         if (constructor->isTrivialConstructor())
         {
-            const auto& assigns = constructor->getTrivialFieldAssignments();
-            for (const auto& [fieldName, paramIdx] : assigns)
+            const auto& indexed = constructor->getTrivialFieldIndexAssignments();
+            instance->ensureFieldVector();
+            for (const auto& [fieldIdx, paramIdx] : indexed)
             {
                 if (paramIdx < argCount)
                 {
-                    instance->setField(fieldName, args[paramIdx]);
+                    instance->setFieldByIndex(fieldIdx, args[paramIdx]);
                 }
             }
             context.stackManager->push(instance);
