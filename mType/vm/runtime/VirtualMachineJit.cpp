@@ -4,6 +4,9 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/SmallArgsBuffer.hpp"
+#include "../../value/ValueObject.hpp"
+#include "../../value/ValueShim.hpp"
+#include "../../value/ObjectInstancePool.hpp"
 #include "../jit/JitProfiler.hpp"
 #include "../jit/JitCodeCache.hpp"
 #include "../jit/JitCompiler.hpp"
@@ -189,6 +192,46 @@ namespace vm::runtime
         return callMethodFromJitDirect(instance, qualifiedName, funcMetadata, args);
     }
 
+    value::Value VirtualMachine::callMethodFromJit(
+        const value::Value& receiver,
+        const std::string& methodName,
+        const std::vector<value::Value>& args)
+    {
+        if (value::isObject(receiver))
+        {
+            return callMethodFromJit(value::asObject(receiver), methodName, args);
+        }
+
+        if (!value::isValueObject(receiver))
+        {
+            throw errors::RuntimeException(
+                "JIT method fallback: receiver is neither ObjectInstance nor ValueObject");
+        }
+
+        auto valueObj = value::asValueObject(receiver);
+        if (!valueObj)
+        {
+            throw errors::RuntimeException("JIT method fallback: null ValueObject");
+        }
+        auto classDef = valueObj->getClassDefinition();
+        if (!classDef)
+        {
+            throw errors::RuntimeException(
+                "JIT method fallback: ValueObject has no class definition");
+        }
+
+        // Value-class fast-dispatch fix: batch-materialise a temp ObjectInstance
+        // from the ValueObject's field vector (no per-field setField hashmap
+        // thrash), then reuse the regular-class path. In-method mutation
+        // semantics stay identical to the pre-fix behaviour — the tempInstance
+        // is independent of the caller's ValueObject, so `this.x = …` writes
+        // mutate the temp in place and never propagate back.
+        auto tempInstance = value::ObjectInstancePool::getInstance().acquire(classDef);
+        tempInstance->loadFromValueObject(*valueObj);
+
+        return callMethodFromJit(tempInstance, methodName, args);
+    }
+
     value::Value VirtualMachine::callMethodFromJitDirect(
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
         const std::string& qualifiedName,
@@ -355,6 +398,40 @@ namespace vm::runtime
         }
 
         return result;
+    }
+
+    value::Value VirtualMachine::callMethodFromJitDirect(
+        const value::Value& receiver,
+        const std::string& qualifiedName,
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+        const std::vector<value::Value>& args,
+        const bytecode::BytecodeProgram* calleeProgram)
+    {
+        if (value::isObject(receiver))
+        {
+            return callMethodFromJitDirect(value::asObject(receiver), qualifiedName,
+                                           funcMetadata, args, calleeProgram);
+        }
+
+        if (!value::isValueObject(receiver))
+        {
+            throw errors::RuntimeException("JIT method direct: receiver kind not supported");
+        }
+
+        auto valueObj = value::asValueObject(receiver);
+        if (!valueObj || !valueObj->getClassDefinition())
+        {
+            throw errors::RuntimeException("JIT method direct: null or classless ValueObject");
+        }
+
+        // Same batch-materialisation as callMethodFromJit(Value). Keeps the
+        // MYT-184 stack-cookie invariant intact — we still land in the
+        // shared_ptr<ObjectInstance> mini-interpret loop, not a direct
+        // JIT→JIT dispatch.
+        auto tempInstance = value::ObjectInstancePool::getInstance().acquire(valueObj->getClassDefinition());
+        tempInstance->loadFromValueObject(*valueObj);
+
+        return callMethodFromJitDirect(tempInstance, qualifiedName, funcMetadata, args, calleeProgram);
     }
 
     void VirtualMachine::trySpecializeArithmetic(

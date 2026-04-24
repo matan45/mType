@@ -146,22 +146,16 @@ namespace vm::jit
 
             if (value::isValueObject(objectValue))
             {
-                auto valueObj = value::asValueObject(objectValue);
-                auto classDef = valueObj->getClassDefinition();
-
-                auto tempInstance = value::ObjectInstancePool::getInstance().acquire(classDef);
-                const auto& fieldIndexMap = classDef->getFieldIndexMap();
-                for (const auto& [name, index] : fieldIndexMap)
-                {
-                    if (index < valueObj->getFieldCount())
-                    {
-                        tempInstance->setField(name, valueObj->getFieldByIndex(index));
-                    }
-                }
-
                 if (ctx->vm)
                 {
-                    ctx->returnValue = ctx->vm->callMethodFromJit(tempInstance, methodName, args);
+                    // Value-class perf fix: delegate to the Value-receiver VM
+                    // overload, which batch-materialises the temp ObjectInstance
+                    // via ObjectInstance::loadFromValueObject (vector copy +
+                    // one hashmap fill) instead of the N × setField hot loop
+                    // this branch previously inlined. In-method mutation
+                    // semantics preserved — the temp is still independent of
+                    // the caller's ValueObject.
+                    ctx->returnValue = ctx->vm->callMethodFromJit(objectValue, methodName, args);
                     ctx->hasReturnValue = true;
                     return;
                 }
@@ -207,12 +201,15 @@ namespace vm::jit
         {
             value::Value& receiverValue = ctx->callArgs[0];
 
-            // MYT-167 (F-e): unified receiver-kind handling. ValueObject
-            // receivers populate the IC (with receiverIsValueObject=true) and,
-            // on hit, route dispatch through jit_call_method (which performs
-            // the temp-ObjectInstance materialisation). The speculative
-            // inliner later consumes the IC entry and emits a direct inlined
-            // body for eligible read-only callees.
+            // Unified receiver-kind handling: ObjectInstance and ValueObject
+            // hits both route through callMethodFromJitDirect(Value). The
+            // Value-receiver overload batch-materialises a temp ObjectInstance
+            // for value-class receivers (ObjectInstance::loadFromValueObject)
+            // and delegates to the shared_ptr path so the callee runs through
+            // one mini-interpret loop regardless of receiver kind. The IC
+            // entry's pre-resolved funcMetadata avoids the
+            // findInstanceMethodInHierarchy + program->getFunction lookups
+            // that the miss path in jit_call_method still performs.
             const runtimeTypes::klass::ClassDefinition* classDef = nullptr;
             bool receiverIsValueObject = false;
             std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance;
@@ -252,36 +249,29 @@ namespace vm::jit
                 const ic::MethodICEntry* entry = cache.lookup(classDef);
                 if (entry && entry->funcMetadata)
                 {
-                    if (!receiverIsValueObject)
+                    // MYT-184: both receiver kinds route through
+                    // callMethodFromJitDirect's mini-interpret loop — direct
+                    // JIT→JIT dispatch stays disabled to preserve the /GS
+                    // stack-cookie invariant. The Value-receiver overload
+                    // handles both: ObjectInstance passes through to the
+                    // shared_ptr path bit-identically; ValueObject
+                    // batch-materialises a temp ObjectInstance via
+                    // loadFromValueObject and then takes the same path.
+                    // Either way the IC entry's pre-resolved funcMetadata
+                    // lets us skip the findInstanceMethodInHierarchy +
+                    // program->getFunction lookups that the slow
+                    // jit_call_method path redoes on every iteration.
+                    auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
+                    std::vector<value::Value> args;
+                    args.reserve(argCount);
+                    for (size_t i = 1; i <= argCount; ++i)
                     {
-                        // MYT-184: route ObjectInstance method IC hits through the
-                        // mini-interpret loop. Direct JIT->JIT dispatch was removed
-                        // after it caused /GS stack-cookie corruption (see the
-                        // comment block above this function).
-                        auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
-                        std::vector<value::Value> args;
-                        args.reserve(argCount);
-                        for (size_t i = 1; i <= argCount; ++i)
-                        {
-                            args.push_back(ctx->callArgs[i]);
-                        }
-                        // MYT-182: pass the callee's program so the mini-interpret
-                        // loop in callMethodFromJitDirect runs against the right
-                        // bytecode for library callees.
-                        ctx->returnValue = ctx->vm->callMethodFromJitDirect(
-                            instance, entry->qualifiedName, funcMeta, args,
-                            entry->program);
-                        ctx->hasReturnValue = true;
-                        return;
+                        args.push_back(ctx->callArgs[i]);
                     }
-
-                    // ValueObject IC hit — generic dispatch. callMethodFromJitDirect
-                    // requires shared_ptr<ObjectInstance>; the temp-materialisation
-                    // branch in jit_call_method handles ValueObject correctly.
-                    // The inliner consumes this IC entry on the caller's next
-                    // recompile, so this slow path runs only between populate
-                    // and recompile.
-                    jit_call_method(ctx, methodNameIndex, argCount);
+                    ctx->returnValue = ctx->vm->callMethodFromJitDirect(
+                        receiverValue, entry->qualifiedName, funcMeta, args,
+                        entry->program);
+                    ctx->hasReturnValue = true;
                     return;
                 }
             }

@@ -7,6 +7,7 @@
 #include "../../../errors/AccessViolationException.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ValueObject.hpp"
 #include "../../../ast/AccessModifier.hpp"
 #include <span>
 #include <unordered_map>
@@ -85,5 +86,16 @@ namespace vm::runtime
                                  const std::string& methodName,
                                  std::span<const value::Value> args,
                                  size_t argCount);
+
+        // Value-class receiver dispatch — batch-materialises a temp
+        // ObjectInstance from the ValueObject's field vector (via
+        // ObjectInstance::loadFromValueObject) and delegates to the regular
+        // instance path. Preserves in-method mutation semantics while
+        // avoiding the per-field setField hashmap thrash of the previous
+        // per-call hot loop.
+        void invokeValueObjectMethod(std::shared_ptr<value::ValueObject> valueObj,
+                                     const std::string& methodName,
+                                     std::span<const value::Value> args,
+                                     size_t argCount);
     };
 }
