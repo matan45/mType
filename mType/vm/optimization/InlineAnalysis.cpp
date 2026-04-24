@@ -91,6 +91,19 @@ namespace vm::optimization
                 case OpCode::STRING_BUILD:
                     return InlineDecision::HAS_UNSUPPORTED_OPCODE;
 
+                // MYT-210: the ARRAY_*_LOCAL fused variants bake a raw local
+                // slot index into the instruction and read it via
+                // Mem(localsBase, localSlot * localStride) — they do NOT
+                // consult s.inlineLocalsBase like LOAD_LOCAL / STORE_LOCAL do.
+                // For an inlined callee, the callee's local-0 (first arg)
+                // actually lives at (0 + inlineLocalsBase) * localStride, so
+                // the baked index reads garbage from the caller's frame.
+                // Reject until the _LOCAL emitters respect inlineLocalsBase.
+                case OpCode::ARRAY_GET_INT_LOCAL:
+                case OpCode::ARRAY_SET_INT_LOCAL:
+                case OpCode::ARRAY_LENGTH_LOCAL:
+                    return InlineDecision::HAS_UNSUPPORTED_OPCODE;
+
                 default:
                     break;
             }
