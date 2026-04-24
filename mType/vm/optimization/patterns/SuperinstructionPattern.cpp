@@ -46,17 +46,21 @@ namespace vm::optimization::patterns
         // at a later point in execution). The fused opcode only packs the
         // slots, so reject the fuse if the varName is present — keeping the
         // unfused path preserves lambda-capture semantics bit-identically.
+        // Both sides require exactly one operand: LOAD_LOCAL never legitimately
+        // carries extras, and tightening the check is defensive against any
+        // future opcode-format drift.
         if (a.opcode == OpCode::LOAD_LOCAL && b.opcode == OpCode::STORE_LOCAL &&
-            !a.operands.empty() && b.operands.size() == 1)
+            a.operands.size() == 1 && b.operands.size() == 1)
         {
             return Kind::LoadStoreLocal;
         }
 
         // Pair: LOAD_LOCAL + GET_FIELD. GET_FIELD always carries exactly one
         // operand (field-name index); anything else would indicate a format
-        // change the fused executor hasn't been updated for.
+        // change the fused executor hasn't been updated for. LOAD_LOCAL
+        // likewise must carry exactly one operand.
         if (a.opcode == OpCode::LOAD_LOCAL && b.opcode == OpCode::GET_FIELD &&
-            !a.operands.empty() && b.operands.size() == 1)
+            a.operands.size() == 1 && b.operands.size() == 1)
         {
             return Kind::LoadGetField;
         }
@@ -75,7 +79,7 @@ namespace vm::optimization::patterns
         if (isStructural(c.opcode)) return Kind::None;
 
         if (a.opcode == OpCode::LOAD_LOCAL && b.opcode == OpCode::LOAD_LOCAL &&
-            !a.operands.empty() && !b.operands.empty())
+            a.operands.size() == 1 && b.operands.size() == 1)
         {
             switch (c.opcode)
             {
@@ -92,6 +96,21 @@ namespace vm::optimization::patterns
                                           size_t offset,
                                           const analysis::ControlFlowAnalyzer& /*cfg*/) const
     {
+        // NOTE: classify() runs again inside apply() for the same (program,
+        // offset) pair. A one-slot (program*, offset) memo cache looks
+        // attractive, but it's UNSOUND under program mutation: the peephole
+        // pass mutates the instruction vector after each successful apply()
+        // (shrinking it by originalLength - 1), and a later classify() call
+        // at a numerically identical offset in the shrunk program would hit
+        // the cache with stale Kind data and drive apply() to emit a
+        // replacement based on instructions that no longer live at that
+        // offset. Safely caching would require keying on the instruction
+        // contents (opcodes + operands in the window), which is most of
+        // classify()'s work — net loss. Today classify is cheap (two opcode
+        // comparisons + a couple operand-count checks), so the double call
+        // is negligible. If this becomes a hot path (e.g. multi-instruction
+        // window analysis is added), extend OptimizationPattern's interface
+        // to pass a match token from matches() → apply() instead.
         Kind kind = classify(program, offset);
         if (kind == Kind::None) return false;
 

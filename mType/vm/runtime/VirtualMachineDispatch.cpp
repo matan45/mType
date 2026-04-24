@@ -85,10 +85,13 @@ namespace vm::runtime
             // MYT-198: fused PUSH_INT + ADD_INT. Never emitted by the compiler;
             // only reachable via runtime promotion inside trySpecializeArithmetic.
             // MYT-201: fused state lives on the side table — one lookup here
-            // hands the reference to the handler.
+            // hands the reference to the handler. If the entry is somehow
+            // missing (deserialization corruption, edge in the deopt cycle),
+            // throw rather than assert — in release assert is a no-op and
+            // the following *state deref would segfault with no diagnostic.
             const auto* state = program->findCachedState(instructionPointer);
-            assert(state &&
-                "ADD_INT_CONST opcode implies a promoted side-table entry");
+            if (!state)
+                throw errors::RuntimeException("ADD_INT_CONST dispatched without side-table entry");
             arithmeticExecutor->handleAddIntConst(instr, *state);
             break;
         }
@@ -296,8 +299,8 @@ namespace vm::runtime
             if (icEnabled && inlineCacheExecutor)
             {
                 const auto* state = program->findCachedState(instructionPointer);
-                assert(state &&
-                    "GET_FIELD_CACHED opcode implies a promoted side-table entry");
+                if (!state)
+                    throw errors::RuntimeException("GET_FIELD_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleGetFieldCached(instr, *state);
             }
             else
@@ -312,8 +315,8 @@ namespace vm::runtime
             if (icEnabled && inlineCacheExecutor)
             {
                 const auto* state = program->findCachedState(instructionPointer);
-                assert(state &&
-                    "LOAD_LOCAL_GET_FIELD_CACHED opcode implies a promoted side-table entry");
+                if (!state)
+                    throw errors::RuntimeException("LOAD_LOCAL_GET_FIELD_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleLoadLocalGetFieldCached(instr, *state);
             }
             else {
@@ -338,8 +341,8 @@ namespace vm::runtime
             if (icEnabled && inlineCacheExecutor)
             {
                 const auto* state = program->findCachedState(instructionPointer);
-                assert(state &&
-                    "SET_FIELD_CACHED opcode implies a promoted side-table entry");
+                if (!state)
+                    throw errors::RuntimeException("SET_FIELD_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleSetFieldCached(instr, *state);
             }
             else
@@ -378,8 +381,8 @@ namespace vm::runtime
             if (icEnabled && inlineCacheExecutor)
             {
                 const auto* state = program->findCachedState(instructionPointer);
-                assert(state &&
-                    "CALL_METHOD_CACHED opcode implies a promoted side-table entry");
+                if (!state)
+                    throw errors::RuntimeException("CALL_METHOD_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleCallMethodCached(instr, *state);
             }
             else
@@ -394,8 +397,8 @@ namespace vm::runtime
             if (icEnabled && inlineCacheExecutor)
             {
                 const auto* state = program->findCachedState(instructionPointer);
-                assert(state &&
-                    "LOAD_LOCAL_CALL_CACHED opcode implies a promoted side-table entry");
+                if (!state)
+                    throw errors::RuntimeException("LOAD_LOCAL_CALL_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleLoadLocalCallCached(instr, *state);
             }
             else {

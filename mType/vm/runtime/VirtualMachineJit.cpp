@@ -475,6 +475,16 @@ namespace vm::runtime
         if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 2)
             return;
 
+        // Sticky-demote gate. The TypeFeedback.specialized flag already
+        // blocks re-entry via shouldSpecialize, but if any future demote
+        // path clears it (mirroring MYT-173 CALL_METHOD_CACHED deopts), the
+        // cachedDeoptCount check prevents oscillation on a site that has
+        // already un-specialized once.
+        if (auto* existing = program->findCachedState(instructionPointer))
+        {
+            if (existing->cachedDeoptCount >= 1) return;
+        }
+
         typeFeedbackCollector->recordBinaryOp(
             instructionPointer, stackManager->peek(1), stackManager->peek(0));
 
@@ -495,6 +505,11 @@ namespace vm::runtime
     {
         if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 1)
             return;
+
+        if (auto* existing = program->findCachedState(instructionPointer))
+        {
+            if (existing->cachedDeoptCount >= 1) return;
+        }
 
         // Reuse recordBinaryOp with the same operand twice — the feedback
         // collector only inspects tag, and duplicating avoids adding a

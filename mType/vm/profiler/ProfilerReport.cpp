@@ -182,12 +182,17 @@ namespace vm::profiler
     {
         const auto& opcodeProfile = context.getOpcodeProfile();
 
+        // pairCounts is allocated lazily — skip the walk if FULL mode never
+        // fired recordOpcodeExecuted with a prior opcode.
+        if (!opcodeProfile.pairCounts) return;
+
         std::vector<std::pair<uint16_t, uint64_t>> pairs;
-        for (size_t i = 0; i < opcodeProfile.pairCounts.size(); ++i)
+        for (size_t i = 0; i < OpcodeProfile::pairCountsSize(); ++i)
         {
-            if (opcodeProfile.pairCounts[i] > 0)
+            uint64_t count = (*opcodeProfile.pairCounts)[i];
+            if (count > 0)
             {
-                pairs.emplace_back(static_cast<uint16_t>(i), opcodeProfile.pairCounts[i]);
+                pairs.emplace_back(static_cast<uint16_t>(i), count);
             }
         }
 
@@ -311,11 +316,15 @@ namespace vm::profiler
             const auto& opcodeProfile = context.getOpcodeProfile();
 
             std::vector<std::pair<uint16_t, uint64_t>> pairs;
-            for (size_t i = 0; i < opcodeProfile.pairCounts.size(); ++i)
+            if (opcodeProfile.pairCounts)
             {
-                if (opcodeProfile.pairCounts[i] > 0)
+                for (size_t i = 0; i < OpcodeProfile::pairCountsSize(); ++i)
                 {
-                    pairs.emplace_back(static_cast<uint16_t>(i), opcodeProfile.pairCounts[i]);
+                    uint64_t count = (*opcodeProfile.pairCounts)[i];
+                    if (count > 0)
+                    {
+                        pairs.emplace_back(static_cast<uint16_t>(i), count);
+                    }
                 }
             }
             std::sort(pairs.begin(), pairs.end(),

@@ -139,10 +139,14 @@ namespace vm::profiler
     {
         opcodeProfile.counts[opcode]++;
         // MYT-202: track adjacent-pair frequency so the peephole pass can be
-        // retargeted from data rather than guesswork.
+        // retargeted from data rather than guesswork. 512 KiB table is
+        // allocated lazily on first pair observation to keep non-FULL runs
+        // from reserving it.
         if (hasLast)
         {
-            opcodeProfile.pairCounts[(static_cast<uint16_t>(lastOpcode) << 8) | opcode]++;
+            if (!opcodeProfile.pairCounts)
+                opcodeProfile.pairCounts = std::make_unique<std::array<uint64_t, 65536>>();
+            (*opcodeProfile.pairCounts)[(static_cast<uint16_t>(lastOpcode) << 8) | opcode]++;
         }
         lastOpcode = opcode;
         hasLast = true;
