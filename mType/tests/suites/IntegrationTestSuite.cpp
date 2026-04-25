@@ -308,6 +308,13 @@ namespace tests::testSuite
         addOutputVerificationTest("CALL_METHOD_CACHED Deopt Sticky",
                                   passPath + "ic/call_method_cached_deopt.mt");
 
+        // MYT-203: CALL_METHOD_POLY_CACHED promotion across MONO->POLY +
+        // POLY->MEGA deopt with independent sticky polyCachedDeoptCount.
+        addOutputVerificationTest("CALL_METHOD_POLY_CACHED Polymorphic Promote",
+                                  passPath + "ic/call_method_poly_cached_promote.mt");
+        addOutputVerificationTest("CALL_METHOD_POLY_CACHED MEGA Deopt",
+                                  passPath + "ic/call_method_poly_cached_mega_deopt.mt");
+
         // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED promotion + sticky deopt.
         addOutputVerificationTest("GET_FIELD_CACHED Monomorphic Promote",
                                   passPath + "ic/get_field_cached_mono.mt");
@@ -317,6 +324,13 @@ namespace tests::testSuite
                                   passPath + "ic/get_field_cached_deopt.mt");
         addOutputVerificationTest("SET_FIELD_CACHED Deopt Sticky",
                                   passPath + "ic/set_field_cached_deopt.mt");
+
+        // MYT-204: LOAD_VAR_CACHED / STORE_VAR_CACHED promote on stable
+        // global-resolution + correctness under post-init mutation.
+        addOutputVerificationTest("LOAD_VAR_CACHED Monomorphic Promote",
+                                  passPath + "ic/load_var_cached_promote.mt");
+        addOutputVerificationTest("STORE_VAR_CACHED Mutation Reflects",
+                                  passPath + "ic/store_var_cached_mutate.mt");
 
         // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL. Four mono tests
         // drive each specialized variant through its fast path; sticky-deopt

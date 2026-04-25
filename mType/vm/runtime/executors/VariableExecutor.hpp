@@ -22,6 +22,20 @@ namespace vm::runtime
         void handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr);
         void handleDeclareVar(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // MYT-204: LOAD_VAR_CACHED / STORE_VAR_CACHED fast paths. After the
+        // generic LOAD_VAR / STORE_VAR site successfully resolves a global,
+        // the opcode is rewritten in place and the side table snapshots the
+        // VariableDefinition pointer. The cached executors dereference the
+        // slot directly — no constant-pool string fetch, no Environment
+        // hashmap probe. Defensive null guard reverts to the generic path
+        // for environment-teardown edge cases.
+        void handleLoadVarCached(
+            const bytecode::BytecodeProgram::Instruction& instr,
+            const bytecode::BytecodeProgram::CachedInstructionState& state);
+        void handleStoreVarCached(
+            const bytecode::BytecodeProgram::Instruction& instr,
+            const bytecode::BytecodeProgram::CachedInstructionState& state);
+
         // Local variable operations (stack-based)
         void handleLoadLocal(const bytecode::BytecodeProgram::Instruction& instr);
         void handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr);
@@ -63,6 +77,13 @@ namespace vm::runtime
         void validateAndStoreGlobalVariable(const std::string& varName,
                                            const value::Value& val,
                                            std::shared_ptr<runtimeTypes::global::VariableDefinition> varDef);
+
+        // MYT-204 promote helpers. Called from handleLoadVar /
+        // validateAndStoreGlobalVariable on the global-resolution-success
+        // branch. Idempotent and gated on the IP currently holding the
+        // generic LOAD_VAR / STORE_VAR opcode (no fusion, no double-promote).
+        void tryPromoteLoadVarCached(runtimeTypes::global::VariableDefinition* slot);
+        void tryPromoteStoreVarCached(runtimeTypes::global::VariableDefinition* slot);
 
         // MYT-199 helpers. See .cpp for policy details.
         bool isCurrentFrameSimple() const;

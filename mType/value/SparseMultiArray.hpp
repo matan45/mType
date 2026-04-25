@@ -62,6 +62,15 @@ namespace value
         size_t totalAccesses_; // Total access operations
         size_t sparseAccesses_; // Accesses to sparse locations
 
+        // Single-entry sub-array view cache. Same rationale and trade-offs as
+        // FlatMultiArray::cachedSubArray_ — see that header for the cycle and
+        // GC story. Inner-loop `arr[i][j]` patterns repeat the same `i` for N
+        // iterations, collapsing N heap allocations into 1 on cache hit.
+        // Single-threaded VM => no synchronisation. mutable to support the
+        // const getSubArray() override that casts away const.
+        mutable size_t cachedSubArrayIndex_ = SIZE_MAX;
+        mutable std::shared_ptr<SparseMultiArray> cachedSubArray_;
+
         /**
          * @brief Get reference to the actual dense data storage (own or parent's)
          */
@@ -522,6 +531,19 @@ namespace value
                 sparseData_.clear();
                 break;
             }
+            // Drop any cached sub-view: a pool-reissued array must not hand
+            // out a sub-view that the prior tenant may still hold.
+            clearSubArrayCache();
+        }
+
+        /**
+         * @brief Drop the cached sub-array view, breaking the cache→view→parent
+         * reference cycle. See FlatMultiArray::clearSubArrayCache for the
+         * rationale and the safe-call contract.
+         */
+        void clearSubArrayCache() const {
+            cachedSubArrayIndex_ = SIZE_MAX;
+            cachedSubArray_.reset();
         }
 
         /**
@@ -536,6 +558,12 @@ namespace value
          */
         std::shared_ptr<SparseMultiArray> getSubArray(size_t index)
         {
+            // Hot-path fast return: same-index repeats are common in inner
+            // loops over multi-dim arrays.
+            if (index == cachedSubArrayIndex_ && cachedSubArray_) {
+                return cachedSubArray_;
+            }
+
             auto subDims = getSubDimensions();
             if (subDims.empty()) return nullptr;
 
@@ -543,9 +571,13 @@ namespace value
             if (subArrayOffset == SIZE_MAX) return nullptr;
 
             auto rootParent = getRootParent();
-            return std::shared_ptr<SparseMultiArray>(
+            auto view = std::shared_ptr<SparseMultiArray>(
                 new SparseMultiArray(rootParent, subArrayOffset, subDims, defaultValue_)
             );
+
+            cachedSubArrayIndex_ = index;
+            cachedSubArray_ = view;
+            return view;
         }
 
         // IMultiDimensionalArray interface implementation

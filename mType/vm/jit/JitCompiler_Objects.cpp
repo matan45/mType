@@ -1429,18 +1429,34 @@ namespace vm::jit
             case OpCode::CALL_STATIC:    return emitCallStaticOp(s, instr);
             case OpCode::CALL_METHOD:
             case OpCode::CALL_METHOD_CACHED:
-                // MYT-173: CACHED is treated identically to CALL_METHOD here —
-                // tryEmitInlinedMethodCall reads the IC (unaffected by opcode
-                // rewrite) and F-a/F-c inlining wins when eligible. The
-                // CACHED-specific shape-guard + direct helper fast path (for
-                // sites that aren't inline-eligible) is deferred to a follow-up;
-                // MVP relies on the interpreter side for the steady-state win.
+            case OpCode::CALL_METHOD_POLY_CACHED:
+                // MYT-173 / MYT-203: CACHED + POLY_CACHED are treated
+                // identically to CALL_METHOD here — tryEmitInlinedMethodCall
+                // reads the IC (unaffected by opcode rewrite) and F-a/F-c
+                // inlining (MONO + POLY) wins when eligible. A dedicated JIT
+                // emit branch that exploits the side-table snapshot to skip
+                // jit_call_method_ic for non-inlineable POLY sites is a
+                // clean follow-up; MVP relies on the interpreter side.
                 return emitCallMethodOp(s, instr);
             case OpCode::LOAD_LOCAL_CALL_CACHED:
             {
                 // MYT-198: de-fuse at JIT time (see LOAD_LOCAL_GET_FIELD_CACHED
                 // above). Synthesise LOAD_LOCAL + CALL_METHOD.
                 // MYT-201: fused state lives on the side table.
+                const auto* state = s.program.findCachedState(s.currentIP);
+                uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
+                bytecode::BytecodeProgram::Instruction loadLocal(
+                    OpCode::LOAD_LOCAL, slot);
+                if (!emitControlFlowOps(s, loadLocal, nullptr))
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
+                return emitCallMethodOp(s, instr);
+            }
+            case OpCode::LOAD_LOCAL_CALL_POLY_CACHED:
+            {
+                // MYT-203: de-fuse at JIT time, parallel to LOAD_LOCAL_CALL_CACHED.
                 const auto* state = s.program.findCachedState(s.currentIP);
                 uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 bytecode::BytecodeProgram::Instruction loadLocal(

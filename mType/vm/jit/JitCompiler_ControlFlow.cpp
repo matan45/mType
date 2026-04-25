@@ -618,10 +618,17 @@ namespace vm::jit
                 return true;
 
             case OpCode::LOAD_VAR:
+            // MYT-204: CACHED variant treated identically at JIT emit time —
+            // jit_load_var still does the name-keyed Environment probe; the
+            // CACHED win is interpreter-only. Including the CACHED opcode in
+            // this case keeps a hot loop JIT-compilable after the interpreter
+            // has promoted some LOAD_VAR sites to LOAD_VAR_CACHED.
+            case OpCode::LOAD_VAR_CACHED:
                 emitLoadVar(s, static_cast<uint32_t>(instr.operands[0]));
                 return true;
 
             case OpCode::STORE_VAR:
+            case OpCode::STORE_VAR_CACHED: // MYT-204
                 emitStoreVar(s, static_cast<uint32_t>(instr.operands[0]));
                 return true;
 

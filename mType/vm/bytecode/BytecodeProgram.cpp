@@ -878,10 +878,14 @@ namespace vm::bytecode
             // pass, carry their operands inside Instruction::operands (no
             // side-table state), and round-trip through .mtc normally.
             if (instructions[i].opcode == OpCode::CALL_METHOD_CACHED ||
+                instructions[i].opcode == OpCode::CALL_METHOD_POLY_CACHED ||
                 instructions[i].opcode == OpCode::GET_FIELD_CACHED ||
                 instructions[i].opcode == OpCode::SET_FIELD_CACHED ||
+                instructions[i].opcode == OpCode::LOAD_VAR_CACHED ||
+                instructions[i].opcode == OpCode::STORE_VAR_CACHED ||
                 instructions[i].opcode == OpCode::ADD_INT_CONST ||
                 instructions[i].opcode == OpCode::LOAD_LOCAL_CALL_CACHED ||
+                instructions[i].opcode == OpCode::LOAD_LOCAL_CALL_POLY_CACHED ||
                 instructions[i].opcode == OpCode::LOAD_LOCAL_GET_FIELD_CACHED ||
                 instructions[i].opcode == OpCode::LOAD_LOCAL_INT ||
                 instructions[i].opcode == OpCode::LOAD_LOCAL_FLOAT ||

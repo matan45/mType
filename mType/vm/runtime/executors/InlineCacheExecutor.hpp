@@ -43,6 +43,18 @@ namespace vm::runtime
             const bytecode::BytecodeProgram::Instruction& instr,
             const bytecode::BytecodeProgram::CachedInstructionState& state);
 
+        // MYT-203: CALL_METHOD_POLY_CACHED fast path. Linear-scans up to 4
+        // embedded shapes from the side table; on hit, dispatches directly
+        // (no icTable hashmap probe, no per-entry scan over the IC table).
+        // On miss after all snapshotted entries fail, deopts via
+        // deoptPolyAndReprocess. Promotion is driven by tryPromoteToPolyCached
+        // once the IC transitions to POLYMORPHIC. Independent sticky counter
+        // (polyCachedDeoptCount) so a MONO-tier deopt does not block POLY
+        // promotion.
+        void handleCallMethodPolyCached(
+            const bytecode::BytecodeProgram::Instruction& instr,
+            const bytecode::BytecodeProgram::CachedInstructionState& state);
+
         // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED fast paths. Same pattern
         // as handleCallMethodCached — single shape compare against
         // cachedFieldShape, then indexed field access. Shape miss reverts the
@@ -62,6 +74,15 @@ namespace vm::runtime
         void handleLoadLocalCallCached(
             const bytecode::BytecodeProgram::Instruction& instr,
             const bytecode::BytecodeProgram::CachedInstructionState& state);
+
+        // MYT-203: fused LOAD_LOCAL + CALL_METHOD_POLY_CACHED. Replays the
+        // NOPed LOAD_LOCAL via state.fusedSlot, then defers to
+        // handleCallMethodPolyCached. Stack-shape failure tryUnfusePair's
+        // back to {LOAD_LOCAL, CALL_METHOD_POLY_CACHED} and re-dispatches.
+        void handleLoadLocalCallPolyCached(
+            const bytecode::BytecodeProgram::Instruction& instr,
+            const bytecode::BytecodeProgram::CachedInstructionState& state);
+
         void handleLoadLocalGetFieldCached(
             const bytecode::BytecodeProgram::Instruction& instr,
             const bytecode::BytecodeProgram::CachedInstructionState& state);
@@ -93,6 +114,25 @@ namespace vm::runtime
         // CALL_METHOD, clears cachedShape, bumps cachedDeoptCount (clamped), and
         // re-dispatches through handleCallMethodIC so the IC observes the new shape.
         void deoptAndReprocess(const bytecode::BytecodeProgram::Instruction& instr);
+
+        // MYT-203: promote CALL_METHOD or already-POLY_CACHED to
+        // CALL_METHOD_POLY_CACHED once the IC at the current IP is
+        // POLYMORPHIC and every entry is bytecode-callable (non-native,
+        // non-ValueObject, non-zero startOffset). Idempotent: a 3rd or 4th
+        // shape arrival re-snapshots all entries[0..entryCount-1]. Sticky
+        // via polyCachedDeoptCount (independent of MYT-173's
+        // cachedDeoptCount).
+        void tryPromoteToPolyCached(
+            const bytecode::BytecodeProgram::Instruction& instr,
+            const vm::jit::ic::MethodICEntry& entry);
+
+        // MYT-203: shape miss on a POLY_CACHED site (linear-scan exhausted)
+        // OR POLY→MEGA transition (5th shape). Rewrites the opcode back to
+        // CALL_METHOD, zeroes polyEntryCount (entries themselves left
+        // stale), bumps polyCachedDeoptCount, and re-dispatches through
+        // handleCallMethodIC. Mirrors deoptAndReprocess but for the POLY
+        // tier with a tier-specific sticky counter.
+        void deoptPolyAndReprocess(const bytecode::BytecodeProgram::Instruction& instr);
 
         // MYT-194: promote GET_FIELD / SET_FIELD to their _CACHED variant once
         // the field IC at the current IP has transitioned to MONOMORPHIC.

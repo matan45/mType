@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <array>
 #include <cstdint>
 #include <deque>
 #include <vector>
@@ -13,6 +14,7 @@
 #include "../../value/ValueType.hpp"
 
 namespace runtimeTypes::klass { class ClassDefinition; }
+namespace runtimeTypes::global { class VariableDefinition; }
 
 namespace vm::bytecode
 {
@@ -106,6 +108,38 @@ namespace vm::bytecode
             // the site permanently stays on the generic path.
             uint8_t                                     cachedDeoptCount         = 0;
 
+            // MYT-203: CALL_METHOD_POLY_CACHED snapshot. When the IC at this
+            // IP is POLYMORPHIC (entryCount in [2..4]), the opcode rewrites
+            // to CALL_METHOD_POLY_CACHED and these arrays mirror
+            // entries[0..polyEntryCount-1]. Re-snapshotted (idempotently) on
+            // every promote call so a 3rd or 4th shape at an existing
+            // POLY_CACHED site refreshes the array. polyEntryCount = 0 on
+            // demote; arrays themselves are left stale (raw pointers + 4-byte
+            // handle + std::string) since the demoted opcode never reads them
+            // and the sticky polyCachedDeoptCount guarantees no re-promote.
+            //
+            // Independent sticky counter: cachedDeoptCount and
+            // polyCachedDeoptCount deliberately do NOT alias. A site that
+            // experienced a CACHED→CALL_METHOD deopt (cachedDeoptCount = 1)
+            // can still try POLY_CACHED on its next stable phase. A site
+            // that further deopts from POLY_CACHED stays generic forever via
+            // polyCachedDeoptCount. Each tier has its own ping-pong defense.
+            std::array<const runtimeTypes::klass::ClassDefinition*, 4> polyShapes{};
+            std::array<const FunctionMetadata*,                     4> polyFuncs{};
+            std::array<const BytecodeProgram*,                      4> polyPrograms{};
+            std::array<size_t,                                      4> polyProgramIndices{};
+            // polyQualifiedNames needs an explicit per-element initializer
+            // because FunctionNameHandle's default-constructed value is 0,
+            // which is a valid handle. The other arrays above can use {}
+            // value-initialization safely: pointers default to nullptr and
+            // size_t defaults to 0, both of which are sentinel for unset.
+            std::array<FunctionNameHandle,                          4> polyQualifiedNames{
+                { INVALID_FN_HANDLE, INVALID_FN_HANDLE, INVALID_FN_HANDLE, INVALID_FN_HANDLE }
+            };
+            std::array<std::string,                                 4> polyDefiningClassNames;
+            uint8_t                                                    polyEntryCount = 0;
+            uint8_t                                                    polyCachedDeoptCount = 0;
+
             // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED embedded target.
             // Once the field IC at this IP stabilises to MONOMORPHIC, the
             // opcode is rewritten to the _CACHED variant and these fields
@@ -115,6 +149,20 @@ namespace vm::bytecode
             const runtimeTypes::klass::ClassDefinition* cachedFieldShape     = nullptr;
             size_t                                      cachedFieldIndex     = static_cast<size_t>(-1);
             uint8_t                                     cachedFieldDeoptCount = 0;
+
+            // MYT-204: LOAD_VAR_CACHED / STORE_VAR_CACHED embedded slot.
+            // Snapshotted once the LOAD_VAR / STORE_VAR site at this IP
+            // successfully resolves a global. Pointee is owned by
+            // VariableManager's shared_ptr — heap-stable across map rehashes
+            // and never removed at runtime (VariableManager::removeVariable
+            // is only invoked from compile-time scope cleanup). No deopt
+            // counter: globals are monomorphic by construction. The cached
+            // executors guard against null on environment teardown and revert
+            // to the generic path in that case.
+            // Non-const pointer: STORE_VAR_CACHED needs to mutate via
+            // setValue(); honestly modelling the mutability avoids a
+            // const_cast on every store dispatch.
+            runtimeTypes::global::VariableDefinition* cachedGlobalSlot = nullptr;
 
             // MYT-198: Superinstruction fusion. When a CACHED / ADD_INT
             // runtime rewrite fires, its predecessor LOAD_LOCAL / PUSH_INT

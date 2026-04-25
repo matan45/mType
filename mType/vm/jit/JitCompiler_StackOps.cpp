@@ -84,6 +84,8 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::STORE_LOCAL_BOXED_INST),
             static_cast<uint8_t>(OpCode::LOAD_VAR),
             static_cast<uint8_t>(OpCode::STORE_VAR),
+            static_cast<uint8_t>(OpCode::LOAD_VAR_CACHED),     // MYT-204
+            static_cast<uint8_t>(OpCode::STORE_VAR_CACHED),    // MYT-204
 
             static_cast<uint8_t>(OpCode::JUMP),
             static_cast<uint8_t>(OpCode::JUMP_IF_FALSE),
@@ -108,7 +110,9 @@ namespace vm::jit
 
             static_cast<uint8_t>(OpCode::CALL_METHOD),
             static_cast<uint8_t>(OpCode::CALL_METHOD_CACHED),  // MYT-173
+            static_cast<uint8_t>(OpCode::CALL_METHOD_POLY_CACHED), // MYT-203
             static_cast<uint8_t>(OpCode::LOAD_LOCAL_CALL_CACHED),   // MYT-198
+            static_cast<uint8_t>(OpCode::LOAD_LOCAL_CALL_POLY_CACHED), // MYT-203
             static_cast<uint8_t>(OpCode::LOAD_LOCAL_GET_FIELD_CACHED), // MYT-198
             static_cast<uint8_t>(OpCode::ADD_INT_CONST),       // MYT-198
 

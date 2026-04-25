@@ -119,15 +119,20 @@ namespace vm::jit
                 // MYT-152: LOAD_VAR / STORE_VAR produce / consume boxed Values
                 // (global or field lookups have no compile-time primitive
                 // type), so the enclosing loop must emit in boxed mode.
+                // MYT-204: _CACHED variants follow the same boxed-mode rule.
                 case OpCode::LOAD_VAR:    case OpCode::STORE_VAR:
+                case OpCode::LOAD_VAR_CACHED: case OpCode::STORE_VAR_CACHED:
                 case OpCode::NEW_OBJECT:
                 case OpCode::NEW_STACK:   // MYT-134
                 case OpCode::NEW_VALUE_OBJECT: case OpCode::OBJECT_TO_VALUE:
-                case OpCode::CALL_METHOD: case OpCode::CALL_METHOD_CACHED: case OpCode::CALL_STATIC:
-                // MYT-198: fused _CACHED ops participate in boxed-types mode
-                // for the same reason their un-fused variants do — they
-                // produce / consume boxed Values on the operand stack.
+                case OpCode::CALL_METHOD: case OpCode::CALL_METHOD_CACHED:
+                case OpCode::CALL_METHOD_POLY_CACHED:  // MYT-203
+                case OpCode::CALL_STATIC:
+                // MYT-198 / MYT-203: fused _CACHED ops participate in boxed-
+                // types mode for the same reason their un-fused variants do —
+                // they produce / consume boxed Values on the operand stack.
                 case OpCode::LOAD_LOCAL_CALL_CACHED:
+                case OpCode::LOAD_LOCAL_CALL_POLY_CACHED:  // MYT-203
                 case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
                 case OpCode::NEW_ARRAY:   case OpCode::NEW_ARRAY_MULTI:
                 case OpCode::ARRAY_GET:

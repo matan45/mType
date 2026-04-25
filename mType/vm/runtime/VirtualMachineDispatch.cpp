@@ -175,6 +175,33 @@ namespace vm::runtime
             break;
         case OpCode::STORE_VAR: variableExecutor->handleStoreVar(instr);
             break;
+        case OpCode::LOAD_VAR_CACHED:
+        {
+            // MYT-204: promoted from LOAD_VAR after the global-resolution
+            // path stabilised. Side-table entry must exist (set by
+            // tryPromoteLoadVarCached). Fall back to the generic handler if
+            // somehow reached without an entry (e.g., side table cleared).
+            const auto* state = program->findCachedState(instructionPointer);
+            if (!state)
+            {
+                variableExecutor->handleLoadVar(instr);
+                break;
+            }
+            variableExecutor->handleLoadVarCached(instr, *state);
+            break;
+        }
+        case OpCode::STORE_VAR_CACHED:
+        {
+            // MYT-204: see LOAD_VAR_CACHED above.
+            const auto* state = program->findCachedState(instructionPointer);
+            if (!state)
+            {
+                variableExecutor->handleStoreVar(instr);
+                break;
+            }
+            variableExecutor->handleStoreVarCached(instr, *state);
+            break;
+        }
         case OpCode::DECLARE_VAR: variableExecutor->handleDeclareVar(instr);
             break;
         case OpCode::LOAD_LOCAL: variableExecutor->handleLoadLocal(instr);
@@ -389,6 +416,22 @@ namespace vm::runtime
                 objectExecutor->handleCallMethod(instr);
             break;
         }
+        case OpCode::CALL_METHOD_POLY_CACHED:
+        {
+            // MYT-203: promoted from CALL_METHOD once the IC reaches POLY
+            // (2-4 entries). Same RUNTIME-ONLY + IC-only constraints as
+            // CALL_METHOD_CACHED.
+            if (icEnabled && inlineCacheExecutor)
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                if (!state)
+                    throw errors::RuntimeException("CALL_METHOD_POLY_CACHED dispatched without side-table entry");
+                inlineCacheExecutor->handleCallMethodPolyCached(instr, *state);
+            }
+            else
+                objectExecutor->handleCallMethod(instr);
+            break;
+        }
         case OpCode::LOAD_LOCAL_CALL_CACHED:
         {
             // MYT-198: fused LOAD_LOCAL + CALL_METHOD_CACHED. Same IC-only
@@ -403,6 +446,32 @@ namespace vm::runtime
             }
             else {
                 const auto* state = program->findCachedState(instructionPointer);
+                uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
+                variableExecutor->handleLoadLocal(
+                    bytecode::BytecodeProgram::Instruction(
+                        bytecode::OpCode::LOAD_LOCAL, slot));
+                objectExecutor->handleCallMethod(instr);
+            }
+            break;
+        }
+        case OpCode::LOAD_LOCAL_CALL_POLY_CACHED:
+        {
+            // MYT-203: fused LOAD_LOCAL + CALL_METHOD_POLY_CACHED. Symmetric
+            // to LOAD_LOCAL_CALL_CACHED above.
+            const auto* state = program->findCachedState(instructionPointer);
+            if (icEnabled && inlineCacheExecutor)
+            {
+                if (!state)
+                    throw errors::RuntimeException("LOAD_LOCAL_CALL_POLY_CACHED dispatched without side-table entry");
+                inlineCacheExecutor->handleLoadLocalCallPolyCached(instr, *state);
+            }
+            else {
+                // IC disabled: replay the fused pair via the generic handlers.
+                // Falls back to slot 0 if the side-table entry vanished — same
+                // tolerance the IC-enabled path uses for missing state plus an
+                // explicit error (here we keep going with a defaulted slot
+                // since the generic CALL_METHOD will fail with the right error
+                // if the receiver isn't where it should be).
                 uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 variableExecutor->handleLoadLocal(
                     bytecode::BytecodeProgram::Instruction(

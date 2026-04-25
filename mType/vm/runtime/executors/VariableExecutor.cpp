@@ -81,6 +81,10 @@ namespace vm::runtime
         // Found in global environment
         if (varDef) {
             context.stackManager->push(varDef->getValue());
+            // MYT-204: snapshot the VariableDefinition pointer and rewrite
+            // this site to LOAD_VAR_CACHED so the next dispatch skips the
+            // constant-pool fetch and the name-keyed Environment lookup.
+            tryPromoteLoadVarCached(varDef.get());
             return;
         }
 
@@ -194,6 +198,11 @@ namespace vm::runtime
 
         // Push value back for assignment expressions (e.g., x = y = 5)
         context.stackManager->push(val);
+
+        // MYT-204: rewrite this site to STORE_VAR_CACHED. setValue mutates
+        // the VariableDefinition's Value in place, so the cached pointer
+        // continues to reflect future writes without re-resolution.
+        tryPromoteStoreVarCached(varDef.get());
     }
 
     void VariableExecutor::handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -841,5 +850,83 @@ namespace vm::runtime
     void VariableExecutor::handleStoreLocalBoxedInst(const bytecode::BytecodeProgram::Instruction& instr)
     {
         handleStoreLocalSpecialized(instr, value::ValueType::OBJECT);
+    }
+
+    // ------------------------------------------------------------------
+    // MYT-204: LOAD_VAR_CACHED / STORE_VAR_CACHED.
+    // ------------------------------------------------------------------
+
+    void VariableExecutor::tryPromoteLoadVarCached(
+        runtimeTypes::global::VariableDefinition* slot)
+    {
+        const size_t ip = context.instructionPointer;
+        // Only promote if IP currently holds a fresh LOAD_VAR. Guards against
+        // re-promoting a site that has already been rewritten to _CACHED, and
+        // against accidentally clobbering a fused superinstruction whose
+        // handler may dispatch back through handleLoadVar as a shim.
+        auto& mut = context.getMutableInstructionAt(ip);
+        if (mut.opcode != bytecode::OpCode::LOAD_VAR) return;
+
+        auto& state = context.getOrCreateCachedState(ip);
+        state.cachedGlobalSlot = slot;
+        mut.opcode = bytecode::OpCode::LOAD_VAR_CACHED;
+    }
+
+    void VariableExecutor::tryPromoteStoreVarCached(
+        runtimeTypes::global::VariableDefinition* slot)
+    {
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
+        if (mut.opcode != bytecode::OpCode::STORE_VAR) return;
+
+        auto& state = context.getOrCreateCachedState(ip);
+        state.cachedGlobalSlot = slot;
+        mut.opcode = bytecode::OpCode::STORE_VAR_CACHED;
+    }
+
+    void VariableExecutor::handleLoadVarCached(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::CachedInstructionState& state)
+    {
+        auto* slot = state.cachedGlobalSlot;
+        // Defensive: environment teardown can leave a CACHED opcode pointing
+        // at a stale slot. Revert to the generic path and let handleLoadVar
+        // re-resolve (or raise the canonical "Variable not found" error).
+        if (!slot)
+        {
+            context.getMutableInstructionAt(context.instructionPointer).opcode
+                = bytecode::OpCode::LOAD_VAR;
+            handleLoadVar(instr);
+            return;
+        }
+        context.stackManager->push(slot->getValue());
+    }
+
+    void VariableExecutor::handleStoreVarCached(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::CachedInstructionState& state)
+    {
+        auto* slot = state.cachedGlobalSlot;
+        if (!slot)
+        {
+            context.getMutableInstructionAt(context.instructionPointer).opcode
+                = bytecode::OpCode::STORE_VAR;
+            handleStoreVar(instr);
+            return;
+        }
+        if (instr.operands.empty())
+        {
+            throw errors::RuntimeException("STORE_VAR_CACHED requires operand");
+        }
+        value::Value val = context.stackManager->pop();
+        if (slot->isFinal())
+        {
+            const std::string& varName =
+                context.program->getConstantPool().getString(instr.operands[0]);
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot assign to final variable '" + varName + "'");
+        }
+        slot->setValue(val);
+        context.stackManager->push(val);
     }
 }

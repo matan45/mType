@@ -134,7 +134,7 @@ namespace vm::runtime
         return makeJagged(0);
     }
 
-    void ArrayExecutor::getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index) {
+    void ArrayExecutor::getNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index) {
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
 
@@ -143,41 +143,40 @@ namespace vm::runtime
         value::Value element = array->getUnchecked(static_cast<size_t>(index));
 
         // Deep copy ValueObjects when retrieving from arrays (value semantics)
-        // This ensures list.get(0).x = 5 doesn't modify the value inside the collection
-        if (value::isValueObject(element)) {
+        // This ensures list.get(0).x = 5 doesn't modify the value inside the collection.
+        // Gate the isValueObject check on element-type == OBJECT: primitive arrays
+        // (int/float/bool/string) can never hold a ValueObject, so the check would
+        // always fail. Skipping it removes one branch per element on the hot path.
+        if (array->getElementType() == value::ValueType::OBJECT && value::isValueObject(element)) {
             auto valueObj = value::asValueObject(element);
             element = value::Value(valueObj->deepCopy());
         }
 
-        context.stackManager->push(element);
+        context.stackManager->push(std::move(element));
     }
 
-    void ArrayExecutor::getFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index) {
+    void ArrayExecutor::getFlatMultiArrayElement(const std::shared_ptr<value::FlatMultiArray>& flatArray, int64_t index) {
         // Bounds check
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), flatArray->size(), "FlatMultiArray");
 
         // For multi-dimensional arrays, return sub-array; for 1D, return element
         if (flatArray->getRank() > 1) {
-            auto subArray = flatArray->getSubArray(static_cast<size_t>(index));
-            context.stackManager->push(subArray);
+            context.stackManager->push(value::Value(flatArray->getSubArray(static_cast<size_t>(index))));
         } else {
-            value::Value element = flatArray->get(static_cast<size_t>(index));
-            context.stackManager->push(element);
+            context.stackManager->push(flatArray->get(static_cast<size_t>(index)));
         }
     }
 
-    void ArrayExecutor::getSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index) {
+    void ArrayExecutor::getSparseMultiArrayElement(const std::shared_ptr<value::SparseMultiArray>& sparseArray, int64_t index) {
         // Bounds check
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), sparseArray->size(), "SparseMultiArray");
 
         // For multi-dimensional arrays, return sub-array; for 1D, return element
         if (sparseArray->getRank() > 1) {
-            auto subArray = sparseArray->getSubArray(static_cast<size_t>(index));
-            context.stackManager->push(subArray);
+            context.stackManager->push(value::Value(sparseArray->getSubArray(static_cast<size_t>(index))));
         } else {
             std::vector<size_t> indices = {static_cast<size_t>(index)};
-            value::Value element = sparseArray->get(indices);
-            context.stackManager->push(element);
+            context.stackManager->push(sparseArray->get(indices));
         }
     }
 
@@ -190,23 +189,22 @@ namespace vm::runtime
         value::Value arrayVal = context.stackManager->pop();
 
         // Handle NativeArray (1D arrays and nested multi-dimensional arrays)
+        // Bind by const-ref: asNativeArray() returns `const shared_ptr<>&` so we
+        // skip the retain/release pair an `auto` (copy) would impose per call.
         if (value::isNativeArray(arrayVal)) {
-            auto array = value::asNativeArray(arrayVal);
-            getNativeArrayElement(array, index);
+            getNativeArrayElement(value::asNativeArray(arrayVal), index);
             return;
         }
 
         // Handle FlatMultiArray (pooled dense multi-dimensional arrays)
         if (value::isFlatMultiArray(arrayVal)) {
-            auto flatArray = value::asFlatMultiArray(arrayVal);
-            getFlatMultiArrayElement(flatArray, index);
+            getFlatMultiArrayElement(value::asFlatMultiArray(arrayVal), index);
             return;
         }
 
         // Handle SparseMultiArray (pooled sparse multi-dimensional arrays)
         if (value::isSparseMultiArray(arrayVal)) {
-            auto sparseArray = value::asSparseMultiArray(arrayVal);
-            getSparseMultiArrayElement(sparseArray, index);
+            getSparseMultiArrayElement(value::asSparseMultiArray(arrayVal), index);
             return;
         }
 
@@ -216,7 +214,7 @@ namespace vm::runtime
         );
     }
 
-    void ArrayExecutor::setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index, const value::Value& valueToSet) {
+    void ArrayExecutor::setNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index, const value::Value& valueToSet) {
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
 
@@ -358,7 +356,7 @@ namespace vm::runtime
         }
     }
 
-    void ArrayExecutor::setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index, const value::Value& valueToSet) {
+    void ArrayExecutor::setFlatMultiArrayElement(const std::shared_ptr<value::FlatMultiArray>& flatArray, int64_t index, const value::Value& valueToSet) {
         // Bounds check
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), flatArray->size(), "FlatMultiArray");
 
@@ -373,7 +371,7 @@ namespace vm::runtime
         }
     }
 
-    void ArrayExecutor::setSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index, const value::Value& valueToSet) {
+    void ArrayExecutor::setSparseMultiArrayElement(const std::shared_ptr<value::SparseMultiArray>& sparseArray, int64_t index, const value::Value& valueToSet) {
         // Bounds check
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), sparseArray->size(), "SparseMultiArray");
 
@@ -402,22 +400,19 @@ namespace vm::runtime
 
         // Handle NativeArray (1D arrays and nested multi-dimensional arrays)
         if (value::isNativeArray(arrayVal)) {
-            auto array = value::asNativeArray(arrayVal);
-            setNativeArrayElement(array, index, valueToSet);
+            setNativeArrayElement(value::asNativeArray(arrayVal), index, valueToSet);
             return;
         }
 
         // Handle FlatMultiArray (pooled dense multi-dimensional arrays)
         if (value::isFlatMultiArray(arrayVal)) {
-            auto flatArray = value::asFlatMultiArray(arrayVal);
-            setFlatMultiArrayElement(flatArray, index, valueToSet);
+            setFlatMultiArrayElement(value::asFlatMultiArray(arrayVal), index, valueToSet);
             return;
         }
 
         // Handle SparseMultiArray (pooled sparse multi-dimensional arrays)
         if (value::isSparseMultiArray(arrayVal)) {
-            auto sparseArray = value::asSparseMultiArray(arrayVal);
-            setSparseMultiArrayElement(sparseArray, index, valueToSet);
+            setSparseMultiArrayElement(value::asSparseMultiArray(arrayVal), index, valueToSet);
             return;
         }
 
@@ -433,7 +428,7 @@ namespace vm::runtime
 
         // Handle NativeArray
         if (value::isNativeArray(arrayVal)) {
-            auto array = value::asNativeArray(arrayVal);
+            const auto& array = value::asNativeArray(arrayVal);
             int64_t length = static_cast<int64_t>(array->size());
             context.stackManager->push(length);
             return;
@@ -441,7 +436,7 @@ namespace vm::runtime
 
         // Handle FlatMultiArray
         if (value::isFlatMultiArray(arrayVal)) {
-            auto flatArray = value::asFlatMultiArray(arrayVal);
+            const auto& flatArray = value::asFlatMultiArray(arrayVal);
             int64_t length = static_cast<int64_t>(flatArray->size());
             context.stackManager->push(length);
             return;
@@ -449,7 +444,7 @@ namespace vm::runtime
 
         // Handle SparseMultiArray
         if (value::isSparseMultiArray(arrayVal)) {
-            auto sparseArray = value::asSparseMultiArray(arrayVal);
+            const auto& sparseArray = value::asSparseMultiArray(arrayVal);
             int64_t length = static_cast<int64_t>(sparseArray->size());
             context.stackManager->push(length);
             return;

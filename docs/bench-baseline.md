@@ -1165,3 +1165,116 @@ Correctness preserved: `inline_value_object_write_skip.mt` still prints `200` (i
 
 - `inline_value_object_hot.mt`: **1450 → 217 ms (6.7× speedup)**. Now within 13% of `inline_monomorphic.mt` (191.73) and essentially tied with `inline_polymorphic.mt` (215.73) — value-class dispatch has reached parity with regular-class inlining, matching the original design intent.
 - No other benchmark regressed beyond noise (~1–2% on a few, well inside run-to-run variation).
+
+## 2026-04-25
+
+### Summary (jit=on)
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            763.40        766.10           20013         0
+  method_dispatch.mt                  200.62        201.05           14040       506
+  object_alloc.mt                     816.20        823.87           12009         0
+  field_write_hot.mt                  131.35        134.76            8016         1
+  field_read_hot.mt                   161.10        164.14            9017         1
+  string_ops.mt                       152.46        153.35           19014         0
+  recursive.mt                       1304.68       1309.77           17257   2762961
+  bitwise_tight_loop.mt              1193.41       1195.97           23014         0
+  short_circuit_chain.mt              290.39        290.40           24907         0
+  primitive_method_dispatch.mt        616.00        618.62           32031         0
+  array_multi_alloc.mt                 39.56         39.84           10909       500
+  array_multi_get.mt                 1088.88       1090.17           50815       500
+  for_each_loop.mt                    365.07        365.31           69848      5604
+  inline_monomorphic.mt               175.64        175.97           13013       501
+  inline_branching.mt                 178.24        179.16           15013       501
+  inline_polymorphic.mt               209.06        210.48           14049       508
+  inline_value_object_hot.mt          197.00        197.68           11514       500
+  function_call_hot.mt                164.80        165.19           21009       500
+```
+
+## 2026-04-25 — array_multi_get fix: FlatMultiArray sub-array view cache + ArrayExecutor cleanup
+
+- Branch:  `array_multi_get`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Change in this snapshot
+
+Two stacked changes targeting `array_multi_get.mt` (5000 outer × 32×32 grid → 5.12 M `grid[i][j]` accesses, JIT-compiled via OSR after threshold):
+
+- **Phase 1 — `mType/vm/runtime/executors/ArrayExecutor.{hpp,cpp}` cleanup**: changed the six `get*Element` / `set*Element` helper signatures from `std::shared_ptr<…>` (by value, MYT-200 trap — two atomic refcount ops per call) to `const std::shared_ptr<…>&`; bound by `const auto&` at the `handleArrayGet` / `handleArraySet` / `handleArrayLength` call sites so `asNativeArray()`'s already-`const&` return flows straight through; gated the `isValueObject` / `deepCopy` block on `array->getElementType() == ValueType::OBJECT` so primitive-array reads skip the always-false branch; switched to `push(std::move(element))` to skip a redundant retain/release pair. Net effect on this benchmark: nil (the JIT bypasses the interpreter handlers — counters showed `handleArrayGet` fired ~2.6 k times across the whole bench while `jit_array_get` fired 5.1 M times). Still ships as correctness/cleanup that helps interpreter-mode workloads and cold paths.
+- **Phase 2 — `mType/value/FlatMultiArray.hpp` sub-array view cache**: added a single-entry `(cachedSubArrayIndex_, cachedSubArray_)` pair on each `FlatMultiArray`. `getSubArray(index)` fast-returns the cached `shared_ptr` on a hit. The inner `j`-loop in `grid[i][j]` calls `getSubArray(i)` 32 consecutive times with the same `i`, so cache hit rate ≈ 31/32; sub-array heap allocations drop from ~5.12 M to ~160 k. `reset()` clears the cache so pool-reissued arrays don't hand stale views to the next tenant. Cycle (`cachedSubArray_` → view, view's `parent_` → this) is reclaimed by the project's `CycleDetector` (`mType/gc/CycleDetector.hpp`) — bounded leak between sweeps.
+
+### Diagnosis path
+
+Initial assumption (refcount cost on the interpreter ARRAY_GET) was wrong: Phase 1 alone moved the median by <2% (within noise). Adding ARRAY_PATH and JIT-ARRAY counters showed the loop OSRs out of the interpreter after one `sumGrid` call and `jit_array_get(flat, rk>1)` fires 5,119,440 times. That pinned `FlatMultiArray::getSubArray` (one `new FlatMultiArray(...)` per call) as the bottleneck, leading to Phase 2.
+
+### Summary
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            765.34        768.38           20013         0
+  method_dispatch.mt                  202.59        203.23           14040       506
+  object_alloc.mt                     793.50        797.59           12009         0
+  field_write_hot.mt                  126.83        128.28            8016         1
+  field_read_hot.mt                   157.86        159.94            9017         1
+  string_ops.mt                       152.57        152.99           19014         0
+  recursive.mt                       1281.80       1282.36           17257   2762961
+  bitwise_tight_loop.mt              1171.64       1175.31           23014         0
+  short_circuit_chain.mt              283.19        286.40           24907         0
+  primitive_method_dispatch.mt        619.60        627.43           32031         0
+  array_multi_alloc.mt                 39.66         40.09           10909       500
+  array_multi_get.mt                  317.78        318.26           50815       500
+  for_each_loop.mt                    364.69        365.42           69848      5604
+  inline_monomorphic.mt               173.46        174.21           13013       501
+  inline_branching.mt                 174.37        176.74           15013       501
+  inline_polymorphic.mt               213.13        213.95           14049       508
+  inline_value_object_hot.mt          199.77        199.78           11514       500
+  function_call_hot.mt                158.57        160.68           21009       500
+```
+
+### Delta vs 2026-04-25 baseline (median)
+
+| Script                         | Before (ms) | After (ms) | Change   |
+|--------------------------------|------------:|-----------:|---------:|
+| array_multi_get.mt             |     1090.17 |     318.26 | **-70.8% (3.4× faster)** |
+| object_alloc.mt                |      823.87 |     797.59 |   -3.2%  |
+| field_write_hot.mt             |      134.76 |     128.28 |   -4.8%  |
+| field_read_hot.mt              |      164.14 |     159.94 |   -2.6%  |
+| recursive.mt                   |     1309.77 |    1282.36 |   -2.1%  |
+| bitwise_tight_loop.mt          |     1195.97 |    1175.31 |   -1.7%  |
+| short_circuit_chain.mt         |      290.40 |     286.40 |   -1.4%  |
+| function_call_hot.mt           |      165.19 |     160.68 |   -2.7%  |
+| arithmetic_tight_loop.mt       |      766.10 |     768.38 |   +0.3%  |
+| method_dispatch.mt             |      201.05 |     203.23 |   +1.1%  |
+| string_ops.mt                  |      153.35 |     152.99 |   -0.2%  |
+| primitive_method_dispatch.mt   |      618.62 |     627.43 |   +1.4%  |
+| array_multi_alloc.mt           |       39.84 |      40.09 |   +0.6%  |
+| for_each_loop.mt               |      365.31 |     365.42 |   +0.0%  |
+| inline_monomorphic.mt          |      175.97 |     174.21 |   -1.0%  |
+| inline_branching.mt            |      179.16 |     176.74 |   -1.4%  |
+| inline_polymorphic.mt          |      210.48 |     213.95 |   +1.6%  |
+| inline_value_object_hot.mt     |      197.68 |     199.78 |   +1.1%  |
+
+### Notes
+
+- `array_multi_get.mt`: **1090 → 318 ms (3.4×)** — single targeted change. Remaining ~318 ms is now ~30 ns per `jit_array_get` call across 10.24 M calls; further wins require either fusing the 2D-access pair into one helper call or JIT-inlining the `FlatMultiArray` rank>1 → rank==1 path so dispatch disappears.
+- Other movements are all within ±5%, mostly within typical run-to-run noise. No clear regressions.
+- `array_multi_alloc.mt` is essentially unchanged (~40 ms before and after) — the cache only fires on `getSubArray`, not on construction. The earlier impression that it improved was a misread against an older baseline row.
+- `SparseMultiArray::getSubArray` has the same antipattern but isn't exercised by the current bench suite (sparse counters were 0); applying the same single-entry cache there is a small follow-up if/when sparse-multi-dim workloads matter.
+
+## MYT-204 (LOAD_VAR_CACHED / STORE_VAR_CACHED)
+
+- Branch: `MYT-204`
+- Change: runtime-promoted `LOAD_VAR` → `LOAD_VAR_CACHED` and `STORE_VAR` →
+  `STORE_VAR_CACHED` once `Environment::findVariable` succeeds. Cached
+  executors dereference the snapshotted `VariableDefinition*` directly,
+  skipping the constant-pool string fetch and the `unordered_map<string,
+  shared_ptr<VariableDefinition>>` probe on every dispatch. JIT routing
+  unchanged (CACHED treated identically to non-CACHED at emit time —
+  win is interpreter-only).
+- Expected impact: most visible on global-read-heavy interpreted scripts
+  where `findVariable` shows up in profile (string hashing dominates over
+  value access). JIT-compiled hot loops are unaffected by design.
+- Numbers: TODO — capture before/after on a global-read-heavy script
+  (tight loop accumulating into / reading from a top-level int variable).
