@@ -40,6 +40,23 @@ namespace services
         std::shared_ptr<runtimeTypes::klass::ObjectInstance>
         asObjectInstance(const value::Value& v, const char* apiName)
         {
+            // MYT-208: accept STACK_OBJECT (raw borrowed) alongside OBJECT.
+            // ScriptAPI is interop / not hot-path, so wrapping the raw pointer
+            // in an aliasing shared_ptr with a no-op deleter is acceptable —
+            // lifetime stays with the owning CallFrame::stackObjects array.
+            // This keeps every downstream caller's `instance->method()` and
+            // `instance.get()` paths unchanged.
+            if (value::isStackObject(v))
+            {
+                auto* raw = value::asObjectInstanceRaw(v);
+                if (!raw)
+                {
+                    throw errors::ObjectException(
+                        "Value is a null object", "", apiName);
+                }
+                return std::shared_ptr<runtimeTypes::klass::ObjectInstance>(
+                    raw, [](runtimeTypes::klass::ObjectInstance*) {});
+            }
             if (!value::isObject(v))
             {
                 throw errors::ObjectException(

@@ -824,7 +824,10 @@ namespace vm::runtime
                        checkInterfaceMatch(classDef, targetTypeName);
 
         if (canCast) {
-            return obj;
+            // Cast is a runtime type check — preserve the original Value's tag
+            // (OBJECT or STACK_OBJECT). Returning the raw `obj` pointer here
+            // would silently match Value(bool) via pointer→bool decay.
+            return val;
         } else {
             throwIncompatibleCastError(className, targetTypeName);
             return val; // Never reached, but satisfies return type

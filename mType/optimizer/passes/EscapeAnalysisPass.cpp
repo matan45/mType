@@ -386,10 +386,17 @@ namespace optimizer::passes
 
                 if (auto* mCall = dynamic_cast<klass::MethodCallNode*>(node))
                 {
-                    // Receiver: SAFE (method call on receiver — this iteration's runtime
-                    // uses an aliasing shared_ptr so method calls on stack-promoted
-                    // objects are correct and don't extend lifetime).
-                    walkExpr(mCall->getObject(), Ctx::SAFE);
+                    // MYT-208: receiver is ESCAPING. The analyzer can't tell at
+                    // AST time whether the resolved method is bytecode (where
+                    // STACK_OBJECT receivers route through frame.thisInstanceRaw
+                    // safely) or native (e.g. getClass / hashCode / equals — these
+                    // call ScriptAPI / TypeExecutor helpers that historically
+                    // extract a shared_ptr<ObjectInstance> and may store it
+                    // beyond the call). Treating receivers as ESCAPING is
+                    // conservative but correct; field-read paths
+                    // (MemberAccessNode below) still use SAFE so nested-helper
+                    // patterns (e.g. distanceSq's `a.x - b.x`) stay optimised.
+                    walkExpr(mCall->getObject(), Ctx::ESCAPING);
                     // Arguments: ESCAPE (we can't see the callee body).
                     for (const auto& a : mCall->getArguments()) walkExpr(a.get(), Ctx::ESCAPING);
                     return;
