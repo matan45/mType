@@ -446,8 +446,10 @@ namespace vm::runtime
         if (value::isNullType(val)) {
             return "null";
         }
-        if (value::isObject(val)) {
-            auto obj = value::asObject(val);
+        // MYT-208: accept STACK_OBJECT alongside OBJECT — string concatenation
+        // on a stack-promoted local must dispatch toString() the same way.
+        if (value::isAnyObject(val)) {
+            auto* obj = value::asObjectInstanceRaw(val);
             if (obj) {
                 // First, try to call toString() if it exists (custom toString() takes priority)
                 auto classDef = obj->getClassDefinition();

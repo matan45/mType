@@ -988,6 +988,15 @@ namespace vm::runtime
             }
             return obj ? "<" + obj->getClassName() + ">" : "null";
         }
+        // MYT-208: accept STACK_OBJECT alongside OBJECT — `(string) p` on a
+        // stack-promoted local should produce the wrapper's "value" field
+        // when present, mirroring the OBJECT-tag fallback.
+        if (value::isAnyObject(val)) {
+            auto* obj = value::asObjectInstanceRaw(val);
+            if (obj && obj->getField("value")) {
+                return valueToString(obj->getFieldValue("value"));
+            }
+        }
         return "<object>";
     }
 
