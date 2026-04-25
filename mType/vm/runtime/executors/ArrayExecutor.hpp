@@ -72,13 +72,14 @@ namespace vm::runtime
         );
 
         // Helper methods for handleArrayGet
-        void getNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index);
-        void getFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index);
-        void getSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index);
+        // Take shared_ptr by const-ref to avoid per-call refcount ops (MYT-200 trap).
+        void getNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index);
+        void getFlatMultiArrayElement(const std::shared_ptr<value::FlatMultiArray>& flatArray, int64_t index);
+        void getSparseMultiArrayElement(const std::shared_ptr<value::SparseMultiArray>& sparseArray, int64_t index);
 
         // Helper methods for handleArraySet
-        void setNativeArrayElement(std::shared_ptr<value::NativeArray> array, int64_t index, const value::Value& valueToSet);
-        void setFlatMultiArrayElement(std::shared_ptr<value::FlatMultiArray> flatArray, int64_t index, const value::Value& valueToSet);
-        void setSparseMultiArrayElement(std::shared_ptr<value::SparseMultiArray> sparseArray, int64_t index, const value::Value& valueToSet);
+        void setNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index, const value::Value& valueToSet);
+        void setFlatMultiArrayElement(const std::shared_ptr<value::FlatMultiArray>& flatArray, int64_t index, const value::Value& valueToSet);
+        void setSparseMultiArrayElement(const std::shared_ptr<value::SparseMultiArray>& sparseArray, int64_t index, const value::Value& valueToSet);
     };
 }

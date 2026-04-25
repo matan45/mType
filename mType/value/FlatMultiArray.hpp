@@ -64,6 +64,24 @@ namespace value
     private:
         std::vector<Value> data_;  // Contiguous storage for all elements (only used if not a view)
 
+        // Single-entry sub-array view cache. The interpreter and JIT both go
+        // through getSubArray() per inner-loop iteration on patterns like
+        // `grid[i][j]` (j is inner), so the same index repeats N times. Caching
+        // the most recent view collapses N heap allocations into 1 + (N-1)
+        // refcount bumps. Single-threaded VM => no synchronisation needed.
+        // Safe across element writes: views always alias the parent's storage,
+        // so a cached view sees writes immediately.
+        //
+        // Cycle: cachedSubArray_ holds the view; the view's parent_
+        // (in MultiArrayBase) holds this. Reclaimed by the project's GC
+        // CycleDetector — bounded leak between sweeps, acceptable.
+        //
+        // mutable: the const getSubArray() override at the IMultiDimensionalArray
+        // boundary casts away const and calls the non-const version, so the
+        // cache must be writable through a const path.
+        mutable size_t cachedSubArrayIndex_ = SIZE_MAX;
+        mutable std::shared_ptr<FlatMultiArray> cachedSubArray_;
+
         /**
          * @brief Get reference to the actual data storage (own or parent's)
          */
@@ -193,6 +211,12 @@ namespace value
          * @return Shared pointer to sub-array view
          */
         std::shared_ptr<FlatMultiArray> getSubArray(size_t index) {
+            // Hot-path fast return for repeated same-index access (inner loop
+            // of `grid[i][j]` calls getSubArray(i) 32 times in a row).
+            if (index == cachedSubArrayIndex_ && cachedSubArray_) {
+                return cachedSubArray_;
+            }
+
             auto subDims = getSubDimensions();
             if (subDims.empty()) return nullptr;
 
@@ -200,9 +224,13 @@ namespace value
             if (subArrayOffset == SIZE_MAX) return nullptr;
 
             auto rootParent = getRootParent();
-            return std::shared_ptr<FlatMultiArray>(
+            auto view = std::shared_ptr<FlatMultiArray>(
                 new FlatMultiArray(rootParent, subArrayOffset, subDims, defaultValue_)
             );
+
+            cachedSubArrayIndex_ = index;
+            cachedSubArray_ = view;
+            return view;
         }
 
         // IMultiDimensionalArray interface implementation
@@ -237,6 +265,10 @@ namespace value
             }
             defaultValue_ = newDefaultValue;
             std::fill(data_.begin(), data_.end(), defaultValue_);
+            // Drop any cached sub-view: a pool-reissued array must not hand
+            // out a sub-view that the prior tenant may still hold.
+            cachedSubArrayIndex_ = SIZE_MAX;
+            cachedSubArray_.reset();
         }
     };
 }
