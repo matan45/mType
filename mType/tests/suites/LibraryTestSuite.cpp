@@ -18,11 +18,16 @@
 #include "../../project/ProjectBuilder.hpp"
 #include "../../project/ProjectConfigParser.hpp"
 #include "../../environment/EnvironmentBuilder.hpp"
+#include "../../environment/NativeContext.hpp"
+#include "../../environment/registry/NativeRegistry.hpp"
 #include <sstream>
 #include <stdexcept>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <span>
+#include <vector>
+#include <initializer_list>
 
 namespace tests::testSuite
 {
@@ -40,6 +45,20 @@ namespace tests::testSuite
         {
             if (expected != actual)
                 throw std::runtime_error(context + ": expected '" + expected + "', got '" + actual + "'");
+        }
+
+        // Invoke a NativeFunction (NativeDelegate) the way the VM does — with a
+        // NativeContext + span. Replaces the legacy initializer_list call form
+        // that worked when NativeFunction was std::function<Value(const vector<Value>&)>.
+        value::Value invokeNative(
+            const environment::registry::NativeFunction& fn,
+            std::shared_ptr<environment::Environment> env,
+            std::shared_ptr<vm::runtime::VirtualMachine> vm,
+            std::initializer_list<value::Value> args)
+        {
+            environment::NativeContext ctx{ std::move(env), std::move(vm) };
+            std::vector<value::Value> argsVec(args);
+            return fn(ctx, std::span<const value::Value>(argsVec.data(), argsVec.size()));
         }
     }
 
@@ -1193,10 +1212,6 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
-                auto loader = std::make_shared<TransitiveDependencyLoader>();
-
-                LibraryNatives::setVM(vm);
-                LibraryNatives::setLoader(loader);
 
                 // Call the native function with empty path
                 auto nativeRegistry = env->getNativeRegistry();
@@ -1204,11 +1219,11 @@ namespace tests::testSuite
                     "loadLibrary should be registered as a native function");
 
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
-                require(loadLibFunc != nullptr, "loadLibrary function should be found");
+                require(static_cast<bool>(loadLibFunc), "loadLibrary function should be found");
 
                 bool threw = false;
                 try {
-                    loadLibFunc({ std::string("") });
+                    invokeNative(loadLibFunc, env, vm, { std::string("") });
                 } catch (const errors::RuntimeException& e) {
                     threw = true;
                     std::string msg = e.what();
@@ -1228,17 +1243,13 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
-                auto loader = std::make_shared<TransitiveDependencyLoader>();
-
-                LibraryNatives::setVM(vm);
-                LibraryNatives::setLoader(loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
 
                 bool threw = false;
                 try {
-                    loadLibFunc({ std::string("nonexistent/Fake.mtcLib") });
+                    invokeNative(loadLibFunc, env, vm, { std::string("nonexistent/Fake.mtcLib") });
                 } catch (const errors::RuntimeException& e) {
                     threw = true;
                     std::string msg = e.what();
@@ -1267,17 +1278,13 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
-                auto loader = std::make_shared<TransitiveDependencyLoader>();
-
-                LibraryNatives::setVM(vm);
-                LibraryNatives::setLoader(loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
 
                 bool threw = false;
                 try {
-                    loadLibFunc({ std::string(tempPath) });
+                    invokeNative(loadLibFunc, env, vm, { std::string(tempPath) });
                 } catch (const errors::RuntimeException& e) {
                     threw = true;
                     std::string msg = e.what();
@@ -1299,17 +1306,13 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
-                auto loader = std::make_shared<TransitiveDependencyLoader>();
-
-                LibraryNatives::setVM(vm);
-                LibraryNatives::setLoader(loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
 
                 bool threw = false;
                 try {
-                    loadLibFunc({});  // No arguments
+                    invokeNative(loadLibFunc, env, vm, {});  // No arguments
                 } catch (const errors::RuntimeException& e) {
                     threw = true;
                     std::string msg = e.what();
@@ -1329,17 +1332,13 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
-                auto loader = std::make_shared<TransitiveDependencyLoader>();
-
-                LibraryNatives::setVM(vm);
-                LibraryNatives::setLoader(loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
 
                 bool threw = false;
                 try {
-                    loadLibFunc({ int64_t(42) });  // Integer instead of string
+                    invokeNative(loadLibFunc, env, vm, { int64_t(42) });  // Integer instead of string
                 } catch (const errors::RuntimeException& e) {
                     threw = true;
                     std::string msg = e.what();
@@ -1376,16 +1375,12 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
-                auto loader = std::make_shared<TransitiveDependencyLoader>();
-
-                LibraryNatives::setVM(vm);
-                LibraryNatives::setLoader(loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
 
                 // Load library via native function
-                auto result = loadLibFunc({ std::string(libPath) });
+                auto result = invokeNative(loadLibFunc, env, vm, { std::string(libPath) });
                 require(value::isVoid(result),
                     "loadLibrary should return void");
 
@@ -1499,22 +1494,18 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
-                auto loader = std::make_shared<TransitiveDependencyLoader>();
-
-                LibraryNatives::setVM(vm);
-                LibraryNatives::setLoader(loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
                 auto unloadLibFunc = nativeRegistry->findNativeFunction("unloadLibrary");
 
-                require(unloadLibFunc != nullptr, "unloadLibrary should be registered");
+                require(static_cast<bool>(unloadLibFunc), "unloadLibrary should be registered");
 
                 // Load then unload
-                loadLibFunc({ std::string(libPath) });
+                invokeNative(loadLibFunc, env, vm, { std::string(libPath) });
                 require(env->isLibraryLoaded("MathLib"), "MathLib should be loaded");
 
-                unloadLibFunc({ std::string("MathLib") });
+                invokeNative(unloadLibFunc, env, vm, { std::string("MathLib") });
                 require(!env->isLibraryLoaded("MathLib"), "MathLib should be unloaded");
                 require(env->findClass("MathUtils") == nullptr, "MathUtils should be gone");
 
@@ -1534,17 +1525,13 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
-                auto loader = std::make_shared<TransitiveDependencyLoader>();
-
-                LibraryNatives::setVM(vm);
-                LibraryNatives::setLoader(loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto unloadLibFunc = nativeRegistry->findNativeFunction("unloadLibrary");
 
                 bool threw = false;
                 try {
-                    unloadLibFunc({ std::string("NotLoaded") });
+                    invokeNative(unloadLibFunc, env, vm, { std::string("NotLoaded") });
                 } catch (const errors::RuntimeException& e) {
                     threw = true;
                     std::string msg = e.what();
