@@ -31,10 +31,13 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 18> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 19> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
+        // MYT-208: short-scope allocations inside a helper called in a hot
+        // loop — the workload class where escape-analysis Phase 2 wins.
+        "object_alloc_nested.mt",
         // MYT-191: direct-field-write hot loop. SET_FIELD lives inside the
         // OSR-compiled outer loop (unlike object_alloc.mt, whose SETs are
         // in Point.constructor and run interpreted), so this is the only

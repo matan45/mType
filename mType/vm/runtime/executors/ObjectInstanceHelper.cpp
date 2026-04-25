@@ -155,7 +155,9 @@ namespace vm::runtime
         }
 
         auto instance = value::ObjectInstancePool::getInstance().acquire(classDef, genericTypeBindings);
-        initializeObjectFields(instance, classDef);
+        // MYT-208: helper takes raw pointer — pass .get() (lifetime owned by
+        // the shared_ptr returned by acquire).
+        initializeObjectFields(instance.get(), classDef);
 
         // GC: Register the newly created object with the garbage collector
         instance->registerWithGC();
@@ -164,7 +166,7 @@ namespace vm::runtime
     }
 
     void ObjectInstanceHelper::initializeObjectFields(
-        std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+        runtimeTypes::klass::ObjectInstance* instance,
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef)
     {
         std::vector<std::shared_ptr<runtimeTypes::klass::ClassDefinition>> hierarchy;
@@ -245,11 +247,18 @@ namespace vm::runtime
             args[i - 1] = context.stackManager->pop();
         }
 
-        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+        // MYT-208: accept stack-promoted `this` (NEW_STACK ctor frames).
+        if (context.callStack.empty() || !context.callStack.back().getThisInstanceRaw()) {
             throw errors::RuntimeException("SUPER_CONSTRUCTOR can only be called from within an instance context");
         }
 
-        auto instance = context.callStack.back().thisInstance;
+        auto& currentFrame = context.callStack.back();
+        // Build a Value preserving the receiver's storage tag so the super
+        // ctor frame inherits stack-promoted lifetime when applicable.
+        value::Value thisValue = currentFrame.thisInstanceRaw
+            ? value::makeStackObjectValue(currentFrame.thisInstanceRaw)
+            : value::Value(currentFrame.thisInstance);
+        auto* instanceRaw = currentFrame.getThisInstanceRaw();
 
         // IMPORTANT: Use the current class name from the operand, NOT the instance's class!
         // The instance might be a subclass (e.g., Dog), but we're in the Mammal constructor
@@ -312,7 +321,8 @@ namespace vm::runtime
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
 
-            context.stackManager->push(instance);
+            // MYT-208: push receiver Value preserving the storage tag.
+            context.stackManager->push(thisValue);
 
             for (size_t i = 0; i < argCount; ++i) {
                 context.stackManager->push(args[i]);
@@ -326,7 +336,15 @@ namespace vm::runtime
             // names are already registered (see registerFunction), so this is
             // a hashmap hit after first use.
             frame.functionName = targetProgram->internFrameName(constructorName);
-            frame.thisInstance = instance;
+            // MYT-208: tag-branch `this` ownership for the super ctor frame.
+            if (value::isStackObject(thisValue))
+            {
+                frame.thisInstanceRaw = instanceRaw;
+            }
+            else
+            {
+                frame.thisInstance = currentFrame.thisInstance;
+            }
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for constructor
             frame.programIndex = targetProgramIndex;
 
@@ -377,11 +395,16 @@ namespace vm::runtime
             args[i - 1] = context.stackManager->pop();
         }
 
-        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+        // MYT-208: accept stack-promoted `this` (NEW_STACK ctor frames).
+        if (context.callStack.empty() || !context.callStack.back().getThisInstanceRaw()) {
             throw errors::RuntimeException("THIS_CONSTRUCTOR can only be called from within an instance context");
         }
 
-        auto instance = context.callStack.back().thisInstance;
+        auto& currentFrame = context.callStack.back();
+        value::Value thisValue = currentFrame.thisInstanceRaw
+            ? value::makeStackObjectValue(currentFrame.thisInstanceRaw)
+            : value::Value(currentFrame.thisInstance);
+        auto* instanceRaw = currentFrame.getThisInstanceRaw();
 
         // Find the current class
         auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
@@ -423,7 +446,8 @@ namespace vm::runtime
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
 
-            context.stackManager->push(instance);
+            // MYT-208: push receiver Value preserving the storage tag.
+            context.stackManager->push(thisValue);
 
             for (size_t i = 0; i < argCount; ++i) {
                 context.stackManager->push(args[i]);
@@ -435,7 +459,15 @@ namespace vm::runtime
             frame.localBase = frameBase;
             // MYT-197: intern on the target program.
             frame.functionName = targetProgram->internFrameName(constructorName);
-            frame.thisInstance = instance;
+            // MYT-208: tag-branch `this` ownership for the delegated ctor frame.
+            if (value::isStackObject(thisValue))
+            {
+                frame.thisInstanceRaw = instanceRaw;
+            }
+            else
+            {
+                frame.thisInstance = currentFrame.thisInstance;
+            }
             frame.definingClassName = currentClassName;  // Same class as defining class
             frame.programIndex = targetProgramIndex;
 
@@ -486,11 +518,16 @@ namespace vm::runtime
             args[i - 1] = context.stackManager->pop();
         }
 
-        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+        // MYT-208: accept stack-promoted `this`.
+        if (context.callStack.empty() || !context.callStack.back().getThisInstanceRaw()) {
             throw errors::RuntimeException("SUPER_INVOKE can only be called from within an instance context");
         }
 
-        auto instance = context.callStack.back().thisInstance;
+        auto& currentFrame = context.callStack.back();
+        value::Value thisValue = currentFrame.thisInstanceRaw
+            ? value::makeStackObjectValue(currentFrame.thisInstanceRaw)
+            : value::Value(currentFrame.thisInstance);
+        auto* instanceRaw = currentFrame.getThisInstanceRaw();
 
         // IMPORTANT: Use currentClassName from operand, NOT instance->getClassDefinition()
         // This prevents infinite recursion in multi-level inheritance
@@ -552,7 +589,8 @@ namespace vm::runtime
         if (funcMetadata) {
             size_t frameBase = context.stackManager->size();
 
-            context.stackManager->push(instance);
+            // MYT-208: push receiver Value preserving the storage tag.
+            context.stackManager->push(thisValue);
 
             for (size_t i = 0; i < argCount; ++i) {
                 context.stackManager->push(args[i]);
@@ -564,7 +602,15 @@ namespace vm::runtime
             frame.localBase = frameBase;
             // MYT-197: intern on the target program.
             frame.functionName = targetProgram->internFrameName(qualifiedName);
-            frame.thisInstance = instance;
+            // MYT-208: tag-branch `this` ownership for the parent method frame.
+            if (value::isStackObject(thisValue))
+            {
+                frame.thisInstanceRaw = instanceRaw;
+            }
+            else
+            {
+                frame.thisInstance = currentFrame.thisInstance;
+            }
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for access control
             frame.programIndex = targetProgramIndex;
 
@@ -607,11 +653,12 @@ namespace vm::runtime
         const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
         const std::string& memberName = context.program->getConstantPool().getString(instr.operands[1]);
 
-        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+        // MYT-208: accept stack-promoted `this`.
+        if (context.callStack.empty() || !context.callStack.back().getThisInstanceRaw()) {
             throw errors::RuntimeException("SUPER_GET_FIELD can only be called from within an instance context");
         }
 
-        auto instance = context.callStack.back().thisInstance;
+        auto* instance = context.callStack.back().getThisInstanceRaw();
 
         // Get the current class definition
         auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
@@ -642,11 +689,12 @@ namespace vm::runtime
         const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
         const std::string& memberName = context.program->getConstantPool().getString(instr.operands[1]);
 
-        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+        // MYT-208: accept stack-promoted `this`.
+        if (context.callStack.empty() || !context.callStack.back().getThisInstanceRaw()) {
             throw errors::RuntimeException("SUPER_SET_FIELD can only be called from within an instance context");
         }
 
-        auto instance = context.callStack.back().thisInstance;
+        auto* instance = context.callStack.back().getThisInstanceRaw();
 
         // Get the current class definition
         auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
@@ -665,10 +713,15 @@ namespace vm::runtime
         instance->setField(memberName, assignValue);
     }
 
-    void ObjectInstanceHelper::invokeConstructor(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+    void ObjectInstanceHelper::invokeConstructor(const value::Value& receiverValue,
                                                 const std::string& baseClassName,
                                                 std::span<const value::Value> args)
     {
+        // MYT-208: tag-aware unwrap. raw is the only handle used for data
+        // access (ensureFieldVector, setFieldByIndex, etc.). The original
+        // Value is preserved so we push it back as `this` (preserving the
+        // tag) and so we tag-branch the new CallFrame.
+        auto* instance = value::asObjectInstanceRaw(receiverValue);
         size_t argCount = args.size();
         auto classRegistry = context.environment->getClassRegistry();
         auto classDef = classRegistry->findClass(baseClassName);
@@ -679,7 +732,9 @@ namespace vm::runtime
             bool hasAnyConstructor = !classDef->getConstructors().empty();
 
             if (argCount == 0 && !hasAnyConstructor) {
-                context.stackManager->push(instance);
+                // MYT-208: push the original tagged Value (preserves
+                // STACK_OBJECT) instead of constructing an OBJECT Value.
+                context.stackManager->push(receiverValue);
                 return;
             }
 
@@ -711,7 +766,8 @@ namespace vm::runtime
                     instance->setFieldByIndex(fieldIdx, args[paramIdx]);
                 }
             }
-            context.stackManager->push(instance);
+            // MYT-208: preserve the original tag (OBJECT or STACK_OBJECT).
+            context.stackManager->push(receiverValue);
             return;
         }
 
@@ -751,7 +807,17 @@ namespace vm::runtime
         frame.localBase = context.stackManager->size();
         // MYT-197: intern on the target program.
         frame.functionName = targetProgram->internFrameName(constructorName);
-        frame.thisInstance = instance;
+        // MYT-208: tag-branch `this` ownership for the ctor frame. STACK_OBJECT
+        // routes through thisInstanceRaw (lifetime owned by the caller frame's
+        // stackObjects); OBJECT keeps the shared_ptr in thisInstance.
+        if (value::isStackObject(receiverValue))
+        {
+            frame.thisInstanceRaw = instance;
+        }
+        else
+        {
+            frame.thisInstance = value::asObject(receiverValue);
+        }
         frame.definingClassName = baseClassName;  // Set class as defining class for its own constructor
         frame.programIndex = targetProgramIndex;
 
@@ -783,7 +849,9 @@ namespace vm::runtime
             }
         }
 
-        context.stackManager->push(instance);
+        // MYT-208: push the receiver Value preserving its tag so the ctor
+        // body's LOAD_LOCAL 0 reads STACK_OBJECT for stack-promoted ctors.
+        context.stackManager->push(receiverValue);
         for (size_t i = 0; i < argCount; ++i) {
             context.stackManager->push(args[i]);
         }
@@ -828,7 +896,8 @@ namespace vm::runtime
                     if (cachedInstance) {
                         // Cache hit! Return cached Int object (already initialized)
                         // Skip constructor invocation - cached object is already properly initialized
-                        invokeConstructor(cachedInstance, baseClassName, args.span());
+                        // MYT-208: invokeConstructor takes a Value receiver.
+                        invokeConstructor(value::Value(cachedInstance), baseClassName, args.span());
                         return;
                     }
                 }
@@ -842,7 +911,8 @@ namespace vm::runtime
             if (boolClassDef) {
                 auto cachedInstance = value::BoolCache::getBool(value::asBool(args[0]), boolClassDef);
                 if (cachedInstance) {
-                    invokeConstructor(cachedInstance, baseClassName, args.span());
+                    // MYT-208: invokeConstructor takes a Value receiver.
+                    invokeConstructor(value::Value(cachedInstance), baseClassName, args.span());
                     return;
                 }
             }
@@ -855,7 +925,8 @@ namespace vm::runtime
         // (handles aliases: "MyInt" resolves to same ClassDef as "Int",
         //  but constructor bytecode is registered under "Int::<init>")
         std::string actualClassName = instance->getClassDefinition()->getName();
-        invokeConstructor(instance, actualClassName, args.span());
+        // MYT-208: NEW_OBJECT path always produces an OBJECT-tagged Value.
+        invokeConstructor(value::Value(instance), actualClassName, args.span());
     }
 
     void ObjectInstanceHelper::handleNewStack(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -883,30 +954,49 @@ namespace vm::runtime
             throw errors::RuntimeException("Class not found: " + baseClassName);
         }
 
-        // Pool-backed allocation identical to NEW_OBJECT — the shared_ptr's
-        // SlotDeleter gives us automatic pool recycling when the Value refcount
-        // hits zero. Critical for hot loops: without pool recycling, 2M
-        // allocations create 2M distinct ObjectInstances instead of reusing
-        // a small number of pooled slots.
-        auto instance = value::ObjectInstancePool::getInstance().acquire(classDef, genericTypeBindings);
-        initializeObjectFields(instance, classDef);
+        // MYT-208: per-frame stackObjects cap. Above this threshold the
+        // owning frame is accumulating promoted allocations faster than they
+        // can be released — typical of top-level for-loop workloads
+        // (object_alloc.mt). The pool can never recycle a slot across loop
+        // iterations in that pattern, so every acquireRaw hits the pool's
+        // miss path (operator new + placement new), losing the SlotDeleter
+        // recycling that NEW_OBJECT uses. Falling back to the heap path
+        // restores recycling. The cap matches CallFrame::kStackObjectsCap
+        // (the inline array's fixed size).
+        if (context.callStack.empty() ||
+            context.callStack.back().stackObjectsCount >= CallFrame::kStackObjectsCap)
+        {
+            auto instance = createObjectInstance(baseClassName, genericTypeBindings);
+            std::string actualClassName = instance->getClassDefinition()->getName();
+            invokeConstructor(value::Value(instance), actualClassName, args.span());
+            return;
+        }
 
-        // THE actual MYT-134 win: escape analysis proved the reference never
-        // leaves this frame, so we skip GC registration. That saves the mutex +
-        // hashmap insert cost (registerWithGC) AND keeps this object out of the
-        // cycle-detector's scan set for its entire lifetime. Follow-up tickets
-        // can layer additional savings on top (STACK_OBJECT Value tag to skip
-        // the TypedBridge alloc and atomic refcount ops, per-frame bump region
-        // to skip the pool entirely).
+        // MYT-208: pool-borrowed raw allocation. Skips shared_ptr control
+        // block, SlotDeleter, GC register and atomic retain/release for the
+        // object's lifetime. Lifetime is owned by the *current* (caller)
+        // frame's stackObjects array — pushed there BEFORE invokeConstructor
+        // so that an exception thrown inside the ctor body still releases
+        // the slot via ExceptionHandler's frame-teardown path.
+        auto* raw = value::ObjectInstancePool::getInstance().acquireRaw(classDef, genericTypeBindings);
+        initializeObjectFields(raw, classDef);
 
-        std::string actualClassName = instance->getClassDefinition()->getName();
-        invokeConstructor(std::move(instance), actualClassName, args.span());
+        // The cap-check above guarantees the inline array has room.
+        context.callStack.back().tryPushStackObject(raw);
+
+        std::string actualClassName = raw->getClassDefinition()->getName();
+        // MYT-208: build a STACK_OBJECT-tagged Value for the receiver. The
+        // tag flows through invokeConstructor's tag-branched frame setup so
+        // the new ctor frame uses thisInstanceRaw, and the operand stack push
+        // for `this` stays refcount-free.
+        invokeConstructor(value::makeStackObjectValue(raw), actualClassName, args.span());
     }
 
     std::string ObjectInstanceHelper::getCurrentClassName() {
         if (!context.callStack.empty()) {
-            if (context.callStack.back().thisInstance) {
-                return context.callStack.back().thisInstance->getClassDefinition()->getName();
+            // MYT-208: accept stack-promoted `this`.
+            if (auto* rawThis = context.callStack.back().getThisInstanceRaw()) {
+                return rawThis->getClassDefinition()->getName();
             }
             // MYT-197: prefer frame.definingClassName (populated at push time)
             // over resolving the interned handle and re-splitting.

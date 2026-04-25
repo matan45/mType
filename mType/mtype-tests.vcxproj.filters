@@ -2203,6 +2203,9 @@
     <None Include="tests\testFiles\benchmarks\object_alloc.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\object_alloc_nested.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\primitive_method_dispatch.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -5449,10 +5452,22 @@
     <None Include="tests\testFiles\escapeAnalysis\pass\loop_local.mt">
       <Filter>testFiles\escapeAnalysis\pass</Filter>
     </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\method_call_on_promoted.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\method_call_on_promoted.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
     <None Include="tests\testFiles\escapeAnalysis\pass\method_call_on_self.expected">
       <Filter>testFiles\escapeAnalysis\pass</Filter>
     </None>
     <None Include="tests\testFiles\escapeAnalysis\pass\method_call_on_self.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\nested_helper_alloc.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\nested_helper_alloc.mt">
       <Filter>testFiles\escapeAnalysis\pass</Filter>
     </None>
     <None Include="tests\testFiles\escapeAnalysis\pass\passed_as_arg.expected">
@@ -5465,6 +5480,12 @@
       <Filter>testFiles\escapeAnalysis\pass</Filter>
     </None>
     <None Include="tests\testFiles\escapeAnalysis\pass\returned.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\super_ctor_stack.expected">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\super_ctor_stack.mt">
       <Filter>testFiles\escapeAnalysis\pass</Filter>
     </None>
     <None Include="tests\testFiles\escapeAnalysis\pass\thrown.expected">

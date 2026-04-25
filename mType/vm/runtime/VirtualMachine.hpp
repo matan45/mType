@@ -193,6 +193,14 @@ namespace vm::runtime
         // C++ Interop API - Object creation and method invocation
         value::Value createObject(const std::string& className, const std::vector<value::Value>& args);
 
+        // MYT-208: JIT-side stack-promoted allocation. Mirrors createObject but
+        // calls ObjectInstancePool::acquireRaw, pushes the raw pointer onto
+        // the current frame's stackObjects, and returns a STACK_OBJECT-tagged
+        // Value. Non-trivial ctors fall back to createObject (heap) to keep
+        // the v1 implementation small — the dominant `class { int F = a }`
+        // pattern hits the trivial-ctor fast path here.
+        value::Value createStackObject(const std::string& className, const std::vector<value::Value>& args);
+
     private:
         // MYT-113: Drive an async method/lambda body that may suspend on awaits.
         // Called after the inner frame has been pushed and instructionPointer
@@ -336,6 +344,17 @@ namespace vm::runtime
                                              const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
                                              const std::vector<value::Value>& args,
                                              const bytecode::BytecodeProgram* calleeProgram = nullptr);
+
+        // MYT-208: STACK_OBJECT-receiver direct dispatch. Same body as the
+        // shared_ptr overload but threads the raw ObjectInstance* through
+        // frame.thisInstanceRaw and pushes the STACK_OBJECT Value (no
+        // shared_ptr copy) as local-0. Caller (callMethodFromJitDirect Value
+        // overload) verifies the tag before calling.
+        value::Value callMethodFromJitDirectStack(const value::Value& receiverValue,
+                                                  const std::string& qualifiedName,
+                                                  const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+                                                  const std::vector<value::Value>& args,
+                                                  const bytecode::BytecodeProgram* calleeProgram = nullptr);
 
         // JIT helper (MYT-146): allocate a multi-dimensional array. Mirrors
         // ArrayExecutor::handleNewArrayMulti's post-pop dispatch but takes

@@ -692,10 +692,11 @@ namespace vm::runtime
         std::string currentClassName;
         if (!context.callStack.empty())
         {
-            if (context.callStack.back().thisInstance)
+            // MYT-208: accept stack-promoted `this`.
+            if (auto* rawThis = context.callStack.back().getThisInstanceRaw())
             {
                 // Instance method context
-                currentClassName = context.callStack.back().thisInstance->getClassDefinition()->getName();
+                currentClassName = rawThis->getClassDefinition()->getName();
             }
             else if (!context.callStack.back().definingClassName.empty())
             {

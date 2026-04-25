@@ -13,12 +13,15 @@ namespace vm::runtime
     }
 
     bool VariableExecutor::tryLoadFromInstanceField(const std::string& varName) {
-        // Check if we're in a method/constructor and should access a field from 'this'
-        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+        // Check if we're in a method/constructor and should access a field from 'this'.
+        // MYT-208: accept stack-promoted `this` (NEW_STACK ctor frames) — the
+        // raw pointer is interchangeable with the shared_ptr's underlying
+        // pointer for field-access purposes.
+        if (context.callStack.empty() || !context.callStack.back().getThisInstanceRaw()) {
             return false;
         }
 
-        auto thisInstance = context.callStack.back().thisInstance;
+        auto* thisInstance = context.callStack.back().getThisInstanceRaw();
         auto fieldDef = thisInstance->getField(varName);
         if (!fieldDef) {
             return false;
@@ -98,12 +101,13 @@ namespace vm::runtime
     }
 
     bool VariableExecutor::tryStoreToInstanceField(const std::string& varName, const value::Value& val) {
-        // Check if we're in a method/constructor and should set a field on 'this'
-        if (context.callStack.empty() || !context.callStack.back().thisInstance) {
+        // Check if we're in a method/constructor and should set a field on 'this'.
+        // MYT-208: accept stack-promoted `this`.
+        if (context.callStack.empty() || !context.callStack.back().getThisInstanceRaw()) {
             return false;
         }
 
-        auto thisInstance = context.callStack.back().thisInstance;
+        auto* thisInstance = context.callStack.back().getThisInstanceRaw();
         auto fieldDef = thisInstance->getField(varName);
         if (!fieldDef) {
             return false;

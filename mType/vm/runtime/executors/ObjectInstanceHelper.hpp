@@ -52,11 +52,18 @@ namespace vm::runtime
             const std::unordered_map<std::string, std::string>& genericTypeBindings);
         // MYT-196: args passed as span so callers can back them with a
         // SmallArgsBuffer and skip the per-call heap allocation.
-        void invokeConstructor(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+        // MYT-208: receiver passed as Value so OBJECT (heap, shared_ptr via
+        // bridge) and STACK_OBJECT (raw borrowed) flow through the same
+        // dispatch. Tag-branches the new ctor frame's thisInstance vs
+        // thisInstanceRaw assignment and pushes the receiver Value onto the
+        // operand stack preserving the tag.
+        void invokeConstructor(const value::Value& receiverValue,
                               const std::string& baseClassName,
                               std::span<const value::Value> args);
+        // MYT-208: takes a raw ObjectInstance* — works for shared_ptr-owned
+        // (call .get()) and borrowed STACK_OBJECT pointers without re-wrap.
         void initializeObjectFields(
-            std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+            runtimeTypes::klass::ObjectInstance* instance,
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef);
 
         // Access control utilities

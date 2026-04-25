@@ -161,7 +161,10 @@ namespace vm::runtime::utils
                     program->getFrameName(frame.functionName));
             }
 
-            // Target is outside this function - unwind the call frame
+            // Target is outside this function - unwind the call frame.
+            // MYT-208: release stack-promoted allocations BEFORE pop so the
+            // pool gets the slot back on every unwind path.
+            callStack.back().releaseStackObjects();
             callStack.pop_back();
 
             // Clean up the stack
@@ -328,6 +331,8 @@ namespace vm::runtime::utils
                     program->getFrameName(currentFrame.functionName));
             }
 
+            // MYT-208: release stack-promoted allocations BEFORE pop.
+            callStack.back().releaseStackObjects();
             callStack.pop_back();
             cleanupStack(currentFrame.frameBase);
 
@@ -395,6 +400,9 @@ namespace vm::runtime::utils
             }
 
             // Pop this frame FIRST, then check if the call site is covered by the caller's exception table
+            // MYT-208: release stack-promoted allocations BEFORE pop. This is the
+            // path taken when a throw originates inside a stack-promoted ctor's body.
+            callStack.back().releaseStackObjects();
             callStack.pop_back();
             cleanupStack(frame.frameBase);
 

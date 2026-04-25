@@ -48,8 +48,11 @@ namespace vm::runtime
         // Matches the exact spacing produced by ast::GenericType::toString()
         // (", " after commas) so string equality against the compiler-emitted
         // target name is valid. Public for reuse by the FFI (MYT-42).
+        // MYT-208: takes a raw ObjectInstance* so callers can pass either a
+        // shared_ptr's .get() (OBJECT) or a borrowed STACK_OBJECT pointer
+        // without re-wrapping. The function does not extend lifetime.
         static std::string reconstructObjectFullType(
-            const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj);
+            const runtimeTypes::klass::ObjectInstance* obj);
 
     private:
         ExecutionContext& context;

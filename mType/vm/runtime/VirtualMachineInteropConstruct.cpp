@@ -13,6 +13,7 @@
 #include "../../value/AsyncPromiseValue.hpp"
 #include "../../value/ObjectInstancePool.hpp"
 #include "../../value/PromiseValue.hpp"
+#include "../../value/ValueShim.hpp"  // MYT-208: makeStackObjectValue
 
 namespace vm::runtime
 {
@@ -217,6 +218,91 @@ namespace vm::runtime
             currentFinallyOffset = savedCurrentFinallyOffset;
             throw;
         }
+    }
+
+    value::Value VirtualMachine::createStackObject(const std::string& className,
+                                                   const std::vector<value::Value>& args)
+    {
+        // MYT-208: trivial-ctor fast path is what JIT-emitted NEW_STACK
+        // primarily targets (Point(int, int) etc.). Non-trivial ctors fall
+        // back to heap to keep the v1 small — running an interpreter ctor
+        // body with raw `this` requires the same frame-setup machinery as
+        // ObjectInstanceHelper::handleNewStack, which the interpreter side
+        // already does. JIT-compiled hot loops with non-trivial ctors are
+        // rare (analysis usually rejects promotion when the ctor body has
+        // any non-`this.F = p` statement).
+        if (!program)
+        {
+            throw errors::RuntimeException(
+                "No program loaded - cannot create stack object");
+        }
+
+        // MYT-208: per-frame stackObjects cap — see ObjectInstanceHelper::
+        // handleNewStack for rationale. JIT-emitted NEW_STACK in a top-level
+        // hot loop hits this fallback after 32 promoted allocations and reverts
+        // to createObject (heap + SlotDeleter recycling) for the rest of the
+        // loop, matching pre-MYT-208 throughput on workloads where the owning
+        // frame can never release its stackObjects mid-loop.
+        // Cap check runs BEFORE findClass so the fallback path does only one
+        // hashmap lookup total.
+        if (callStack.empty() ||
+            callStack.back().stackObjectsCount >= CallFrame::kStackObjectsCap)
+        {
+            return createObject(className, args);
+        }
+
+        auto classDef = environment->findClass(className);
+        if (!classDef)
+        {
+            throw errors::ClassNotFoundException(className);
+        }
+
+        auto constructor = classDef->findConstructorByTypes(args);
+        if (constructor && constructor->isTrivialConstructor())
+        {
+            std::unordered_map<std::string, std::string> emptyBindings;
+            auto* raw = value::ObjectInstancePool::getInstance()
+                            .acquireRaw(classDef, emptyBindings);
+            const auto& indexed = constructor->getTrivialFieldIndexAssignments();
+            raw->ensureFieldVector();
+            for (const auto& [fieldIdx, paramIdx] : indexed)
+            {
+                if (paramIdx < args.size())
+                {
+                    raw->setFieldByIndex(fieldIdx, args[paramIdx]);
+                }
+            }
+            // Lifetime owned by the calling frame's stackObjects array.
+            // releaseRaw on frame teardown via CallFrame::releaseStackObjects.
+            // tryPushStackObject only fails when the inline array is full,
+            // which the cap check above already excluded — defensive guard
+            // for the impossible case keeps lifetime accounting tight.
+            if (!callStack.back().tryPushStackObject(raw))
+            {
+                value::ObjectInstancePool::getInstance().releaseRaw(raw);
+                return createObject(className, args);
+            }
+            return value::makeStackObjectValue(raw);
+        }
+
+        // Default-ctor (no params, no explicit ctor): instance with no
+        // initialisation — promote to STACK_OBJECT for the same workload class.
+        if (!constructor && args.empty() && classDef->getConstructors().empty())
+        {
+            std::unordered_map<std::string, std::string> emptyBindings;
+            auto* raw = value::ObjectInstancePool::getInstance()
+                            .acquireRaw(classDef, emptyBindings);
+            if (!callStack.back().tryPushStackObject(raw))
+            {
+                value::ObjectInstancePool::getInstance().releaseRaw(raw);
+                return createObject(className, args);
+            }
+            return value::makeStackObjectValue(raw);
+        }
+
+        // Fallback: non-trivial ctor — use the heap path. Correct, but
+        // doesn't realise the STACK_OBJECT perf win for this allocation.
+        return createObject(className, args);
     }
 
     value::Value VirtualMachine::invokeLambda(std::shared_ptr<BytecodeLambda> lambda,

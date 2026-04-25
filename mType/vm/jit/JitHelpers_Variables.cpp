@@ -21,9 +21,10 @@ namespace vm::jit
     {
         if (!ctx->vm) return false;
         const auto& callStack = ctx->vm->getCallStack();
-        if (callStack.empty() || !callStack.back().thisInstance) return false;
+        // MYT-208: accept stack-promoted `this`.
+        if (callStack.empty() || !callStack.back().getThisInstanceRaw()) return false;
 
-        auto thisInstance = callStack.back().thisInstance;
+        auto* thisInstance = callStack.back().getThisInstanceRaw();
         if (!thisInstance->getField(varName)) return false;
 
         *dest = thisInstance->getFieldValue(varName);
@@ -102,9 +103,10 @@ namespace vm::jit
     {
         if (!ctx->vm) return false;
         const auto& callStack = ctx->vm->getCallStack();
-        if (callStack.empty() || !callStack.back().thisInstance) return false;
+        // MYT-208: accept stack-promoted `this`.
+        if (callStack.empty() || !callStack.back().getThisInstanceRaw()) return false;
 
-        auto thisInstance = callStack.back().thisInstance;
+        auto* thisInstance = callStack.back().getThisInstanceRaw();
         auto fieldDef = thisInstance->getField(varName);
         if (!fieldDef) return false;
 

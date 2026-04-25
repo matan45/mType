@@ -314,11 +314,19 @@ namespace vm::jit
         cc.movzx(tag, byte_ptr(receiverAddr, 0));
 
         Label lblValueObj = cc.new_label();
+        // MYT-208: STACK_OBJECT branch — `bridge` field actually holds a raw
+        // ObjectInstance* (the union's stackObject member is at the payload
+        // offset), so skip the heldOffset indirection and read ClassDef
+        // directly. ClassDef offset on ObjectInstance is identical regardless
+        // of how we got the raw pointer.
+        Label lblStackObj = cc.new_label();
         Label lblMerge    = cc.new_label();
 
         // Dispatch by receiver kind; ObjectInstance is the hot fall-through.
         cc.cmp(tag, static_cast<int32_t>(value::ValueType::VALUE_OBJECT));
         cc.je(lblValueObj);
+        cc.cmp(tag, static_cast<int32_t>(value::ValueType::STACK_OBJECT));
+        cc.je(lblStackObj);
         cc.cmp(tag, static_cast<int32_t>(value::ValueType::OBJECT));
         cc.jne(slowLabel);
 
@@ -342,6 +350,14 @@ namespace vm::jit
         cc.mov(classDef, qword_ptr(rawPtr,
                                     static_cast<int32_t>(
                                         value::ValueObject::classDefinitionMemberOffset())));
+        cc.jmp(lblMerge);
+
+        // STACK_OBJECT: bridge already IS the raw ObjectInstance* — `bridge`
+        // and `payload.stackObject` share the same union offset.
+        cc.bind(lblStackObj);
+        cc.mov(classDef, qword_ptr(bridge,
+                                    static_cast<int32_t>(
+                                        runtimeTypes::klass::ObjectInstance::classDefinitionMemberOffset())));
 
         cc.bind(lblMerge);
         return classDef;

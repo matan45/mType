@@ -92,6 +92,8 @@ namespace vm::runtime
                 // Restore state on exception
                 while (callStack.size() > savedCallStackDepth)
                 {
+                    // MYT-208: release stack-promoted allocations before pop.
+                    callStack.back().releaseStackObjects();
                     callStack.pop_back();
                 }
                 instructionPointer = savedIP;
@@ -200,6 +202,65 @@ namespace vm::runtime
         if (value::isObject(receiver))
         {
             return callMethodFromJit(value::asObject(receiver), methodName, args);
+        }
+
+        // MYT-208: STACK_OBJECT receiver. Resolve the method via the same
+        // metadata path as the OBJECT branch, then dispatch through the
+        // tag-aware Direct overload so the new ctor frame uses
+        // thisInstanceRaw and the operand stack push preserves the tag.
+        if (value::isStackObject(receiver))
+        {
+            auto* raw = value::asObjectInstanceRaw(receiver);
+            if (!raw)
+            {
+                throw errors::RuntimeException("JIT method fallback: null STACK_OBJECT");
+            }
+            auto classDef = raw->getClassDefinition();
+            size_t argCount = args.size();
+
+            std::string simpleMethodName = methodName;
+            size_t colonPos = methodName.find("::");
+            if (colonPos != std::string::npos)
+            {
+                simpleMethodName = methodName.substr(colonPos + 2);
+            }
+            size_t slashPos = simpleMethodName.find('/');
+            if (slashPos != std::string::npos)
+            {
+                simpleMethodName = simpleMethodName.substr(0, slashPos);
+            }
+
+            auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
+            if (!method)
+            {
+                throw errors::RuntimeException("Instance method not found: " + simpleMethodName +
+                    " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
+            }
+
+            std::string definingClassName = classDef->getName();
+            std::string typeSignature;
+            auto currentClass = classDef;
+            while (currentClass)
+            {
+                auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
+                if (localMethod)
+                {
+                    definingClassName = currentClass->getName();
+                    typeSignature = localMethod->getTypeSignature();
+                    break;
+                }
+                currentClass = currentClass->getParentClass();
+            }
+
+            std::string qualifiedName = typeSignature.empty()
+                ? definingClassName + "::" + simpleMethodName
+                : definingClassName + "::" + simpleMethodName + "/" + typeSignature;
+            auto* funcMetadata = program->getFunction(qualifiedName);
+            if (!funcMetadata)
+            {
+                throw errors::RuntimeException("Method '" + qualifiedName + "' has no bytecode.");
+            }
+            return callMethodFromJitDirect(receiver, qualifiedName, funcMetadata, args);
         }
 
         if (!value::isValueObject(receiver))
@@ -353,6 +414,8 @@ namespace vm::runtime
                 // Restore state on exception
                 while (callStack.size() > savedCallStackDepth)
                 {
+                    // MYT-208: release stack-promoted allocations before pop.
+                    callStack.back().releaseStackObjects();
                     callStack.pop_back();
                 }
                 instructionPointer = savedIP;
@@ -413,6 +476,15 @@ namespace vm::runtime
                                            funcMetadata, args, calleeProgram);
         }
 
+        // MYT-208: STACK_OBJECT receiver. Same dispatch as the shared_ptr
+        // overload but pushes the tagged Value (no shared_ptr copy) and
+        // routes `this` through frame.thisInstanceRaw.
+        if (value::isStackObject(receiver))
+        {
+            return callMethodFromJitDirectStack(receiver, qualifiedName,
+                                                funcMetadata, args, calleeProgram);
+        }
+
         if (!value::isValueObject(receiver))
         {
             throw errors::RuntimeException("JIT method direct: receiver kind not supported");
@@ -432,6 +504,152 @@ namespace vm::runtime
         tempInstance->loadFromValueObject(*valueObj);
 
         return callMethodFromJitDirect(tempInstance, qualifiedName, funcMetadata, args, calleeProgram);
+    }
+
+    value::Value VirtualMachine::callMethodFromJitDirectStack(
+        const value::Value& receiverValue,
+        const std::string& qualifiedName,
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+        const std::vector<value::Value>& args,
+        const bytecode::BytecodeProgram* calleeProgram)
+    {
+        // MYT-208: clone of callMethodFromJitDirect's mini-interpret loop with
+        // raw `this` and STACK_OBJECT-tagged Value pushed as local-0. Lifetime
+        // of the borrowed instance is owned by the caller's frame (via
+        // stackObjects), not by anything pushed here.
+        auto* raw = value::asObjectInstanceRaw(receiverValue);
+        if (!program || !raw || !funcMetadata)
+        {
+            throw errors::RuntimeException("JIT method direct (stack): invalid state");
+        }
+
+        size_t argCount = args.size();
+
+        const bytecode::BytecodeProgram* savedProgram = executionCtx->program;
+        size_t calleeProgramIndex = callStack.empty() ? 0 : callStack.back().programIndex;
+        bool switchedProgram = false;
+        if (calleeProgram && calleeProgram != savedProgram)
+        {
+            for (size_t i = 0; i < loadedPrograms.size(); ++i)
+            {
+                if (loadedPrograms[i] == calleeProgram)
+                {
+                    calleeProgramIndex = i;
+                    break;
+                }
+            }
+            executionCtx->program = calleeProgram;
+            switchedProgram = true;
+        }
+
+        std::string definingClassName = raw->getClassDefinition()->getName();
+        size_t colonPos = qualifiedName.find("::");
+        if (colonPos != std::string::npos)
+        {
+            definingClassName = qualifiedName.substr(0, colonPos);
+        }
+
+        size_t savedIP = instructionPointer;
+        size_t savedCallStackDepth = callStack.size();
+        size_t savedStackSize = stackManager->size();
+
+        // Push receiver Value (STACK_OBJECT-tagged) as local-0 — preserves the
+        // tag for the callee's LOAD_LOCAL and keeps the operand stack
+        // refcount-free.
+        stackManager->push(receiverValue);
+
+        for (const auto& arg : args)
+        {
+            stackManager->push(arg);
+        }
+
+        size_t pushedSlots = 1 + argCount;
+        if (funcMetadata->localCount > pushedSlots)
+        {
+            size_t additionalLocals = funcMetadata->localCount - pushedSlots;
+            for (size_t i = 0; i < additionalLocals; ++i)
+            {
+                stackManager->push(std::monostate{});
+            }
+        }
+
+        CallFrame frame;
+        frame.returnAddress = savedIP;
+        frame.frameBase = savedStackSize;
+        frame.localBase = savedStackSize;
+        const bytecode::BytecodeProgram* ownerProgram =
+            calleeProgram ? calleeProgram
+                          : (calleeProgramIndex < loadedPrograms.size()
+                                 ? loadedPrograms[calleeProgramIndex]
+                                 : program);
+        frame.functionName = ownerProgram->internFrameName(qualifiedName);
+        frame.thisInstanceRaw = raw;  // STACK_OBJECT path
+        frame.definingClassName = definingClassName;
+        frame.programIndex = calleeProgramIndex;
+        pushCallFrame(frame);
+
+        ++jitNativeDepth;
+
+        instructionPointer = funcMetadata->startOffset;
+
+        auto& jitCurrentProgram2 = executionCtx->program;
+        while (callStack.size() > savedCallStackDepth)
+        {
+            if (instructionPointer >= jitCurrentProgram2->getInstructionCount())
+            {
+                break;
+            }
+
+            const auto& instr = jitCurrentProgram2->getInstruction(instructionPointer);
+
+            try
+            {
+                executeInstruction(instr);
+            }
+            catch (...)
+            {
+                --jitNativeDepth;
+                while (callStack.size() > savedCallStackDepth)
+                {
+                    callStack.back().releaseStackObjects();
+                    callStack.pop_back();
+                }
+                instructionPointer = savedIP;
+                while (stackManager->size() > savedStackSize)
+                {
+                    stackManager->pop();
+                }
+                if (switchedProgram)
+                {
+                    executionCtx->program = savedProgram;
+                }
+                throw;
+            }
+
+            instructionPointer++;
+        }
+
+        --jitNativeDepth;
+
+        value::Value result = std::monostate{};
+        if (stackManager->size() > savedStackSize)
+        {
+            result = stackManager->pop();
+        }
+
+        while (stackManager->size() > savedStackSize)
+        {
+            stackManager->pop();
+        }
+
+        instructionPointer = savedIP;
+
+        if (switchedProgram)
+        {
+            executionCtx->program = savedProgram;
+        }
+
+        return result;
     }
 
     void VirtualMachine::trySpecializeArithmetic(

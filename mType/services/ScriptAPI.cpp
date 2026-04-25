@@ -368,8 +368,10 @@ namespace services
         // helper the bytecode INSTANCEOF op uses — this guarantees the
         // string we pass to Class.forName lines up with what the language
         // side would produce (e.g. "Box<Int>" with ", " spacing).
+        // MYT-208: helper takes raw ObjectInstance* — pass the shared_ptr's
+        // underlying pointer (lifetime is the caller's `instance`).
         std::string canonicalName =
-            vm::runtime::TypeExecutor::reconstructObjectFullType(instance);
+            vm::runtime::TypeExecutor::reconstructObjectFullType(instance.get());
         if (canonicalName.empty())
         {
             canonicalName = instance->getClassDefinition()->getName();

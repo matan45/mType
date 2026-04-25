@@ -82,7 +82,12 @@ namespace vm::runtime
         void invokeLambdaMethod(std::shared_ptr<BytecodeLambda> lambda,
                                std::span<const value::Value> args,
                                const std::string& methodName);
-        void invokeInstanceMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+        // MYT-208: receiver passed as a Value so OBJECT (heap, shared_ptr via
+        // bridge) and STACK_OBJECT (raw borrowed) can flow through the same
+        // dispatch. Internally extracts the raw ObjectInstance* via
+        // asObjectInstanceRaw and tag-branches the frame.thisInstance vs
+        // frame.thisInstanceRaw assignment.
+        void invokeInstanceMethod(const value::Value& receiverValue,
                                  const std::string& methodName,
                                  std::span<const value::Value> args,
                                  size_t argCount);
