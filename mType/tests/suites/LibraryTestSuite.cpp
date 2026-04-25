@@ -1213,6 +1213,12 @@ namespace tests::testSuite
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
 
+                // Re-register library natives with a loader the test owns.
+                // EnvironmentBuilder's loader is local to build() and is destroyed on return,
+                // leaving the userData raw pointer dangling — would crash on first dereference.
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+                LibraryNatives::registerAll(env, loader);
+
                 // Call the native function with empty path
                 auto nativeRegistry = env->getNativeRegistry();
                 require(nativeRegistry->hasNativeFunction("loadLibrary"),
@@ -1243,6 +1249,12 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                // Re-register library natives with a loader the test owns.
+                // EnvironmentBuilder's loader is local to build() and is destroyed on return,
+                // leaving the userData raw pointer dangling — would crash on first dereference.
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+                LibraryNatives::registerAll(env, loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
@@ -1279,6 +1291,12 @@ namespace tests::testSuite
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
 
+                // Re-register library natives with a loader the test owns.
+                // EnvironmentBuilder's loader is local to build() and is destroyed on return,
+                // leaving the userData raw pointer dangling — would crash on first dereference.
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+                LibraryNatives::registerAll(env, loader);
+
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
 
@@ -1307,6 +1325,12 @@ namespace tests::testSuite
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
 
+                // Re-register library natives with a loader the test owns.
+                // EnvironmentBuilder's loader is local to build() and is destroyed on return,
+                // leaving the userData raw pointer dangling — would crash on first dereference.
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+                LibraryNatives::registerAll(env, loader);
+
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
 
@@ -1332,6 +1356,12 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                // Re-register library natives with a loader the test owns.
+                // EnvironmentBuilder's loader is local to build() and is destroyed on return,
+                // leaving the userData raw pointer dangling — would crash on first dereference.
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+                LibraryNatives::registerAll(env, loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
@@ -1375,6 +1405,12 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                // Re-register library natives with a loader the test owns.
+                // EnvironmentBuilder's loader is local to build() and is destroyed on return,
+                // leaving the userData raw pointer dangling — would crash on first dereference.
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+                LibraryNatives::registerAll(env, loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
@@ -1495,6 +1531,12 @@ namespace tests::testSuite
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
 
+                // Re-register library natives with a loader the test owns.
+                // EnvironmentBuilder's loader is local to build() and is destroyed on return,
+                // leaving the userData raw pointer dangling — would crash on first dereference.
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+                LibraryNatives::registerAll(env, loader);
+
                 auto nativeRegistry = env->getNativeRegistry();
                 auto loadLibFunc = nativeRegistry->findNativeFunction("loadLibrary");
                 auto unloadLibFunc = nativeRegistry->findNativeFunction("unloadLibrary");
@@ -1525,6 +1567,12 @@ namespace tests::testSuite
                 environment::EnvironmentBuilder envBuilder;
                 auto env = envBuilder.build();
                 auto vm = std::make_shared<vm::runtime::VirtualMachine>(env);
+
+                // Re-register library natives with a loader the test owns.
+                // EnvironmentBuilder's loader is local to build() and is destroyed on return,
+                // leaving the userData raw pointer dangling — would crash on first dereference.
+                auto loader = std::make_shared<TransitiveDependencyLoader>();
+                LibraryNatives::registerAll(env, loader);
 
                 auto nativeRegistry = env->getNativeRegistry();
                 auto unloadLibFunc = nativeRegistry->findNativeFunction("unloadLibrary");
