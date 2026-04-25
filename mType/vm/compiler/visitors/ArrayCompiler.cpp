@@ -214,7 +214,7 @@ namespace vm::compiler::visitors
                         // Auto-box: compile value, then wrap in NEW_OBJECT or NEW_VALUE_OBJECT
                         node->getValue()->accept(ctx.visitor);
                         size_t classNameIndex = ctx.program.getConstantPool().addString(elementType);
-                        auto boxClassDef = ctx.environment->findClass(elementType);
+                        auto boxClassDef = ctx.env->findClass(elementType);
                         bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
                         if (boxIsValue) {
                             ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
@@ -263,3 +263,4 @@ namespace vm::compiler::visitors
         return std::monostate{};
     }
 }
+

@@ -41,7 +41,7 @@ namespace vm::compiler::visitors
         ast::ASTVisitor<value::Value>& visitor;
         // Core components
         bytecode::BytecodeProgram& program;
-        std::shared_ptr<environment::Environment> environment;
+        std::shared_ptr<environment::Environment> env;
 
         // Helper components
         emission::BytecodeEmitter& emitter;
@@ -95,7 +95,7 @@ namespace vm::compiler::visitors
         )
             : visitor(vis)
             , program(prog)
-            , environment(env)
+            , env(env)
             , emitter(emit)
             , variableTracker(varTracker)
             , globalRegistry(globalReg)

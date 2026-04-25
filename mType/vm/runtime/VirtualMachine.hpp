@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <algorithm>
+#include <span>
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../environment/Environment.hpp"
@@ -210,10 +211,10 @@ namespace vm::runtime
     public:
         value::Value invokeMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                  const std::string& methodName,
-                                 const std::vector<value::Value>& args);
+                                 std::span<const value::Value> args);
         value::Value invokeStaticMethod(const std::string& className,
                                         const std::string& methodName,
-                                        const std::vector<value::Value>& args);
+                                        std::span<const value::Value> args);
         value::Value invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
                                   const std::vector<value::Value>& args);
 

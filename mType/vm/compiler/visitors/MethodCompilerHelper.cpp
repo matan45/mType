@@ -57,7 +57,7 @@ namespace vm::compiler::visitors
         if (node->hasParentClass())
         {
             std::string parentClassName = node->getParentClassName();
-            auto parentClassDef = ctx.environment->getClassRegistry()->findClass(parentClassName);
+            auto parentClassDef = ctx.env->getClassRegistry()->findClass(parentClassName);
             if (parentClassDef)
             {
                 // Check if parent has a default constructor (0 args)
@@ -197,11 +197,11 @@ namespace vm::compiler::visitors
         }
 
         // Check if base type is an existing class or interface
-        if (ctx.environment->findClass(baseTypeName) != nullptr)
+        if (ctx.env->findClass(baseTypeName) != nullptr)
         {
             return true;
         }
-        if (ctx.environment->findInterface(baseTypeName) != nullptr)
+        if (ctx.env->findInterface(baseTypeName) != nullptr)
         {
             return true;
         }
@@ -724,7 +724,7 @@ namespace vm::compiler::visitors
         if (ctx.currentClassNode && ctx.currentClassNode->hasParentClass())
         {
             std::string parentClassName = ctx.currentClassNode->getParentClassName();
-            auto parentClassDef = ctx.environment->getClassRegistry()->findClass(parentClassName);
+            auto parentClassDef = ctx.env->getClassRegistry()->findClass(parentClassName);
 
             if (node->hasSuperInitializer())
             {
@@ -831,3 +831,4 @@ namespace vm::compiler::visitors
         return std::monostate{};
     }
 }
+

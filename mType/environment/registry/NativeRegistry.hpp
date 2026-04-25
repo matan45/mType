@@ -1,33 +1,26 @@
-﻿#pragma once
+#pragma once
 #include <functional>
 #include <unordered_map>
 #include <string>
 #include <vector>
 #include <memory>
-#include "../../value/ValueType.hpp"
+#include <span>
+#include "NativeDelegate.hpp"
 
 namespace runtimeTypes::klass
 {
     class ObjectInstance;
 }
 
-namespace environment::registry::builtin
-{
-    class BuiltinFunction;
-}
-
 namespace environment::registry
 {
-    using namespace value;
-
-    using NativeFunction = std::function<Value(const std::vector<Value>&)>;
-    using MethodCallHandler = std::function<Value(std::shared_ptr<runtimeTypes::klass::ObjectInstance>, const std::string&, const std::vector<Value>&)>;
+    using NativeFunction = NativeDelegate;
+    using MethodCallHandler = std::function<value::Value(std::shared_ptr<runtimeTypes::klass::ObjectInstance>, const std::string&, const std::vector<value::Value>&)>;
 
     class NativeRegistry
     {
     private:
         std::unordered_map<std::string, NativeFunction> nativeFunctions;
-        std::vector<std::unique_ptr<builtin::BuiltinFunction>> builtinFunctions;
         MethodCallHandler methodCallHandler;
 
     public:
@@ -45,10 +38,5 @@ namespace environment::registry
         size_t getNativeFunctionCount() const;
 
         void setMethodCallHandler(MethodCallHandler handler);
-
-    private:
-        void registerBuiltinFunctions();
-        void registerBuiltinFunction(std::unique_ptr<builtin::BuiltinFunction> function);
     };
 }
-

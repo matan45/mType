@@ -12,6 +12,8 @@
 #include "../project/mtclib/TransitiveDependencyLoader.hpp"
 #include "../diagnostics/Diagnostic.hpp"
 
+#include "../environment/registry/NativeRegistry.hpp"
+
 // Forward declarations
 namespace vm::compiler
 {
@@ -35,7 +37,7 @@ namespace services
 
 namespace services
 {
-    using NativeFunction = std::function<value::Value(const std::vector<value::Value>&)>;
+    using NativeFunction = environment::registry::NativeFunction;
 
     class ScriptInterpreter
     {

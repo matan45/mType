@@ -50,3 +50,4 @@ namespace environment::registry::builtin
             const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& value) const;
     };
 }
+

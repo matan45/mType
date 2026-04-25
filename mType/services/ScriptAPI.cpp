@@ -78,7 +78,8 @@ namespace services
             auto nativeFunc = nativeRegistry->findNativeFunction(functionName);
             if (nativeFunc)
             {
-                return nativeFunc(args);
+                ::environment::NativeContext nativeCtx{ this->environment, this->vm->shared_from_this() };
+                return nativeFunc(nativeCtx, args);
             }
         }
 
@@ -478,3 +479,4 @@ namespace services
         return isInstanceOf(object, name);
     }
 }
+

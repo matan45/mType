@@ -822,3 +822,4 @@ namespace vm::runtime
         return ArrayExecutor::buildMultiArray(classRegistry, elementTypeName, dimensions, totalDimensions);
     }
 }
+

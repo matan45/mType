@@ -82,7 +82,7 @@ namespace vm::compiler::visitors
 
     void ClassCompiler::markTrivialConstructors(ast::ClassNode* node)
     {
-        auto classDef = ctx.environment->findClass(node->getClassName());
+        auto classDef = ctx.env->findClass(node->getClassName());
         if (!classDef) return;
 
         const auto& ctorNodes = node->getConstructors();
@@ -162,7 +162,7 @@ namespace vm::compiler::visitors
 
     void ClassCompiler::computeSkipDefaultInitFields(ast::ClassNode* node)
     {
-        auto classDef = ctx.environment->findClass(node->getClassName());
+        auto classDef = ctx.env->findClass(node->getClassName());
         if (!classDef) return;
 
         const auto& ctorNodes = node->getConstructors();
@@ -273,7 +273,7 @@ namespace vm::compiler::visitors
         // Check if there are generic type arguments
         if (genericStart == std::string::npos) {
             // No type arguments provided - validate that class is not generic
-            auto classDef = ctx.environment->findClass(baseClassName);
+            auto classDef = ctx.env->findClass(baseClassName);
             if (classDef && !classDef->getGenericParameters().empty()) {
                 throw errors::TypeException(
                     "Generic class '" + baseClassName + "' requires " +
@@ -351,7 +351,7 @@ namespace vm::compiler::visitors
         }
 
         // PHASE 4: Validate type arguments against class definition
-        auto classDef = ctx.environment->findClass(baseClassName);
+        auto classDef = ctx.env->findClass(baseClassName);
         if (classDef) {
             const auto& genericParams = classDef->getGenericParameters();
 
@@ -431,7 +431,7 @@ namespace vm::compiler::visitors
             if (needsAutoBoxing)
             {
                 size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
-                auto boxClassDef = ctx.environment->findClass(boxClassName);
+                auto boxClassDef = ctx.env->findClass(boxClassName);
                 bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
                 if (boxIsValue) {
                     ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
@@ -455,7 +455,7 @@ namespace vm::compiler::visitors
         if (genStart != std::string::npos) {
             baseClassName = fullClassName.substr(0, genStart);
         }
-        auto classDef = ctx.environment->findClass(baseClassName);
+        auto classDef = ctx.env->findClass(baseClassName);
         bool isValueClass = classDef && classDef->isValueClass();
 
         if (isValueClass) {
@@ -501,7 +501,7 @@ namespace vm::compiler::visitors
         }
 
         // Validate constructor parameters if class definition exists
-        auto classDef = ctx.environment->findClass(baseClassName);
+        auto classDef = ctx.env->findClass(baseClassName);
         runtimeTypes::klass::ConstructorDefinition* matchingConstructor = nullptr;
         std::unordered_map<std::string, std::string> genericTypeBindings;
 
@@ -742,7 +742,7 @@ namespace vm::compiler::visitors
 
         // Validate access modifiers for super method calls
         if (ctx.currentClassNode) {
-            auto classRegistry = ctx.environment->getClassRegistry();
+            auto classRegistry = ctx.env->getClassRegistry();
             if (classRegistry) {
                 auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
                 if (classDef && classDef->hasParentClass()) {
@@ -797,7 +797,7 @@ namespace vm::compiler::visitors
 
         // Validate access modifiers for super field access
         if (ctx.currentClassNode) {
-            auto classRegistry = ctx.environment->getClassRegistry();
+            auto classRegistry = ctx.env->getClassRegistry();
             if (classRegistry) {
                 auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
                 if (classDef && classDef->hasParentClass()) {
@@ -845,7 +845,7 @@ namespace vm::compiler::visitors
 
         // Validate access modifiers for super field assignment
         if (ctx.currentClassNode) {
-            auto classRegistry = ctx.environment->getClassRegistry();
+            auto classRegistry = ctx.env->getClassRegistry();
             if (classRegistry) {
                 auto classDef = classRegistry->findClass(ctx.currentClassNode->getClassName());
                 if (classDef && classDef->hasParentClass()) {
@@ -937,7 +937,7 @@ namespace vm::compiler::visitors
 
         // 2. Emit NEW_OBJECT or NEW_VALUE_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(expectedType);
-        auto boxClassDef = ctx.environment->findClass(expectedType);
+        auto boxClassDef = ctx.env->findClass(expectedType);
         bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
         if (boxIsValue) {
             ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
@@ -958,3 +958,4 @@ namespace vm::compiler::visitors
         return !ctx.typeInference.inferExpressionNullable(receiverNode);
     }
 }
+

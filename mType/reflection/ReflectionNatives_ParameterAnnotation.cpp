@@ -44,7 +44,7 @@ namespace reflection
 
     // --- Method parameter annotations ---------------------------------------
 
-    Value ReflectionNatives::__reflect_getMethodParameterAnnotations(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodParameterAnnotations(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         constexpr const char* FN = "__reflect_getMethodParameterAnnotations";
         if (args.size() != 2) throw errors::RuntimeException(std::string(FN) + " requires 2 arguments");
@@ -69,7 +69,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getMethodParameterAnnotation(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodParameterAnnotation(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         constexpr const char* FN = "__reflect_getMethodParameterAnnotation";
         if (args.size() != 3) throw errors::RuntimeException(std::string(FN) + " requires 3 arguments");
@@ -88,7 +88,7 @@ namespace reflection
         return reg.registerAnnotation(annotation, name);
     }
 
-    Value ReflectionNatives::__reflect_hasMethodParameterAnnotation(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_hasMethodParameterAnnotation(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         constexpr const char* FN = "__reflect_hasMethodParameterAnnotation";
         if (args.size() != 3) throw errors::RuntimeException(std::string(FN) + " requires 3 arguments");
@@ -104,7 +104,7 @@ namespace reflection
 
     // --- Constructor parameter annotations ----------------------------------
 
-    Value ReflectionNatives::__reflect_getConstructorParameterAnnotations(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getConstructorParameterAnnotations(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         constexpr const char* FN = "__reflect_getConstructorParameterAnnotations";
         if (args.size() != 2) throw errors::RuntimeException(std::string(FN) + " requires 2 arguments");
@@ -129,7 +129,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getConstructorParameterAnnotation(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getConstructorParameterAnnotation(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         constexpr const char* FN = "__reflect_getConstructorParameterAnnotation";
         if (args.size() != 3) throw errors::RuntimeException(std::string(FN) + " requires 3 arguments");
@@ -147,7 +147,7 @@ namespace reflection
         return reg.registerAnnotation(annotation, name);
     }
 
-    Value ReflectionNatives::__reflect_hasConstructorParameterAnnotation(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_hasConstructorParameterAnnotation(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         constexpr const char* FN = "__reflect_hasConstructorParameterAnnotation";
         if (args.size() != 3) throw errors::RuntimeException(std::string(FN) + " requires 3 arguments");
@@ -161,3 +161,9 @@ namespace reflection
         return info.constructor->hasParameterAnnotation(pi, name);
     }
 }
+
+
+
+
+
+

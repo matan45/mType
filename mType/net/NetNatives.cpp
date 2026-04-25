@@ -29,14 +29,8 @@
 
 namespace net
 {
-    std::shared_ptr<environment::Environment> NetNatives::currentEnvironment = nullptr;
-    std::shared_ptr<vm::runtime::VirtualMachine> NetNatives::currentVM = nullptr;
-
     namespace
     {
-        // Per-server callback storage. Stored as raw value::Value so the same
-        // slot can hold a BytecodeLambda or a Consumer-wrapped ObjectInstance;
-        // the dispatcher picks the right invocation path at call time.
         struct ServerCallbacks
         {
             value::Value onConnection;
@@ -74,14 +68,7 @@ namespace net
             g_serverCallbacks.erase(handle);
         }
 
-        // Invoke a stored callback directly. Runs on the VM thread from inside
-        // an event-loop post-callback. As of MYT-114 tick() drains pendingCallbacks
-        // before invoking them, so callbacks may call EventLoop::post /
-        // scheduleTask freely without re-locking queueMutex. With the MYT-113
-        // interop async path, invokeLambda / invokeMethod for an async target
-        // returns immediately on first suspension and the body resumes via
-        // promise continuations — no event-loop task wrap needed here.
-        void invokeCallback(std::shared_ptr<vm::runtime::VirtualMachine> vm,
+        void invokeCallback(vm::runtime::VirtualMachine* vm,
                             const value::Value& cb, const value::Value& arg)
         {
             if (!vm) return;
@@ -94,31 +81,24 @@ namespace net
                 catch (const std::exception& e) {
                     std::cerr << "[net] server callback threw: " << e.what() << std::endl;
                 }
-                catch (...) {
-                    std::cerr << "[net] server callback threw: unknown error" << std::endl;
-                }
             }
             else if (value::isObject(cb))
             {
                 auto inst = value::asObject(cb);
                 if (!inst) return;
-                try { vm->invokeMethod(inst, "accept", { arg }); }
+                try {
+                    const value::Value oneArg[] = { arg };
+                    vm->invokeMethod(inst, "accept", std::span<const value::Value>(oneArg));
+                }
                 catch (const std::exception& e) {
                     std::cerr << "[net] server callback threw: " << e.what() << std::endl;
-                }
-                catch (...) {
-                    std::cerr << "[net] server callback threw: unknown error" << std::endl;
                 }
             }
         }
 
-        // Build a TcpSocket mType instance wrapping the given handle. Used when
-        // the accept thread hands a new client to the user's onConnection callback.
-        value::Value makeTcpSocketInstance(std::shared_ptr<environment::Environment> env, int handle)
+        value::Value makeTcpSocketInstance(environment::Environment& env, int handle)
         {
-            if (!env)
-                throw errors::RuntimeException("TcpSocket class not loaded (environment released)");
-            auto classDef = env->findClass("TcpSocket");
+            auto classDef = env.findClass("TcpSocket");
             if (!classDef)
                 throw errors::RuntimeException("TcpSocket class not loaded");
             auto inst = value::ObjectInstancePool::getInstance().acquire(classDef);
@@ -127,37 +107,25 @@ namespace net
         }
     }
 
-    // ============================================================
-    // Lifecycle
-    // ============================================================
-
     void NetNatives::registerAll(std::shared_ptr<environment::Environment> env)
     {
-        currentEnvironment = env;
         WinSockInit::ensure();
         auto reg = env->getNativeRegistry();
 
-        reg->registerNativeFunction("__net_http_sendAsync", __net_http_sendAsync);
-        reg->registerNativeFunction("__net_dns_resolveAsync", __net_dns_resolveAsync);
-
-        reg->registerNativeFunction("__net_socket_create", __net_socket_create);
-        reg->registerNativeFunction("__net_socket_connectAsync", __net_socket_connectAsync);
-        reg->registerNativeFunction("__net_socket_sendAsync", __net_socket_sendAsync);
-        reg->registerNativeFunction("__net_socket_receiveAsync", __net_socket_receiveAsync);
-        reg->registerNativeFunction("__net_socket_close", __net_socket_close);
-        reg->registerNativeFunction("__net_socket_isConnected", __net_socket_isConnected);
-        reg->registerNativeFunction("__net_socket_setTimeout", __net_socket_setTimeout);
-
-        reg->registerNativeFunction("__net_tcpserver_create", __net_tcpserver_create);
-        reg->registerNativeFunction("__net_tcpserver_listen", __net_tcpserver_listen);
-        reg->registerNativeFunction("__net_tcpserver_onConnection", __net_tcpserver_onConnection);
-        reg->registerNativeFunction("__net_tcpserver_onError", __net_tcpserver_onError);
-        reg->registerNativeFunction("__net_tcpserver_stop", __net_tcpserver_stop);
-    }
-
-    void NetNatives::setVM(std::shared_ptr<vm::runtime::VirtualMachine> vm)
-    {
-        currentVM = std::move(vm);
+        reg->registerNativeFunction("__net_http_sendAsync", { nullptr, __net_http_sendAsync });
+        reg->registerNativeFunction("__net_dns_resolveAsync", { nullptr, __net_dns_resolveAsync });
+        reg->registerNativeFunction("__net_socket_create", { nullptr, __net_socket_create });
+        reg->registerNativeFunction("__net_socket_connectAsync", { nullptr, __net_socket_connectAsync });
+        reg->registerNativeFunction("__net_socket_sendAsync", { nullptr, __net_socket_sendAsync });
+        reg->registerNativeFunction("__net_socket_receiveAsync", { nullptr, __net_socket_receiveAsync });
+        reg->registerNativeFunction("__net_socket_close", { nullptr, __net_socket_close });
+        reg->registerNativeFunction("__net_socket_isConnected", { nullptr, __net_socket_isConnected });
+        reg->registerNativeFunction("__net_socket_setTimeout", { nullptr, __net_socket_setTimeout });
+        reg->registerNativeFunction("__net_tcpserver_create", { nullptr, __net_tcpserver_create });
+        reg->registerNativeFunction("__net_tcpserver_listen", { nullptr, __net_tcpserver_listen });
+        reg->registerNativeFunction("__net_tcpserver_onConnection", { nullptr, __net_tcpserver_onConnection });
+        reg->registerNativeFunction("__net_tcpserver_onError", { nullptr, __net_tcpserver_onError });
+        reg->registerNativeFunction("__net_tcpserver_stop", { nullptr, __net_tcpserver_stop });
     }
 
     void NetNatives::cleanup()
@@ -167,15 +135,9 @@ namespace net
             g_serverCallbacks.clear();
         }
         SocketRegistry::instance().cleanup();
-        currentVM = nullptr;
-        currentEnvironment = nullptr;
     }
 
-    // ============================================================
-    // Helpers
-    // ============================================================
-
-    void NetNatives::validateArgCount(const std::vector<value::Value>& args, size_t expected,
+    void NetNatives::validateArgCount(std::span<const value::Value> args, size_t expected,
                                       const std::string& funcName)
     {
         if (args.size() != expected)
@@ -187,25 +149,18 @@ namespace net
 
     std::string NetNatives::extractString(const value::Value& arg, const std::string& funcName)
     {
-        if (value::isString(arg))
-            return value::asString(arg);
-        if (value::isInternedString(arg))
-            return value::asInternedString(arg).getString();
+        if (value::isString(arg)) return value::asString(arg);
+        if (value::isInternedString(arg)) return value::asInternedString(arg).getString();
         throw errors::RuntimeException(funcName + ": expected string argument");
     }
 
     int64_t NetNatives::extractInt(const value::Value& arg, const std::string& funcName)
     {
-        if (value::isInt(arg))
-            return value::asInt(arg);
+        if (value::isInt(arg)) return value::asInt(arg);
         throw errors::RuntimeException(funcName + ": expected int argument");
     }
 
-    // ============================================================
-    // HTTP
-    // ============================================================
-
-    value::Value NetNatives::__net_http_sendAsync(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_http_sendAsync(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 5, "__net_http_sendAsync");
         std::string method = extractString(args[0], "__net_http_sendAsync");
@@ -214,8 +169,8 @@ namespace net
         auto headers = hashMapToStdMap(args[3]);
         int64_t timeoutMs = extractInt(args[4], "__net_http_sendAsync");
 
-        auto env = currentEnvironment;
-        auto vm = currentVM;
+        auto env = ctx.env;
+        auto vm = ctx.vm;
         ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
 
         HttpRequestData req;
@@ -232,8 +187,6 @@ namespace net
                 return client.send(req);
             },
             [env](HttpResponseData resp) -> value::Value {
-                if (!env)
-                    throw errors::RuntimeException("HttpResponse class not loaded (environment released)");
                 auto classDef = env->findClass("HttpResponse");
                 if (!classDef)
                     throw errors::RuntimeException("HttpResponse class not loaded");
@@ -247,17 +200,12 @@ namespace net
         return value::Value(std::static_pointer_cast<value::PromiseValue>(promise));
     }
 
-    // ============================================================
-    // DNS
-    // ============================================================
-
-    value::Value NetNatives::__net_dns_resolveAsync(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_dns_resolveAsync(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__net_dns_resolveAsync");
         std::string host = extractString(args[0], "__net_dns_resolveAsync");
 
-        auto env = currentEnvironment;
-        auto vm = currentVM;
+        auto vm = ctx.vm;
         ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
 
         auto promise = runAsync<std::vector<std::string>>(
@@ -269,24 +217,15 @@ namespace net
                 hints.ai_socktype = SOCK_STREAM;
                 addrinfo* res = nullptr;
                 int rc = getaddrinfo(host.c_str(), nullptr, &hints, &res);
-                if (rc != 0 || !res)
-                {
-                    throw std::runtime_error("dns:could not resolve '" + host + "'");
-                }
+                if (rc != 0 || !res) throw std::runtime_error("dns error");
                 std::vector<std::string> out;
-                for (addrinfo* ai = res; ai; ai = ai->ai_next)
-                {
+                for (addrinfo* ai = res; ai; ai = ai->ai_next) {
                     char buf[INET6_ADDRSTRLEN] = {0};
-                    if (ai->ai_family == AF_INET)
-                    {
-                        auto* sin = reinterpret_cast<sockaddr_in*>(ai->ai_addr);
-                        inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+                    if (ai->ai_family == AF_INET) {
+                        inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(ai->ai_addr)->sin_addr, buf, sizeof(buf));
                         out.emplace_back(buf);
-                    }
-                    else if (ai->ai_family == AF_INET6)
-                    {
-                        auto* sin6 = reinterpret_cast<sockaddr_in6*>(ai->ai_addr);
-                        inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
+                    } else if (ai->ai_family == AF_INET6) {
+                        inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(ai->ai_addr)->sin6_addr, buf, sizeof(buf));
                         out.emplace_back(buf);
                     }
                 }
@@ -295,204 +234,138 @@ namespace net
             },
             [](std::vector<std::string> addrs) -> value::Value {
                 auto arr = std::make_shared<value::NativeArray>(addrs.size(), value::ValueType::STRING);
-                for (size_t i = 0; i < addrs.size(); ++i)
-                {
-                    arr->set(i, addrs[i]);
-                }
+                for (size_t i = 0; i < addrs.size(); ++i) arr->set(i, addrs[i]);
                 return arr;
             });
 
         return value::Value(std::static_pointer_cast<value::PromiseValue>(promise));
     }
 
-    // ============================================================
-    // TCP socket
-    // ============================================================
-
-    value::Value NetNatives::__net_socket_create(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_socket_create(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 0, "__net_socket_create");
         auto sock = std::make_shared<WinSocket>();
-        int handle = SocketRegistry::instance().registerSocket(sock);
-        return static_cast<int64_t>(handle);
+        return static_cast<int64_t>(SocketRegistry::instance().registerSocket(sock));
     }
 
-    value::Value NetNatives::__net_socket_connectAsync(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_socket_connectAsync(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 3, "__net_socket_connectAsync");
         int handle = static_cast<int>(extractInt(args[0], "__net_socket_connectAsync"));
         std::string host = extractString(args[1], "__net_socket_connectAsync");
         int64_t port = extractInt(args[2], "__net_socket_connectAsync");
-
-        auto vm = currentVM;
+        auto vm = ctx.vm;
         ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
-
         auto promise = runAsyncVoid(loop, [handle, host, port]() {
-            auto sock = SocketRegistry::instance().getSocket(handle);
-            sock->connect(host, static_cast<int>(port));
+            SocketRegistry::instance().getSocket(handle)->connect(host, static_cast<int>(port));
         });
-
         return value::Value(std::static_pointer_cast<value::PromiseValue>(promise));
     }
 
-    value::Value NetNatives::__net_socket_sendAsync(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_socket_sendAsync(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__net_socket_sendAsync");
         int handle = static_cast<int>(extractInt(args[0], "__net_socket_sendAsync"));
         std::string data = extractString(args[1], "__net_socket_sendAsync");
-
-        auto vm = currentVM;
+        auto vm = ctx.vm;
         ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
-
-        auto promise = runAsync<int>(
-            loop,
-            [handle, data]() {
-                auto sock = SocketRegistry::instance().getSocket(handle);
-                return sock->send(data);
-            },
-            [](int sent) -> value::Value { return static_cast<int64_t>(sent); });
-
+        auto promise = runAsync<int>(loop, [handle, data]() {
+            return SocketRegistry::instance().getSocket(handle)->send(data);
+        }, [](int sent) -> value::Value { return static_cast<int64_t>(sent); });
         return value::Value(std::static_pointer_cast<value::PromiseValue>(promise));
     }
 
-    value::Value NetNatives::__net_socket_receiveAsync(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_socket_receiveAsync(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__net_socket_receiveAsync");
         int handle = static_cast<int>(extractInt(args[0], "__net_socket_receiveAsync"));
         int64_t maxBytes = extractInt(args[1], "__net_socket_receiveAsync");
-
-        auto vm = currentVM;
+        auto vm = ctx.vm;
         ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
-
-        auto promise = runAsync<std::string>(
-            loop,
-            [handle, maxBytes]() {
-                auto sock = SocketRegistry::instance().getSocket(handle);
-                return sock->recv(static_cast<int>(maxBytes));
-            },
-            [](std::string s) -> value::Value { return s; });
-
+        auto promise = runAsync<std::string>(loop, [handle, maxBytes]() {
+            return SocketRegistry::instance().getSocket(handle)->recv(static_cast<int>(maxBytes));
+        }, [](std::string s) -> value::Value { return s; });
         return value::Value(std::static_pointer_cast<value::PromiseValue>(promise));
     }
 
-    value::Value NetNatives::__net_socket_close(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_socket_close(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__net_socket_close");
-        int handle = static_cast<int>(extractInt(args[0], "__net_socket_close"));
-        SocketRegistry::instance().closeSocket(handle);
+        SocketRegistry::instance().closeSocket(static_cast<int>(extractInt(args[0], "__net_socket_close")));
         return std::monostate{};
     }
 
-    value::Value NetNatives::__net_socket_isConnected(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_socket_isConnected(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__net_socket_isConnected");
-        int handle = static_cast<int>(extractInt(args[0], "__net_socket_isConnected"));
-        try
-        {
-            auto sock = SocketRegistry::instance().getSocket(handle);
-            return sock->isConnected();
-        }
-        catch (...)
-        {
-            return false;
-        }
+        try { return SocketRegistry::instance().getSocket(static_cast<int>(extractInt(args[0], "__net_socket_isConnected")))->isConnected(); }
+        catch (...) { return false; }
     }
 
-    value::Value NetNatives::__net_socket_setTimeout(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_socket_setTimeout(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__net_socket_setTimeout");
-        int handle = static_cast<int>(extractInt(args[0], "__net_socket_setTimeout"));
-        int64_t ms = extractInt(args[1], "__net_socket_setTimeout");
-        auto sock = SocketRegistry::instance().getSocket(handle);
-        sock->setTimeout(static_cast<int>(ms));
+        SocketRegistry::instance().getSocket(static_cast<int>(extractInt(args[0], "__net_socket_setTimeout")))->setTimeout(static_cast<int>(extractInt(args[1], "__net_socket_setTimeout")));
         return std::monostate{};
     }
 
-    // ============================================================
-    // TCP server
-    // ============================================================
-
-    value::Value NetNatives::__net_tcpserver_create(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_tcpserver_create(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 0, "__net_tcpserver_create");
         auto srv = std::make_shared<WinSocketServer>();
-        int handle = SocketRegistry::instance().registerServer(srv);
-        return static_cast<int64_t>(handle);
+        return static_cast<int64_t>(SocketRegistry::instance().registerServer(srv));
     }
 
-    value::Value NetNatives::__net_tcpserver_listen(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_tcpserver_listen(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__net_tcpserver_listen");
         int handle = static_cast<int>(extractInt(args[0], "__net_tcpserver_listen"));
         int64_t port = extractInt(args[1], "__net_tcpserver_listen");
-
         auto srv = SocketRegistry::instance().getServer(handle);
-        auto env = currentEnvironment;
-        auto vm = currentVM;
+        auto env = ctx.env;
+        auto vm = ctx.vm;
         ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
-
         srv->start(static_cast<int>(port),
             [env, vm, loop, handle](uintptr_t clientFd) {
-                auto clientSock = std::make_shared<WinSocket>(clientFd);
-                int clientHandle = SocketRegistry::instance().registerSocket(clientSock);
-                if (!loop) return;
-                loop->post([env, vm, handle, clientHandle]() {
+                int clientHandle = SocketRegistry::instance().registerSocket(std::make_shared<WinSocket>(clientFd));
+                if (loop) loop->post([env, vm, handle, clientHandle]() {
                     auto cbs = getCallbacks(handle);
-                    if (!cbs.hasOnConnection || !vm || !env) return;
-                    try
-                    {
-                        auto inst = makeTcpSocketInstance(env, clientHandle);
-                        invokeCallback(vm, cbs.onConnection, inst);
-                    }
-                    catch (...) {}
+                    if (cbs.hasOnConnection && vm) invokeCallback(vm.get(), cbs.onConnection, makeTcpSocketInstance(*env, clientHandle));
                 });
             },
-            [vm, loop, handle](const std::string& errMsg) {
-                if (!loop) return;
-                loop->post([vm, handle, errMsg]() {
+            [vm, loop, handle, env](const std::string& errMsg) {
+                if (loop) loop->post([vm, handle, errMsg, env]() {
                     auto cbs = getCallbacks(handle);
-                    if (!cbs.hasOnError || !vm) return;
-                    try
-                    {
-                        auto env = NetNatives::getEnvironment();
-                        auto classDef = env ? env->findClass("NetworkException") : nullptr;
-                        value::Value excArg;
-                        if (classDef)
-                        {
+                    if (cbs.hasOnError && vm) {
+                        auto classDef = env->findClass("NetworkException");
+                        value::Value excArg = errMsg;
+                        if (classDef) {
                             auto inst = value::ObjectInstancePool::getInstance().acquire(classDef);
                             inst->setField("message", errMsg);
                             excArg = inst;
                         }
-                        else
-                        {
-                            excArg = errMsg;
-                        }
-                        invokeCallback(vm, cbs.onError, excArg);
+                        invokeCallback(vm.get(), cbs.onError, excArg);
                     }
-                    catch (...) {}
                 });
             });
-
         return std::monostate{};
     }
 
-    value::Value NetNatives::__net_tcpserver_onConnection(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_tcpserver_onConnection(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__net_tcpserver_onConnection");
-        int handle = static_cast<int>(extractInt(args[0], "__net_tcpserver_onConnection"));
-        setOnConnection(handle, args[1]);
+        setOnConnection(static_cast<int>(extractInt(args[0], "__net_tcpserver_onConnection")), args[1]);
         return std::monostate{};
     }
 
-    value::Value NetNatives::__net_tcpserver_onError(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_tcpserver_onError(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__net_tcpserver_onError");
-        int handle = static_cast<int>(extractInt(args[0], "__net_tcpserver_onError"));
-        setOnError(handle, args[1]);
+        setOnError(static_cast<int>(extractInt(args[0], "__net_tcpserver_onError")), args[1]);
         return std::monostate{};
     }
 
-    value::Value NetNatives::__net_tcpserver_stop(const std::vector<value::Value>& args)
+    value::Value NetNatives::__net_tcpserver_stop(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__net_tcpserver_stop");
         int handle = static_cast<int>(extractInt(args[0], "__net_tcpserver_stop"));
@@ -501,3 +374,4 @@ namespace net
         return std::monostate{};
     }
 }
+

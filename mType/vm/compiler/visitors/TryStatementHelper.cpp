@@ -78,7 +78,7 @@ namespace vm::compiler::visitors
                 baseClassName = exceptionType.substr(0, genericStart);
             }
 
-            auto classRegistry = ctx.environment->getClassRegistry();
+            auto classRegistry = ctx.env->getClassRegistry();
             auto exceptionClass = classRegistry->findClass(baseClassName);
 
             if (!exceptionClass)
@@ -539,3 +539,4 @@ namespace vm::compiler::visitors
         // Normal completion path continues here to execute code after try-catch-finally
     }
 }
+

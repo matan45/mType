@@ -13,7 +13,7 @@ namespace reflection
     using namespace runtimeTypes::klass;
 
 
-    Value ReflectionNatives::__reflect_getConstructor(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getConstructor(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 3, "__reflect_getConstructor");
         int64_t classHandle = extractInt(args[0], "__reflect_getConstructor", "classHandle");
@@ -59,7 +59,7 @@ namespace reflection
         throw errors::RuntimeException("Constructor registration failed");
     }
 
-    Value ReflectionNatives::__reflect_getConstructors(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getConstructors(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_getConstructors");
         int64_t classHandle = extractInt(args[0], "__reflect_getConstructors", "classHandle");
@@ -93,7 +93,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getConstructorParamTypes(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getConstructorParamTypes(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorParamTypes");
         int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorParamTypes", "ctorHandle");
@@ -116,7 +116,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getConstructorParamCount(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getConstructorParamCount(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorParamCount");
         int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorParamCount", "ctorHandle");
@@ -131,7 +131,7 @@ namespace reflection
         return static_cast<int>(ctorInfo.constructor->getParameterCount());
     }
 
-    Value ReflectionNatives::__reflect_getConstructorModifiers(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getConstructorModifiers(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorModifiers");
         int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorModifiers", "ctorHandle");
@@ -146,12 +146,11 @@ namespace reflection
         return ctorInfo.constructor->getModifierFlags();
     }
 
-    Value ReflectionNatives::__reflect_newInstanceWithArgs(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_newInstanceWithArgs(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 4, "__reflect_newInstanceWithArgs");
 
-        if (!currentVM)
-        {
+        if (!ctx.vm) {
             throw errors::RuntimeException("VM not initialized for reflection constructor invocation");
         }
 
@@ -196,10 +195,10 @@ namespace reflection
             throw errors::RuntimeException("Expected array for arguments parameter in __reflect_newInstanceWithArgs");
         }
 
-        return currentVM->createObject(classDef->getName(), argsVec);
+        return ctx.vm->createObject(classDef->getName(), argsVec);
     }
 
-    Value ReflectionNatives::__reflect_getConstructorDeclaringClass(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getConstructorDeclaringClass(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorDeclaringClass");
         int64_t classHandle = extractInt(args[0], "__reflect_getConstructorDeclaringClass", "classHandle");
@@ -208,7 +207,7 @@ namespace reflection
 
     // ========== Annotation Reflection Implementations ==========
 
-    Value ReflectionNatives::__reflect_getClassAnnotations(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getClassAnnotations(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getClassAnnotations");
         int64_t classHandle = extractInt(args[0], "__reflect_getClassAnnotations", "classHandle");
@@ -238,7 +237,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getClassAnnotation(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getClassAnnotation(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_getClassAnnotation");
         int64_t classHandle = extractInt(args[0], "__reflect_getClassAnnotation", "classHandle");
@@ -261,7 +260,7 @@ namespace reflection
         return static_cast<int>(handle);
     }
 
-    Value ReflectionNatives::__reflect_hasClassAnnotation(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_hasClassAnnotation(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_hasClassAnnotation");
         int64_t classHandle = extractInt(args[0], "__reflect_hasClassAnnotation", "classHandle");
@@ -277,7 +276,7 @@ namespace reflection
         return classDef->hasAnnotation(annotationName);
     }
 
-    Value ReflectionNatives::__reflect_getMethodAnnotations(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodAnnotations(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getMethodAnnotations");
         int64_t methodHandle = extractInt(args[0], "__reflect_getMethodAnnotations", "methodHandle");
@@ -307,14 +306,14 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getFieldAnnotations(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getFieldAnnotations(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         // Fields don't have annotations in current implementation
         auto result = std::make_shared<NativeArray>(0, ValueType::INT);
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getAnnotationParam(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getAnnotationParam(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_getAnnotationParam");
         int64_t annotationHandle = extractInt(args[0], "__reflect_getAnnotationParam", "annotationHandle");
@@ -337,7 +336,7 @@ namespace reflection
         return paramValue;
     }
 
-    Value ReflectionNatives::__reflect_hasAnnotationParam(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_hasAnnotationParam(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_hasAnnotationParam");
         int64_t annotationHandle = extractInt(args[0], "__reflect_hasAnnotationParam", "annotationHandle");
@@ -353,7 +352,7 @@ namespace reflection
         return annotationInfo.annotation->hasParameter(paramKey);
     }
 
-    Value ReflectionNatives::__reflect_getAnnotationParams(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getAnnotationParams(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getAnnotationParams");
         int64_t annotationHandle = extractInt(args[0], "__reflect_getAnnotationParams", "annotationHandle");
@@ -386,7 +385,7 @@ namespace reflection
 
     // ========== Parameter Reflection Implementations ==========
 
-    Value ReflectionNatives::__reflect_getMethodParameters(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodParameters(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getMethodParameters");
         int64_t methodHandle = extractInt(args[0], "__reflect_getMethodParameters", "methodHandle");
@@ -410,7 +409,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getConstructorParameters(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getConstructorParameters(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getConstructorParameters");
         int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorParameters", "ctorHandle");
@@ -433,7 +432,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getParameterType(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getParameterType(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getParameterType");
         int64_t typeHandle = extractInt(args[0], "__reflect_getParameterType", "typeHandle");
@@ -449,5 +448,194 @@ namespace reflection
         return "unknown";
     }
 
+    // -------------------------------------------------------------------
+    // Annotation lookup-by-name natives.
+    //
+    // Each pair (get/has) walks the annotation list on the target handle's
+    // definition (method/field/constructor) and either registers a handle
+    // for the matched annotation (`get*`, returns -1 on miss) or returns
+    // a bool (`has*`).
+    // -------------------------------------------------------------------
+
+    Value ReflectionNatives::__reflect_getMethodAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 2, "__reflect_getMethodAnnotation");
+        int64_t methodHandle = extractInt(args[0], "__reflect_getMethodAnnotation", "methodHandle");
+        std::string annotationName = extractString(args[1], "__reflect_getMethodAnnotation", "annotationName");
+
+        auto& handleRegistry = ReflectionHandleRegistry::instance();
+        auto methodInfo = handleRegistry.getMethod(methodHandle);
+        if (!methodInfo.method)
+        {
+            throw errors::RuntimeException("Invalid method handle");
+        }
+
+        for (const auto& annotation : methodInfo.method->getAnnotations())
+        {
+            if (annotation->getName() == annotationName)
+            {
+                int64_t handle = handleRegistry.registerAnnotation(annotation, annotation->getName());
+                return static_cast<int>(handle);
+            }
+        }
+        return static_cast<int>(-1);
+    }
+
+    Value ReflectionNatives::__reflect_hasMethodAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 2, "__reflect_hasMethodAnnotation");
+        int64_t methodHandle = extractInt(args[0], "__reflect_hasMethodAnnotation", "methodHandle");
+        std::string annotationName = extractString(args[1], "__reflect_hasMethodAnnotation", "annotationName");
+
+        auto& handleRegistry = ReflectionHandleRegistry::instance();
+        auto methodInfo = handleRegistry.getMethod(methodHandle);
+        if (!methodInfo.method)
+        {
+            throw errors::RuntimeException("Invalid method handle");
+        }
+
+        for (const auto& annotation : methodInfo.method->getAnnotations())
+        {
+            if (annotation->getName() == annotationName) return true;
+        }
+        return false;
+    }
+
+    Value ReflectionNatives::__reflect_getFieldAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 2, "__reflect_getFieldAnnotation");
+        int64_t fieldHandle = extractInt(args[0], "__reflect_getFieldAnnotation", "fieldHandle");
+        std::string annotationName = extractString(args[1], "__reflect_getFieldAnnotation", "annotationName");
+
+        auto& handleRegistry = ReflectionHandleRegistry::instance();
+        auto fieldInfo = handleRegistry.getField(fieldHandle);
+        if (!fieldInfo.field)
+        {
+            throw errors::RuntimeException("Invalid field handle");
+        }
+
+        for (const auto& annotation : fieldInfo.field->getAnnotations())
+        {
+            if (annotation->getName() == annotationName)
+            {
+                int64_t handle = handleRegistry.registerAnnotation(annotation, annotation->getName());
+                return static_cast<int>(handle);
+            }
+        }
+        return static_cast<int>(-1);
+    }
+
+    Value ReflectionNatives::__reflect_hasFieldAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 2, "__reflect_hasFieldAnnotation");
+        int64_t fieldHandle = extractInt(args[0], "__reflect_hasFieldAnnotation", "fieldHandle");
+        std::string annotationName = extractString(args[1], "__reflect_hasFieldAnnotation", "annotationName");
+
+        auto& handleRegistry = ReflectionHandleRegistry::instance();
+        auto fieldInfo = handleRegistry.getField(fieldHandle);
+        if (!fieldInfo.field)
+        {
+            throw errors::RuntimeException("Invalid field handle");
+        }
+
+        for (const auto& annotation : fieldInfo.field->getAnnotations())
+        {
+            if (annotation->getName() == annotationName) return true;
+        }
+        return false;
+    }
+
+    Value ReflectionNatives::__reflect_getConstructorAnnotations(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 1, "__reflect_getConstructorAnnotations");
+        int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorAnnotations", "constructorHandle");
+
+        auto& handleRegistry = ReflectionHandleRegistry::instance();
+        auto ctorInfo = handleRegistry.getConstructor(ctorHandle);
+        if (!ctorInfo.constructor)
+        {
+            throw errors::RuntimeException("Invalid constructor handle");
+        }
+
+        const auto& annotations = ctorInfo.constructor->getAnnotations();
+        auto result = std::make_shared<NativeArray>(annotations.size(), ValueType::INT);
+        for (size_t i = 0; i < annotations.size(); ++i)
+        {
+            int64_t handle = handleRegistry.registerAnnotation(annotations[i], annotations[i]->getName());
+            result->set(static_cast<int>(i), static_cast<int>(handle));
+        }
+        return result;
+    }
+
+    Value ReflectionNatives::__reflect_getConstructorAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 2, "__reflect_getConstructorAnnotation");
+        int64_t ctorHandle = extractInt(args[0], "__reflect_getConstructorAnnotation", "constructorHandle");
+        std::string annotationName = extractString(args[1], "__reflect_getConstructorAnnotation", "annotationName");
+
+        auto& handleRegistry = ReflectionHandleRegistry::instance();
+        auto ctorInfo = handleRegistry.getConstructor(ctorHandle);
+        if (!ctorInfo.constructor)
+        {
+            throw errors::RuntimeException("Invalid constructor handle");
+        }
+
+        for (const auto& annotation : ctorInfo.constructor->getAnnotations())
+        {
+            if (annotation->getName() == annotationName)
+            {
+                int64_t handle = handleRegistry.registerAnnotation(annotation, annotation->getName());
+                return static_cast<int>(handle);
+            }
+        }
+        return static_cast<int>(-1);
+    }
+
+    Value ReflectionNatives::__reflect_hasConstructorAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 2, "__reflect_hasConstructorAnnotation");
+        int64_t ctorHandle = extractInt(args[0], "__reflect_hasConstructorAnnotation", "constructorHandle");
+        std::string annotationName = extractString(args[1], "__reflect_hasConstructorAnnotation", "annotationName");
+
+        auto& handleRegistry = ReflectionHandleRegistry::instance();
+        auto ctorInfo = handleRegistry.getConstructor(ctorHandle);
+        if (!ctorInfo.constructor)
+        {
+            throw errors::RuntimeException("Invalid constructor handle");
+        }
+
+        for (const auto& annotation : ctorInfo.constructor->getAnnotations())
+        {
+            if (annotation->getName() == annotationName) return true;
+        }
+        return false;
+    }
+
+    Value ReflectionNatives::__reflect_getAnnotationMeta(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 2, "__reflect_getAnnotationMeta");
+        int64_t annotationHandle = extractInt(args[0], "__reflect_getAnnotationMeta", "annotationHandle");
+        // metaName accepted but unused: AnnotationNode does not currently track
+        // meta-annotations, so this native always returns -1 (not found).
+        (void)extractString(args[1], "__reflect_getAnnotationMeta", "metaName");
+
+        auto& handleRegistry = ReflectionHandleRegistry::instance();
+        auto annotationInfo = handleRegistry.getAnnotation(annotationHandle);
+        if (!annotationInfo.annotation)
+        {
+            throw errors::RuntimeException("Invalid annotation handle");
+        }
+
+        // No meta-annotation infrastructure on AnnotationNode yet.
+        return static_cast<int>(-1);
+    }
+
 
 } // namespace reflection
+
+
+
+
+
+
+

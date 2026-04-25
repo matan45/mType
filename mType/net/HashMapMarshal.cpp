@@ -57,7 +57,7 @@ namespace net
             return hash % capacity;
         }
 
-        // Mirror HashCodeFunction's string hash (std::hash<std::string> & 0x7FFFFFFF)
+        // Mirror BuiltinNatives::hashCode_fn string hash (std::hash<std::string> & 0x7FFFFFFF)
         // so bucket placement matches what mType's HashMap.put would produce.
         int64_t stringHash(const std::string& s)
         {

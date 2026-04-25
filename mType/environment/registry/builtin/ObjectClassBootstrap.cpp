@@ -98,3 +98,4 @@ namespace environment::registry::builtin
         classRegistry->registerClass("Object", objectClass);
     }
 }
+

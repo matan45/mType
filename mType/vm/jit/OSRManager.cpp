@@ -442,3 +442,4 @@ namespace vm::jit
         return SlotType::BOXED;
     }
 }
+

@@ -63,6 +63,9 @@
     <ClInclude Include="environment\EnvironmentBuilder.hpp">
       <Filter>environment</Filter>
     </ClInclude>
+    <ClInclude Include="environment\NativeContext.hpp">
+      <Filter>environment</Filter>
+    </ClInclude>
     <ClInclude Include="environment\manager\Scope.hpp">
       <Filter>environment\manager</Filter>
     </ClInclude>
@@ -87,64 +90,22 @@
     <ClInclude Include="environment\registry\InheritanceTracker.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\NativeBinder.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\NativeDelegate.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\NativeRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\Registry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
-    <ClInclude Include="environment\registry\builtin\AcosFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\AsinFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\Atan2Function.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\AtanFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\BuiltinFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\CosFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\HashCodeFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\IndexOfFunction.hpp">
+    <ClInclude Include="environment\registry\builtin\BuiltinNatives.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\builtin\ObjectClassBootstrap.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\ParsePrimitiveFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\PrintFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\SinFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\SqrtFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\StrLengthFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\SubstringFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\TanFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\ToLowerCaseFunction.hpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClInclude>
-    <ClInclude Include="environment\registry\builtin\ToUpperCaseFunction.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\builtin\ValuePrinter.hpp">
@@ -338,6 +299,9 @@
     <ClCompile Include="environment\EnvironmentBuilder.cpp">
       <Filter>environment</Filter>
     </ClCompile>
+    <ClCompile Include="environment\NativeContext.cpp">
+      <Filter>environment</Filter>
+    </ClCompile>
     <ClCompile Include="environment\manager\Scope.cpp">
       <Filter>environment\manager</Filter>
     </ClCompile>
@@ -362,55 +326,10 @@
     <ClCompile Include="environment\registry\NativeRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
-    <ClCompile Include="environment\registry\builtin\AcosFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\AsinFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\Atan2Function.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\AtanFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\CosFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\HashCodeFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\IndexOfFunction.cpp">
+    <ClCompile Include="environment\registry\builtin\BuiltinNatives.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\builtin\ObjectClassBootstrap.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\ParsePrimitiveFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\PrintFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\SinFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\SqrtFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\StrLengthFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\SubstringFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\TanFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\ToLowerCaseFunction.cpp">
-      <Filter>environment\registry\builtin</Filter>
-    </ClCompile>
-    <ClCompile Include="environment\registry\builtin\ToUpperCaseFunction.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\builtin\ValuePrinter.cpp">
