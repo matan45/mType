@@ -449,7 +449,10 @@ namespace vm::jit
         try
         {
             const std::string& className = ctx->program->getConstantPool().getString(classIndex);
-            std::vector<value::Value> args(ctx->callArgs, ctx->callArgs + argCount);
+            // MYT-208: pass a span over ctx->callArgs directly — no per-call
+            // heap alloc. The pre-MYT-208 vector copy was O(argCount) and
+            // dominated the trivial-ctor hot path on object_alloc-style benches.
+            std::span<const value::Value> args(ctx->callArgs, argCount);
 
             if (ctx->vm)
             {
@@ -481,7 +484,8 @@ namespace vm::jit
         try
         {
             const std::string& className = ctx->program->getConstantPool().getString(classIndex);
-            std::vector<value::Value> args(ctx->callArgs, ctx->callArgs + argCount);
+            // Span over ctx->callArgs — zero per-call heap alloc.
+            std::span<const value::Value> args(ctx->callArgs, argCount);
 
             if (ctx->vm)
             {

@@ -3,6 +3,7 @@
 #include "../../environment/Environment.hpp"
 #include "../../environment/registry/ClassRegistry.hpp"
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../../value/ValueTypeUtils.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../runtimeTypes/klass/FieldDefinition.hpp"
@@ -203,6 +204,32 @@ namespace vm::jit
             if (jitTryStoreToStaticField(ctx, varName, *val)) return;
 
             throw errors::RuntimeException("Variable not found: " + varName);
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
+    }
+
+    // MYT-208: mirrors VariableExecutor::handleDeclareVar. Registers a new
+    // global variable in the environment with the given name, type inferred
+    // from the value, and final flag. Used by the JIT emitter for DECLARE_VAR
+    // (which only appears in JIT-compiled code as dead bytecode trailing a
+    // function whose metadata range overcounts; the helper still has to be
+    // semantically correct in case any reachable path ever invokes it).
+    void jit_declare_var(JitContext* ctx, uint32_t nameIndex,
+                         const value::Value* val, uint8_t isFinal)
+    {
+        if (ctx->pendingException) return;
+
+        try
+        {
+            const std::string& varName =
+                ctx->program->getConstantPool().getString(nameIndex);
+            value::ValueType type = value::ValueTypeUtils::getValueType(*val);
+            auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
+                varName, type, *val, isFinal != 0);
+            ctx->environment->declareVariable(varName, varDef);
         }
         catch (...)
         {

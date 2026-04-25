@@ -190,8 +190,12 @@ namespace vm::runtime
         value::Value execute(const bytecode::BytecodeProgram& bytecodeProgram);
         value::Value executeFunction(const std::string& functionName, const std::vector<value::Value>& args);
 
-        // C++ Interop API - Object creation and method invocation
-        value::Value createObject(const std::string& className, const std::vector<value::Value>& args);
+        // C++ Interop API - Object creation and method invocation.
+        // MYT-208: takes a span so JIT helpers (jit_new_object, jit_new_stack)
+        // pass `callArgs` + count without heap-allocating a per-call vector.
+        // External callers passing std::vector<Value> work via std::span's
+        // implicit construction from a contiguous range.
+        value::Value createObject(const std::string& className, std::span<const value::Value> args);
 
         // MYT-208: JIT-side stack-promoted allocation. Mirrors createObject but
         // calls ObjectInstancePool::acquireRaw, pushes the raw pointer onto
@@ -199,7 +203,7 @@ namespace vm::runtime
         // Value. Non-trivial ctors fall back to createObject (heap) to keep
         // the v1 implementation small — the dominant `class { int F = a }`
         // pattern hits the trivial-ctor fast path here.
-        value::Value createStackObject(const std::string& className, const std::vector<value::Value>& args);
+        value::Value createStackObject(const std::string& className, std::span<const value::Value> args);
 
     private:
         // MYT-113: Drive an async method/lambda body that may suspend on awaits.

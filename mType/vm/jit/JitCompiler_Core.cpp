@@ -522,8 +522,7 @@ namespace vm::jit
             else if (emitControlFlowOps(s, instr, nullptr)) { handled = true; }
             else { emitObjectOps(s, instr); handled = true; }
 
-            if (s.compileFailed)
-                break;
+            if (s.compileFailed) break;
         }
     }
 

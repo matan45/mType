@@ -218,6 +218,42 @@ namespace vm::jit
         inv->set_arg(2, valAddr);
     }
 
+    // MYT-208: DECLARE_VAR — pop the top-of-stack value and register a new
+    // global with that value. Stack effect: -1 (pure pop). This typically
+    // appears as dead bytecode trailing a function whose metadata range
+    // overcounts; emitting a real helper call keeps semantics correct in
+    // case any reachable path ever runs it.
+    static void emitDeclareVar(JitEmissionState& s,
+                                const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (!s.usesBoxedTypes) { s.compileFailed = true; return; }
+        auto& cc = s.cc;
+        uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
+        // operand[1] is the type-name index (currently unused at JIT level).
+        uint8_t isFinal = (instr.operands.size() >= 3 && instr.operands[2] != 0) ? 1 : 0;
+
+        SlotType valType = topType(s);
+        Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, valType);
+        Gp niReg = cc.new_gp64();
+        cc.mov(niReg, static_cast<int64_t>(nameIndex));
+        Gp finalReg = cc.new_gp64();
+        cc.mov(finalReg, static_cast<int64_t>(isFinal));
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_declare_var),
+                  FuncSignature::build<void, JitContext*, uint32_t,
+                                        const value::Value*, uint8_t>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, niReg);
+        inv->set_arg(2, valAddr);
+        inv->set_arg(3, finalReg);
+
+        // Pop the value the helper consumed.
+        emitValueDestroy(s, s.stackDepth - 1);
+        popType(s);
+        s.stackDepth--;
+    }
+
     static void emitReturnPrimitive(JitEmissionState& s, SlotType retType)
     {
         auto& cc = s.cc;
@@ -804,6 +840,10 @@ namespace vm::jit
             case OpCode::STORE_VAR:
             case OpCode::STORE_VAR_CACHED: // MYT-204
                 emitStoreVar(s, static_cast<uint32_t>(instr.operands[0]));
+                return true;
+
+            case OpCode::DECLARE_VAR: // MYT-208
+                emitDeclareVar(s, instr);
                 return true;
 
             case OpCode::JUMP:

@@ -140,6 +140,11 @@ namespace vm::jit
     void jit_load_var(value::Value* dest, JitContext* ctx, uint32_t nameIndex);
     void jit_store_var(JitContext* ctx, uint32_t nameIndex,
                        const value::Value* val);
+    // MYT-208: DECLARE_VAR — registers a new global with the value popped
+    // from the operand stack. Used in the JIT emitter for the rare-but-real
+    // case where a function's metadata range trails into top-level globals.
+    void jit_declare_var(JitContext* ctx, uint32_t nameIndex,
+                         const value::Value* val, uint8_t isFinal);
 
     // MYT-147: iterator protocol helpers. Receiver is marshalled into
     // ctx->callArgs[0] by the emitter before each call. Methods that return a

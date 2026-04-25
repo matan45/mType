@@ -18,7 +18,7 @@
 namespace vm::runtime
 {
     // Object construction & lambda invocation
-    value::Value VirtualMachine::createObject(const std::string& className, const std::vector<value::Value>& args)
+    value::Value VirtualMachine::createObject(const std::string& className, std::span<const value::Value> args)
     {
         // Save current state up front so the typed catch can decorate the
         // exception against the LIVE callStack before we restore.
@@ -221,7 +221,7 @@ namespace vm::runtime
     }
 
     value::Value VirtualMachine::createStackObject(const std::string& className,
-                                                   const std::vector<value::Value>& args)
+                                                   std::span<const value::Value> args)
     {
         // MYT-208: trivial-ctor fast path is what JIT-emitted NEW_STACK
         // primarily targets (Point(int, int) etc.). Non-trivial ctors fall
@@ -257,12 +257,17 @@ namespace vm::runtime
             throw errors::ClassNotFoundException(className);
         }
 
+        // MYT-208: shared empty bindings map — constructing a fresh empty
+        // unordered_map per call cost ~15ns × 4M allocs on the nested bench.
+        // Generic-binding STACK_OBJECT promotion isn't supported in v1, so
+        // this is always-empty.
+        static const std::unordered_map<std::string, std::string> kEmptyBindings;
+
         auto constructor = classDef->findConstructorByTypes(args);
         if (constructor && constructor->isTrivialConstructor())
         {
-            std::unordered_map<std::string, std::string> emptyBindings;
             auto* raw = value::ObjectInstancePool::getInstance()
-                            .acquireRaw(classDef, emptyBindings);
+                            .acquireRaw(classDef, kEmptyBindings);
             const auto& indexed = constructor->getTrivialFieldIndexAssignments();
             raw->ensureFieldVector();
             for (const auto& [fieldIdx, paramIdx] : indexed)
@@ -289,9 +294,8 @@ namespace vm::runtime
         // initialisation — promote to STACK_OBJECT for the same workload class.
         if (!constructor && args.empty() && classDef->getConstructors().empty())
         {
-            std::unordered_map<std::string, std::string> emptyBindings;
             auto* raw = value::ObjectInstancePool::getInstance()
-                            .acquireRaw(classDef, emptyBindings);
+                            .acquireRaw(classDef, kEmptyBindings);
             if (!callStack.back().tryPushStackObject(raw))
             {
                 value::ObjectInstancePool::getInstance().releaseRaw(raw);
