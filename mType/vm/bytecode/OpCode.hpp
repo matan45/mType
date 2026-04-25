@@ -157,6 +157,15 @@ namespace vm::bytecode
         // cachedField* fields. Same RUNTIME-ONLY invariant as CALL_METHOD_CACHED.
         GET_FIELD_CACHED,
         SET_FIELD_CACHED,
+        // MYT-204: IC-stable specialization of LOAD_VAR / STORE_VAR for the
+        // global-resolution path. Once findVariable returns non-null at this
+        // IP, the opcode rewrites to *_CACHED and the side table snapshots the
+        // heap-stable VariableDefinition pointer. Globals are append-only at
+        // runtime, so no sticky-deopt counter is needed; the only revert path
+        // is a defensive null guard for environment teardown. Same RUNTIME-
+        // ONLY invariant as CALL_METHOD_CACHED.
+        LOAD_VAR_CACHED,
+        STORE_VAR_CACHED,
         CALL_STATIC,        // Call static method (operand: method name + arg count)
         INVOKE,             // Optimized method call (name + arg count)
         SUPER_INVOKE,       // Super method call
@@ -429,6 +438,8 @@ namespace vm::bytecode
             case OpCode::CALL_METHOD_POLY_CACHED: return "CALL_METHOD_POLY_CACHED";
             case OpCode::GET_FIELD_CACHED: return "GET_FIELD_CACHED";
             case OpCode::SET_FIELD_CACHED: return "SET_FIELD_CACHED";
+            case OpCode::LOAD_VAR_CACHED: return "LOAD_VAR_CACHED";
+            case OpCode::STORE_VAR_CACHED: return "STORE_VAR_CACHED";
             case OpCode::CALL_STATIC: return "CALL_STATIC";
             case OpCode::INVOKE: return "INVOKE";
             case OpCode::SUPER_INVOKE: return "SUPER_INVOKE";

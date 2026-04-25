@@ -14,6 +14,7 @@
 #include "../../value/ValueType.hpp"
 
 namespace runtimeTypes::klass { class ClassDefinition; }
+namespace runtimeTypes::global { class VariableDefinition; }
 
 namespace vm::bytecode
 {
@@ -143,6 +144,17 @@ namespace vm::bytecode
             const runtimeTypes::klass::ClassDefinition* cachedFieldShape     = nullptr;
             size_t                                      cachedFieldIndex     = static_cast<size_t>(-1);
             uint8_t                                     cachedFieldDeoptCount = 0;
+
+            // MYT-204: LOAD_VAR_CACHED / STORE_VAR_CACHED embedded slot.
+            // Snapshotted once the LOAD_VAR / STORE_VAR site at this IP
+            // successfully resolves a global. Pointee is owned by
+            // VariableManager's shared_ptr — heap-stable across map rehashes
+            // and never removed at runtime (VariableManager::removeVariable
+            // is only invoked from compile-time scope cleanup). No deopt
+            // counter: globals are monomorphic by construction. The cached
+            // executors guard against null on environment teardown and revert
+            // to the generic path in that case.
+            const runtimeTypes::global::VariableDefinition* cachedGlobalSlot = nullptr;
 
             // MYT-198: Superinstruction fusion. When a CACHED / ADD_INT
             // runtime rewrite fires, its predecessor LOAD_LOCAL / PUSH_INT

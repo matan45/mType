@@ -1191,3 +1191,19 @@ Correctness preserved: `inline_value_object_write_skip.mt` still prints `200` (i
   inline_value_object_hot.mt          197.00        197.68           11514       500
   function_call_hot.mt                164.80        165.19           21009       500
 ```
+
+## MYT-204 (LOAD_VAR_CACHED / STORE_VAR_CACHED)
+
+- Branch: `MYT-204`
+- Change: runtime-promoted `LOAD_VAR` → `LOAD_VAR_CACHED` and `STORE_VAR` →
+  `STORE_VAR_CACHED` once `Environment::findVariable` succeeds. Cached
+  executors dereference the snapshotted `VariableDefinition*` directly,
+  skipping the constant-pool string fetch and the `unordered_map<string,
+  shared_ptr<VariableDefinition>>` probe on every dispatch. JIT routing
+  unchanged (CACHED treated identically to non-CACHED at emit time —
+  win is interpreter-only).
+- Expected impact: most visible on global-read-heavy interpreted scripts
+  where `findVariable` shows up in profile (string hashing dominates over
+  value access). JIT-compiled hot loops are unaffected by design.
+- Numbers: TODO — capture before/after on a global-read-heavy script
+  (tight loop accumulating into / reading from a top-level int variable).

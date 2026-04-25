@@ -325,6 +325,13 @@ namespace tests::testSuite
         addOutputVerificationTest("SET_FIELD_CACHED Deopt Sticky",
                                   passPath + "ic/set_field_cached_deopt.mt");
 
+        // MYT-204: LOAD_VAR_CACHED / STORE_VAR_CACHED promote on stable
+        // global-resolution + correctness under post-init mutation.
+        addOutputVerificationTest("LOAD_VAR_CACHED Monomorphic Promote",
+                                  passPath + "ic/load_var_cached_promote.mt");
+        addOutputVerificationTest("STORE_VAR_CACHED Mutation Reflects",
+                                  passPath + "ic/store_var_cached_mutate.mt");
+
         // MYT-199: type-quickened LOAD_LOCAL / STORE_LOCAL. Four mono tests
         // drive each specialized variant through its fast path; sticky-deopt
         // is exercised indirectly by any pre-existing test whose locals hold

@@ -7267,6 +7267,12 @@
     <None Include="tests\testFiles\integration\pass\ic\load_local_int_mono.mt">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_var_cached_promote.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\load_var_cached_promote.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\ic\set_field_cached_deopt.expected">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
@@ -7277,6 +7283,12 @@
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\ic\set_field_cached_mono.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\store_var_cached_mutate.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\store_var_cached_mutate.mt">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\importsWithNamespacesAndClasses.expected">

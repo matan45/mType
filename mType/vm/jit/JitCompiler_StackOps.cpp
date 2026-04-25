@@ -84,6 +84,8 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::STORE_LOCAL_BOXED_INST),
             static_cast<uint8_t>(OpCode::LOAD_VAR),
             static_cast<uint8_t>(OpCode::STORE_VAR),
+            static_cast<uint8_t>(OpCode::LOAD_VAR_CACHED),     // MYT-204
+            static_cast<uint8_t>(OpCode::STORE_VAR_CACHED),    // MYT-204
 
             static_cast<uint8_t>(OpCode::JUMP),
             static_cast<uint8_t>(OpCode::JUMP_IF_FALSE),

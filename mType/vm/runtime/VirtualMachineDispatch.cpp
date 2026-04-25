@@ -175,6 +175,33 @@ namespace vm::runtime
             break;
         case OpCode::STORE_VAR: variableExecutor->handleStoreVar(instr);
             break;
+        case OpCode::LOAD_VAR_CACHED:
+        {
+            // MYT-204: promoted from LOAD_VAR after the global-resolution
+            // path stabilised. Side-table entry must exist (set by
+            // tryPromoteLoadVarCached). Fall back to the generic handler if
+            // somehow reached without an entry (e.g., side table cleared).
+            const auto* state = program->findCachedState(instructionPointer);
+            if (!state)
+            {
+                variableExecutor->handleLoadVar(instr);
+                break;
+            }
+            variableExecutor->handleLoadVarCached(instr, *state);
+            break;
+        }
+        case OpCode::STORE_VAR_CACHED:
+        {
+            // MYT-204: see LOAD_VAR_CACHED above.
+            const auto* state = program->findCachedState(instructionPointer);
+            if (!state)
+            {
+                variableExecutor->handleStoreVar(instr);
+                break;
+            }
+            variableExecutor->handleStoreVarCached(instr, *state);
+            break;
+        }
         case OpCode::DECLARE_VAR: variableExecutor->handleDeclareVar(instr);
             break;
         case OpCode::LOAD_LOCAL: variableExecutor->handleLoadLocal(instr);
