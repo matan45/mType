@@ -4468,6 +4468,12 @@
     <None Include="tests\testFiles\controlFlow\pass\recursionNewSyntax.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionSelfDirectCall_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\recursionSelfDirectCall_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\recursionTailOptimization_pass.expected">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>

@@ -227,6 +227,8 @@ namespace tests::testSuite
                         passPath + "recursionMultipleBaseCases_pass.mt");
         addOutputVerificationTest("Recursion Tail Optimization",
                         passPath + "recursionTailOptimization_pass.mt");
+        addOutputVerificationTest("Recursion Self Direct Call",
+                        passPath + "recursionSelfDirectCall_pass.mt");
 
         // === RETURN TESTS (5 tests) ===
         addOutputVerificationTest("Return Chained Calls",

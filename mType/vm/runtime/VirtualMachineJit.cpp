@@ -710,6 +710,15 @@ namespace vm::runtime
         {
             std::cout << "  Successful compiles:    " << jitCompiler->getCompileCount() << "\n";
             std::cout << "  Bailouts:               " << jitCompiler->getBailoutCount() << "\n";
+            // MYT-207: self-recursion call-dispatch telemetry.
+            //   Tail calls optimized — `return self(args...)` sites lowered to
+            //     arg-overwrite + jmp (loop). Counts CALL SITES, not dynamic
+            //     iterations.
+            //   Self direct calls — non-tail self-recursive sites lowered to
+            //     a direct asmjit invoke against funcNode->label(), skipping
+            //     the jit_call_function dispatch overhead.
+            std::cout << "  Tail calls optimized:   " << jitCompiler->getTailCallsOptimized() << "\n";
+            std::cout << "  Self direct calls:      " << jitCompiler->getSelfDirectCalls() << "\n";
         }
         if (jitCodeCache)
             std::cout << "  Cached functions:       " << jitCodeCache->size() << "\n";

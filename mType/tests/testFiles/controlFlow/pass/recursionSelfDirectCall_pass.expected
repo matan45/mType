@@ -1,0 +1,6 @@
+fib(10) = 55
+fib(15) = 610
+ack(2, 3) = 9
+ack(3, 3) = 61
+chain(80) = 80
+Self direct call tests completed successfully

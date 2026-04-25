@@ -133,6 +133,25 @@ namespace vm::jit
         asmjit::Label functionEntryLabel;
         bool selfTailCallEnabled = true;
 
+        // MYT-207: self-recursive direct-call optimization for NON-tail sites.
+        // selfFuncCallLabel == FuncNode->label() of the currently compiling
+        // function — emitted by `cc.invoke(label, ...)` in tryEmitSelfDirectCall
+        // to skip jit_call_function's dispatch overhead (CallFrame push,
+        // JitContext zero-init, exception-frame setup). Tail-optimized frames
+        // do NOT appear in stack traces and recursive depth is not bounded by
+        // the CallFrame stack — same semantic for the SelfDirectCall path.
+        // OSR frames disable this (their func->label() points at the OSR
+        // prelude, not the function prologue).
+        asmjit::Label selfFuncCallLabel;
+        bool selfDirectCallEnabled = true;
+
+        // MYT-207: counters bumped at compile time inside tryEmitSelfTailCall
+        // and tryEmitSelfDirectCall. Pointers owned by JitCompiler; assigned
+        // in emitFunctionBody. Default null so OSR / unit tests that don't
+        // wire them stay safe via a null guard at the increment site.
+        uint64_t* tailCallsOptimized = nullptr;
+        uint64_t* selfDirectCalls = nullptr;
+
         static constexpr size_t MAX_OP_STACK = 64;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
 

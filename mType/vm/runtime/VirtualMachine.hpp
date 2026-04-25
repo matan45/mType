@@ -403,5 +403,21 @@ namespace vm::runtime
         size_t getJitNativeDepth() const { return jitNativeDepth; }
         void incrementJitNativeDepth() { ++jitNativeDepth; }
         void decrementJitNativeDepth() { --jitNativeDepth; }
+
+        // MYT-207: byte offset of jitNativeDepth so JIT-emitted code can
+        // inline the depth-guard cmp + inc/dec without paying a cc.invoke
+        // round-trip per self-recursive call. Defined out-of-line below so
+        // the offsetof macro sees a complete type (MSVC's strict offsetof
+        // refuses incomplete-type uses inside the class body). Read by
+        // tryEmitSelfDirectCall.
+        static const size_t kJitNativeDepthOffset;
     };
+
+    // MYT-207: out-of-line definition. `inline` lets the same constant live
+    // in every TU that includes this header without ODR conflicts. Must be
+    // outside the class body so the type is complete for offsetof, and must
+    // be inside vm::runtime:: so jitNativeDepth (private) is reachable
+    // through the VirtualMachine:: qualified name.
+    inline const size_t VirtualMachine::kJitNativeDepthOffset =
+        offsetof(VirtualMachine, jitNativeDepth);
 }
