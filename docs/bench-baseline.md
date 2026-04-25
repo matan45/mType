@@ -1165,3 +1165,29 @@ Correctness preserved: `inline_value_object_write_skip.mt` still prints `200` (i
 
 - `inline_value_object_hot.mt`: **1450 → 217 ms (6.7× speedup)**. Now within 13% of `inline_monomorphic.mt` (191.73) and essentially tied with `inline_polymorphic.mt` (215.73) — value-class dispatch has reached parity with regular-class inlining, matching the original design intent.
 - No other benchmark regressed beyond noise (~1–2% on a few, well inside run-to-run variation).
+
+## 2026-04-25
+
+### Summary (jit=on)
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            763.40        766.10           20013         0
+  method_dispatch.mt                  200.62        201.05           14040       506
+  object_alloc.mt                     816.20        823.87           12009         0
+  field_write_hot.mt                  131.35        134.76            8016         1
+  field_read_hot.mt                   161.10        164.14            9017         1
+  string_ops.mt                       152.46        153.35           19014         0
+  recursive.mt                       1304.68       1309.77           17257   2762961
+  bitwise_tight_loop.mt              1193.41       1195.97           23014         0
+  short_circuit_chain.mt              290.39        290.40           24907         0
+  primitive_method_dispatch.mt        616.00        618.62           32031         0
+  array_multi_alloc.mt                 39.56         39.84           10909       500
+  array_multi_get.mt                 1088.88       1090.17           50815       500
+  for_each_loop.mt                    365.07        365.31           69848      5604
+  inline_monomorphic.mt               175.64        175.97           13013       501
+  inline_branching.mt                 178.24        179.16           15013       501
+  inline_polymorphic.mt               209.06        210.48           14049       508
+  inline_value_object_hot.mt          197.00        197.68           11514       500
+  function_call_hot.mt                164.80        165.19           21009       500
+```
