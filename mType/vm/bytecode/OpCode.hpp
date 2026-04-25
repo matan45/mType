@@ -144,6 +144,14 @@ namespace vm::bytecode
         // BytecodeProgram::readInstructions rejects it on deserialization — a .mtc
         // file containing it is malformed or tampered.
         CALL_METHOD_CACHED,
+        // MYT-203: IC-stable polymorphic specialization of CALL_METHOD. Side
+        // table holds up to 4 (shape, funcMeta, program, programIndex,
+        // qualifiedName, definingClassName) tuples; hot path linear-scans
+        // 2-4 shape compares, no icTable hashmap probe. Promoted on MONO→POLY
+        // IC transition (independent sticky polyCachedDeoptCount). Demoted to
+        // CALL_METHOD on the POLY→MEGA transition (5th shape). Same RUNTIME-
+        // ONLY invariant as CALL_METHOD_CACHED.
+        CALL_METHOD_POLY_CACHED,
         // MYT-194: IC-stable specialization of GET_FIELD / SET_FIELD. Embedded
         // target (shape + fieldIndex) lives on the Instruction's mutable
         // cachedField* fields. Same RUNTIME-ONLY invariant as CALL_METHOD_CACHED.
@@ -287,6 +295,7 @@ namespace vm::bytecode
         // the Instruction carries the captured LOAD_LOCAL / PUSH_INT operand.
         ADD_INT_CONST,            // PUSH_INT k + ADD_INT → int literal from operand[0] + tos (operand[0] = int literal)
         LOAD_LOCAL_CALL_CACHED,   // LOAD_LOCAL s + CALL_METHOD_CACHED → shape-guard, direct dispatch (fusedSlot = s; operands + cached* reused from CALL_METHOD_CACHED)
+        LOAD_LOCAL_CALL_POLY_CACHED, // MYT-203: LOAD_LOCAL s + CALL_METHOD_POLY_CACHED → 2-4 shape-guards, direct dispatch (fusedSlot = s; operands + poly* reused from CALL_METHOD_POLY_CACHED)
         LOAD_LOCAL_GET_FIELD_CACHED, // LOAD_LOCAL s + GET_FIELD_CACHED → shape-guard, indexed field read (fusedSlot = s; operands + cached* reused from GET_FIELD_CACHED)
 
         // === Superinstruction Fusion (MYT-202, compile-time, SERIALIZABLE) ===
@@ -417,6 +426,7 @@ namespace vm::bytecode
             case OpCode::SET_STATIC: return "SET_STATIC";
             case OpCode::CALL_METHOD: return "CALL_METHOD";
             case OpCode::CALL_METHOD_CACHED: return "CALL_METHOD_CACHED";
+            case OpCode::CALL_METHOD_POLY_CACHED: return "CALL_METHOD_POLY_CACHED";
             case OpCode::GET_FIELD_CACHED: return "GET_FIELD_CACHED";
             case OpCode::SET_FIELD_CACHED: return "SET_FIELD_CACHED";
             case OpCode::CALL_STATIC: return "CALL_STATIC";
@@ -526,6 +536,7 @@ namespace vm::bytecode
 
             case OpCode::ADD_INT_CONST: return "ADD_INT_CONST";
             case OpCode::LOAD_LOCAL_CALL_CACHED: return "LOAD_LOCAL_CALL_CACHED";
+            case OpCode::LOAD_LOCAL_CALL_POLY_CACHED: return "LOAD_LOCAL_CALL_POLY_CACHED";
             case OpCode::LOAD_LOCAL_GET_FIELD_CACHED: return "LOAD_LOCAL_GET_FIELD_CACHED";
 
             case OpCode::LOAD_LOAD_ADD_INT: return "LOAD_LOAD_ADD_INT";

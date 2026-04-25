@@ -7189,6 +7189,18 @@
     <None Include="tests\testFiles\integration\pass\ic\call_method_cached_mono.mt">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\ic\call_method_poly_cached_mega_deopt.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\call_method_poly_cached_mega_deopt.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\call_method_poly_cached_promote.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\call_method_poly_cached_promote.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\ic\fused_deopt.expected">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>

@@ -492,15 +492,47 @@ namespace vm::runtime
                     // triggered rehash. Cheap: one hash lookup on the slow
                     // path, which we already are on.
                     MethodInlineCache& freshCache = icTable.getMethodIC(icKey);
-                    freshCache.addEntry(entry);
+                    bool added = freshCache.addEntry(entry);
 
-                    // MYT-173: once the site stabilizes to MONO, promote the
-                    // opcode so subsequent dispatches skip the icTable hashmap
-                    // probe and per-entry scan entirely. tryPromoteToCached
-                    // itself skips value-class entries (CACHED fast-dispatch
-                    // is ObjectInstance-only), so passing receiverIsValueObject
-                    // through the entry is safe.
-                    tryPromoteToCached(instr, entry);
+                    // MYT-203: addEntry returns false only when transitioning
+                    // POLY → MEGA (5th unique shape). If a CALL_METHOD_POLY_CACHED
+                    // (or its fused variant) lives at this IP, demote it back
+                    // to plain CALL_METHOD with sticky polyCachedDeoptCount.
+                    // No re-entry — the call has already been dispatched by
+                    // the slow-path handleCallMethod above.
+                    if (!added)
+                    {
+                        auto& mut = context.getMutableInstructionAt(icKey);
+                        if (mut.opcode == bytecode::OpCode::CALL_METHOD_POLY_CACHED ||
+                            mut.opcode == bytecode::OpCode::LOAD_LOCAL_CALL_POLY_CACHED)
+                        {
+                            if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_CALL_POLY_CACHED)
+                            {
+                                tryUnfusePair(bytecode::OpCode::CALL_METHOD_POLY_CACHED);
+                                assert(mut.opcode == bytecode::OpCode::CALL_METHOD_POLY_CACHED &&
+                                       "tryUnfusePair must demote to CALL_METHOD_POLY_CACHED");
+                            }
+                            mut.opcode = bytecode::OpCode::CALL_METHOD;
+                            auto& cs = context.getOrCreateCachedState(icKey);
+                            cs.polyEntryCount = 0;
+                            if (cs.polyCachedDeoptCount < 255) ++cs.polyCachedDeoptCount;
+                        }
+                        // Promotion hooks gate on MONO/POLY state — neither
+                        // fires under MEGA. Skip them.
+                    }
+                    else
+                    {
+                        // MYT-173: once the site stabilizes to MONO, promote
+                        // the opcode so subsequent dispatches skip the icTable
+                        // hashmap probe and per-entry scan entirely.
+                        tryPromoteToCached(instr, entry);
+                        // MYT-203: once the site has 2-4 entries (POLY),
+                        // snapshot all of them on the side table and rewrite
+                        // the opcode to CALL_METHOD_POLY_CACHED. Idempotent —
+                        // re-snapshots on 3rd / 4th shape arrivals at an
+                        // already-promoted site.
+                        tryPromoteToPolyCached(instr, entry);
+                    }
                 }
             }
         }
@@ -718,6 +750,159 @@ namespace vm::runtime
             state.cachedMethodQualifiedName,
             state.cachedMethodDefiningClassName,
             objectValue, argCount);
+    }
+
+    void InlineCacheExecutor::tryPromoteToPolyCached(
+        const bytecode::BytecodeProgram::Instruction& /*instr*/,
+        const vm::jit::ic::MethodICEntry& /*triggeringEntry*/)
+    {
+        using namespace vm::jit::ic;
+
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
+
+        // Predecessor must be generic CALL_METHOD (the IC just transitioned
+        // MONO→POLY via deopt + re-enter, or was POLY from the start) OR an
+        // already-POLY_CACHED site re-snapshotting on a 3rd / 4th shape.
+        // Reject CALL_METHOD_CACHED — that path's deopt would have demoted
+        // it to CALL_METHOD before we got here.
+        if (mut.opcode != bytecode::OpCode::CALL_METHOD &&
+            mut.opcode != bytecode::OpCode::CALL_METHOD_POLY_CACHED)
+            return;
+
+        // Tier-specific sticky gate — independent of MYT-173's
+        // cachedDeoptCount. A site that deopted at the MONO tier can still
+        // reach POLY_CACHED on its next stable phase.
+        if (auto* existing = context.findCachedState(ip))
+        {
+            if (existing->polyCachedDeoptCount >= 1) return;
+        }
+
+        MethodInlineCache& cache = icTable.getMethodIC(ip);
+        if (cache.state != ICState::POLYMORPHIC) return;
+
+        // All-or-nothing per-entry guards. A site with ANY ValueObject /
+        // native / zero-startOffset entry sinks the whole site (we can't
+        // partially specialize the linear scan). Acceptable per MYT-173
+        // precedent; ValueObject method dispatch is its own track.
+        for (uint8_t i = 0; i < cache.entryCount; ++i)
+        {
+            const auto& e = cache.entries[i];
+            if (e.receiverIsValueObject) return;
+            auto* fm = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(e.funcMetadata);
+            if (!fm || fm->isNative || fm->startOffset == 0) return;
+        }
+
+        // INVARIANT: MethodInlineCache::addEntry is append-only. If a future
+        // change introduces LRU reordering, the snapshot must be revisited
+        // (the per-IP cached state would need to track entry identity, not
+        // index, to remain consistent across re-snapshots).
+        auto& state = context.getOrCreateCachedState(ip);
+        for (uint8_t i = 0; i < cache.entryCount; ++i)
+        {
+            const auto& e = cache.entries[i];
+            state.polyShapes[i]             = e.shape;
+            state.polyFuncs[i]              = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(e.funcMetadata);
+            state.polyPrograms[i]           = e.program;
+            state.polyProgramIndices[i]     = e.programIndex;
+            state.polyQualifiedNames[i]     = e.program->internFrameName(e.qualifiedName);
+            state.polyDefiningClassNames[i] = e.definingClassName;
+        }
+        state.polyEntryCount = cache.entryCount;
+        mut.opcode = bytecode::OpCode::CALL_METHOD_POLY_CACHED;
+
+        // MYT-198 + MYT-203: opportunistically fuse with a preceding
+        // LOAD_LOCAL. Same eligibility gates as the MONO variant; reuses
+        // fusedSlot + fusedDeoptCount on the side table.
+        tryFuseWithPriorLoadLocal(bytecode::OpCode::LOAD_LOCAL_CALL_POLY_CACHED);
+    }
+
+    void InlineCacheExecutor::deoptPolyAndReprocess(
+        const bytecode::BytecodeProgram::Instruction& /*instr*/)
+    {
+        const size_t ip = context.instructionPointer;
+        auto& mut = context.getMutableInstructionAt(ip);
+        // MYT-198 / MYT-203: if the POLY_CACHED opcode was the second half of
+        // a fused LOAD_LOCAL_CALL_POLY_CACHED pair, restore the NOPed
+        // LOAD_LOCAL before demoting. Same pattern as deoptAndReprocess.
+        if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_CALL_POLY_CACHED)
+        {
+            tryUnfusePair(bytecode::OpCode::CALL_METHOD_POLY_CACHED);
+            assert(mut.opcode == bytecode::OpCode::CALL_METHOD_POLY_CACHED &&
+                   "tryUnfusePair must demote to CALL_METHOD_POLY_CACHED");
+        }
+        mut.opcode = bytecode::OpCode::CALL_METHOD;
+
+        // MYT-201: the per-IP cached state is guaranteed to exist (a
+        // POLY_CACHED opcode implies a prior promote). Zero polyEntryCount
+        // so any subsequent (mis)dispatch through handleCallMethodPolyCached
+        // sees an empty snapshot — but the arrays themselves are left stale,
+        // since the demoted opcode never reads them and the sticky
+        // polyCachedDeoptCount guarantees no re-promote.
+        auto& state = context.getOrCreateCachedState(ip);
+        state.polyEntryCount = 0;
+        if (state.polyCachedDeoptCount < 255) ++state.polyCachedDeoptCount;
+
+        // Re-enter the generic IC path so the receiver's shape gets observed
+        // and the call is actually dispatched.
+        handleCallMethodIC(mut);
+    }
+
+    void InlineCacheExecutor::handleCallMethodPolyCached(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::CachedInstructionState& state)
+    {
+        if (instr.operands.size() < 2 || state.polyEntryCount == 0)
+        {
+            deoptPolyAndReprocess(instr);
+            return;
+        }
+
+        size_t argCount = instr.operands[1];
+        if (context.stackManager->size() <= argCount)
+        {
+            deoptPolyAndReprocess(instr);
+            return;
+        }
+
+        value::Value objectValue = context.stackManager->peek(argCount);
+        if (!value::isObject(objectValue))
+        {
+            deoptPolyAndReprocess(instr);
+            return;
+        }
+
+        auto instance = value::asObject(objectValue);
+        auto* shape = instance->getClassDefinitionRaw();
+
+        // Linear scan over up to 4 entries. The compiler unrolls / branch-
+        // predicts a 4-iter loop comfortably; hand-unrolling buys nothing
+        // and hurts readability. Hot-path total: 1-4 pointer compares + 1
+        // direct dispatch (no icTable hashmap probe, no per-entry IC scan).
+        for (uint8_t i = 0; i < state.polyEntryCount; ++i)
+        {
+            if (state.polyShapes[i] == shape)
+            {
+                const auto* funcMeta = state.polyFuncs[i];
+                dispatchDirectFromCachedTarget(
+                    funcMeta,
+                    funcMeta->startOffset,
+                    state.polyPrograms[i],
+                    state.polyProgramIndices[i],
+                    state.polyQualifiedNames[i],
+                    state.polyDefiningClassNames[i],
+                    objectValue, argCount);
+                return;
+            }
+        }
+
+        // Linear-scan miss. Could be either a 3rd / 4th shape (POLY-stable,
+        // re-snapshot on slow-path return) or a 5th shape (MEGA, demote in
+        // the slow-path's MEGA-detect block). Either way, delegate to
+        // handleCallMethodIC — do NOT bump sticky here, that would block
+        // legitimate POLY growth.
+        handleCallMethodIC(
+            context.getMutableInstructionAt(context.instructionPointer));
     }
 
     void InlineCacheExecutor::tryPromoteFieldToCached(
@@ -1025,6 +1210,35 @@ namespace vm::runtime
         handleCallMethodCached(instr, state);
     }
 
+    void InlineCacheExecutor::handleLoadLocalCallPolyCached(
+        const bytecode::BytecodeProgram::Instruction& instr,
+        const bytecode::BytecodeProgram::CachedInstructionState& state)
+    {
+        // MYT-203: same fast-replay pattern as handleLoadLocalCallCached.
+        // Fusion-time guards (non-lambda, non-shared frame) make the simple
+        // localBase + slot read sufficient.
+        size_t slot = static_cast<size_t>(state.fusedSlot);
+        if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "LOAD_LOCAL_CALL_POLY_CACHED slot index " + std::to_string(slot) +
+                " exceeds per-frame limit");
+        }
+
+        size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+        size_t stackPos = frameBase + slot;
+        if (stackPos >= context.stackManager->size())
+        {
+            tryUnfusePair(bytecode::OpCode::CALL_METHOD_POLY_CACHED);
+            handleCallMethodIC(
+                context.getMutableInstructionAt(context.instructionPointer));
+            return;
+        }
+        context.stackManager->push((*context.stackManager)[stackPos]);
+
+        handleCallMethodPolyCached(instr, state);
+    }
+
     void InlineCacheExecutor::handleLoadLocalGetFieldCached(
         const bytecode::BytecodeProgram::Instruction& instr,
         const bytecode::BytecodeProgram::CachedInstructionState& state)
@@ -1058,6 +1272,7 @@ namespace vm::runtime
 
         auto& mut = context.getMutableInstructionAt(ip);
         if (mut.opcode != bytecode::OpCode::LOAD_LOCAL_CALL_CACHED &&
+            mut.opcode != bytecode::OpCode::LOAD_LOCAL_CALL_POLY_CACHED &&
             mut.opcode != bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED)
         {
             return false;

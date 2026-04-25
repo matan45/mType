@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <array>
 #include <cstdint>
 #include <deque>
 #include <vector>
@@ -105,6 +106,33 @@ namespace vm::bytecode
             // LOAD_LOCAL / STORE_LOCAL type-quickening (MYT-199). Once >= 1,
             // the site permanently stays on the generic path.
             uint8_t                                     cachedDeoptCount         = 0;
+
+            // MYT-203: CALL_METHOD_POLY_CACHED snapshot. When the IC at this
+            // IP is POLYMORPHIC (entryCount in [2..4]), the opcode rewrites
+            // to CALL_METHOD_POLY_CACHED and these arrays mirror
+            // entries[0..polyEntryCount-1]. Re-snapshotted (idempotently) on
+            // every promote call so a 3rd or 4th shape at an existing
+            // POLY_CACHED site refreshes the array. polyEntryCount = 0 on
+            // demote; arrays themselves are left stale (raw pointers + 4-byte
+            // handle + std::string) since the demoted opcode never reads them
+            // and the sticky polyCachedDeoptCount guarantees no re-promote.
+            //
+            // Independent sticky counter: cachedDeoptCount and
+            // polyCachedDeoptCount deliberately do NOT alias. A site that
+            // experienced a CACHED→CALL_METHOD deopt (cachedDeoptCount = 1)
+            // can still try POLY_CACHED on its next stable phase. A site
+            // that further deopts from POLY_CACHED stays generic forever via
+            // polyCachedDeoptCount. Each tier has its own ping-pong defense.
+            std::array<const runtimeTypes::klass::ClassDefinition*, 4> polyShapes{};
+            std::array<const FunctionMetadata*,                     4> polyFuncs{};
+            std::array<const BytecodeProgram*,                      4> polyPrograms{};
+            std::array<size_t,                                      4> polyProgramIndices{};
+            std::array<FunctionNameHandle,                          4> polyQualifiedNames{
+                { INVALID_FN_HANDLE, INVALID_FN_HANDLE, INVALID_FN_HANDLE, INVALID_FN_HANDLE }
+            };
+            std::array<std::string,                                 4> polyDefiningClassNames;
+            uint8_t                                                    polyEntryCount = 0;
+            uint8_t                                                    polyCachedDeoptCount = 0;
 
             // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED embedded target.
             // Once the field IC at this IP stabilises to MONOMORPHIC, the

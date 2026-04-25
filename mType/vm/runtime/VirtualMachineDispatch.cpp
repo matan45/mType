@@ -389,6 +389,22 @@ namespace vm::runtime
                 objectExecutor->handleCallMethod(instr);
             break;
         }
+        case OpCode::CALL_METHOD_POLY_CACHED:
+        {
+            // MYT-203: promoted from CALL_METHOD once the IC reaches POLY
+            // (2-4 entries). Same RUNTIME-ONLY + IC-only constraints as
+            // CALL_METHOD_CACHED.
+            if (icEnabled && inlineCacheExecutor)
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                if (!state)
+                    throw errors::RuntimeException("CALL_METHOD_POLY_CACHED dispatched without side-table entry");
+                inlineCacheExecutor->handleCallMethodPolyCached(instr, *state);
+            }
+            else
+                objectExecutor->handleCallMethod(instr);
+            break;
+        }
         case OpCode::LOAD_LOCAL_CALL_CACHED:
         {
             // MYT-198: fused LOAD_LOCAL + CALL_METHOD_CACHED. Same IC-only
@@ -400,6 +416,27 @@ namespace vm::runtime
                 if (!state)
                     throw errors::RuntimeException("LOAD_LOCAL_CALL_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleLoadLocalCallCached(instr, *state);
+            }
+            else {
+                const auto* state = program->findCachedState(instructionPointer);
+                uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
+                variableExecutor->handleLoadLocal(
+                    bytecode::BytecodeProgram::Instruction(
+                        bytecode::OpCode::LOAD_LOCAL, slot));
+                objectExecutor->handleCallMethod(instr);
+            }
+            break;
+        }
+        case OpCode::LOAD_LOCAL_CALL_POLY_CACHED:
+        {
+            // MYT-203: fused LOAD_LOCAL + CALL_METHOD_POLY_CACHED. Symmetric
+            // to LOAD_LOCAL_CALL_CACHED above.
+            if (icEnabled && inlineCacheExecutor)
+            {
+                const auto* state = program->findCachedState(instructionPointer);
+                if (!state)
+                    throw errors::RuntimeException("LOAD_LOCAL_CALL_POLY_CACHED dispatched without side-table entry");
+                inlineCacheExecutor->handleLoadLocalCallPolyCached(instr, *state);
             }
             else {
                 const auto* state = program->findCachedState(instructionPointer);

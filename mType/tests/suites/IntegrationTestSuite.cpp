@@ -308,6 +308,13 @@ namespace tests::testSuite
         addOutputVerificationTest("CALL_METHOD_CACHED Deopt Sticky",
                                   passPath + "ic/call_method_cached_deopt.mt");
 
+        // MYT-203: CALL_METHOD_POLY_CACHED promotion across MONO->POLY +
+        // POLY->MEGA deopt with independent sticky polyCachedDeoptCount.
+        addOutputVerificationTest("CALL_METHOD_POLY_CACHED Polymorphic Promote",
+                                  passPath + "ic/call_method_poly_cached_promote.mt");
+        addOutputVerificationTest("CALL_METHOD_POLY_CACHED MEGA Deopt",
+                                  passPath + "ic/call_method_poly_cached_mega_deopt.mt");
+
         // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED promotion + sticky deopt.
         addOutputVerificationTest("GET_FIELD_CACHED Monomorphic Promote",
                                   passPath + "ic/get_field_cached_mono.mt");
