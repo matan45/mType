@@ -458,15 +458,20 @@ namespace vm::runtime
         {
             // MYT-203: fused LOAD_LOCAL + CALL_METHOD_POLY_CACHED. Symmetric
             // to LOAD_LOCAL_CALL_CACHED above.
+            const auto* state = program->findCachedState(instructionPointer);
             if (icEnabled && inlineCacheExecutor)
             {
-                const auto* state = program->findCachedState(instructionPointer);
                 if (!state)
                     throw errors::RuntimeException("LOAD_LOCAL_CALL_POLY_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleLoadLocalCallPolyCached(instr, *state);
             }
             else {
-                const auto* state = program->findCachedState(instructionPointer);
+                // IC disabled: replay the fused pair via the generic handlers.
+                // Falls back to slot 0 if the side-table entry vanished — same
+                // tolerance the IC-enabled path uses for missing state plus an
+                // explicit error (here we keep going with a defaulted slot
+                // since the generic CALL_METHOD will fail with the right error
+                // if the receiver isn't where it should be).
                 uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 variableExecutor->handleLoadLocal(
                     bytecode::BytecodeProgram::Instruction(

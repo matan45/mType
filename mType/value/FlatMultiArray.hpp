@@ -73,8 +73,12 @@ namespace value
         // so a cached view sees writes immediately.
         //
         // Cycle: cachedSubArray_ holds the view; the view's parent_
-        // (in MultiArrayBase) holds this. Reclaimed by the project's GC
-        // CycleDetector — bounded leak between sweeps, acceptable.
+        // (in MultiArrayBase) holds this. Steady-state is fine — the GC's
+        // CycleDetector reclaims it. Process exit, however, depends on a
+        // final GC sweep running before destructors are released; without
+        // it, a live cached-view FlatMultiArray will be reported as a leak
+        // by ASAN/Valgrind. Use clearSubArrayCache() to break the cycle
+        // explicitly from VM shutdown / leak-checker harnesses.
         //
         // mutable: the const getSubArray() override at the IMultiDimensionalArray
         // boundary casts away const and calls the non-const version, so the
@@ -267,6 +271,21 @@ namespace value
             std::fill(data_.begin(), data_.end(), defaultValue_);
             // Drop any cached sub-view: a pool-reissued array must not hand
             // out a sub-view that the prior tenant may still hold.
+            clearSubArrayCache();
+        }
+
+        /**
+         * @brief Drop the cached sub-array view, breaking the cache→view→parent
+         * reference cycle. Safe to call repeatedly; idempotent.
+         *
+         * Intended callers: GC sweep over tracked FlatMultiArrays, VM
+         * shutdown, leak-checker harnesses that need cycles broken before
+         * destructors fire. Calling this from a routine where `*this` is
+         * held only by the cached view itself will trigger the parent's
+         * destructor recursively — only call from outside or while another
+         * strong reference to `*this` is alive.
+         */
+        void clearSubArrayCache() const {
             cachedSubArrayIndex_ = SIZE_MAX;
             cachedSubArray_.reset();
         }

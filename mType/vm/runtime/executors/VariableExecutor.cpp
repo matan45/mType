@@ -857,7 +857,7 @@ namespace vm::runtime
     // ------------------------------------------------------------------
 
     void VariableExecutor::tryPromoteLoadVarCached(
-        const runtimeTypes::global::VariableDefinition* slot)
+        runtimeTypes::global::VariableDefinition* slot)
     {
         const size_t ip = context.instructionPointer;
         // Only promote if IP currently holds a fresh LOAD_VAR. Guards against
@@ -873,7 +873,7 @@ namespace vm::runtime
     }
 
     void VariableExecutor::tryPromoteStoreVarCached(
-        const runtimeTypes::global::VariableDefinition* slot)
+        runtimeTypes::global::VariableDefinition* slot)
     {
         const size_t ip = context.instructionPointer;
         auto& mut = context.getMutableInstructionAt(ip);
@@ -888,7 +888,7 @@ namespace vm::runtime
         const bytecode::BytecodeProgram::Instruction& instr,
         const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
-        const auto* slot = state.cachedGlobalSlot;
+        auto* slot = state.cachedGlobalSlot;
         // Defensive: environment teardown can leave a CACHED opcode pointing
         // at a stale slot. Revert to the generic path and let handleLoadVar
         // re-resolve (or raise the canonical "Variable not found" error).
@@ -906,7 +906,7 @@ namespace vm::runtime
         const bytecode::BytecodeProgram::Instruction& instr,
         const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
-        const auto* slot = state.cachedGlobalSlot;
+        auto* slot = state.cachedGlobalSlot;
         if (!slot)
         {
             context.getMutableInstructionAt(context.instructionPointer).opcode
@@ -926,12 +926,7 @@ namespace vm::runtime
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "Cannot assign to final variable '" + varName + "'");
         }
-        // const_cast: the side table holds a pointer-to-const for read-only
-        // intent, but the runtime store path needs to mutate. Mirrors the
-        // const_cast pattern InlineCacheExecutor uses on cached method/field
-        // metadata. The pointee outlives the program (heap-owned by the
-        // global VariableManager).
-        const_cast<runtimeTypes::global::VariableDefinition*>(slot)->setValue(val);
+        slot->setValue(val);
         context.stackManager->push(val);
     }
 }

@@ -1,5 +1,7 @@
 #include "InlineCacheExecutor.hpp"
+#include <algorithm>
 #include <cassert>
+#include <tuple>
 #include "ObjectExecutor.hpp"
 #include "FunctionExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
@@ -509,8 +511,16 @@ namespace vm::runtime
                             if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_CALL_POLY_CACHED)
                             {
                                 tryUnfusePair(bytecode::OpCode::CALL_METHOD_POLY_CACHED);
-                                assert(mut.opcode == bytecode::OpCode::CALL_METHOD_POLY_CACHED &&
-                                       "tryUnfusePair must demote to CALL_METHOD_POLY_CACHED");
+                                // Release-active invariant: assert is NDEBUG-stripped, but a
+                                // tryUnfusePair regression that left the predecessor LOAD_LOCAL
+                                // NOPed without demoting the fused opcode would silently break
+                                // the next dispatch. Throw so the failure mode is loud in any
+                                // build.
+                                if (mut.opcode != bytecode::OpCode::CALL_METHOD_POLY_CACHED)
+                                {
+                                    throw errors::RuntimeException(
+                                        "internal: tryUnfusePair must demote to CALL_METHOD_POLY_CACHED");
+                                }
                             }
                             mut.opcode = bytecode::OpCode::CALL_METHOD;
                             auto& cs = context.getOrCreateCachedState(icKey);
@@ -678,11 +688,15 @@ namespace vm::runtime
         {
             tryUnfusePair(bytecode::OpCode::CALL_METHOD_CACHED);
             // Fall through — mut.opcode is now CALL_METHOD_CACHED, demote to
-            // CALL_METHOD as usual. Invariant-assert so a future change to
-            // tryUnfusePair that leaves the opcode in a different state
-            // surfaces loudly instead of silently breaking the demote.
-            assert(mut.opcode == bytecode::OpCode::CALL_METHOD_CACHED &&
-                   "tryUnfusePair must demote to CALL_METHOD_CACHED");
+            // CALL_METHOD as usual. Release-active invariant: a future
+            // tryUnfusePair regression that left the opcode in another state
+            // would silently break the demote, so throw rather than rely on
+            // an NDEBUG-stripped assert.
+            if (mut.opcode != bytecode::OpCode::CALL_METHOD_CACHED)
+            {
+                throw errors::RuntimeException(
+                    "internal: tryUnfusePair must demote to CALL_METHOD_CACHED");
+            }
         }
         mut.opcode = bytecode::OpCode::CALL_METHOD;
 
@@ -798,7 +812,14 @@ namespace vm::runtime
         // (the per-IP cached state would need to track entry identity, not
         // index, to remain consistent across re-snapshots).
         auto& state = context.getOrCreateCachedState(ip);
-        for (uint8_t i = 0; i < cache.entryCount; ++i)
+        // Defensive clamp: the side-table arrays are size 4. A future IC
+        // change that lets entryCount exceed 4 must not silently OOB the
+        // poly* arrays here or in handleCallMethodPolyCached's linear scan.
+        constexpr uint8_t kMaxPolyEntries =
+            static_cast<uint8_t>(std::tuple_size<decltype(state.polyShapes)>::value);
+        const uint8_t snapshotCount =
+            std::min<uint8_t>(cache.entryCount, kMaxPolyEntries);
+        for (uint8_t i = 0; i < snapshotCount; ++i)
         {
             const auto& e = cache.entries[i];
             state.polyShapes[i]             = e.shape;
@@ -808,7 +829,7 @@ namespace vm::runtime
             state.polyQualifiedNames[i]     = e.program->internFrameName(e.qualifiedName);
             state.polyDefiningClassNames[i] = e.definingClassName;
         }
-        state.polyEntryCount = cache.entryCount;
+        state.polyEntryCount = snapshotCount;
         mut.opcode = bytecode::OpCode::CALL_METHOD_POLY_CACHED;
 
         // MYT-198 + MYT-203: opportunistically fuse with a preceding
@@ -828,17 +849,31 @@ namespace vm::runtime
         if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_CALL_POLY_CACHED)
         {
             tryUnfusePair(bytecode::OpCode::CALL_METHOD_POLY_CACHED);
-            assert(mut.opcode == bytecode::OpCode::CALL_METHOD_POLY_CACHED &&
-                   "tryUnfusePair must demote to CALL_METHOD_POLY_CACHED");
+            // Release-active invariant — see deoptAndReprocess for rationale.
+            if (mut.opcode != bytecode::OpCode::CALL_METHOD_POLY_CACHED)
+            {
+                throw errors::RuntimeException(
+                    "internal: tryUnfusePair must demote to CALL_METHOD_POLY_CACHED");
+            }
         }
         mut.opcode = bytecode::OpCode::CALL_METHOD;
 
         // MYT-201: the per-IP cached state is guaranteed to exist (a
-        // POLY_CACHED opcode implies a prior promote). Zero polyEntryCount
-        // so any subsequent (mis)dispatch through handleCallMethodPolyCached
-        // sees an empty snapshot — but the arrays themselves are left stale,
-        // since the demoted opcode never reads them and the sticky
-        // polyCachedDeoptCount guarantees no re-promote.
+        // POLY_CACHED opcode implies a prior promote). Validate the
+        // invariant via findCachedState first so a violation — e.g. side
+        // table cleared while a POLY_CACHED opcode was still live — fails
+        // loudly instead of silently allocating a fresh entry. The
+        // subsequent getOrCreateCachedState then resolves to the existing
+        // entry (the "create" branch is dead after the find succeeds).
+        // Zero polyEntryCount so any subsequent (mis)dispatch through
+        // handleCallMethodPolyCached sees an empty snapshot — the arrays
+        // themselves are left stale, since the demoted opcode never reads
+        // them and the sticky polyCachedDeoptCount guarantees no re-promote.
+        if (!context.findCachedState(ip))
+        {
+            throw errors::RuntimeException(
+                "internal: deoptPolyAndReprocess invoked without a cached state");
+        }
         auto& state = context.getOrCreateCachedState(ip);
         state.polyEntryCount = 0;
         if (state.polyCachedDeoptCount < 255) ++state.polyCachedDeoptCount;
@@ -879,7 +914,11 @@ namespace vm::runtime
         // predicts a 4-iter loop comfortably; hand-unrolling buys nothing
         // and hurts readability. Hot-path total: 1-4 pointer compares + 1
         // direct dispatch (no icTable hashmap probe, no per-entry IC scan).
-        for (uint8_t i = 0; i < state.polyEntryCount; ++i)
+        // Clamp to array size as belt-and-braces against a corrupted
+        // polyEntryCount even though tryPromoteToPolyCached caps it at write.
+        const uint8_t scanCount = std::min<uint8_t>(state.polyEntryCount,
+            static_cast<uint8_t>(std::tuple_size<decltype(state.polyShapes)>::value));
+        for (uint8_t i = 0; i < scanCount; ++i)
         {
             if (state.polyShapes[i] == shape)
             {
@@ -967,8 +1006,12 @@ namespace vm::runtime
         if (mut.opcode == bytecode::OpCode::LOAD_LOCAL_GET_FIELD_CACHED)
         {
             tryUnfusePair(bytecode::OpCode::GET_FIELD_CACHED);
-            assert(mut.opcode == bytecode::OpCode::GET_FIELD_CACHED &&
-                   "tryUnfusePair must demote to GET_FIELD_CACHED");
+            // Release-active invariant — see deoptAndReprocess for rationale.
+            if (mut.opcode != bytecode::OpCode::GET_FIELD_CACHED)
+            {
+                throw errors::RuntimeException(
+                    "internal: tryUnfusePair must demote to GET_FIELD_CACHED");
+            }
         }
         mut.opcode = bytecode::OpCode::GET_FIELD;
 

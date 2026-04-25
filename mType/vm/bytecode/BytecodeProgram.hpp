@@ -128,6 +128,11 @@ namespace vm::bytecode
             std::array<const FunctionMetadata*,                     4> polyFuncs{};
             std::array<const BytecodeProgram*,                      4> polyPrograms{};
             std::array<size_t,                                      4> polyProgramIndices{};
+            // polyQualifiedNames needs an explicit per-element initializer
+            // because FunctionNameHandle's default-constructed value is 0,
+            // which is a valid handle. The other arrays above can use {}
+            // value-initialization safely: pointers default to nullptr and
+            // size_t defaults to 0, both of which are sentinel for unset.
             std::array<FunctionNameHandle,                          4> polyQualifiedNames{
                 { INVALID_FN_HANDLE, INVALID_FN_HANDLE, INVALID_FN_HANDLE, INVALID_FN_HANDLE }
             };
@@ -154,7 +159,10 @@ namespace vm::bytecode
             // counter: globals are monomorphic by construction. The cached
             // executors guard against null on environment teardown and revert
             // to the generic path in that case.
-            const runtimeTypes::global::VariableDefinition* cachedGlobalSlot = nullptr;
+            // Non-const pointer: STORE_VAR_CACHED needs to mutate via
+            // setValue(); honestly modelling the mutability avoids a
+            // const_cast on every store dispatch.
+            runtimeTypes::global::VariableDefinition* cachedGlobalSlot = nullptr;
 
             // MYT-198: Superinstruction fusion. When a CACHED / ADD_INT
             // runtime rewrite fires, its predecessor LOAD_LOCAL / PUSH_INT

@@ -11,7 +11,6 @@
 
 namespace vm::jit
 {
-
     void jit_throw_array_oob(int64_t index, int64_t size)
     {
         throw errors::RuntimeException(

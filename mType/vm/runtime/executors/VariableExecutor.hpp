@@ -82,8 +82,8 @@ namespace vm::runtime
         // validateAndStoreGlobalVariable on the global-resolution-success
         // branch. Idempotent and gated on the IP currently holding the
         // generic LOAD_VAR / STORE_VAR opcode (no fusion, no double-promote).
-        void tryPromoteLoadVarCached(const runtimeTypes::global::VariableDefinition* slot);
-        void tryPromoteStoreVarCached(const runtimeTypes::global::VariableDefinition* slot);
+        void tryPromoteLoadVarCached(runtimeTypes::global::VariableDefinition* slot);
+        void tryPromoteStoreVarCached(runtimeTypes::global::VariableDefinition* slot);
 
         // MYT-199 helpers. See .cpp for policy details.
         bool isCurrentFrameSimple() const;
