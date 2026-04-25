@@ -154,6 +154,22 @@ namespace vm::runtime::utils
                 // inside the lambda itself.
                 break;
             }
+            else
+            {
+                // MYT-208: __script_main__ has no FunctionMetadata (it's
+                // synthesised by VirtualMachine, not registered via
+                // BytecodeProgram::registerFunction). Without a range to
+                // compare against, the previous logic fell through and
+                // popped script_main during exception unwind — leaving the
+                // catch handler running with no live frame and (now that
+                // releaseStackObjects fires here) freeing top-level locals
+                // that the rest of the script still uses. The script-main
+                // frame's lifetime is the entire program; stop unwinding
+                // here so the catch resumes inside script_main with all
+                // top-level locals (and stack-promoted allocations like
+                // `tests = new ExceptionFinallyTests()`) still alive.
+                break;
+            }
 
             if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
             {

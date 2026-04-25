@@ -133,7 +133,23 @@ namespace optimizer::passes
 
                 if (auto* assign = dynamic_cast<stmt::AssignmentNode*>(node))
                 {
-                    if (auto* newN = dynamic_cast<klass::NewNode*>(assign->getValue()))
+                    // MYT-208: only consider FRESH LOCAL DECLARATIONS — `T x = new T(...)`
+                    // patterns where `x` is a newly-bound local with a declared type.
+                    // Reassignments (`x = new T(...)` where x already exists) and
+                    // class-field assignments (`field = new T(...)` inside a method
+                    // body, which compiles to SET_FIELD on `this`) carry
+                    // variableType == VOID per StatementCompiler's branching at
+                    // `varType != VOID -> emitVariableDeclaration / else
+                    // emitVariableReassignment`. Promoting those would store the
+                    // NewNode result into a persistent slot (an existing local that
+                    // outlives this scope, or a class field), violating the
+                    // stack-frame lifetime assumption that backs STACK_OBJECT.
+                    if (assign->getVariableType() == value::ValueType::VOID) {
+                        // Fall through to recurseForCollection — the RHS may still
+                        // contain nested candidates inside, but THIS assignment is
+                        // not itself a candidate.
+                    }
+                    else if (auto* newN = dynamic_cast<klass::NewNode*>(assign->getValue()))
                     {
                         const auto& name = assign->getVariableName();
                         // Only record the first NewNode bound to this local in a given

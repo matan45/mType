@@ -20,6 +20,12 @@ namespace gc
         {
         case value::ValueType::OBJECT:
             return value::asObject(val).get();
+        // MYT-208: stack-promoted ObjectInstance — pool-borrowed raw pointer
+        // sharing the OBJECT memory layout. The GC's mark/visit logic treats
+        // it the same as an OBJECT root; lifetime is owned by CallFrame's
+        // stackObjects array, not refcount.
+        case value::ValueType::STACK_OBJECT:
+            return val.rawStackObject();
         case value::ValueType::ARRAY:
             if (value::isNativeArray(val))           return value::asNativeArray(val).get();
             if (value::isFlatMultiArray(val))        return value::asFlatMultiArray(val).get();

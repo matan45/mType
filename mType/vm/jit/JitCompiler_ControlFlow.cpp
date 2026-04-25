@@ -219,10 +219,11 @@ namespace vm::jit
     }
 
     // MYT-208: DECLARE_VAR — pop the top-of-stack value and register a new
-    // global with that value. Stack effect: -1 (pure pop). This typically
-    // appears as dead bytecode trailing a function whose metadata range
-    // overcounts; emitting a real helper call keeps semantics correct in
-    // case any reachable path ever runs it.
+    // global with that value. Stack effect: -1 (pure pop). The helper's
+    // VariableDefinition ctor copies the Value internally; on the JIT side
+    // we just need to drop the slot. Boxed slots get an explicit destroy so
+    // their heap-ref refcount is released; primitive slots have no heap ref
+    // to release and their boxedBase[] entry would be uninitialised.
     static void emitDeclareVar(JitEmissionState& s,
                                 const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -248,8 +249,10 @@ namespace vm::jit
         inv->set_arg(2, valAddr);
         inv->set_arg(3, finalReg);
 
-        // Pop the value the helper consumed.
-        emitValueDestroy(s, s.stackDepth - 1);
+        if (isBoxedSlotType(valType))
+        {
+            emitValueDestroy(s, s.stackDepth - 1);
+        }
         popType(s);
         s.stackDepth--;
     }
