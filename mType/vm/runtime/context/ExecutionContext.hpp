@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 #include <array>
+#include <cassert>
 #include <chrono>
 #include <unordered_map>
 #include <iostream>
@@ -47,6 +48,15 @@ namespace vm::runtime
         }
 
         void setLocal(size_t slot, const value::Value& value) {
+            // MYT-208 defense-in-depth: SharedStackFrame outlives the creating
+            // CallFrame (heap-allocated, captured by lambdas). A STACK_OBJECT
+            // here would be a borrowed pointer into a frame that's already
+            // gone. EscapeAnalysisPass::walkLambdaCaptures marks every
+            // referenced local as escaping precisely to prevent promotion in
+            // this case; the assert backs that static guarantee.
+            assert(!value::isStackObject(value) &&
+                   "SharedStackFrame::setLocal: STACK_OBJECT captured by lambda — "
+                   "EscapeAnalysisPass should have demoted this allocation");
             if (slot >= locals.size()) {
                 locals.resize(slot + 1, std::monostate{});  // sentinel for uninitialized slots
             }

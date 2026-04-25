@@ -4,6 +4,7 @@
 #include "../../value/ValueBridge.hpp"
 #include "../../value/ValueObject.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <vector>
 
@@ -101,6 +102,16 @@ namespace runtimeTypes::klass
 
     void ObjectInstance::setField(const std::string& fieldName, const Value& value)
     {
+        // MYT-208 defense-in-depth: STACK_OBJECT is a borrowed pointer whose
+        // lifetime is bounded by the owning CallFrame's stackObjects array.
+        // Persisting it into a field could outlive that frame. The escape
+        // analyzer in optimizer/passes/EscapeAnalysisPass.cpp walks
+        // MemberAssignmentNode::getValue() in Ctx::ESCAPING precisely to
+        // prevent this, so the assert backs that static guarantee.
+        assert(!value::isStackObject(value) &&
+               "ObjectInstance::setField: STACK_OBJECT escaped its frame — "
+               "EscapeAnalysisPass should have demoted this allocation");
+
         auto field = getField(fieldName);
 
         if (field) {
@@ -199,6 +210,11 @@ namespace runtimeTypes::klass
 
     void ObjectInstance::setFieldByIndex(size_t index, const Value& value)
     {
+        // MYT-208 defense-in-depth: see setField for rationale.
+        assert(!value::isStackObject(value) &&
+               "ObjectInstance::setFieldByIndex: STACK_OBJECT escaped its frame — "
+               "EscapeAnalysisPass should have demoted this allocation");
+
         if (index >= fieldVector.size()) return;
 
         // GC: Write barrier
