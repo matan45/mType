@@ -1278,3 +1278,90 @@ Initial assumption (refcount cost on the interpreter ARRAY_GET) was wrong: Phase
   value access). JIT-compiled hot loops are unaffected by design.
 - Numbers: TODO — capture before/after on a global-read-heavy script
   (tight loop accumulating into / reading from a top-level int variable).
+
+## 2026-04-25 — MYT-207: self-recursive direct-call dispatch (recursive.mt)
+
+- Branch: `MYT-207`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Change in this snapshot
+
+- Phase 1 TCO (already live) lowered `return self(args...)` sites to
+  arg-overwrite + jmp to the function-entry label. Brought `recursive.mt`
+  from 1557 → 1365 ms (-12%).
+- This snapshot adds the **non-tail** complement: `tryEmitSelfDirectCall`
+  detects a self-recursive `CALL`/`CALL_FAST` whose target is the
+  currently-compiling function and emits a direct asmjit `cc.invoke`
+  against the function's own `FuncNode->label()`, skipping
+  `jit_call_function`'s dispatch overhead — `jitCodeCache` lookup,
+  `tryJitDispatchResolved`'s `CallFrame` push + vector grow, the
+  ~256-byte `JitContext nestedCtx{}` zero-init, and the SEH `try/catch`
+  setup. Inline depth-guard against `MAX_JIT_NATIVE_DEPTH=64` falls
+  back to the generic helper on overflow (which itself bails to the
+  interpreter via `callFunctionFromJit`).
+- Net effect on `fib(32)`'s ~2.76 M non-tail recursive calls: each call
+  now skips ~150–300 cycles of dispatch.
+- Also adds two `--jit-stats` counters: `Tail calls optimized` and
+  `Self direct calls`, bumped at compile time inside the respective
+  helpers.
+
+### Summary (jit=on)
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            774.43        775.13           20013         0
+  method_dispatch.mt                  206.55        209.97           14040       506
+  object_alloc.mt                     791.35        794.99           12009         0
+  field_write_hot.mt                  132.74        133.67            8016         1
+  field_read_hot.mt                   162.23        162.80            9017         1
+  string_ops.mt                       144.57        144.67           19014         0
+  recursive.mt                        918.85        920.57           17257   2762961
+  bitwise_tight_loop.mt              1175.98       1183.35           23014         0
+  short_circuit_chain.mt              283.93        285.33           24907         0
+  primitive_method_dispatch.mt        684.86        690.00           32031         0
+  array_multi_alloc.mt                 40.35         40.46           10909       500
+  array_multi_get.mt                  326.59        328.26           50815       500
+  for_each_loop.mt                    369.12        371.36           69848      5604
+  inline_monomorphic.mt               175.15        177.38           13013       501
+  inline_branching.mt                 177.73        179.34           15013       501
+  inline_polymorphic.mt               211.54        212.43           14049       508
+  inline_value_object_hot.mt          196.24        196.39           11514       500
+  function_call_hot.mt                168.69        168.75           21009       500
+```
+
+### Delta vs 2026-04-25 baseline (median)
+
+| Script                         | Before (ms) | After (ms) | Change   |
+|--------------------------------|------------:|-----------:|---------:|
+| recursive.mt                   |     1309.77 |     920.57 | **-29.7% (1.42× faster)** |
+| primitive_method_dispatch.mt   |      618.62 |     690.00 |  +11.5%  |
+| arithmetic_tight_loop.mt       |      766.10 |     775.13 |   +1.2%  |
+| method_dispatch.mt             |      201.05 |     209.97 |   +4.4%  |
+| object_alloc.mt                |      823.87 |     794.99 |   -3.5%  |
+| field_write_hot.mt             |      134.76 |     133.67 |   -0.8%  |
+| field_read_hot.mt              |      164.14 |     162.80 |   -0.8%  |
+| string_ops.mt                  |      153.35 |     144.67 |   -5.7%  |
+| bitwise_tight_loop.mt         |     1195.97 |    1183.35 |   -1.1%  |
+| short_circuit_chain.mt         |      290.40 |     285.33 |   -1.7%  |
+| array_multi_alloc.mt           |       39.84 |      40.46 |   +1.6%  |
+| array_multi_get.mt             |      318.26 |     328.26 |   +3.1%  |
+| for_each_loop.mt               |      365.31 |     371.36 |   +1.7%  |
+| inline_monomorphic.mt          |      175.97 |     177.38 |   +0.8%  |
+| inline_branching.mt            |      179.16 |     179.34 |   +0.1%  |
+| inline_polymorphic.mt          |      210.48 |     212.43 |   +0.9%  |
+| inline_value_object_hot.mt     |      197.68 |     196.39 |   -0.7%  |
+| function_call_hot.mt           |      165.19 |     168.75 |   +2.2%  |
+
+### Notes
+
+- **`recursive.mt`: 1310 → 921 ms (-29.7% from today's baseline; -41% from
+  the original 1557 ms ticket baseline)**. Comfortably clears the MYT-207
+  ≥25% AC. Phase 1 TCO contributed -12%, the new direct-call dispatch
+  contributes the additional -29% — confirming `fib`'s ~2.76 M non-tail
+  recursive calls were the dominant residual cost.
+- `primitive_method_dispatch.mt` shows +11.5% — outside noise, worth a
+  follow-up. Nothing in the MYT-207 change touches `INVOKE_INT/FLOAT` or
+  the primitive-method path; this looks like run-to-run variance or an
+  unrelated regression. Re-measure on a clean run before chasing it.
+- All other benchmarks within ±5%, no clear regressions.

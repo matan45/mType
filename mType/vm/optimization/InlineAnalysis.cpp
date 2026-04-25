@@ -91,6 +91,21 @@ namespace vm::optimization
                 case OpCode::STRING_BUILD:
                     return InlineDecision::HAS_UNSUPPORTED_OPCODE;
 
+                // MYT-208: inlining a callee that contains NEW_STACK dissolves
+                // the per-call frame boundary that escape analysis relies on.
+                // Stack-promoted allocations would push to the *caller* frame's
+                // stackObjects (which can outlive the inlined call by orders of
+                // magnitude — e.g. 2M iterations of an outer loop), filling the
+                // per-frame cap after ~32 allocs and forcing every subsequent
+                // promotion to fall back to the heap path. Rejecting inlining
+                // here keeps each invocation in its own frame, where the
+                // analyzer's "lifetime bounded by frame" guarantee actually
+                // holds and stackObjects releases on RETURN. This is the key
+                // gate that makes nested-helper benchmarks (object_alloc_nested.mt)
+                // realise the STACK_OBJECT win.
+                case OpCode::NEW_STACK:
+                    return InlineDecision::HAS_UNSUPPORTED_OPCODE;
+
                 // MYT-210: the ARRAY_*_LOCAL fused variants bake a raw local
                 // slot index into the instruction and read it via
                 // Mem(localsBase, localSlot * localStride) — they do NOT

@@ -1,4 +1,5 @@
 #include "LibraryNatives.hpp"
+#include "../../environment/registry/NativeRegistry.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../value/InternedString.hpp"
 #include "../../value/ValueShim.hpp"
@@ -7,38 +8,27 @@
 
 namespace project::mtclib
 {
-    // Static member initialization
-    std::shared_ptr<environment::Environment> LibraryNatives::currentEnvironment = nullptr;
-    std::shared_ptr<vm::runtime::VirtualMachine> LibraryNatives::currentVM = nullptr;
-    std::shared_ptr<TransitiveDependencyLoader> LibraryNatives::currentLoader = nullptr;
-
-    void LibraryNatives::setVM(std::shared_ptr<vm::runtime::VirtualMachine> vm)
+    void LibraryNatives::registerAll(std::shared_ptr<environment::Environment> env, std::shared_ptr<TransitiveDependencyLoader> loader)
     {
-        currentVM = std::move(vm);
-    }
-
-    void LibraryNatives::setLoader(std::shared_ptr<TransitiveDependencyLoader> loader)
-    {
-        currentLoader = std::move(loader);
-    }
-
-    void LibraryNatives::registerAll(std::shared_ptr<environment::Environment> env)
-    {
-        currentEnvironment = env;
         auto nativeRegistry = env->getNativeRegistry();
 
-        nativeRegistry->registerNativeFunction("loadLibrary", nativeLoadLibrary);
-        nativeRegistry->registerNativeFunction("unloadLibrary", nativeUnloadLibrary);
+        // Pass the loader as userData. registerAll is only called by ScriptInterpreter, 
+        // which keeps 'loader' alive for the duration of the script.
+        nativeRegistry->registerNativeFunction("loadLibrary", environment::registry::NativeFunction{
+            loader.get(),
+            [](void* u, NativeContext& c, std::span<const value::Value> a) { return nativeLoadLibrary(u, c, a); }
+        });
+        nativeRegistry->registerNativeFunction("unloadLibrary", environment::registry::NativeFunction{
+            loader.get(),
+            [](void* u, NativeContext& c, std::span<const value::Value> a) { return nativeUnloadLibrary(u, c, a); }
+        });
     }
 
     void LibraryNatives::cleanup()
     {
-        currentEnvironment = nullptr;
-        currentVM = nullptr;
-        currentLoader = nullptr;
     }
 
-    value::Value LibraryNatives::nativeLoadLibrary(const std::vector<value::Value>& args)
+    value::Value LibraryNatives::nativeLoadLibrary(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         if (args.size() != 1) {
             throw errors::RuntimeException(
@@ -48,13 +38,14 @@ namespace project::mtclib
         std::string path = extractString(args[0], "loadLibrary", "path");
         validateLibraryPath(path);
 
-        if (!currentVM || !currentLoader || !currentEnvironment) {
+        auto* loader = static_cast<TransitiveDependencyLoader*>(userData);
+        if (!ctx.vm || !loader) {
             throw errors::RuntimeException(
                 "loadLibrary: runtime not initialized");
         }
 
         try {
-            currentLoader->loadLibraryWithDependencies(path, *currentVM, currentEnvironment);
+            loader->loadLibraryWithDependencies(path, *ctx.vm, ctx.env);
         }
         catch (const std::exception& e) {
             throw errors::RuntimeException(
@@ -64,7 +55,7 @@ namespace project::mtclib
         return std::monostate{};
     }
 
-    value::Value LibraryNatives::nativeUnloadLibrary(const std::vector<value::Value>& args)
+    value::Value LibraryNatives::nativeUnloadLibrary(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         if (args.size() != 1) {
             throw errors::RuntimeException(
@@ -77,17 +68,18 @@ namespace project::mtclib
             throw errors::RuntimeException("unloadLibrary: library name cannot be empty");
         }
 
-        if (!currentVM || !currentLoader || !currentEnvironment) {
+        auto* loader = static_cast<TransitiveDependencyLoader*>(userData);
+        if (!ctx.vm || !loader) {
             throw errors::RuntimeException("unloadLibrary: runtime not initialized");
         }
 
-        if (!currentEnvironment->isLibraryLoaded(name)) {
+        if (!ctx.env->isLibraryLoaded(name)) {
             throw errors::RuntimeException(
                 "unloadLibrary: library '" + name + "' is not loaded");
         }
 
         try {
-            currentLoader->unloadLibrary(name, *currentVM, currentEnvironment);
+            loader->unloadLibrary(name, *ctx.vm, ctx.env);
         }
         catch (const std::exception& e) {
             throw errors::RuntimeException(
@@ -132,3 +124,6 @@ namespace project::mtclib
             funcName + ": " + paramName + " must be a string");
     }
 }
+
+
+

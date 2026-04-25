@@ -91,7 +91,8 @@ namespace environment
         net::NetNatives::registerAll(environment);
 
         // Register library loading native functions
-        project::mtclib::LibraryNatives::registerAll(environment);
+        auto libraryLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
+        project::mtclib::LibraryNatives::registerAll(environment, libraryLoader);
 
         return environment;
     }

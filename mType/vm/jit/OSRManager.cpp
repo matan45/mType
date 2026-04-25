@@ -438,7 +438,11 @@ namespace vm::jit
         if (value::isString(val)) return SlotType::STRING;
         if (value::isInternedString(val)) return SlotType::STRING;
         if (value::isObject(val)) return SlotType::OBJECT;
+        // MYT-208: distinct slot type so the JIT type tracker propagates the
+        // STACK_OBJECT tag through type-quickened opcodes (LOAD_LOCAL_*).
+        if (value::isStackObject(val)) return SlotType::STACK_OBJECT;
         if (value::isNativeArray(val)) return SlotType::ARRAY;
         return SlotType::BOXED;
     }
 }
+

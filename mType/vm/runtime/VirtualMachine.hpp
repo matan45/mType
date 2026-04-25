@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <algorithm>
+#include <span>
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../environment/Environment.hpp"
@@ -189,8 +190,20 @@ namespace vm::runtime
         value::Value execute(const bytecode::BytecodeProgram& bytecodeProgram);
         value::Value executeFunction(const std::string& functionName, const std::vector<value::Value>& args);
 
-        // C++ Interop API - Object creation and method invocation
-        value::Value createObject(const std::string& className, const std::vector<value::Value>& args);
+        // C++ Interop API - Object creation and method invocation.
+        // MYT-208: takes a span so JIT helpers (jit_new_object, jit_new_stack)
+        // pass `callArgs` + count without heap-allocating a per-call vector.
+        // External callers passing std::vector<Value> work via std::span's
+        // implicit construction from a contiguous range.
+        value::Value createObject(const std::string& className, std::span<const value::Value> args);
+
+        // MYT-208: JIT-side stack-promoted allocation. Mirrors createObject but
+        // calls ObjectInstancePool::acquireRaw, pushes the raw pointer onto
+        // the current frame's stackObjects, and returns a STACK_OBJECT-tagged
+        // Value. Non-trivial ctors fall back to createObject (heap) to keep
+        // the v1 implementation small — the dominant `class { int F = a }`
+        // pattern hits the trivial-ctor fast path here.
+        value::Value createStackObject(const std::string& className, std::span<const value::Value> args);
 
     private:
         // MYT-113: Drive an async method/lambda body that may suspend on awaits.
@@ -210,10 +223,10 @@ namespace vm::runtime
     public:
         value::Value invokeMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                  const std::string& methodName,
-                                 const std::vector<value::Value>& args);
+                                 std::span<const value::Value> args);
         value::Value invokeStaticMethod(const std::string& className,
                                         const std::string& methodName,
-                                        const std::vector<value::Value>& args);
+                                        std::span<const value::Value> args);
         value::Value invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
                                   const std::vector<value::Value>& args);
 
@@ -336,6 +349,17 @@ namespace vm::runtime
                                              const std::vector<value::Value>& args,
                                              const bytecode::BytecodeProgram* calleeProgram = nullptr);
 
+        // MYT-208: STACK_OBJECT-receiver direct dispatch. Same body as the
+        // shared_ptr overload but threads the raw ObjectInstance* through
+        // frame.thisInstanceRaw and pushes the STACK_OBJECT Value (no
+        // shared_ptr copy) as local-0. Caller (callMethodFromJitDirect Value
+        // overload) verifies the tag before calling.
+        value::Value callMethodFromJitDirectStack(const value::Value& receiverValue,
+                                                  const std::string& qualifiedName,
+                                                  const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+                                                  const std::vector<value::Value>& args,
+                                                  const bytecode::BytecodeProgram* calleeProgram = nullptr);
+
         // JIT helper (MYT-146): allocate a multi-dimensional array. Mirrors
         // ArrayExecutor::handleNewArrayMulti's post-pop dispatch but takes
         // pre-popped dimensions so it's callable without an ExecutionContext.
@@ -402,5 +426,21 @@ namespace vm::runtime
         size_t getJitNativeDepth() const { return jitNativeDepth; }
         void incrementJitNativeDepth() { ++jitNativeDepth; }
         void decrementJitNativeDepth() { --jitNativeDepth; }
+
+        // MYT-207: byte offset of jitNativeDepth so JIT-emitted code can
+        // inline the depth-guard cmp + inc/dec without paying a cc.invoke
+        // round-trip per self-recursive call. Defined out-of-line below so
+        // the offsetof macro sees a complete type (MSVC's strict offsetof
+        // refuses incomplete-type uses inside the class body). Read by
+        // tryEmitSelfDirectCall.
+        static const size_t kJitNativeDepthOffset;
     };
+
+    // MYT-207: out-of-line definition. `inline` lets the same constant live
+    // in every TU that includes this header without ODR conflicts. Must be
+    // outside the class body so the type is complete for offsetof, and must
+    // be inside vm::runtime:: so jitNativeDepth (private) is reachable
+    // through the VirtualMachine:: qualified name.
+    inline const size_t VirtualMachine::kJitNativeDepthOffset =
+        offsetof(VirtualMachine, jitNativeDepth);
 }

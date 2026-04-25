@@ -142,7 +142,9 @@ namespace vm::runtime
 
             // Pop the main frame if it's still on the stack.
             // MYT-197: integer compare against the pre-warmed sentinel.
+            // MYT-208: release stack-promoted allocations before pop.
             if (!callStack.empty() && callStack.back().functionName == scriptMainHandle) {
+                callStack.back().releaseStackObjects();
                 callStack.pop_back();
             }
 
@@ -273,6 +275,8 @@ namespace vm::runtime
     {
         if (!callStack.empty())
         {
+            // MYT-208: release stack-promoted allocations before pop.
+            callStack.back().releaseStackObjects();
             callStack.pop_back();
         }
     }
@@ -305,6 +309,13 @@ namespace vm::runtime
     void VirtualMachine::reset()
     {
         stackManager->clear();
+        // MYT-208: release every frame's stack-promoted allocations before
+        // clearing callStack — otherwise the pool leaks recyclable slots
+        // every time reset() is invoked (e.g. uncaught-exception cleanup).
+        for (auto& frame : callStack)
+        {
+            frame.releaseStackObjects();
+        }
         callStack.clear();
         instructionPointer = 0;
         stats = ExecutionStats{};
@@ -332,6 +343,23 @@ namespace vm::runtime
             if (frame.thisInstance)
             {
                 roots.push_back(frame.thisInstance.get());
+            }
+
+            // MYT-208: stack-promoted `this` (NEW_STACK ctor) and frame-owned
+            // raw allocations. These are not GC-registered, but their fields
+            // may hold heap references that the cycle detector must keep alive
+            // while the owning frame is live. Inline array iteration over
+            // [0, stackObjectsCount) — entries beyond count are uninitialised.
+            if (frame.thisInstanceRaw)
+            {
+                roots.push_back(frame.thisInstanceRaw);
+            }
+            for (size_t i = 0; i < frame.stackObjectsCount; ++i)
+            {
+                if (frame.stackObjects[i])
+                {
+                    roots.push_back(frame.stackObjects[i]);
+                }
             }
 
             // Check shared frame locals (closure captures)

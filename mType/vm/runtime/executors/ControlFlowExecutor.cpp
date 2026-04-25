@@ -131,6 +131,10 @@ namespace vm::runtime
                 debugger::DebugHookHelper::exitFunctionHook(context.frameName(frame));
             }
 
+            // MYT-208: release stack-promoted allocations BEFORE pop. Normal
+            // RETURN is the dominant path; releasing here is what actually
+            // recycles pool slots on the hot path.
+            context.callStack.back().releaseStackObjects();
             context.callStack.pop_back();
             context.instructionPointer = frame.returnAddress;
 

@@ -522,8 +522,7 @@ namespace vm::jit
             else if (emitControlFlowOps(s, instr, nullptr)) { handled = true; }
             else { emitObjectOps(s, instr); handled = true; }
 
-            if (s.compileFailed)
-                break;
+            if (s.compileFailed) break;
         }
     }
 
@@ -536,7 +535,10 @@ namespace vm::jit
                                    uint64_t* inlineFieldICMisses,
                                    uint64_t* inlineFieldSetICHits,
                                    uint64_t* inlineFieldSetICMisses,
-                                   InlineDecisionCounters* inlineDecisions)
+                                   InlineDecisionCounters* inlineDecisions,
+                                   asmjit::Label selfFuncCallLabel,
+                                   uint64_t* tailCallsOptimized,
+                                   uint64_t* selfDirectCalls)
     {
         emitArgumentUnboxing(cc, ctxPtr, frame.localsBase, funcMeta,
                              frame.usesBoxedTypes, frame.localStride, frame.localTypes);
@@ -568,6 +570,14 @@ namespace vm::jit
         s.inlineFieldSetICHits = inlineFieldSetICHits;
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
         s.inlineDecisions = inlineDecisions;
+        s.tailCallsOptimized = tailCallsOptimized;
+        s.selfDirectCalls = selfDirectCalls;
+
+        // MYT-207: expose the FuncNode's entry label so non-tail self-recursive
+        // CALL sites can `cc.invoke(label, sig)` directly, skipping the
+        // jit_call_function dispatch overhead.
+        s.selfFuncCallLabel = selfFuncCallLabel;
+        s.selfDirectCallEnabled = !frame.usesBoxedTypes;
 
         // Phase 1 (self-recursive TCO): bind the function-entry label right
         // after argument unboxing and local init, so a tail self-call can
@@ -638,7 +648,10 @@ namespace vm::jit
         if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame, typeFeedback,
                                &inlineFieldICHits, &inlineFieldICMisses,
                                &inlineFieldSetICHits, &inlineFieldSetICMisses,
-                               &inlineDecisions))
+                               &inlineDecisions,
+                               func->label(),
+                               &tailCallsOptimized,
+                               &selfDirectCalls))
         {
             bailoutCount++;
             return false;

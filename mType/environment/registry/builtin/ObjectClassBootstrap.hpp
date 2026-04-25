@@ -19,3 +19,4 @@ namespace environment::registry::builtin
      */
     void registerObjectClass(const std::shared_ptr<environment::Environment>& environment);
 }
+

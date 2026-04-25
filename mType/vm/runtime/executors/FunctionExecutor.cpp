@@ -10,6 +10,8 @@
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/SmallArgsBuffer.hpp"
+#include "../../../environment/NativeContext.hpp"
+#include "../VirtualMachine.hpp"
 #include "../../jit/JitCodeCache.hpp"
 #include "../../jit/JitContext.hpp"
 #include <algorithm>
@@ -55,6 +57,17 @@ namespace vm::runtime
                 targetProgram = cached->cachedProgram;
                 targetProgramIndex = cached->cachedProgramIndex;
             }
+            else if (cached->cachedNativeFunc)
+            {
+                // FFI cache hit — skip both unordered_map::find calls into the
+                // native registry. The slot is populated below on first dispatch.
+                vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
+                environment::NativeContext nativeCtx{ context.environment, context.vm->shared_from_this() };
+                value::Value result = cached->cachedNativeFunc(nativeCtx, args.span());
+                vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
+                context.stackManager->push(result);
+                return;
+            }
         }
 
         if (!funcMetadata) {
@@ -67,10 +80,12 @@ namespace vm::runtime
                 {
                     vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
 
-                    // Native signature still takes std::vector<Value>&.
-                    // Materialize a vector only on this cold path; see MYT-197 follow-up.
-                    std::vector<value::Value> nativeArgs(args.begin(), args.end());
-                    value::Value result = nativeFunc(nativeArgs);
+                    // Populate FFI cache for subsequent calls
+                    auto& newCached = context.getOrCreateCachedState(callIp);
+                    newCached.cachedNativeFunc = nativeFunc;
+
+                    environment::NativeContext nativeCtx{ context.environment, context.vm->shared_from_this() };
+                    value::Value result = nativeFunc(nativeCtx, args.span());
 
                     vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
 
@@ -677,10 +692,11 @@ namespace vm::runtime
         std::string currentClassName;
         if (!context.callStack.empty())
         {
-            if (context.callStack.back().thisInstance)
+            // MYT-208: accept stack-promoted `this`.
+            if (auto* rawThis = context.callStack.back().getThisInstanceRaw())
             {
                 // Instance method context
-                currentClassName = context.callStack.back().thisInstance->getClassDefinition()->getName();
+                currentClassName = rawThis->getClassDefinition()->getName();
             }
             else if (!context.callStack.back().definingClassName.empty())
             {

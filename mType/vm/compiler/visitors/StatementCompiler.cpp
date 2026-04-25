@@ -68,7 +68,7 @@ namespace vm::compiler::visitors
                 // Skip validation for Promise types (native async/await support)
                 if (baseClassName != "Promise")
                 {
-                    if (!ctx.environment->findClass(baseClassName))
+                    if (!ctx.env->findClass(baseClassName))
                     {
                         const auto& classes = ctx.program.getClasses();
                         bool found = false;
@@ -80,7 +80,7 @@ namespace vm::compiler::visitors
                                 break;
                             }
                         }
-                        if (!found && !ctx.environment->findInterface(baseClassName))
+                        if (!found && !ctx.env->findInterface(baseClassName))
                         {
                             throw errors::UndefinedException(
                                 "Undefined class or interface: '" + baseClassName + "'",
@@ -190,7 +190,7 @@ namespace vm::compiler::visitors
         if (varType == value::ValueType::OBJECT && !node->getClassName().empty())
         {
             // Validate that the interface is functional (has exactly one method)
-            auto interfaceDef = ctx.environment->findInterface(node->getClassName());
+            auto interfaceDef = ctx.env->findInterface(node->getClassName());
             if (interfaceDef && !interfaceDef->isFunctionalInterface())
             {
                 auto methodSignatures = interfaceDef->getMethodSignatures();
@@ -597,7 +597,7 @@ namespace vm::compiler::visitors
             // Try to use class registry if available (classes may be pre-registered)
             if (ctx.currentClassNode->hasParentClass())
             {
-                auto classRegistry = ctx.environment->getClassRegistry();
+                auto classRegistry = ctx.env->getClassRegistry();
                 if (classRegistry)
                 {
                     std::string parentClassName = ctx.currentClassNode->getParentClassName();
@@ -1040,7 +1040,7 @@ namespace vm::compiler::visitors
 
         // 2. Emit NEW_OBJECT or NEW_VALUE_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(targetClassName);
-        auto boxClassDef = ctx.environment->findClass(targetClassName);
+        auto boxClassDef = ctx.env->findClass(targetClassName);
         bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
         if (boxIsValue) {
             ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
@@ -1111,3 +1111,4 @@ namespace vm::compiler::visitors
         return false;
     }
 }
+

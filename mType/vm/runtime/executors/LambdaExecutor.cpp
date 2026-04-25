@@ -58,20 +58,27 @@ namespace vm::runtime
         // NOTE: We use reference capture - captured variables are accessed from shared frame at invocation time
         // This allows lambdas to see changes to captured variables
 
-        // Capture class context for access modifier checks
+        // Capture class context for access modifier checks.
+        // MYT-208: read class context from getThisInstanceRaw so stack-promoted
+        // ctor frames still resolve creatingClassName. capturedThis stays
+        // shared_ptr (lambdas outlive frames) and remains empty for
+        // STACK_OBJECT-only frames — the escape analyzer rejects promotion
+        // whenever a lambda captures the candidate, so this case shouldn't
+        // arise in practice.
         if (!context.callStack.empty()) {
-            if (context.callStack.back().thisInstance) {
+            auto& currentFrame = context.callStack.back();
+            if (auto* rawThis = currentFrame.getThisInstanceRaw()) {
                 // Instance method context - get class from 'this'
-                lambda->creatingClassName = context.callStack.back().thisInstance->getClassDefinition()->getName();
-                lambda->capturedThis = context.callStack.back().thisInstance;
-            } else if (!context.callStack.back().definingClassName.empty()) {
+                lambda->creatingClassName = rawThis->getClassDefinition()->getName();
+                lambda->capturedThis = currentFrame.thisInstance;  // empty for STACK_OBJECT
+            } else if (!currentFrame.definingClassName.empty()) {
                 // Static method context - MYT-197: prefer the frame's
                 // definingClassName (already set at push time) over re-splitting
                 // the qualified name. Keeps this path off std::string for
                 // interned frame names.
-                lambda->creatingClassName = context.callStack.back().definingClassName;
+                lambda->creatingClassName = currentFrame.definingClassName;
             } else {
-                const std::string& funcName = context.frameName(context.callStack.back());
+                const std::string& funcName = context.frameName(currentFrame);
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos) {
                     lambda->creatingClassName = funcName.substr(0, colonPos);

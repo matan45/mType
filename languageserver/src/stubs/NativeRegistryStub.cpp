@@ -1,5 +1,4 @@
 // Minimal stub for NativeRegistry - LSP doesn't need runtime builtin functions
-#include "BuiltinFunctionStub.hpp"  // Complete the type before including NativeRegistry.hpp
 #include "../../../mType/environment/registry/NativeRegistry.hpp"
 
 namespace environment::registry {
@@ -33,7 +32,7 @@ NativeFunction NativeRegistry::findNativeFunction(const std::string& name) const
     if (it != nativeFunctions.end()) {
         return it->second;
     }
-    return nullptr;
+    return NativeFunction{nullptr, nullptr};
 }
 
 bool NativeRegistry::hasNativeFunction(const std::string& name) const {
@@ -56,8 +55,5 @@ size_t NativeRegistry::getNativeFunctionCount() const {
 void NativeRegistry::setMethodCallHandler(MethodCallHandler handler) {
     methodCallHandler = handler;
 }
-
-// Private methods registerBuiltinFunctions() and registerBuiltinFunction() are not implemented
-// They are never called in the LSP stub
 
 } // namespace environment::registry

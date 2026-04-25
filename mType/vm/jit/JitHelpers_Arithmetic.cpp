@@ -3,6 +3,7 @@
 #include "../../value/ValueShim.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../environment/Environment.hpp"
+#include "../../environment/NativeContext.hpp"
 #include "../../environment/registry/NativeRegistry.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../runtime/VirtualMachine.hpp"
@@ -145,8 +146,8 @@ namespace vm::jit
         if (!nativeFn)
             return false;
 
-        std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-        value::Value result = nativeFn(argVec);
+        environment::NativeContext nativeCtx{ ctx->vm->getEnvironment(), ctx->vm->shared_from_this() };
+        value::Value result = nativeFn(nativeCtx, std::span<const value::Value>(ctx->callArgs, argCount));
         ctx->returnValue = result;
         ctx->hasReturnValue = true;
         return true;
@@ -303,3 +304,4 @@ namespace vm::jit
         *dest = pool.intern(str);
     }
 }
+

@@ -49,5 +49,22 @@ namespace tests::testSuite
         // Aliased then returned — union-find must escalate both locals to escaped.
         addOutputVerificationTest("Aliased Then Returned",
                         passPath + "aliased_then_returned.mt");
+
+        // MYT-208 nested-helper allocation pattern — primary perf target.
+        // Both Points bounded by distanceSq's frame; analyzer promotes to
+        // NEW_STACK and pool slots recycle on every iteration.
+        addOutputVerificationTest("Nested Helper Alloc",
+                        passPath + "nested_helper_alloc.mt");
+
+        // MYT-208 super(...) on stack-promoted derived ctor — covers
+        // SUPER_CONSTRUCTOR's tag-aware frame setup (thisInstanceRaw
+        // propagation to parent ctor frame).
+        addOutputVerificationTest("Super Ctor Stack",
+                        passPath + "super_ctor_stack.mt");
+
+        // MYT-208 monomorphic method call on a stack-promoted local —
+        // covers IC dispatch with STACK_OBJECT receiver.
+        addOutputVerificationTest("Method Call On Promoted",
+                        passPath + "method_call_on_promoted.mt");
     }
 }

@@ -354,7 +354,7 @@ namespace vm::compiler::visitors
                 std::string parentClassName = ctx.currentClassNode->getParentClassName();
 
                 // Walk up the entire inheritance chain
-                auto currentParentDef = ctx.environment->getClassRegistry()->findClass(parentClassName);
+                auto currentParentDef = ctx.env->getClassRegistry()->findClass(parentClassName);
                 while (currentParentDef) {
                     auto parentField = currentParentDef->getField(name);
                     if (parentField) {
@@ -394,7 +394,7 @@ namespace vm::compiler::visitors
                     "Variable '" + name + "' is not defined",
                     node->getLocation(),
                     diagnostics::IdentifierEnumerator::visibleIdentifiers(
-                        ctx.environment.get()));
+                        ctx.env.get()));
             }
             bool inScope = ctx.globalRegistry.isInScope(name, ctx.variableTracker.getCurrentScopeDepth());
             if (!inScope) {
@@ -402,7 +402,7 @@ namespace vm::compiler::visitors
                     "Variable '" + name + "' is not defined or is out of scope",
                     node->getLocation(),
                     diagnostics::IdentifierEnumerator::visibleIdentifiers(
-                        ctx.environment.get()));
+                        ctx.env.get()));
             }
         }
 
@@ -684,7 +684,7 @@ namespace vm::compiler::visitors
             // Auto-box the left operand: compile literal then wrap
             left->accept(ctx.visitor);
             size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
-            auto boxClassDef = ctx.environment->findClass(leftClassName);
+            auto boxClassDef = ctx.env->findClass(leftClassName);
             bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
             if (boxIsValue) {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
@@ -725,7 +725,7 @@ namespace vm::compiler::visitors
             // Auto-box the right operand: compile it then wrap
             right->accept(ctx.visitor);
             size_t classNameIndex = ctx.program.getConstantPool().addString(leftClassName);
-            auto boxClassDefR = ctx.environment->findClass(leftClassName);
+            auto boxClassDefR = ctx.env->findClass(leftClassName);
             bool boxIsValueR = boxClassDefR && boxClassDefR->isValueClass();
             if (boxIsValueR) {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
@@ -820,3 +820,4 @@ namespace vm::compiler::visitors
         return true;
     }
 }
+

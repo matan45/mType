@@ -18,7 +18,7 @@ namespace vm::runtime
 {
     value::Value VirtualMachine::invokeMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                               const std::string& methodName,
-                                              const std::vector<value::Value>& args)
+                                              std::span<const value::Value> args)
     {
         // Save current state up front so the typed catch can decorate the
         // exception against the LIVE callStack before we restore.
@@ -219,7 +219,7 @@ namespace vm::runtime
 
     value::Value VirtualMachine::invokeStaticMethod(const std::string& className,
                                                     const std::string& methodName,
-                                                    const std::vector<value::Value>& args)
+                                                    std::span<const value::Value> args)
     {
         // Save current state up front so the typed catch can decorate the
         // exception against the LIVE callStack before we restore.

@@ -11,7 +11,7 @@ namespace reflection
     using namespace runtimeTypes::klass;
 
 
-    Value ReflectionNatives::__reflect_getField(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getField(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 3, "__reflect_getField");
         int64_t classHandle = extractInt(args[0], "__reflect_getField", "classHandle");
@@ -67,7 +67,7 @@ namespace reflection
         return static_cast<int>(fieldHandle);
     }
 
-    Value ReflectionNatives::__reflect_getFields(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getFields(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_getFields");
         int64_t classHandle = extractInt(args[0], "__reflect_getFields", "classHandle");
@@ -112,7 +112,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getFieldType(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getFieldType(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getFieldType");
         int64_t fieldHandle = extractInt(args[0], "__reflect_getFieldType", "fieldHandle");
@@ -128,7 +128,7 @@ namespace reflection
         return valueTypeToTypeName(fieldInfo.field->getType());
     }
 
-    Value ReflectionNatives::__reflect_getFieldDeclaringClass(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getFieldDeclaringClass(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getFieldDeclaringClass");
         int64_t classHandle = extractInt(args[0], "__reflect_getFieldDeclaringClass", "classHandle");
@@ -137,7 +137,7 @@ namespace reflection
         return classHandle;
     }
 
-    Value ReflectionNatives::__reflect_getFieldModifiers(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getFieldModifiers(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getFieldModifiers");
         int64_t fieldHandle = extractInt(args[0], "__reflect_getFieldModifiers", "fieldHandle");
@@ -152,7 +152,7 @@ namespace reflection
         return fieldInfo.field->getModifierFlags();
     }
 
-    Value ReflectionNatives::__reflect_getFieldValue(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getFieldValue(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 3, "__reflect_getFieldValue");
         auto instance = extractObject(args[0], "__reflect_getFieldValue", "instance");
@@ -184,7 +184,7 @@ namespace reflection
         return instance->getFieldValue(fieldInfo.fieldName);
     }
 
-    Value ReflectionNatives::__reflect_setFieldValue(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_setFieldValue(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 4, "__reflect_setFieldValue");
         auto instance = extractObject(args[0], "__reflect_setFieldValue", "instance");
@@ -224,7 +224,7 @@ namespace reflection
         return std::monostate{};
     }
 
-    Value ReflectionNatives::__reflect_getStaticFieldValue(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getStaticFieldValue(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_getStaticFieldValue");
         int64_t classHandle = extractInt(args[0], "__reflect_getStaticFieldValue", "classHandle");
@@ -245,7 +245,7 @@ namespace reflection
         return fieldInfo.field->getValue();
     }
 
-    Value ReflectionNatives::__reflect_setStaticFieldValue(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_setStaticFieldValue(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 3, "__reflect_setStaticFieldValue");
         int64_t classHandle = extractInt(args[0], "__reflect_setStaticFieldValue", "classHandle");
@@ -268,7 +268,7 @@ namespace reflection
         return std::monostate{};
     }
 
-    Value ReflectionNatives::__reflect_getFieldName(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getFieldName(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getFieldName");
         int64_t fieldHandle = extractInt(args[0], "__reflect_getFieldName", "fieldHandle");
@@ -285,3 +285,9 @@ namespace reflection
 
 
 } // namespace reflection
+
+
+
+
+
+

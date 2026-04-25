@@ -85,7 +85,7 @@ namespace vm::compiler::visitors
                 }
                 else {
                     // Fallback: Check environment if metadata not yet registered
-                    auto classDef = ctx.environment->findClass(className);
+                    auto classDef = ctx.env->findClass(className);
                     if (classDef) {
                         auto methodDef = classDef->getMethod(methodName);
                         if (methodDef) {
@@ -197,8 +197,8 @@ namespace vm::compiler::visitors
                     std::string typeArgsStr = objectClassName.substr(angleStart + 1, angleEnd - angleStart - 1);
 
                     // Look up the base class OR interface to get its generic parameter names
-                    auto classDef = ctx.environment->findClass(baseClassName);
-                    auto interfaceDef = ctx.environment->findInterface(baseClassName);
+                    auto classDef = ctx.env->findClass(baseClassName);
+                    auto interfaceDef = ctx.env->findInterface(baseClassName);
 
                     std::vector<ast::GenericTypeParameter> genericParams;
                     bool isGenericType = false;
@@ -279,7 +279,7 @@ namespace vm::compiler::visitors
             std::shared_ptr<runtimeTypes::klass::MethodDefinition> methodDef;
             if (!methodMetadata && !baseClassName.empty())
             {
-                auto classDef = ctx.environment->findClass(baseClassName);
+                auto classDef = ctx.env->findClass(baseClassName);
                 if (classDef)
                 {
                     // Try to find the method by name (may have overloads)
@@ -461,7 +461,7 @@ namespace vm::compiler::visitors
             std::vector<std::string> interfaceParameterTypes;
             if (!methodMetadata && !baseClassName.empty())
             {
-                auto interfaceDef = ctx.environment->findInterface(baseClassName);
+                auto interfaceDef = ctx.env->findInterface(baseClassName);
                 if (interfaceDef)
                 {
                     const auto& methodSigs = interfaceDef->getMethodSignatures();
@@ -574,7 +574,7 @@ namespace vm::compiler::visitors
                             // Auto-box: compile value, then emit NEW_OBJECT or NEW_VALUE_OBJECT
                             arguments[i]->accept(ctx.visitor);
                             size_t classNameIndex = ctx.program.getConstantPool().addString(boxClassName);
-                            auto boxClassDef = ctx.environment->findClass(boxClassName);
+                            auto boxClassDef = ctx.env->findClass(boxClassName);
                             bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
                             if (boxIsValue) {
                                 ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
@@ -628,3 +628,4 @@ namespace vm::compiler::visitors
     }
 
 }
+

@@ -185,3 +185,4 @@ namespace environment::registry::builtin
         return std::nullopt;
     }
 }
+

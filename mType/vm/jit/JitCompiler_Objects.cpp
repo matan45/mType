@@ -1383,6 +1383,44 @@ namespace vm::jit
         return true;
     }
 
+    // MYT-208: dedicated emitter for NEW_STACK. Calls jit_new_stack instead of
+    // jit_new_object so the produced Value carries STACK_OBJECT (when the VM
+    // hits the trivial-ctor fast path) and avoids the shared_ptr control
+    // block + GC register costs. Slot type is STACK_OBJECT so the type
+    // tracker propagates the tag to subsequent LOAD_LOCAL / field-access ops.
+    static bool emitNewStackOp(JitEmissionState& s,
+                                const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        uint32_t classIndex = static_cast<uint32_t>(instr.operands[0]);
+        size_t argCount = instr.operands[1];
+        if (argCount > JitContext::MAX_CALL_ARGS)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+        emitBoxCallArgs(s, argCount);
+        emitPopAndDestroyArgs(s, argCount);
+        Gp dest = cc.new_gp64();
+        cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
+        Gp ciReg = cc.new_gp64();
+        cc.mov(ciReg, static_cast<int64_t>(classIndex));
+        Gp acReg = cc.new_gp64();
+        cc.mov(acReg, static_cast<int64_t>(argCount));
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_new_stack),
+                  FuncSignature::build<void, value::Value*, JitContext*,
+                      uint32_t, size_t>());
+        inv->set_arg(0, dest);
+        inv->set_arg(1, s.ctxPtr);
+        inv->set_arg(2, ciReg);
+        inv->set_arg(3, acReg);
+        s.slotTypes.push_back(SlotType::STACK_OBJECT);
+        s.stackDepth++;
+        return true;
+    }
+
     bool emitObjectOps(JitEmissionState& s,
                        const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -1488,16 +1526,12 @@ namespace vm::jit
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
             case OpCode::CAST:           return emitCastOp(s, instr);
             case OpCode::NEW_OBJECT:
-            case OpCode::NEW_VALUE_OBJECT:
-            // MYT-134: reuse the NEW_OBJECT emission path for NEW_STACK on the
-            // JIT side. The JIT-side createObject helper (VirtualMachine::
-            // createObject) already does not call registerWithGC — the MYT-134
-            // interpreter-side win doesn't apply here anyway — so collapsing
-            // the two opcodes to the same JIT emission avoids forcing functions
-            // that contain promoted allocations into the interpreter. The
-            // STACK_OBJECT Value tag + executor plumbing (MYT-208) will
-            // introduce a distinct jit_new_stack helper with real savings.
-            case OpCode::NEW_STACK: return emitNewObjectOp(s, instr);
+            case OpCode::NEW_VALUE_OBJECT: return emitNewObjectOp(s, instr);
+            // MYT-208: dedicated emit path. jit_new_stack hits the
+            // trivial-ctor fast path with acquireRaw + push to current frame's
+            // stackObjects + STACK_OBJECT Value emit. Non-trivial ctors fall
+            // back inside createStackObject to the heap path.
+            case OpCode::NEW_STACK: return emitNewStackOp(s, instr);
 
             case OpCode::GET_ITERATOR:       return emitGetIteratorOp(s);
             case OpCode::ITERATOR_HAS_NEXT:  return emitIteratorHasNextOp(s);

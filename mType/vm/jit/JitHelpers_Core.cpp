@@ -24,9 +24,11 @@ namespace vm::jit
             // at VirtualMachine::setJitEnabled because JIT-emitted machine
             // code bakes in the std::variant Value layout — the helper just
             // stays linkable and correct if the gate ever lifts.
-            if (value::isObject(val))
+            // MYT-208: accept STACK_OBJECT — boxed-primitive read works
+            // identically on raw or shared_ptr-owned ObjectInstance.
+            if (value::isAnyObject(val))
             {
-                const auto& obj = value::asObject(val);
+                auto* obj = value::asObjectInstanceRaw(val);
                 if (!obj) return false;
                 obj->ensureFieldVector();
                 const value::Value& field = obj->getFieldByIndex(0);

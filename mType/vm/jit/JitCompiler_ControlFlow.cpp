@@ -1,6 +1,7 @@
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"
+#include "../runtime/VirtualMachine.hpp"
 #include "../../gc/GCConfig.hpp"
 #include <asmjit/x86.h>
 
@@ -215,6 +216,45 @@ namespace vm::jit
         inv->set_arg(0, s.ctxPtr);
         inv->set_arg(1, niReg);
         inv->set_arg(2, valAddr);
+    }
+
+    // MYT-208: DECLARE_VAR — pop the top-of-stack value and register a new
+    // global with that value. Stack effect: -1 (pure pop). The helper's
+    // VariableDefinition ctor copies the Value internally; on the JIT side
+    // we just need to drop the slot. Boxed slots get an explicit destroy so
+    // their heap-ref refcount is released; primitive slots have no heap ref
+    // to release and their boxedBase[] entry would be uninitialised.
+    static void emitDeclareVar(JitEmissionState& s,
+                                const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (!s.usesBoxedTypes) { s.compileFailed = true; return; }
+        auto& cc = s.cc;
+        uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
+        // operand[1] is the type-name index (currently unused at JIT level).
+        uint8_t isFinal = (instr.operands.size() >= 3 && instr.operands[2] != 0) ? 1 : 0;
+
+        SlotType valType = topType(s);
+        Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, valType);
+        Gp niReg = cc.new_gp64();
+        cc.mov(niReg, static_cast<int64_t>(nameIndex));
+        Gp finalReg = cc.new_gp64();
+        cc.mov(finalReg, static_cast<int64_t>(isFinal));
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_declare_var),
+                  FuncSignature::build<void, JitContext*, uint32_t,
+                                        const value::Value*, uint8_t>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, niReg);
+        inv->set_arg(2, valAddr);
+        inv->set_arg(3, finalReg);
+
+        if (isBoxedSlotType(valType))
+        {
+            emitValueDestroy(s, s.stackDepth - 1);
+        }
+        popType(s);
+        s.stackDepth--;
     }
 
     static void emitReturnPrimitive(JitEmissionState& s, SlotType retType)
@@ -452,6 +492,166 @@ namespace vm::jit
         emitInlineGcSafepoint(s);
 
         cc.jmp(s.functionEntryLabel);
+
+        // MYT-207 telemetry: compile-time bump (not runtime). Counts the
+        // number of CALL sites lowered to a tail-loop, NOT the number of
+        // dynamic iterations the loop runs. Single-threaded VM — non-atomic
+        // mirrors compileCount.
+        if (s.tailCallsOptimized) (*s.tailCallsOptimized)++;
+        return true;
+    }
+
+    // MYT-207: lower a NON-tail self-recursive CALL/CALL_FAST to a direct
+    // asmjit invoke against the function's own FuncNode->label(). Skips the
+    // jit_call_function dispatch overhead — concretely:
+    //   - jitCodeCache lookupByIndex (we ARE the lookup target)
+    //   - tryJitDispatchResolved's CallFrame push + std::vector grow
+    //   - JitContext nestedCtx{} zero-init (~256 bytes / 16 variant defaults)
+    //   - try/catch SEH frame setup
+    // The dominant residual cost on recursive.mt's fib (~2.76M non-tail
+    // recursive calls) is exactly that overhead, since fib's body is tiny.
+    //
+    // Reuses the same JitContext: args are marshalled into ctx->callArgs by
+    // emitBoxCallArgs (mirrors the generic path), then ctx->args is pointed
+    // at &ctx->callArgs[0] for the duration of the nested invoke and
+    // restored afterwards. ctx->returnValue / ctx->hasReturnValue are
+    // populated by the callee's RETURN_VALUE.
+    //
+    // Stack-overflow protection: inline cmp against
+    // VirtualMachine::MAX_JIT_NATIVE_DEPTH; on overflow the emission
+    // branches to a fallback path that calls the original generic helper,
+    // which itself bails to the interpreter via callFunctionFromJit. Tail-
+    // optimized frames do NOT appear in stack traces — same accepted
+    // semantic as MYT-210's inliner. See ticket discussion.
+    //
+    // Preconditions (mirror tryEmitSelfTailCall, sans the RETURN_VALUE
+    // peek — this is the NON-tail path):
+    //   - selfDirectCallEnabled (false for OSR / boxed frames in v1)
+    //   - callee is the currently compiling function (self-recursion)
+    //   - argCount matches calleeMeta->parameterCount
+    //
+    // Returns true iff the call site was lowered. False → caller falls
+    // through to the generic helper invoke unchanged.
+    static bool tryEmitSelfDirectCall(JitEmissionState& s,
+                                       size_t argCount,
+                                       const bytecode::BytecodeProgram::FunctionMetadata* calleeMeta,
+                                       uint64_t fallbackHelper,
+                                       uint32_t fallbackArg)
+    {
+        if (!s.selfDirectCallEnabled) return false;
+        if (s.usesBoxedTypes) return false;
+        if (!calleeMeta) return false;
+        if (argCount != calleeMeta->parameterCount) return false;
+        if (s.currentCompilingFn.empty()) return false;
+
+        const std::string& calleeKey = calleeMeta->mangledName.empty()
+            ? calleeMeta->name : calleeMeta->mangledName;
+        if (calleeKey != s.currentCompilingFn &&
+            calleeMeta->name != s.currentCompilingFn &&
+            calleeMeta->mangledName != s.currentCompilingFn)
+            return false;
+
+        // Return must be a primitive in unboxed-frame mode (mirrors the
+        // outer emit-path's check at emitCallOp / emitCallFastOp). Non-
+        // primitive returns require boxed-frame plumbing which v1 defers.
+        const std::string& returnType = calleeMeta->returnType;
+        const bool isPrimReturn = (returnType == "int" || returnType == "float" ||
+                                   returnType == "bool" || returnType == "void");
+        if (!isPrimReturn) return false;
+
+        auto& cc = s.cc;
+
+        // Marshal args from operand stack → ctx->callArgs[0..argCount-1] and
+        // pop the operand-stack slot types. Same helper the generic path
+        // uses; both the direct invoke and the fallback consume callArgs.
+        emitBoxCallArgs(s, argCount);
+        emitPopAndDestroyArgs(s, argCount);
+
+        // Load vmPtr once; both the depth-guard and the inc/dec touch it.
+        Gp vmPtr = cc.new_gp64();
+        cc.mov(vmPtr, Mem(s.ctxPtr, offsetof(JitContext, vm)));
+
+        // Inline depth guard. On overflow, branch to fallbackLabel which
+        // emits the generic helper (which itself bails to the interpreter
+        // via callFunctionFromJit when the depth check trips again).
+        Label fallbackLabel = cc.new_label();
+        Label afterCallLabel = cc.new_label();
+
+        Gp depth = cc.new_gp64();
+        cc.mov(depth, Mem(vmPtr, static_cast<int32_t>(
+            vm::runtime::VirtualMachine::kJitNativeDepthOffset)));
+        cc.cmp(depth, static_cast<int32_t>(
+            vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH));
+        cc.jae(fallbackLabel);
+
+        // ---- Direct path ----
+        // Save current ctx->args / argCount so the outer caller's view is
+        // unchanged after the recursive call returns. The callee's prologue
+        // reads ctx->args once (emitArgumentUnboxing) and copies into its
+        // locals; we point at our own callArgs[] for that read.
+        Gp savedArgs = cc.new_gp64();
+        Gp savedArgCount = cc.new_gp64();
+        cc.mov(savedArgs, Mem(s.ctxPtr, offsetof(JitContext, args)));
+        cc.mov(savedArgCount, Mem(s.ctxPtr, offsetof(JitContext, argCount)));
+
+        Gp callArgsPtr = cc.new_gp64();
+        cc.lea(callArgsPtr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)));
+        cc.mov(Mem(s.ctxPtr, offsetof(JitContext, args)), callArgsPtr);
+        Gp argCountReg = cc.new_gp64();
+        cc.mov(argCountReg, static_cast<int64_t>(argCount));
+        cc.mov(Mem(s.ctxPtr, offsetof(JitContext, argCount)), argCountReg);
+
+        // Inc native depth before the call (mirrors tryJitDispatchResolved).
+        cc.inc(depth);
+        cc.mov(Mem(vmPtr, static_cast<int32_t>(
+            vm::runtime::VirtualMachine::kJitNativeDepthOffset)), depth);
+
+        // Direct invoke against the function's own FuncNode->label().
+        // AsmJit resolves the (still-unbound at this point) label at
+        // cc.finalize() time; recursive label invokes are supported.
+        InvokeNode* selfInv;
+        cc.invoke(Out(selfInv), s.selfFuncCallLabel,
+                  FuncSignature::build<void, JitContext*>());
+        selfInv->set_arg(0, s.ctxPtr);
+
+        // Reload vmPtr/depth — caller-saved registers are clobbered by the
+        // call; let asmjit allocate fresh virtregs so the dec uses live data.
+        Gp vmPtr2 = cc.new_gp64();
+        cc.mov(vmPtr2, Mem(s.ctxPtr, offsetof(JitContext, vm)));
+        Gp depth2 = cc.new_gp64();
+        cc.mov(depth2, Mem(vmPtr2, static_cast<int32_t>(
+            vm::runtime::VirtualMachine::kJitNativeDepthOffset)));
+        cc.dec(depth2);
+        cc.mov(Mem(vmPtr2, static_cast<int32_t>(
+            vm::runtime::VirtualMachine::kJitNativeDepthOffset)), depth2);
+
+        // Restore the caller's view of ctx->args / argCount.
+        cc.mov(Mem(s.ctxPtr, offsetof(JitContext, args)), savedArgs);
+        cc.mov(Mem(s.ctxPtr, offsetof(JitContext, argCount)), savedArgCount);
+
+        cc.jmp(afterCallLabel);
+
+        // ---- Fallback path: depth exceeded, defer to the generic helper ----
+        cc.bind(fallbackLabel);
+        Gp fbArgReg = cc.new_gp64();
+        cc.mov(fbArgReg, static_cast<int64_t>(fallbackArg));
+        Gp fbAcReg = cc.new_gp64();
+        cc.mov(fbAcReg, static_cast<int64_t>(argCount));
+        InvokeNode* fbInv;
+        cc.invoke(Out(fbInv), fallbackHelper,
+                  FuncSignature::build<void, JitContext*, uint32_t, size_t>());
+        fbInv->set_arg(0, s.ctxPtr);
+        fbInv->set_arg(1, fbArgReg);
+        fbInv->set_arg(2, fbAcReg);
+
+        cc.bind(afterCallLabel);
+
+        // Push the return value back onto the operand stack — same path the
+        // generic emit takes.
+        if (returnType != "void")
+            emitCallReturnValue(s, returnType, /*isPrimReturn=*/true);
+
+        if (s.selfDirectCalls) (*s.selfDirectCalls)++;
         return true;
     }
 
@@ -472,11 +672,19 @@ namespace vm::jit
         // the inliner because self-recursion is rejected by the inliner
         // (InlineAnalysis.cpp:141-145 SELF_RECURSIVE), so TCO is the only
         // opportunity to elide the call dispatch for recursive functions.
+        // MYT-207 Phase 2: non-tail self-recursive direct invoke against
+        // the function's own FuncNode->label() — same rationale (the
+        // inliner won't fire for self), targets fib's residual ~2.76M
+        // non-tail recursive calls in recursive.mt.
         if (nameIndex < s.program.getConstantPool().strings.size())
         {
             const std::string& funcName = s.program.getConstantPool().getString(nameIndex);
             const auto* calleeMeta = s.program.getFunction(funcName);
             if (tryEmitSelfTailCall(s, argCount, calleeMeta))
+                return true;
+            if (tryEmitSelfDirectCall(s, argCount, calleeMeta,
+                                       reinterpret_cast<uint64_t>(jit_call_function),
+                                       nameIndex))
                 return true;
         }
 
@@ -536,7 +744,12 @@ namespace vm::jit
 
         // Phase 1: self-recursive tail-call optimization. See emitCallOp
         // for rationale — checked before the inliner.
+        // MYT-207 Phase 2: non-tail self-recursive direct invoke.
         if (tryEmitSelfTailCall(s, argCount, calleeMeta))
+            return true;
+        if (tryEmitSelfDirectCall(s, argCount, calleeMeta,
+                                   reinterpret_cast<uint64_t>(jit_call_function_fast),
+                                   funcIndex))
             return true;
 
         // MYT-210: speculative inlining for CALL_FAST. Same dispatcher as
@@ -630,6 +843,10 @@ namespace vm::jit
             case OpCode::STORE_VAR:
             case OpCode::STORE_VAR_CACHED: // MYT-204
                 emitStoreVar(s, static_cast<uint32_t>(instr.operands[0]));
+                return true;
+
+            case OpCode::DECLARE_VAR: // MYT-208
+                emitDeclareVar(s, instr);
                 return true;
 
             case OpCode::JUMP:

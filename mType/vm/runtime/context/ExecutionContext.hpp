@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 #include <vector>
+#include <array>
+#include <cassert>
 #include <chrono>
 #include <unordered_map>
 #include <iostream>
@@ -46,6 +48,15 @@ namespace vm::runtime
         }
 
         void setLocal(size_t slot, const value::Value& value) {
+            // MYT-208 defense-in-depth: SharedStackFrame outlives the creating
+            // CallFrame (heap-allocated, captured by lambdas). A STACK_OBJECT
+            // here would be a borrowed pointer into a frame that's already
+            // gone. EscapeAnalysisPass::walkLambdaCaptures marks every
+            // referenced local as escaping precisely to prevent promotion in
+            // this case; the assert backs that static guarantee.
+            assert(!value::isStackObject(value) &&
+                   "SharedStackFrame::setLocal: STACK_OBJECT captured by lambda — "
+                   "EscapeAnalysisPass should have demoted this allocation");
             if (slot >= locals.size()) {
                 locals.resize(slot + 1, std::monostate{});  // sentinel for uninitialized slots
             }
@@ -103,10 +114,48 @@ namespace vm::runtime
         // program->getFunctionMeta(handle) for O(1) metadata lookup.
         vm::bytecode::FunctionNameHandle functionName{ vm::bytecode::INVALID_FN_HANDLE };
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> thisInstance;  // For method calls
+        // MYT-208: stack-promoted `this` for ctor frames opened by NEW_STACK.
+        // When set, `thisInstance` is null and reads must go through
+        // getThisInstanceRaw(). Lifetime is owned by the *caller* frame's
+        // stackObjects array — this field is a borrow.
+        runtimeTypes::klass::ObjectInstance* thisInstanceRaw = nullptr;
+        // MYT-208: raw ObjectInstance* allocations promoted via NEW_STACK.
+        // Released back to ObjectInstancePool at frame teardown (normal return
+        // OR exception unwind). Inline storage so a hot-loop pattern like
+        // `function f() { Point p = new Point(...); ... }` called 2M times
+        // doesn't pay 2M heap alloc/free pairs from std::vector growth on
+        // every CallFrame. Capacity matches STACK_OBJECTS_PER_FRAME_CAP in
+        // handleNewStack / createStackObject — once full, the runtime falls
+        // back to the heap allocation path.
+        static constexpr size_t kStackObjectsCap = 32;
+        std::array<runtimeTypes::klass::ObjectInstance*, kStackObjectsCap> stackObjects{};
+        size_t stackObjectsCount = 0;
         std::shared_ptr<BytecodeLambda> originatingLambda;  // If this frame is for a lambda, reference to it (for debugging)
         std::string definingClassName;           // Class that defines the method (for access control in inheritance)
         std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for closure capture (if this function creates lambdas)
         size_t programIndex = 0;                 // Which program in loadedPrograms this frame belongs to
+
+        // MYT-208: prefer raw `this` when set (NEW_STACK ctor), otherwise the
+        // shared_ptr's underlying pointer. Both null is legal (static frames).
+        runtimeTypes::klass::ObjectInstance* getThisInstanceRaw() const noexcept {
+            return thisInstanceRaw ? thisInstanceRaw : thisInstance.get();
+        }
+
+        // MYT-208: release every entry in stackObjects back to the pool and
+        // reset count. Idempotent — safe to call twice (e.g. exception
+        // unwind raced with normal return). Defined out-of-line in
+        // ExecutionContext.cpp because the implementation needs the
+        // ObjectInstancePool full type.
+        void releaseStackObjects() noexcept;
+
+        // MYT-208: append a raw pointer; returns false if the inline array is
+        // full (caller must fall back to heap allocation). Always-inline so
+        // the hot-loop NEW_STACK path emits as a tight bounds-check + store.
+        bool tryPushStackObject(runtimeTypes::klass::ObjectInstance* obj) noexcept {
+            if (stackObjectsCount >= kStackObjectsCap) return false;
+            stackObjects[stackObjectsCount++] = obj;
+            return true;
+        }
     };
 
     /**

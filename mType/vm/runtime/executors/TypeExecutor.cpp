@@ -290,10 +290,12 @@ namespace vm::runtime
 
         for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
             const auto& frame = *it;
-            if (!frame.thisInstance) {
+            // MYT-208: walk both heap-owned and stack-promoted `this`.
+            auto* rawThis = frame.getThisInstanceRaw();
+            if (!rawThis) {
                 continue;
             }
-            const auto& bindings = frame.thisInstance->getGenericTypeBindings();
+            const auto& bindings = rawThis->getGenericTypeBindings();
             auto found = bindings.find(paramName);
             if (found != bindings.end() && !found->second.empty()) {
                 return found->second;
@@ -351,9 +353,11 @@ namespace vm::runtime
         const value::Value& val,
         const std::string& targetTypeName,
         environment::Environment* env) {
-        // Object type check
-        if (value::isObject(val)) {
-            auto obj = value::asObject(val);
+        // Object type check.
+        // MYT-208: accept STACK_OBJECT — instanceof on a stack-promoted local
+        // is a routine pattern (e.g. `if (p isClassOf Point)`).
+        if (value::isAnyObject(val)) {
+            auto* obj = value::asObjectInstanceRaw(val);
 
             if (obj) {
                 auto classDef = obj->getClassDefinition();
@@ -570,8 +574,9 @@ namespace vm::runtime
                 throwCastError("Cannot cast string to int: " + str);
             }
         }
-        else if (value::isObject(val)) {
-            auto obj = value::asObject(val);
+        else if (value::isAnyObject(val)) {
+            // MYT-208: accept STACK_OBJECT (cast on a stack-promoted Int box).
+            auto* obj = value::asObjectInstanceRaw(val);
             if (obj && obj->getClassDefinition()->getName() == "Int") {
                 // Return the Int object itself (it's already the right type)
                 return val;
@@ -792,13 +797,15 @@ namespace vm::runtime
             }
         }
 
-        // Handle non-object types
-        if (!value::isObject(val)) {
+        // Handle non-object types.
+        // MYT-208: accept STACK_OBJECT — `(Point) p` on a stack-promoted local
+        // is valid and cheap; raw pointer access is enough for the cast.
+        if (!value::isAnyObject(val)) {
             throwCastError("Cannot cast primitive type to " + targetTypeName);
         }
 
         // Object cast - check if it's a valid object type
-        auto obj = value::asObject(val);
+        auto* obj = value::asObjectInstanceRaw(val);
         if (!obj) {
             throwCastError("Cannot cast null to " + targetTypeName);
         }
@@ -817,7 +824,10 @@ namespace vm::runtime
                        checkInterfaceMatch(classDef, targetTypeName);
 
         if (canCast) {
-            return obj;
+            // Cast is a runtime type check — preserve the original Value's tag
+            // (OBJECT or STACK_OBJECT). Returning the raw `obj` pointer here
+            // would silently match Value(bool) via pointer→bool decay.
+            return val;
         } else {
             throwIncompatibleCastError(className, targetTypeName);
             return val; // Never reached, but satisfies return type
@@ -978,6 +988,15 @@ namespace vm::runtime
             }
             return obj ? "<" + obj->getClassName() + ">" : "null";
         }
+        // MYT-208: accept STACK_OBJECT alongside OBJECT — `(string) p` on a
+        // stack-promoted local should produce the wrapper's "value" field
+        // when present, mirroring the OBJECT-tag fallback.
+        if (value::isAnyObject(val)) {
+            auto* obj = value::asObjectInstanceRaw(val);
+            if (obj && obj->getField("value")) {
+                return valueToString(obj->getFieldValue("value"));
+            }
+        }
         return "<object>";
     }
 
@@ -1016,7 +1035,7 @@ namespace vm::runtime
     }
 
     std::string TypeExecutor::reconstructObjectFullType(
-        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj) {
+        const runtimeTypes::klass::ObjectInstance* obj) {
         if (!obj) {
             return "";
         }

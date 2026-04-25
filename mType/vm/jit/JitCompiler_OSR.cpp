@@ -260,6 +260,12 @@ namespace vm::jit
         // (the generated code enters at the loop's back-edge target, not a
         // function prologue), so suppress tail-call lowering in OSR emission.
         s.selfTailCallEnabled = false;
+        // MYT-207: same constraint for the direct-self-call path. The OSR
+        // entry's FuncNode->label() points at the OSR loop prelude, not the
+        // original function's prologue — recursing into it would re-execute
+        // the OSR setup with bogus state. currentCompilingFn is left empty
+        // for OSR frames anyway, but keep the explicit gate for clarity.
+        s.selfDirectCallEnabled = false;
 
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
             emitLocalsWriteBack(es);

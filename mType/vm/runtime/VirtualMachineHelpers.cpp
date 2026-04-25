@@ -67,9 +67,11 @@ namespace vm::runtime
         {
             return "null";
         }
-        if (value::isObject(val))
+        // MYT-208: accept STACK_OBJECT alongside OBJECT — print/log on a
+        // stack-promoted local must dispatch toString() the same way.
+        if (value::isAnyObject(val))
         {
-            auto obj = value::asObject(val);
+            auto* obj = value::asObjectInstanceRaw(val);
             if (obj)
             {
                 // First, try to call toString() if it exists (custom toString() takes priority)

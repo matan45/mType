@@ -37,7 +37,7 @@ namespace
         }
     }
 
-    // Mirrors the primitive hash arms of HashCodeFunction. Returns 0 for
+    // Mirrors the primitive hash arms of BuiltinNatives::hashCode_fn. Returns 0 for
     // non-hashable values. Used by the nested computeHashCode dispatches
     // below to avoid duplicating the same five type checks.
     int64_t hashPrimitive(const value::Value& val)
@@ -484,9 +484,9 @@ namespace json
         return instance;
     }
 
-    // Mirrors the native hashCode() built-in (environment/registry/builtin/HashCodeFunction.cpp).
+    // Mirrors the native hashCode() built-in (environment/registry/builtin/BuiltinNatives.cpp).
     // Uses std::hash<T> masked with 0x7FFFFFFF, matching the runtime exactly.
-    // WARNING: if HashCodeFunction.cpp changes, this must be updated to match.
+    // WARNING: if BuiltinNatives.cpp's hashCode_fn changes, this must be updated to match.
     int64_t JsonDeserializer::computeHashCode(const value::Value& val)
     {
         // Primitive values hash directly.

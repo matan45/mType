@@ -133,7 +133,23 @@ namespace optimizer::passes
 
                 if (auto* assign = dynamic_cast<stmt::AssignmentNode*>(node))
                 {
-                    if (auto* newN = dynamic_cast<klass::NewNode*>(assign->getValue()))
+                    // MYT-208: only consider FRESH LOCAL DECLARATIONS — `T x = new T(...)`
+                    // patterns where `x` is a newly-bound local with a declared type.
+                    // Reassignments (`x = new T(...)` where x already exists) and
+                    // class-field assignments (`field = new T(...)` inside a method
+                    // body, which compiles to SET_FIELD on `this`) carry
+                    // variableType == VOID per StatementCompiler's branching at
+                    // `varType != VOID -> emitVariableDeclaration / else
+                    // emitVariableReassignment`. Promoting those would store the
+                    // NewNode result into a persistent slot (an existing local that
+                    // outlives this scope, or a class field), violating the
+                    // stack-frame lifetime assumption that backs STACK_OBJECT.
+                    if (assign->getVariableType() == value::ValueType::VOID) {
+                        // Fall through to recurseForCollection — the RHS may still
+                        // contain nested candidates inside, but THIS assignment is
+                        // not itself a candidate.
+                    }
+                    else if (auto* newN = dynamic_cast<klass::NewNode*>(assign->getValue()))
                     {
                         const auto& name = assign->getVariableName();
                         // Only record the first NewNode bound to this local in a given
@@ -370,10 +386,17 @@ namespace optimizer::passes
 
                 if (auto* mCall = dynamic_cast<klass::MethodCallNode*>(node))
                 {
-                    // Receiver: SAFE (method call on receiver — this iteration's runtime
-                    // uses an aliasing shared_ptr so method calls on stack-promoted
-                    // objects are correct and don't extend lifetime).
-                    walkExpr(mCall->getObject(), Ctx::SAFE);
+                    // MYT-208: receiver is ESCAPING. The analyzer can't tell at
+                    // AST time whether the resolved method is bytecode (where
+                    // STACK_OBJECT receivers route through frame.thisInstanceRaw
+                    // safely) or native (e.g. getClass / hashCode / equals — these
+                    // call ScriptAPI / TypeExecutor helpers that historically
+                    // extract a shared_ptr<ObjectInstance> and may store it
+                    // beyond the call). Treating receivers as ESCAPING is
+                    // conservative but correct; field-read paths
+                    // (MemberAccessNode below) still use SAFE so nested-helper
+                    // patterns (e.g. distanceSq's `a.x - b.x`) stay optimised.
+                    walkExpr(mCall->getObject(), Ctx::ESCAPING);
                     // Arguments: ESCAPE (we can't see the callee body).
                     for (const auto& a : mCall->getArguments()) walkExpr(a.get(), Ctx::ESCAPING);
                     return;

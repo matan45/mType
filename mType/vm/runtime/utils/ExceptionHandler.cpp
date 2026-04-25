@@ -154,6 +154,22 @@ namespace vm::runtime::utils
                 // inside the lambda itself.
                 break;
             }
+            else
+            {
+                // MYT-208: __script_main__ has no FunctionMetadata (it's
+                // synthesised by VirtualMachine, not registered via
+                // BytecodeProgram::registerFunction). Without a range to
+                // compare against, the previous logic fell through and
+                // popped script_main during exception unwind — leaving the
+                // catch handler running with no live frame and (now that
+                // releaseStackObjects fires here) freeing top-level locals
+                // that the rest of the script still uses. The script-main
+                // frame's lifetime is the entire program; stop unwinding
+                // here so the catch resumes inside script_main with all
+                // top-level locals (and stack-promoted allocations like
+                // `tests = new ExceptionFinallyTests()`) still alive.
+                break;
+            }
 
             if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())
             {
@@ -161,7 +177,10 @@ namespace vm::runtime::utils
                     program->getFrameName(frame.functionName));
             }
 
-            // Target is outside this function - unwind the call frame
+            // Target is outside this function - unwind the call frame.
+            // MYT-208: release stack-promoted allocations BEFORE pop so the
+            // pool gets the slot back on every unwind path.
+            callStack.back().releaseStackObjects();
             callStack.pop_back();
 
             // Clean up the stack
@@ -328,6 +347,8 @@ namespace vm::runtime::utils
                     program->getFrameName(currentFrame.functionName));
             }
 
+            // MYT-208: release stack-promoted allocations BEFORE pop.
+            callStack.back().releaseStackObjects();
             callStack.pop_back();
             cleanupStack(currentFrame.frameBase);
 
@@ -395,6 +416,9 @@ namespace vm::runtime::utils
             }
 
             // Pop this frame FIRST, then check if the call site is covered by the caller's exception table
+            // MYT-208: release stack-promoted allocations BEFORE pop. This is the
+            // path taken when a throw originates inside a stack-promoted ctor's body.
+            callStack.back().releaseStackObjects();
             callStack.pop_back();
             cleanupStack(frame.frameBase);
 

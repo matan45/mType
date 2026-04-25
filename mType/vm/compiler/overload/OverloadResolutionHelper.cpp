@@ -91,7 +91,7 @@ namespace vm::compiler::overload
                 if (!className.empty())
                 {
                     // Check if it's an interface or class
-                    auto interfaceDef = ctx.environment->findInterface(className);
+                    auto interfaceDef = ctx.env->findInterface(className);
                     if (interfaceDef)
                     {
                         argTypes.emplace_back(value::ParameterType::forInterface(className));
@@ -156,7 +156,7 @@ namespace vm::compiler::overload
         }
 
         // Get class definition
-        auto classDef = ctx.environment->findClass(baseClassName);
+        auto classDef = ctx.env->findClass(baseClassName);
         if (!classDef)
         {
             // Class not found - return plain method name (runtime will handle error)
@@ -384,7 +384,7 @@ namespace vm::compiler::overload
         }
 
         // Get class definition
-        auto classDef = ctx.environment->findClass(baseClassName);
+        auto classDef = ctx.env->findClass(baseClassName);
         if (!classDef)
         {
             // Class not found - return qualified plain name
@@ -516,7 +516,7 @@ namespace vm::compiler::overload
     {
         size_t genericTypeArgCount = genericTypeArgs.size();
         // Get function registry
-        auto funcRegistry = ctx.environment->getFunctionRegistry();
+        auto funcRegistry = ctx.env->getFunctionRegistry();
         if (!funcRegistry)
         {
             // No registry - return plain name
@@ -777,3 +777,4 @@ namespace vm::compiler::overload
         return resolvedName;
     }
 }
+

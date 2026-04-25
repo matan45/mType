@@ -40,6 +40,23 @@ namespace services
         std::shared_ptr<runtimeTypes::klass::ObjectInstance>
         asObjectInstance(const value::Value& v, const char* apiName)
         {
+            // MYT-208: accept STACK_OBJECT (raw borrowed) alongside OBJECT.
+            // ScriptAPI is interop / not hot-path, so wrapping the raw pointer
+            // in an aliasing shared_ptr with a no-op deleter is acceptable —
+            // lifetime stays with the owning CallFrame::stackObjects array.
+            // This keeps every downstream caller's `instance->method()` and
+            // `instance.get()` paths unchanged.
+            if (value::isStackObject(v))
+            {
+                auto* raw = value::asObjectInstanceRaw(v);
+                if (!raw)
+                {
+                    throw errors::ObjectException(
+                        "Value is a null object", "", apiName);
+                }
+                return std::shared_ptr<runtimeTypes::klass::ObjectInstance>(
+                    raw, [](runtimeTypes::klass::ObjectInstance*) {});
+            }
             if (!value::isObject(v))
             {
                 throw errors::ObjectException(
@@ -78,7 +95,8 @@ namespace services
             auto nativeFunc = nativeRegistry->findNativeFunction(functionName);
             if (nativeFunc)
             {
-                return nativeFunc(args);
+                ::environment::NativeContext nativeCtx{ this->environment, this->vm->shared_from_this() };
+                return nativeFunc(nativeCtx, args);
             }
         }
 
@@ -367,8 +385,10 @@ namespace services
         // helper the bytecode INSTANCEOF op uses — this guarantees the
         // string we pass to Class.forName lines up with what the language
         // side would produce (e.g. "Box<Int>" with ", " spacing).
+        // MYT-208: helper takes raw ObjectInstance* — pass the shared_ptr's
+        // underlying pointer (lifetime is the caller's `instance`).
         std::string canonicalName =
-            vm::runtime::TypeExecutor::reconstructObjectFullType(instance);
+            vm::runtime::TypeExecutor::reconstructObjectFullType(instance.get());
         if (canonicalName.empty())
         {
             canonicalName = instance->getClassDefinition()->getName();
@@ -478,3 +498,4 @@ namespace services
         return isInstanceOf(object, name);
     }
 }
+

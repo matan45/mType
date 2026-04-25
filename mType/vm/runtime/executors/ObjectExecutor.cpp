@@ -123,11 +123,13 @@ namespace vm::runtime
             return;
         }
 
-        if (!value::isObject(objectValue)) {
+        if (!value::isAnyObject(objectValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires an object instance");
         }
 
-        auto instance = value::asObject(objectValue);
+        // MYT-208: unwrap to raw ObjectInstance* — handles both OBJECT (bridge)
+        // and STACK_OBJECT (borrowed raw) tags uniformly.
+        auto* instance = value::asObjectInstanceRaw(objectValue);
 
         auto fieldDef = instance->getField(fieldName);
         if (!fieldDef) {
@@ -185,11 +187,12 @@ namespace vm::runtime
             return;
         }
 
-        if (!value::isObject(objectValue)) {
+        if (!value::isAnyObject(objectValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires an object instance");
         }
 
-        auto instance = value::asObject(objectValue);
+        // MYT-208: raw unwrap supports OBJECT and STACK_OBJECT tags.
+        auto* instance = value::asObjectInstanceRaw(objectValue);
 
         auto fieldDef = instance->getField(fieldName);
         if (!fieldDef) {
@@ -235,7 +238,8 @@ namespace vm::runtime
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
-        auto instance = value::asObject(objectValue);
+        // MYT-208: accept STACK_OBJECT alongside OBJECT.
+        auto* instance = value::asObjectInstanceRaw(objectValue);
         instance->setField(fieldName, newValue);
     }
 
@@ -243,8 +247,10 @@ namespace vm::runtime
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
         value::Value objectValue = context.stackManager->pop();
 
-        if (value::isObject(objectValue)) {
-            auto instance = value::asObject(objectValue);
+        // MYT-208: isAnyObject(...) covers both OBJECT and STACK_OBJECT;
+        // asObjectInstanceRaw unwraps both into a non-owning ObjectInstance*.
+        if (value::isAnyObject(objectValue)) {
+            auto* instance = value::asObjectInstanceRaw(objectValue);
             context.stackManager->push(instance->getFieldValue(fieldName));
         } else if (value::isValueObject(objectValue)) {
             auto valueObj = value::asValueObject(objectValue);
@@ -252,8 +258,8 @@ namespace vm::runtime
         } else {
             // Fallback: auto-box primitive and read field
             objectValue = autoBoxPrimitive(objectValue, context.environment);
-            if (value::isObject(objectValue)) {
-                auto instance = value::asObject(objectValue);
+            if (value::isAnyObject(objectValue)) {
+                auto* instance = value::asObjectInstanceRaw(objectValue);
                 context.stackManager->push(instance->getFieldValue(fieldName));
             } else if (value::isValueObject(objectValue)) {
                 auto valueObj = value::asValueObject(objectValue);
@@ -511,10 +517,17 @@ namespace vm::runtime
         context.instructionPointer = lambdaStart - 1;
     }
 
-    void ObjectExecutor::invokeInstanceMethod(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
+    void ObjectExecutor::invokeInstanceMethod(const value::Value& receiverValue,
                                              const std::string& methodName,
                                              std::span<const value::Value> args,
                                              size_t argCount) {
+        // MYT-208: tag-aware unwrap. raw is the only handle used for data
+        // access (getClassDefinition, getField, contentEquals, etc.); it is
+        // valid for both OBJECT and STACK_OBJECT receivers. The original
+        // Value is preserved in `receiverValue` so we can push it back as
+        // `this` (preserving the tag) and so we can branch on tag when
+        // populating the new CallFrame.
+        auto* instance = value::asObjectInstanceRaw(receiverValue);
         auto classDef = instance->getClassDefinition();
 
         // Extract simple method name from mangled name
@@ -607,8 +620,9 @@ namespace vm::runtime
                 // compare equal.
                 if (argCount >= 1) {
                     const auto& otherVal = args[0];
-                    if (value::isObject(otherVal)) {
-                        auto otherPtr = value::asObject(otherVal);
+                    // MYT-208: also accept STACK_OBJECT arguments.
+                    if (value::isAnyObject(otherVal)) {
+                        auto* otherPtr = value::asObjectInstanceRaw(otherVal);
                         if (otherPtr) {
                             context.stackManager->push(instance->contentEquals(*otherPtr));
                         } else {
@@ -632,8 +646,10 @@ namespace vm::runtime
                 // same code path. Builds the parameterized canonical name
                 // from the instance's reified type and calls Class.forName.
                 services::ScriptAPI api(context.environment, context.vm, context.program);
+                // MYT-208: pass the original receiver Value so getClass works
+                // for both OBJECT and STACK_OBJECT receivers without re-boxing.
                 context.stackManager->push(
-                    api.getClass(value::Value(instance)).asValue());
+                    api.getClass(receiverValue).asValue());
                 return;
             }
         }
@@ -650,7 +666,10 @@ namespace vm::runtime
         }
 
         size_t frameBase = context.stackManager->size();
-        context.stackManager->push(instance);
+        // MYT-208: push the original receiver Value (preserves OBJECT vs
+        // STACK_OBJECT tag) so the callee's LOAD_LOCAL slot 0 reads the right
+        // tag and stays refcount-free for STACK_OBJECT.
+        context.stackManager->push(receiverValue);
 
         for (size_t i = 0; i < argCount; ++i) {
             context.stackManager->push(modifiedArgs[i]);
@@ -663,7 +682,14 @@ namespace vm::runtime
         // MYT-197: intern on the target program so the handle is resolvable
         // by the same program that owns the FunctionMetadata.
         frame.functionName = targetProgram->internFrameName(qualifiedName);
-        frame.thisInstance = instance;
+        // MYT-208: tag-branch `this` ownership. STACK_OBJECT routes the raw
+        // pointer through thisInstanceRaw (lifetime owned by caller frame's
+        // stackObjects); OBJECT keeps the shared_ptr in thisInstance.
+        if (value::isStackObject(receiverValue)) {
+            frame.thisInstanceRaw = instance;
+        } else {
+            frame.thisInstance = value::asObject(receiverValue);
+        }
         frame.definingClassName = definingClassName;  // Store the class that defines this method
         frame.programIndex = targetProgramIndex;
 
@@ -731,7 +757,11 @@ namespace vm::runtime
         auto tempInstance = value::ObjectInstancePool::getInstance().acquire(classDef);
         tempInstance->loadFromValueObject(*valueObj);
 
-        invokeInstanceMethod(tempInstance, methodName, args, argCount);
+        // MYT-208: invokeInstanceMethod takes a Value receiver now. Wrap the
+        // temp shared_ptr in an OBJECT-tagged Value (always heap, never
+        // stack-promoted — value-class temp instance has unbounded lifetime
+        // tied to the shared_ptr).
+        invokeInstanceMethod(value::Value(tempInstance), methodName, args, argCount);
     }
 
     void ObjectExecutor::handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -775,14 +805,16 @@ namespace vm::runtime
             return;
         }
 
-        // Handle regular instance method invocation
-        if (!value::isObject(objectValue)) {
+        // Handle regular instance method invocation.
+        // MYT-208: accept STACK_OBJECT receivers — invokeInstanceMethod
+        // tag-branches the frame.thisInstance / thisInstanceRaw assignment
+        // and pushes the original Value onto the stack as `this`.
+        if (!value::isAnyObject(objectValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "CALL_METHOD requires an object instance or lambda");
         }
 
-        auto instance = value::asObject(objectValue);
-        invokeInstanceMethod(instance, methodName, args.span(), argCount);
+        invokeInstanceMethod(objectValue, methodName, args.span(), argCount);
     }
 
     void ObjectExecutor::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -812,9 +844,10 @@ namespace vm::runtime
             if (!context.callStack.back().definingClassName.empty()) {
                 return context.callStack.back().definingClassName;
             }
-            // Fallback to instance class if defining class not set (e.g., for constructors)
-            if (context.callStack.back().thisInstance) {
-                return context.callStack.back().thisInstance->getClassDefinition()->getName();
+            // Fallback to instance class if defining class not set (e.g., for constructors).
+            // MYT-208: also accept stack-promoted `this` (NEW_STACK ctor frames).
+            if (auto* rawThis = context.callStack.back().getThisInstanceRaw()) {
+                return rawThis->getClassDefinition()->getName();
             } else {
                 // Fallback: extract class name from function name (static methods).
                 // MYT-197: resolve the interned handle before splitting.
@@ -933,16 +966,15 @@ namespace vm::runtime
             return;
         }
 
-        if (!value::isObject(collectionValue)) {
+        if (!value::isAnyObject(collectionValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "GET_ITERATOR requires an object instance");
         }
 
-        auto collection = value::asObject(collectionValue);
-
-        // Call the iterator() method on the collection — no args, no buffer.
+        // MYT-208: pass the receiver Value directly so OBJECT and STACK_OBJECT
+        // collections both dispatch correctly.
         std::string methodName = "iterator";
-        invokeInstanceMethod(collection, methodName, std::span<const value::Value>{}, 0);
+        invokeInstanceMethod(collectionValue, methodName, std::span<const value::Value>{}, 0);
 
         // The iterator object is now on the stack (pushed by invokeInstanceMethod)
     }
@@ -957,16 +989,14 @@ namespace vm::runtime
 
         utils::checkNullReceiver(instr, iteratorValue, context, "call hasNext() on", "iterator");
 
-        if (!value::isObject(iteratorValue)) {
+        if (!value::isAnyObject(iteratorValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "ITERATOR_HAS_NEXT requires an iterator instance");
         }
 
-        auto iterator = value::asObject(iteratorValue);
-
-        // Call hasNext() method on the iterator — no args, no buffer.
+        // MYT-208: pass receiver Value directly (covers OBJECT + STACK_OBJECT).
         std::string methodName = "hasNext";
-        invokeInstanceMethod(iterator, methodName, std::span<const value::Value>{}, 0);
+        invokeInstanceMethod(iteratorValue, methodName, std::span<const value::Value>{}, 0);
 
         // The boolean result is now on the stack
     }
@@ -978,16 +1008,14 @@ namespace vm::runtime
 
         utils::checkNullReceiver(instr, iteratorValue, context, "call next() on", "iterator");
 
-        if (!value::isObject(iteratorValue)) {
+        if (!value::isAnyObject(iteratorValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "ITERATOR_NEXT requires an iterator instance");
         }
 
-        auto iterator = value::asObject(iteratorValue);
-
-        // Call next() method on the iterator — no args, no buffer.
+        // MYT-208: pass receiver Value directly (covers OBJECT + STACK_OBJECT).
         std::string methodName = "next";
-        invokeInstanceMethod(iterator, methodName, std::span<const value::Value>{}, 0);
+        invokeInstanceMethod(iteratorValue, methodName, std::span<const value::Value>{}, 0);
 
         // The next element is now on the stack
     }
@@ -1002,17 +1030,15 @@ namespace vm::runtime
             return;
         }
 
-        if (!value::isObject(iteratorValue)) {
+        if (!value::isAnyObject(iteratorValue)) {
             // Not an object, just ignore
             return;
         }
 
-        auto iterator = value::asObject(iteratorValue);
-
-        // Call close() method on the iterator (for cleanup) — no args, no buffer.
+        // MYT-208: pass receiver Value directly (covers OBJECT + STACK_OBJECT).
         std::string methodName = "close";
         try {
-            invokeInstanceMethod(iterator, methodName, std::span<const value::Value>{}, 0);
+            invokeInstanceMethod(iteratorValue, methodName, std::span<const value::Value>{}, 0);
             // Pop the return value (close() returns void)
             context.stackManager->pop();
         }

@@ -156,12 +156,12 @@ namespace reflection
 
     // ========== Class Reflection Implementations ==========
 
-    Value ReflectionNatives::__reflect_forName(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_forName(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_forName");
         std::string className = extractString(args[0], "__reflect_forName", "className");
 
-        if (!currentEnvironment)
+        if (!ctx.env)
         {
             throw errors::RuntimeException("Reflection environment not initialized");
         }
@@ -174,8 +174,8 @@ namespace reflection
         // "Box" handle.
         if (className.find('<') != std::string::npos)
         {
-            auto reified = resolveToReifiedType(className, currentEnvironment.get());
-            auto baseDef = currentEnvironment->findClass(reified->getName());
+            auto reified = resolveToReifiedType(className, ctx.env.get());
+            auto baseDef = ctx.env->findClass(reified->getName());
             if (!baseDef)
             {
                 // resolveToReifiedType already verifies the base is resolvable,
@@ -187,7 +187,7 @@ namespace reflection
         }
 
         // Open form: existing path.
-        auto classDef = currentEnvironment->findClass(className);
+        auto classDef = ctx.env->findClass(className);
         if (!classDef)
         {
             throw errors::RuntimeException("Class not found: " + className);
@@ -197,7 +197,7 @@ namespace reflection
         return static_cast<int>(handle);
     }
 
-    Value ReflectionNatives::__reflect_getSimpleName(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getSimpleName(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getSimpleName");
         int64_t classHandle = extractInt(args[0], "__reflect_getSimpleName", "classHandle");
@@ -212,7 +212,7 @@ namespace reflection
         return classDef->getName();
     }
 
-    Value ReflectionNatives::__reflect_getSuperclass(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getSuperclass(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getSuperclass");
         int64_t classHandle = extractInt(args[0], "__reflect_getSuperclass", "classHandle");
@@ -234,7 +234,7 @@ namespace reflection
         return static_cast<int>(parentHandle);
     }
 
-    Value ReflectionNatives::__reflect_getInterfaces(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getInterfaces(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getInterfaces");
         int64_t classHandle = extractInt(args[0], "__reflect_getInterfaces", "classHandle");
@@ -256,13 +256,13 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_isInterface(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_isInterface(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_isInterface");
         return false;
     }
 
-    Value ReflectionNatives::__reflect_isAbstract(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_isAbstract(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_isAbstract");
         int64_t classHandle = extractInt(args[0], "__reflect_isAbstract", "classHandle");
@@ -277,7 +277,7 @@ namespace reflection
         return classDef->isAbstract();
     }
 
-    Value ReflectionNatives::__reflect_isFinal(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_isFinal(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_isFinal");
         int64_t classHandle = extractInt(args[0], "__reflect_isFinal", "classHandle");
@@ -292,7 +292,7 @@ namespace reflection
         return classDef->isFinal();
     }
 
-    Value ReflectionNatives::__reflect_isInstance(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_isInstance(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_isInstance");
         int64_t classHandle = extractInt(args[0], "__reflect_isInstance", "classHandle");
@@ -318,7 +318,7 @@ namespace reflection
         return instance->isInstanceOf(classDef->getName());
     }
 
-    Value ReflectionNatives::__reflect_isAssignableFrom(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_isAssignableFrom(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_isAssignableFrom");
         int64_t thisHandle = extractInt(args[0], "__reflect_isAssignableFrom", "thisClassHandle");
@@ -341,7 +341,7 @@ namespace reflection
         return otherClass->isSubclassOf(thisClass->getName());
     }
 
-    Value ReflectionNatives::__reflect_newInstance(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_newInstance(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_newInstance");
         int64_t classHandle = extractInt(args[0], "__reflect_newInstance", "classHandle");
@@ -367,7 +367,7 @@ namespace reflection
         return instance;
     }
 
-    Value ReflectionNatives::__reflect_isGenericClass(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_isGenericClass(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_isGenericClass");
         int64_t classHandle = extractInt(args[0], "__reflect_isGenericClass", "classHandle");
@@ -382,7 +382,7 @@ namespace reflection
         return classDef->isGeneric();
     }
 
-    Value ReflectionNatives::__reflect_getTypeParameters(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getTypeParameters(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getTypeParameters");
         int64_t classHandle = extractInt(args[0], "__reflect_getTypeParameters", "classHandle");
@@ -405,7 +405,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getTypeArguments(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getTypeArguments(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getTypeArguments");
         int64_t classHandle = extractInt(args[0], "__reflect_getTypeArguments", "classHandle");
@@ -427,11 +427,6 @@ namespace reflection
         const auto& typeArgs = reified->getTypeArguments();
         auto result = std::make_shared<NativeArray>(typeArgs.size(), ValueType::INT);
 
-        if (!currentEnvironment)
-        {
-            throw errors::RuntimeException("Reflection environment not initialized");
-        }
-
         for (size_t i = 0; i < typeArgs.size(); ++i)
         {
             const auto& arg = typeArgs[i];
@@ -440,7 +435,7 @@ namespace reflection
                 throw errors::RuntimeException("Invalid null type argument in reified type");
             }
 
-            auto argBaseDef = currentEnvironment->findClass(arg->getName());
+            auto argBaseDef = ctx.env->findClass(arg->getName());
             if (!argBaseDef)
             {
                 throw errors::RuntimeException("Class not found: " + arg->getName());
@@ -463,7 +458,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getClassModifiers(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getClassModifiers(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getClassModifiers");
         int64_t classHandle = extractInt(args[0], "__reflect_getClassModifiers", "classHandle");
@@ -478,7 +473,7 @@ namespace reflection
         return classDef->getModifierFlags();
     }
 
-    Value ReflectionNatives::__reflect_getName(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getName(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getName");
         int64_t classHandle = extractInt(args[0], "__reflect_getName", "classHandle");
@@ -500,7 +495,7 @@ namespace reflection
         return classDef->getName();
     }
 
-    Value ReflectionNatives::__reflect_getRawName(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getRawName(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getRawName");
         int64_t classHandle = extractInt(args[0], "__reflect_getRawName", "classHandle");
@@ -518,3 +513,4 @@ namespace reflection
     }
 
 } // namespace reflection
+

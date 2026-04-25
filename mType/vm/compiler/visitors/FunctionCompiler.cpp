@@ -728,7 +728,7 @@ namespace vm::compiler::visitors
                 std::string baseClassName = expectedCtx.getBaseClassName();
 
                 // Check if this is an interface type
-                auto interfaceDef = ctx.environment->findInterface(baseClassName);
+                auto interfaceDef = ctx.env->findInterface(baseClassName);
 
                 if (interfaceDef && interfaceDef->isFunctionalInterface())
                 {
@@ -1093,11 +1093,11 @@ namespace vm::compiler::visitors
         }
 
         // Check if base type is an existing class or interface
-        if (ctx.environment->findClass(baseTypeName) != nullptr)
+        if (ctx.env->findClass(baseTypeName) != nullptr)
         {
             return true;
         }
-        if (ctx.environment->findInterface(baseTypeName) != nullptr)
+        if (ctx.env->findInterface(baseTypeName) != nullptr)
         {
             return true;
         }
@@ -1162,7 +1162,7 @@ namespace vm::compiler::visitors
 
         // 2. Emit NEW_OBJECT or NEW_VALUE_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(expectedReturnType);
-        auto boxClassDef = ctx.environment->findClass(expectedReturnType);
+        auto boxClassDef = ctx.env->findClass(expectedReturnType);
         bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
         if (boxIsValue) {
             ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
@@ -1178,3 +1178,4 @@ namespace vm::compiler::visitors
         return true; // Auto-boxing was applied
     }
 }
+

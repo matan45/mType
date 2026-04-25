@@ -30,10 +30,13 @@ namespace vm::jit
     const void* jit_extract_classdef(const value::Value* receiver)
     {
         if (!receiver) return nullptr;
-        if (value::isObject(*receiver))
+        // MYT-208: handle OBJECT and STACK_OBJECT through one raw-unwrap path.
+        // ClassDef offset on ObjectInstance is identical for both, so the
+        // shape-guard's compare against `expectedShape` works unchanged.
+        if (value::isAnyObject(*receiver))
         {
-            const auto& instance = value::asObject(*receiver);
-            return instance ? instance->getClassDefinition().get() : nullptr;
+            auto* raw = value::asObjectInstanceRaw(*receiver);
+            return raw ? raw->getClassDefinition().get() : nullptr;
         }
         if (value::isValueObject(*receiver))
         {
@@ -46,12 +49,13 @@ namespace vm::jit
     const value::Value* jit_field_data_const(const value::Value* receiver) noexcept
     {
         if (!receiver) return nullptr;
-        if (value::isObject(*receiver))
+        // MYT-208: accept STACK_OBJECT (raw borrowed) alongside OBJECT.
+        if (value::isAnyObject(*receiver))
         {
-            const auto& instance = value::asObject(*receiver);
-            if (!instance) return nullptr;
-            if (!instance->hasFieldVector()) return nullptr;
-            return &instance->getFieldByIndex(0);
+            auto* raw = value::asObjectInstanceRaw(*receiver);
+            if (!raw) return nullptr;
+            if (!raw->hasFieldVector()) return nullptr;
+            return &raw->getFieldByIndex(0);
         }
         if (value::isValueObject(*receiver))
         {
@@ -82,20 +86,22 @@ namespace vm::jit
                           const value::Value* newValue) noexcept
     {
         if (!destSlot || !receiverSlot || !newValue) return false;
-        if (!value::isObject(*receiverSlot)) return false;
-        const auto& instance = value::asObject(*receiverSlot);
-        if (!instance) return false;
+        // MYT-208: accept STACK_OBJECT receivers — pool-borrowed lifetime
+        // is owned by CallFrame::stackObjects, independent of destSlot, so
+        // overwriting destSlot is safe even when destSlot == receiverSlot.
+        if (!value::isAnyObject(*receiverSlot)) return false;
+        auto* raw = value::asObjectInstanceRaw(*receiverSlot);
+        if (!raw) return false;
         // Pin the raw ObjectInstance pointer BEFORE any operation that could
         // overwrite *destSlot. When destSlot == receiverSlot (the common case —
         // emitter passes the same pointer for both), writing through destSlot
-        // releases the shared_ptr that currently holds the only strong ref to
-        // this instance, dropping its refcount to zero and freeing the object.
-        // Any use of `instance` after the overwrite would be a use-after-free.
-        // Sequencing below: all work that touches `instance` runs first; the
-        // slot overwrite is strictly the last action. Pinning here makes the
-        // lifetime contract explicit and robust against future insertions
-        // between the setFieldByIndex call and *destSlot = *newValue.
-        auto* raw = instance.get();
+        // for an OBJECT receiver releases the shared_ptr that currently holds
+        // the only strong ref to this instance, dropping its refcount to zero
+        // and freeing the object. Any use of `raw` after the overwrite would
+        // be a use-after-free for OBJECT. STACK_OBJECT receivers don't have
+        // this concern (lifetime is in stackObjects) but the same sequencing
+        // is harmless. Sequencing below: all work that touches `raw` runs
+        // first; the slot overwrite is strictly the last action.
         if (!raw->hasFieldVector())
             raw->ensureFieldVector();
         const auto& classDef = raw->getClassDefinition();
@@ -130,6 +136,20 @@ namespace vm::jit
             for (size_t i = 1; i <= argCount; i++)
             {
                 args.push_back(ctx->callArgs[i]);
+            }
+
+            // MYT-208: route STACK_OBJECT receivers through the Value-receiver
+            // overload so the VM dispatch tag-branches frame.thisInstance vs
+            // thisInstanceRaw correctly. Heap (OBJECT) receivers stay on the
+            // shared_ptr fast path.
+            if (value::isStackObject(objectValue))
+            {
+                if (ctx->vm)
+                {
+                    ctx->returnValue = ctx->vm->callMethodFromJit(objectValue, methodName, args);
+                    ctx->hasReturnValue = true;
+                    return;
+                }
             }
 
             if (value::isObject(objectValue))
@@ -212,17 +232,18 @@ namespace vm::jit
             // that the miss path in jit_call_method still performs.
             const runtimeTypes::klass::ClassDefinition* classDef = nullptr;
             bool receiverIsValueObject = false;
-            std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance;
 
-            if (value::isObject(receiverValue))
+            // MYT-208: cover OBJECT and STACK_OBJECT through one raw-unwrap
+            // path; the IC shape key is ClassDefinition*, identical for both.
+            if (value::isAnyObject(receiverValue))
             {
-                instance = value::asObject(receiverValue);
-                if (!instance)
+                auto* raw = value::asObjectInstanceRaw(receiverValue);
+                if (!raw)
                 {
                     jit_call_method(ctx, methodNameIndex, argCount);
                     return;
                 }
-                classDef = instance->getClassDefinition().get();
+                classDef = raw->getClassDefinition().get();
             }
             else if (value::isValueObject(receiverValue))
             {
@@ -360,10 +381,11 @@ namespace vm::jit
             return (value::isString(*val) ||
                     value::isInternedString(*val)) ? 1 : 0;
 
-        if (value::isObject(*val))
+        // MYT-208: accept STACK_OBJECT alongside OBJECT (instanceof helper).
+        if (value::isAnyObject(*val))
         {
-            auto instance = value::asObject(*val);
-            auto classDef = instance->getClassDefinition();
+            auto* raw = value::asObjectInstanceRaw(*val);
+            auto classDef = raw->getClassDefinition();
             while (classDef)
             {
                 if (classDef->getName() == typeName) return 1;
@@ -427,7 +449,10 @@ namespace vm::jit
         try
         {
             const std::string& className = ctx->program->getConstantPool().getString(classIndex);
-            std::vector<value::Value> args(ctx->callArgs, ctx->callArgs + argCount);
+            // MYT-208: pass a span over ctx->callArgs directly — no per-call
+            // heap alloc. The pre-MYT-208 vector copy was O(argCount) and
+            // dominated the trivial-ctor hot path on object_alloc-style benches.
+            std::span<const value::Value> args(ctx->callArgs, argCount);
 
             if (ctx->vm)
             {
@@ -436,6 +461,39 @@ namespace vm::jit
             }
 
             throw errors::RuntimeException("JIT: cannot create object '" + className + "'");
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
+    }
+
+    // MYT-208: JIT helper for NEW_STACK. Calls VirtualMachine::createStackObject
+    // which hits the trivial-ctor fast path with acquireRaw + push to current
+    // frame's stackObjects + STACK_OBJECT Value emit. Non-trivial ctors fall
+    // back to OBJECT (heap) inside createStackObject. The slot type written
+    // back is OBJECT for the heap fallback (correct: the produced Value's
+    // tag matches whatever createStackObject decided), so downstream IC
+    // populates against the right shape.
+    void jit_new_stack(value::Value* dest, JitContext* ctx,
+                        uint32_t classIndex, size_t argCount)
+    {
+        if (ctx->pendingException)
+            return;
+
+        try
+        {
+            const std::string& className = ctx->program->getConstantPool().getString(classIndex);
+            // Span over ctx->callArgs — zero per-call heap alloc.
+            std::span<const value::Value> args(ctx->callArgs, argCount);
+
+            if (ctx->vm)
+            {
+                *dest = ctx->vm->createStackObject(className, args);
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot create stack object '" + className + "'");
         }
         catch (...)
         {
@@ -517,8 +575,10 @@ namespace vm::jit
             errors::SourceLocation());
     }
 
+    // MYT-208: takes raw ObjectInstance* so STACK_OBJECT receivers (no
+    // shared_ptr) can flow through the same field-access path as OBJECT.
     static void validateFieldAccessIfNeeded(
-        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance,
+        runtimeTypes::klass::ObjectInstance* instance,
         const std::string& fieldName,
         const runtimeTypes::klass::ClassDefinition* classDef,
         JitContext* ctx)
@@ -591,9 +651,10 @@ namespace vm::jit
         return true;
     }
 
+    // MYT-208: receiver as raw ObjectInstance* (heap or stack-promoted).
     static bool getFieldICLookupOrFallback(
         value::Value* dest,
-        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance,
+        runtimeTypes::klass::ObjectInstance* instance,
         const runtimeTypes::klass::ClassDefinition* classDef,
         JitContext* ctx, size_t bytecodeOffset,
         uint32_t fieldNameIndex)
@@ -653,7 +714,8 @@ namespace vm::jit
         if (getFieldFromValueObject(dest, object, ctx, bytecodeOffset, fieldNameIndex))
             return;
 
-        auto instance = value::asObject(*object);
+        // MYT-208: raw unwrap covers OBJECT and STACK_OBJECT receivers.
+        auto* instance = value::asObjectInstanceRaw(*object);
         auto* classDef = instance->getClassDefinition().get();
 
         if (getFieldICLookupOrFallback(dest, instance, classDef, ctx,
@@ -687,9 +749,10 @@ namespace vm::jit
         return true;
     }
 
+    // MYT-208: receiver as raw ObjectInstance* (heap or stack-promoted).
     static bool setFieldICLookupOrFallback(
         value::Value* destValue,
-        const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& instance,
+        runtimeTypes::klass::ObjectInstance* instance,
         const runtimeTypes::klass::ClassDefinition* classDef,
         const value::Value* newValue,
         JitContext* ctx, size_t bytecodeOffset,
@@ -753,7 +816,8 @@ namespace vm::jit
         if (setFieldOnValueObject(destValue, object, newValue, ctx, fieldNameIndex))
             return;
 
-        auto instance = value::asObject(*object);
+        // MYT-208: raw unwrap covers OBJECT and STACK_OBJECT receivers.
+        auto* instance = value::asObjectInstanceRaw(*object);
         auto* classDef = instance->getClassDefinition().get();
 
         if (setFieldICLookupOrFallback(destValue, instance, classDef, newValue,

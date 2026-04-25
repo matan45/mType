@@ -45,8 +45,8 @@ namespace vm::runtime
             }
         }
 
-        // Must be an object
-        if (!value::isObject(objectValue))
+        // Must be an object (OBJECT or STACK_OBJECT — MYT-208).
+        if (!value::isAnyObject(objectValue))
         {
             // Fall back to generic path by pushing back and delegating
             context.stackManager->push(objectValue);
@@ -54,7 +54,11 @@ namespace vm::runtime
             return;
         }
 
-        auto instance = value::asObject(objectValue);
+        // MYT-208: raw unwrap covers both heap (OBJECT) and stack-promoted
+        // (STACK_OBJECT) receivers; the IC shape key is the ClassDefinition
+        // pointer, which lives at the same offset on the ObjectInstance
+        // regardless of how we got the raw pointer.
+        auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
@@ -144,7 +148,8 @@ namespace vm::runtime
             }
         }
 
-        if (!value::isObject(objectValue))
+        // MYT-208: accept STACK_OBJECT alongside OBJECT.
+        if (!value::isAnyObject(objectValue))
         {
             // Fall back: push values back and delegate to generic handler
             context.stackManager->push(objectValue);
@@ -153,7 +158,7 @@ namespace vm::runtime
             return;
         }
 
-        auto instance = value::asObject(objectValue);
+        auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
@@ -220,7 +225,8 @@ namespace vm::runtime
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
-        auto instance = value::asObject(objectValue);
+        // MYT-208: accept STACK_OBJECT alongside OBJECT.
+        auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* classDef = instance->getClassDefinitionRaw();
 
         // IC fast path
@@ -267,8 +273,9 @@ namespace vm::runtime
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
         value::Value objectValue = context.stackManager->pop();
 
-        // ValueObject and primitive receivers can't use IC — handle directly
-        if (!value::isObject(objectValue))
+        // ValueObject and primitive receivers can't use IC — handle directly.
+        // MYT-208: accept STACK_OBJECT (raw borrowed) alongside OBJECT.
+        if (!value::isAnyObject(objectValue))
         {
             if (value::isValueObject(objectValue)) {
                 auto valueObj = value::asValueObject(objectValue);
@@ -281,7 +288,7 @@ namespace vm::runtime
             return;
         }
 
-        auto instance = value::asObject(objectValue);
+        auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* classDef = instance->getClassDefinitionRaw();
 
         FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
@@ -357,10 +364,13 @@ namespace vm::runtime
         // the OSR recompile inline the value-class method body.
         const runtimeTypes::klass::ClassDefinition* classDef = nullptr;
         bool receiverIsValueObject = false;
-        std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance;
-        if (value::isObject(objectValue))
+        // MYT-208: track raw pointer instead of shared_ptr — covers OBJECT
+        // and STACK_OBJECT receivers uniformly. Shape lookup is by
+        // ClassDefinition*, identical for both.
+        runtimeTypes::klass::ObjectInstance* instance = nullptr;
+        if (value::isAnyObject(objectValue))
         {
-            instance = value::asObject(objectValue);
+            instance = value::asObjectInstanceRaw(objectValue);
             classDef = instance->getClassDefinitionRaw();
         }
         else if (value::isValueObject(objectValue))
@@ -558,8 +568,6 @@ namespace vm::runtime
         value::Value objectValue,
         size_t argCount)
     {
-        auto instance = value::asObject(objectValue);
-
         // Pop arguments into a small-buffer-optimized scratch buffer
         // (MYT-196: avoids per-call heap allocation on the MYT-173 hot path).
         value::SmallArgsBuffer args(argCount);
@@ -578,7 +586,17 @@ namespace vm::runtime
         frame.functionName = qualifiedName;
         frame.localBase = context.stackManager->size();
         frame.frameBase = context.stackManager->size();
-        frame.thisInstance = instance;
+        // MYT-208: tag-branch `this` ownership. STACK_OBJECT receivers route
+        // the raw pointer through thisInstanceRaw (lifetime owned by caller
+        // frame's stackObjects); OBJECT keeps the shared_ptr in thisInstance.
+        if (value::isStackObject(objectValue))
+        {
+            frame.thisInstanceRaw = value::asObjectInstanceRaw(objectValue);
+        }
+        else
+        {
+            frame.thisInstance = value::asObject(objectValue);
+        }
         // MYT-195: pre-resolved at IC populate / CACHED-promote time. Empty
         // when the qualified name carries no "::" prefix — same semantics as
         // the old per-call find/substr that left the field untouched.
@@ -740,13 +758,15 @@ namespace vm::runtime
         }
 
         value::Value objectValue = context.stackManager->peek(argCount);
-        if (!value::isObject(objectValue))
+        // MYT-208: accept STACK_OBJECT receivers — the cached shape is keyed
+        // by ClassDefinition*, identical for OBJECT and STACK_OBJECT.
+        if (!value::isAnyObject(objectValue))
         {
             deoptAndReprocess(instr);
             return;
         }
 
-        auto instance = value::asObject(objectValue);
+        auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* shape = instance->getClassDefinitionRaw();
         if (shape != state.cachedMethodShape)
         {
@@ -901,13 +921,14 @@ namespace vm::runtime
         }
 
         value::Value objectValue = context.stackManager->peek(argCount);
-        if (!value::isObject(objectValue))
+        // MYT-208: accept STACK_OBJECT receivers (shape key is ClassDefinition*).
+        if (!value::isAnyObject(objectValue))
         {
             deoptPolyAndReprocess(instr);
             return;
         }
 
-        auto instance = value::asObject(objectValue);
+        auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* shape = instance->getClassDefinitionRaw();
 
         // Linear scan over up to 4 entries. The compiler unrolls / branch-
@@ -1073,13 +1094,14 @@ namespace vm::runtime
             }
         }
 
-        if (!value::isObject(objectValue))
+        // MYT-208: accept STACK_OBJECT (shape key is ClassDefinition*).
+        if (!value::isAnyObject(objectValue))
         {
             deoptGetFieldAndReprocess(instr);
             return;
         }
 
-        auto instance = value::asObject(objectValue);
+        auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* shape = instance->getClassDefinitionRaw();
         if (shape != state.cachedFieldShape)
         {
@@ -1131,13 +1153,14 @@ namespace vm::runtime
             }
         }
 
-        if (!value::isObject(objectValue))
+        // MYT-208: accept STACK_OBJECT (shape key is ClassDefinition*).
+        if (!value::isAnyObject(objectValue))
         {
             deoptSetFieldAndReprocess(instr);
             return;
         }
 
-        auto instance = value::asObject(objectValue);
+        auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* shape = instance->getClassDefinitionRaw();
         if (shape != state.cachedFieldShape)
         {

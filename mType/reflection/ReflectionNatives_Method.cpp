@@ -13,7 +13,7 @@ namespace reflection
     using namespace runtimeTypes::klass;
 
 
-    Value ReflectionNatives::__reflect_getMethod(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethod(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 4, "__reflect_getMethod");
         int64_t classHandle = extractInt(args[0], "__reflect_getMethod", "classHandle");
@@ -69,7 +69,7 @@ namespace reflection
         return static_cast<int>(methodHandle);
     }
 
-    Value ReflectionNatives::__reflect_getMethods(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethods(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_getMethods");
         int64_t classHandle = extractInt(args[0], "__reflect_getMethods", "classHandle");
@@ -119,7 +119,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getMethodReturnType(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodReturnType(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getMethodReturnType");
         int64_t methodHandle = extractInt(args[0], "__reflect_getMethodReturnType", "methodHandle");
@@ -134,7 +134,7 @@ namespace reflection
         return valueTypeToTypeName(methodInfo.method->getReturnType());
     }
 
-    Value ReflectionNatives::__reflect_getMethodParamTypes(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodParamTypes(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getMethodParamTypes");
         int64_t methodHandle = extractInt(args[0], "__reflect_getMethodParamTypes", "methodHandle");
@@ -157,7 +157,7 @@ namespace reflection
         return result;
     }
 
-    Value ReflectionNatives::__reflect_getMethodParamCount(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodParamCount(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getMethodParamCount");
         int64_t methodHandle = extractInt(args[0], "__reflect_getMethodParamCount", "methodHandle");
@@ -172,14 +172,14 @@ namespace reflection
         return static_cast<int>(methodInfo.method->getParameters().size());
     }
 
-    Value ReflectionNatives::__reflect_getMethodDeclaringClass(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodDeclaringClass(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getMethodDeclaringClass");
         int64_t classHandle = extractInt(args[0], "__reflect_getMethodDeclaringClass", "classHandle");
         return classHandle;
     }
 
-    Value ReflectionNatives::__reflect_getMethodModifiers(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodModifiers(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getMethodModifiers");
         int64_t methodHandle = extractInt(args[0], "__reflect_getMethodModifiers", "methodHandle");
@@ -194,7 +194,7 @@ namespace reflection
         return methodInfo.method->getModifierFlags();
     }
 
-    Value ReflectionNatives::__reflect_isMethodAsync(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_isMethodAsync(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_isMethodAsync");
         int64_t methodHandle = extractInt(args[0], "__reflect_isMethodAsync", "methodHandle");
@@ -209,7 +209,7 @@ namespace reflection
         return methodInfo.method->getIsAsync();
     }
 
-    Value ReflectionNatives::__reflect_isMethodGeneric(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_isMethodGeneric(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_isMethodGeneric");
         int64_t methodHandle = extractInt(args[0], "__reflect_isMethodGeneric", "methodHandle");
@@ -224,12 +224,11 @@ namespace reflection
         return methodInfo.method->isGeneric();
     }
 
-    Value ReflectionNatives::__reflect_invokeMethod(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_invokeMethod(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 4, "__reflect_invokeMethod");
 
-        if (!currentVM)
-        {
+        if (!ctx.vm) {
             throw errors::RuntimeException("VM not initialized for reflection method invocation");
         }
 
@@ -264,15 +263,14 @@ namespace reflection
             throw errors::RuntimeException("Expected array for arguments parameter in __reflect_invokeMethod");
         }
 
-        return currentVM->invokeMethod(instance, methodInfo.methodName, argsVec);
+        return ctx.vm->invokeMethod(instance, methodInfo.methodName, argsVec);
     }
 
-    Value ReflectionNatives::__reflect_invokeStaticMethod(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_invokeStaticMethod(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 4, "__reflect_invokeStaticMethod");
 
-        if (!currentVM)
-        {
+        if (!ctx.vm) {
             throw errors::RuntimeException("VM not initialized for reflection static method invocation");
         }
 
@@ -319,10 +317,10 @@ namespace reflection
             throw errors::RuntimeException("Expected array for arguments parameter in __reflect_invokeStaticMethod");
         }
 
-        return currentVM->invokeStaticMethod(classDef->getName(), methodInfo.methodName, argsVec);
+        return ctx.vm->invokeStaticMethod(classDef->getName(), methodInfo.methodName, argsVec);
     }
 
-    Value ReflectionNatives::__reflect_getMethodName(const std::vector<Value>& args)
+    Value ReflectionNatives::__reflect_getMethodName(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 1, "__reflect_getMethodName");
         int64_t methodHandle = extractInt(args[0], "__reflect_getMethodName", "methodHandle");
@@ -339,3 +337,9 @@ namespace reflection
 
 
 } // namespace reflection
+
+
+
+
+
+

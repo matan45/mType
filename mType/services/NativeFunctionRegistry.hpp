@@ -3,12 +3,14 @@
 #include <vector>
 #include <functional>
 #include <memory>
+#include <span>
 #include "../value/ValueType.hpp"
 #include "../environment/Environment.hpp"
+#include "../environment/registry/NativeRegistry.hpp"
 
 namespace services
 {
-    using NativeFunction = std::function<value::Value(const std::vector<value::Value>&)>;
+    using NativeFunction = environment::registry::NativeFunction;
 
     /**
      * Service for registering native (C++) functions, classes, and members

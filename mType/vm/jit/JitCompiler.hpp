@@ -75,6 +75,18 @@ namespace vm::jit
         const InlineDecisionCounters& getInlineDecisions() const { return inlineDecisions; }
         InlineDecisionCounters* inlineDecisionsPtr() { return &inlineDecisions; }
 
+        // MYT-207: self-recursion call-dispatch telemetry.
+        //   tailCallsOptimized — bumped inside tryEmitSelfTailCall on every
+        //     `return self(...)` site lowered to arg-overwrite + jmp.
+        //   selfDirectCalls    — bumped inside tryEmitSelfDirectCall on every
+        //     non-tail self-recursive site lowered to a direct asmjit invoke
+        //     against funcNode->label() (skips jit_call_function dispatch).
+        // Pointers handed to JitEmissionState so emitted code can post-increment.
+        uint64_t getTailCallsOptimized() const { return tailCallsOptimized; }
+        uint64_t getSelfDirectCalls()    const { return selfDirectCalls; }
+        uint64_t* tailCallsOptimizedPtr() { return &tailCallsOptimized; }
+        uint64_t* selfDirectCallsPtr()    { return &selfDirectCalls; }
+
         // MYT-148: extra out-parameters so the caller (OSRManager) can record
         // WHICH gate rejected the loop in the LoopProfile for --jit-stats.
         // Defaults preserve pre-MYT-148 behavior for any other call site.
@@ -108,5 +120,8 @@ namespace vm::jit
         uint64_t inlineFieldSetICHits = 0;
         uint64_t inlineFieldSetICMisses = 0;
         InlineDecisionCounters inlineDecisions;
+        // MYT-207 telemetry — see public getters for description.
+        uint64_t tailCallsOptimized = 0;
+        uint64_t selfDirectCalls = 0;
     };
 }

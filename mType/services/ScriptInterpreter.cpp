@@ -80,16 +80,15 @@ namespace services
         // Always create bytecode execution strategy
         executionStrategy = std::make_unique<BytecodeExecutionStrategy>(compiler.get(), vm, importResolver.get(), scriptAPI.get());
 
-        // Set VM reference for reflection method/constructor invocation
-        reflection::ReflectionNatives::setVM(vm);
+        // Register reflection natives
+        reflection::ReflectionNatives::registerAll(environment);
 
-        // Set VM reference for networking (HTTP/TCP) async natives
-        net::NetNatives::setVM(vm);
+        // Register networking (HTTP/TCP) natives
+        net::NetNatives::registerAll(environment);
 
-        // Set VM and loader for runtime library loading native functions
+        // Register runtime library loading native functions
         transitiveDependencyLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
-        project::mtclib::LibraryNatives::setVM(vm);
-        project::mtclib::LibraryNatives::setLoader(transitiveDependencyLoader);
+        project::mtclib::LibraryNatives::registerAll(environment, transitiveDependencyLoader);
     }
 
     ScriptInterpreter::~ScriptInterpreter()

@@ -318,7 +318,7 @@ namespace vm::compiler::visitors
 
         // Check if function has multiple overloads - if so, skip validation here
         // Overload resolution will handle selecting the correct overload
-        auto funcRegistry = ctx.environment->getFunctionRegistry();
+        auto funcRegistry = ctx.env->getFunctionRegistry();
         if (funcRegistry)
         {
             auto overloads = funcRegistry->getAllFunctionOverloads(functionName);
@@ -798,7 +798,7 @@ namespace vm::compiler::visitors
         if (ctx.currentClassNode)
         {
             std::string currentClassName = ctx.currentClassNode->getClassName();
-            auto classRegistry = ctx.environment->getClassRegistry();
+            auto classRegistry = ctx.env->getClassRegistry();
             auto classDef = classRegistry->findClass(currentClassName);
             if (classDef)
             {
@@ -1016,7 +1016,7 @@ namespace vm::compiler::visitors
 
         // 2. Emit NEW_OBJECT or NEW_VALUE_OBJECT for the Box class
         size_t classNameIndex = ctx.program.getConstantPool().addString(expectedTypeName);
-        auto boxClassDef = ctx.environment->findClass(expectedTypeName);
+        auto boxClassDef = ctx.env->findClass(expectedTypeName);
         bool boxIsValue = boxClassDef && boxClassDef->isValueClass();
         if (boxIsValue) {
             ctx.emitter.emitWithLocation(bytecode::OpCode::NEW_VALUE_OBJECT,
@@ -1030,3 +1030,4 @@ namespace vm::compiler::visitors
         }
     }
 }
+

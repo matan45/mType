@@ -86,6 +86,13 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::STORE_VAR),
             static_cast<uint8_t>(OpCode::LOAD_VAR_CACHED),     // MYT-204
             static_cast<uint8_t>(OpCode::STORE_VAR_CACHED),    // MYT-204
+            // MYT-208: DECLARE_VAR can appear in a function's metadata range
+            // when the FunctionCompiler overcounts instructionCount and picks
+            // up trailing top-level globals. At runtime the function returns
+            // before reaching them so the JIT-emitted call is unreachable —
+            // but canCompile still validates every opcode in the range, so
+            // we need a JIT emitter to satisfy the supported-opcode check.
+            static_cast<uint8_t>(OpCode::DECLARE_VAR),
 
             static_cast<uint8_t>(OpCode::JUMP),
             static_cast<uint8_t>(OpCode::JUMP_IF_FALSE),
