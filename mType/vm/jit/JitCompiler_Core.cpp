@@ -49,6 +49,9 @@ namespace vm::jit
 
     void emitBox(JitEmissionState& s, Gp destAddr, int stackOff, SlotType type)
     {
+        // MYT-211: emitBox reads stackBase memory and emits a helper invoke;
+        // flush so the read picks up any register-cached value at stackOff.
+        flushAllHints(s);
         auto& cc = s.cc;
         if (type == SlotType::FLOAT)
         {
@@ -74,6 +77,11 @@ namespace vm::jit
 
     void emitUnbox(JitEmissionState& s, Gp srcAddr, int stackOff, SlotType type)
     {
+        // MYT-211: emitUnbox crosses a cc.invoke boundary; flush any pending
+        // dirty cache slots so the helper sees coherent memory. After the
+        // unbox, record the result virtreg as a hint so the next consumer
+        // skips re-reading stackBase[stackOff*8].
+        flushAllHints(s);
         auto& cc = s.cc;
         if (type == SlotType::FLOAT)
         {
@@ -84,6 +92,7 @@ namespace vm::jit
             Vec val = cc.new_xmm();
             inv->set_ret(0, val);
             cc.movsd(Mem(s.stackBase, stackOff * 8), val);
+            recordXmmHint(s, stackOff, val);
         }
         else
         {
@@ -94,6 +103,7 @@ namespace vm::jit
             Gp val = cc.new_gp64();
             inv->set_ret(0, val);
             cc.mov(Mem(s.stackBase, stackOff * 8), val);
+            recordGpHint(s, stackOff, val);
         }
     }
 
@@ -144,6 +154,11 @@ namespace vm::jit
 
     void emitCleanup(JitEmissionState& s)
     {
+        // MYT-211: any pending register-cached slot must hit memory before
+        // we ret — JIT-frame teardown happens here, and the inlined locals
+        // cleanup helper (when usesBoxedTypes) reads the locals memory range.
+        // Cheap no-op in the !boxed path when the cache is already empty.
+        flushAllHints(s);
         if (!s.usesBoxedTypes) return;
         auto& cc = s.cc;
         Gp bBase = cc.new_gp64();
@@ -173,6 +188,10 @@ namespace vm::jit
     void emitGenericBinop(JitEmissionState& s, uint64_t helperFn,
                           SlotType lType, SlotType rType)
     {
+        // MYT-211: this helper boxes operands via emitBoxOrCopy → cc.invoke,
+        // and ends with another cc.invoke to the helper itself. Flush so the
+        // box reads see the latest cached values.
+        flushAllHints(s);
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
@@ -207,6 +226,9 @@ namespace vm::jit
     bool emitCmpBoxed(JitEmissionState& s, CmpOp kind, Gp result,
                       SlotType& lType, SlotType& rType)
     {
+        // MYT-211: boxed-cmp path uses cc.invoke and reads boxed memory; flush
+        // before the box reads. No-op when cache is empty.
+        flushAllHints(s);
         auto& cc = s.cc;
         bool bothBoxed = isBoxedSlotType(lType) && isBoxedSlotType(rType);
 
@@ -259,14 +281,14 @@ namespace vm::jit
     void emitCmpPrimitive(JitEmissionState& s, CmpOp kind, Gp result,
                           SlotType lType, SlotType rType)
     {
+        // MYT-211: consume operands via hint helpers; cache disabled means
+        // they read memory, but the indirection is safe.
         auto& cc = s.cc;
 
         if (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
         {
-            Vec right = cc.new_xmm();
-            Vec left = cc.new_xmm();
-            cc.movsd(right, Mem(s.stackBase, s.stackDepth * 8));
-            cc.movsd(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+            Vec right = consumeXmmHint(s, s.stackDepth);
+            Vec left = consumeXmmHint(s, s.stackDepth - 1);
             cc.ucomisd(left, right);
             switch (kind) {
                 case CmpOp::EQ: cc.sete(result.r8()); break;
@@ -279,10 +301,8 @@ namespace vm::jit
         }
         else
         {
-            Gp right = cc.new_gp64();
-            Gp left = cc.new_gp64();
-            cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
-            cc.mov(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+            Gp right = consumeGpHint(s, s.stackDepth);
+            Gp left = consumeGpHint(s, s.stackDepth - 1);
             cc.cmp(left, right);
             switch (kind) {
                 case CmpOp::EQ: cc.sete(result.r8()); break;
@@ -316,8 +336,10 @@ namespace vm::jit
         }
 
         emitCmpPrimitive(s, kind, result, lType, rType);
-        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
+        // MYT-211: write the boolean result via publishGpHint (always writes
+        // stackBase). Same final memory state as the original cc.mov.
         s.slotTypes.push_back(SlotType::BOOL);
+        publishGpHint(s, s.stackDepth - 1, result);
     }
 
     static void emitUnboxParamBoxedMode(Compiler& cc, Gp localsBase,
@@ -509,7 +531,13 @@ namespace vm::jit
             auto labelIt = s.labels.find(ip);
             if (labelIt != s.labels.end())
             {
+                // MYT-211: ensure memory is coherent for the fall-through path
+                // before binding (any dirty hint from the previous emit must
+                // hit memory now). After bind, drop hints — a forward jump
+                // arriving here may have its own register state.
+                flushAllHints(s);
                 s.cc.bind(labelIt->second);
+                invalidateAllHints(s);
                 if (s.backEdgeTargets.find(ip) == s.backEdgeTargets.end())
                     s.arrayInfoCache.clear();
             }
@@ -557,7 +585,8 @@ namespace vm::jit
         JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
                            frame.boxedBase, frame.progPtr,
                            frame.usesBoxedTypes, frame.localCount, frame.localStride,
-                           0, {}, frame.localTypes, false,
+                           0, {}, /*slotHints=*/{}, /*invariantIntLocals=*/{},
+                           /*invariantFloatLocals=*/{}, frame.localTypes, false,
                            OSRBailoutReason::NONE, 0,
                            0, labels, program,
                            typeFeedback, {}, backEdges};

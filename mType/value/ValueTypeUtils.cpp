@@ -16,9 +16,11 @@ namespace value {
 
     // Tagged Value exposes its ValueType directly; Promise folds to OBJECT
     // for call-site compatibility with the pre-migration variant semantics.
+    // PROMISE_INT (inline resolved-Promise<Int>) folds the same way so type
+    // checks treat it identically to a heap Promise.
     ValueType ValueTypeUtils::getValueType(const Value& value) {
         auto t = value.tag();
-        if (t == ValueType::PROMISE) return ValueType::OBJECT;
+        if (t == ValueType::PROMISE || t == ValueType::PROMISE_INT) return ValueType::OBJECT;
         return t;
     }
 

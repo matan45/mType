@@ -609,8 +609,8 @@ namespace debugger
                 {
                     try
                     {
-                        // DEFENSIVE: getAllFieldValues() might throw if object is corrupted
-                        const auto& fields = obj->getAllFieldValues();
+                        // DEFENSIVE: getAllFields() might throw if object is corrupted
+                        const auto& fields = obj->getAllFields();
                         for (const auto& [fieldName, fieldValue] : fields)
                         {
                             try
@@ -754,6 +754,10 @@ namespace debugger
             {
                 return "<promise>";
             }
+            else if (value::isPromiseInt(val))
+            {
+                return "<promise>";
+            }
             else if (value::isNullType(val))
             {
                 return "null";
@@ -839,6 +843,10 @@ namespace debugger
                 return "ObjectArray";
             }
             else if (value::isPromise(val))
+            {
+                return "Promise";
+            }
+            else if (value::isPromiseInt(val))
             {
                 return "Promise";
             }

@@ -602,6 +602,12 @@ namespace vm::jit
     bool emitArrayOps(JitEmissionState& s,
                       const bytecode::BytecodeProgram::Instruction& instr)
     {
+        // MYT-211: array emitters use cc.invoke for bounds-throw and
+        // jit_value_copy paths, and read stackBase via Mem(...). They are
+        // not hint-aware, so flush before any of them runs. No-op when the
+        // cache is empty (boxed mode) or when the previous emit already
+        // flushed (e.g. label bind, helper invoke).
+        flushAllHints(s);
         if (emitBasicArrayOps(s, instr)) return true;
         if (emitTypedArrayOps(s, instr)) return true;
         return false;

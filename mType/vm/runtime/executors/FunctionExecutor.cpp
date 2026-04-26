@@ -230,7 +230,11 @@ namespace vm::runtime
         context.pushCallFrame(frame);
         context.stats.functionCalls++;
 
-        vm::profiler::ProfilerHookHelper::onFunctionEntry(funcMetadata->name);
+        // Match the frame name (mangled when overloadable) so the profiler's
+        // entry/exit pair balances against ControlFlowExecutor's RETURN, which
+        // reports the frame's interned name on exit.
+        vm::profiler::ProfilerHookHelper::onFunctionEntry(
+            funcMetadata->mangledName.empty() ? funcMetadata->name : funcMetadata->mangledName);
 
         if (debugger::DebugHookHelper::isDebuggingEnabled())
         {

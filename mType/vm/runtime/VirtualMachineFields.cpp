@@ -70,10 +70,13 @@ namespace vm::runtime
                 }
                 else
                 {
-                    const auto& instanceFields = instance->getAllFieldValues();
-                    if (instanceFields.find(fieldName) != instanceFields.end())
+                    size_t idx = instance->getClassDefinition()->getFieldIndex(fieldName);
+                    if (idx != SIZE_MAX)
                     {
-                        throw errors::RuntimeException("Cannot assign to final field '" + fieldName + "'");
+                        if (!value::isVoid(instance->getFieldByIndex(idx)))
+                        {
+                            throw errors::RuntimeException("Cannot assign to final field '" + fieldName + "'");
+                        }
                     }
                 }
             }

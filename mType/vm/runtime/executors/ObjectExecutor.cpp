@@ -208,10 +208,14 @@ namespace vm::runtime
                 }
             } else {
                 // Instance final: check if this specific instance already has a value set
-                const auto& instanceFields = instance->getAllFieldValues();
-                if (instanceFields.find(fieldName) != instanceFields.end()) {
-                    utils::ErrorLocationHelper::throwRuntimeError(context,
-                        "Cannot assign to final field '" + fieldName + "'");
+                size_t idx = instance->getClassDefinition()->getFieldIndex(fieldName);
+                if (idx != SIZE_MAX)
+                {
+                    if (!value::isVoid(instance->getFieldByIndex(idx)))
+                    {
+                        utils::ErrorLocationHelper::throwRuntimeError(context,
+                            "Cannot assign to final field '" + fieldName + "'");
+                    }
                 }
             }
         }

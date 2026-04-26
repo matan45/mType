@@ -126,11 +126,14 @@ namespace vm::jit
             }
             else
             {
-                const auto& instanceFields = thisInstance->getAllFieldValues();
-                if (instanceFields.find(varName) != instanceFields.end())
+                size_t idx = thisInstance->getClassDefinition()->getFieldIndex(varName);
+                if (idx != SIZE_MAX)
                 {
-                    throw errors::RuntimeException(
-                        "Cannot assign to final field '" + varName + "'");
+                    if (!value::isVoid(thisInstance->getFieldByIndex(idx)))
+                    {
+                        throw errors::RuntimeException(
+                            "Cannot assign to final field '" + varName + "'");
+                    }
                 }
             }
         }

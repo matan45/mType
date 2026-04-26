@@ -51,7 +51,19 @@ namespace value
         // CallFrame::stackObjects (released at frame teardown). No refcount ops;
         // not a heap tag. Never serialized to .mtc — only produced by NEW_STACK
         // at runtime.
-        STACK_OBJECT
+        STACK_OBJECT,
+        // Inline resolved-Promise variant. Represents Promise<Int> already
+        // resolved with an int value. Payload holds the raw int inline; no
+        // heap PromiseValue is allocated. AWAIT unwraps to a plain INT, which
+        // INVOKE_INT_GET_VALUE and arithmetic executors handle natively.
+        //
+        // Note: .then()/.catch_() are not surfaced to user code today — the
+        // only callers are inside VirtualMachineAsync.cpp on an already-
+        // narrowed AsyncPromiseValue. If/when those methods are ever exposed
+        // to .mt programs, an inline PROMISE_INT receiver must first be
+        // materialized to a real AsyncPromiseValue (slow path). That helper
+        // does not yet exist; add it before exposing the methods.
+        PROMISE_INT
     };
 
     //
@@ -92,6 +104,14 @@ namespace value
             : tag_(ValueType::STACK_OBJECT)
         {
             payload_.stackObject = raw;
+        }
+
+        // Inline resolved-Promise variant. Disambiguated via tag struct; the
+        // int lives directly in payload_.i with tag PROMISE_INT.
+        struct PromiseIntTag {};
+        Value(int64_t v, PromiseIntTag) noexcept : tag_(ValueType::PROMISE_INT)
+        {
+            payload_.i = v;
         }
 
         // Implicit ctors from each shared_ptr heap type + string types.
@@ -189,6 +209,7 @@ namespace value
             case ValueType::VOID:
             case ValueType::NULL_TYPE:    return true;
             case ValueType::STACK_OBJECT: return payload_.stackObject == other.payload_.stackObject;
+            case ValueType::PROMISE_INT:  return payload_.i == other.payload_.i;
             default:                      return equalsHeap(other);
             }
         }
@@ -298,6 +319,19 @@ namespace value
     inline bool isValueObject(const Value& v) noexcept { return v.tag() == ValueType::VALUE_OBJECT; }
     inline bool isLambda(const Value& v) noexcept { return v.tag() == ValueType::LAMBDA; }
     inline bool isPromise(const Value& v) noexcept { return v.tag() == ValueType::PROMISE; }
+    // Inline resolved-Promise<Int> form. Holds the resolved int in payload
+    // with no heap allocation. Distinct from isPromise so that consumers
+    // expecting a real heap PromiseValue (debugger, GC, callback machinery)
+    // are unaffected — they only handle the strict PROMISE form.
+    inline bool isPromiseInt(const Value& v) noexcept { return v.tag() == ValueType::PROMISE_INT; }
+    // Either form. Use at AWAIT entry and at the async-return double-wrap
+    // check, where heap and inline forms must be treated uniformly.
+    inline bool isAnyPromise(const Value& v) noexcept
+    {
+        return v.tag() == ValueType::PROMISE || v.tag() == ValueType::PROMISE_INT;
+    }
+    // Extract the inline int. Undefined unless tag is PROMISE_INT.
+    inline int64_t asPromiseIntValue(const Value& v) noexcept { return v.rawInt(); }
     inline bool isString(const Value& v) noexcept
     {
         return v.tag() == ValueType::STRING && v.rawBridge()->kind() == BridgeKind::STD_STRING;

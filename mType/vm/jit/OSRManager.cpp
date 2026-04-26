@@ -7,6 +7,8 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
+#include <iostream>      // MYT-XXX DEBUG
+#include <cstdlib>       // MYT-XXX DEBUG (getenv)
 
 namespace vm::jit
 {

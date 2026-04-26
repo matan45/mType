@@ -125,10 +125,14 @@ namespace vm::runtime
                         "Cannot assign to final field '" + varName + "'");
                 }
             } else {
-                const auto& instanceFields = thisInstance->getAllFieldValues();
-                if (instanceFields.find(varName) != instanceFields.end()) {
-                    utils::ErrorLocationHelper::throwRuntimeError(context,
-                        "Cannot assign to final field '" + varName + "'");
+                size_t idx = thisInstance->getClassDefinition()->getFieldIndex(varName);
+                if (idx != SIZE_MAX)
+                {
+                    if (!value::isVoid(thisInstance->getFieldByIndex(idx)))
+                    {
+                        utils::ErrorLocationHelper::throwRuntimeError(context,
+                            "Cannot assign to final field '" + varName + "'");
+                    }
                 }
             }
         }

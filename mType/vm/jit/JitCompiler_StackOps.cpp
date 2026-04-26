@@ -216,10 +216,15 @@ namespace vm::jit
                 if (instr.operands[0] >= s.program.getConstantPool().integers.size())
                 { s.compileFailed = true; return true; }
                 int64_t val = s.program.getConstantPool().getInteger(instr.operands[0]);
+                // MYT-211: publish a constant hint so downstream consumers
+                // (cc.cmp imm, imm-folded shifts, etc.) can fold the literal
+                // without going through memory. We still write the value to
+                // memory so non-hint-aware consumers stay correct.
                 Gp tmp = cc.new_gp64();
                 cc.mov(tmp, val);
                 cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
                 s.slotTypes.push_back(SlotType::INT);
+                publishConstHint(s, s.stackDepth, val);
                 s.stackDepth++;
                 return true;
             }
@@ -244,12 +249,14 @@ namespace vm::jit
                 cc.mov(tmp, val);
                 cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
                 s.slotTypes.push_back(SlotType::BOOL);
+                publishConstHint(s, s.stackDepth, val);
                 s.stackDepth++;
                 return true;
             }
             case OpCode::PUSH_NULL:
                 if (s.usesBoxedTypes)
                 {
+                    flushAllHints(s);
                     constexpr size_t vs = JitEmissionState::VALUE_SIZE;
                     Gp addr = cc.new_gp64();
                     cc.lea(addr, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * vs)));
@@ -263,6 +270,7 @@ namespace vm::jit
                 {
                     cc.mov(qword_ptr(s.stackBase, s.stackDepth * 8), 0);
                     s.slotTypes.push_back(SlotType::INT);
+                    publishConstHint(s, s.stackDepth, 0);
                 }
                 s.stackDepth++;
                 return true;
@@ -272,6 +280,9 @@ namespace vm::jit
 
     static bool emitDupOp(JitEmissionState& s)
     {
+        // MYT-211: DUP isn't on the hot benchmark path. Flushing keeps the
+        // existing memory-based logic exact and correct for any prior hint.
+        flushAllHints(s);
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         SlotType tt = topType(s);
@@ -300,6 +311,8 @@ namespace vm::jit
 
     static bool emitSwapOp(JitEmissionState& s)
     {
+        // MYT-211: SWAP isn't a hot path; flush for correctness.
+        flushAllHints(s);
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         SlotType t1 = s.slotTypes.size() >= 1 ? s.slotTypes[s.slotTypes.size() - 1] : SlotType::INT;
@@ -361,8 +374,14 @@ namespace vm::jit
             {
                 SlotType pt = popType(s);
                 s.stackDepth--;
+                // MYT-211: drop the popped slot's hint without flushing — the
+                // value is being thrown away. Important: this MUST run after
+                // s.stackDepth-- so the hint at the right index is dropped.
+                if (!s.usesBoxedTypes && static_cast<size_t>(s.stackDepth) < s.slotHints.size())
+                    s.slotHints.resize(static_cast<size_t>(s.stackDepth));
                 if (s.usesBoxedTypes && isBoxedSlotType(pt))
                 {
+                    flushAllHints(s);
                     Gp addr = cc.new_gp64();
                     cc.lea(addr, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
                     InvokeNode* inv;

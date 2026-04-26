@@ -501,10 +501,9 @@ namespace json
         {
             auto obj = value::asObject(val);
             if (!obj) return 0;
-            const auto& fields = obj->getAllFieldValues();
-            auto valIt = fields.find("value");
-            if (valIt == fields.end()) return 0;
-            return hashPrimitive(valIt->second);
+            value::Value innerVal = obj->getFieldValue("value");
+            if (value::isVoid(innerVal)) return 0;
+            return hashPrimitive(innerVal);
         }
 
         // Value-object wrapper: same idea, via ValueObject::getFieldValue.

@@ -22,6 +22,18 @@ namespace vm::runtime
     void VirtualMachine::executeAwait()
     {
         value::Value promiseVal = stackManager->pop();
+
+        // Fast path: inline resolved-Promise<Int> form. The value is stored
+        // directly in payload_ — no heap PromiseValue, no event-loop hop, no
+        // dynamic_pointer_cast. By construction this form is only produced
+        // for synchronously-resolved values, so we always take the fulfilled
+        // branch.
+        if (value::isPromiseInt(promiseVal))
+        {
+            stackManager->push(value::Value(value::asPromiseIntValue(promiseVal)));
+            return;
+        }
+
         if (!value::isPromise(promiseVal))
         {
             throw errors::RuntimeException("await can only be used on Promise values");

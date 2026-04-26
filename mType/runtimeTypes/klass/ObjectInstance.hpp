@@ -14,13 +14,11 @@ namespace runtimeTypes::klass
     {
     private:
         std::shared_ptr<ClassDefinition> classDefinition;
+        // Map for dynamic fields not in the class definition (e.g. lambda captures)
         std::unordered_map<std::string, Value> fieldValues;
 
         // Generic type bindings: T -> String, K -> int, etc.
         std::unordered_map<std::string, std::string> genericTypeBindings;
-
-        // NEW: Method dispatch cache for polymorphic method lookup performance
-        mutable std::unordered_map<std::string, std::shared_ptr<MethodDefinition>> methodCache;
 
         // Helper method for field value comparison
         static bool compareFieldValues(const Value& thisValue, const Value& otherValue, int depth = 0);
@@ -33,12 +31,7 @@ namespace runtimeTypes::klass
         bool gcRegistered = false;
 
         // Phase 6 (IC): Vector-based field storage for O(1) indexed access.
-        // Marked mutable so ensureFieldVector() can be a const-qualified lazy
-        // initializer — the underlying ObjectInstance identity is unchanged,
-        // only a cached view is populated. Canonical C++ pattern for lazy
-        // cached state; also removes a const_cast at JitHelpers_Core.cpp:20.
-        mutable std::vector<Value> fieldVector;
-        mutable bool fieldVectorInitialized = false;
+        std::vector<Value> fieldVector;
 
         // Fast primitive type tag (avoids string comparisons in hot paths)
         value::PrimitiveTypeTag primitiveTag_ = value::PrimitiveTypeTag::NONE;
@@ -48,13 +41,9 @@ namespace runtimeTypes::klass
             : classDefinition(classDef)
         {
             if (classDef) {
-                fieldValues.reserve(classDef->getTotalFieldCount());
                 primitiveTag_ = value::classNameToPrimitiveTag(classDef->getName());
-                // Eagerly initialize field vector for primitive types so
-                // unboxInt/unboxFloat avoid ensureFieldVector() on every call
-                if (primitiveTag_ != value::PrimitiveTypeTag::NONE) {
-                    ensureFieldVector();
-                }
+                // Eagerly initialize field vector for all types
+                ensureFieldVector();
             }
         }
 
@@ -64,11 +53,8 @@ namespace runtimeTypes::klass
             : classDefinition(classDef), genericTypeBindings(typeBindings)
         {
             if (classDef) {
-                fieldValues.reserve(classDef->getTotalFieldCount());
                 primitiveTag_ = value::classNameToPrimitiveTag(classDef->getName());
-                if (primitiveTag_ != value::PrimitiveTypeTag::NONE) {
-                    ensureFieldVector();
-                }
+                ensureFieldVector();
             }
         }
 
@@ -91,18 +77,24 @@ namespace runtimeTypes::klass
         void setField(const std::string& fieldName, const Value& value);
 
         // Get all field values (for debugging/inspection)
-        const std::unordered_map<std::string, Value>& getAllFieldValues() const { return fieldValues; }
+        std::vector<std::pair<std::string, Value>> getAllFields() const;
+        
+        // Internal access to dynamic fields for GC and serialization
+        const std::unordered_map<std::string, Value>& getDynamicFields() const { return fieldValues; }
+
+        // Efficient traversal of all references for GC
+        void visitReferences(const std::function<void(void*)>& callback) const;
 
         // GC: Clear all field values to break reference cycles
-        void clearAllFields() { fieldValues.clear(); }
+        void clearAllFields() { 
+            fieldValues.clear(); 
+            fieldVector.clear();
+        }
         // Type checking
         bool isInstanceOf(const std::string& className) const;
         std::string getTypeName() const;
         std::string getFullTypeName() const;  // Returns full generic type name (e.g., "Box<String>")
 
-        // NEW: Polymorphic method lookup with inheritance support
-        std::shared_ptr<MethodDefinition> findMethodInHierarchy(const std::string& methodName, size_t argCount) const;
-        
         // Generate content-based hash for Set/Map operations
         std::string getContentHash() const;
         
@@ -110,10 +102,10 @@ namespace runtimeTypes::klass
         bool contentEquals(const ObjectInstance& other) const;
 
         // Phase 6 (IC): Indexed field access for inline caching
-        void ensureFieldVector() const;
+        void ensureFieldVector();
         const Value& getFieldByIndex(size_t index) const;
         void setFieldByIndex(size_t index, const Value& value);
-        bool hasFieldVector() const { return fieldVectorInitialized; }
+        bool hasFieldVector() const { return !fieldVector.empty() || (classDefinition && classDefinition->getIndexedFieldCount() == 0); }
 
         // Value-class fast-dispatch fix: bulk-init this instance from a
         // ValueObject's field vector. Used by invokeValueObjectMethod /
@@ -142,9 +134,9 @@ namespace runtimeTypes::klass
         static size_t classDefinitionMemberOffset() noexcept;
 
         // MYT-171: recycle hooks used by value::ObjectInstancePool. resetForRecycle
-        // clears per-instance state (field values, method cache, generic bindings)
-        // but keeps the unordered_map bucket arrays alive so the next acquire on
-        // this slot avoids re-allocating them. reinitForRecycle re-binds the slot
+        // clears per-instance state (field values, generic bindings) but keeps
+        // the unordered_map bucket arrays alive so the next acquire on this
+        // slot avoids re-allocating them. reinitForRecycle re-binds the slot
         // to a fresh classDefinition + generic bindings without re-constructing
         // the maps.
         void resetForRecycle();

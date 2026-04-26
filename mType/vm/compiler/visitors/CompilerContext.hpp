@@ -18,6 +18,8 @@
 #include "../../../value/ValueType.hpp"
 #include "../../../circularDependency/CircularDependencyDetector.hpp"
 #include <memory>
+#include <unordered_set>
+#include <string>
 
 namespace vm::compiler
 {
@@ -77,6 +79,30 @@ namespace vm::compiler::visitors
         // This cache is populated during function call compilation (while bindings are active)
         // and queried later during type checking (after bindings are popped)
         std::unordered_map<const ast::ASTNode*, std::string> resolvedFunctionCallTypes;
+
+        // MYT-XXX (top-level decl promotion): identifier names referenced from
+        // any nested non-lambda function/method body in the program. A
+        // top-level decl whose name is in this set must stay a global
+        // (DECLARE_VAR) so the nested function's name-based Environment lookup
+        // keeps working. Populated once at the start of BytecodeCompiler::
+        // compile by NestedReferenceCollector. The companion flag
+        // `nestedReferencesPessimistic` reports whether the collector bailed
+        // out on an unknown AST node — when true, treat every name as
+        // referenced and disable promotion.
+        // Stored as plain fields (not the analyser's NestedReferenceResult
+        // struct) so this header doesn't need to pull in
+        // NestedReferenceCollector.hpp — that header would expose the
+        // vm::compiler::analysis namespace and shadow the global ::analysis
+        // namespace in any TU that includes us via BytecodeCompiler.hpp.
+        std::unordered_set<std::string> namesReferencedByNestedNonLambdaFns;
+        bool nestedReferencesPessimistic = false;
+
+        // MYT-XXX: true while the visitor is descending into an imported
+        // file's AST (set in visitImportNode around importedAST->accept).
+        // Top-level decls from imported files always stay globals — other
+        // modules may have imported their PUBLIC names, and we don't have
+        // a cross-module slot-binding scheme.
+        bool inImportedFile = false;
 
         CompilerContext(
             ast::ASTVisitor<value::Value>& vis,
@@ -172,5 +198,28 @@ namespace vm::compiler::visitors
             return !expectedTypeContextStack.empty() &&
                    expectedTypeContextStack.back().isActive;
         }
+    };
+
+    // RAII guard for CompilerContext::inImportedFile. Saves and restores the
+    // flag across an AST visit so an exception escaping the visit does not
+    // leave the flag stuck in the wrong state. Mirrors the guard pattern in
+    // parser/ParserContextState.hpp.
+    class ImportedFileContextGuard
+    {
+    public:
+        ImportedFileContextGuard(CompilerContext& ctx, bool value)
+            : ctx_(ctx), saved_(ctx.inImportedFile)
+        {
+            ctx_.inImportedFile = value;
+        }
+        ~ImportedFileContextGuard() { ctx_.inImportedFile = saved_; }
+        ImportedFileContextGuard(const ImportedFileContextGuard&) = delete;
+        ImportedFileContextGuard& operator=(const ImportedFileContextGuard&) = delete;
+        ImportedFileContextGuard(ImportedFileContextGuard&&) = delete;
+        ImportedFileContextGuard& operator=(ImportedFileContextGuard&&) = delete;
+
+    private:
+        CompilerContext& ctx_;
+        bool saved_;
     };
 }

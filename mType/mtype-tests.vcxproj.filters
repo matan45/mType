@@ -2167,6 +2167,12 @@
     <None Include="tests\testFiles\benchmarks\array_multi_get.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\async_await_chain.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\async_await_tight_loop.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\bitwise_tight_loop.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -2192,6 +2198,12 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\inline_value_object_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\lambda_call_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\lambda_closure_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\lexer_stress.mt">
@@ -7202,6 +7214,12 @@
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\ic\add_int_const_fuse.mt">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\arith_after_call_return.expected">
+      <Filter>testFiles\integration\pass\ic</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\ic\arith_after_call_return.mt">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\ic\call_method_cached_deopt.expected">

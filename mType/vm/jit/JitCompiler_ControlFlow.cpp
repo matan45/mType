@@ -61,6 +61,7 @@ namespace vm::jit
 
         if (s.usesBoxedTypes && isBoxedSlotType(lt))
         {
+            flushAllHints(s);
             Gp src = cc.new_gp64();
             cc.lea(src, Mem(s.localsBase, static_cast<int32_t>(physSlot * s.localStride)));
             Gp dst = cc.new_gp64();
@@ -73,6 +74,7 @@ namespace vm::jit
         }
         else if (s.usesBoxedTypes)
         {
+            flushAllHints(s);
             Gp localAddr = cc.new_gp64();
             cc.lea(localAddr, Mem(s.localsBase, static_cast<int32_t>(physSlot * s.localStride)));
             if (lt == SlotType::FLOAT)
@@ -84,6 +86,9 @@ namespace vm::jit
                 Vec val = cc.new_xmm();
                 inv->set_ret(0, val);
                 cc.movsd(Mem(s.stackBase, s.stackDepth * 8), val);
+                // MYT-211: record the unboxed primitive in the cache so the
+                // next arith/cmp consumer skips re-reading stackBase.
+                recordXmmHint(s, s.stackDepth, val);
             }
             else
             {
@@ -94,13 +99,22 @@ namespace vm::jit
                 Gp val = cc.new_gp64();
                 inv->set_ret(0, val);
                 cc.mov(Mem(s.stackBase, s.stackDepth * 8), val);
+                recordGpHint(s, s.stackDepth, val);
             }
         }
         else
         {
+            // MYT-211: load to a fresh virtreg, write to stack memory via
+            // publishGpHint. With caching disabled, publishGpHint just emits
+            // cc.mov(Mem, reg) — same generated code as the previous inline
+            // form. The indirection lets a future cache layer record the
+            // virtreg without changing this site.
             Gp tmp = cc.new_gp64();
             cc.mov(tmp, Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)));
-            cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
+            s.slotTypes.push_back(lt);
+            publishGpHint(s, s.stackDepth, tmp);
+            s.stackDepth++;
+            return;
         }
         s.slotTypes.push_back(lt);
         s.stackDepth++;
@@ -116,6 +130,7 @@ namespace vm::jit
 
         if (s.usesBoxedTypes && isBoxedSlotType(tt))
         {
+            flushAllHints(s);
             Gp src = cc.new_gp64();
             cc.lea(src, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
             Gp dst = cc.new_gp64();
@@ -128,6 +143,7 @@ namespace vm::jit
         }
         else if (s.usesBoxedTypes)
         {
+            flushAllHints(s);
             Gp destAddr = cc.new_gp64();
             cc.lea(destAddr, Mem(s.localsBase, static_cast<int32_t>(physSlot * s.localStride)));
             if (tt == SlotType::FLOAT)
@@ -156,9 +172,11 @@ namespace vm::jit
         }
         else
         {
-            Gp tmp = cc.new_gp64();
-            cc.mov(tmp, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-            cc.mov(Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)), tmp);
+            // MYT-211: consume + republish. Now safe in boxed mode after
+            // publishGpHint was fixed to always write to stackBase.
+            Gp val = consumeGpHint(s, s.stackDepth - 1);
+            cc.mov(Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)), val);
+            publishGpHint(s, s.stackDepth - 1, val);
         }
         s.localTypes[physSlot] = tt;
     }
@@ -171,6 +189,10 @@ namespace vm::jit
     static void emitLoadVar(JitEmissionState& s, uint32_t nameIndex)
     {
         if (!s.usesBoxedTypes) { s.compileFailed = true; return; }
+        // MYT-211: flush is a no-op in boxed mode (cache stays empty there),
+        // but kept for symmetry — if the cache invariant changes later this
+        // call site stays correct.
+        flushAllHints(s);
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
@@ -202,6 +224,7 @@ namespace vm::jit
     static void emitStoreVar(JitEmissionState& s, uint32_t nameIndex)
     {
         if (!s.usesBoxedTypes) { s.compileFailed = true; return; }
+        flushAllHints(s);
         auto& cc = s.cc;
 
         SlotType valType = topType(s);
@@ -228,6 +251,7 @@ namespace vm::jit
                                 const bytecode::BytecodeProgram::Instruction& instr)
     {
         if (!s.usesBoxedTypes) { s.compileFailed = true; return; }
+        flushAllHints(s);
         auto& cc = s.cc;
         uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
         // operand[1] is the type-name index (currently unused at JIT level).
@@ -259,6 +283,9 @@ namespace vm::jit
 
     static void emitReturnPrimitive(JitEmissionState& s, SlotType retType)
     {
+        // MYT-211: return path reads stack memory; flush before emitting the
+        // helper invokes so the return value reflects the latest cached state.
+        flushAllHints(s);
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
@@ -350,6 +377,8 @@ namespace vm::jit
     static void emitCallReturnValue(JitEmissionState& s,
                                      const std::string& returnType, bool isPrimReturn)
     {
+        // MYT-211: return-value plumbing crosses helper invokes; flush.
+        flushAllHints(s);
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
@@ -408,6 +437,10 @@ namespace vm::jit
         if (!calleeMeta) return false;
         if (argCount != calleeMeta->parameterCount) return false;
         if (s.currentCompilingFn.empty()) return false;
+        // MYT-211: arg copy below reads stackBase memory; flush any cached
+        // slots so the copy sees the correct values. The cc.jmp at the end
+        // also requires memory-coherent state at the back-edge target.
+        flushAllHints(s);
 
         const std::string& calleeKey = calleeMeta->mangledName.empty()
             ? calleeMeta->name : calleeMeta->mangledName;
@@ -543,6 +576,8 @@ namespace vm::jit
         if (!calleeMeta) return false;
         if (argCount != calleeMeta->parameterCount) return false;
         if (s.currentCompilingFn.empty()) return false;
+        // MYT-211: cc.invoke and emitBoxCallArgs read stack memory.
+        flushAllHints(s);
 
         const std::string& calleeKey = calleeMeta->mangledName.empty()
             ? calleeMeta->name : calleeMeta->mangledName;
@@ -688,13 +723,6 @@ namespace vm::jit
                 return true;
         }
 
-        // MYT-210: speculative inlining for plain CALL. On success the
-        // helper has emitted the inlined body; we're done. On ineligible
-        // sites it returns false and we emit the generic helper invoke
-        // unchanged.
-        if (tryEmitInlinedFunctionCall(s, instr))
-            return true;
-
         std::string returnType = resolveCallReturnType(s, instr);
         if (s.compileFailed) return true;
 
@@ -706,6 +734,8 @@ namespace vm::jit
             return true;
         }
 
+        // MYT-211: emitBoxCallArgs reads stackBase memory.
+        flushAllHints(s);
         emitBoxCallArgs(s, argCount);
         emitPopAndDestroyArgs(s, argCount);
 
@@ -752,11 +782,6 @@ namespace vm::jit
                                    funcIndex))
             return true;
 
-        // MYT-210: speculative inlining for CALL_FAST. Same dispatcher as
-        // plain CALL — resolveInlineableCallee branches on the opcode.
-        if (tryEmitInlinedFunctionCall(s, instr))
-            return true;
-
         if (!calleeMeta)
         {
             s.compileFailed = true;
@@ -772,6 +797,8 @@ namespace vm::jit
             return true;
         }
 
+        // MYT-211: emitBoxCallArgs reads stackBase memory.
+        flushAllHints(s);
         emitBoxCallArgs(s, argCount);
         emitPopAndDestroyArgs(s, argCount);
 
@@ -852,6 +879,11 @@ namespace vm::jit
             case OpCode::JUMP:
             {
                 size_t target = instr.operands[0];
+                // MYT-211: jump source must leave memory coherent — both the
+                // direct jmp target and the onExit (OSR exit) path read stack
+                // memory. flushAllHints writes any dirty register-cached slot
+                // back; cheap no-op when the cache is already empty.
+                flushAllHints(s);
                 if (auto* lbl = findInlineJumpLabel(s, target))
                 {
                     cc.jmp(*lbl);
@@ -932,6 +964,12 @@ namespace vm::jit
                 size_t target = instr.operands[0];
                 bool jumpOnZero = (instr.opcode == OpCode::JUMP_IF_FALSE_OR_POP);
 
+                // MYT-211: short-circuit needs the value preserved past the
+                // jump on the taken path, so we flush the cache (memory must
+                // hold the value) before testing. Re-read into a fresh reg
+                // afterwards isn't needed — test alone suffices for the
+                // branch decision.
+                flushAllHints(s);
                 Gp cond = cc.new_gp64();
                 cc.mov(cond, Mem(s.stackBase, (s.stackDepth - 1) * 8));
                 cc.test(cond, cond);
@@ -967,6 +1005,11 @@ namespace vm::jit
 
             case OpCode::JUMP_BACK:
             {
+                // MYT-211: the loop back-edge target was bound under a
+                // memory-coherent invariant (the codegen loop flushes before
+                // every cc.bind), so we must flush before the jmp too — the
+                // back-edge target reads stack memory.
+                flushAllHints(s);
                 emitInlineGcSafepoint(s);
                 size_t target = instr.operands[0];
                 if (auto* lbl = findInlineJumpLabel(s, target))

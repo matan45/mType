@@ -18,6 +18,8 @@
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/UserException.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
+#include "../../value/ValueShim.hpp"
+#include "../../value/PrimitiveTypeTag.hpp"
 #include "../../debugger/DebugContext.hpp"
 #include "../../debugger/DebugHookHelper.hpp"
 #include "../jit/JitProfiler.hpp"
@@ -271,6 +273,54 @@ namespace vm::runtime
             arithmeticExecutor->handleAddInt();
             variableExecutor->storeLocalSlot(instr.operands[0]);
             break;
+        case OpCode::OBJECT_TO_VALUE_CREATE_PROMISE:
+        {
+            // Fast path: if NEW_VALUE_OBJECT produced an Int box, skip both
+            // the ValueObject conversion and the AsyncPromiseValue allocation
+            // by extracting the inline int and pushing PROMISE_INT directly.
+            // INVOKE_INT_GET_VALUE on the consuming side already handles raw
+            // INT, so downstream semantics are preserved.
+            const value::Value& tos = stackManager->peek(0);
+            if (value::isObject(tos))
+            {
+                const auto& instance = value::asObject(tos);
+                if (instance->getPrimitiveTag() == value::PrimitiveTypeTag::INT)
+                {
+                    value::Value field = instance->getFieldValue("value");
+                    if (value::isInt(field))
+                    {
+                        int64_t raw = value::asInt(field);
+                        stackManager->pop();
+                        stackManager->push(value::Value(raw, value::Value::PromiseIntTag{}));
+                        break;
+                    }
+                }
+            }
+            // Fallback: original two-allocation path.
+            objectExecutor->handleObjectToValue(instr);
+            value::Value val = stackManager->pop();
+            auto promise = std::make_shared<value::AsyncPromiseValue>(val);
+            stackManager->push(std::shared_ptr<value::PromiseValue>(promise));
+            break;
+        }
+        case OpCode::CREATE_PROMISE_RETURN_VALUE:
+        {
+            // Inlined CREATE_PROMISE + RETURN_VALUE. Fast path for raw INT
+            // returns: produce inline PROMISE_INT instead of allocating an
+            // AsyncPromiseValue.
+            value::Value val = stackManager->pop();
+            if (value::isInt(val))
+            {
+                stackManager->push(value::Value(value::asInt(val), value::Value::PromiseIntTag{}));
+            }
+            else
+            {
+                auto promise = std::make_shared<value::AsyncPromiseValue>(val);
+                stackManager->push(std::shared_ptr<value::PromiseValue>(promise));
+            }
+            controlFlowExecutor->handleReturnValue();
+            break;
+        }
 
         // Control flow - delegated to ControlFlowExecutor
         case OpCode::JUMP: controlFlowExecutor->handleJump(instr);
@@ -658,11 +708,20 @@ namespace vm::runtime
         // Async/Await Operations
         case OpCode::CREATE_PROMISE:
             {
-                // Pop value from stack and wrap it in a Promise
-                // Use AsyncPromiseValue for async functions so they integrate with event loop
+                // Pop value from stack and wrap it in a Promise. Fast path:
+                // raw INT inputs collapse to the inline PROMISE_INT form (no
+                // heap allocation). All other inputs allocate AsyncPromiseValue
+                // for full event-loop / callback support.
                 value::Value val = stackManager->pop();
-                auto promise = std::make_shared<value::AsyncPromiseValue>(val);
-                stackManager->push(std::shared_ptr<value::PromiseValue>(promise));
+                if (value::isInt(val))
+                {
+                    stackManager->push(value::Value(value::asInt(val), value::Value::PromiseIntTag{}));
+                }
+                else
+                {
+                    auto promise = std::make_shared<value::AsyncPromiseValue>(val);
+                    stackManager->push(std::shared_ptr<value::PromiseValue>(promise));
+                }
                 break;
             }
 

@@ -18,6 +18,8 @@ namespace vm::optimization::patterns
      *   LOAD_LOCAL s,  GET_FIELD name           → LOAD_GET_FIELD     [s, name]
      *   LOAD_LOCAL src, STORE_LOCAL dst         → LOAD_STORE_LOCAL   [src, dst]
      *   ADD_INT, STORE_LOCAL dst                → ADD_INT_STORE_LOCAL [dst]
+     *   OBJECT_TO_VALUE, CREATE_PROMISE         → OBJECT_TO_VALUE_CREATE_PROMISE
+     *   CREATE_PROMISE, RETURN_VALUE            → CREATE_PROMISE_RETURN_VALUE
      *
      * Safety: rejects when a fused interior offset is a jump/try/function
      * entry target (via BytecodeProgram::isFusionUnsafeTarget), when any
@@ -55,6 +57,8 @@ namespace vm::optimization::patterns
             LoadGetField,
             LoadStoreLocal,
             AddIntStoreLocal,
+            ObjectToValueCreatePromise,
+            CreatePromiseReturnValue,
         };
 
         Kind classify(const bytecode::BytecodeProgram& program, size_t offset) const;

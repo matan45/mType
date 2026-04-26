@@ -31,7 +31,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 19> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 23> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -76,6 +76,14 @@ namespace
         // distanceSq in a tight 2 M-iter loop — measures the per-call
         // overhead removed by inlining versus the jit_call_function helper.
         "function_call_hot.mt",
+        // Async/await suspend-resume cost in a tight await loop.
+        "async_await_tight_loop.mt",
+        // Sequential await chain — 4 awaits/iter, distinct continuation shapes.
+        "async_await_chain.mt",
+        // Lambda invocation through a single-method interface in a hot loop.
+        "lambda_call_hot.mt",
+        // Closure-capture read overhead on the lambda hot path.
+        "lambda_closure_hot.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";
