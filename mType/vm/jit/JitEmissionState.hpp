@@ -132,9 +132,8 @@ namespace vm::jit
         uint64_t* inlineFieldSetICMisses = nullptr;
 
         // MYT-210 (fills MYT-179 stub): per-decision inline-eligibility
-        // counters, bumped at compile time inside tryEmitInlinedMethodCall and
-        // tryEmitInlinedFunctionCall after checkInlineEligibility /
-        // checkFunctionInlineEligibility returns. Pointer-to-shared instance
+        // counters, bumped at compile time inside tryEmitInlinedMethodCall
+        // after checkInlineEligibility returns. Pointer-to-shared instance
         // owned by JitCompiler.
         InlineDecisionCounters* inlineDecisions = nullptr;
 
@@ -296,14 +295,6 @@ namespace vm::jit
                                               asmjit::x86::Gp classDefReg,
                                               const void* expectedShape,
                                               asmjit::Label missLabel);
-
-    // MYT-210: inline a plain CALL / CALL_FAST. Returns true iff the call
-    // site was inlined; false → caller falls through to the existing
-    // jit_call_function[_fast] helper invoke unchanged. No IC, no shape
-    // guard — the callee is statically known from the constant pool /
-    // function index at JIT-compile time.
-    bool tryEmitInlinedFunctionCall(JitEmissionState& s,
-                                     const bytecode::BytecodeProgram::Instruction& instr);
 
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount,
                          size_t destStartSlot = 0);

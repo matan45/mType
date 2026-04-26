@@ -17,10 +17,13 @@ namespace vm::jit::ic { class TypeFeedbackCollector; }
 
 namespace vm::jit
 {
-    // MYT-210 (fills MYT-179 stub): per-decision inline telemetry. Counters are
-    // bumped at compile time inside tryEmitInlinedMethodCall /
-    // tryEmitInlinedFunctionCall and printed by --jit-stats. The array index
-    // is the underlying ordinal of optimization::InlineDecision.
+    // MYT-210 (fills MYT-179 stub): per-decision inline telemetry. Counters
+    // are bumped at compile time inside tryEmitInlinedMethodCall and printed
+    // by --jit-stats. The array index is the underlying ordinal of
+    // optimization::InlineDecision. (Plain-function inliner is currently
+    // disabled — perReasonFunction stays all zeros until that path returns;
+    // see deferred work in JitCompiler_ControlFlow.cpp emitCallOp/
+    // emitCallFastOp.)
     struct InlineDecisionCounters
     {
         // Sized to match the InlineDecision enum. The enum currently has 17

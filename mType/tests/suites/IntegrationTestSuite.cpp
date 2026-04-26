@@ -325,6 +325,12 @@ namespace tests::testSuite
         addOutputVerificationTest("SET_FIELD_CACHED Deopt Sticky",
                                   passPath + "ic/set_field_cached_deopt.mt");
 
+        // MYT-211 regression: arithmetic operator with an inline function-call
+        // return value as the right operand exercises the JIT path that
+        // previously corrupted stackBase across the inlined CALL emit.
+        addOutputVerificationTest("Arithmetic After Call Return",
+                                  passPath + "ic/arith_after_call_return.mt");
+
         // MYT-204: LOAD_VAR_CACHED / STORE_VAR_CACHED promote on stable
         // global-resolution + correctness under post-init mutation.
         addOutputVerificationTest("LOAD_VAR_CACHED Monomorphic Promote",

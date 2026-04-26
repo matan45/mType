@@ -723,13 +723,6 @@ namespace vm::jit
                 return true;
         }
 
-        // MYT-210: speculative inlining for plain CALL. On success the
-        // helper has emitted the inlined body; we're done. On ineligible
-        // sites it returns false and we emit the generic helper invoke
-        // unchanged.
-        if (tryEmitInlinedFunctionCall(s, instr))
-            return true;
-
         std::string returnType = resolveCallReturnType(s, instr);
         if (s.compileFailed) return true;
 
@@ -787,11 +780,6 @@ namespace vm::jit
         if (tryEmitSelfDirectCall(s, argCount, calleeMeta,
                                    reinterpret_cast<uint64_t>(jit_call_function_fast),
                                    funcIndex))
-            return true;
-
-        // MYT-210: speculative inlining for CALL_FAST. Same dispatcher as
-        // plain CALL — resolveInlineableCallee branches on the opcode.
-        if (tryEmitInlinedFunctionCall(s, instr))
             return true;
 
         if (!calleeMeta)
