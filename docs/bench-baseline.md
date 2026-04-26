@@ -1396,3 +1396,100 @@ Initial assumption (refcount cost on the interpreter ARRAY_GET) was wrong: Phase
 | inline_polymorphic.mt               |   72.18 |      72.56 |        14051 |     508 |
 | inline_value_object_hot.mt          |   74.55 |      75.12 |        11517 |     500 |
 | function_call_hot.mt                |  168.15 |     168.52 |        15011 |     500 |
+
+## 2026-04-26 — async/await + lambda benchmarks added; async perf passes
+
+- Machine: dev machine (Windows 11 Home)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+- Changes in this run:
+  1. **New benchmarks**: `async_await_tight_loop.mt`, `async_await_chain.mt`,
+     `lambda_call_hot.mt`, `lambda_closure_hot.mt` added to the canonical
+     suite. CANONICAL_SCRIPTS grew from 19 → 23.
+  2. **Profiler fix**: `FunctionExecutor::CALL_FAST` profiler entry hook now
+     uses the mangled name (matching what RETURN reports on exit) — silences
+     the 1M-line `mismatched function exit` warning flood under
+     `--profile=full`. No effect on benchmark wall time.
+  3. **MYT-202 fusion** (two new superinstructions):
+     - `OBJECT_TO_VALUE + CREATE_PROMISE` → `OBJECT_TO_VALUE_CREATE_PROMISE`
+     - `CREATE_PROMISE + RETURN_VALUE` → `CREATE_PROMISE_RETURN_VALUE`
+     `AWAIT + STORE_LOCAL` was deliberately *not* fused — AWAIT's suspend
+     path increments IP and bails, so a fused STORE_LOCAL would be skipped
+     on resume. Defer until the suspend path is taught to keep IP at the
+     fused opcode.
+  4. **Inline resolved-Promise<Int>**: new `ValueType::PROMISE_INT` tag
+     holding the resolved int directly in the payload — no heap
+     `AsyncPromiseValue` allocation on the synchronous-completion path.
+     `CREATE_PROMISE` and the fused variants emit the inline form when the
+     input is a raw INT or an Int box (detected via
+     `ObjectInstance::getPrimitiveTag()`); `AWAIT` recognises the inline
+     form and pushes a raw INT, which `INVOKE_INT_GET_VALUE` and method
+     dispatch (via `ObjectExecutor::handleCallMethod` lazy auto-boxing)
+     handle natively. Eliminates ~1M `make_shared<AsyncPromiseValue>` calls
+     per benchmark run.
+
+### Summary (jit=on)
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt             49.49         49.59           20017         0
+  method_dispatch.mt                   73.71         74.28           14042       506
+  object_alloc.mt                     467.20        468.62           12011         0
+  object_alloc_nested.mt              768.31        774.09           16411       500
+  field_write_hot.mt                   56.00         56.64            8017         1
+  field_read_hot.mt                    36.52         36.62            8520         1
+  string_ops.mt                        79.07         79.20           19019         0
+  recursive.mt                        929.75        931.67           17260   2762961
+  bitwise_tight_loop.mt                45.03         45.49           23019         0
+  short_circuit_chain.mt               50.62         51.13           24909         0
+  primitive_method_dispatch.mt        436.48        439.43           32038         0
+  array_multi_alloc.mt                 52.41         52.68            9911       500
+  array_multi_get.mt                  322.36        324.62           49787       500
+  for_each_loop.mt                    310.27        311.46           69849      5604
+  inline_monomorphic.mt                44.50         44.74           13016       501
+  inline_branching.mt                  46.20         46.47           15016       501
+  inline_polymorphic.mt                72.51         72.68           14051       508
+  inline_value_object_hot.mt           74.26         75.60           11517       500
+  function_call_hot.mt                161.61        161.87           15011       500
+  async_await_tight_loop.mt          1134.82       1145.32        32000032   1000001
+  async_await_chain.mt               1770.17       1774.53        34500032   2000001
+  lambda_call_hot.mt                   57.92         57.93           12521         1
+  lambda_closure_hot.mt                58.43         58.72           12526         2
+```
+
+### Async benchmark — per-pass deltas (median ms)
+
+| benchmark                  | original | + fusion | + inline | per-await Δ        | total Δ |
+|----------------------------|---------:|---------:|---------:|--------------------|--------:|
+| async_await_tight_loop.mt  |  1410.72 |  1372.56 |  1145.32 | 1.41 µs → 1.15 µs | -18.8% |
+| async_await_chain.mt       |  2309.75 |  2292.17 |  1774.53 | 1.15 µs → 0.89 µs | -23.2% |
+
+### Notes
+
+- **Fusion alone bought ~1-3%.** The wall-time delta (median) was small
+  because dispatch isn't the dominant per-await cost; the
+  `make_shared<AsyncPromiseValue>` allocation is. Fusion did fire correctly
+  — instruction count for the two async benchmarks dropped by exactly the
+  expected number of fused pairs (-1 M and -2 M instructions respectively).
+  Only one fusion fires per async-fn body in the benchmark: the peephole
+  pass collapses `OBJECT_TO_VALUE + CREATE_PROMISE` first; the resulting
+  `OBJECT_TO_VALUE_CREATE_PROMISE + RETURN_VALUE` pair is then unrecognized.
+- **Inline resolved-Promise bought another ~17-22%.** This is the change
+  that actually moves the needle: removing 1 M heap allocations per run.
+  Below the 30-50% upper-bound prediction because the `NEW_VALUE_OBJECT`
+  ObjectInstance allocation (pool-backed) still happens on every iteration
+  — only the AsyncPromiseValue allocation is eliminated. A future triple
+  fusion `NEW_VALUE_OBJECT(Int) + OBJECT_TO_VALUE + CREATE_PROMISE` →
+  `CREATE_PROMISE_INT_FROM_STACK` would skip even the pool round-trip.
+- **Non-async benchmarks** are within run-to-run noise (±5%). The added
+  tag-check on the CREATE_PROMISE / AWAIT handlers is constant-time and
+  only fires on async paths; nothing else was touched.
+- **JIT** does not compile CREATE_PROMISE / AWAIT, so JITted code bails to
+  the interpreter and picks up the inline-form fast path automatically.
+  No JIT changes required.
+
+### Sanity outputs
+
+- `async_await_tight_loop.mt`: `async_await_tight_loop total=1000000000000`
+- `async_await_chain.mt`, `lambda_call_hot.mt`, `lambda_closure_hot.mt`:
+  capture stdout on the next clean run and pin here.
