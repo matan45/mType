@@ -31,7 +31,7 @@ namespace runtimeTypes::klass
         bool gcRegistered = false;
 
         // Phase 6 (IC): Vector-based field storage for O(1) indexed access.
-        mutable std::vector<Value> fieldVector;
+        std::vector<Value> fieldVector;
 
         // Fast primitive type tag (avoids string comparisons in hot paths)
         value::PrimitiveTypeTag primitiveTag_ = value::PrimitiveTypeTag::NONE;
@@ -102,7 +102,7 @@ namespace runtimeTypes::klass
         bool contentEquals(const ObjectInstance& other) const;
 
         // Phase 6 (IC): Indexed field access for inline caching
-        void ensureFieldVector() const;
+        void ensureFieldVector();
         const Value& getFieldByIndex(size_t index) const;
         void setFieldByIndex(size_t index, const Value& value);
         bool hasFieldVector() const { return !fieldVector.empty() || (classDefinition && classDefinition->getIndexedFieldCount() == 0); }
