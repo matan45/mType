@@ -1493,3 +1493,59 @@ Initial assumption (refcount cost on the interpreter ARRAY_GET) was wrong: Phase
 - `async_await_tight_loop.mt`: `async_await_tight_loop total=1000000000000`
 - `async_await_chain.mt`, `lambda_call_hot.mt`, `lambda_closure_hot.mt`:
   capture stdout on the next clean run and pin here.
+
+## 2026-04-26 — recursive.mt call overhead reduction (Phases 1/2/3/6)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  current working tree
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+Scope:
+- **Phase 1**: Removed vestigial `environment->exitScope()` from `ControlFlowExecutor::handleReturn` — no matching `enterScope` exists in the VM runtime.
+- **Phase 2**: Replaced per-element `pop_back()` stack cleanup loop in `handleReturn` with a single `resize(frame.frameBase)` call (~2.5M function returns benefit).
+- **Phase 3**: Added `allPrimitiveParams` flag to `FunctionMetadata`, computed once at `registerFunction()` time. Guarded all 3 `convertLambdaArgumentsToInterfaces` call sites to skip when all params are `int`/`float`/`bool`/`string`/`void`.
+- **Phase 6**: Increased `MAX_JIT_NATIVE_DEPTH` from 64 to 256 and `callStack.reserve(256)` to keep more recursion levels in the JIT fast path and avoid vector reallocations.
+
+```
+=== Summary (jit=on) ===
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt             56.89         57.27           20017         0
+  method_dispatch.mt                   74.31         74.41           14043       506
+  object_alloc.mt                     486.06        494.17           12011         0
+  object_alloc_nested.mt              776.77        784.61           16411       500
+  field_write_hot.mt                   58.63         58.65            8017         1
+  field_read_hot.mt                    37.92         38.31            8520         1
+  string_ops.mt                        82.38         82.47           19019         0
+  recursive.mt                        768.52        772.01           17261   2545487
+  bitwise_tight_loop.mt                47.66         47.98           23019         0
+  short_circuit_chain.mt               51.56         52.28           24909         0
+  primitive_method_dispatch.mt        452.11        455.02           32040         0
+  array_multi_alloc.mt                 52.35         53.99            9911       500
+  array_multi_get.mt                  321.67        322.46           49787       500
+  for_each_loop.mt                    328.75        329.23           69852      5604
+  inline_monomorphic.mt                44.26         44.33           13017       501
+  inline_branching.mt                  46.23         46.69           15017       501
+  inline_polymorphic.mt                73.23         74.83           14052       508
+  inline_value_object_hot.mt           74.39         74.56           11518       500
+  function_call_hot.mt                168.40        168.70           15011       500
+  async_await_tight_loop.mt          1117.51       1123.90        32000034   1000001
+  async_await_chain.mt               1791.22       1815.12        34500034   2000001
+  lambda_call_hot.mt                   59.02         60.92           12522         1
+  lambda_closure_hot.mt                59.45         60.11           12527         2
+```
+
+### Delta vs prior baseline (2026-04-26 MYT-209)
+
+| Script                          | Prior median (ms) | Now median (ms) | Change |
+|---------------------------------|------------------:|----------------:|-------:|
+| recursive.mt                    |            883.50 |          772.01 | **-12.6%** |
+| function_call_hot.mt            |            173.53 |          168.70 | -2.8% (noise) |
+| for_each_loop.mt                |            341.02 |          329.23 | -3.5% (noise) |
+| All other benchmarks            |                   |                 | within ±3% |
+
+### Notes
+
+- **recursive.mt** improved from 883ms → 772ms (12.6% faster). Call count dropped from 2,762,961 → 2,545,487 confirming the higher `MAX_JIT_NATIVE_DEPTH` keeps more recursion levels in the JIT fast path.
+- **Phase 5** (JIT box/unbox elimination via `primCallArgs` pass-through) was attempted but reverted — adding new fields to `JitContext` shifted `offsetof` for downstream fields (`icTable`, `osrLocals`, etc.) and caused crashes in non-recursive benchmarks. The approach needs a layout-stable design (e.g., placing `primCallArgs` at the end of the struct, or using a separate side-channel).
+- No regressions observed on any other benchmark.
