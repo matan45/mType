@@ -1365,3 +1365,34 @@ Initial assumption (refcount cost on the interpreter ARRAY_GET) was wrong: Phase
   the primitive-method path; this looks like run-to-run variance or an
   unrelated regression. Re-measure on a clean run before chasing it.
 - All other benchmarks within ±5%, no clear regressions.
+
+## 2026-04-26 — arithmetic branch (MYT-211 reg-reg arith + cache, plain-fn inliner removed)
+
+- Branch: `arithmetic`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+### Summary (jit=on)
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt             55.17         56.34           20017         0
+  method_dispatch.mt                   66.72         67.08           14042       506
+  object_alloc.mt                     615.38        620.90           12011         0
+  object_alloc_nested.mt             1096.15       1100.95           16411       500
+  field_write_hot.mt                   76.02         76.07            8017         1
+  field_read_hot.mt                    36.59         37.55            8520         1
+  string_ops.mt                        78.92         79.14           19019         0
+  recursive.mt                        880.19        882.27           17260   2762961
+  bitwise_tight_loop.mt                46.84         47.36           23019         0
+  short_circuit_chain.mt               51.41         51.42           24909         0
+  primitive_method_dispatch.mt        487.14        496.42           32038         0
+  array_multi_alloc.mt                 53.98         54.37            9911       500
+  array_multi_get.mt                  327.23        328.84           49787       500
+  for_each_loop.mt                    371.92        376.85           69849      5604
+  inline_monomorphic.mt                44.08         44.72           13016       501
+  inline_branching.mt                  46.71         46.81           15016       501
+  inline_polymorphic.mt                68.01         68.13           14051       508
+  inline_value_object_hot.mt           74.85         75.64           11517       500
+  function_call_hot.mt                175.83        177.14           15011       500
+```
