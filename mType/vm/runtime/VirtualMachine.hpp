@@ -422,7 +422,7 @@ namespace vm::runtime
         void popCallStack();
 
         // JIT native depth tracking (public for JIT helpers access)
-        static constexpr size_t MAX_JIT_NATIVE_DEPTH = 64;
+        static constexpr size_t MAX_JIT_NATIVE_DEPTH = 256;
         size_t getJitNativeDepth() const { return jitNativeDepth; }
         void incrementJitNativeDepth() { ++jitNativeDepth; }
         void decrementJitNativeDepth() { --jitNativeDepth; }

@@ -620,6 +620,7 @@ namespace vm::jit
         cc.jae(fallbackLabel);
 
         // ---- Direct path ----
+
         // Save current ctx->args / argCount so the outer caller's view is
         // unchanged after the recursive call returns. The callee's prologue
         // reads ctx->args once (emitArgumentUnboxing) and copies into its

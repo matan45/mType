@@ -146,11 +146,11 @@ namespace vm::runtime
                 }
             }
 
-            // Exit function scope (to clean up parameters and local variables)
-            context.environment->exitScope();
-            // Restore stack
-            while (context.stackManager->size() > frame.frameBase) {
-                context.stackManager->getStack().pop_back();
+            // Restore stack to the caller's frame base in a single resize().
+            // Bulk truncation avoids per-element pop_back() overhead on the
+            // hot return path (~2.76M returns in recursive.mt).
+            if (context.stackManager->size() > frame.frameBase) {
+                context.stackManager->getStack().resize(frame.frameBase);
             }
         }
     }

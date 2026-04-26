@@ -1,4 +1,4 @@
-﻿#include "BytecodeProgram.hpp"
+#include "BytecodeProgram.hpp"
 #include "BytecodeIOHelper.hpp"
 #include "../../constants/SecurityConstants.hpp"
 #include <sstream>
@@ -489,6 +489,25 @@ namespace vm::bytecode
 
     void BytecodeProgram::registerFunction(const std::string& name, const FunctionMetadata& metadata) {
         functions[name] = metadata;
+
+        // Compute allPrimitiveParams once at registration time. The set of
+        // primitive type names matches the types that never require
+        // convertLambdaArgumentsToInterfaces or auto-boxing at call sites.
+        {
+            auto& stored = functions[name];
+            bool allPrim = true;
+            for (const auto& t : stored.parameterTypes)
+            {
+                if (t != "int" && t != "float" && t != "bool" && t != "string"
+                    && t != "void")
+                {
+                    allPrim = false;
+                    break;
+                }
+            }
+            stored.allPrimitiveParams = allPrim;
+        }
+
         if (functionNameToIndex.find(name) == functionNameToIndex.end()) {
             size_t idx = functionIndexToName.size();
             functionIndexToName.push_back(name);

@@ -122,8 +122,10 @@ namespace vm::runtime
 
         if (funcMetadata)
         {
-            // Convert lambda arguments to interface implementations if needed
-            convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
+            // Convert lambda arguments to interface implementations if needed.
+            // Skip for primitive-only parameter lists (no conversion possible).
+            if (!funcMetadata->allPrimitiveParams)
+                convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
 
             // Create call frame
             CallFrame frame;
@@ -213,7 +215,9 @@ namespace vm::runtime
             args[i - 1] = context.stackManager->pop();
         }
 
-        convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
+        // Skip for primitive-only parameter lists (no conversion possible).
+        if (!funcMetadata->allPrimitiveParams)
+            convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
 
         CallFrame frame;
         frame.returnAddress = context.instructionPointer;
@@ -465,8 +469,10 @@ namespace vm::runtime
 
         if (funcMetadata)
         {
-            // Convert lambda arguments to interface implementations if needed
-            convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
+            // Convert lambda arguments to interface implementations if needed.
+            // Skip for primitive-only parameter lists (no conversion possible).
+            if (!funcMetadata->allPrimitiveParams)
+                convertLambdaArgumentsToInterfaces(args.span(), funcMetadata->parameterTypes);
 
             // Create call frame for static method
             CallFrame frame;

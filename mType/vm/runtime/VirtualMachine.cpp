@@ -54,7 +54,7 @@ namespace vm::runtime
           , jitEnabled(false)
           , icEnabled(false)
     {
-        callStack.reserve(constants::vm::DEFAULT_CALL_STACK_CAPACITY);
+        callStack.reserve(256);
 
         // Initialize garbage collector if not already initialized
         if (!gc::GC::isInitialized())

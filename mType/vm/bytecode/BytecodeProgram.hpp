@@ -149,6 +149,11 @@ namespace vm::bytecode
             std::vector<std::vector<AnnotationData>> parameterAnnotations;
             std::vector<std::unordered_set<std::string>> parameterTypeParameterUsage;
 
+            // Set at registration time when every parameterType is a primitive
+            // (int, float, bool, string). Allows skipping the per-call
+            // convertLambdaArgumentsToInterfaces probe on the hot path.
+            bool allPrimitiveParams = false;
+
             bool hasNestedTypeParameters() const
             {
                 for (const auto& usedParams : parameterTypeParameterUsage)
