@@ -1366,33 +1366,33 @@ Initial assumption (refcount cost on the interpreter ARRAY_GET) was wrong: Phase
   unrelated regression. Re-measure on a clean run before chasing it.
 - All other benchmarks within ±5%, no clear regressions.
 
-## 2026-04-26 — arithmetic branch (MYT-211 reg-reg arith + cache, plain-fn inliner removed)
+## 2026-04-26 — post Object Allocation Optimization
 
-- Branch: `arithmetic`
+- Machine: dev machine (Windows 11 Home)
 - Build:   Release x64, MSVC v145
 - Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+- Note: Optimized ObjectInstance by removing maps and using vector-backed storage.
 
-### Summary (jit=on)
+### Summary
 
-```
-  Script                             min(ms)    median(ms)    instructions     calls
-  arithmetic_tight_loop.mt             55.17         56.34           20017         0
-  method_dispatch.mt                   66.72         67.08           14042       506
-  object_alloc.mt                     615.38        620.90           12011         0
-  object_alloc_nested.mt             1096.15       1100.95           16411       500
-  field_write_hot.mt                   76.02         76.07            8017         1
-  field_read_hot.mt                    36.59         37.55            8520         1
-  string_ops.mt                        78.92         79.14           19019         0
-  recursive.mt                        880.19        882.27           17260   2762961
-  bitwise_tight_loop.mt                46.84         47.36           23019         0
-  short_circuit_chain.mt               51.41         51.42           24909         0
-  primitive_method_dispatch.mt        487.14        496.42           32038         0
-  array_multi_alloc.mt                 53.98         54.37            9911       500
-  array_multi_get.mt                  327.23        328.84           49787       500
-  for_each_loop.mt                    371.92        376.85           69849      5604
-  inline_monomorphic.mt                44.08         44.72           13016       501
-  inline_branching.mt                  46.71         46.81           15016       501
-  inline_polymorphic.mt                68.01         68.13           14051       508
-  inline_value_object_hot.mt           74.85         75.64           11517       500
-  function_call_hot.mt                175.83        177.14           15011       500
-```
+| Script                             | min(ms) | median(ms) | Instructions | Calls   |
+|------------------------------------|--------:|-----------:|-------------:|--------:|
+| arithmetic_tight_loop.mt            |   49.22 |      49.30 |        20017 |       0 |
+| method_dispatch.mt                  |   73.59 |      73.69 |        14042 |     506 |
+| object_alloc.mt                     |  484.44 |     494.98 |        12011 |       0 |
+| object_alloc_nested.mt              |  817.06 |     817.60 |        16411 |     500 |
+| field_write_hot.mt                  |   60.71 |      61.79 |         8017 |       1 |
+| field_read_hot.mt                   |   39.07 |      39.34 |         8520 |       1 |
+| string_ops.mt                       |   81.00 |      81.37 |        19014 |       0 |
+| recursive.mt                        |  887.75 |     893.09 |        17260 | 2762961 |
+| bitwise_tight_loop.mt               |   43.88 |      44.21 |        23019 |       0 |
+| short_circuit_chain.mt              |   51.56 |      52.79 |        24909 |       0 |
+| primitive_method_dispatch.mt        |  451.40 |     456.54 |        32038 |       0 |
+| array_multi_alloc.mt                |   54.45 |      55.64 |         9911 |     500 |
+| array_multi_get.mt                  |  329.50 |     331.69 |        49787 |     500 |
+| for_each_loop.mt                    |  323.36 |     323.73 |        69849 |    5604 |
+| inline_monomorphic.mt               |   45.65 |      46.04 |        13016 |     501 |
+| inline_branching.mt                 |   49.78 |      49.81 |        15016 |     501 |
+| inline_polymorphic.mt               |   72.18 |      72.56 |        14051 |     508 |
+| inline_value_object_hot.mt          |   74.55 |      75.12 |        11517 |     500 |
+| function_call_hot.mt                |  168.15 |     168.52 |        15011 |     500 |
