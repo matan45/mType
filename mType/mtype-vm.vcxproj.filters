@@ -105,6 +105,9 @@
     <ClInclude Include="vm\compiler\analysis\DefiniteAssignmentAnalyzer.hpp">
       <Filter>vm\compiler\analysis</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\analysis\NestedReferenceCollector.hpp">
+      <Filter>vm\compiler\analysis</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\control\ExceptionContextManager.hpp">
       <Filter>vm\compiler\control</Filter>
     </ClInclude>
@@ -390,6 +393,9 @@
       <Filter>vm\compiler</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\analysis\DefiniteAssignmentAnalyzer.cpp">
+      <Filter>vm\compiler\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\analysis\NestedReferenceCollector.cpp">
       <Filter>vm\compiler\analysis</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\control\ExceptionContextManager.cpp">

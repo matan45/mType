@@ -26,48 +26,32 @@ namespace vm::jit
         SlotType lType = popType(s);
         emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
         emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
+        // MYT-211: reg-reg arith + memory store via publishGpHint.
+        Gp right = consumeGpHint(s, s.stackDepth);
+        Gp left = consumeGpHint(s, s.stackDepth - 1);
         switch (instr.opcode)
         {
-            case OpCode::ADD_INT:
-            {
-                Gp right = cc.new_gp64();
-                cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
-                cc.add(Mem(s.stackBase, (s.stackDepth - 1) * 8), right);
-                break;
-            }
-            case OpCode::SUB_INT:
-            {
-                Gp right = cc.new_gp64();
-                cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
-                cc.sub(Mem(s.stackBase, (s.stackDepth - 1) * 8), right);
-                break;
-            }
-            case OpCode::MUL_INT:
-            {
-                Gp left = cc.new_gp64();
-                Gp right = cc.new_gp64();
-                cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
-                cc.mov(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-                cc.imul(left, right);
-                cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
-                break;
-            }
+            case OpCode::ADD_INT: cc.add(left, right); break;
+            case OpCode::SUB_INT: cc.sub(left, right); break;
+            case OpCode::MUL_INT: cc.imul(left, right); break;
             default: break;
         }
         s.slotTypes.push_back(SlotType::INT);
+        publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
         return true;
     }
 
     static bool emitDivIntOp(JitEmissionState& s)
     {
+        // MYT-211: reg-based DIV with publish at end.
         auto& cc = s.cc;
         s.stackDepth--;
         SlotType rType = popType(s);
         SlotType lType = popType(s);
         emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
         emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
-        Gp right = cc.new_gp64();
-        cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
+        Gp right = consumeGpHint(s, s.stackDepth);
+        Gp left = consumeGpHint(s, s.stackDepth - 1);
         cc.test(right, right);
         Label notZero = cc.new_label();
         cc.jnz(notZero);
@@ -75,49 +59,32 @@ namespace vm::jit
         cc.invoke(Out(invDZ), reinterpret_cast<uint64_t>(jit_throw_div_by_zero),
                   FuncSignature::build<void>());
         cc.bind(notZero);
-        Gp left = cc.new_gp64();
-        cc.mov(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
         Gp raxReg = cc.new_gp64();
         Gp rdxReg = cc.new_gp64();
         cc.mov(raxReg, left);
         cc.cqo(rdxReg, raxReg);
         cc.idiv(rdxReg, raxReg, right);
-        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), raxReg);
         s.slotTypes.push_back(SlotType::INT);
+        publishGpHint(s, s.stackDepth - 1, raxReg, /*dirty=*/false);
         return true;
     }
 
     static bool emitUnaryIntOps(JitEmissionState& s,
                                  const bytecode::BytecodeProgram::Instruction& instr)
     {
+        // MYT-211: in-place unary on TOS — consume into reg, op, publish.
         auto& cc = s.cc;
+        Gp tmp = consumeGpHint(s, s.stackDepth - 1);
         switch (instr.opcode)
         {
-            case OpCode::NEG:
-                cc.neg(Mem(s.stackBase, (s.stackDepth - 1) * 8));
-                return true;
-            case OpCode::INC:
-            {
-                Gp tmp = cc.new_gp64();
-                cc.mov(tmp, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-                cc.inc(tmp);
-                cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), tmp);
-                return true;
-            }
-            case OpCode::DEC:
-            {
-                Gp tmp = cc.new_gp64();
-                cc.mov(tmp, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-                cc.dec(tmp);
-                cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), tmp);
-                return true;
-            }
-            case OpCode::BITWISE_NOT_OP:
-            case OpCode::BITWISE_NOT_INT:
-                cc.not_(Mem(s.stackBase, (s.stackDepth - 1) * 8));
-                return true;
+            case OpCode::NEG:                                           cc.neg(tmp); break;
+            case OpCode::INC:                                           cc.inc(tmp); break;
+            case OpCode::DEC:                                           cc.dec(tmp); break;
+            case OpCode::BITWISE_NOT_OP: case OpCode::BITWISE_NOT_INT:  cc.not_(tmp); break;
             default: return false;
         }
+        publishGpHint(s, s.stackDepth - 1, tmp, /*dirty=*/false);
+        return true;
     }
 
     static bool emitBitwiseIntOps(JitEmissionState& s,
@@ -142,22 +109,18 @@ namespace vm::jit
         emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
         emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
 
-        Gp right = cc.new_gp64();
-        cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
+        // MYT-211: reg-reg + publish pattern.
+        Gp right = consumeGpHint(s, s.stackDepth);
+        Gp left = consumeGpHint(s, s.stackDepth - 1);
         switch (opcode)
         {
-            case OpCode::BITWISE_AND_OP:
-                cc.and_(Mem(s.stackBase, (s.stackDepth - 1) * 8), right);
-                break;
-            case OpCode::BITWISE_OR_OP:
-                cc.or_(Mem(s.stackBase, (s.stackDepth - 1) * 8), right);
-                break;
-            case OpCode::BITWISE_XOR_OP:
-                cc.xor_(Mem(s.stackBase, (s.stackDepth - 1) * 8), right);
-                break;
+            case OpCode::BITWISE_AND_OP: cc.and_(left, right); break;
+            case OpCode::BITWISE_OR_OP:  cc.or_(left, right); break;
+            case OpCode::BITWISE_XOR_OP: cc.xor_(left, right); break;
             default: break;
         }
         s.slotTypes.push_back(SlotType::INT);
+        publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
         return true;
     }
 
@@ -178,10 +141,39 @@ namespace vm::jit
         emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
         emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
 
-        Gp count = cc.new_gp64();
-        cc.mov(count, Mem(s.stackBase, s.stackDepth * 8));
+        // MYT-211: peephole — when the right operand is a known constant in
+        // [0, 63] (as recorded by publishConstHint from PUSH_INT), skip the
+        // runtime range check and emit the shift with an immediate operand.
+        // Bitwise tight loops shift by literal 1/2/3 every iteration; this
+        // eliminates 3+ never-taken branches per iter.
+        bool constFold = false;
+        int64_t shamt = 0;
+        if (static_cast<size_t>(s.stackDepth) < s.slotHints.size())
+        {
+            SlotHint& rh = s.slotHints[s.stackDepth];
+            if (rh.valid && rh.isConstant && rh.constValue >= 0 && rh.constValue <= 63)
+            {
+                constFold = true;
+                shamt = rh.constValue;
+                rh.valid = false; rh.isConstant = false;
+            }
+        }
 
-        // Unsigned compare catches both negative (huge unsigned) and > 63
+        if (constFold)
+        {
+            Gp left = consumeGpHint(s, s.stackDepth - 1);
+            if (opcode == OpCode::LEFT_SHIFT_OP)
+                cc.sal(left, asmjit::Imm(static_cast<uint32_t>(shamt)));
+            else
+                cc.sar(left, asmjit::Imm(static_cast<uint32_t>(shamt)));
+            s.slotTypes.push_back(SlotType::INT);
+            publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
+            return true;
+        }
+
+        Gp count = consumeGpHint(s, s.stackDepth);
+        Gp left = consumeGpHint(s, s.stackDepth - 1);
+
         Label inRange = cc.new_label();
         cc.cmp(count, 63);
         cc.jbe(inRange);
@@ -192,11 +184,12 @@ namespace vm::jit
         cc.bind(inRange);
 
         if (opcode == OpCode::LEFT_SHIFT_OP)
-            cc.sal(Mem(s.stackBase, (s.stackDepth - 1) * 8), count.r8());
+            cc.sal(left, count.r8());
         else
-            cc.sar(Mem(s.stackBase, (s.stackDepth - 1) * 8), count.r8());
+            cc.sar(left, count.r8());
 
         s.slotTypes.push_back(SlotType::INT);
+        publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
         return true;
     }
 
@@ -239,22 +232,24 @@ namespace vm::jit
         SlotType lType = popType(s);
         emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::FLOAT);
         emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::FLOAT);
-        Vec right = cc.new_xmm();
-        Vec left = cc.new_xmm();
-        cc.movsd(right, Mem(s.stackBase, s.stackDepth * 8));
-        cc.movsd(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+        // MYT-211: reg-reg FLOAT op + publish.
+        Vec right = consumeXmmHint(s, s.stackDepth);
+        Vec left = consumeXmmHint(s, s.stackDepth - 1);
         if (instr.opcode == OpCode::ADD_FLOAT) cc.addsd(left, right);
         else if (instr.opcode == OpCode::SUB_FLOAT) cc.subsd(left, right);
         else if (instr.opcode == OpCode::MUL_FLOAT) cc.mulsd(left, right);
         else cc.divsd(left, right);
-        cc.movsd(Mem(s.stackBase, (s.stackDepth - 1) * 8), left);
         s.slotTypes.push_back(SlotType::FLOAT);
+        publishXmmHint(s, s.stackDepth - 1, left, /*dirty=*/false);
         return true;
     }
 
     static bool emitGenericAddSubMul(JitEmissionState& s,
                                       const bytecode::BytecodeProgram::Instruction& instr)
     {
+        // MYT-211: generic ADD/SUB/MUL handles the boxed mixed-type path via
+        // emitGenericBinop and reads stackBase via Mem(...). Not hint-aware.
+        flushAllHints(s);
         auto& cc = s.cc;
         SlotType rType = popType(s), lType = popType(s);
         s.stackDepth--;
@@ -321,6 +316,8 @@ namespace vm::jit
     static bool emitGenericDivMod(JitEmissionState& s,
                                    const bytecode::BytecodeProgram::Instruction& instr)
     {
+        // MYT-211: see emitGenericAddSubMul.
+        flushAllHints(s);
         auto& cc = s.cc;
         SlotType rType = popType(s), lType = popType(s);
         s.stackDepth--;
@@ -409,6 +406,8 @@ namespace vm::jit
 
     static void emitBooleanBinop(JitEmissionState& s, bool isAnd)
     {
+        // MYT-211: AND/OR boolean emitter isn't hint-aware.
+        flushAllHints(s);
         auto& cc = s.cc;
         s.stackDepth--;
         SlotType rType = popType(s);
@@ -436,6 +435,8 @@ namespace vm::jit
     static bool emitLogicalOps(JitEmissionState& s,
                                 const bytecode::BytecodeProgram::Instruction& instr)
     {
+        // MYT-211: NOT/AND/OR aren't hint-aware.
+        flushAllHints(s);
         auto& cc = s.cc;
         switch (instr.opcode)
         {
@@ -783,6 +784,10 @@ namespace vm::jit
     static bool emitInvokePrimitiveOps(JitEmissionState& s,
                                         const bytecode::BytecodeProgram::Instruction& instr)
     {
+        // MYT-211: INVOKE_INT_*/INVOKE_FLOAT_* emitters read stackBase memory
+        // directly and aren't hint-aware. Flush at the dispatch level so any
+        // prior cached value is materialized to memory before they run.
+        flushAllHints(s);
         switch (instr.opcode)
         {
             case OpCode::INVOKE_INT_ADD: case OpCode::INVOKE_INT_SUB:
@@ -900,10 +905,13 @@ namespace vm::jit
                 SlotType lType = popType(s);
                 emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
 
+                // MYT-211: reg-reg add of an immediate via consume+publish.
+                Gp left = consumeGpHint(s, s.stackDepth - 1);
                 Gp right = cc.new_gp64();
                 cc.mov(right, literal);
-                cc.add(Mem(s.stackBase, (s.stackDepth - 1) * 8), right);
+                cc.add(left, right);
                 s.slotTypes.push_back(SlotType::INT);
+                publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
                 return true;
             }
 

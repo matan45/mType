@@ -15,6 +15,7 @@
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../../types/TypeConversionUtils.hpp"
 #include "../../types/TypeConversionBridge.hpp"
+#include "analysis/NestedReferenceCollector.hpp"
 #include <stdexcept>
 #include <iostream>
 
@@ -435,8 +436,17 @@ namespace vm::compiler
                                                         context.variableTracker.getCurrentScopeDepth(),
                                                         false, // Not a lambda
                                                         false); // Not async
-        context.variableTracker.beginScope(); 
-        context.variableTracker.beginScope(); 
+        context.variableTracker.beginScope();
+        context.variableTracker.beginScope();
+
+        // MYT-XXX (top-level decl promotion): build the set of identifier
+        // names referenced from any nested non-lambda function/method body
+        // BEFORE visiting top-level statements, so emitVariableDeclaration
+        // can decide global-vs-local at the point of emission. Lambdas are
+        // excluded — captureScopeVariables handles them via the existing
+        // capture path. Imports stay globals (handled by inImportedFile).
+        context.namesReferencedByNestedNonLambdaFns =
+            analysis::NestedReferenceCollector::collect(root);
 
         // Visit the root node to generate bytecode
         root->accept(*this);
@@ -1030,8 +1040,22 @@ namespace vm::compiler
             functionRegistrar.validateThrowAnnotations(importedAST);
 
             // Compile the imported file to generate bytecode for functions and methods
-            // This will register all functions/methods in the BytecodeProgram
-            importedAST->accept(*this);
+            // This will register all functions/methods in the BytecodeProgram.
+            // MYT-XXX: while compiling an imported file, top-level decls must
+            // stay globals (other modules may import their PUBLIC names);
+            // gate the promotion path with this flag.
+            bool savedInImportedFile = context.inImportedFile;
+            context.inImportedFile = true;
+            try
+            {
+                importedAST->accept(*this);
+                context.inImportedFile = savedInImportedFile;
+            }
+            catch (...)
+            {
+                context.inImportedFile = savedInImportedFile;
+                throw;
+            }
 
             // Register bytecode function aliases for constructors/methods
             // Must happen AFTER compilation (importedAST->accept) so constructors exist

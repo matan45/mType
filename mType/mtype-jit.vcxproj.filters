@@ -617,6 +617,9 @@
     <ClCompile Include="vm\jit\JitCompiler_Objects.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_StackModel.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_StackOps.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>

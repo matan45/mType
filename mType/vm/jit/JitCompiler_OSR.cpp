@@ -82,6 +82,80 @@ namespace vm::jit
         std::unordered_map<size_t, SlotType> localTypes;
     };
 
+    // MYT-211: scan the OSR loop range for slots that are read but never
+    // written inside the loop. Hoist a single load of each such slot into a
+    // virtreg at OSR-prologue end so emitLoadLocal can short-circuit to the
+    // cached register on every iteration. This eliminates the per-iter memory
+    // load for loop-invariant locals (e.g. `mask`, `xorKey`, `wordMask`, `N`
+    // in the bitwise / arithmetic micro-benchmarks).
+    static void hoistInvariantLocals(JitEmissionState& s,
+                                      const bytecode::BytecodeProgram& program,
+                                      size_t loopStartOffset, size_t loopEndOffset)
+    {
+        if (s.usesBoxedTypes) return;
+        std::unordered_set<size_t> writtenSlots;
+        std::unordered_set<size_t> readSlots;
+        for (size_t ip = loopStartOffset; ip <= loopEndOffset; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            switch (instr.opcode)
+            {
+                case OpCode::STORE_LOCAL:
+                case OpCode::STORE_LOCAL_INT:
+                case OpCode::STORE_LOCAL_FLOAT:
+                case OpCode::STORE_LOCAL_BOOL:
+                case OpCode::STORE_LOCAL_BOXED_INST:
+                case OpCode::LOAD_STORE_LOCAL:           // dst slot in operand[1]
+                case OpCode::ADD_INT_STORE_LOCAL:        // dst slot in operand[0]
+                    if (!instr.operands.empty())
+                    {
+                        size_t slot = (instr.opcode == OpCode::LOAD_STORE_LOCAL)
+                                          ? instr.operands[1]
+                                          : instr.operands[0];
+                        writtenSlots.insert(slot);
+                    }
+                    break;
+                case OpCode::LOAD_LOCAL:
+                case OpCode::LOAD_LOCAL_INT:
+                case OpCode::LOAD_LOCAL_FLOAT:
+                case OpCode::LOAD_LOCAL_BOOL:
+                case OpCode::LOAD_LOCAL_BOXED_INST:
+                    if (!instr.operands.empty())
+                        readSlots.insert(instr.operands[0]);
+                    break;
+                case OpCode::LOAD_LOAD_ADD_INT:
+                case OpCode::LOAD_LOAD_SUB_INT:
+                case OpCode::LOAD_LOAD_MUL_INT:
+                    if (instr.operands.size() >= 2)
+                    {
+                        readSlots.insert(instr.operands[0]);
+                        readSlots.insert(instr.operands[1]);
+                    }
+                    break;
+                default: break;
+            }
+        }
+        auto& cc = s.cc;
+        for (size_t slot : readSlots)
+        {
+            if (writtenSlots.count(slot)) continue;
+            SlotType lt = s.localTypes.count(slot) ? s.localTypes[slot] : SlotType::INT;
+            if (isBoxedSlotType(lt)) continue;       // boxed locals stay memory-only
+            if (lt == SlotType::FLOAT)
+            {
+                Vec reg = cc.new_xmm();
+                cc.movsd(reg, Mem(s.localsBase, static_cast<int32_t>(slot * 8)));
+                s.invariantFloatLocals[slot] = reg;
+            }
+            else
+            {
+                Gp reg = cc.new_gp64();
+                cc.mov(reg, Mem(s.localsBase, static_cast<int32_t>(slot * 8)));
+                s.invariantIntLocals[slot] = reg;
+            }
+        }
+    }
+
     static OSRFrame setupOSRFrame(Compiler& cc,
                                    const bytecode::BytecodeProgram& program,
                                    const std::vector<LocalSlotInfo>& localSlotInfos,
@@ -177,7 +251,10 @@ namespace vm::jit
             auto labelIt = s.labels.find(ip);
             if (labelIt != s.labels.end())
             {
+                // MYT-211: see emitCodegenLoop in JitCompiler_Core.cpp.
+                flushAllHints(s);
                 s.cc.bind(labelIt->second);
+                invalidateAllHints(s);
                 if (s.backEdgeTargets.find(ip) == s.backEdgeTargets.end())
                     s.arrayInfoCache.clear();
             }
@@ -228,6 +305,37 @@ namespace vm::jit
         auto backEdges = collectBackEdgeTargets(program, loopStartOffset, loopEndOffset + 1);
         size_t resumeOffset = loopEndOffset + 1;
 
+        // MYT-211: construct the emission state before the cc.jmp to the loop
+        // back-edge target so loop-invariant locals can be hoisted into
+        // virtregs first — the hoisted cc.mov instructions must be reached
+        // by the runtime before control jumps into the loop body that reads
+        // them.
+        JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
+                           frame.boxedBase, frame.progPtr,
+                           frame.usesBoxedTypes, localCount, frame.localStride,
+                           0, {}, /*slotHints=*/{}, /*invariantIntLocals=*/{},
+                           /*invariantFloatLocals=*/{}, localTypes, false,
+                           OSRBailoutReason::NONE, 0,
+                           0, labels, program,
+                           typeFeedback, {}, backEdges};
+        s.inlineFieldICHits = inlineFieldICHits;
+        s.inlineFieldICMisses = inlineFieldICMisses;
+        s.inlineFieldSetICHits = inlineFieldSetICHits;
+        s.inlineFieldSetICMisses = inlineFieldSetICMisses;
+        s.inlineDecisions = inlineDecisions;
+        // Phase 1 (self-recursive TCO): OSR frames don't bind functionEntryLabel
+        // (the generated code enters at the loop's back-edge target, not a
+        // function prologue), so suppress tail-call lowering in OSR emission.
+        s.selfTailCallEnabled = false;
+
+        // MYT-211: invariant-local hoisting is disabled in this iteration —
+        // suspected source of the hang because asmjit's RA may not preserve
+        // virtreg liveness across the prologue→loop-body cc.jmp when the def
+        // (cc.mov from local memory) and uses (loop-body cc.cmp/cc.add) are
+        // in different basic blocks separated by an unconditional jump that
+        // doesn't bind a label. Re-enable after debugging confirms safe.
+        // hoistInvariantLocals(s, program, loopStartOffset, loopEndOffset);
+
         // MYT-153 Bug #2 (double-count): the captured state reflects the
         // interpreter right before the JUMP_BACK at `jumpBackOffset` fires,
         // so resuming at `loopStartOffset` would re-run the block we've
@@ -243,23 +351,6 @@ namespace vm::jit
             if (it != labels.end())
                 cc.jmp(it->second);
         }
-
-        JitEmissionState s{cc, ctxPtr, frame.localsBase, frame.stackBase,
-                           frame.boxedBase, frame.progPtr,
-                           frame.usesBoxedTypes, localCount, frame.localStride,
-                           0, {}, localTypes, false,
-                           OSRBailoutReason::NONE, 0,
-                           0, labels, program,
-                           typeFeedback, {}, backEdges};
-        s.inlineFieldICHits = inlineFieldICHits;
-        s.inlineFieldICMisses = inlineFieldICMisses;
-        s.inlineFieldSetICHits = inlineFieldSetICHits;
-        s.inlineFieldSetICMisses = inlineFieldSetICMisses;
-        s.inlineDecisions = inlineDecisions;
-        // Phase 1 (self-recursive TCO): OSR frames don't bind functionEntryLabel
-        // (the generated code enters at the loop's back-edge target, not a
-        // function prologue), so suppress tail-call lowering in OSR emission.
-        s.selfTailCallEnabled = false;
         // MYT-207: same constraint for the direct-self-call path. The OSR
         // entry's FuncNode->label() points at the OSR loop prelude, not the
         // original function's prologue — recursing into it would re-execute
@@ -268,6 +359,11 @@ namespace vm::jit
         s.selfDirectCallEnabled = false;
 
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
+            // MYT-211: flush register-cached slots so emitLocalsWriteBack
+            // reads consistent memory and any deopt resume sees the correct
+            // operand-stack content. emitCleanup also flushes, but doing it
+            // here keeps the locals-writeback ordering crystal clear.
+            flushAllHints(es);
             emitLocalsWriteBack(es);
             size_t exitTarget = (target == 0) ? resumeOffset : target;
             es.cc.mov(qword_ptr(es.ctxPtr, offsetof(JitContext, osrExitOffset)),

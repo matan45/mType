@@ -43,6 +43,32 @@ namespace vm::jit
         std::unordered_map<size_t, asmjit::Label> localJumpLabels;
     };
 
+    // MYT-211: virtual-register operand-stack cache. The interpreter's JIT
+    // historically materialized every push/pop through Mem(stackBase, depth*8),
+    // which left the asmjit register allocator no liberty to coalesce adjacent
+    // ops — every arithmetic instruction round-tripped through L1. A SlotHint
+    // records that a stack slot's current value is also live in a virtreg so
+    // the next consumer can skip the memory load. When `dirty == true` the
+    // memory at the slot is stale relative to the register; the consumer must
+    // either consume from the register or flushSlot(...) before reading
+    // memory directly. When `isConstant == true`, the slot holds a known
+    // immediate value (PUSH_INT / PUSH_BOOL); shift-range checks and other
+    // peephole folds key off this. Hints are only published in the !boxed
+    // path (s.usesBoxedTypes == false) — the boxed value-stack pipeline is
+    // unchanged. Non-hint-aware emitters call flushAllHints(s) at entry to
+    // make memory coherent, so they continue to read Mem(stackBase, ...)
+    // exactly as before.
+    struct SlotHint
+    {
+        asmjit::x86::Gp gp;            // Gp virtreg, valid when valid && !isXmm
+        asmjit::x86::Vec xmm;          // Xmm virtreg, valid when valid && isXmm
+        int64_t constValue = 0;        // populated when isConstant
+        bool valid = false;            // true if gp/xmm holds the slot's value
+        bool dirty = false;            // memory stale vs register
+        bool isXmm = false;            // value is in xmm (FLOAT) rather than gp
+        bool isConstant = false;       // constValue holds the slot's value
+    };
+
     struct JitEmissionState
     {
         asmjit::x86::Compiler& cc;
@@ -59,6 +85,17 @@ namespace vm::jit
 
         int stackDepth = 0;
         std::vector<SlotType> slotTypes;
+        // MYT-211: per-stack-slot hint cache, sized in lockstep with stackDepth.
+        // Only populated when !usesBoxedTypes; in boxed mode left empty so all
+        // accesses go through memory exactly as before.
+        std::vector<SlotHint> slotHints;
+        // MYT-211: read-only locals hoisted to virtregs at OSR-prologue end.
+        // emitLoadLocal short-circuits to slotHints with the cached reg when
+        // the slot index is present here. STORE_LOCAL to a hoisted slot is
+        // a programming error (the slot would not have been hoisted) — guarded
+        // by an explicit check at population time.
+        std::unordered_map<size_t, asmjit::x86::Gp> invariantIntLocals;
+        std::unordered_map<size_t, asmjit::x86::Vec> invariantFloatLocals;
         std::unordered_map<size_t, SlotType> localTypes;
         bool compileFailed = false;
         // MYT-148: when compileFailed is set during OSR emission, record which
@@ -161,6 +198,32 @@ namespace vm::jit
         // with a per-function pre-scan (computeInlineLocalsBudget).
         static constexpr size_t INLINE_LOCALS_SLACK = 32;
     };
+
+    // MYT-211: virtual-register operand-stack helpers. See SlotHint for the
+    // model. All functions are no-ops in boxed mode (s.usesBoxedTypes == true)
+    // so the boxed pipeline keeps its memory-only behavior unchanged.
+    void publishGpHint(JitEmissionState& s, int stackIdx,
+                       asmjit::x86::Gp reg, bool dirty);
+    void publishXmmHint(JitEmissionState& s, int stackIdx,
+                        asmjit::x86::Vec reg, bool dirty);
+    // Record-only variants for emitters that have already written stackBase
+    // memory themselves (e.g. emitUnbox in the boxed-mode LOAD_LOCAL path).
+    // These ONLY update the hint cache — they don't emit any cc.* instruction.
+    void recordGpHint(JitEmissionState& s, int stackIdx, asmjit::x86::Gp reg);
+    void recordXmmHint(JitEmissionState& s, int stackIdx, asmjit::x86::Vec reg);
+    void publishConstHint(JitEmissionState& s, int stackIdx, int64_t value);
+    // consumeGpHint: returns a Gp virtreg holding the slot value. If a hint
+    // is published, reuses its register (or materializes a constant). Else
+    // emits cc.mov(reg, Mem(stackBase, idx*8)). Always clears the slot's
+    // hint after the call so subsequent writes don't believe the slot is
+    // still cached.
+    asmjit::x86::Gp consumeGpHint(JitEmissionState& s, int stackIdx);
+    asmjit::x86::Vec consumeXmmHint(JitEmissionState& s, int stackIdx);
+    void flushSlot(JitEmissionState& s, int stackIdx);
+    void flushAllHints(JitEmissionState& s);
+    void invalidateAllHints(JitEmissionState& s);
+    // Resize hints to match stackDepth — call after a manual stackDepth bump.
+    void resizeHintsToDepth(JitEmissionState& s);
 
     void emitBox(JitEmissionState& s, asmjit::x86::Gp destAddr,
                  int stackOff, SlotType type);

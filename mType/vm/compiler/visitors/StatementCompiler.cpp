@@ -424,12 +424,40 @@ namespace vm::compiler::visitors
                 // If we're in the top-level pseudo-frame (scopeDepthStart=0, localStartSlot=0)
                 // but in an anonymous block (scope depth > 3), treat as local for lambda capture
                 if (frame.scopeDepthStart == 0 && frame.localStartSlot == 0) {
-                    // Check if we're in an anonymous block
-                    // Module-level globals are at depth 2-3, anonymous blocks/loops are at depth 4+
-                    if (ctx.variableTracker.getCurrentScopeDepth() > 3) {
+                    int depth = ctx.variableTracker.getCurrentScopeDepth();
+                    if (depth > 3) {
                         isInRealFunction = true;  // Treat as local for capture semantics
-                    } else {
-                        isInRealFunction = false;  // Top-level global
+                    }
+                    // MYT-XXX (top-level decl promotion): module-level decls
+                    // (scope depth 2–3) are normally globals (DECLARE_VAR),
+                    // but we promote them to entry-frame locals (STORE_LOCAL)
+                    // when it's safe — eliminating LOAD_VAR/STORE_VAR helper
+                    // calls in tight loops and unlocking non-boxed-mode JIT.
+                    // Preconditions:
+                    //   1. Not inside an imported file (other modules may
+                    //      reference our PUBLIC names; only the entry script
+                    //      knows that nothing imports it).
+                    //   2. Not declared `final` — finality is enforced via
+                    //      the DECLARE_VAR operand and the runtime
+                    //      Environment; locals don't track it. Promoting a
+                    //      `final` would silently allow reassignment.
+                    //   3. NestedReferenceCollector did not bail out (no "*"
+                    //      sentinel in the captured-by-nested set).
+                    //   4. The name itself is not referenced from any nested
+                    //      callable body — function, method, constructor, OR
+                    //      lambda. (Top-level lambdas can capture entry-frame
+                    //      locals, but a lambda nested inside another lambda
+                    //      can't — so we treat all lambda body reads as
+                    //      conservative "must stay global".)
+                    else if (!ctx.inImportedFile &&
+                             !node->getIsFinal() &&
+                             !ctx.namesReferencedByNestedNonLambdaFns.count("*") &&
+                             !ctx.namesReferencedByNestedNonLambdaFns.count(name))
+                    {
+                        isInRealFunction = true;  // Promote to entry-frame local
+                    }
+                    else {
+                        isInRealFunction = false;  // Stay global
                     }
                 } else {
                     isInRealFunction = true;

@@ -1424,6 +1424,10 @@ namespace vm::jit
     bool emitObjectOps(JitEmissionState& s,
                        const bytecode::BytecodeProgram::Instruction& instr)
     {
+        // MYT-211: object/method emitters cross many cc.invoke sites and read
+        // stackBase memory directly; they're not hint-aware. Flush at entry.
+        // Cheap no-op if the cache is already empty.
+        flushAllHints(s);
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
