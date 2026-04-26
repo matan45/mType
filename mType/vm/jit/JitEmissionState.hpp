@@ -202,7 +202,7 @@ namespace vm::jit
     // model. All functions are no-ops in boxed mode (s.usesBoxedTypes == true)
     // so the boxed pipeline keeps its memory-only behavior unchanged.
     void publishGpHint(JitEmissionState& s, int stackIdx,
-                       asmjit::x86::Gp reg, bool dirty);
+                       asmjit::x86::Gp reg);
     void publishXmmHint(JitEmissionState& s, int stackIdx,
                         asmjit::x86::Vec reg, bool dirty);
     // Record-only variants for emitters that have already written stackBase
@@ -221,9 +221,6 @@ namespace vm::jit
     void flushSlot(JitEmissionState& s, int stackIdx);
     void flushAllHints(JitEmissionState& s);
     void invalidateAllHints(JitEmissionState& s);
-    // Resize hints to match stackDepth — call after a manual stackDepth bump.
-    void resizeHintsToDepth(JitEmissionState& s);
-
     void emitBox(JitEmissionState& s, asmjit::x86::Gp destAddr,
                  int stackOff, SlotType type);
     void emitUnbox(JitEmissionState& s, asmjit::x86::Gp srcAddr,

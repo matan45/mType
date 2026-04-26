@@ -441,8 +441,9 @@ namespace vm::compiler::visitors
                     //      the DECLARE_VAR operand and the runtime
                     //      Environment; locals don't track it. Promoting a
                     //      `final` would silently allow reassignment.
-                    //   3. NestedReferenceCollector did not bail out (no "*"
-                    //      sentinel in the captured-by-nested set).
+                    //   3. NestedReferenceCollector did not bail out (the
+                    //      `.pessimistic` flag is false on the captured-by-
+                    //      nested result).
                     //   4. The name itself is not referenced from any nested
                     //      callable body — function, method, constructor, OR
                     //      lambda. (Top-level lambdas can capture entry-frame
@@ -451,7 +452,7 @@ namespace vm::compiler::visitors
                     //      conservative "must stay global".)
                     else if (!ctx.inImportedFile &&
                              !node->getIsFinal() &&
-                             !ctx.namesReferencedByNestedNonLambdaFns.count("*") &&
+                             !ctx.nestedReferencesPessimistic &&
                              !ctx.namesReferencedByNestedNonLambdaFns.count(name))
                     {
                         isInRealFunction = true;  // Promote to entry-frame local

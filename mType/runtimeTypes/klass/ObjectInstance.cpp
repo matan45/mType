@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <unordered_set>
 #include <vector>
 
 namespace runtimeTypes::klass
@@ -61,6 +62,7 @@ namespace runtimeTypes::klass
 
     std::shared_ptr<FieldDefinition> ObjectInstance::getField(const std::string& fieldName) const
     {
+        if (!classDefinition) return nullptr;
         // Search in class hierarchy to support inherited fields
         return classDefinition->getFieldInHierarchy(fieldName);
     }
@@ -231,15 +233,22 @@ namespace runtimeTypes::klass
     std::vector<std::pair<std::string, Value>> ObjectInstance::getAllFields() const
     {
         std::vector<std::pair<std::string, Value>> result;
+        std::unordered_set<std::string> seen;
         if (classDefinition) {
             const auto& names = classDefinition->getFieldIndexToName();
             for (size_t i = 0; i < names.size(); ++i) {
                 if (i < fieldVector.size()) {
+                    seen.insert(names[i]);
                     result.emplace_back(names[i], fieldVector[i]);
                 }
             }
         }
+        // Declared-name collision can occur if setField wrote a name into the
+        // dynamic fallback before the classDef was bound (e.g. via the null-
+        // classDef path on a partially-initialised instance). Skip the dup so
+        // consumers like JsonSerializer don't see the same key twice.
         for (const auto& pair : fieldValues) {
+            if (seen.count(pair.first)) continue;
             result.emplace_back(pair.first, pair.second);
         }
         return result;

@@ -445,8 +445,11 @@ namespace vm::compiler
         // can decide global-vs-local at the point of emission. Lambdas are
         // excluded — captureScopeVariables handles them via the existing
         // capture path. Imports stay globals (handled by inImportedFile).
-        context.namesReferencedByNestedNonLambdaFns =
-            analysis::NestedReferenceCollector::collect(root);
+        {
+            auto refs = analysis::NestedReferenceCollector::collect(root);
+            context.nestedReferencesPessimistic = refs.pessimistic;
+            context.namesReferencedByNestedNonLambdaFns = std::move(refs.names);
+        }
 
         // Visit the root node to generate bytecode
         root->accept(*this);
@@ -1044,17 +1047,9 @@ namespace vm::compiler
             // MYT-XXX: while compiling an imported file, top-level decls must
             // stay globals (other modules may import their PUBLIC names);
             // gate the promotion path with this flag.
-            bool savedInImportedFile = context.inImportedFile;
-            context.inImportedFile = true;
-            try
             {
+                visitors::ImportedFileContextGuard guard(context, true);
                 importedAST->accept(*this);
-                context.inImportedFile = savedInImportedFile;
-            }
-            catch (...)
-            {
-                context.inImportedFile = savedInImportedFile;
-                throw;
             }
 
             // Register bytecode function aliases for constructors/methods

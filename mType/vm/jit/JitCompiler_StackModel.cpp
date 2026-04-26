@@ -17,15 +17,6 @@ namespace vm::jit
         return s.slotHints[stackIdx];
     }
 
-    void resizeHintsToDepth(JitEmissionState& s)
-    {
-        const size_t want = static_cast<size_t>(s.stackDepth);
-        if (s.slotHints.size() > want)
-            s.slotHints.resize(want);
-        else if (s.slotHints.size() < want)
-            s.slotHints.resize(want);
-    }
-
     // MYT-211: writes the published value to stackBase[stackIdx*8] in BOTH
     // boxed and non-boxed modes (primitives on the operand stack always live
     // in stackBase, regardless of usesBoxedTypes), AND records the virtreg
@@ -33,7 +24,7 @@ namespace vm::jit
     // write keeps the slot coherent for any non-hint-aware emit that runs
     // before the next consumer (which calls flushAllHints at entry, but
     // that's a no-op when memory is already coherent).
-    void publishGpHint(JitEmissionState& s, int stackIdx, Gp reg, bool /*dirty*/)
+    void publishGpHint(JitEmissionState& s, int stackIdx, Gp reg)
     {
         s.cc.mov(Mem(s.stackBase, stackIdx * 8), reg);
         SlotHint& h = slotAt(s, stackIdx);
@@ -65,11 +56,9 @@ namespace vm::jit
     // into the cache without emitting a redundant store.
     void recordGpHint(JitEmissionState& s, int stackIdx, Gp reg)
     {
-        if (s.usesBoxedTypes && stackIdx >= 0)
-        {
-            // Boxed-mode hint cache lives in the same vector — we're recording
-            // the unboxed primitive that lives in stackBase[stackIdx*8].
-        }
+        // Boxed-mode shares the same slotHints vector — the unboxed primitive
+        // still lives in stackBase[stackIdx*8] regardless of usesBoxedTypes,
+        // so no mode-specific branch is needed here.
         SlotHint& h = slotAt(s, stackIdx);
         h.gp = reg;
         h.xmm = Vec();

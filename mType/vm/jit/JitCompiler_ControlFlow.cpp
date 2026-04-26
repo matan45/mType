@@ -112,7 +112,7 @@ namespace vm::jit
             Gp tmp = cc.new_gp64();
             cc.mov(tmp, Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)));
             s.slotTypes.push_back(lt);
-            publishGpHint(s, s.stackDepth, tmp, /*dirty=*/false);
+            publishGpHint(s, s.stackDepth, tmp);
             s.stackDepth++;
             return;
         }
@@ -176,7 +176,7 @@ namespace vm::jit
             // publishGpHint was fixed to always write to stackBase.
             Gp val = consumeGpHint(s, s.stackDepth - 1);
             cc.mov(Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)), val);
-            publishGpHint(s, s.stackDepth - 1, val, /*dirty=*/false);
+            publishGpHint(s, s.stackDepth - 1, val);
         }
         s.localTypes[physSlot] = tt;
     }

@@ -339,7 +339,7 @@ namespace vm::jit
         // MYT-211: write the boolean result via publishGpHint (always writes
         // stackBase). Same final memory state as the original cc.mov.
         s.slotTypes.push_back(SlotType::BOOL);
-        publishGpHint(s, s.stackDepth - 1, result, /*dirty=*/false);
+        publishGpHint(s, s.stackDepth - 1, result);
     }
 
     static void emitUnboxParamBoxedMode(Compiler& cc, Gp localsBase,

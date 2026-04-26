@@ -55,9 +55,14 @@ namespace value
         // Inline resolved-Promise variant. Represents Promise<Int> already
         // resolved with an int value. Payload holds the raw int inline; no
         // heap PromiseValue is allocated. AWAIT unwraps to a plain INT, which
-        // INVOKE_INT_GET_VALUE and arithmetic executors handle natively. If
-        // anyone calls .then()/.catch_() on an inline form, it must be
-        // materialized to a real AsyncPromiseValue first (slow path).
+        // INVOKE_INT_GET_VALUE and arithmetic executors handle natively.
+        //
+        // Note: .then()/.catch_() are not surfaced to user code today — the
+        // only callers are inside VirtualMachineAsync.cpp on an already-
+        // narrowed AsyncPromiseValue. If/when those methods are ever exposed
+        // to .mt programs, an inline PROMISE_INT receiver must first be
+        // materialized to a real AsyncPromiseValue (slow path). That helper
+        // does not yet exist; add it before exposing the methods.
         PROMISE_INT
     };
 

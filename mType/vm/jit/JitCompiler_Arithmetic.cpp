@@ -37,7 +37,7 @@ namespace vm::jit
             default: break;
         }
         s.slotTypes.push_back(SlotType::INT);
-        publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
+        publishGpHint(s, s.stackDepth - 1, left);
         return true;
     }
 
@@ -65,7 +65,7 @@ namespace vm::jit
         cc.cqo(rdxReg, raxReg);
         cc.idiv(rdxReg, raxReg, right);
         s.slotTypes.push_back(SlotType::INT);
-        publishGpHint(s, s.stackDepth - 1, raxReg, /*dirty=*/false);
+        publishGpHint(s, s.stackDepth - 1, raxReg);
         return true;
     }
 
@@ -83,7 +83,7 @@ namespace vm::jit
             case OpCode::BITWISE_NOT_OP: case OpCode::BITWISE_NOT_INT:  cc.not_(tmp); break;
             default: return false;
         }
-        publishGpHint(s, s.stackDepth - 1, tmp, /*dirty=*/false);
+        publishGpHint(s, s.stackDepth - 1, tmp);
         return true;
     }
 
@@ -120,7 +120,7 @@ namespace vm::jit
             default: break;
         }
         s.slotTypes.push_back(SlotType::INT);
-        publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
+        publishGpHint(s, s.stackDepth - 1, left);
         return true;
     }
 
@@ -167,7 +167,7 @@ namespace vm::jit
             else
                 cc.sar(left, asmjit::Imm(static_cast<uint32_t>(shamt)));
             s.slotTypes.push_back(SlotType::INT);
-            publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
+            publishGpHint(s, s.stackDepth - 1, left);
             return true;
         }
 
@@ -189,7 +189,7 @@ namespace vm::jit
             cc.sar(left, count.r8());
 
         s.slotTypes.push_back(SlotType::INT);
-        publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
+        publishGpHint(s, s.stackDepth - 1, left);
         return true;
     }
 
@@ -911,7 +911,7 @@ namespace vm::jit
                 cc.mov(right, literal);
                 cc.add(left, right);
                 s.slotTypes.push_back(SlotType::INT);
-                publishGpHint(s, s.stackDepth - 1, left, /*dirty=*/false);
+                publishGpHint(s, s.stackDepth - 1, left);
                 return true;
             }
 

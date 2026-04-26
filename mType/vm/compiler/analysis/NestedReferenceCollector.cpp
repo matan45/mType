@@ -324,19 +324,14 @@ namespace vm::compiler::analysis
         };
     }
 
-    std::unordered_set<std::string> NestedReferenceCollector::collect(ast::ASTNode* root)
+    NestedReferenceResult NestedReferenceCollector::collect(ast::ASTNode* root)
     {
         Walker w;
         w.walk(root);
-        if (w.pessimistic)
-        {
-            // Sentinel: caller checks for this before consulting normal
-            // membership. If the sentinel is present, treat every name as
-            // captured and skip promotion.
-            std::unordered_set<std::string> all;
-            all.insert("*");
-            return all;
-        }
-        return std::move(w.names);
+        NestedReferenceResult result;
+        result.pessimistic = w.pessimistic;
+        if (!w.pessimistic)
+            result.names = std::move(w.names);
+        return result;
     }
 }

@@ -105,14 +105,15 @@ namespace vm::jit
                 case OpCode::STORE_LOCAL_FLOAT:
                 case OpCode::STORE_LOCAL_BOOL:
                 case OpCode::STORE_LOCAL_BOXED_INST:
-                case OpCode::LOAD_STORE_LOCAL:           // dst slot in operand[1]
                 case OpCode::ADD_INT_STORE_LOCAL:        // dst slot in operand[0]
                     if (!instr.operands.empty())
+                        writtenSlots.insert(instr.operands[0]);
+                    break;
+                case OpCode::LOAD_STORE_LOCAL:           // src=op[0], dst=op[1]
+                    if (instr.operands.size() >= 2)
                     {
-                        size_t slot = (instr.opcode == OpCode::LOAD_STORE_LOCAL)
-                                          ? instr.operands[1]
-                                          : instr.operands[0];
-                        writtenSlots.insert(slot);
+                        readSlots.insert(instr.operands[0]);
+                        writtenSlots.insert(instr.operands[1]);
                     }
                     break;
                 case OpCode::LOAD_LOCAL:

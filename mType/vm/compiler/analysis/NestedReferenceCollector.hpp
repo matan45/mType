@@ -7,6 +7,17 @@ namespace ast { class ASTNode; }
 
 namespace vm::compiler::analysis
 {
+    // Result of a NestedReferenceCollector::collect run. `pessimistic == true`
+    // means the walker hit an AST node it didn't know how to traverse, so it
+    // bailed out before finishing. Callers MUST check `pessimistic` before
+    // consulting `names` — when set, treat every top-level name as referenced
+    // and disable promotion.
+    struct NestedReferenceResult
+    {
+        std::unordered_set<std::string> names;
+        bool pessimistic = false;
+    };
+
     /**
      * MYT-XXX (top-level decl promotion): walks the entire program AST and
      * collects every identifier name that appears in the body of a nested
@@ -32,7 +43,8 @@ namespace vm::compiler::analysis
     public:
         // Walk `root` (typically a ProgramNode). Returns the set of
         // identifier names referenced from any nested non-lambda function
-        // or method body anywhere in the tree.
-        static std::unordered_set<std::string> collect(ast::ASTNode* root);
+        // or method body anywhere in the tree, plus a pessimistic flag set
+        // when the walker bailed out on an unknown node type.
+        static NestedReferenceResult collect(ast::ASTNode* root);
     };
 }
