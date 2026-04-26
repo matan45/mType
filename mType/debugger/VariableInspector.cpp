@@ -411,9 +411,9 @@ namespace debugger {
         }
 
         // Get all fields from the object
-        const auto& fieldMap = obj->getAllFieldValues();
+        const auto& fieldList = obj->getAllFields();
 
-        for (const auto& [fieldName, fieldValue] : fieldMap) {
+        for (const auto& [fieldName, fieldValue] : fieldList) {
             fields.push_back(formatValue(fieldName, fieldValue));
         }
 

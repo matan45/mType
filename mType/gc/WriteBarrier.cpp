@@ -13,16 +13,7 @@ namespace gc
         if (!object) return;
 
         auto* instance = static_cast<runtimeTypes::klass::ObjectInstance*>(object);
-
-        // Visit all field values
-        for (const auto& [name, fieldValue] : instance->getAllFieldValues())
-        {
-            void* ptr = extractPointer(fieldValue);
-            if (ptr)
-            {
-                callback(ptr);
-            }
-        }
+        instance->visitReferences(callback);
     }
 
     void visitLambdaReferences(void* object, std::function<void(void*)> callback)

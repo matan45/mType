@@ -33,13 +33,11 @@ namespace runtimeTypes::klass
 
     void ObjectInstance::resetForRecycle()
     {
-        // unordered_map::clear() destroys nodes (releasing Value bridges and
-        // shared_ptr<MethodDefinition> entries) but keeps the bucket array.
+        // unordered_map::clear() destroys nodes (releasing Value bridges)
+        // but keeps the bucket array.
         fieldValues.clear();
-        methodCache.clear();
         genericTypeBindings.clear();
         fieldVector.clear();
-        fieldVectorInitialized = false;
         gcRegistered = false;
         primitiveTag_ = value::PrimitiveTypeTag::NONE;
         classDefinition.reset();
@@ -56,14 +54,11 @@ namespace runtimeTypes::klass
         }
         if (classDefinition)
         {
-            fieldValues.reserve(classDefinition->getTotalFieldCount());
             primitiveTag_ = value::classNameToPrimitiveTag(classDefinition->getName());
-            if (primitiveTag_ != value::PrimitiveTypeTag::NONE)
-            {
-                ensureFieldVector();
-            }
+            ensureFieldVector();
         }
     }
+
     std::shared_ptr<FieldDefinition> ObjectInstance::getField(const std::string& fieldName) const
     {
         // Search in class hierarchy to support inherited fields
@@ -78,11 +73,13 @@ namespace runtimeTypes::klass
             if (field->isStatic()) {
                 return field->getValue();
             }
-            // For instance fields, get value from this instance's storage
-            auto it = fieldValues.find(fieldName);
-            if (it != fieldValues.end()) {
-                return it->second;
+            
+            // For instance fields, check fieldVector first (O(1))
+            size_t idx = classDefinition->getFieldIndex(fieldName);
+            if (idx != SIZE_MAX && idx < fieldVector.size()) {
+                return fieldVector[idx];
             }
+
             // Return default value if not set
             return field->getValue(); // This will be the initial value from class definition
         } else {
@@ -127,33 +124,25 @@ namespace runtimeTypes::klass
                 }
                 field->setValue(value);
             } else {
-                // For instance fields, set value in this instance's storage
-                // GC: Write barrier for instance field
-                auto it = fieldValues.find(fieldName);
-                void* newPtr = gc::extractPointer(value);
-                if (it != fieldValues.end())
-                {
-                    void* oldPtr = gc::extractPointer(it->second);
+                // For instance fields, use vector storage (O(1))
+                size_t idx = classDefinition->getFieldIndex(fieldName);
+                if (idx != SIZE_MAX && idx < fieldVector.size()) {
+                    // GC: Write barrier for instance field
+                    void* newPtr = gc::extractPointer(value);
+                    void* oldPtr = gc::extractPointer(fieldVector[idx]);
                     if (oldPtr != nullptr && oldPtr != newPtr)
                     {
                         gc::GC::onRefCountDecrement(oldPtr);
                     }
-                }
-                // If storing an object reference, this object becomes a potential cycle root
-                if (newPtr != nullptr && gcRegistered)
-                {
-                    gc::GC::onRefCountDecrement(this);
-                }
-                fieldValues[fieldName] = value;
-
-                // Phase 6 (IC): Keep fieldVector in sync
-                if (fieldVectorInitialized)
-                {
-                    size_t idx = classDefinition->getFieldIndex(fieldName);
-                    if (idx != SIZE_MAX && idx < fieldVector.size())
+                    // If storing an object reference, this object becomes a potential cycle root
+                    if (newPtr != nullptr && gcRegistered)
                     {
-                        fieldVector[idx] = value;
+                        gc::GC::onRefCountDecrement(this);
                     }
+                    fieldVector[idx] = value;
+                } else {
+                    // Fallback to dynamic fields (should not happen for declared fields)
+                    fieldValues[fieldName] = value;
                 }
             }
         } else {
@@ -181,24 +170,12 @@ namespace runtimeTypes::klass
 
     void ObjectInstance::ensureFieldVector() const
     {
-        if (fieldVectorInitialized) return;
         if (!classDefinition) return;
 
-        const auto& indexMap = classDefinition->getFieldIndexMap();
         size_t count = classDefinition->getIndexedFieldCount();
-        fieldVector.resize(count, std::monostate{});
-
-        // Populate from existing fieldValues
-        for (const auto& [name, value] : fieldValues)
-        {
-            auto it = indexMap.find(name);
-            if (it != indexMap.end() && it->second < count)
-            {
-                fieldVector[it->second] = value;
-            }
+        if (fieldVector.size() != count) {
+            fieldVector.resize(count, std::monostate{});
         }
-
-        fieldVectorInitialized = true;
     }
 
     const Value& ObjectInstance::getFieldByIndex(size_t index) const
@@ -230,16 +207,6 @@ namespace runtimeTypes::klass
         }
 
         fieldVector[index] = value;
-
-        // Phase 4: O(1) map sync — look up the name for this index in the
-        // class's fieldIndexToName vector. The prior implementation scanned
-        // the entire indexMap linearly to find the matching entry.
-        if (!classDefinition) return;
-        const auto& names = classDefinition->getFieldIndexToName();
-        if (index < names.size())
-        {
-            fieldValues[names[index]] = value;
-        }
     }
 
     void ObjectInstance::loadFromValueObject(const value::ValueObject& src)
@@ -247,25 +214,9 @@ namespace runtimeTypes::klass
         if (!classDefinition) return;
 
         // Direct vector copy: std::vector::operator= retains heap-typed Values
-        // exactly once (one atomic per heap field). The previous setField path
-        // touched fieldValues and fieldVector twice and ran the GC write
-        // barrier per field — for a freshly recycled instance the barrier is
-        // pure overhead because the old slot is monostate.
+        // exactly once (one atomic per heap field).
         const auto& srcFields = src.getFields();
         fieldVector = srcFields;
-        fieldVectorInitialized = true;
-
-        // Mirror the vector into fieldValues so getFieldValue(name) — which
-        // is what GET_FIELD on the slow path consults — sees the same data.
-        // Single hashmap insert per field with no setField machinery
-        // (no getField hierarchy walk, no extractPointer, no gcRegistered
-        // probe, no per-field write barrier branch).
-        const auto& names = classDefinition->getFieldIndexToName();
-        const size_t n = std::min(srcFields.size(), names.size());
-        for (size_t i = 0; i < n; ++i)
-        {
-            fieldValues[names[i]] = srcFields[i];
-        }
 
         // Generic-type bindings carry over too — the previous code copied
         // them via a per-entry setGenericTypeBinding loop that landed in the
@@ -274,6 +225,46 @@ namespace runtimeTypes::klass
         if (!srcBindings.empty())
         {
             genericTypeBindings = srcBindings;
+        }
+    }
+
+    std::vector<std::pair<std::string, Value>> ObjectInstance::getAllFields() const
+    {
+        std::vector<std::pair<std::string, Value>> result;
+        if (classDefinition) {
+            const auto& names = classDefinition->getFieldIndexToName();
+            for (size_t i = 0; i < names.size(); ++i) {
+                if (i < fieldVector.size()) {
+                    result.emplace_back(names[i], fieldVector[i]);
+                }
+            }
+        }
+        for (const auto& pair : fieldValues) {
+            result.emplace_back(pair.first, pair.second);
+        }
+        return result;
+    }
+
+    void ObjectInstance::visitReferences(const std::function<void(void*)>& callback) const
+    {
+        // Visit all static field values in fieldVector
+        for (const auto& fieldValue : fieldVector)
+        {
+            void* ptr = gc::extractPointer(fieldValue);
+            if (ptr)
+            {
+                callback(ptr);
+            }
+        }
+
+        // Visit dynamic field values
+        for (const auto& pair : fieldValues)
+        {
+            void* ptr = gc::extractPointer(pair.second);
+            if (ptr)
+            {
+                callback(ptr);
+            }
         }
     }
 
@@ -520,29 +511,5 @@ namespace runtimeTypes::klass
     const std::unordered_map<std::string, std::string>& ObjectInstance::getGenericTypeBindings() const
     {
         return genericTypeBindings;
-    }
-
-    std::shared_ptr<MethodDefinition> ObjectInstance::findMethodInHierarchy(const std::string& methodName, size_t argCount) const
-    {
-        if (!classDefinition) {
-            return nullptr;
-        }
-
-        // Create cache key
-        std::string cacheKey = methodName + "_" + std::to_string(argCount);
-
-        // Check cache first
-        auto cacheIt = methodCache.find(cacheKey);
-        if (cacheIt != methodCache.end()) {
-            return cacheIt->second;
-        }
-
-        // Search using ClassDefinition's hierarchy search
-        auto method = classDefinition->findMethodInHierarchy(methodName, argCount);
-
-        // Cache the result (even if nullptr to avoid repeated searches)
-        methodCache[cacheKey] = method;
-
-        return method;
     }
 }

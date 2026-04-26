@@ -137,8 +137,7 @@ namespace json
             addGenericBindings(bindings, jsonObj);
 
         // Instance fields
-        const auto& fieldValues = obj->getAllFieldValues();
-        for (const auto& [name, fieldVal] : fieldValues)
+        for (const auto& [name, fieldVal] : obj->getAllFields())
         {
             checkReservedFieldName(name, obj->getTypeName());
             jsonObj->setProperty(name, serializeValue(fieldVal));
@@ -295,15 +294,15 @@ namespace json
     {
         auto jsonArr = JsonValue::array();
 
-        const auto& fields = obj->getAllFieldValues();
-        auto countIt = fields.find(countField);
-        auto dataIt = fields.find(dataField);
-        if (countIt == fields.end() || dataIt == fields.end())
+        value::Value countVal = obj->getFieldValue(countField);
+        value::Value dataVal = obj->getFieldValue(dataField);
+        
+        if (value::isVoid(countVal) || value::isVoid(dataVal))
             return jsonArr;
 
-        int64_t count = safeGet<int64_t>(countIt->second,
+        int64_t count = safeGet<int64_t>(countVal,
             "serializing list collection: '" + countField + "' is not an int");
-        auto arr = safeGet<std::shared_ptr<value::NativeArray>>(dataIt->second,
+        auto arr = safeGet<std::shared_ptr<value::NativeArray>>(dataVal,
             "serializing list collection: '" + dataField + "' is not an array");
         if (!arr) return jsonArr;
 
@@ -318,15 +317,15 @@ namespace json
     {
         auto jsonArr = JsonValue::array();
 
-        const auto& fields = obj->getAllFieldValues();
-        auto topIt = fields.find("top");
-        auto dataIt = fields.find("data");
-        if (topIt == fields.end() || dataIt == fields.end())
+        value::Value topVal = obj->getFieldValue("top");
+        value::Value dataVal = obj->getFieldValue("data");
+        
+        if (value::isVoid(topVal) || value::isVoid(dataVal))
             return jsonArr;
 
-        int64_t top = safeGet<int64_t>(topIt->second,
+        int64_t top = safeGet<int64_t>(topVal,
             "serializing Stack: 'top' is not an int");
-        auto arr = safeGet<std::shared_ptr<value::NativeArray>>(dataIt->second,
+        auto arr = safeGet<std::shared_ptr<value::NativeArray>>(dataVal,
             "serializing Stack: 'data' is not an array");
         if (!arr || top < 0) return jsonArr;
 
@@ -341,22 +340,22 @@ namespace json
     {
         auto jsonArr = JsonValue::array();
 
-        const auto& fields = obj->getAllFieldValues();
-        auto frontIt = fields.find("front");
-        auto countIt = fields.find("count");
-        auto capIt = fields.find("capacity");
-        auto dataIt = fields.find("data");
-        if (frontIt == fields.end() || countIt == fields.end() ||
-            capIt == fields.end() || dataIt == fields.end())
+        value::Value frontVal = obj->getFieldValue("front");
+        value::Value countVal = obj->getFieldValue("count");
+        value::Value capVal = obj->getFieldValue("capacity");
+        value::Value dataVal = obj->getFieldValue("data");
+        
+        if (value::isVoid(frontVal) || value::isVoid(countVal) ||
+            value::isVoid(capVal) || value::isVoid(dataVal))
             return jsonArr;
 
-        int64_t front = safeGet<int64_t>(frontIt->second,
+        int64_t front = safeGet<int64_t>(frontVal,
             "serializing ArrayQueue: 'front' is not an int");
-        int64_t count = safeGet<int64_t>(countIt->second,
+        int64_t count = safeGet<int64_t>(countVal,
             "serializing ArrayQueue: 'count' is not an int");
-        int64_t capacity = safeGet<int64_t>(capIt->second,
+        int64_t capacity = safeGet<int64_t>(capVal,
             "serializing ArrayQueue: 'capacity' is not an int");
-        auto arr = safeGet<std::shared_ptr<value::NativeArray>>(dataIt->second,
+        auto arr = safeGet<std::shared_ptr<value::NativeArray>>(dataVal,
             "serializing ArrayQueue: 'data' is not an array");
         if (!arr) return jsonArr;
 
@@ -374,28 +373,26 @@ namespace json
     {
         auto jsonArr = JsonValue::array();
 
-        const auto& fields = obj->getAllFieldValues();
-        auto headIt = fields.find("head");
-        if (headIt == fields.end()) return jsonArr;
+        value::Value headVal = obj->getFieldValue("head");
+        if (value::isVoid(headVal)) return jsonArr;
 
         // head could be null
-        if (value::isNullType(headIt->second) || value::isVoid(headIt->second))
+        if (value::isNullType(headVal))
             return jsonArr;
 
-        auto node = safeGet<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(headIt->second,
+        auto node = safeGet<std::shared_ptr<runtimeTypes::klass::ObjectInstance>>(headVal,
             "serializing LinkedList: 'head' is not an ObjectInstance");
         while (node)
         {
-            const auto& nodeFields = node->getAllFieldValues();
-            auto dataIt = nodeFields.find("data");
-            if (dataIt != nodeFields.end())
-                jsonArr->addToArray(serializeValue(dataIt->second));
+            value::Value dataVal = node->getFieldValue("data");
+            if (!value::isVoid(dataVal))
+                jsonArr->addToArray(serializeValue(dataVal));
 
-            auto nextIt = nodeFields.find("next");
-            if (nextIt == nodeFields.end()) break;
+            value::Value nextVal = node->getFieldValue("next");
+            if (value::isVoid(nextVal)) break;
 
-            if (value::isObject(nextIt->second))
-                node = value::asObject(nextIt->second);
+            if (value::isObject(nextVal))
+                node = value::asObject(nextVal);
             else
                 break;
         }
@@ -408,23 +405,23 @@ namespace json
     {
         auto jsonArr = JsonValue::array();
 
-        const auto& fields = obj->getAllFieldValues();
-        auto capIt = fields.find("capacity");
-        auto sizesIt = fields.find("bucketSizes");
-        auto keysIt = fields.find("keyBuckets");
-        auto valsIt = fields.find("valueBuckets");
-        if (capIt == fields.end() || sizesIt == fields.end() ||
-            keysIt == fields.end() || valsIt == fields.end())
+        value::Value capVal = obj->getFieldValue("capacity");
+        value::Value sizesVal = obj->getFieldValue("bucketSizes");
+        value::Value keysVal = obj->getFieldValue("keyBuckets");
+        value::Value valsVal = obj->getFieldValue("valueBuckets");
+        
+        if (value::isVoid(capVal) || value::isVoid(sizesVal) ||
+            value::isVoid(keysVal) || value::isVoid(valsVal))
             return jsonArr;
 
-        int64_t capacity = safeGet<int64_t>(capIt->second,
+        int64_t capacity = safeGet<int64_t>(capVal,
             "serializing HashMap: 'capacity' is not an int");
-        auto bucketSizes = safeGet<std::shared_ptr<value::NativeArray>>(sizesIt->second,
+        auto bucketSizes = safeGet<std::shared_ptr<value::NativeArray>>(sizesVal,
             "serializing HashMap: 'bucketSizes' is not an array");
         // 2D bucket arrays are jagged NativeArrays (NativeArray of NativeArrays)
-        auto keyBuckets = safeGet<std::shared_ptr<value::NativeArray>>(keysIt->second,
+        auto keyBuckets = safeGet<std::shared_ptr<value::NativeArray>>(keysVal,
             "serializing HashMap: 'keyBuckets' is not an array");
-        auto valBuckets = safeGet<std::shared_ptr<value::NativeArray>>(valsIt->second,
+        auto valBuckets = safeGet<std::shared_ptr<value::NativeArray>>(valsVal,
             "serializing HashMap: 'valueBuckets' is not an array");
         if (!bucketSizes || !keyBuckets || !valBuckets) return jsonArr;
 
@@ -459,19 +456,19 @@ namespace json
     {
         auto jsonArr = JsonValue::array();
 
-        const auto& fields = obj->getAllFieldValues();
-        auto capIt = fields.find("capacity");
-        auto sizesIt = fields.find("bucketSizes");
-        auto bucketsIt = fields.find("buckets");
-        if (capIt == fields.end() || sizesIt == fields.end() || bucketsIt == fields.end())
+        value::Value capVal = obj->getFieldValue("capacity");
+        value::Value sizesVal = obj->getFieldValue("bucketSizes");
+        value::Value bucketsVal = obj->getFieldValue("buckets");
+        
+        if (value::isVoid(capVal) || value::isVoid(sizesVal) || value::isVoid(bucketsVal))
             return jsonArr;
 
-        int64_t capacity = safeGet<int64_t>(capIt->second,
+        int64_t capacity = safeGet<int64_t>(capVal,
             "serializing HashSet: 'capacity' is not an int");
-        auto bucketSizes = safeGet<std::shared_ptr<value::NativeArray>>(sizesIt->second,
+        auto bucketSizes = safeGet<std::shared_ptr<value::NativeArray>>(sizesVal,
             "serializing HashSet: 'bucketSizes' is not an array");
         // 2D bucket array is a jagged NativeArray (NativeArray of NativeArrays)
-        auto buckets = safeGet<std::shared_ptr<value::NativeArray>>(bucketsIt->second,
+        auto buckets = safeGet<std::shared_ptr<value::NativeArray>>(bucketsVal,
             "serializing HashSet: 'buckets' is not an array");
         if (!bucketSizes || !buckets) return jsonArr;
 

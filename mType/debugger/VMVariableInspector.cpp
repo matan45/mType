@@ -609,8 +609,8 @@ namespace debugger
                 {
                     try
                     {
-                        // DEFENSIVE: getAllFieldValues() might throw if object is corrupted
-                        const auto& fields = obj->getAllFieldValues();
+                        // DEFENSIVE: getAllFields() might throw if object is corrupted
+                        const auto& fields = obj->getAllFields();
                         for (const auto& [fieldName, fieldValue] : fields)
                         {
                             try
