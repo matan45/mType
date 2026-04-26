@@ -166,9 +166,12 @@ namespace vm::runtime
             auto funcMetadata = context.program->getFunctionMeta(frame.functionName);
 
             if (funcMetadata && funcMetadata->isAsync) {
-                // Check if already wrapped in Promise (by CREATE_PROMISE opcode)
-                // This prevents double-wrapping when bytecode compiler emits CREATE_PROMISE
-                if (!value::isPromise(returnVal)) {
+                // Check if already wrapped in Promise (by CREATE_PROMISE opcode
+                // or its fused variants, which may emit the inline PROMISE_INT
+                // form). isAnyPromise covers both heap and inline shapes — the
+                // inline form must NOT be re-wrapped, that would defeat the
+                // point of the resolved-fast-path.
+                if (!value::isAnyPromise(returnVal)) {
                     // Wrap return value in AsyncPromiseValue for async functions
                     // Use AsyncPromiseValue to support event loop and callbacks
                     auto promise = std::make_shared<value::AsyncPromiseValue>(returnVal);

@@ -73,6 +73,26 @@ namespace vm::optimization::patterns
             return Kind::AddIntStoreLocal;
         }
 
+        // Pair: OBJECT_TO_VALUE + CREATE_PROMISE. Hot on every async function
+        // that returns a primitive-boxed value (Int/Float/Bool/etc.) — the
+        // compiler emits NEW_VALUE_OBJECT, OBJECT_TO_VALUE, CREATE_PROMISE,
+        // RETURN_VALUE for `return new Int(x)` style. Both opcodes are pure
+        // stack ops with no operands.
+        if (a.opcode == OpCode::OBJECT_TO_VALUE && b.opcode == OpCode::CREATE_PROMISE &&
+            a.operands.empty() && b.operands.empty())
+        {
+            return Kind::ObjectToValueCreatePromise;
+        }
+
+        // Pair: CREATE_PROMISE + RETURN_VALUE. Closing pair of every async
+        // value-returning function. Pure stack ops, no operands. Safe — no
+        // suspend semantics on either side.
+        if (a.opcode == OpCode::CREATE_PROMISE && b.opcode == OpCode::RETURN_VALUE &&
+            a.operands.empty() && b.operands.empty())
+        {
+            return Kind::CreatePromiseReturnValue;
+        }
+
         // Triples
         if (offset + 2 >= count) return Kind::None;
         const auto& c = program.getInstruction(offset + 2);
@@ -170,6 +190,18 @@ namespace vm::optimization::patterns
             result.originalLength = 2;
             result.instructions.emplace_back(
                 OpCode::ADD_INT_STORE_LOCAL, b.operands[0]);
+            break;
+        }
+        case Kind::ObjectToValueCreatePromise:
+        {
+            result.originalLength = 2;
+            result.instructions.emplace_back(OpCode::OBJECT_TO_VALUE_CREATE_PROMISE);
+            break;
+        }
+        case Kind::CreatePromiseReturnValue:
+        {
+            result.originalLength = 2;
+            result.instructions.emplace_back(OpCode::CREATE_PROMISE_RETURN_VALUE);
             break;
         }
         case Kind::LoadLoadAddInt:

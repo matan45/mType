@@ -320,6 +320,8 @@ namespace vm::bytecode
         LOAD_GET_FIELD,           // LOAD_LOCAL s  + GET_FIELD name_idx        (operands: [s, name_idx])
         LOAD_STORE_LOCAL,         // LOAD_LOCAL src + STORE_LOCAL dst          (operands: [src, dst])
         ADD_INT_STORE_LOCAL,      // ADD_INT + STORE_LOCAL dst                 (operands: [dst])
+        OBJECT_TO_VALUE_CREATE_PROMISE,  // OBJECT_TO_VALUE + CREATE_PROMISE   (no operands)
+        CREATE_PROMISE_RETURN_VALUE,     // CREATE_PROMISE + RETURN_VALUE      (no operands)
 
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
@@ -556,6 +558,8 @@ namespace vm::bytecode
             case OpCode::LOAD_GET_FIELD: return "LOAD_GET_FIELD";
             case OpCode::LOAD_STORE_LOCAL: return "LOAD_STORE_LOCAL";
             case OpCode::ADD_INT_STORE_LOCAL: return "ADD_INT_STORE_LOCAL";
+            case OpCode::OBJECT_TO_VALUE_CREATE_PROMISE: return "OBJECT_TO_VALUE_CREATE_PROMISE";
+            case OpCode::CREATE_PROMISE_RETURN_VALUE: return "CREATE_PROMISE_RETURN_VALUE";
 
             default: return "UNKNOWN";
         }

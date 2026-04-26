@@ -51,6 +51,13 @@ namespace environment::registry::builtin
             out << "[Promise:rejected]";
             return;
         }
+        if (value::isPromiseInt(value))
+        {
+            // Inline resolved-Promise<Int> form. Always fulfilled by
+            // construction, so match the heap-form fulfilled rendering.
+            out << "[Promise:fulfilled]";
+            return;
+        }
         if (value::isObject(value))
         {
             auto v = value::asObject(value);
