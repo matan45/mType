@@ -1,26 +1,32 @@
 // Combo 33: Nested generic ArrayList<ArrayList<Int>> + lambda pipeline
-// Tests: flatten, transform, and sum through Function/Predicate lambdas
+// Tests: flatten, transform, and sum through lambda pipelines.
+// Uses a LOCAL single-method UnaryFn<T,R> interface because lib's
+// Function<T,R> declares apply+andThen+compose (3 methods) and so isn't
+// a functional interface for lambda assignment.
 
 import * from "../../lib/collections/ArrayList.mt";
-import * from "../../lib/functional/Function.mt";
 import * from "../../lib/functional/Predicate.mt";
 import * from "../../lib/primitives/Int.mt";
+
+interface UnaryFn<T, R> {
+    function apply(T x): R;
+}
 
 function flatten(ArrayList<ArrayList<Int>> matrix): ArrayList<Int> {
     ArrayList<Int> flat = new ArrayList<Int>();
     for (int i = 0; i < matrix.size(); i++) {
-        ArrayList<Int> row = matrix.get(i);
+        ArrayList<Int> row = (ArrayList<Int>)matrix.get(i);
         for (int j = 0; j < row.size(); j++) {
-            flat.add(row.get(j));
+            flat.add((Int)row.get(j));
         }
     }
     return flat;
 }
 
-function transform(ArrayList<Int> source, Function<Int, Int> fn): ArrayList<Int> {
+function transform(ArrayList<Int> source, UnaryFn<Int, Int> fn): ArrayList<Int> {
     ArrayList<Int> dest = new ArrayList<Int>();
     for (int i = 0; i < source.size(); i++) {
-        dest.add(fn.apply(source.get(i)));
+        dest.add((Int)fn.apply((Int)source.get(i)));
     }
     return dest;
 }
@@ -28,7 +34,7 @@ function transform(ArrayList<Int> source, Function<Int, Int> fn): ArrayList<Int>
 function sumIf(ArrayList<Int> source, Predicate<Int> keep): int {
     int total = 0;
     for (int i = 0; i < source.size(); i++) {
-        Int v = source.get(i);
+        Int v = (Int)source.get(i);
         if (keep.test(v)) {
             total = total + v.getValue();
         }
@@ -58,7 +64,7 @@ function main(): void {
     ArrayList<Int> flat = flatten(matrix);
     print("flat count=" + flat.size());
 
-    Function<Int, Int> doubler = x -> new Int(x.getValue() * 2);
+    UnaryFn<Int, Int> doubler = x -> new Int(x.getValue() * 2);
     ArrayList<Int> doubled = transform(flat, doubler);
     print("doubled count=" + doubled.size());
 

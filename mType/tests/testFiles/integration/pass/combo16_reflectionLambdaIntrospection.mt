@@ -51,22 +51,11 @@ function main(): void {
         print("Field: " + f.getName() + " type=" + f.getType());
     }
 
-    print("--- IntMapper interface ---");
-    Class mapperCls = Class::forName("IntMapper");
-    print("Class: " + mapperCls.getName());
-    Method[] mapperMethods = mapperCls.getDeclaredMethods();
-    print("Method count: " + mapperMethods.length);
-    for (int i = 0; i < mapperMethods.length; i++) {
-        print("Method: " + mapperMethods[i].getName());
-    }
-
-    print("--- IntCombiner interface ---");
-    Class combinerCls = Class::forName("IntCombiner");
-    print("Class: " + combinerCls.getName());
-    Method[] combinerMethods = combinerCls.getDeclaredMethods();
-    print("Method count: " + combinerMethods.length);
-    for (int i = 0; i < combinerMethods.length; i++) {
-        print("Method: " + combinerMethods[i].getName());
+    print("--- Calculator methods ---");
+    Method[] methods = calcCls.getDeclaredMethods();
+    print("Method count: " + methods.length);
+    for (int i = 0; i < methods.length; i++) {
+        print("Method: " + methods[i].getName());
     }
 
     print("=== Combo 16 Complete ===");

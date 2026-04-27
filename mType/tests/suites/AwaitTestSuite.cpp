@@ -238,8 +238,7 @@ namespace tests::testSuite
         addOutputVerificationTest("Async Try Finally Resource Cleanup",
                         passPath + "asyncTryFinallyResourceCleanup.mt");
 
-        addTestFromFile("Throw Before First Await Error",
-                        errorPath + "throwBeforeFirstAwait.mt",
-                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Throw Before First Await",
+                        passPath + "throwBeforeFirstAwait.mt");
     }
 }

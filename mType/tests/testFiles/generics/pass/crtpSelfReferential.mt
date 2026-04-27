@@ -13,7 +13,7 @@ class Base<T extends Base<T>> {
     public function increment(): T {
         this.counter = this.counter + 1;
         // Return self typed as T (the CRTP self-type).
-        return this as T;
+        return (T)this;
     }
 
     public function getCounter(): int {
@@ -24,8 +24,7 @@ class Base<T extends Base<T>> {
 class Sub extends Base<Sub> {
     string label;
 
-    public constructor(string name) {
-        super();
+    public constructor(string name) : super() {
         this.label = name;
     }
 

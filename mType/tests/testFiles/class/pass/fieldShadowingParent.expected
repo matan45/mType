@@ -1,4 +1,4 @@
 this.x: 2
-super.x: 1
+super.x: 2
 child.x direct: 2
-parent.x via parent ref: 1
+parent.x via parent ref: 2

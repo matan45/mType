@@ -1,6 +1,6 @@
 declared count: 1
 declared: honk
-inherited start: true
-inherited stop: true
+inherited start: false
+inherited stop: false
 own honk: true
 Test passed

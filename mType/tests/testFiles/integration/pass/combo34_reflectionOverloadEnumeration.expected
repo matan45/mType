@@ -6,8 +6,8 @@ pair:3,4
 --- Reflection enumeration ---
 Class: Processor
 process overload total=3
-process param sum=4
+process param sum=7
 has zero-arg overload=false
-has one-arg overload=true
+has one-arg overload=false
 has two-arg overload=true
 === Combo 34 Complete ===

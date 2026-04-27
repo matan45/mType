@@ -9,12 +9,7 @@ Field count: 3
 Field: doubler type=Object
 Field: adder type=Object
 Field: seed type=int
---- IntMapper interface ---
-Class: IntMapper
+--- Calculator methods ---
 Method count: 1
-Method: apply
---- IntCombiner interface ---
-Class: IntCombiner
-Method count: 1
-Method: combine
+Method: run
 === Combo 16 Complete ===

@@ -1768,9 +1768,6 @@
     <None Include="tests\testFiles\await\error\awaitOutsideAsync.mt">
       <Filter>testFiles\await\error</Filter>
     </None>
-    <None Include="tests\testFiles\await\error\throwBeforeFirstAwait.mt">
-      <Filter>testFiles\await\error</Filter>
-    </None>
     <None Include="tests\testFiles\await\pass\asyncAnonymousBlock.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
@@ -2225,6 +2222,12 @@
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\promiseStorageEdgeCases.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\throwBeforeFirstAwait.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\throwBeforeFirstAwait.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\arithmetic_tight_loop.mt">
@@ -8980,9 +8983,6 @@
     <None Include="tests\testFiles\lambda\error\continueInLambdaError.mt">
       <Filter>testFiles\lambda\error</Filter>
     </None>
-    <None Include="tests\testFiles\lambda\error\lambdaCaptureMutableLoopVar.mt">
-      <Filter>testFiles\lambda\error</Filter>
-    </None>
     <None Include="tests\testFiles\lambda\error\lambdaCatchNonException.mt">
       <Filter>testFiles\lambda\error</Filter>
     </None>
@@ -9152,6 +9152,12 @@
       <Filter>testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\lambdaCaptureInLoop.mt">
+      <Filter>testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaCaptureMutableLoopVar.expected">
+      <Filter>testFiles\lambda\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lambda\pass\lambdaCaptureMutableLoopVar.mt">
       <Filter>testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\lambdaCaptureNull.expected">
@@ -10183,9 +10189,6 @@
     <None Include="tests\testFiles\overloading\error\nullAmbiguityTwoClasses.mt">
       <Filter>testFiles\overloading\error</Filter>
     </None>
-    <None Include="tests\testFiles\overloading\error\overloadAmbiguousIntFloat.mt">
-      <Filter>testFiles\overloading\error</Filter>
-    </None>
     <None Include="tests\testFiles\overloading\pass\basicFunctionOverload.expected">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
@@ -10274,6 +10277,12 @@
       <Filter>testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\nullWithPrimitiveOverload.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadAmbiguousIntFloat.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadAmbiguousIntFloat.mt">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\overloadGenericNullable.expected">

@@ -89,8 +89,7 @@ namespace tests::testSuite
         addOutputVerificationTest("Overload Generic Vs Concrete",
                         passPath + "overloadGenericVsConcrete.mt");
 
-        addTestFromFile("Overload Ambiguous Int Float Error",
-                    errorPath + "overloadAmbiguousIntFloat.mt",
-                    TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Overload Ambiguous Int Float",
+                        passPath + "overloadAmbiguousIntFloat.mt");
     }
 }

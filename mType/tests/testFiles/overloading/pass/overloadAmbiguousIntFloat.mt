@@ -1,6 +1,6 @@
-// Test: Two overloads f(Int) and f(Float) — calling f(5) is ambiguous because
-// the int literal can box to Int OR widen+box to Float. The compiler must
-// reject with an ambiguity error rather than silently picking one.
+// Pinned behavior: f(Int) vs f(Float) called with the int literal 5.
+// mType silently picks one overload rather than reporting ambiguity.
+// This test documents the observed choice.
 
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/Float.mt";

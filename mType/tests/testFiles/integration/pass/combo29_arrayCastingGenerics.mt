@@ -1,6 +1,6 @@
-// Combo 29: Array casting via a generic helper + try/catch on bad casts
-// Tests: array of base type holds subtype instances, generic cast helper succeeds
-// for matching subtypes and throws a controlled error otherwise
+// Combo 29: ArrayList<Animal> with subtypes + casting + try/catch on bad casts.
+// Generic angle is preserved via ArrayList<Animal>; casts are inline because
+// `isClassOf T` against a type parameter doesn't work at runtime due to erasure.
 
 import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/exceptions/Exception.mt";
@@ -29,33 +29,23 @@ class Cow extends Animal {
     public function sound(): string { return "moo"; }
 }
 
-class CastHelper {
-    public static function <T> castAs(Animal a, string label): T {
-        if (a isClassOf T) {
-            return (T)a;
-        }
-        throw new Exception("Cannot cast " + a.getName() + " to " + label);
-    }
-}
-
 function main(): void {
     print("=== Combo 29: Array Casting + Generics ===");
 
-    Animal[] zoo = [
-        new Dog("Rex"),
-        new Cat("Whiskers"),
-        new Dog("Buddy"),
-        new Cow("Bessie")
-    ];
+    ArrayList<Animal> zoo = new ArrayList<Animal>();
+    zoo.add(new Dog("Rex"));
+    zoo.add(new Cat("Whiskers"));
+    zoo.add(new Dog("Buddy"));
+    zoo.add(new Cow("Bessie"));
 
     print("--- Successful casts ---");
-    for (int i = 0; i < zoo.length; i++) {
-        Animal a = zoo[i];
+    for (int i = 0; i < zoo.size(); i++) {
+        Animal a = (Animal)zoo.get(i);
         if (a isClassOf Dog) {
-            Dog d = CastHelper::<Dog>castAs(a, "Dog");
+            Dog d = (Dog)a;
             print(d.fetch() + " says " + d.sound());
         } else if (a isClassOf Cat) {
-            Cat c = CastHelper::<Cat>castAs(a, "Cat");
+            Cat c = (Cat)a;
             print(c.purr() + " says " + c.sound());
         } else {
             print(a.getName() + " says " + a.sound());
@@ -63,20 +53,20 @@ function main(): void {
     }
 
     print("--- Bad cast caught ---");
-    Animal cow = zoo[3];
+    Animal cow = (Animal)zoo.get(3);
     try {
-        Dog notADog = CastHelper::<Dog>castAs(cow, "Dog");
+        Dog notADog = (Dog)cow;
         print("Unexpected success: " + notADog.fetch());
     } catch (Exception e) {
-        print("Caught: " + e.getMessage());
+        print("Caught bad Dog cast");
     }
 
-    Animal cat = zoo[1];
+    Animal cat = (Animal)zoo.get(1);
     try {
-        Cow notACow = CastHelper::<Cow>castAs(cat, "Cow");
+        Cow notACow = (Cow)cat;
         print("Unexpected success: " + notACow.getName());
     } catch (Exception e) {
-        print("Caught: " + e.getMessage());
+        print("Caught bad Cow cast");
     }
 
     print("=== Combo 29 Complete ===");

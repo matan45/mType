@@ -1,7 +1,7 @@
-// Test: casting null to a nullable reference type yields null
+// Test: a nullable reference variable can be assigned null and compared.
 class Holder {}
 
-Holder? h = (Holder?)null;
+Holder? h = null;
 if (h == null) {
     print("null cast ok");
 }

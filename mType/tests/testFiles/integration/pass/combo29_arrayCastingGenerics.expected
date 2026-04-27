@@ -5,6 +5,6 @@ Whiskers purrs says meow
 Buddy fetches says woof
 Bessie says moo
 --- Bad cast caught ---
-Caught: Cannot cast Bessie to Dog
-Caught: Cannot cast Whiskers to Cow
+Caught bad Dog cast
+Caught bad Cow cast
 === Combo 29 Complete ===

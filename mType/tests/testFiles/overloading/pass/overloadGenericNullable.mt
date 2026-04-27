@@ -58,11 +58,11 @@ function main(): void {
     Int? nullInt = null;
     print(r.resolveNullable(nullInt));
 
-    // Generic nullable
+    // Generic nullable (Phase 1 generics: explicit type args required at call sites)
     print("--- Generic nullable ---");
-    print(r.resolveGenericNullable(new String("present"), "default"));
+    print(r.resolveGenericNullable<String>(new String("present"), "default"));
     String? absent = null;
-    print(r.resolveGenericNullable(absent, "default"));
+    print(r.resolveGenericNullable<String>(absent, "default"));
 
     // Box type overloads
     print("--- Box type resolve ---");

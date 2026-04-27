@@ -7,7 +7,7 @@ Call count: 2
 --- Reflection discovery ---
 Inspecting class: DataService
 Total methods: 4
-Found scheduled: fetchData (every 5000ms)
 Found scheduled: cleanup (every 10000ms)
   -> Cacheable with TTL: 30s
+Found scheduled: fetchData (every 5000ms)
 === Combo 04 Complete ===

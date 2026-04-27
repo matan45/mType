@@ -1,24 +1,26 @@
 // Combo 27: Recursive generic function with lambda predicate
-// Tests: generic recursion that walks a list using a lambda as termination check
+// Tests: generic recursion that walks a list using a lambda as termination check.
+// Returns an int index instead of T? because mType's Phase 1 generics don't
+// substitute T? cleanly when assigning to a concrete-typed variable.
 
 import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/functional/Predicate.mt";
 import * from "../../lib/primitives/Int.mt";
 import * from "../../lib/primitives/String.mt";
 
-function <T> findFirstAt(ArrayList<T> list, Predicate<T> pred, int index): T? {
+function <T> findFirstAt(ArrayList<T> list, Predicate<T> pred, int index): int {
     if (index >= list.size()) {
-        return null;
+        return -1;
     }
-    T candidate = list.get(index);
+    T candidate = (T)list.get(index);
     if (pred.test(candidate)) {
-        return candidate;
+        return index;
     }
-    return findFirstAt(list, pred, index + 1);
+    return findFirstAt<T>(list, pred, index + 1);
 }
 
-function <T> findFirst(ArrayList<T> list, Predicate<T> pred): T? {
-    return findFirstAt(list, pred, 0);
+function <T> findFirstIndex(ArrayList<T> list, Predicate<T> pred): int {
+    return findFirstAt<T>(list, pred, 0);
 }
 
 function main(): void {
@@ -33,24 +35,27 @@ function main(): void {
     nums.add(new Int(12));
 
     Predicate<Int> firstOdd = n -> n.getValue() % 2 != 0;
-    Int? oddHit = findFirst(nums, firstOdd);
-    if (oddHit != null) {
+    int oddIdx = findFirstIndex<Int>(nums, firstOdd);
+    if (oddIdx >= 0) {
+        Int oddHit = (Int)nums.get(oddIdx);
         print("First odd: " + oddHit.getValue());
     } else {
         print("First odd: none");
     }
 
     Predicate<Int> bigger = n -> n.getValue() > 10;
-    Int? bigHit = findFirst(nums, bigger);
-    if (bigHit != null) {
+    int bigIdx = findFirstIndex<Int>(nums, bigger);
+    if (bigIdx >= 0) {
+        Int bigHit = (Int)nums.get(bigIdx);
         print("First > 10: " + bigHit.getValue());
     } else {
         print("First > 10: none");
     }
 
     Predicate<Int> impossible = n -> n.getValue() > 999;
-    Int? noHit = findFirst(nums, impossible);
-    if (noHit != null) {
+    int noIdx = findFirstIndex<Int>(nums, impossible);
+    if (noIdx >= 0) {
+        Int noHit = (Int)nums.get(noIdx);
         print("Found unexpected: " + noHit.getValue());
     } else {
         print("First > 999: none");
@@ -64,8 +69,9 @@ function main(): void {
     words.add(new String("hey"));
 
     Predicate<String> longWord = s -> s.length() >= 5;
-    String? wHit = findFirst(words, longWord);
-    if (wHit != null) {
+    int wIdx = findFirstIndex<String>(words, longWord);
+    if (wIdx >= 0) {
+        String wHit = (String)words.get(wIdx);
         print("First long word: " + wHit.getValue());
     } else {
         print("First long word: none");

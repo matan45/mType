@@ -97,28 +97,21 @@ class RenderException extends Exception {
 // --- Static overloaded factory ---
 class WidgetFactory {
     public static function create(string type, string id): Renderable {
-        switch (type) {
-            case "button":
-                return new Button(id, new String("Click Me"));
-                break;
-            case "label":
-                return new Label(id, new Int(0));
-                break;
-            default:
-                return new Panel(id);
-                break;
+        Renderable result = new Panel(id);
+        if (type == "button") {
+            result = new Button(id, new String("Click Me"));
+        } else if (type == "label") {
+            result = new Label(id, new Int(0));
         }
+        return result;
     }
 
     public static function create(string type, string id, string label): Renderable {
-        switch (type) {
-            case "button":
-                return new Button(id, new String(label));
-                break;
-            default:
-                return new Panel(id);
-                break;
+        Renderable result = new Panel(id);
+        if (type == "button") {
+            result = new Button(id, new String(label));
         }
+        return result;
     }
 }
 

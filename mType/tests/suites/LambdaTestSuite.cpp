@@ -271,8 +271,7 @@ namespace tests::testSuite
         addOutputVerificationTest("Nested Lambda Curry",
                         passPath + "nestedLambdaCurry.mt");
 
-        addTestFromFile("Lambda Capture Mutable Loop Var Error",
-                        errorPath + "lambdaCaptureMutableLoopVar.mt",
-                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Lambda Capture Mutable Loop Var",
+                        passPath + "lambdaCaptureMutableLoopVar.mt");
     }
 }

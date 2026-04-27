@@ -35,7 +35,9 @@ function main(): void {
     // Shared identity: a mutation through `a` is visible through `b`.
     a.add(new Int(99));
     print("after a.add, b size: " + b.size());
-    print("after a.add, b last: " + b.get(b.size() - 1).getValue());
+    int lastIdx = b.size() - 1;
+    Int lastVal = b.get(lastIdx);
+    print("after a.add, b last: " + lastVal.getValue());
 }
 
 main();
