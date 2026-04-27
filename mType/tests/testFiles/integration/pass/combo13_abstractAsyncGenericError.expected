@@ -1,0 +1,11 @@
+=== Combo 13: Abstract + Async + Generic Constraint + Error ===
+--- Email processing ---
+Sent to: user@example.com
+Validation failed [EmailProcessor]: Invalid email: missing @
+--- SMS processing ---
+SMS to: 1234567890
+Validation failed [SMSProcessor]: Phone too short: 3 digits
+--- Processor names ---
+EmailProcessor
+SMSProcessor
+=== Combo 13 Complete ===

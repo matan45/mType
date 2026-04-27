@@ -1,0 +1,19 @@
+=== Edge: Stream Empty Array ===
+--- Empty array stream ---
+Length: 0
+--- Filter to empty ---
+After filter: 0
+--- Count empty ---
+Count: 0
+--- Chain on empty ---
+Chained result length: 0
+--- Single element ---
+Single length: 1
+Single value: 42
+--- Reduce non-empty ---
+Sum: 15
+--- Map on empty ---
+Mapped empty length: 0
+--- Empty ArrayList stream ---
+Empty list stream length: 0
+=== Edge Complete ===

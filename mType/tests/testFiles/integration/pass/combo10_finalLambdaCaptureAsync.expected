@@ -1,0 +1,15 @@
+=== Combo 10: Final + Lambda Capture + Async ===
+--- Basic final capture ---
+Hello 42
+--- Final in async loop ---
+value=0
+value=10
+value=20
+--- Final array in lambda ---
+sum=15
+--- Nested final capture ---
+OUTER+INNER
+--- Final across await ---
+pre=100
+post=100
+=== Combo 10 Complete ===

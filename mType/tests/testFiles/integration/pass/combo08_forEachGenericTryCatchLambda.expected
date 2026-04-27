@@ -1,0 +1,21 @@
+=== Combo 08: ForEach + Generics + TryCatch + Lambda ===
+--- Processing integers ---
+  OK: doubled: 20
+  ERROR [400]: Invalid item: 20
+  OK: doubled: 60
+  ERROR [400]: Invalid item: 40
+  OK: doubled: 100
+  Results: 3 success, 2 errors
+--- Processing strings ---
+  OK: processed: [hello]
+  ERROR [400]: Invalid item: 
+  OK: processed: [world]
+  Results: 2 success, 1 errors
+--- Nested exception handling ---
+  100/10 = 10
+  Skipped: Division by zero
+  100/5 = 20
+  Skipped: Division by zero
+  100/2 = 50
+Total: 80
+=== Combo 08 Complete ===

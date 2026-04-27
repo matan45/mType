@@ -1,0 +1,13 @@
+=== Combo 04: Annotation + Async + Reflection ===
+--- Direct async calls ---
+Fetch 1: data-1
+Fetch 2: data-2
+Cleanup: cleaned
+Call count: 2
+--- Reflection discovery ---
+Inspecting class: DataService
+Total methods: 4
+Found scheduled: fetchData (every 5000ms)
+Found scheduled: cleanup (every 10000ms)
+  -> Cacheable with TTL: 30s
+=== Combo 04 Complete ===

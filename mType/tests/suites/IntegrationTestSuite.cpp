@@ -1,4 +1,4 @@
-﻿#include "IntegrationTestSuite.hpp"
+#include "IntegrationTestSuite.hpp"
 
 namespace tests::testSuite
 {
@@ -373,6 +373,41 @@ namespace tests::testSuite
                                   passPath + "ic/fused_lambda_safe.mt");
         addOutputVerificationTest("Fusion Skipped At Jump Target",
                                   passPath + "ic/fused_jump_target.mt");
+
+        // ====================================
+        // CROSS-FEATURE COMBO TESTS
+        // ====================================
+
+        addOutputVerificationTest("Combo 01: Value Class + Generics + Stream",
+                                  passPath + "combo01_valueClassGenericStream.mt");
+        addOutputVerificationTest("Combo 02: Pattern Match + Lambda + Async",
+                                  passPath + "combo02_patternMatchLambdaAsync.mt");
+        addOutputVerificationTest("Combo 03: Import Alias + Generics + Interface",
+                                  passPath + "combo03_importAliasGenericsInterface.mt");
+        addOutputVerificationTest("Combo 04: Annotation + Async + Reflection",
+                                  passPath + "combo04_annotationAsyncReflection.mt");
+        addOutputVerificationTest("Combo 05: Switch + Pattern Match + Cast in Loops",
+                                  passPath + "combo05_switchPatternCastLoop.mt");
+        addOutputVerificationTest("Combo 06: Interpolation + Lambda + Collections",
+                                  passPath + "combo06_interpolationLambdaCollections.mt");
+        addOutputVerificationTest("Combo 07: Value Class + Interface + Cast + Match",
+                                  passPath + "combo07_valueClassInterfaceCastMatch.mt");
+        addOutputVerificationTest("Combo 08: ForEach + Generics + TryCatch + Lambda",
+                                  passPath + "combo08_forEachGenericTryCatchLambda.mt");
+        addOutputVerificationTest("Combo 09: Recursive + Async + Generics + Error",
+                                  passPath + "combo09_recursiveAsyncGenericError.mt");
+        addOutputVerificationTest("Combo 10: Final + Lambda Capture + Async",
+                                  passPath + "combo10_finalLambdaCaptureAsync.mt");
+        addOutputVerificationTest("Combo 11: Static + Overload + Generics + Inherit",
+                                  passPath + "combo11_staticOverloadGenericInherit.mt");
+        addOutputVerificationTest("Combo 12: Box Classes + Stream + Lambda Pipeline",
+                                  passPath + "combo12_boxStreamLambdaPipeline.mt");
+        addOutputVerificationTest("Combo 13: Abstract + Async + Generic Constraint + Error",
+                                  passPath + "combo13_abstractAsyncGenericError.mt");
+        addOutputVerificationTest("Combo 14: Reflection + Value Class + Annotation",
+                                  passPath + "combo14_reflectionValueClassAnnotation.mt");
+        addOutputVerificationTest("Combo 15: Grand Feature Showcase",
+                                  passPath + "combo15_allFeatureShowcase.mt");
 
         // ====================================
         // COMMENTED OUT - Test files were not created

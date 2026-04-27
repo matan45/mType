@@ -1,0 +1,28 @@
+=== Combo 15: Grand Feature Showcase ===
+--- Factory creation ---
+--- Async render ---
+<button id='btn1'>Submit</button>
+<label id='lbl1'>0</label>
+--- Pattern matching ---
+Button 'btn1' clicked 0 times
+Button 'btn2' clicked 0 times
+Label 'lbl1' value=0
+--- Casting + Clickable ---
+Button clicked 3 times
+--- Panel composition ---
+<panel id='mainPanel'>
+  <button id='btn1'>Submit</button>
+  <label id='lbl1'>0</label>
+  <button id='inner'>OK</button>
+</panel>
+--- Reflection ---
+Class: Button
+Component name: Button
+--- Lambda + interpolation ---
+<widget>alpha</widget>
+<widget>beta</widget>
+<widget>gamma</widget>
+--- Error handling ---
+Caught: Cannot divide by zero
+Finally executed
+=== Combo 15 Complete ===

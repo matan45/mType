@@ -1,0 +1,16 @@
+=== Edge: Cast Inside Interpolation ===
+Dog says: Woof
+Dog fetches: Ball fetched!
+Animal 0 is a dog: Ball fetched!
+Animal 1 is a cat: Purrrr
+Animal 2 is a dog: Ball fetched!
+--- Primitive casts ---
+Pi as int: 3
+Pi as float: 3.14159
+Int as float: 42
+Bool to string: true
+--- Cast chain ---
+Cat purrs: Purrrr
+--- Null check ---
+Animal is null
+=== Edge Complete ===

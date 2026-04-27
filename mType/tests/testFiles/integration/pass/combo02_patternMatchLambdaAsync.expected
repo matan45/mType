@@ -1,0 +1,9 @@
+=== Combo 02: Pattern Match + Lambda + Async ===
+T1 -> CLICK_HANDLED[100,200]
+T2 -> KEY_HANDLED[Enter]
+T3 -> SCROLL_HANDLED[-50]
+T4 -> CLICK_HANDLED[0,0]
+T5 -> KEY_HANDLED[Escape]
+--- Single event ---
+Result: SCROLL_HANDLED[999]
+=== Combo 02 Complete ===

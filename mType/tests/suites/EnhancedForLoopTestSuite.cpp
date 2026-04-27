@@ -34,6 +34,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Enhanced For-Loop with Generic Class Context",
                                   passPath + "forEachGenericClass.mt");
 
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("ForEach TryCatch Generic Collection",
+                                  passPath + "forEachTryCatchGenericCollection.mt");
+
         // Add error tests for iterator type safety
         addTestFromFile("For-Each on Non-Iterable Type",
                        errorPath + "forEachNonIterable.mt",

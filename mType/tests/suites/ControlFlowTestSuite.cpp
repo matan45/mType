@@ -1,4 +1,4 @@
-﻿#include "ControlFlowTestSuite.hpp"
+#include "ControlFlowTestSuite.hpp"
 
 namespace tests::testSuite
 {
@@ -400,6 +400,12 @@ namespace tests::testSuite
                         errorPath + "errorUnreachableCode_error.mt",
                         TestType::ERROR_EXPECTED);
         */
+
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("Match Inside Async Function",
+                        passPath + "matchInsideAsync_pass.mt");
+        addOutputVerificationTest("Switch On Interpolated String",
+                        passPath + "switchOnInterpolatedString_pass.mt");
 
         // Error tests (expected to fail)
         addTestFromFile("Final Variable Reassignment Error",

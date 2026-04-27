@@ -1,0 +1,20 @@
+=== Edge: TryCatch in ForEach Generic ===
+--- Int items ---
+  Processed: 10
+  Skipped item at 1: Faulty item
+  Processed: 30
+  Skipped item at 3: Faulty item
+  Processed: 50
+  Total: 3 processed, 2 skipped
+--- String items ---
+  Processed: alpha
+  Processed: beta
+  Skipped item at 2: Faulty item
+  Total: 2 processed, 1 skipped
+--- All faulty ---
+  Skipped item at 0: Faulty item
+  Skipped item at 1: Faulty item
+  Total: 0 processed, 2 skipped
+--- Empty ---
+  Total: 0 processed, 0 skipped
+=== Edge Complete ===

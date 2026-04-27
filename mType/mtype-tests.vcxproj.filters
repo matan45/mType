@@ -1702,6 +1702,12 @@
     <None Include="tests\testFiles\arrays\pass\soaObjectArrays.mt">
       <Filter>testFiles\arrays\pass</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\valueClassArrayForEach.expected">
+      <Filter>testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\valueClassArrayForEach.mt">
+      <Filter>testFiles\arrays\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\error\asyncConstructor.mt">
       <Filter>testFiles\await\error</Filter>
     </None>
@@ -1838,6 +1844,12 @@
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncExecutionOrder.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncFinalCaptureLambda.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncFinalCaptureLambda.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncFinallyReturnOrder.expected">
@@ -4351,6 +4363,12 @@
     <None Include="tests\testFiles\controlFlow\pass\matchDefaultCase_pass.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchInsideAsync_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\matchInsideAsync_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\matchNested_pass.expected">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
@@ -4585,6 +4603,12 @@
     <None Include="tests\testFiles\controlFlow\pass\switchNoDefault_pass.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchOnInterpolatedString_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchOnInterpolatedString_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\switchOnlyDefault_pass.expected">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
@@ -4736,6 +4760,12 @@
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachStack.mt">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachTryCatchGenericCollection.expected">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachTryCatchGenericCollection.mt">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\error\assignNullToFinal.mt">
@@ -7123,6 +7153,96 @@
     <None Include="tests\testFiles\integration\pass\collectionsAsDataMembers.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\combo01_valueClassGenericStream.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo01_valueClassGenericStream.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo02_patternMatchLambdaAsync.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo02_patternMatchLambdaAsync.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo03_importAliasGenericsInterface.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo03_importAliasGenericsInterface.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo04_annotationAsyncReflection.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo04_annotationAsyncReflection.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo05_switchPatternCastLoop.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo05_switchPatternCastLoop.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo06_interpolationLambdaCollections.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo06_interpolationLambdaCollections.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo07_valueClassInterfaceCastMatch.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo07_valueClassInterfaceCastMatch.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo08_forEachGenericTryCatchLambda.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo08_forEachGenericTryCatchLambda.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo09_recursiveAsyncGenericError.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo09_recursiveAsyncGenericError.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo10_finalLambdaCaptureAsync.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo10_finalLambdaCaptureAsync.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo11_staticOverloadGenericInherit.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo11_staticOverloadGenericInherit.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo12_boxStreamLambdaPipeline.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo12_boxStreamLambdaPipeline.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo13_abstractAsyncGenericError.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo13_abstractAsyncGenericError.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo14_reflectionValueClassAnnotation.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo14_reflectionValueClassAnnotation.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo15_allFeatureShowcase.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\combo15_allFeatureShowcase.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\complexControlFlowPerformance.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>
@@ -8258,6 +8378,12 @@
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
     <None Include="tests\testFiles\interpolation\pass\basicInterpolation.mt">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\castInsideInterpolation.expected">
+      <Filter>testFiles\interpolation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interpolation\pass\castInsideInterpolation.mt">
       <Filter>testFiles\interpolation\pass</Filter>
     </None>
     <None Include="tests\testFiles\interpolation\pass\emptySegments.expected">
@@ -9763,6 +9889,12 @@
     <None Include="tests\testFiles\overloading\pass\nullWithPrimitiveOverload.mt">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
+    <None Include="tests\testFiles\overloading\pass\overloadGenericNullable.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadGenericNullable.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
     <None Include="tests\testFiles\overloading\pass\singleWideningFallback.expected">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
@@ -10129,6 +10261,12 @@
     <None Include="tests\testFiles\stream\pass\streamBasicOperations.mt">
       <Filter>testFiles\stream\pass</Filter>
     </None>
+    <None Include="tests\testFiles\stream\pass\streamBoxConversions.expected">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamBoxConversions.mt">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
     <None Include="tests\testFiles\stream\pass\streamChaining.expected">
       <Filter>testFiles\stream\pass</Filter>
     </None>
@@ -10145,6 +10283,12 @@
       <Filter>testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stream\pass\streamDistinct.mt">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamEmptyArray.expected">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamEmptyArray.mt">
       <Filter>testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stream\pass\streamForEach.expected">

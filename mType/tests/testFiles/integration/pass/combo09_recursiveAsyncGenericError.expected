@@ -1,0 +1,20 @@
+=== Combo 09: Recursive + Async + Generics + Error ===
+--- Tree traversal ---
+Visit: root
+  Visit: A
+    Visit: A1
+    Visit: A2
+  Visit: B
+    Visit: B1
+    SKIP: Corrupted node at depth 2: B2
+  SKIP: Corrupted node at depth 1: C
+Total visited: 5
+--- Async factorial ---
+5! = 120
+10! = 3628800
+--- Int tree ---
+Visit: 1
+  Visit: 2
+  Visit: 3
+Int tree visited: 3
+=== Combo 09 Complete ===

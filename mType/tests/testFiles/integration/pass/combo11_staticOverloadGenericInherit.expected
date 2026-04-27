@@ -1,0 +1,22 @@
+=== Combo 11: Static + Overload + Generics + Inheritance ===
+--- Base serializer ---
+int:42
+str:hello
+float:3.14
+bool:true
+--- Generic wrap ---
+<div>content</div>
+<num>42</num>
+--- JSON serializer ---
+{"value":100}
+{"value":"test"}
+--- XML serializer ---
+<value>200</value>
+<value>data</value>
+--- Polymorphic getName ---
+JSON
+XML
+--- CollectionUtils ---
+First: 10
+First name: Alice
+=== Combo 11 Complete ===

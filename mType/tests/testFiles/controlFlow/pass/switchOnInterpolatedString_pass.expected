@@ -1,0 +1,15 @@
+=== Edge: Switch on Interpolated String ===
+Alice passed
+Alice failed
+Bob passed
+Bob failed
+Unknown: Charlie_true
+--- Expression interpolation ---
+0 -> category A
+1 -> category B
+2 -> category C
+3 -> category A
+4 -> category B
+--- Empty value ---
+Matched empty middle
+=== Edge Complete ===

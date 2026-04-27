@@ -1,0 +1,15 @@
+=== Combo 03: Import Alias + Generics + Interface ===
+Number: 42
+Text: hello
+Decimal: 3.14
+--- Converter ---
+Item-42
+Item-99
+--- Registry ---
+Registered: 3
+#1 Alpha: 10.5
+#2 Beta: 20
+#3 Gamma: 30.75
+--- Polymorphic display ---
+#99 Final: 0
+=== Combo 03 Complete ===

@@ -36,6 +36,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Multi-Dimensional Array Interpolation",
                                   passPath + "multiDimArrayInterpolation.mt");
 
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("Cast Inside Interpolation",
+                                  passPath + "castInsideInterpolation.mt");
+
         // Error tests
         addTestFromFile("Empty Interpolation Error",
                         errorPath + "emptyInterpolation.mt",

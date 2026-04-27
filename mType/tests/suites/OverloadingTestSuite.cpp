@@ -66,6 +66,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Null With Primitive Overload",
                         passPath + "nullWithPrimitiveOverload.mt");
 
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("Overload Generic + Nullable",
+                        passPath + "overloadGenericNullable.mt");
+
         // === ERROR TESTS ===
         // Tests for overload resolution error scenarios
 

@@ -221,5 +221,9 @@ namespace tests::testSuite
                         passPath + "asyncSequentialAwaitsSameTick.mt");
         addOutputVerificationTest("Async Parallel Rejection Fanout",
                         passPath + "asyncParallelRejectionFanout.mt");
+
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("Async Final Capture Lambda",
+                        passPath + "asyncFinalCaptureLambda.mt");
     }
 }
