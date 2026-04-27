@@ -106,8 +106,10 @@ class MutabilityCapture {
         for (int i = 0; i < 3; i++) {
             loopAccumulator = loopAccumulator + i;
 
-            // Lambda capturing loop-modified variable
-            Function loopCapture = x -> x + loopAccumulator + i;
+            // MYT-215: snapshot mutated locals before capturing them.
+            int snapAcc = loopAccumulator;
+            int snapI = i;
+            Function loopCapture = x -> x + snapAcc + snapI;
             print("Loop iteration " + i + ": " + loopCapture.apply(5));
         }
     }

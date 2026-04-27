@@ -68,6 +68,14 @@ namespace tests::testSuite
         addTestFromFile("Runtime Null Pointer Dereference Error",
                         errorPath + "runtimeNullPointerDereference.mt",
                         TestType::ERROR_EXPECTED);
+        // VirtualMachine::pushCallFrame trips the call-stack guard at
+        // DEFAULT_MAX_CALL_STACK_SIZE and throws a RuntimeException whose
+        // message starts with "Stack overflow:" — pin that substring so a
+        // future change to the wording surfaces deliberately.
+        addTestFromFile("Runtime Stack Overflow Error",
+                        errorPath + "runtimeStackOverflow.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Stack overflow");
 
         addTestFromFile("Missing new Operator For Object Creation",
                         errorPath + "missingNew.mt",

@@ -62,7 +62,9 @@ function createMassLambdas(): void {
     // Create many lambdas rapidly
     for (int i = 0; i < 10; i++) {
         int factor = i + 1;
-        workers[i] = x -> x * factor + i;
+        // MYT-215: capture a snapshot of the loop counter rather than `i`.
+        int snapI = i;
+        workers[i] = x -> x * factor + snapI;
     }
 
     // Use all lambdas
@@ -120,7 +122,9 @@ function main(): void {
     Worker[] bigArray = new Worker[50];
     for (int i = 0; i < 50; i++) {
         int multiplier = i % 7 + 1;
-        bigArray[i] = x -> x * multiplier + (i * 3);
+        // MYT-215: snapshot the loop counter before capturing.
+        int snapI = i;
+        bigArray[i] = x -> x * multiplier + (snapI * 3);
     }
 
     // Use only some of them
