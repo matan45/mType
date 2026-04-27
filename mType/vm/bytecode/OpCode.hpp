@@ -323,6 +323,24 @@ namespace vm::bytecode
         OBJECT_TO_VALUE_CREATE_PROMISE,  // OBJECT_TO_VALUE + CREATE_PROMISE   (no operands)
         CREATE_PROMISE_RETURN_VALUE,     // CREATE_PROMISE + RETURN_VALUE      (no operands)
 
+        // MYT-212: class-targeted field read for static binding. Pops receiver,
+        // resolves the field through the named class's hierarchy (own slot of
+        // the closest ancestor that declares the field), pushes the value.
+        // Emitted by the compiler when the receiver expression's static type
+        // is a known class — e.g. a local declared `Parent p = c;` reading
+        // `p.x` should see Parent's slot, not the most-derived runtime slot.
+        // operands: [classNameIndex, fieldNameIndex]
+        GET_FIELD_TYPED,
+
+        // MYT-212: class-targeted field write. Pops receiver, pops value,
+        // resolves field via named class's hierarchy own-slot, writes there.
+        // Emitted by the compiler for inline field initializers (the class's
+        // own ctor must write to its own slot, not the most-derived shadowed
+        // slot) and for typed-receiver writes. Pushes the assigned value back
+        // for chained assignments, mirroring SET_FIELD.
+        // operands: [classNameIndex, fieldNameIndex]
+        SET_FIELD_TYPED,
+
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
         // without requiring manual updates each time a new opcode is added.
@@ -560,6 +578,9 @@ namespace vm::bytecode
             case OpCode::ADD_INT_STORE_LOCAL: return "ADD_INT_STORE_LOCAL";
             case OpCode::OBJECT_TO_VALUE_CREATE_PROMISE: return "OBJECT_TO_VALUE_CREATE_PROMISE";
             case OpCode::CREATE_PROMISE_RETURN_VALUE: return "CREATE_PROMISE_RETURN_VALUE";
+
+            case OpCode::GET_FIELD_TYPED: return "GET_FIELD_TYPED";
+            case OpCode::SET_FIELD_TYPED: return "SET_FIELD_TYPED";
 
             default: return "UNKNOWN";
         }

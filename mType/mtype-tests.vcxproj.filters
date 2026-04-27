@@ -37,6 +37,9 @@
     <Filter Include="testFiles\benchmarks">
       <UniqueIdentifier>{056BDF48-F1F9-6812-9A18-7D0D868679B8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\bugs">
+      <UniqueIdentifier>{B8368D9D-A404-81A3-8D98-F1C979055D08}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\cast">
       <UniqueIdentifier>{926F8D9D-7E3D-81A3-67D1-F1C9533E5D08}</UniqueIdentifier>
     </Filter>
@@ -2302,6 +2305,42 @@
     <None Include="tests\testFiles\benchmarks\string_ops.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\bugs\castToTypeParamThrows.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\genericNullableReturnSubstitution.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\genericOverloadFunctionalInterfaceUnify.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\getFieldTypedNonThisAccess.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\getParameterCountIncludesThis.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\isClassOfTypeParamAlwaysFalse.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\lambdaMutableLoopCapture.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\libFunctionMultiMethod.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\nullableCastSyntaxRejected.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\staticOverloadReturnsVoid.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\switchBreakAfterReturnVoid.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\threeTypeArgDropsArg.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
     <None Include="tests\testFiles\cast\error\castArrayCovariance_error.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
@@ -3944,6 +3983,12 @@
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\superFieldReadWrite.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldStaticBinding.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\superFieldStaticBinding.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\superFieldWithPolymorphism.expected">

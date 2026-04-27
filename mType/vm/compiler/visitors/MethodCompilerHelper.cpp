@@ -136,6 +136,15 @@ namespace vm::compiler::visitors
 
     void MethodCompilerHelper::initializeInstanceFields(ast::ClassNode* node)
     {
+        // MYT-212: emit class-targeted SET_FIELD_TYPED so the inline
+        // initializer writes to THIS class's own slot, not the most-derived
+        // slot of the runtime instance. Without this, when Child shadows
+        // Parent's `x`, Parent's initializer (running during construction of
+        // a Child instance) would land in Child's slot, leaving Parent's
+        // slot uninitialised — and `super.x` would read 0.
+        const std::string& enclosingClassName = node->getClassName();
+        size_t classNameIndex = ctx.program.getConstantPool().addString(enclosingClassName);
+
         auto& fields = node->getFields();
         for (const auto& fieldPtr : fields)
         {
@@ -150,10 +159,19 @@ namespace vm::compiler::visitors
                     // Compile the initializer expression (pushes value)
                     fieldNode->getInitialValue()->accept(ctx.visitor);
 
-                    // Store in field
+                    // Store in field via class-targeted opcode.
                     std::string fieldName = fieldNode->getName();
                     size_t fieldNameIndex = ctx.program.getConstantPool().addString(fieldName);
-                    ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint64_t>(fieldNameIndex), fieldNode);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD_TYPED,
+                        std::vector<uint64_t>{
+                            static_cast<uint64_t>(classNameIndex),
+                            static_cast<uint64_t>(fieldNameIndex)
+                        }, fieldNode);
+
+                    // SET_FIELD_TYPED leaves the assigned value on the stack
+                    // (mirroring SET_FIELD for chained-assignment expressions);
+                    // pop it so the ctor body sees a clean stack.
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::POP, fieldNode);
                 }
             }
         }

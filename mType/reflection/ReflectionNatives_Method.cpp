@@ -6,6 +6,8 @@
 #include "../value/InternedString.hpp"
 #include "../value/ValueShim.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
+#include "../vm/MethodSignature.hpp"
+#include <unordered_set>
 
 namespace reflection
 {
@@ -84,29 +86,65 @@ namespace reflection
 
         std::vector<int> methodHandles;
 
-        // Collect instance methods
-        for (const auto& [name, overloads] : classDef->getInstanceMethods())
+        if (declaredOnly)
         {
-            for (const auto& methodDef : overloads)
+            // Declared-only: this class's methods only, all access levels.
+            for (const auto& [name, overloads] : classDef->getInstanceMethods())
             {
-                if (declaredOnly || methodDef->getAccessModifier() == ast::AccessModifier::PUBLIC)
+                for (const auto& methodDef : overloads)
+                {
+                    int64_t handle = handleRegistry.registerMethod(methodDef, classHandle, name);
+                    methodHandles.push_back(static_cast<int>(handle));
+                }
+            }
+            for (const auto& [name, overloads] : classDef->getStaticMethods())
+            {
+                for (const auto& methodDef : overloads)
                 {
                     int64_t handle = handleRegistry.registerMethod(methodDef, classHandle, name);
                     methodHandles.push_back(static_cast<int>(handle));
                 }
             }
         }
-
-        // Collect static methods
-        for (const auto& [name, overloads] : classDef->getStaticMethods())
+        else
         {
-            for (const auto& methodDef : overloads)
+            // MYT-213: walk the parent chain, dedup overrides by (name + signature)
+            // so child overrides hide parent versions. Public-only filter.
+            std::unordered_set<std::string> seenSigs;
+            constexpr int MAX_DEPTH = 20;
+
+            auto emitMethod = [&](const std::shared_ptr<MethodDefinition>& methodDef,
+                                  const std::string& name,
+                                  bool isStatic)
             {
-                if (declaredOnly || methodDef->getAccessModifier() == ast::AccessModifier::PUBLIC)
+                if (methodDef->getAccessModifier() != ast::AccessModifier::PUBLIC) return;
+                auto sig = vm::MethodSignature::fromMethodDefinition(methodDef.get());
+                std::string key = (isStatic ? "S:" : "I:") + sig.toMangledName(name, isStatic);
+                if (!seenSigs.insert(key).second) return;
+                int64_t handle = handleRegistry.registerMethod(methodDef, classHandle, name);
+                methodHandles.push_back(static_cast<int>(handle));
+            };
+
+            auto current = classDef;
+            int depth = 0;
+            while (current && depth < MAX_DEPTH)
+            {
+                for (const auto& [name, overloads] : current->getInstanceMethods())
                 {
-                    int64_t handle = handleRegistry.registerMethod(methodDef, classHandle, name);
-                    methodHandles.push_back(static_cast<int>(handle));
+                    for (const auto& methodDef : overloads)
+                    {
+                        emitMethod(methodDef, name, /*isStatic*/ false);
+                    }
                 }
+                for (const auto& [name, overloads] : current->getStaticMethods())
+                {
+                    for (const auto& methodDef : overloads)
+                    {
+                        emitMethod(methodDef, name, /*isStatic*/ true);
+                    }
+                }
+                current = current->getParentClass();
+                ++depth;
             }
         }
 

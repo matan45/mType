@@ -367,6 +367,14 @@ namespace vm::runtime
             else
                 objectExecutor->handleGetField(instr);
             break;
+        case OpCode::GET_FIELD_TYPED:
+            // MYT-212: class-targeted field read. IC-bypass — the static type
+            // hint is the optimisation; no shape cache layered on top.
+            objectExecutor->handleGetFieldTyped(instr);
+            break;
+        case OpCode::SET_FIELD_TYPED:
+            objectExecutor->handleSetFieldTyped(instr);
+            break;
         case OpCode::GET_FIELD_CACHED:
         {
             // MYT-194: promoted from GET_FIELD once the IC stabilized. Never

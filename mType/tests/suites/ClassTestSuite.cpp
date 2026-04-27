@@ -151,6 +151,9 @@ namespace tests::testSuite
                         passPath + "superFieldWithPolymorphism.mt");
         addOutputVerificationTest("Super Field Comprehensive",
                         passPath + "superFieldComprehensive.mt");
+        // MYT-212: shadowed-field static binding for super.x and parent-typed receivers.
+        addOutputVerificationTest("Super Field Static Binding",
+                        passPath + "superFieldStaticBinding.mt");
 
         // === SUPER METHOD ACCESS TESTS ===
         // These tests verify super.method() calls with access modifiers

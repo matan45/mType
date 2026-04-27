@@ -1,13 +1,8 @@
-// MYT-212: super.x reads child's shadowed field instead of parent's.
+// MYT-212: field access uses static binding by receiver type.
 //
-// EXPECTED:
-//   this.x:                    2
-//   super.x:                   1   (parent's field, by static binding)
-//   child.x direct:            2
-//   parent.x via parent ref:   1   (parent reference's static type wins)
-//
-// ACTUAL (broken):
-//   All four reads return 2 (field access is dynamically dispatched).
+// `super.x` reads the parent's slot, not the most-derived shadowed slot.
+// `((Parent)c).x` and `Parent p = c; p.x` likewise see the parent's value
+// when the receiver's static type is Parent.
 
 class Parent {
     public int x = 1;

@@ -7,8 +7,8 @@ Each file maps to one subtask:
 
 | Subtask  | File                                       | Summary                                                     |
 |----------|--------------------------------------------|-------------------------------------------------------------|
-| MYT-212  | `superFieldDynamicDispatch.mt`             | `super.x` reads child's shadowed field                      |
-| MYT-213  | `getMethodsNoInheritance.mt`               | `getMethods()` doesn't walk inheritance                     |
+| MYT-212  | ~~`superFieldDynamicDispatch.mt`~~         | ~~`super.x` reads child's shadowed field~~ — fixed; promoted to `class/pass/superFieldStaticBinding.mt` |
+| MYT-213  | ~~`getMethodsNoInheritance.mt`~~           | ~~`getMethods()` doesn't walk inheritance~~ — fixed; covered by `reflection/pass/reflectInheritedMethods.mt` |
 | MYT-214  | `getParameterCountIncludesThis.mt`         | `getParameterCount()` includes `this` (off-by-one)          |
 | MYT-215  | `lambdaMutableLoopCapture.mt`              | Lambda captures mutable for-loop var by reference, no error |
 | MYT-216  | `threeTypeArgDropsArg.mt`                  | 3-type-param call drops trailing positional arg             |
@@ -20,6 +20,7 @@ Each file maps to one subtask:
 | MYT-222  | `castToTypeParamThrows.mt`                 | `(T)cast` to a generic type parameter throws at runtime     |
 | MYT-223  | `staticOverloadReturnsVoid.mt`             | Static method overload call types as `void` at call site    |
 | MYT-224  | `genericOverloadFunctionalInterfaceUnify.mt` | Overload resolution doesn't unify concrete `UnaryFn<Int,Int>` with `UnaryFn<T,R>` |
+| MYT-225  | `getFieldTypedNonThisAccess.mt`            | `paramName.field` / `localVar.field` on class/value-class throws GET_FIELD_TYPED |
 
 ## Running
 

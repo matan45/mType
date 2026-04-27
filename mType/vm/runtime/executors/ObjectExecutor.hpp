@@ -44,6 +44,9 @@ namespace vm::runtime
         // Field access
         void handleGetField(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSetField(const bytecode::BytecodeProgram::Instruction& instr);
+        // MYT-212: class-targeted field read/write for static binding (see OpCode.hpp).
+        void handleGetFieldTyped(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleSetFieldTyped(const bytecode::BytecodeProgram::Instruction& instr);
         void handleInlineSetField(const bytecode::BytecodeProgram::Instruction& instr);
         void handleInlineGetField(const bytecode::BytecodeProgram::Instruction& instr);
         void handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr);

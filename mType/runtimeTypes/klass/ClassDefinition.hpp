@@ -378,6 +378,12 @@ namespace runtimeTypes::klass
         // indexMap linearly).
         const std::vector<std::string>& getFieldIndexToName() const;
 
+        // MYT-212: slot owned by THIS class for fieldName, ignoring any
+        // shadowed inherited entry. SIZE_MAX if this class does not declare
+        // fieldName itself. Used by super.x and class-targeted GET_FIELD_TYPED
+        // to read the parent's slot rather than the most-derived slot.
+        size_t getOwnFieldIndex(const std::string& fieldName) const;
+
         // Phase 2 (allocation perf): set of this-class instance field names
         // that every constructor of this class definitely assigns before any
         // read. initializeObjectFields() consults this to skip redundant
@@ -406,9 +412,14 @@ namespace runtimeTypes::klass
         mutable bool totalFieldCountCached = false;
 
         // Phase 6 (IC): Field index map for O(1) indexed field access
-        // Maps field name → stable integer index (includes inherited fields)
+        // Maps field name → stable integer index (includes inherited fields).
+        // MYT-212: when a name is shadowed, fieldIndexMap[name] is the most-derived
+        // (this class's) slot; the inherited slot is still present in
+        // fieldIndexToName at its original position and reachable via the
+        // parent's getOwnFieldIndex.
         mutable std::unordered_map<std::string, size_t> fieldIndexMap;
         mutable std::vector<std::string> fieldIndexToName;
+        mutable std::unordered_map<std::string, size_t> ownFieldIndexMap;
         mutable bool fieldIndexMapBuilt = false;
 
         // Phase 2 (allocation perf): fields whose default-init NEW_OBJECT can skip.

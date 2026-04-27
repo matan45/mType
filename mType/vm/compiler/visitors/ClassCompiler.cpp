@@ -622,10 +622,64 @@ namespace vm::compiler::visitors
 
                 receiverNode->accept(ctx.visitor);
 
-                // Regular field access - emit GET_FIELD instruction
-                size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
-                ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
-                ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+                // MYT-212: when the receiver is a variable with a declared
+                // class type and that class declares (or inherits) the field,
+                // emit the static-binding variant so a child shadowing the
+                // field doesn't redirect the read to the most-derived slot.
+                std::string staticReceiverClass;
+                if (auto* varNode = dynamic_cast<ast::VariableNode*>(receiverNode))
+                {
+                    const std::string& varName = varNode->getName();
+                    std::string localClass = ctx.variableTracker.getLocalClassNameByName(varName);
+                    if (!localClass.empty())
+                    {
+                        staticReceiverClass = ctx.resolveGenericType(localClass);
+                    }
+                    else
+                    {
+                        // Fall back to global registry for non-local vars.
+                        std::string globalClass = ctx.globalRegistry.getClassName(varName);
+                        if (!globalClass.empty())
+                        {
+                            staticReceiverClass = ctx.resolveGenericType(globalClass);
+                        }
+                    }
+                }
+
+                bool emittedTyped = false;
+                if (!staticReceiverClass.empty())
+                {
+                    auto classRegistry = ctx.env->getClassRegistry();
+                    if (classRegistry)
+                    {
+                        // Strip any generic args before looking up.
+                        std::string baseClass = staticReceiverClass;
+                        size_t lt = baseClass.find('<');
+                        if (lt != std::string::npos) baseClass = baseClass.substr(0, lt);
+
+                        auto staticDef = classRegistry->findClass(baseClass);
+                        if (staticDef && staticDef->getFieldOwnerInHierarchy(memberName, staticDef))
+                        {
+                            size_t classNameIndex = ctx.program.getConstantPool().addString(baseClass);
+                            size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
+                            ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD_TYPED,
+                                std::vector<uint64_t>{
+                                    static_cast<uint64_t>(classNameIndex),
+                                    static_cast<uint64_t>(fieldNameIndex)
+                                }, node);
+                            ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+                            emittedTyped = true;
+                        }
+                    }
+                }
+
+                if (!emittedTyped)
+                {
+                    // Regular field access - emit GET_FIELD instruction
+                    size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
+                    ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+                }
             }
         }
 
