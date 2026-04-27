@@ -185,11 +185,14 @@ namespace reflection
         }
 
         const auto& params = methodInfo.method->getParameters();
-        auto result = std::make_shared<NativeArray>(params.size(), ValueType::STRING);
+        const bool skipThis = !methodInfo.method->isStatic() && !params.empty();
+        const size_t startIndex = skipThis ? 1 : 0;
+        const size_t userParamCount = params.size() - startIndex;
+        auto result = std::make_shared<NativeArray>(userParamCount, ValueType::STRING);
 
-        for (size_t i = 0; i < params.size(); ++i)
+        for (size_t i = startIndex; i < params.size(); ++i)
         {
-            result->set(static_cast<int>(i), valueTypeToTypeName(params[i].second.basicType));
+            result->set(static_cast<int>(i - startIndex), valueTypeToTypeName(params[i].second.basicType));
         }
 
         return result;
@@ -207,7 +210,9 @@ namespace reflection
             throw errors::RuntimeException("Invalid method handle");
         }
 
-        return static_cast<int>(methodInfo.method->getParameters().size());
+        const auto& params = methodInfo.method->getParameters();
+        const bool skipThis = !methodInfo.method->isStatic() && !params.empty();
+        return static_cast<int>(params.size() - (skipThis ? 1 : 0));
     }
 
     Value ReflectionNatives::__reflect_getMethodDeclaringClass(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)

@@ -161,4 +161,24 @@ namespace vm::compiler::variables
             }
         }
     }
+
+    void VariableTracker::markVariableAsMutated(size_t slot)
+    {
+        for (auto& local : locals) {
+            if (local.slot == slot) {
+                local.isMutated = true;
+                return;
+            }
+        }
+    }
+
+    bool VariableTracker::isLocalMutated(size_t slot) const
+    {
+        for (const auto& local : locals) {
+            if (local.slot == slot) {
+                return local.isMutated;
+            }
+        }
+        return false;
+    }
 }

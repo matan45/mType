@@ -21,6 +21,7 @@ namespace vm::compiler::variables
             std::string className;  // For OBJECT types (interfaces/classes)
             bool isCaptured = false;  // True if captured by a lambda
             bool isNullable = false;  // True if type is nullable (T?)
+            bool isMutated = false;   // MYT-215: assignment after initial declaration
         };
 
         VariableTracker();
@@ -64,6 +65,10 @@ namespace vm::compiler::variables
 
         // Mark a variable as captured by a lambda
         void markVariableAsCaptured(size_t slot);
+
+        // MYT-215: mark a variable's slot as mutated (reassigned after declaration).
+        void markVariableAsMutated(size_t slot);
+        bool isLocalMutated(size_t slot) const;
 
     private:
         std::vector<LocalVariable> locals;

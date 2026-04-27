@@ -1,4 +1,0 @@
-=== Lambda Capture Mutable Loop Var ===
-funcs[0](10) = 13
-funcs[1](10) = 13
-funcs[2](10) = 13

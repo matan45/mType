@@ -1,6 +1,6 @@
-noParams param count: 1
-oneParam param count: 2
-twoParams param count: 3
-threeParams param count: 4
-threeParams param types count: 4
+noParams param count: 0
+oneParam param count: 1
+twoParams param count: 2
+threeParams param count: 3
+threeParams param types count: 3
 Test passed

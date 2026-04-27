@@ -22,13 +22,13 @@ Class c = Class::forName("UserService");
 Method m = c.getDeclaredMethod("createUser", 2);
 Parameter[] params = m.getParameters();
 
-// Instance methods prepend `this` at index 0 in reflection param list.
-// name is at index 1, email at index 2.
-print(params[1].getName());
-print(params[1].hasAnnotation("NotNull"));
-print(params[2].hasAnnotation("Email"));
+// MYT-214: getParameters() returns user-declared parameters only (no `this`).
+// name is at index 0, email at index 1.
+print(params[0].getName());
+print(params[0].hasAnnotation("NotNull"));
+print(params[1].hasAnnotation("Email"));
 
-Annotation? a = params[2].getAnnotation("Email");
+Annotation? a = params[1].getAnnotation("Email");
 if (a != null) {
     print(a.getString("pattern"));
 }

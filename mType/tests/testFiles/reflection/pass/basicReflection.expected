@@ -6,9 +6,9 @@ Number of declared fields: 3
   Field: age type=int static=false
   Field: count type=int static=true
 Number of declared methods: 4
-  Method: secretMethod params=1 static=false
-  Method: getName params=1 static=false
-  Method: setName params=2 static=false
+  Method: secretMethod params=0 static=false
+  Method: getName params=0 static=false
+  Method: setName params=1 static=false
   Method: getCount params=0 static=true
 Static count: 0
 PUBLIC + STATIC = 9

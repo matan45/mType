@@ -9,8 +9,8 @@ Each file maps to one subtask:
 |----------|--------------------------------------------|-------------------------------------------------------------|
 | MYT-212  | ~~`superFieldDynamicDispatch.mt`~~         | ~~`super.x` reads child's shadowed field~~ — fixed; promoted to `class/pass/superFieldStaticBinding.mt` |
 | MYT-213  | ~~`getMethodsNoInheritance.mt`~~           | ~~`getMethods()` doesn't walk inheritance~~ — fixed; covered by `reflection/pass/reflectInheritedMethods.mt` |
-| MYT-214  | `getParameterCountIncludesThis.mt`         | `getParameterCount()` includes `this` (off-by-one)          |
-| MYT-215  | `lambdaMutableLoopCapture.mt`              | Lambda captures mutable for-loop var by reference, no error |
+| MYT-214  | ~~`getParameterCountIncludesThis.mt`~~     | ~~`getParameterCount()` includes `this`~~ — fixed; promoted to `reflection/pass/getParameterCountExcludesThis.mt` |
+| MYT-215  | ~~`lambdaMutableLoopCapture.mt`~~          | ~~Lambda captures mutable for-loop var by reference~~ — fixed; promoted to `lambda/error/lambdaCaptureMutableLoopVar.mt` |
 | MYT-216  | `threeTypeArgDropsArg.mt`                  | 3-type-param call drops trailing positional arg             |
 | MYT-217  | `genericNullableReturnSubstitution.mt`     | Generic `T?` return doesn't substitute on assignment        |
 | MYT-218  | `isClassOfTypeParamAlwaysFalse.mt`         | `isClassOf T` against type-param silently always false      |

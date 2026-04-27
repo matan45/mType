@@ -23,11 +23,11 @@ Class c = Class::forName("Validator");
 Method m = c.getDeclaredMethod("check", 1);
 Parameter[] params = m.getParameters();
 
-// Instance methods prepend `this` at index 0; the user parameter is at index 1.
-print(params[1].getName());
-print(params[1].hasAnnotation("Range"));
+// MYT-214: getParameters() returns user-declared parameters only (no `this`).
+print(params[0].getName());
+print(params[0].hasAnnotation("Range"));
 
-Annotation? a = params[1].getAnnotation("Range");
+Annotation? a = params[0].getAnnotation("Range");
 if (a != null) {
     print(a.getInt("min"));
     print(a.getInt("max"));

@@ -13,6 +13,7 @@
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
+#include "../analysis/NestedReferenceCollector.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -931,6 +932,29 @@ namespace vm::compiler::visitors
         size_t currentFrameStart = ctx.functionFrameManager.isInFunction()
                                        ? ctx.functionFrameManager.currentFrame().localStartSlot
                                        : 0;
+
+        // MYT-215: a lambda created inside a loop may not capture a variable
+        // whose slot has been reassigned (the for-loop counter is the canonical
+        // case). Reference capture lets every lambda in the loop see the
+        // post-loop value, which is the closure-over-loop-var footgun. Force
+        // the user to snapshot into a fresh local in the loop body.
+        // captureScopeVariables() over-captures (every local in the frame),
+        // so filter to names the lambda body actually references — otherwise
+        // we'd also reject lambdas that never read the loop counter.
+        if (ctx.loopManager.isInLoop())
+        {
+            auto refs = analysis::NestedReferenceCollector::collect(node);
+            for (const auto& captured : capturedVars)
+            {
+                if (!captured.isMutated) continue;
+                if (!refs.pessimistic && refs.names.find(captured.name) == refs.names.end()) continue;
+                throw errors::TypeException(
+                    "Variable '" + captured.name + "' is mutated within the enclosing "
+                    "loop and cannot be captured by a lambda. Copy it to a new local "
+                    "first (e.g., `int snap = " + captured.name + ";` and capture `snap`).",
+                    node->getLocation());
+            }
+        }
 
         // Reset local slot counter for lambda's own scope
         ctx.variableTracker.resetLocalSlot();

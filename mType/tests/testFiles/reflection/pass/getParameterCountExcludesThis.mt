@@ -1,16 +1,6 @@
-// MYT-214: Method.getParameterCount() includes `this` for instance methods.
-//
-// EXPECTED (matching Java/.NET/Kotlin reflection):
-//   process(int x)         getParameterCount() == 1
-//   process(string s)      getParameterCount() == 1
-//   process(int x, int y)  getParameterCount() == 2
-//   sum                    == 4
-//
-// ACTUAL (broken):
-//   process(int x)         getParameterCount() == 2  (includes this)
-//   process(string s)      getParameterCount() == 2
-//   process(int x, int y)  getParameterCount() == 3
-//   sum                    == 7
+// MYT-214: Method.getParameterCount() returns the count of source-declared
+// parameters and does NOT count the implicit `this` receiver — matching
+// Java/.NET/Kotlin reflection.
 
 import * from "../../lib/reflect/Class.mt";
 import * from "../../lib/reflect/Method.mt";
@@ -41,5 +31,3 @@ for (int i = 0; i < methods.length; i = i + 1) {
 }
 
 print("sum of getParameterCount() across 3 process overloads: " + paramSum);
-print("expected (excluding this): 4");
-print("actual (including this):   7");

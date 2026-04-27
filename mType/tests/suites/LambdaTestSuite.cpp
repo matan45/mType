@@ -271,7 +271,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Nested Lambda Curry",
                         passPath + "nestedLambdaCurry.mt");
 
-        addOutputVerificationTest("Lambda Capture Mutable Loop Var",
-                        passPath + "lambdaCaptureMutableLoopVar.mt");
+        // MYT-215: capturing a mutated variable in a lambda inside a loop is
+        // rejected at compile time (Java-style "must be effectively final").
+        addTestFromFile("Lambda Capture Mutable Loop Var Error (MYT-215)",
+                        errorPath + "lambdaCaptureMutableLoopVar.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

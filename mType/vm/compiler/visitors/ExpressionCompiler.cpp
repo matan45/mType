@@ -209,6 +209,11 @@ namespace vm::compiler::visitors
                     size_t nameIndex = ctx.program.getConstantPool().addString(varName);
                     ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint64_t>(nameIndex), node);
                 } else if (isLocal) {
+                    // MYT-215: ++/-- mutates the slot.
+                    size_t absoluteSlot = localSlot + (ctx.functionFrameManager.isInFunction()
+                                          ? ctx.functionFrameManager.currentFrame().localStartSlot : 0);
+                    ctx.variableTracker.markVariableAsMutated(absoluteSlot);
+
                     size_t nameIndex = ctx.program.getConstantPool().addString(varNode->getName());
                     ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(localSlot), static_cast<uint64_t>(nameIndex), node);
                 } else {

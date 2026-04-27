@@ -398,12 +398,15 @@ namespace reflection
         }
 
         const auto& params = methodInfo.method->getParameters();
+        const bool skipThis = !methodInfo.method->isStatic() && !params.empty();
+        const size_t startIndex = skipThis ? 1 : 0;
+        const size_t userParamCount = params.size() - startIndex;
 
         // Return array of parameter names
-        auto result = std::make_shared<NativeArray>(params.size(), ValueType::STRING);
-        for (size_t i = 0; i < params.size(); ++i)
+        auto result = std::make_shared<NativeArray>(userParamCount, ValueType::STRING);
+        for (size_t i = startIndex; i < params.size(); ++i)
         {
-            result->set(static_cast<int>(i), params[i].first);
+            result->set(static_cast<int>(i - startIndex), params[i].first);
         }
 
         return result;

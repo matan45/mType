@@ -39,6 +39,8 @@ namespace tests::testSuite
                         passPath + "methodModifiers.mt");
         addOutputVerificationTest("Method Parameters",
                         passPath + "methodParameters.mt");
+        addOutputVerificationTest("Method Parameter Count Excludes This (MYT-214)",
+                        passPath + "getParameterCountExcludesThis.mt");
         addOutputVerificationTest("Method Return Types",
                         passPath + "methodReturnTypes.mt");
 

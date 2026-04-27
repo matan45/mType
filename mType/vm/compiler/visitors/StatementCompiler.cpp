@@ -567,6 +567,11 @@ namespace vm::compiler::visitors
         // If found as existing local, store to it
         if (localSlot != SIZE_MAX)
         {
+            // MYT-215: this is a reassignment to an existing slot; mark mutated so
+            // the lambda-capture-in-loop check can reject the captures.
+            size_t absoluteSlot = localSlot + ctx.functionFrameManager.currentFrame().localStartSlot;
+            ctx.variableTracker.markVariableAsMutated(absoluteSlot);
+
             // STORE_LOCAL will consume the value from the stack - no DUP needed
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,

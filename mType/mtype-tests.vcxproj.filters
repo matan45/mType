@@ -2317,13 +2317,7 @@
     <None Include="tests\testFiles\bugs\getFieldTypedNonThisAccess.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
-    <None Include="tests\testFiles\bugs\getParameterCountIncludesThis.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
     <None Include="tests\testFiles\bugs\isClassOfTypeParamAlwaysFalse.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
-    <None Include="tests\testFiles\bugs\lambdaMutableLoopCapture.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
     <None Include="tests\testFiles\bugs\libFunctionMultiMethod.mt">
@@ -9028,6 +9022,9 @@
     <None Include="tests\testFiles\lambda\error\continueInLambdaError.mt">
       <Filter>testFiles\lambda\error</Filter>
     </None>
+    <None Include="tests\testFiles\lambda\error\lambdaCaptureMutableLoopVar.mt">
+      <Filter>testFiles\lambda\error</Filter>
+    </None>
     <None Include="tests\testFiles\lambda\error\lambdaCatchNonException.mt">
       <Filter>testFiles\lambda\error</Filter>
     </None>
@@ -9197,12 +9194,6 @@
       <Filter>testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\lambdaCaptureInLoop.mt">
-      <Filter>testFiles\lambda\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\lambda\pass\lambdaCaptureMutableLoopVar.expected">
-      <Filter>testFiles\lambda\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\lambda\pass\lambdaCaptureMutableLoopVar.mt">
       <Filter>testFiles\lambda\pass</Filter>
     </None>
     <None Include="tests\testFiles\lambda\pass\lambdaCaptureNull.expected">
@@ -10547,6 +10538,12 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\getClassNameStillRaw.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getParameterCountExcludesThis.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\getParameterCountExcludesThis.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\getTypeArgumentsAlignedWithParameters.expected">
