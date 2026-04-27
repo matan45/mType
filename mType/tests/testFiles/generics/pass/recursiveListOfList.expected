@@ -1,0 +1,10 @@
+Testing ArrayList of ArrayList
+Outer size: 3
+Row 0 size: 3
+Row 1 size: 2
+Row 2 size: 1
+outer[0][0] = 1
+outer[1][1] = 20
+outer[2][0] = 100
+Flattened sum: 136
+Recursive list of list test completed

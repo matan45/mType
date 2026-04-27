@@ -1,0 +1,4 @@
+declared priv name: priv
+public list saw priv: false
+public list saw pub: true
+Test passed

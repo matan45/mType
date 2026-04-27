@@ -152,5 +152,15 @@ namespace tests::testSuite
         addTestFromFile("Private Method Access Error",
                         errorPath + "privateMethodAccess.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - private fields / inherited methods / null forName ===
+        addOutputVerificationTest("Reflect Private Field",
+                        passPath + "reflectPrivateField.mt");
+        addOutputVerificationTest("Reflect Inherited Methods",
+                        passPath + "reflectInheritedMethods.mt");
+
+        addTestFromFile("Reflect ForName Null Error",
+                        errorPath + "reflectForNameNull.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

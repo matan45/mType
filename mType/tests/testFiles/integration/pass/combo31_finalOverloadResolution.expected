@@ -1,0 +1,11 @@
+=== Combo 31: Final + Overload Resolution ===
+--- Base Calc ---
+Calc compute(7) = 70
+Calc compute(3, 4) = 7
+--- FancyCalc ---
+FancyCalc compute(7) = 70
+FancyCalc compute(3, 4) = 700
+--- Polymorphic dispatch ---
+FancyCalc compute(2) = 20
+FancyCalc compute(5, 6) = 1100
+=== Combo 31 Complete ===

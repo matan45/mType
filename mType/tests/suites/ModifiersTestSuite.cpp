@@ -102,5 +102,9 @@ namespace tests::testSuite
         addTestFromFile("Protected Method - Non-Subclass Access",
                         errorPath + "protectedMethodNonSubclass.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - static final generic init ===
+        addOutputVerificationTest("Static Final Generic Init",
+                        passPath + "staticFinalGenericInit.mt");
     }
 }

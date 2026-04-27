@@ -1,0 +1,6 @@
+initial size: 0
+a size: 3
+b size: 3
+Holder::size(): 3
+after a.add, b size: 4
+after a.add, b last: 99

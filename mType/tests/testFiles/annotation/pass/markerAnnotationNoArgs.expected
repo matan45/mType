@@ -1,0 +1,5 @@
+tagged hasAnnotation: true
+untagged hasAnnotation: false
+tagged annotation count: 1
+untagged annotation count: 0
+Test passed

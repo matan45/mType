@@ -1,0 +1,5 @@
+=== Nested Lambda Curry Test ===
+add5(3) = 8
+add5(7) = 12
+add10(2) = 12
+add(1)(1) = 2

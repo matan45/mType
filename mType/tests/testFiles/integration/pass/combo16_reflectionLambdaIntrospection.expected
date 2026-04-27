@@ -1,0 +1,20 @@
+=== Combo 16: Reflection + Lambda Introspection ===
+--- Direct lambda calls ---
+doubler(5) = 10
+adder(3, 4) = 7
+run(2, 3) = 11
+--- Calculator fields ---
+Class: Calculator
+Field count: 3
+Field: doubler type=Object
+Field: adder type=Object
+Field: seed type=int
+--- IntMapper interface ---
+Class: IntMapper
+Method count: 1
+Method: apply
+--- IntCombiner interface ---
+Class: IntCombiner
+Method count: 1
+Method: combine
+=== Combo 16 Complete ===

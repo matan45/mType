@@ -1,0 +1,5 @@
+Testing finally exception masks try exception
+Inner try: throwing Ex1
+Inner finally: throwing Ex2 (masks Ex1)
+Outer caught Ex2: masking
+Finally-masks-try-exception test completed

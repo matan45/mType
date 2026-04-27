@@ -241,5 +241,11 @@ namespace tests::testSuite
                         errorPath + "function_parameter_target_violation_error.mt",
                         TestType::ERROR_EXPECTED,
                         "cannot be applied to");
+
+        // === EDGE CASE TESTS - marker / generic method param ===
+        addOutputVerificationTest("Marker Annotation No Args",
+                        passPath + "markerAnnotationNoArgs.mt");
+        addOutputVerificationTest("Annotation On Generic Method Param",
+                        passPath + "annotationOnGenericMethodParam.mt");
     }
 }

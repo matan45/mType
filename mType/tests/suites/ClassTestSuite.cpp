@@ -596,5 +596,13 @@ namespace tests::testSuite
         addTestFromFile("Get Class On Null Error",
                         errorPath + "getClassOnNull.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - empty class / shadowing / static in abstract ===
+        addOutputVerificationTest("Empty Class Definition",
+                        passPath + "emptyClassDefinition.mt");
+        addOutputVerificationTest("Field Shadowing Parent",
+                        passPath + "fieldShadowingParent.mt");
+        addOutputVerificationTest("Static Field In Abstract Class",
+                        passPath + "staticFieldInAbstractClass.mt");
     }
 }

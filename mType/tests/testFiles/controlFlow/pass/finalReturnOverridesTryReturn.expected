@@ -1,0 +1,6 @@
+Testing finally return overriding try return
+Try block
+Finally block
+Observed result: 2
+Outcome: finally won
+Finally-overrides-try-return test completed

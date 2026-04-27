@@ -579,5 +579,15 @@ namespace tests::testSuite
         // Test that static and instance methods with same name are allowed (different namespaces)
         addOutputVerificationTest("Allow Static And Instance Method Same Name",
                         passPath + "allowStaticAndInstanceSameName.mt");
+
+        // === EDGE CASE TESTS - empty bodies / precedence / masking / null guards ===
+        addOutputVerificationTest("Empty Try Empty Catch",
+                        passPath + "emptyTryEmptyCatch.mt");
+        addOutputVerificationTest("Return In Try Catch Finally Precedence",
+                        passPath + "returnInTryCatchFinallyPrecedence.mt");
+        addOutputVerificationTest("Nested Try Finally Exception Masking",
+                        passPath + "nestedTryFinallyExceptionMasking.mt");
+        addOutputVerificationTest("Throw Null Checked At Site",
+                        passPath + "throwNullCheckedAtSite.mt");
     }
 }

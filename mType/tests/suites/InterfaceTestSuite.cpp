@@ -294,5 +294,18 @@ namespace tests::testSuite
         addTestFromFile("Interface Variance Contravariant Error",
                         errorPath + "interfaceVarianceContravariant.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - marker / diamond / circular / final ===
+        addOutputVerificationTest("Empty Marker Interface",
+                        passPath + "emptyMarkerInterface.mt");
+        addOutputVerificationTest("Diamond Inheritance No Conflict",
+                        passPath + "diamondInheritanceNoConflict.mt");
+
+        addTestFromFile("Circular Interface Inheritance Error",
+                        errorPath + "circularInterfaceInheritance.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Interface Final Method Error",
+                        errorPath + "interfaceFinalMethod.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

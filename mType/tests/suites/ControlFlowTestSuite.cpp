@@ -423,5 +423,15 @@ namespace tests::testSuite
         addTestFromFile("Final For Loop Variable Error",
                         errorPath + "finalForLoopVariable.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - finally semantics / nesting / masking ===
+        addOutputVerificationTest("Final Return Overrides Try Return",
+                        passPath + "finalReturnOverridesTryReturn.mt");
+        addOutputVerificationTest("Throw Inside Catch Replaces Original",
+                        passPath + "throwInsideCatchReplacesOriginal.mt");
+        addOutputVerificationTest("Finally Masks Try Exception",
+                        passPath + "finallyMasksTryException.mt");
+        addOutputVerificationTest("Deeply Nested Blocks",
+                        passPath + "deeplyNestedBlocks.mt");
     }
 }

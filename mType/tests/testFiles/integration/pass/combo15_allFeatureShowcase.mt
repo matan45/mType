@@ -36,7 +36,7 @@ abstract class Widget<T> implements Renderable {
     public function getId(): string { return this.id; }
     public function getData(): T { return this.data; }
 
-    abstract function render(): string;
+    public abstract function render(): string;
 }
 
 // --- Final class ---

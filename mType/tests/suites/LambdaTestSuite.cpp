@@ -258,5 +258,21 @@ namespace tests::testSuite
                         passPath + "lambdaDeepNesting.mt");
         addOutputVerificationTest("Lambda Tight Loop Performance",
                         passPath + "lambdaTightLoopPerformance.mt");
+
+        // ====================================
+        // EDGE CASE TESTS - empty/zero/curry/this-capture
+        // ====================================
+        addOutputVerificationTest("Empty Lambda Body",
+                        passPath + "emptyLambdaBody.mt");
+        addOutputVerificationTest("Lambda Returning This",
+                        passPath + "lambdaReturningThis.mt");
+        addOutputVerificationTest("Lambda Zero Params",
+                        passPath + "lambdaZeroParams.mt");
+        addOutputVerificationTest("Nested Lambda Curry",
+                        passPath + "nestedLambdaCurry.mt");
+
+        addTestFromFile("Lambda Capture Mutable Loop Var Error",
+                        errorPath + "lambdaCaptureMutableLoopVar.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

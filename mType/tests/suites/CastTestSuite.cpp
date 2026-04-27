@@ -381,5 +381,17 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addOutputVerificationTest("Cast in Try Catch",
                         passPath + "castInTryCatch_pass.mt");
+
+        // === EDGE CASE TESTS - identity / null / ternary-in-interpolation / unrelated ===
+        addOutputVerificationTest("Cast Self No Op",
+                        passPath + "castSelfNoOp.mt");
+        addOutputVerificationTest("Cast Null To Reference",
+                        passPath + "castNullToReference.mt");
+        addOutputVerificationTest("Cast Inside Ternary Inside Interpolation",
+                        passPath + "castInsideTernaryInsideInterpolation.mt");
+
+        addTestFromFile("Downcast Unrelated Types Error",
+                        errorPath + "downcastUnrelatedTypes.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

@@ -1,0 +1,10 @@
+=== Combo 22: Static + Generic + Lambda + Overload ===
+--- Unary apply ---
+doubler(7) = 14
+length(hello) = 5
+--- Binary apply ---
+sum(3, 4) = 7
+concat(foo, bar) = foo-bar
+--- Mixed type binary ---
+repeat(ab, 3) = ababab
+=== Combo 22 Complete ===

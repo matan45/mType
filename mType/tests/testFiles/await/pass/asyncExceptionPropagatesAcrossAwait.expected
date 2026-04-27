@@ -1,0 +1,4 @@
+outer start
+inner start
+outer caught: inner failure
+result: 99

@@ -51,7 +51,7 @@ class Email implements Validatable {
 
     public function isValid(): bool {
         // Simple validation: must be longer than 5 chars
-        return this.address.length() > 5;
+        return strLength(this.address) > 5;
     }
 
     public function validate(): string {
@@ -72,12 +72,12 @@ class PhoneNumber implements Validatable {
     }
 
     public function isValid(): bool {
-        return this.number.length() >= 7;
+        return strLength(this.number) >= 7;
     }
 
     public function validate(): string {
         if (!this.isValid()) {
-            return "Phone too short: " + this.number.length() + " digits";
+            return "Phone too short: " + strLength(this.number) + " digits";
         }
         return "OK";
     }

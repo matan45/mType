@@ -1,0 +1,6 @@
+=== Combo 21: Pattern Match + Annotation ===
+Circle r=2 ann=circle-component
+Square side=3 ann=square-component
+Triangle base=4 ann=triangle-component
+Circle r=5 ann=circle-component
+=== Combo 21 Complete ===

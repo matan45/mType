@@ -36,7 +36,7 @@ function main(): void {
         .count();
     print("Odd count: " + oddCount);
 
-    // String stream pipeline - avoid chained calls in lambda
+    // String stream pipeline
     print("--- String stream ---");
     String[] words = [
         new String("hello"),
@@ -48,7 +48,7 @@ function main(): void {
 
     // Filter words longer than 3 chars
     Stream<String> longWords = Streams::of(words)
-        .filter(w -> w.getValue().length() > 3);
+        .filter(w -> w.length() > 3);
 
     String[] filtered = longWords.toArray();
     for (String w : filtered) {

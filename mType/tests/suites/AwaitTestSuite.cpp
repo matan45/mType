@@ -225,5 +225,21 @@ namespace tests::testSuite
         // === CROSS-FEATURE EDGE CASES ===
         addOutputVerificationTest("Async Final Capture Lambda",
                         passPath + "asyncFinalCaptureLambda.mt");
+
+        // === ADDITIONAL ASYNC EDGE CASES - completed promise / multi-await / finally / cleanup ===
+        addOutputVerificationTest("Await On Already Completed Promise",
+                        passPath + "awaitOnAlreadyCompletedPromise.mt");
+        addOutputVerificationTest("Multiple Awaits Same Promise",
+                        passPath + "multipleAwaitsSamePromise.mt");
+        addOutputVerificationTest("Finally After Async Exception",
+                        passPath + "finallyAfterAsyncException.mt");
+        addOutputVerificationTest("Async Exception Propagates Across Await",
+                        passPath + "asyncExceptionPropagatesAcrossAwait.mt");
+        addOutputVerificationTest("Async Try Finally Resource Cleanup",
+                        passPath + "asyncTryFinallyResourceCleanup.mt");
+
+        addTestFromFile("Throw Before First Await Error",
+                        errorPath + "throwBeforeFirstAwait.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

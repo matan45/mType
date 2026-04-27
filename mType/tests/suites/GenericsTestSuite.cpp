@@ -527,5 +527,15 @@ namespace tests::testSuite
                     passPath + "getClassFromGenericInstance.mt");
         addOutputVerificationTest("Get Class Identity Vs ForName",
                     passPath + "getClassIdentityVsForName.mt");
+
+        // === EDGE CASE TESTS - nesting / shadowing / CRTP / empty ===
+        addOutputVerificationTest("Recursive List Of List",
+                    passPath + "recursiveListOfList.mt");
+        addOutputVerificationTest("Generic Param Shadowing",
+                    passPath + "genericParamShadowing.mt");
+        addOutputVerificationTest("CRTP Self Referential",
+                    passPath + "crtpSelfReferential.mt");
+        addOutputVerificationTest("Empty Generic Array",
+                    passPath + "emptyGenericArray.mt");
     }
 }

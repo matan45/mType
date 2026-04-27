@@ -1,0 +1,15 @@
+=== Combo 19: Annotations + Abstract Methods ===
+--- Direct calls ---
+compute(5) = 10
+describe() = Doubler
+--- Reflect Worker ---
+Class: Worker
+Method count: 2
+  compute @Trace(tag=compute)
+  describe @Trace(tag=describe)
+--- Reflect Doubler ---
+Class: Doubler
+Method count: 2
+  compute @Trace(tag=compute-doubler)
+  describe @Trace(tag=describe-doubler)
+=== Combo 19 Complete ===

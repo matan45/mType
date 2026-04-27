@@ -1,0 +1,9 @@
+=== Combo 24: Inheritance + Async + Super ===
+--- UserService ---
+base:user | child:user-data
+--- OrderService ---
+base:order | child:order-data
+--- Names ---
+user: user
+order: order
+=== Combo 24 Complete ===

@@ -82,5 +82,15 @@ namespace tests::testSuite
         addTestFromFile("Null Ambiguity Two Classes",
                     errorPath + "nullAmbiguityTwoClasses.mt",
                     TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - static vs instance same name / generic vs concrete / Int-Float ambig ===
+        addOutputVerificationTest("Overload Static And Instance Same Name",
+                        passPath + "overloadStaticAndInstanceSameName.mt");
+        addOutputVerificationTest("Overload Generic Vs Concrete",
+                        passPath + "overloadGenericVsConcrete.mt");
+
+        addTestFromFile("Overload Ambiguous Int Float Error",
+                    errorPath + "overloadAmbiguousIntFloat.mt",
+                    TestType::ERROR_EXPECTED);
     }
 }

@@ -39,6 +39,12 @@ namespace tests::testSuite
         // === CROSS-FEATURE EDGE CASES ===
         addOutputVerificationTest("Cast Inside Interpolation",
                                   passPath + "castInsideInterpolation.mt");
+        addOutputVerificationTest("Interpolation Nested Quotes",
+                                  passPath + "interpolationNestedQuotes.mt");
+        addOutputVerificationTest("Interpolation Function Call",
+                                  passPath + "interpolationFunctionCall.mt");
+        addOutputVerificationTest("Interpolation Unicode",
+                                  passPath + "interpolationUnicode.mt");
 
         // Error tests
         addTestFromFile("Empty Interpolation Error",

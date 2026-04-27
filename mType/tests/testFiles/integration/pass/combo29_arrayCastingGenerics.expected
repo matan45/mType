@@ -1,0 +1,10 @@
+=== Combo 29: Array Casting + Generics ===
+--- Successful casts ---
+Rex fetches says woof
+Whiskers purrs says meow
+Buddy fetches says woof
+Bessie says moo
+--- Bad cast caught ---
+Caught: Cannot cast Bessie to Dog
+Caught: Cannot cast Whiskers to Cow
+=== Combo 29 Complete ===

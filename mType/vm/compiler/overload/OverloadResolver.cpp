@@ -251,14 +251,21 @@ namespace vm::compiler::overload
         }
 
         // Inheritance: child class -> parent class
+        // Strip nullable suffix from class names — non-null is assignable to nullable.
+        // Nullability is encoded inconsistently across the codebase: some paths set
+        // ParameterType.nullable=true, others append '?' to className via GenericType::toString
+        // (see ClassRegistrar.cpp:218). Normalize here so the subtype lookup works either way.
         if (from.basicType == value::ValueType::OBJECT && to.basicType == value::ValueType::OBJECT) {
             if (from.isClass() && to.isClass()) {
-                if (registry.isSubtypeOf(from.getClassName(), to.getClassName())) {
+                std::string fromBase = types::TypeConversionUtils::stripNullable(from.getClassName());
+                std::string toBase = types::TypeConversionUtils::stripNullable(to.getClassName());
+                if (registry.isSubtypeOf(fromBase, toBase)) {
                     return ConversionType::INHERITANCE;
                 }
             }
             // Untyped object (no className) is assignable to Object (the root class)
-            if (!from.isClass() && !from.isInterface() && to.isClass() && to.getClassName() == "Object") {
+            if (!from.isClass() && !from.isInterface() && to.isClass() &&
+                types::TypeConversionUtils::stripNullable(to.getClassName()) == "Object") {
                 return ConversionType::INHERITANCE;
             }
         }

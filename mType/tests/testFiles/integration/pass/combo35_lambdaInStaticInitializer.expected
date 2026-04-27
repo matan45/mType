@@ -1,0 +1,17 @@
+=== Combo 35: Lambda in Static Initializer ===
+--- DOUBLER ---
+1 -> 2
+2 -> 4
+3 -> 6
+4 -> 8
+5 -> 10
+--- SQUARE ---
+1 -> 1
+2 -> 4
+3 -> 9
+4 -> 16
+5 -> 25
+--- Direct field access ---
+doubler(7) = 14
+square(7) = 49
+=== Combo 35 Complete ===
