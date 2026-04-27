@@ -16,6 +16,14 @@ namespace tests::testSuite
                                   passPath + "test_array_types.mt");
         addOutputVerificationTest("Error Handling comprehensive",
                                   passPath + "test_error_handling.mt");
+        addOutputVerificationTest("OOP test 1",
+                                  passPath + "test22_asyncFunctionalStreams.mt");
+        addOutputVerificationTest("OOP test 2",
+                                  passPath + "test23_advancedTypesReflectionFFN.mt");
+        addOutputVerificationTest("OOP test 3",
+                                  passPath + "test24_oopExceptionsAndLoops.mt");
+        addOutputVerificationTest("OOP test 4",
+                          passPath + "test21_dataAndControlFlowEdgeCases.mt");
         // Complex Feature Integration tests
         addOutputVerificationTest("Classes with Final Variables and Loops",
                                   passPath + "classesWithFinalVariablesAndLoops.mt");

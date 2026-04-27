@@ -1,0 +1,6 @@
+--- Test 22: Async Functional Streams ---
+Processing: root
+  Processing: child1
+    Processing: child1a
+  Processing: child3
+Total nodes processed: 4

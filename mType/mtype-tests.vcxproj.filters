@@ -7702,6 +7702,30 @@
     <None Include="tests\testFiles\integration\pass\test20_decoratorPatternWithInheritance.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\test21_dataAndControlFlowEdgeCases.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test21_dataAndControlFlowEdgeCases.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test22_asyncFunctionalStreams.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test22_asyncFunctionalStreams.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test23_advancedTypesReflectionFFN.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test23_advancedTypesReflectionFFN.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test24_oopExceptionsAndLoops.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\test24_oopExceptionsAndLoops.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\test_array_types.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>

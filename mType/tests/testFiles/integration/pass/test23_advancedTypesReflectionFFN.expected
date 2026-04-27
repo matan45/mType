@@ -1,0 +1,4 @@
+--- Test 23: Advanced Types, Reflection, FFN ---
+Found plugin: StringProcessor v1.0.0
+BasePlugin initialized
+Execution Result: StringPlugin[INIT]: FFN_PROCESSED[raw_data]

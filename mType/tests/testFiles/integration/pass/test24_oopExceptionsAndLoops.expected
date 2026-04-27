@@ -1,0 +1,19 @@
+--- Test 24: OOP, Exceptions, and Loops ---
+Manager count: 1
+--- Testing via Standard For Loop ---
+Connecting to api.trusted.com:443 via TLSv1.3
+Connected securely.
+Connection attempt finished.
+Connecting to api.legacy.com:80 via TLSv1.3
+Connection Failed: Port 80 is not secure.
+Connection attempt finished.
+--- Disconnecting via While Loop ---
+Disconnected.
+--- Testing via Enhanced For-Each Loop ---
+Connecting to api.trusted.com:443 via TLSv1.3
+Connected securely.
+Connection attempt finished.
+Disconnected.
+Connecting to api.legacy.com:80 via TLSv1.3
+Connection Failed: Port 80 is not secure.
+Connection attempt finished.
