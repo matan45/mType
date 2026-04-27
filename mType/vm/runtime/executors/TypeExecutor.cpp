@@ -643,6 +643,13 @@ namespace vm::runtime
                 throwCastError("Cannot cast string to float: " + str);
             }
         }
+        else if (value::isAnyObject(val)) {
+            auto* obj = value::asObjectInstanceRaw(val);
+            if (obj && obj->getClassDefinition()->getName() == "Float") {
+                return val;
+            }
+            throwCastError("Cannot cast object to float");
+        }
         else if (value::isValueObject(val)) {
             auto obj = value::asValueObject(val);
             if (obj && obj->getClassName() == "Float") {
@@ -694,6 +701,13 @@ namespace vm::runtime
             const value::InternedString& str = value::asInternedString(val);
             // Non-empty strings are true
             return str.length() > 0;
+        }
+        else if (value::isAnyObject(val)) {
+            auto* obj = value::asObjectInstanceRaw(val);
+            if (obj && obj->getClassDefinition()->getName() == "Bool") {
+                return val;
+            }
+            throwCastError("Cannot cast object to bool");
         }
         else if (value::isValueObject(val)) {
             auto obj = value::asValueObject(val);
