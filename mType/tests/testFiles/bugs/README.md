@@ -21,6 +21,8 @@ Each file maps to one subtask:
 | MYT-223  | `staticOverloadReturnsVoid.mt`             | Static method overload call types as `void` at call site    |
 | MYT-224  | `genericOverloadFunctionalInterfaceUnify.mt` | Overload resolution doesn't unify concrete `UnaryFn<Int,Int>` with `UnaryFn<T,R>` |
 | MYT-225  | `getFieldTypedNonThisAccess.mt`            | `paramName.field` / `localVar.field` on class/value-class throws GET_FIELD_TYPED |
+| MYT-226  | `jitTailCallNoOverflow.mt`                 | JIT TCO bypasses pushCallFrame's stack-overflow guard — infinite tail recursion hangs |
+| MYT-227  | `infiniteLoopHangs.mt`                     | for/while loop back-edge has no interrupt poll — `while (true) {}` hangs with no diagnostic |
 
 ## Running
 
