@@ -9,6 +9,8 @@ namespace tests::testSuite
         // Basic generic functionality tests
         addOutputVerificationTest("Basic Generic Class",
                         passPath + "basicGenericClass.mt");
+        addOutputVerificationTest("three Type Arg",
+                       passPath + "threeTypeArgDropsArg.mt");
         addOutputVerificationTest("Multiple Type Parameters",
                         passPath + "multipleTypeParameters.mt");
         addOutputVerificationTest("Generic with Primitive Types",

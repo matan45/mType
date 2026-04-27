@@ -10,7 +10,7 @@
 // The third positional argument disappears from the compiler's view.
 // Same call shape with 2 type args works fine.
 
-import * from "../../lib/primitives/Int.mt";
+import * from "../lib/primitives/Int.mt";
 
 interface BinaryFn<T, U, R> {
     function apply(T x, U y): R;
