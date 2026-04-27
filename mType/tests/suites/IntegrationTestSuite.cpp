@@ -436,9 +436,8 @@ namespace tests::testSuite
                                   passPath + "combo25_collectionsTryFinallyLambda.mt");
         addOutputVerificationTest("Combo 26: Import Alias + Generics + Lambda",
                                   passPath + "combo26_importAliasGenericsLambda.mt");
-        // TODO MYT-222: re-enable when (T)cast against generic type-param no longer throws.
-        // addOutputVerificationTest("Combo 27: Recursive + Generic + Lambda",
-        //                           passPath + "combo27_recursiveGenericLambda.mt");
+         addOutputVerificationTest("Combo 27: Recursive + Generic + Lambda",
+                                  passPath + "combo27_recursiveGenericLambda.mt");
         addOutputVerificationTest("Combo 28: Stream + Switch + Pattern Match",
                                   passPath + "combo28_streamSwitchPatternMatch.mt");
         addOutputVerificationTest("Combo 29: Array + Casting + Generics",

@@ -651,6 +651,8 @@ namespace vm::runtime
             break;
         case OpCode::CAST: typeExecutor->handleCast(instr);
             break;
+        case OpCode::CAST_TYPEPARAM: typeExecutor->handleCastTypeParam(instr);
+            break;
 
         // Lambda operations - delegated to LambdaExecutor
         case OpCode::LAMBDA: lambdaExecutor->handleLambda(instr);

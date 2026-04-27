@@ -307,6 +307,32 @@ namespace vm::runtime
             "' is not bound in this context (free generic functions are not yet supported)");
     }
 
+    void TypeExecutor::handleCastTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {
+        const std::string& paramName = context.program->getConstantPool().getString(instr.operands[0]);
+
+        try {
+            std::string resolved = resolveTypeParameter(paramName);
+            value::Value val = context.stackManager->pop();
+
+            if (resolved == "Int" || resolved == "int") {
+                context.stackManager->push(castToInt(val));
+            } else if (resolved == "Float" || resolved == "float") {
+                context.stackManager->push(castToFloat(val));
+            } else if (resolved == "String" || resolved == "string") {
+                context.stackManager->push(castToString(val));
+            } else if (resolved == "Bool" || resolved == "bool") {
+                context.stackManager->push(castToBool(val));
+            } else {
+                context.stackManager->push(castToObject(val, resolved));
+            }
+        } catch (const errors::RuntimeException& e) {
+            // Phase 1 generics: free generic functions don't have reified type parameters at runtime.
+            // In this case, the type parameter acts as erased (Object).
+            // A cast to an erased type parameter is a no-op at runtime.
+            // The value to be cast is already on top of the stack, so we just leave it.
+        }
+    }
+
     void TypeExecutor::handleCast(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get target type name from constant pool
         const std::string& targetTypeName = context.program->getConstantPool().getString(instr.operands[0]);
@@ -630,6 +656,22 @@ namespace vm::runtime
     }
 
     value::Value TypeExecutor::castToString(const value::Value& val) {
+        // A String boxed-class instance must pass through unchanged — unboxing
+        // to a primitive string here would strip the wrapper and break later
+        // method dispatch (e.g. `(String)list.get(i)` followed by `.getValue()`).
+        // Mirrors the isAnyObject / isValueObject pass-through in castToInt.
+        if (value::isAnyObject(val)) {
+            auto* obj = value::asObjectInstanceRaw(val);
+            if (obj && obj->getClassDefinition()->getName() == "String") {
+                return val;
+            }
+        }
+        if (value::isValueObject(val)) {
+            auto obj = value::asValueObject(val);
+            if (obj && obj->getClassName() == "String") {
+                return val;
+            }
+        }
         return valueToString(val);
     }
 

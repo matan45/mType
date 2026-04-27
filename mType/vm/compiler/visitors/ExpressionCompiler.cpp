@@ -426,6 +426,52 @@ namespace vm::compiler::visitors
         const auto* targetType = node->getTargetType();
         std::string targetTypeName = targetType->toString();
 
+        // IMPORTANT: GenericType::isGenericParameter() is a variant-shape check
+        // (variant holds<string>), not a semantic one — it returns true for any
+        // bare class name like `Car` or `Box`. We must additionally verify the
+        // name is a declared type parameter of the enclosing generic scope,
+        // otherwise ordinary casts get misrouted to CAST_TYPEPARAM and the
+        // runtime no-op fallback silently swallows real cast errors. Mirrors
+        // the guard in compileInstanceOf, broadened to also accept method-level
+        // params on free generic functions: FunctionCompiler pushes a self-
+        // mapping {T -> T} onto genericTypeBindingStack while compiling the
+        // body, and MYT-222's erased-semantics path for `function <T> foo() {
+        // (T)x }` depends on hitting CAST_TYPEPARAM here.
+        if (targetType->isGenericParameter() && !targetType->isParameterized())
+        {
+            const std::string& candidate = targetType->getBaseTypeName();
+            bool isDeclaredParam = false;
+
+            if (ctx.currentClassNode)
+            {
+                for (const auto& p : ctx.currentClassNode->getGenericParameters())
+                {
+                    if (p.name == candidate)
+                    {
+                        isDeclaredParam = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isDeclaredParam && !ctx.genericTypeBindingStack.empty())
+            {
+                const auto& bindings = ctx.genericTypeBindingStack.back();
+                if (bindings.find(candidate) != bindings.end())
+                {
+                    isDeclaredParam = true;
+                }
+            }
+
+            if (isDeclaredParam)
+            {
+                size_t nameIndex = ctx.program.getConstantPool().addString(candidate);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CAST_TYPEPARAM,
+                                             static_cast<uint64_t>(nameIndex), node);
+                return std::monostate{};
+            }
+        }
+
         // Store target type name in constant pool
         size_t typeNameIndex = ctx.program.getConstantPool().addString(targetTypeName);
 

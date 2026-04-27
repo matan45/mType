@@ -179,6 +179,7 @@ namespace vm::bytecode
         INSTANCEOF,         // Check if object is instance of class (operand: type name string index)
         INSTANCEOF_TYPEPARAM, // Check instance-of against a type parameter (operand: parameter name string index)
         CAST,               // Cast object to type
+        CAST_TYPEPARAM,     // Cast object to a type parameter (operand: parameter name string index)
         CHECK_TYPE,         // Runtime type check
         TYPE_CONVERT,       // Type conversion
         GET_TYPE,           // Get type of value
@@ -472,6 +473,7 @@ namespace vm::bytecode
             case OpCode::INSTANCEOF: return "INSTANCEOF";
             case OpCode::INSTANCEOF_TYPEPARAM: return "INSTANCEOF_TYPEPARAM";
             case OpCode::CAST: return "CAST";
+            case OpCode::CAST_TYPEPARAM: return "CAST_TYPEPARAM";
             case OpCode::CHECK_TYPE: return "CHECK_TYPE";
             case OpCode::TYPE_CONVERT: return "TYPE_CONVERT";
             case OpCode::GET_TYPE: return "GET_TYPE";

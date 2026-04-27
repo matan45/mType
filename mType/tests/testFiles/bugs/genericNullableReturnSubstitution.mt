@@ -8,8 +8,8 @@
 //   (Even with explicit <Int>, the return type is reported as the unsubstituted
 //   T?, and the LHS Int? is reported just as "Int" in the error message.)
 
-import * from "../../lib/collections/ArrayList.mt";
-import * from "../../lib/primitives/Int.mt";
+import * from "../lib/collections/ArrayList.mt";
+import * from "../lib/primitives/Int.mt";
 
 function <T> findFirst(ArrayList<T> list): T? {
     if (list.size() == 0) {

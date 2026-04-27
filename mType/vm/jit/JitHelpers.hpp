@@ -160,6 +160,9 @@ namespace vm::jit
     void jit_cast(value::Value* dest, const value::Value* src,
                    const vm::bytecode::BytecodeProgram* prog,
                    uint32_t typeIndex);
+    void jit_cast_typeparam(value::Value* dest, const value::Value* src,
+                             JitContext* ctx,
+                             uint32_t paramNameIndex);
     void jit_new_object(value::Value* dest, JitContext* ctx,
                          uint32_t classIndex, size_t argCount);
     // MYT-208: stack-promoted allocation. Same calling convention as

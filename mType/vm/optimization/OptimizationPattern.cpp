@@ -156,6 +156,7 @@ namespace vm::optimization
             case OpCode::INSTANCEOF:
             case OpCode::INSTANCEOF_TYPEPARAM:
             case OpCode::CAST:
+            case OpCode::CAST_TYPEPARAM:
             case OpCode::CHECK_TYPE:
             case OpCode::ARRAY_LENGTH:
                 return 1;
@@ -222,6 +223,7 @@ namespace vm::optimization
             case OpCode::INSTANCEOF:
             case OpCode::INSTANCEOF_TYPEPARAM:
             case OpCode::CAST:
+            case OpCode::CAST_TYPEPARAM:
             case OpCode::CHECK_TYPE:
             case OpCode::ARRAY_LENGTH:
                 return 1;
