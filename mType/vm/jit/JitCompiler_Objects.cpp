@@ -1285,6 +1285,28 @@ namespace vm::jit
             case OpCode::SET_FIELD_CACHED:
                 // MYT-194: see GET_FIELD_CACHED above.
                 return emitSetFieldOp(s, instr);
+            case OpCode::GET_FIELD_TYPED:
+            {
+                // MYT-212/MYT-225: typed-receiver field read. Route through
+                // the un-typed emit path using just the field-name operand.
+                // For value classes (no inheritance) and reference classes
+                // without field shadowing, the un-typed runtime-class lookup
+                // produces the same slot as the typed static-binding lookup.
+                // Field-shadowing across a hierarchy diverges; the interpreter
+                // path retains strict static-binding semantics. Dedicated JIT
+                // emit that resolves the owner's slot at compile time is a
+                // follow-up.
+                bytecode::BytecodeProgram::Instruction getField(
+                    OpCode::GET_FIELD, instr.operands[1]);
+                return emitGetFieldOp(s, getField);
+            }
+            case OpCode::SET_FIELD_TYPED:
+            {
+                // Symmetric to GET_FIELD_TYPED above. Same shadowing caveat.
+                bytecode::BytecodeProgram::Instruction setField(
+                    OpCode::SET_FIELD, instr.operands[1]);
+                return emitSetFieldOp(s, setField);
+            }
             case OpCode::INLINE_GET_FIELD: return emitGetFieldOp(s, instr);
             case OpCode::INLINE_SET_FIELD: return emitSetFieldOp(s, instr);
             case OpCode::CALL_STATIC:    return emitCallStaticOp(s, instr);

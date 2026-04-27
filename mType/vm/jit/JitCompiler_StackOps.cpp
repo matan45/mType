@@ -110,8 +110,10 @@ namespace vm::jit
 
             static_cast<uint8_t>(OpCode::GET_FIELD),
             static_cast<uint8_t>(OpCode::GET_FIELD_CACHED),    // MYT-194
+            static_cast<uint8_t>(OpCode::GET_FIELD_TYPED),     // MYT-212/MYT-225
             static_cast<uint8_t>(OpCode::SET_FIELD),
             static_cast<uint8_t>(OpCode::SET_FIELD_CACHED),    // MYT-194
+            static_cast<uint8_t>(OpCode::SET_FIELD_TYPED),     // MYT-212/MYT-225
             static_cast<uint8_t>(OpCode::INLINE_GET_FIELD),
             static_cast<uint8_t>(OpCode::INLINE_SET_FIELD),
 
