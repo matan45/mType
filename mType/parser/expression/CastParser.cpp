@@ -100,6 +100,22 @@ namespace parser::expression
                     return true; // Likely a generic type cast
                 }
             }
+
+            // Pattern: (Type?) — nullable cast attempt. Disambiguator vs ternary
+            // "(x ? a : b)": require ')' immediately after '?'. We commit to the
+            // cast path here so parseCastExpression can emit a targeted error.
+            if (afterId.type == TokenType::QUESTION)
+            {
+                Token afterQuestion = tokenStream.peekAhead(3);
+                if (afterQuestion.type == TokenType::RPAREN)
+                {
+                    std::string idValue = std::string(nextToken.stringValue);
+                    if (!idValue.empty() && std::isupper(static_cast<unsigned char>(idValue[0])))
+                    {
+                        return true;
+                    }
+                }
+            }
         }
 
         return false;
@@ -113,7 +129,18 @@ namespace parser::expression
         expectToken(TokenType::LPAREN);
 
         // Parse target type using TypeParser
+        SourceLocation typeStart = tokenStream.current().location;
         auto targetType = TypeParser::parseGenericType(tokenStream);
+
+        // Reject (T?) cast syntax — assigning null is expressed via T? variables.
+        // Catches (T?), (T[]?), (T<X>?), (T<X>[]?) uniformly.
+        if (targetType->isNullable())
+        {
+            throw ParseException(
+                "Nullable cast syntax (T?) is not supported. "
+                "Cast to T and assign to a T? variable, or use null directly.",
+                typeStart);
+        }
 
         expectToken(TokenType::RPAREN);
 

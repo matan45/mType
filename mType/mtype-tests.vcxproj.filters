@@ -2308,31 +2308,19 @@
     <None Include="tests\testFiles\bugs\castToTypeParamThrows.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
-    <None Include="tests\testFiles\bugs\genericNullableReturnSubstitution.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
-    <None Include="tests\testFiles\bugs\genericOverloadFunctionalInterfaceUnify.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
     <None Include="tests\testFiles\bugs\getFieldTypedNonThisAccess.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
-    <None Include="tests\testFiles\bugs\isClassOfTypeParamAlwaysFalse.mt">
+    <None Include="tests\testFiles\bugs\infiniteLoopHangs.mt">
+      <Filter>testFiles\bugs</Filter>
+    </None>
+    <None Include="tests\testFiles\bugs\jitTailCallNoOverflow.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
     <None Include="tests\testFiles\bugs\libFunctionMultiMethod.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
-    <None Include="tests\testFiles\bugs\nullableCastSyntaxRejected.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
     <None Include="tests\testFiles\bugs\staticOverloadReturnsVoid.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
-    <None Include="tests\testFiles\bugs\switchBreakAfterReturnVoid.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
-    <None Include="tests\testFiles\bugs\threeTypeArgDropsArg.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\castArrayCovariance_error.mt">
@@ -2357,6 +2345,12 @@
       <Filter>testFiles\cast\error</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\castInvariantGeneric_error.mt">
+      <Filter>testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castNullToNonNullableArg_error.mt">
+      <Filter>testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\castNullToNonNullable_error.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\castNullableIntToNonNull_error.mt">
@@ -2392,7 +2386,13 @@
     <None Include="tests\testFiles\cast\error\isClassOfMalformedParameterized.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
+    <None Include="tests\testFiles\cast\error\isClassOfMethodTypeParam_error.mt">
+      <Filter>testFiles\cast\error</Filter>
+    </None>
     <None Include="tests\testFiles\cast\error\nullToPrimitiveCast.mt">
+      <Filter>testFiles\cast\error</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\error\nullableCastSyntax_error.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\objectToPrimitiveCast.mt">
@@ -2681,6 +2681,12 @@
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castNullInTernary_pass.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullToNullable_pass.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castNullToNullable_pass.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\castNullToReference.expected">
@@ -3095,6 +3101,12 @@
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\nullToObjectCast.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\parenTernaryNotCast_pass.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\parenTernaryNotCast_pass.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\polymorphicCast.expected">
@@ -4714,6 +4726,12 @@
     <None Include="tests\testFiles\controlFlow\pass\spacedOperators.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchBreakAfterReturnVoid.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\switchBreakAfterReturnVoid.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\switchCaseDefault.expected">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
@@ -5075,6 +5093,9 @@
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\runtimeNullPointerDereference.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\runtimeStackOverflow.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\scopeFunctionParameterShadowing.mt">
@@ -6316,6 +6337,12 @@
     <None Include="tests\testFiles\generics\pass\genericNullSafety.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\genericNullableReturnSubstitution.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\genericNullableReturnSubstitution.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\genericParamShadowing.expected">
       <Filter>testFiles\generics\pass</Filter>
     </None>
@@ -6715,6 +6742,12 @@
     <None Include="tests\testFiles\generics\pass\staticGenericCollectionReturns.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericFunctionalInterfaceUnify.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\staticGenericFunctionalInterfaceUnify.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\staticGenericMethodParameterless.expected">
       <Filter>testFiles\generics\pass</Filter>
     </None>
@@ -6743,6 +6776,12 @@
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\stringTypeInGenerics.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\threeTypeArgDropsArg.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\threeTypeArgDropsArg.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\tryCatchFinallyWithReturn.expected">

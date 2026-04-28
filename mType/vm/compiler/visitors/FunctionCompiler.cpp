@@ -400,7 +400,7 @@ namespace vm::compiler::visitors
                         // Use TypeValidator for detailed class compatibility checking
                         if (!actualClassName.empty() && expectedReturnType != "object")
                         {
-                            bool isNullValue = dynamic_cast<ast::NullNode*>(returnValue) != nullptr;
+                            bool isNullValue = ctx.typeInference.isEffectivelyNullLiteral(returnValue);
                             ctx.typeValidator.validateAssignment(
                                 expectedType, expectedReturnType,
                                 actualType, actualClassName,

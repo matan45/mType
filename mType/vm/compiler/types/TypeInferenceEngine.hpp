@@ -37,6 +37,11 @@ namespace vm::compiler::types
         // Nullability inference - returns true if expression may evaluate to null
         bool inferExpressionNullable(ast::ASTNode* node) const;
 
+        // Returns true if the expression is the null literal, possibly wrapped in
+        // any number of cast expressions. Casts cannot launder null into a non-
+        // nullable target — null-assignment validation must see through them.
+        static bool isEffectivelyNullLiteral(ast::ASTNode* node);
+
         // Set null narrowing tracker for smart cast awareness
         void setNullNarrowingTracker(const NullNarrowingTracker* tracker);
 

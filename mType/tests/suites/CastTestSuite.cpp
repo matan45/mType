@@ -227,6 +227,23 @@ namespace tests::testSuite
                         errorPath + "isClassOfMethodTypeParam_error.mt",
                         TestType::ERROR_EXPECTED);
 
+        // === MYT-220: NULL CAST SAFETY ===
+        // (T?) cast syntax is unsupported; (T)null cannot be assigned to a
+        // non-nullable target; (T)null assigned to a T? target is allowed.
+        addTestFromFile("Nullable Cast Syntax Rejected",
+                        errorPath + "nullableCastSyntax_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Cast Null To NonNullable Rejected",
+                        errorPath + "castNullToNonNullable_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Cast Null To NonNullable Argument Rejected",
+                        errorPath + "castNullToNonNullableArg_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addOutputVerificationTest("Cast Null To Nullable Allowed",
+                        passPath + "castNullToNullable_pass.mt");
+        addOutputVerificationTest("Paren Ternary Not Misparsed As Cast",
+                        passPath + "parenTernaryNotCast_pass.mt");
+
         // ====================================
         // NEW EDGE CASE TESTS (70 tests)
         // ====================================

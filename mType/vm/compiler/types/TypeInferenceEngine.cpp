@@ -38,6 +38,15 @@ namespace vm::compiler::types
     {
     }
 
+    bool TypeInferenceEngine::isEffectivelyNullLiteral(ast::ASTNode* node)
+    {
+        while (auto* cast = dynamic_cast<ast::CastExpression*>(node))
+        {
+            node = cast->getExpression();
+        }
+        return dynamic_cast<ast::NullNode*>(node) != nullptr;
+    }
+
     value::ValueType TypeInferenceEngine::inferLiteralType(ast::ASTNode* node) const
     {
         if (dynamic_cast<ast::IntegerNode*>(node)) return value::ValueType::INT;
@@ -1333,9 +1342,14 @@ namespace vm::compiler::types
             return false;
         }
 
-        // Cast expression - nullable depends on target type
+        // Cast expression - nullable depends on target type, but a cast cannot
+        // launder a literal null into a non-nullable value (MYT-220).
         if (auto* castExpr = dynamic_cast<ast::CastExpression*>(node))
         {
+            if (isEffectivelyNullLiteral(castExpr->getExpression()))
+            {
+                return true;
+            }
             if (castExpr->getTargetType())
             {
                 return castExpr->getTargetType()->isNullable();

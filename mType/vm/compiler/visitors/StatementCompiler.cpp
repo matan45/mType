@@ -379,7 +379,7 @@ namespace vm::compiler::visitors
 
         std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
         value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
-        bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
+        bool isNullValue = ctx.typeInference.isEffectivelyNullLiteral(value);
 
         // Look up nullable status of the existing variable
         bool existingIsNullable = true; // default to nullable for backward compat
@@ -826,7 +826,7 @@ namespace vm::compiler::visitors
                 {
                     std::string valueClassName = ctx.typeInference.inferExpressionClassName(value);
                     value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
-                    bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
+                    bool isNullValue = ctx.typeInference.isEffectivelyNullLiteral(value);
 
                     // Look up nullable status of the existing variable
                     bool existingIsNullable = true; // default nullable for backward compat
@@ -860,7 +860,7 @@ namespace vm::compiler::visitors
                 value::ValueType valueType = ctx.typeInference.inferExpressionType(value);
                 std::string varClassName = ctx.resolveGenericType(node->getClassName());
                 std::string valueClassName = ctx.resolveGenericType(ctx.typeInference.inferExpressionClassName(value));
-                bool isNullValue = dynamic_cast<ast::NullNode*>(value) != nullptr;
+                bool isNullValue = ctx.typeInference.isEffectivelyNullLiteral(value);
 
                 // PHASE 4: Skip validation if we auto-boxed or can auto-box
                 bool canAutoBox = autoBoxed;
