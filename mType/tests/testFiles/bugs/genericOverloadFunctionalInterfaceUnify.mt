@@ -15,8 +15,8 @@
 // set yet declines to pick it. Substitution doesn't appear to run before the
 // match check.
 
-import * from "../../lib/functional/Predicate.mt";
-import * from "../../lib/primitives/Int.mt";
+import * from "../lib/functional/Predicate.mt";
+import * from "../lib/primitives/Int.mt";
 
 interface UnaryFn<T, R> {
     function apply(T x): R;

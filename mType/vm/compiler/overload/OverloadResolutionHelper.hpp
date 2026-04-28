@@ -45,13 +45,17 @@ namespace vm::compiler::overload
          * @param methodName The method name (without signature)
          * @param arguments The call arguments for type inference
          * @param location Source location for error reporting
+         * @param hasGenericTypeArgs Whether the call has explicit generic type arguments
+         * @param genericTypeArgs The actual generic type arguments provided (e.g., ["Int", "String"])
          * @return Mangled method name (e.g., "add/int,int") or plain name if single overload
          */
         std::string resolveStaticMethodOverload(
             const std::string& className,
             const std::string& methodName,
             const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
-            const ast::SourceLocation& location);
+            const ast::SourceLocation& location,
+            bool hasGenericTypeArgs = false,
+            const std::vector<std::string>& genericTypeArgs = {});
 
         /**
          * Resolves global function overload and returns the mangled name

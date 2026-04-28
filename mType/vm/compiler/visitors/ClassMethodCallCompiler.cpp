@@ -33,9 +33,13 @@ namespace vm::compiler::visitors
             }
             std::string qualifiedName = className + "::" + methodName;
 
-            // Resolve method overload to get mangled name
+            // Resolve method overload to get mangled name. Forward explicit generic
+            // type arguments (MYT-224) so the resolver can substitute them into
+            // declared parameter types before the unification check.
             std::string resolvedMethodName = overloadResolver->resolveStaticMethodOverload(
-                className, methodName, arguments, node->getLocation());
+                className, methodName, arguments, node->getLocation(),
+                node->hasGenericTypeArguments(),
+                node->getGenericTypeArguments());
 
             // PHASE 4: Validate generic type arguments
             if (node->hasGenericTypeArguments())
