@@ -325,7 +325,7 @@ namespace vm::runtime
             } else {
                 context.stackManager->push(castToObject(val, resolved));
             }
-        } catch (const errors::RuntimeException& e) {
+        } catch (const errors::RuntimeException&) {
             // Phase 1 generics: free generic functions don't have reified type parameters at runtime.
             // In this case, the type parameter acts as erased (Object).
             // A cast to an erased type parameter is a no-op at runtime.

@@ -995,8 +995,7 @@ namespace vm::compiler::types
                     funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
                     funcMetadata->returnType != "void") {
                     // Resolve generic type if applicable (from context stack)
-                    std::string resolved = ::types::TypeConversionUtils::stripNullable(
-                        resolveGenericType(funcMetadata->returnType));
+                    std::string resolved = resolveGenericType(funcMetadata->returnType);
                     return resolved;
                 }
             }

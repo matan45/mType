@@ -25,6 +25,8 @@ namespace tests::testSuite
                         passPath + "genericImportTest.mt");
         addOutputVerificationTest("HashMap HashSet Optimization",
                         passPath + "hashmapHashsetOptimization.mt");
+        addOutputVerificationTest("Generic Nullable Return Substitution",
+                        passPath + "genericNullableReturnSubstitution.mt");
 
         // Stress tests for deeply nested generics
         addOutputVerificationTest("Deeply Nested Generics Stress Test",
