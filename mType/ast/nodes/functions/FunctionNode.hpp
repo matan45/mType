@@ -89,6 +89,10 @@ namespace ast::nodes::functions
         [[nodiscard]] bool getIsAsync() const noexcept { return isAsync; }
         void setIsAsync(bool async) { isAsync = async; }
 
+        // NEW: Default interface method flags
+        [[nodiscard]] bool isDefault() const noexcept { return isDefaultMethod; }
+        void setDefault(bool def) { isDefaultMethod = def; }
+
         // NEW: Visibility modifier methods (for import/export system)
         [[nodiscard]] VisibilityModifier getVisibility() const noexcept;
         void setVisibility(VisibilityModifier vis);

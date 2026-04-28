@@ -180,12 +180,38 @@ namespace vm::compiler::types
         return bestMatch ? bestMatch : matchingOverloads[0];
     }
 
+    bool TypeInferenceEngine::isUnboundGenericReturn(
+        const bytecode::BytecodeProgram::FunctionMetadata* metadata) const
+    {
+        if (!metadata || metadata->genericTypeParameters.empty() || metadata->returnType.empty()) {
+            return false;
+        }
+
+        std::string base = metadata->returnType;
+        if (!base.empty() && base.back() == '?') {
+            base.pop_back();
+        }
+        if (base.size() >= 2 && base.compare(base.size() - 2, 2, "[]") == 0) {
+            base = base.substr(0, base.size() - 2);
+        }
+
+        for (const auto& g : metadata->genericTypeParameters) {
+            if (g == base) {
+                return resolveGenericType(base) == base;
+            }
+        }
+        return false;
+    }
+
     value::ValueType TypeInferenceEngine::inferFunctionCallType(ast::FunctionCallNode* funcCall) const
     {
         const auto* funcMetadata = findOverloadMetadata(
             funcCall->getFunctionName(),
             funcCall->getArgumentCount(),
             funcCall->getArguments());
+        if (isUnboundGenericReturn(funcMetadata)) {
+            return value::ValueType::VOID;
+        }
         if (funcMetadata && !funcMetadata->returnType.empty()) {
             if (funcMetadata->returnType == "int") return value::ValueType::INT;
             if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
@@ -726,7 +752,7 @@ namespace vm::compiler::types
             funcCall->getArgumentCount(),
             funcCall->getArguments());
 
-        if (funcMetadata && !funcMetadata->returnType.empty()) {
+        if (funcMetadata && !funcMetadata->returnType.empty() && !isUnboundGenericReturn(funcMetadata)) {
             // If return type is not a primitive, it's a class name
             if (funcMetadata->returnType != "int" && funcMetadata->returnType != "float" &&
                 funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&

@@ -79,6 +79,14 @@ namespace vm::compiler::types
             size_t argCount,
             const std::vector<std::unique_ptr<ast::ASTNode>>& arguments) const;
 
+        // Returns true when the function's declared return type is one of its
+        // own generic type parameters (e.g. `<T> deserializeAs(...): T`) and no
+        // outer binding can substitute it. Inference must report VOID/empty in
+        // that case so the strict assignment validator can't mistake the bare
+        // "T" for a concrete class.
+        bool isUnboundGenericReturn(
+            const bytecode::BytecodeProgram::FunctionMetadata* metadata) const;
+
         // Helper methods for inferExpressionType
         value::ValueType inferLiteralType(ast::ASTNode* node) const;
         value::ValueType inferVariableType(ast::VariableNode* varNode) const;

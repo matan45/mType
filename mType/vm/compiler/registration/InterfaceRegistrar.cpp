@@ -204,9 +204,13 @@ namespace vm::compiler::registration
                 typeSubstitutions[interfaceGenericParams[i].name] = typeArguments[i];
             }
 
-            // Check that all interface methods are implemented
+            // Check that all non-default interface methods are implemented
             const auto& methodSignatures = interfaceDef->getMethodSignatures();
             for (const auto& signature : methodSignatures) {
+                if (signature.isDefault) {
+                    continue; // Skip default methods
+                }
+
                 auto method = classDef->getMethod(signature.name);
 
                 // Find the method node to get its specific location
