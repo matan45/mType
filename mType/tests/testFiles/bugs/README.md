@@ -18,7 +18,7 @@ Each file maps to one subtask:
 | MYT-220  | `nullableCastSyntaxRejected.mt`            | `(T?)null` cast syntax rejected by parser                   |
 | MYT-221  | `libFunctionMultiMethod.mt`                | `lib/functional/Function` is not single-method (lambda-incompatible) |
 | MYT-222  | `castToTypeParamThrows.mt`                 | `(T)cast` to a generic type parameter throws at runtime     |
-| MYT-223  | `staticOverloadReturnsVoid.mt`             | Static method overload call types as `void` at call site    |
+| MYT-223  | ~~`staticOverloadReturnsVoid.mt`~~         | ~~Static method overload call types as `void` at call site~~ — fixed; promoted to `overloading/pass/staticOverloadReturnsVoid.mt` |
 | MYT-224  | `genericOverloadFunctionalInterfaceUnify.mt` | Overload resolution doesn't unify concrete `UnaryFn<Int,Int>` with `UnaryFn<T,R>` |
 | MYT-225  | `getFieldTypedNonThisAccess.mt`            | `paramName.field` / `localVar.field` on class/value-class throws GET_FIELD_TYPED |
 | MYT-226  | `jitTailCallNoOverflow.mt`                 | JIT TCO bypasses pushCallFrame's stack-overflow guard — infinite tail recursion hangs |

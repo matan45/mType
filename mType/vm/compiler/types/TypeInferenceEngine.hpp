@@ -68,6 +68,17 @@ namespace vm::compiler::types
         // Helper to resolve generic types
         std::string resolveGenericType(const std::string& typeName) const;
 
+        // Resolves overloaded function/method metadata by name. Tries an exact
+        // lookup first, then a prefix match against mangled names of the form
+        // "callName/<paramTypes>", scoring candidates by argument arity and
+        // parameter-type compatibility. Returns nullptr if no candidate is found.
+        // Used by both static-call (FunctionCallNode) and instance-call
+        // (MethodCallNode) type inference paths.
+        const bytecode::BytecodeProgram::FunctionMetadata* findOverloadMetadata(
+            const std::string& callName,
+            size_t argCount,
+            const std::vector<std::unique_ptr<ast::ASTNode>>& arguments) const;
+
         // Helper methods for inferExpressionType
         value::ValueType inferLiteralType(ast::ASTNode* node) const;
         value::ValueType inferVariableType(ast::VariableNode* varNode) const;

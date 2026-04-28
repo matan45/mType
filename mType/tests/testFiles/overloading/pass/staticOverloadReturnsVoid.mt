@@ -1,16 +1,7 @@
-// MYT-223: Static method overload call types as void at call site even with
-// declared concrete return type.
-//
-// EXPECTED:
-//   The call Factory::create("x", "id", "label") returns Item (declared type),
-//   so consumer.accept(Factory::create(...)) type-checks. Output: "got Item"
-//
-// ACTUAL (broken):
-//   Type error: parameter 1 expects Item but got void
-//   The function body has a single return at end of a clear if/else flow —
-//   yet the call site sees the expression type as void. Removing the
-//   second overload fixes the issue, suggesting the bug is in overload
-//   resolution / return-type recovery for static method overloads.
+// Test: A static method's declared return type is recovered at the call site
+// even when the method has multiple overloads. The 2-arg overload of
+// Factory::create returns Item, so consumer.accept(Factory::create(...))
+// type-checks. Regression test for MYT-223.
 
 class Item {
     public string label;

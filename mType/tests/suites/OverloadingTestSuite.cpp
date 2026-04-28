@@ -91,5 +91,15 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Overload Ambiguous Int Float",
                         passPath + "overloadAmbiguousIntFloat.mt");
+        addOutputVerificationTest("Static Overload Return Type Recovery",
+                        passPath + "staticOverloadReturnsVoid.mt");
+        addOutputVerificationTest("Static Overload Chained Member Access",
+                        passPath + "overloadStaticChainedMemberAccess.mt");
+        addOutputVerificationTest("Static Overload Assigned To Var",
+                        passPath + "overloadStaticAssignedToVar.mt");
+        addOutputVerificationTest("Static Overload In Arithmetic",
+                        passPath + "overloadStaticInArithmetic.mt");
+        addOutputVerificationTest("Static Overload Nested As Arg",
+                        passPath + "overloadStaticNestedAsArg.mt");
     }
 }
