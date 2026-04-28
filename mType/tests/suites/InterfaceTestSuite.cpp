@@ -203,6 +203,16 @@ namespace tests::testSuite
         addOutputVerificationTest("Interface SAM Lambda",
                         passPath + "interfaceSAMLambda.mt");
 
+        // MYT-221: lib/functional SAM lock-in tests
+        addOutputVerificationTest("Lib Function Lambda SAM",
+                        passPath + "libFunctionLambdaSam.mt");
+        addOutputVerificationTest("Lib BiFunction Lambda SAM",
+                        passPath + "libBiFunctionLambdaSam.mt");
+        addOutputVerificationTest("Lib Consumer Lambda SAM",
+                        passPath + "libConsumerLambdaSam.mt");
+        addOutputVerificationTest("Lib Comparator Lambda SAM",
+                        passPath + "libComparatorLambdaSam.mt");
+
         // === ADVANCED IMPLEMENTATION TESTS (7 tests) ===
         addOutputVerificationTest("Interface Abstract Partial Implementation",
                         passPath + "interfaceAbstractPartialImplementation.mt");

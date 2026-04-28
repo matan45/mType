@@ -27,18 +27,4 @@ class StreamToIteratorAdapter<T, R> implements Function<T, Iterator<R>> {
         StreamImpl<R> streamImpl = (StreamImpl<R>) stream;
         return streamImpl.iterator();
     }
-
-    /**
-     * Not implemented - throws exception if called.
-     */
-    public function <V> andThen(Function<Iterator<R>, V> after): Function<T, V> {
-        throw "andThen not implemented for StreamToIteratorAdapter";
-    }
-
-    /**
-     * Not implemented - throws exception if called.
-     */
-    public function <V> compose(Function<V, T> before): Function<V, Iterator<R>> {
-        throw "compose not implemented for StreamToIteratorAdapter";
-    }
 }

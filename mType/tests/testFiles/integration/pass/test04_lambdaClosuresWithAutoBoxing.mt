@@ -22,14 +22,6 @@ class ClosureFunction implements Function<Int, Int> {
     public function apply(Int x): Int {
         return new Int(x.getValue() + this.captured);
     }
-
-    public function <V> andThen(Function<Int, V> after): Function<Int, V> {
-        throw "andThen not implemented";
-    }
-
-    public function <V> compose(Function<V, Int> before): Function<V, Int> {
-        throw "compose not implemented";
-    }
 }
 
 class PredicateImpl implements Predicate<Int> {

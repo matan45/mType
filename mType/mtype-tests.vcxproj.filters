@@ -2317,12 +2317,6 @@
     <None Include="tests\testFiles\bugs\jitTailCallNoOverflow.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
-    <None Include="tests\testFiles\bugs\libFunctionMultiMethod.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
-    <None Include="tests\testFiles\bugs\staticOverloadReturnsVoid.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
     <None Include="tests\testFiles\cast\error\castArrayCovariance_error.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
@@ -8737,6 +8731,30 @@
     <None Include="tests\testFiles\interface\pass\interfaceVeryWide.mt">
       <Filter>testFiles\interface\pass</Filter>
     </None>
+    <None Include="tests\testFiles\interface\pass\libBiFunctionLambdaSam.expected">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\libBiFunctionLambdaSam.mt">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\libComparatorLambdaSam.expected">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\libComparatorLambdaSam.mt">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\libConsumerLambdaSam.expected">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\libConsumerLambdaSam.mt">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\libFunctionLambdaSam.expected">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\libFunctionLambdaSam.mt">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
     <None Include="tests\testFiles\interface\pass\manyGenericParameters.expected">
       <Filter>testFiles\interface\pass</Filter>
     </None>
@@ -10378,6 +10396,30 @@
     <None Include="tests\testFiles\overloading\pass\overloadStaticAndInstanceSameName.mt">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
+    <None Include="tests\testFiles\overloading\pass\overloadStaticAssignedToVar.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadStaticAssignedToVar.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadStaticChainedMemberAccess.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadStaticChainedMemberAccess.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadStaticInArithmetic.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadStaticInArithmetic.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadStaticNestedAsArg.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\overloadStaticNestedAsArg.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
     <None Include="tests\testFiles\overloading\pass\singleWideningFallback.expected">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
@@ -10388,6 +10430,12 @@
       <Filter>testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\staticMethodOverload.mt">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\staticOverloadReturnsVoid.expected">
+      <Filter>testFiles\overloading\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\pass\staticOverloadReturnsVoid.mt">
       <Filter>testFiles\overloading\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\threeWayConversionPriority.expected">

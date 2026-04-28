@@ -22,14 +22,6 @@ interface Transformer {
             public function apply(Int x): Int {
                 return new Int(x.getValue() + this.captured);
             }
-
-            public function <V> andThen(Function<Int, V> after): Function<Int, V> {
-                throw new RuntimeException("andThen not implemented");
-            }
-
-            public function <V> compose(Function<V, Int> before): Function<V, Int> {
-                throw new RuntimeException("compose not implemented");
-            }
         }
 		
 		// Lambda captures both instance and local variable
@@ -45,14 +37,6 @@ interface Transformer {
             public function apply(Int x): Int {
                 return new Int((x.getValue() + this.capturedInstance) * this.capturedLocal);
             }
-
-            public function <V> andThen(Function<Int, V> after): Function<Int, V> {
-                throw new RuntimeException("andThen not implemented");
-            }
-
-            public function <V> compose(Function<V, Int> before): Function<V, Int> {
-                throw new RuntimeException("compose not implemented");
-            }
         }
 
 		class StaticFunction implements Function<Int, Int> {
@@ -64,14 +48,6 @@ interface Transformer {
 
             public function apply(Int x): Int {
                 return new Int(x.getValue() + this.capturedStatic);
-            }
-
-            public function <V> andThen(Function<Int, V> after): Function<Int, V> {
-                throw new RuntimeException("andThen not implemented");
-            }
-
-            public function <V> compose(Function<V, Int> before): Function<V, Int> {
-                throw new RuntimeException("compose not implemented");
             }
         }
 
@@ -163,14 +139,6 @@ class CaptureFunction implements Function<Int, Int> {
     public function apply(Int x): Int {
         return new Int(x.getValue() + this.captured);
     }
-
-    public function <V> andThen(Function<Int, V> after): Function<Int, V> {
-        throw new RuntimeException("andThen not implemented");
-    }
-
-    public function <V> compose(Function<V, Int> before): Function<V, Int> {
-        throw new RuntimeException("compose not implemented");
-    }
 }
 
 // Test lambda capture of loop variables
@@ -218,14 +186,6 @@ class Counter {
         public function apply(Int x): Int {
             this.capturedCounter.increment();
             return new Int(this.capturedCounter.getCount());
-        }
-
-        public function <V> andThen(Function<Int, V> after): Function<Int, V> {
-            throw new RuntimeException("andThen not implemented");
-        }
-
-        public function <V> compose(Function<V, Int> before): Function<V, Int> {
-            throw new RuntimeException("compose not implemented");
         }
     }
 

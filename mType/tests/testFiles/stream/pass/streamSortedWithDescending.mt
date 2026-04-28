@@ -9,14 +9,6 @@ class IntDescendingComparator implements Comparator<Int> {
     public function compare(Int a, Int b): int {
         return b.getValue() - a.getValue(); // Reversed
     }
-
-    public function reversed(): Comparator<Int> {
-        throw "reversed() not implemented";
-    }
-
-    public function thenComparing(Comparator<Int> other): Comparator<Int> {
-        throw "thenComparing() not implemented";
-    }
 }
 
 function main(): void {

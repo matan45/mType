@@ -501,4 +501,9 @@
       <Filter>validation\builtins</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="services\ScriptAPI.hpp~">
+      <Filter>services</Filter>
+    </None>
+  </ItemGroup>
 </Project>

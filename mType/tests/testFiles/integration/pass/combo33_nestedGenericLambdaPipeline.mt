@@ -1,8 +1,7 @@
 // Combo 33: Nested generic ArrayList<ArrayList<Int>> + lambda pipeline
 // Tests: flatten, transform, and sum through lambda pipelines.
-// Uses a LOCAL single-method UnaryFn<T,R> interface because lib's
-// Function<T,R> declares apply+andThen+compose (3 methods) and so isn't
-// a functional interface for lambda assignment.
+// Keeps a local UnaryFn<T,R> interface for self-contained signature
+// independence; lib's Function<T,R> would also work post-MYT-221.
 
 import * from "../../lib/collections/ArrayList.mt";
 import * from "../../lib/functional/Predicate.mt";
