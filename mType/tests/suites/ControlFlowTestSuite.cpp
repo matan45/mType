@@ -9,6 +9,8 @@ namespace tests::testSuite
         // Function-related tests
         addOutputVerificationTest("Type Script Style Functions",
                         passPath + "typeScriptStyleFunctions.mt");
+        addOutputVerificationTest("switchBreakAfterReturnVoid",
+                        passPath + "switchBreakAfterReturnVoid.mt");
         addOutputVerificationTest("Complex Functions with New Syntax",
                         passPath + "complexFunctionsNewSyntax.mt");
         addOutputVerificationTest("Void Functions",
