@@ -24,7 +24,6 @@ namespace runtimeTypes::klass {
         ::types::UnifiedTypePtr returnType;
         std::vector<std::pair<std::string, ::types::UnifiedTypePtr>> parameters;
         std::vector<ast::GenericTypeParameter> genericParameters;
-        bool isDefault = false; // NEW: Flag to indicate default interface method
     };
     
     class InterfaceDefinition : public Definition {
@@ -62,22 +61,16 @@ namespace runtimeTypes::klass {
      * Must have exactly one method total (including inherited methods)
      */
         bool isFunctionalInterface() const {
-            size_t abstractCount = 0;
-            for (const auto& sig : methodSignatures) {
-                if (!sig.isDefault) abstractCount++;
-            }
-            return abstractCount == 1 && extendsInterfaces.empty();
+            return methodSignatures.size() == 1 && extendsInterfaces.empty();
         }
-    
+
         /**
          * Get the single method signature for functional interface
          * Returns nullptr if not a functional interface
          */
         const MethodSignature* getFunctionalMethod() const {
             if (isFunctionalInterface()) {
-                for (const auto& sig : methodSignatures) {
-                    if (!sig.isDefault) return &sig;
-                }
+                return &methodSignatures[0];
             }
             return nullptr;
         }

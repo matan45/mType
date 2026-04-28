@@ -40,14 +40,6 @@ namespace parser
             throw ParseException("Static methods are not allowed in interfaces", tokenStream.current().location);
         }
 
-        // Check for 'default' keyword
-        bool isDefault = false;
-        if (tokenStream.current().type == TokenType::DEFAULT)
-        {
-            isDefault = true;
-            tokenStream.advance();
-        }
-
         // Consume 'function' keyword
         if (tokenStream.current().type != TokenType::FUNCTION)
         {
@@ -105,31 +97,20 @@ namespace parser
             returnType = std::make_shared<GenericType>(ValueType::VOID);
         }
 
-        std::shared_ptr<ASTNode> body;
-
-        if (isDefault)
+        // Expect semicolon to end method signature
+        if (tokenStream.current().type != TokenType::SEMICOLON)
         {
-            // Default methods must have a body
-            ParseContext::AsyncContextGuard asyncGuard(context.getContextState(), isAsync);
-            body = context.parseStatement();
+            // MYT-48 — typed exception so the LSP offers an "Insert ';'" fix.
+            throw errors::MissingSemicolonException(tokenStream.current().location);
         }
-        else
-        {
-            // Expect semicolon to end method signature
-            if (tokenStream.current().type != TokenType::SEMICOLON)
-            {
-                // MYT-48 — typed exception so the LSP offers an "Insert ';'" fix.
-                throw errors::MissingSemicolonException(tokenStream.current().location);
-            }
-            tokenStream.advance();
+        tokenStream.advance();
 
-            // Create a dummy empty body for the method signature (interfaces don't have implementations)
-            body = std::make_shared<BlockNode>(tokenStream.current().location);
-        }
+        // Create a dummy empty body for the method signature (interfaces don't have implementations)
+        auto dummyBody = std::make_shared<BlockNode>(tokenStream.current().location);
 
         // Create a method signature node using FunctionNode
         auto methodNode = std::make_unique<FunctionNode>(
-            methodName, returnType, parameters, body
+            methodName, returnType, parameters, dummyBody
         );
 
         // Set generic type parameters for the method (e.g., <T>, <K, V>)
@@ -137,11 +118,6 @@ namespace parser
 
         // Set async flag if this is an async method
         methodNode->setIsAsync(isAsync);
-
-        // NEW: We need a way to mark this FunctionNode as default.
-        // Wait, does FunctionNode have an isDefault field? We need to add it.
-        // For now, let's assume we add it.
-        methodNode->setDefault(isDefault);
 
         return std::move(methodNode);
     }
