@@ -35,6 +35,12 @@ namespace vm::compiler::visitors
             return std::monostate{};
         }
 
+        // Track the enclosing function so visitors can see method/function-level
+        // generic type parameters. MYT-218 needs this for InstanceOf to reject
+        // free generic functions' T at compile time.
+        ast::FunctionNode* wasFunctionNode = ctx.currentFunctionNode;
+        ctx.currentFunctionNode = node;
+
         // Emit JUMP to skip over function body during main execution
         size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
 
@@ -260,6 +266,8 @@ namespace vm::compiler::visitors
         metadata.mangledName = mangledName;
         ctx.program.registerFunction(funcName, metadata);      // Original name
         ctx.program.registerFunction(mangledName, metadata);   // Mangled name
+
+        ctx.currentFunctionNode = wasFunctionNode;
 
         return std::monostate{};
     }

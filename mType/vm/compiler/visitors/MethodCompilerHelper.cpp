@@ -498,8 +498,10 @@ namespace vm::compiler::visitors
         // Set instance/static method context
         bool wasInInstanceMethod = ctx.inInstanceMethod;
         bool wasInStaticMethod = ctx.inStaticMethod;
+        ast::MethodNode* wasMethodNode = ctx.currentMethodNode;
         ctx.inInstanceMethod = !isStatic;
         ctx.inStaticMethod = isStatic;
+        ctx.currentMethodNode = node;
 
         // Synchronize TypeInferenceEngine with class context for field type inference
         ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);
@@ -606,6 +608,7 @@ namespace vm::compiler::visitors
         // Restore instance/static method context
         ctx.inInstanceMethod = wasInInstanceMethod;
         ctx.inStaticMethod = wasInStaticMethod;
+        ctx.currentMethodNode = wasMethodNode;
 
         // Restore TypeInferenceEngine class context
         ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);

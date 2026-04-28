@@ -13,7 +13,7 @@ Each file maps to one subtask:
 | MYT-215  | ~~`lambdaMutableLoopCapture.mt`~~          | ~~Lambda captures mutable for-loop var by reference~~ — fixed; promoted to `lambda/error/lambdaCaptureMutableLoopVar.mt` |
 | MYT-216  | `threeTypeArgDropsArg.mt`                  | 3-type-param call drops trailing positional arg~~ — fixed; promoted to `generics/pass/threeTypeArgDropsArg.mt` |
 | MYT-217  | ~~`genericNullableReturnSubstitution.mt`~~ | ~~Generic `T?` return doesn't substitute on assignment~~ — fixed; promoted to `generics/pass/genericNullableReturnSubstitution.mt` |
-| MYT-218  | `isClassOfTypeParamAlwaysFalse.mt`         | `isClassOf T` against type-param silently always false      |
+| MYT-218  | ~~`isClassOfTypeParamAlwaysFalse.mt`~~     | ~~`isClassOf T` against type-param silently always false~~ — fixed; promoted to `cast/error/isClassOfMethodTypeParam_error.mt` |
 | MYT-219  | `switchBreakAfterReturnVoid.mt`            | `case x: return ...; break;` infers void return             |
 | MYT-220  | `nullableCastSyntaxRejected.mt`            | `(T?)null` cast syntax rejected by parser                   |
 | MYT-221  | `libFunctionMultiMethod.mt`                | `lib/functional/Function` is not single-method (lambda-incompatible) |

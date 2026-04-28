@@ -61,6 +61,13 @@ namespace vm::compiler::visitors
 
         // Class context (for member access)
         ast::ClassNode* currentClassNode = nullptr;
+        // Function/method body context — needed so visitors can see method-
+        // level / function-level generic type parameters. MYT-218: without
+        // this, `obj isClassOf T` where T is a free generic function's type
+        // param fell through to plain INSTANCEOF and silently returned false
+        // at runtime.
+        ast::MethodNode* currentMethodNode = nullptr;
+        ast::FunctionNode* currentFunctionNode = nullptr;
         bool inInstanceMethod = false;
         bool inStaticMethod = false;
         bool inStaticFieldInitializer = false;  // Track if we're compiling a static field initializer

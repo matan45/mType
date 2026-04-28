@@ -221,6 +221,11 @@ namespace tests::testSuite
         addTestFromFile("isClassOf Malformed Parameterized",
                         errorPath + "isClassOfMalformedParameterized.mt",
                         TestType::ERROR_EXPECTED);
+        // MYT-218: free generic function's T (no reified runtime binding)
+        // must be rejected at compile time.
+        addTestFromFile("isClassOf Method Type Param",
+                        errorPath + "isClassOfMethodTypeParam_error.mt",
+                        TestType::ERROR_EXPECTED);
 
         // ====================================
         // NEW EDGE CASE TESTS (70 tests)

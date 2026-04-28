@@ -9,8 +9,10 @@
 #include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../../errors/UndefinedException.hpp"
 #include "../../../diagnostics/IdentifierEnumerator.hpp"
 #include  <iostream>
@@ -507,11 +509,9 @@ namespace vm::compiler::visitors
             const std::string& candidate = targetType->getBaseTypeName();
             bool isDeclaredParam = false;
 
-            // Check class-level generic parameters. Method-level type
-            // parameters (`function<U> foo(...)`) are not currently tracked
-            // on CompilerContext — a free generic function RHS still emits
-            // INSTANCEOF and may surface a "Class not found" error at
-            // runtime, which is the existing behavior.
+            // Check class-level generic parameters first — those carry
+            // reified bindings on `this` at runtime and dispatch through
+            // INSTANCEOF_TYPEPARAM via TypeExecutor::resolveTypeParameter.
             if (ctx.currentClassNode)
             {
                 for (const auto& p : ctx.currentClassNode->getGenericParameters())
@@ -530,6 +530,33 @@ namespace vm::compiler::visitors
                 ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF_TYPEPARAM,
                                              static_cast<uint64_t>(nameIndex), node);
                 return std::monostate{};
+            }
+
+            // MYT-218: method/function-level T (free generic function or
+            // generic method whose T is not a class-level param) has no
+            // runtime binding. The runtime resolveTypeParameter only walks
+            // the receiver's bindings; without one, the dispatch falls back
+            // to a name lookup of "T" which silently returns false. Reject
+            // it at compile time so the user gets a clear diagnostic instead
+            // of a useless `false`.
+            auto matchesParam = [&](const std::vector<ast::GenericTypeParameter>& params) {
+                for (const auto& p : params) {
+                    if (p.name == candidate) return true;
+                }
+                return false;
+            };
+            bool isFnLevelParam =
+                (ctx.currentMethodNode && matchesParam(ctx.currentMethodNode->getGenericTypeParameters())) ||
+                (ctx.currentFunctionNode && matchesParam(ctx.currentFunctionNode->getGenericTypeParameters()));
+            if (isFnLevelParam)
+            {
+                throw errors::TypeException(
+                    "isClassOf cannot test the method-level generic type parameter '" +
+                    candidate + "': free generic functions do not carry reified " +
+                    "type information at runtime, so this check would always return false. " +
+                    "Either dispatch through an instance of a generic class (where T is reified), " +
+                    "or change the helper to accept a Class<T> token argument.",
+                    node->getLocation());
             }
         }
 
