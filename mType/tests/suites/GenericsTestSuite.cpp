@@ -45,6 +45,8 @@ namespace tests::testSuite
                         passPath + "staticGenericSimpleContainer.mt");
         addOutputVerificationTest("Static Generic Collection Returns",
                         passPath + "staticGenericCollectionReturns.mt");
+        addOutputVerificationTest("Static Generic Functional Interface Unify",
+                        passPath + "staticGenericFunctionalInterfaceUnify.mt");
 
         // Instance generic method tests
         addOutputVerificationTest("Instance Generic Basic",
