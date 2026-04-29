@@ -1549,3 +1549,69 @@ Scope:
 - **recursive.mt** improved from 883ms → 772ms (12.6% faster). Call count dropped from 2,762,961 → 2,545,487 confirming the higher `MAX_JIT_NATIVE_DEPTH` keeps more recursion levels in the JIT fast path.
 - **Phase 5** (JIT box/unbox elimination via `primCallArgs` pass-through) was attempted but reverted — adding new fields to `JitContext` shifted `offsetof` for downstream fields (`icTable`, `osrLocals`, etc.) and caused crashes in non-recursive benchmarks. The approach needs a layout-stable design (e.g., placing `primCallArgs` at the end of the struct, or using a separate side-channel).
 - No regressions observed on any other benchmark.
+
+## 2026-04-29 — MYT-228 reified runtime type info for free generic functions
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  MYT-228
+- Commit:  `82336606`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+Scope:
+- Added `BIND_TYPE_ARGS` opcode + `CallFrame::typeArgBindings` so `obj isClassOf T` and `(T)cast` work for method-level / free-function generic params (not just class-level).
+- New benchmark `generic_dispatch_hot.mt` exercises `Inspector::matches<T>(animal)` in a 1M-iter loop with two distinct call sites (T=Dog / T=Cat).
+- Storage uses a thread-local pool of `unordered_map` recycled via a raw-pointer RAII wrapper (`TypeArgMapPtr`) — 8 bytes per frame, near-zero alloc per generic call after warmup.
+- JIT helpers (`jit_instanceof_typeparam`, `jit_cast_typeparam`, `jit_bind_type_args`) read the per-frame map and populate the pool slot in-place.
+
+```
+=== Summary (jit=on) ===
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt             57.87         58.27           20017         0
+  method_dispatch.mt                   75.62         76.41           14043       506
+  object_alloc.mt                     543.67        556.68           12511         0
+  object_alloc_nested.mt              914.10        919.17           16811       500
+  field_write_hot.mt                   58.27         58.63            8018         1
+  field_read_hot.mt                    53.98         54.33            9020         1
+  string_ops.mt                        83.79         83.90           19019         0
+  recursive.mt                        775.01        778.25           17261   2545487
+  bitwise_tight_loop.mt                48.29         49.65           23019         0
+  short_circuit_chain.mt               52.44         53.34           24909         0
+  primitive_method_dispatch.mt        462.03        464.25           32039         0
+  array_multi_alloc.mt                 54.06         54.55            9911       500
+  array_multi_get.mt                  323.22        335.08           49787       500
+  for_each_loop.mt                    306.44        309.53           75654      5604
+  inline_monomorphic.mt                43.25         43.26           13017       501
+  inline_branching.mt                  47.77         48.44           15017       501
+  inline_polymorphic.mt                74.14         74.36           14052       508
+  inline_value_object_hot.mt          120.89        121.39           12518       500
+  function_call_hot.mt                164.50        167.23           15011       500
+  async_await_tight_loop.mt          1151.25       1152.69        32000033   1000001
+  async_await_chain.mt               1758.80       1768.04        34500033   2000001
+  lambda_call_hot.mt                   58.88         59.46           12522         1
+  lambda_closure_hot.mt                59.91         60.57           12527         2
+  generic_dispatch_hot.mt             647.97        650.02           20075      1012
+```
+
+### MYT-228 in-flight tuning
+
+The first MYT-228 implementation used `std::optional<std::unordered_map<...>>` per frame
+(~72B/frame) with a fresh map allocation per generic call:
+
+| Script                    | optional<map> (ms) | pooled raw-ptr (ms) | Δ |
+|---------------------------|------------------:|-------------------:|--:|
+| object_alloc.mt           |             770.96 |             543.67 | **-29.5%** |
+| generic_dispatch_hot.mt   |             825.96 |             647.97 | **-21.5%** |
+
+Frame size dropped from ~470B to ~408B (60B saved per frame), and `generic_dispatch_hot`'s
+per-call alloc was eliminated by the pool. Both wins land together via the same change.
+
+### Notes
+
+- **`generic_dispatch_hot.mt` per-call cost**: 648ms / 2M generic calls = ~324ns/call vs `method_dispatch.mt` at ~38ns/call. The ~286ns/call overhead is BIND_TYPE_ARGS dispatch + `INSTANCEOF_TYPEPARAM` resolve walk + name-based `checkInstanceOfByName`. Further reduction would need a per-call-site IC for the resolved type name.
+- **No regressions** on benchmarks that don't touch generics (arithmetic, field, lambda, async). The CallFrame size reduction matters most for hot constructor loops (`object_alloc.mt`).
+
+### Sanity outputs
+
+- `generic_dispatch_hot.mt`: `generic_dispatch_hot dogs=666667 cats=333333`
+  (zoo=[Dog,Cat,Dog,Dog,Cat,Dog], N=1000000 → 4-of-6 dogs ≈ 666667, 2-of-6 cats ≈ 333333; verify on first clean run)
