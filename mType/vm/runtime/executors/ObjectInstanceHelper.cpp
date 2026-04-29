@@ -358,7 +358,7 @@ namespace vm::runtime
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for constructor
             frame.programIndex = targetProgramIndex;
 
-            context.pushCallFrame(frame);
+            context.pushCallFrame(std::move(frame));
             context.stats.functionCalls++;
 
             // Switch to the target program if it's from a library
@@ -481,7 +481,7 @@ namespace vm::runtime
             frame.definingClassName = currentClassName;  // Same class as defining class
             frame.programIndex = targetProgramIndex;
 
-            context.pushCallFrame(frame);
+            context.pushCallFrame(std::move(frame));
             context.stats.functionCalls++;
 
             // Switch to the target program if it's from a library
@@ -624,7 +624,7 @@ namespace vm::runtime
             frame.definingClassName = baseParentClassName;  // Set parent class as defining class for access control
             frame.programIndex = targetProgramIndex;
 
-            context.pushCallFrame(frame);
+            context.pushCallFrame(std::move(frame));
             context.stats.functionCalls++;
 
             // Switch to the target program if it's from a library
@@ -869,7 +869,7 @@ namespace vm::runtime
         frame.definingClassName = baseClassName;  // Set class as defining class for its own constructor
         frame.programIndex = targetProgramIndex;
 
-        context.pushCallFrame(frame);
+        context.pushCallFrame(std::move(frame));
         context.stats.functionCalls++;
 
         // Switch to the target program if it's from a library

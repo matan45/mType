@@ -4,8 +4,10 @@
 #include <array>
 #include <cassert>
 #include <chrono>
+#include <string>
 #include <unordered_map>
 #include <iostream>
+#include "TypeArgMapPtr.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
@@ -134,6 +136,16 @@ namespace vm::runtime
         std::string definingClassName;           // Class that defines the method (for access control in inheritance)
         std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for closure capture (if this function creates lambdas)
         size_t programIndex = 0;                 // Which program in loadedPrograms this frame belongs to
+        // MYT-228: method/free-function generic type-parameter bindings staged
+        // by BIND_TYPE_ARGS and consumed by pushCallFrame. Empty (raw ptr
+        // null) on every non-generic call — costs 8 bytes per frame and
+        // zero allocation. The map itself comes from a thread-local pool
+        // (TypeArgMapPtr / TypeArgMapPool), so per-call alloc is only paid
+        // until the pool warms up. Resolved values are concrete type names
+        // (forwarding from caller frames is resolved at consume time so
+        // the resolveTypeParameter walk doesn't need to chase symbolic
+        // bindings).
+        TypeArgMapPtr typeArgBindings;
 
         // MYT-208: prefer raw `this` when set (NEW_STACK ctor), otherwise the
         // shared_ptr's underlying pointer. Both null is legal (static frames).
@@ -204,6 +216,12 @@ namespace vm::runtime
         // VM back-pointer for OSR and other VM-level operations
         VirtualMachine* vm = nullptr;
 
+        // MYT-228: scratch slot for type-argument bindings staged by
+        // BIND_TYPE_ARGS. The very next pushCallFrame transfers this
+        // into CallFrame::typeArgBindings and clears it. Backed by the
+        // same thread-local pool so the map storage is recycled.
+        TypeArgMapPtr pendingTypeArgs;
+
         ExecutionContext(
             const bytecode::BytecodeProgram* prog,
             size_t& ip,
@@ -231,8 +249,11 @@ namespace vm::runtime
             , vm(vmPtr)
         {}
 
-        // Call stack management with overflow protection
-        void pushCallFrame(const CallFrame& frame);
+        // Call stack management with overflow protection.
+        // Takes the frame by value — CallFrame is move-only because
+        // TypeArgMapPtr owns a thread-local pool slot (MYT-228). All
+        // call sites use `pushCallFrame(std::move(frame))`.
+        void pushCallFrame(CallFrame frame);
 
         // MYT-173: obtain a mutable reference to the instruction at `offset` in
         // the current program. Runtime opcode rewriting (CALL_METHOD <->

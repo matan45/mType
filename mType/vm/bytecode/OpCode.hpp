@@ -3,6 +3,18 @@
 
 namespace vm::bytecode
 {
+    // MYT-228: BIND_TYPE_ARGS valueKind discriminator. Disambiguates
+    // "concrete type name to stage as-is" from "outer type-param name
+    // that needs to be resolved against the caller's frame at bind
+    // time". Stored as one operand byte in the BIND_TYPE_ARGS triplet
+    // (paramName_idx, valueKind, value_idx). See OpCode::BIND_TYPE_ARGS
+    // for the full operand layout.
+    enum class TypeArgValueKind : uint8_t
+    {
+        Concrete = 0,           // value_idx points at a concrete type name (e.g. "Dog")
+        ForwardFromCaller = 1,  // value_idx points at an outer type-param name to forward
+    };
+
     /**
      * Bytecode instruction set for mType VM
      * Designed for stack-based execution with optimization support
@@ -342,6 +354,20 @@ namespace vm::bytecode
         // operands: [classNameIndex, fieldNameIndex]
         SET_FIELD_TYPED,
 
+        // MYT-228: stage method/free-function generic type-parameter bindings
+        // for the next CALL_*. Variable-arity:
+        //   operands[0] = n (pair count)
+        //   operands[1 + 3*i + 0] = paramName constant-pool index
+        //   operands[1 + 3*i + 1] = TypeArgValueKind (Concrete / ForwardFromCaller)
+        //   operands[1 + 3*i + 2] = value constant-pool index (concrete name
+        //                           OR caller-level type-param name to resolve)
+        // Handler writes into ExecutionContext::pendingTypeArgs; the very
+        // next pushCallFrame consumes-and-clears that slot into the new
+        // CallFrame::typeArgBindings. INVARIANT: the compiler always emits
+        // BIND_TYPE_ARGS immediately before the matching CALL_* on the same
+        // logical path; nothing else may run between them.
+        BIND_TYPE_ARGS,
+
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
         // without requiring manual updates each time a new opcode is added.
@@ -583,6 +609,8 @@ namespace vm::bytecode
 
             case OpCode::GET_FIELD_TYPED: return "GET_FIELD_TYPED";
             case OpCode::SET_FIELD_TYPED: return "SET_FIELD_TYPED";
+
+            case OpCode::BIND_TYPE_ARGS: return "BIND_TYPE_ARGS";
 
             default: return "UNKNOWN";
         }

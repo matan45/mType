@@ -31,7 +31,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 23> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 24> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -84,6 +84,14 @@ namespace
         "lambda_call_hot.mt",
         // Closure-capture read overhead on the lambda hot path.
         "lambda_closure_hot.mt",
+        // MYT-228: hot loop dispatching `isClassOf T` through a method-level
+        // generic helper. Exercises BIND_TYPE_ARGS staging,
+        // CallFrame::typeArgBindings consume, and the
+        // jit_instanceof_typeparam JIT helper. Acceptance: per-call overhead
+        // stays close to method_dispatch.mt — the per-frame map lookup is
+        // not on the non-generic hot path, so non-generic benchmarks must
+        // not regress.
+        "generic_dispatch_hot.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";

@@ -76,5 +76,16 @@ namespace vm::compiler::visitors
         // Phase 3 (allocation perf): flag trivial constructors for the
         // VM's fast-path copy-args-into-fields path.
         void markTrivialConstructors(ast::ClassNode* node);
+
+        // MYT-228: emit BIND_TYPE_ARGS just before a method-call's terminal
+        // CALL_*. `bindings` maps each callee-side method-level generic
+        // parameter name to its resolved value (concrete name OR an outer
+        // type-param name to forward from the caller's frame). No-op if
+        // bindings is empty. Identical operand layout to
+        // FunctionCallHelper::emitBindTypeArgsIfNeeded. Forward-from-caller
+        // detection delegates to isTypeParamInScope (GenericScopeHelper.hpp).
+        void emitBindTypeArgsForMethodCall(
+            ast::ASTNode* node,
+            const std::unordered_map<std::string, std::string>& bindings);
     };
 }

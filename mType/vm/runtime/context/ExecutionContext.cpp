@@ -18,11 +18,17 @@ namespace vm::runtime
     }
 
 
-    void ExecutionContext::pushCallFrame(const CallFrame& frame)
+    void ExecutionContext::pushCallFrame(CallFrame frame)
     {
         // Check for stack overflow
         if (callStack.size() >= maxCallStackSize)
         {
+            // MYT-228: a BIND_TYPE_ARGS may have populated pendingTypeArgs
+            // immediately before this push. Releasing it here on the
+            // throw path prevents stale bindings from leaking into the
+            // next unrelated call once the exception is caught.
+            pendingTypeArgs.reset();
+
             // Build a helpful error message with stack trace
             std::ostringstream oss;
             oss << "Stack overflow: Maximum call stack depth of "
@@ -54,6 +60,15 @@ namespace vm::runtime
             throw errors::RuntimeException(oss.str());
         }
 
-        callStack.push_back(frame);
+        // MYT-228: consume the type-argument scratch slot into the
+        // moved-in frame BEFORE push so the frame already owns its map
+        // when it lands in the vector. Hot path: pendingTypeArgs is null,
+        // single branch.
+        if (pendingTypeArgs)
+        {
+            frame.typeArgBindings.adopt(pendingTypeArgs.releasePtr());
+        }
+
+        callStack.push_back(std::move(frame));
     }
 }

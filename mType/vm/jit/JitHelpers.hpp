@@ -158,12 +158,29 @@ namespace vm::jit
     int64_t jit_instanceof(const value::Value* val,
                             const vm::bytecode::BytecodeProgram* prog,
                             uint32_t typeIndex);
+    // MYT-228: INSTANCEOF_TYPEPARAM JIT helper. Resolves the type-param
+    // name through CallFrame::typeArgBindings and the receiver's class-level
+    // bindings, then delegates to the same name-based instanceof check
+    // jit_instanceof uses. Replaces the previous broken path where
+    // INSTANCEOF_TYPEPARAM was routed to jit_instanceof directly (which
+    // would walk the class hierarchy looking for a class literally named
+    // "T" and always return 0).
+    int64_t jit_instanceof_typeparam(const value::Value* val,
+                                      JitContext* ctx,
+                                      uint32_t paramNameIndex);
     void jit_cast(value::Value* dest, const value::Value* src,
                    const vm::bytecode::BytecodeProgram* prog,
                    uint32_t typeIndex);
     void jit_cast_typeparam(value::Value* dest, const value::Value* src,
                              JitContext* ctx,
                              uint32_t paramNameIndex);
+    // MYT-228: BIND_TYPE_ARGS JIT helper. Mirrors
+    // TypeExecutor::handleBindTypeArgs — reads the operand vector inline
+    // from the instruction (passed via the BytecodeProgram + IP) and
+    // populates ExecutionContext::pendingTypeArgs. Invoked once per
+    // generic call site; non-generic call sites never emit BIND_TYPE_ARGS,
+    // so the JIT hot path is unaffected.
+    void jit_bind_type_args(JitContext* ctx, uint64_t ip);
     void jit_new_object(value::Value* dest, JitContext* ctx,
                          uint32_t classIndex, size_t argCount);
     // MYT-208: stack-promoted allocation. Same calling convention as

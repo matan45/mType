@@ -28,6 +28,12 @@ namespace vm::runtime
         void handleCast(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCastTypeParam(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // MYT-228: stage method/free-function generic type-parameter
+        // bindings into ExecutionContext::pendingTypeArgs. The very next
+        // pushCallFrame consumes-and-clears that slot into the new
+        // CallFrame::typeArgBindings.
+        void handleBindTypeArgs(const bytecode::BytecodeProgram::Instruction& instr);
+
         // ============================================================
         // Public FFI entry point (MYT-42)
         //

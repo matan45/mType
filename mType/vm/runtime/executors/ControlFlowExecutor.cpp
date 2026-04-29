@@ -116,7 +116,9 @@ namespace vm::runtime
             // Top-level return - halt execution
             context.instructionPointer = context.program->getInstructionCount();
         } else {
-            CallFrame frame = context.callStack.back();
+            // CallFrame is move-only (TypeArgMapPtr); move-out from the
+            // back, then pop. The moved-from slot is destroyed by pop_back.
+            CallFrame frame = std::move(context.callStack.back());
 
             // MYT-197: resolve the frame's interned handle to a string only
             // when the gated profiler / debugger hook actually fires. Both

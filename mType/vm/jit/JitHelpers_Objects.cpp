@@ -7,6 +7,8 @@
 #include "../../errors/NullPointerException.hpp"
 #include "../runtime/utils/NullCheckUtils.hpp"
 #include "../runtime/utils/MethodResolver.hpp"
+#include "../runtime/utils/TypeArgResolution.hpp"
+#include "../bytecode/OpCode.hpp"
 #include "../../environment/registry/ClassRegistry.hpp"
 #include "../../environment/Environment.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
@@ -440,26 +442,126 @@ namespace vm::jit
         *dest = *src;
     }
 
+    int64_t jit_instanceof_typeparam(const value::Value* val,
+                                      JitContext* ctx,
+                                      uint32_t paramNameIndex)
+    {
+        // MYT-228: resolve T against the current call stack via the shared
+        // per-frame helper, then delegate to the same name-based instanceof
+        // check jit_instanceof uses. Without this resolution the JIT path
+        // would try to match the literal name "T" against class hierarchies
+        // and always return 0.
+        const std::string& paramName = ctx->program->getConstantPool().getString(paramNameIndex);
+        std::string resolved = paramName;
+
+        if (ctx->vm)
+        {
+            const auto& callStack = ctx->vm->getCallStack();
+            for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
+                if (const auto* p = vm::runtime::utils::resolveTypeParamInFrame(*it, paramName)) {
+                    resolved = *p;
+                    break;
+                }
+            }
+        }
+
+        if (resolved == "Int" || resolved == "int")
+            return value::isInt(*val) ? 1 : 0;
+        if (resolved == "Float" || resolved == "float")
+            return value::isFloat(*val) ? 1 : 0;
+        if (resolved == "Bool" || resolved == "bool")
+            return value::isBool(*val) ? 1 : 0;
+        if (resolved == "String" || resolved == "string")
+            return (value::isString(*val) || value::isInternedString(*val)) ? 1 : 0;
+
+        if (value::isAnyObject(*val))
+        {
+            auto* raw = value::asObjectInstanceRaw(*val);
+            auto classDef = raw->getClassDefinition();
+            while (classDef)
+            {
+                if (classDef->getName() == resolved) return 1;
+                classDef = classDef->getParentClass();
+            }
+        }
+
+        if (value::isValueObject(*val))
+        {
+            auto valueObj = value::asValueObject(*val);
+            auto classDef = valueObj->getClassDefinition();
+            while (classDef)
+            {
+                if (classDef->getName() == resolved) return 1;
+                classDef = classDef->getParentClass();
+            }
+        }
+
+        return 0;
+    }
+
+    void jit_bind_type_args(JitContext* ctx, uint64_t ip)
+    {
+        // MYT-228: stage type-arg bindings for the next CALL_*. Populates
+        // the pool-backed pending map directly in-place to skip the
+        // local-map-then-move dance that setPendingTypeArgs would cost.
+        // Mirrors TypeExecutor::handleBindTypeArgs (and shares the
+        // per-frame resolve walk via utils::resolveTypeParamInFrame).
+        if (!ctx->vm || !ctx->program) return;
+
+        const auto& instr = ctx->program->getInstructions()[static_cast<size_t>(ip)];
+        if (instr.operands.empty()) return;
+        const auto& constantPool = ctx->program->getConstantPool();
+        const size_t n = static_cast<size_t>(instr.operands[0]);
+        if (instr.operands.size() < 1 + 3 * n) return;
+
+        auto& staged = ctx->vm->beginPendingTypeArgs();
+        const auto& callStack = ctx->vm->getCallStack();
+
+        for (size_t i = 0; i < n; ++i) {
+            const size_t base = 1 + 3 * i;
+            const std::string& paramName = constantPool.getString(
+                static_cast<uint32_t>(instr.operands[base + 0]));
+            const auto kind = static_cast<vm::bytecode::TypeArgValueKind>(
+                static_cast<uint8_t>(instr.operands[base + 1]));
+            const std::string& rawValue = constantPool.getString(
+                static_cast<uint32_t>(instr.operands[base + 2]));
+
+            std::string resolved;
+            if (kind == vm::bytecode::TypeArgValueKind::ForwardFromCaller) {
+                if (!callStack.empty()) {
+                    if (const auto* p = vm::runtime::utils::resolveTypeParamInFrame(
+                            callStack.back(), rawValue)) {
+                        resolved = *p;
+                    } else {
+                        resolved = rawValue;
+                    }
+                } else {
+                    resolved = rawValue;
+                }
+            } else {
+                resolved = rawValue;
+            }
+
+            staged.emplace(paramName, std::move(resolved));
+        }
+    }
+
     void jit_cast_typeparam(value::Value* dest, const value::Value* src,
                              JitContext* ctx,
                              uint32_t paramNameIndex)
     {
+        // MYT-228: shared per-frame resolve walk; see TypeExecutor.cpp
+        // for the canonical interpreter path.
         const std::string& paramName = ctx->program->getConstantPool().getString(paramNameIndex);
         std::string resolved = paramName;
-        
+
         if (ctx->vm)
         {
             auto& callStack = ctx->vm->getCallStack();
             for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
-                const auto& frame = *it;
-                auto* rawThis = frame.getThisInstanceRaw();
-                if (rawThis) {
-                    const auto& bindings = rawThis->getGenericTypeBindings();
-                    auto found = bindings.find(paramName);
-                    if (found != bindings.end() && !found->second.empty()) {
-                        resolved = found->second;
-                        break;
-                    }
+                if (const auto* p = vm::runtime::utils::resolveTypeParamInFrame(*it, paramName)) {
+                    resolved = *p;
+                    break;
                 }
             }
         }

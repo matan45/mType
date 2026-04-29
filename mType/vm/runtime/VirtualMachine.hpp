@@ -292,6 +292,22 @@ namespace vm::runtime
         bool isDebuggingEnabled() const { return debuggingEnabled; }
         std::shared_ptr<environment::Environment> getEnvironment() const { return environment; }
         const std::vector<CallFrame>& getCallStack() const { return callStack; }
+        // MYT-228: mutable access for JIT helpers that need to consult the
+        // current top frame's typeArgBindings (jit_cast_typeparam,
+        // jit_instanceof_typeparam, jit_bind_type_args).
+        std::vector<CallFrame>& getCallStackMutable() { return callStack; }
+        // MYT-228: write to ExecutionContext::pendingTypeArgs from JIT
+        // helpers. The very next pushCallFrame consumes the slot. Defined
+        // out-of-line in VirtualMachine.cpp to avoid pulling
+        // ExecutionContext.hpp here for the inline.
+        void setPendingTypeArgs(std::unordered_map<std::string, std::string> bindings);
+
+        // MYT-228: acquire a cleared pool-backed map for the JIT helper to
+        // populate in-place — avoids the local-map-then-move dance the
+        // setPendingTypeArgs path costs. Returns a reference to the
+        // ExecutionContext's pending slot's map. Caller must ensure
+        // ExecutionContext has been initialized.
+        TypeArgMap& beginPendingTypeArgs();
         std::shared_ptr<StackManager> getStackManager() const { return stackManager; }
         const bytecode::BytecodeProgram* getProgram() const { return program; }
 
@@ -437,8 +453,10 @@ namespace vm::runtime
         void popN(size_t count);
 
     public:
-        // Call stack management with overflow protection (public for JIT access)
-        void pushCallFrame(const CallFrame& frame);
+        // Call stack management with overflow protection (public for JIT access).
+        // Takes the frame by value — CallFrame is move-only (TypeArgMapPtr
+        // owns a pool slot). All call sites use `pushCallFrame(std::move(frame))`.
+        void pushCallFrame(CallFrame frame);
         void popCallStack();
 
         // JIT native depth tracking (public for JIT helpers access)

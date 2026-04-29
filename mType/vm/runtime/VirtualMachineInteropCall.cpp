@@ -99,7 +99,7 @@ namespace vm::runtime
             frame.thisInstance = instance;
             frame.definingClassName = definingClassName;
 
-            pushCallFrame(frame);
+            pushCallFrame(std::move(frame));
             stats.functionCalls++;
 
             // Execute method (direct loop with UserException handling for try/catch support)
@@ -306,7 +306,7 @@ namespace vm::runtime
             frame.thisInstance = nullptr; // Static methods have no 'this'
             frame.definingClassName = className;
 
-            pushCallFrame(frame);
+            pushCallFrame(std::move(frame));
             stats.functionCalls++;
 
             // Execute method (direct loop with UserException handling for try/catch support)

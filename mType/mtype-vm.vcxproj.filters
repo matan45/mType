@@ -198,6 +198,9 @@
     <ClInclude Include="vm\compiler\visitors\FunctionCompiler.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\GenericScopeHelper.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\visitors\LiteralCompiler.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
@@ -288,6 +291,9 @@
     <ClInclude Include="vm\runtime\context\ExecutionContext.hpp">
       <Filter>vm\runtime\context</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\context\TypeArgMapPtr.hpp">
+      <Filter>vm\runtime\context</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\executors\ArithmeticExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
@@ -364,6 +370,9 @@
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\utils\NullCheckUtils.hpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\runtime\utils\TypeArgResolution.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
     <ClInclude Include="vm\runtime\validation\AccessValidator.hpp">
@@ -488,6 +497,9 @@
     <ClCompile Include="vm\compiler\visitors\FunctionCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\GenericScopeHelper.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\LiteralCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
@@ -594,6 +606,9 @@
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\context\ExecutionContext.cpp">
+      <Filter>vm\runtime\context</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\context\TypeArgMapPtr.cpp">
       <Filter>vm\runtime\context</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\ArithmeticExecutor.cpp">

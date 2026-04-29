@@ -1,6 +1,7 @@
 #include "TypeExecutor.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/NullCheckUtils.hpp"
+#include "../utils/TypeArgResolution.hpp"
 #include "../../../value/StringPool.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/ValueShim.hpp"
@@ -276,11 +277,9 @@ namespace vm::runtime
     }
 
     std::string TypeExecutor::resolveTypeParameter(const std::string& paramName) {
-        // Walk from the innermost frame outward looking for a receiver whose
-        // class declares this type parameter. Instance-method frames on a
-        // generic class carry the binding on `thisInstance`; free generic
-        // functions (no `this`) are NOT supported in v1 — the error message
-        // names that restriction so users can tell it apart from other cases.
+        // Walk from the innermost frame outward. The per-frame precedence
+        // (typeArgBindings, then receiver class-level bindings) lives in
+        // utils::resolveTypeParamInFrame so the JIT helpers can share it.
         auto& callStack = context.callStack;
         if (callStack.empty()) {
             throw errors::RuntimeException(
@@ -289,22 +288,71 @@ namespace vm::runtime
         }
 
         for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
-            const auto& frame = *it;
-            // MYT-208: walk both heap-owned and stack-promoted `this`.
-            auto* rawThis = frame.getThisInstanceRaw();
-            if (!rawThis) {
-                continue;
-            }
-            const auto& bindings = rawThis->getGenericTypeBindings();
-            auto found = bindings.find(paramName);
-            if (found != bindings.end() && !found->second.empty()) {
-                return found->second;
+            if (const auto* resolved = utils::resolveTypeParamInFrame(*it, paramName)) {
+                return *resolved;
             }
         }
 
         throw errors::RuntimeException(
-            "Type parameter '" + paramName +
-            "' is not bound in this context (free generic functions are not yet supported)");
+            "Type parameter '" + paramName + "' is not bound in this context");
+    }
+
+    void TypeExecutor::handleBindTypeArgs(const bytecode::BytecodeProgram::Instruction& instr) {
+        // MYT-228: stage type-arg bindings for the next CALL_*. Operand layout:
+        //   operands[0] = n (pair count)
+        //   operands[1 + 3*i + 0] = paramName constant-pool index
+        //   operands[1 + 3*i + 1] = TypeArgValueKind (Concrete / ForwardFromCaller)
+        //   operands[1 + 3*i + 2] = value constant-pool index
+        // Forward-from-caller is resolved against the CURRENT top frame's
+        // bindings (we haven't pushed the new frame yet). Storing concrete
+        // names means the resolver doesn't need a fixpoint walk later.
+        if (instr.operands.empty()) {
+            throw errors::RuntimeException("BIND_TYPE_ARGS: missing operand count");
+        }
+        const auto& constantPool = context.program->getConstantPool();
+        const size_t n = static_cast<size_t>(instr.operands[0]);
+        // Variable-arity guard — well-formed bytecode satisfies this; a
+        // malformed .mtc would otherwise read past the operand vector.
+        if (instr.operands.size() < 1 + 3 * n) {
+            throw errors::RuntimeException("BIND_TYPE_ARGS: malformed operands");
+        }
+
+        // Acquire from the pool — recycles the unordered_map across calls.
+        auto& staged = context.pendingTypeArgs.acquireFresh();
+
+        for (size_t i = 0; i < n; ++i) {
+            const size_t base = 1 + 3 * i;
+            const std::string& paramName = constantPool.getString(
+                static_cast<uint32_t>(instr.operands[base + 0]));
+            const auto kind = static_cast<bytecode::TypeArgValueKind>(
+                static_cast<uint8_t>(instr.operands[base + 1]));
+            const std::string& rawValue = constantPool.getString(
+                static_cast<uint32_t>(instr.operands[base + 2]));
+
+            std::string resolved;
+            if (kind == bytecode::TypeArgValueKind::ForwardFromCaller) {
+                // Forward-from-caller: resolve `rawValue` against the
+                // current top frame (the caller — pushCallFrame hasn't
+                // run yet). If unbound, fall back to the raw name so a
+                // free-floating `T` cast/instanceof still degrades
+                // gracefully (cast erases to no-op; instanceof returns
+                // false via name-lookup miss).
+                if (!context.callStack.empty()) {
+                    if (const auto* p = utils::resolveTypeParamInFrame(
+                            context.callStack.back(), rawValue)) {
+                        resolved = *p;
+                    } else {
+                        resolved = rawValue;
+                    }
+                } else {
+                    resolved = rawValue;
+                }
+            } else {
+                resolved = rawValue;
+            }
+
+            staged.emplace(paramName, std::move(resolved));
+        }
     }
 
     void TypeExecutor::handleCastTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {

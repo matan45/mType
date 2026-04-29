@@ -221,11 +221,29 @@ namespace tests::testSuite
         addTestFromFile("isClassOf Malformed Parameterized",
                         errorPath + "isClassOfMalformedParameterized.mt",
                         TestType::ERROR_EXPECTED);
-        // MYT-218: free generic function's T (no reified runtime binding)
-        // must be rejected at compile time.
-        addTestFromFile("isClassOf Method Type Param",
-                        errorPath + "isClassOfMethodTypeParam_error.mt",
-                        TestType::ERROR_EXPECTED);
+        // MYT-228: method-level / free-function generic T is now reified at
+        // runtime via per-frame typeArgBindings staged by BIND_TYPE_ARGS.
+        // The MYT-218 compile-error stopgap is gone — these calls succeed.
+        addOutputVerificationTest("isClassOf Method Type Param",
+                        passPath + "isClassOfMethodTypeParam.mt");
+        addOutputVerificationTest("isClassOf Method Type Param Inferred",
+                        passPath + "isClassOfInferredTypeParam.mt");
+        addOutputVerificationTest("isClassOf Method Type Param Forwarded",
+                        passPath + "typeParamForwarded.mt");
+        addOutputVerificationTest("isClassOf Method Type Param Forwarded Deep",
+                        passPath + "typeParamForwardedDeep.mt");
+        addOutputVerificationTest("isClassOf Method Type Param Forwarded From Class",
+                        passPath + "typeParamForwardedFromClass.mt");
+        addOutputVerificationTest("isClassOf Method Type Param Inside Generic Class",
+                        passPath + "typeParamMethodInsideGenericClass.mt");
+        addOutputVerificationTest("isClassOf Method Type Param Plain Class",
+                        passPath + "genericMethodOnPlainClass.mt");
+        addOutputVerificationTest("Cast Method Type Param",
+                        passPath + "castMethodTypeParam.mt");
+        addOutputVerificationTest("Cast Method Type Param Hierarchy",
+                        passPath + "castMethodTypeParamHierarchy.mt");
+        addOutputVerificationTest("Method Type Param Hot Loop (JIT warmup)",
+                        passPath + "methodTypeParamHotLoop.mt");
 
         // === MYT-220: NULL CAST SAFETY ===
         // (T?) cast syntax is unsupported; (T)null cannot be assigned to a

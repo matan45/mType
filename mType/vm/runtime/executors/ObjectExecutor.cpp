@@ -575,7 +575,7 @@ namespace vm::runtime
         frame.originatingLambda = lambda;  // Store lambda reference for variable access
         frame.definingClassName = lambda->creatingClassName;  // Set creating class for access control
 
-        context.pushCallFrame(frame);
+        context.pushCallFrame(std::move(frame));
 
         const std::string& frameNameStr = context.program->getFrameName(frame.functionName);
         vm::profiler::ProfilerHookHelper::onFunctionEntry(frameNameStr);
@@ -879,7 +879,7 @@ namespace vm::runtime
         frame.definingClassName = definingClassName;  // Store the class that defines this method
         frame.programIndex = targetProgramIndex;
 
-        context.pushCallFrame(frame);
+        context.pushCallFrame(std::move(frame));
         context.stats.functionCalls++;
 
         // Switch to the target program if it's from a library

@@ -74,6 +74,24 @@ namespace vm::runtime
 
     VirtualMachine::~VirtualMachine() = default;
 
+    void VirtualMachine::setPendingTypeArgs(std::unordered_map<std::string, std::string> bindings)
+    {
+        // MYT-228: stage type-arg bindings into the ExecutionContext scratch
+        // slot. The next pushCallFrame consumes them into the new frame.
+        // Pulls a map from the pool and moves the caller's bindings into it
+        // so the storage is recycled across generic calls.
+        if (!executionCtx) return;
+        auto& target = executionCtx->pendingTypeArgs.acquireFresh();
+        target = std::move(bindings);
+    }
+
+    TypeArgMap& VirtualMachine::beginPendingTypeArgs()
+    {
+        // MYT-228: caller-populated pool map. acquireFresh clears any prior
+        // pending map and returns a reference for in-place insertion.
+        return executionCtx->pendingTypeArgs.acquireFresh();
+    }
+
     void VirtualMachine::setJitEnabled(bool enabled)
     {
         jitEnabled = enabled;
@@ -226,11 +244,19 @@ namespace vm::runtime
         stackManager->popN(count);
     }
 
-    void VirtualMachine::pushCallFrame(const CallFrame& frame)
+    void VirtualMachine::pushCallFrame(CallFrame frame)
     {
         // Check for stack overflow
         if (callStack.size() >= maxCallStackSize)
         {
+            // MYT-228: clear any stale pending bindings so a future call
+            // can't pick them up after the exception is caught. Mirrors
+            // the same guard in ExecutionContext::pushCallFrame.
+            if (executionCtx)
+            {
+                executionCtx->pendingTypeArgs.reset();
+            }
+
             // Build a helpful error message with stack trace
             std::ostringstream oss;
             oss << "Stack overflow: Maximum call stack depth of "
@@ -268,7 +294,15 @@ namespace vm::runtime
             throw errors::RuntimeException(oss.str());
         }
 
-        callStack.push_back(frame);
+        // MYT-228: same consume-and-clear convention as
+        // ExecutionContext::pushCallFrame so this VM-level entry stays
+        // in sync. Hot path: pendingTypeArgs is null, single branch.
+        if (executionCtx && executionCtx->pendingTypeArgs)
+        {
+            frame.typeArgBindings.adopt(executionCtx->pendingTypeArgs.releasePtr());
+        }
+
+        callStack.push_back(std::move(frame));
     }
 
     void VirtualMachine::popCallStack()
