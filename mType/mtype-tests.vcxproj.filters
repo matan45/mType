@@ -2305,12 +2305,6 @@
     <None Include="tests\testFiles\benchmarks\string_ops.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
-    <None Include="tests\testFiles\bugs\castToTypeParamThrows.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
-    <None Include="tests\testFiles\bugs\getFieldTypedNonThisAccess.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
     <None Include="tests\testFiles\bugs\infiniteLoopHangs.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
@@ -3665,6 +3659,12 @@
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\getClassPolymorphism.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\getFieldTypedNonThisAccess.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\getFieldTypedNonThisAccess.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\implicitObjectInheritance.expected">
@@ -6119,6 +6119,12 @@
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\boolTypeInGenerics.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\castToTypeParamThrows.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\castToTypeParamThrows.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\constrainedClassGenerics.expected">

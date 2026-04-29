@@ -523,6 +523,8 @@ namespace tests::testSuite
                         passPath + "valueClassJitPerformance.mt");
         addOutputVerificationTest("Value Class JIT Field Access",
                         passPath + "valueClassJitFieldAccess.mt");
+        addOutputVerificationTest("getFieldTypedNonThisAccess",
+                        passPath + "getFieldTypedNonThisAccess.mt");
         addOutputVerificationTest("JIT Benchmark",
                         passPath + "jitBenchmark.mt");
         addOutputVerificationTest("JIT Float Arithmetic",
