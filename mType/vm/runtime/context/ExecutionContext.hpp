@@ -4,10 +4,10 @@
 #include <array>
 #include <cassert>
 #include <chrono>
-#include <optional>
 #include <string>
 #include <unordered_map>
 #include <iostream>
+#include "TypeArgMapPtr.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
@@ -137,12 +137,15 @@ namespace vm::runtime
         std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for closure capture (if this function creates lambdas)
         size_t programIndex = 0;                 // Which program in loadedPrograms this frame belongs to
         // MYT-228: method/free-function generic type-parameter bindings staged
-        // by BIND_TYPE_ARGS and consumed by pushCallFrame. nullopt on every
-        // non-generic call — keeps the hot path zero-alloc. Resolved values
-        // are concrete type names (forwarding from caller frames is
-        // resolved at consume time so the resolveTypeParameter walk
-        // doesn't need to chase symbolic bindings).
-        std::optional<std::unordered_map<std::string, std::string>> typeArgBindings;
+        // by BIND_TYPE_ARGS and consumed by pushCallFrame. Empty (raw ptr
+        // null) on every non-generic call — costs 8 bytes per frame and
+        // zero allocation. The map itself comes from a thread-local pool
+        // (TypeArgMapPtr / TypeArgMapPool), so per-call alloc is only paid
+        // until the pool warms up. Resolved values are concrete type names
+        // (forwarding from caller frames is resolved at consume time so
+        // the resolveTypeParameter walk doesn't need to chase symbolic
+        // bindings).
+        TypeArgMapPtr typeArgBindings;
 
         // MYT-208: prefer raw `this` when set (NEW_STACK ctor), otherwise the
         // shared_ptr's underlying pointer. Both null is legal (static frames).
@@ -214,12 +217,10 @@ namespace vm::runtime
         VirtualMachine* vm = nullptr;
 
         // MYT-228: scratch slot for type-argument bindings staged by
-        // BIND_TYPE_ARGS. The very next pushCallFrame move-consumes this
-        // into CallFrame::typeArgBindings and resets the optional.
-        // Defensive reset on exception unwind so a throw between
-        // BIND_TYPE_ARGS and the CALL can't leak bindings into an
-        // unrelated dispatch.
-        std::optional<std::unordered_map<std::string, std::string>> pendingTypeArgs;
+        // BIND_TYPE_ARGS. The very next pushCallFrame transfers this
+        // into CallFrame::typeArgBindings and clears it. Backed by the
+        // same thread-local pool so the map storage is recycled.
+        TypeArgMapPtr pendingTypeArgs;
 
         ExecutionContext(
             const bytecode::BytecodeProgram* prog,

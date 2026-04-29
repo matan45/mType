@@ -301,6 +301,13 @@ namespace vm::runtime
         // out-of-line in VirtualMachine.cpp to avoid pulling
         // ExecutionContext.hpp here for the inline.
         void setPendingTypeArgs(std::unordered_map<std::string, std::string> bindings);
+
+        // MYT-228: acquire a cleared pool-backed map for the JIT helper to
+        // populate in-place — avoids the local-map-then-move dance the
+        // setPendingTypeArgs path costs. Returns a reference to the
+        // ExecutionContext's pending slot's map. Caller must ensure
+        // ExecutionContext has been initialized.
+        TypeArgMap& beginPendingTypeArgs();
         std::shared_ptr<StackManager> getStackManager() const { return stackManager; }
         const bytecode::BytecodeProgram* getProgram() const { return program; }
 

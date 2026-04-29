@@ -2263,6 +2263,9 @@
     <None Include="tests\testFiles\benchmarks\function_call_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\generic_dispatch_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\inline_branching.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -2279,9 +2282,6 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\lambda_closure_hot.mt">
-      <Filter>testFiles\benchmarks</Filter>
-    </None>
-    <None Include="tests\testFiles\benchmarks\generic_dispatch_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\lexer_stress.mt">

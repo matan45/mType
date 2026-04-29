@@ -460,8 +460,9 @@ namespace vm::jit
                 const auto& frame = *it;
 
                 if (frame.typeArgBindings) {
-                    auto found = frame.typeArgBindings->find(paramName);
-                    if (found != frame.typeArgBindings->end() && !found->second.empty()) {
+                    const auto& tab = *frame.typeArgBindings;
+                    auto found = tab.find(paramName);
+                    if (found != tab.end() && !found->second.empty()) {
                         resolved = found->second;
                         break;
                     }
@@ -515,19 +516,17 @@ namespace vm::jit
 
     void jit_bind_type_args(JitContext* ctx, uint64_t ip)
     {
-        // MYT-228: stage type-arg bindings for the next CALL_*. Mirrors
-        // TypeExecutor::handleBindTypeArgs but reads the instruction
-        // operands directly from the program by IP. Forward-from-caller
-        // (valueKind=1) is resolved against the current top frame.
+        // MYT-228: stage type-arg bindings for the next CALL_*. Populates
+        // the pool-backed pending map directly in-place to skip the
+        // local-map-then-move dance that setPendingTypeArgs would cost.
+        // Mirrors TypeExecutor::handleBindTypeArgs.
         if (!ctx->vm || !ctx->program) return;
 
         const auto& instr = ctx->program->getInstructions()[static_cast<size_t>(ip)];
         const auto& constantPool = ctx->program->getConstantPool();
         const size_t n = static_cast<size_t>(instr.operands[0]);
 
-        std::unordered_map<std::string, std::string> staged;
-        staged.reserve(n);
-
+        auto& staged = ctx->vm->beginPendingTypeArgs();
         const auto& callStack = ctx->vm->getCallStack();
 
         for (size_t i = 0; i < n; ++i) {
@@ -544,8 +543,9 @@ namespace vm::jit
                 if (!callStack.empty()) {
                     const auto& frame = callStack.back();
                     if (frame.typeArgBindings) {
-                        auto it = frame.typeArgBindings->find(rawValue);
-                        if (it != frame.typeArgBindings->end() && !it->second.empty()) {
+                        const auto& tab = *frame.typeArgBindings;
+                        auto it = tab.find(rawValue);
+                        if (it != tab.end() && !it->second.empty()) {
                             resolved = it->second;
                             found = true;
                         }
@@ -568,8 +568,6 @@ namespace vm::jit
 
             staged.emplace(paramName, std::move(resolved));
         }
-
-        ctx->vm->setPendingTypeArgs(std::move(staged));
     }
 
     void jit_cast_typeparam(value::Value* dest, const value::Value* src,
@@ -588,8 +586,9 @@ namespace vm::jit
                 // MYT-228: method/fn-level bindings staged by BIND_TYPE_ARGS
                 // take precedence over class-level reified bindings on `this`.
                 if (frame.typeArgBindings) {
-                    auto found = frame.typeArgBindings->find(paramName);
-                    if (found != frame.typeArgBindings->end() && !found->second.empty()) {
+                    const auto& tab = *frame.typeArgBindings;
+                    auto found = tab.find(paramName);
+                    if (found != tab.end() && !found->second.empty()) {
                         resolved = found->second;
                         break;
                     }

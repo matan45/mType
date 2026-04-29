@@ -57,12 +57,13 @@ namespace vm::runtime
         callStack.push_back(frame);
 
         // MYT-228: consume the type-argument scratch slot into the new
-        // frame. nullopt on every non-generic call, so the hot path
-        // is a single well-predicted branch.
+        // frame. The const-ref copy above leaves the new entry's
+        // TypeArgMapPtr null (asymmetric copy semantic — see
+        // TypeArgMapPtr.hpp), so this is the only place ownership
+        // attaches. Hot path: pendingTypeArgs is null, single branch.
         if (pendingTypeArgs)
         {
-            callStack.back().typeArgBindings = std::move(pendingTypeArgs);
-            pendingTypeArgs.reset();
+            callStack.back().typeArgBindings.adopt(pendingTypeArgs.releasePtr());
         }
     }
 }

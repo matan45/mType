@@ -78,10 +78,18 @@ namespace vm::runtime
     {
         // MYT-228: stage type-arg bindings into the ExecutionContext scratch
         // slot. The next pushCallFrame consumes them into the new frame.
-        if (executionCtx)
-        {
-            executionCtx->pendingTypeArgs = std::move(bindings);
-        }
+        // Pulls a map from the pool and moves the caller's bindings into it
+        // so the storage is recycled across generic calls.
+        if (!executionCtx) return;
+        auto& target = executionCtx->pendingTypeArgs.acquireFresh();
+        target = std::move(bindings);
+    }
+
+    TypeArgMap& VirtualMachine::beginPendingTypeArgs()
+    {
+        // MYT-228: caller-populated pool map. acquireFresh clears any prior
+        // pending map and returns a reference for in-place insertion.
+        return executionCtx->pendingTypeArgs.acquireFresh();
     }
 
     void VirtualMachine::setJitEnabled(bool enabled)

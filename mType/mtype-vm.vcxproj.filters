@@ -288,6 +288,9 @@
     <ClInclude Include="vm\runtime\context\ExecutionContext.hpp">
       <Filter>vm\runtime\context</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\context\TypeArgMapPtr.hpp">
+      <Filter>vm\runtime\context</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\executors\ArithmeticExecutor.hpp">
       <Filter>vm\runtime\executors</Filter>
     </ClInclude>
@@ -594,6 +597,9 @@
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\context\ExecutionContext.cpp">
+      <Filter>vm\runtime\context</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\context\TypeArgMapPtr.cpp">
       <Filter>vm\runtime\context</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\ArithmeticExecutor.cpp">

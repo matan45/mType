@@ -295,8 +295,9 @@ namespace vm::runtime
             // MYT-228: method/fn-level bindings staged by BIND_TYPE_ARGS take
             // precedence over class-level reified bindings on `this`.
             if (frame.typeArgBindings) {
-                auto found = frame.typeArgBindings->find(paramName);
-                if (found != frame.typeArgBindings->end() && !found->second.empty()) {
+                const auto& tab = *frame.typeArgBindings;
+                auto found = tab.find(paramName);
+                if (found != tab.end() && !found->second.empty()) {
                     return found->second;
                 }
             }
@@ -329,8 +330,8 @@ namespace vm::runtime
         const auto& constantPool = context.program->getConstantPool();
         const size_t n = static_cast<size_t>(instr.operands[0]);
 
-        std::unordered_map<std::string, std::string> staged;
-        staged.reserve(n);
+        // Acquire from the pool — recycles the unordered_map across calls.
+        auto& staged = context.pendingTypeArgs.acquireFresh();
 
         for (size_t i = 0; i < n; ++i) {
             const size_t base = 1 + 3 * i;
@@ -350,8 +351,9 @@ namespace vm::runtime
                 if (!context.callStack.empty()) {
                     const auto& frame = context.callStack.back();
                     if (frame.typeArgBindings) {
-                        auto it = frame.typeArgBindings->find(rawValue);
-                        if (it != frame.typeArgBindings->end() && !it->second.empty()) {
+                        const auto& tab = *frame.typeArgBindings;
+                        auto it = tab.find(rawValue);
+                        if (it != tab.end() && !it->second.empty()) {
                             resolved = it->second;
                             found = true;
                         }
@@ -380,8 +382,6 @@ namespace vm::runtime
 
             staged.emplace(paramName, std::move(resolved));
         }
-
-        context.pendingTypeArgs = std::move(staged);
     }
 
     void TypeExecutor::handleCastTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {
