@@ -7,6 +7,16 @@ namespace vm::optimization::patterns
 {
     using namespace bytecode;
 
+    namespace
+    {
+        // Window sizes for the fold patterns: a binary fold consumes
+        // (operand1, operand2, op) and a unary fold consumes (operand, op).
+        // Used by every bounds check in this file so the magic 1/2 offsets
+        // have a name.
+        constexpr size_t kBinaryFoldWindow = 3;
+        constexpr size_t kUnaryFoldWindow = 2;
+    }
+
     bool ConstantFoldingPattern::matches(const BytecodeProgram& program,
                                          size_t offset,
                                          const analysis::ControlFlowAnalyzer& cfg) const
@@ -24,7 +34,7 @@ namespace vm::optimization::patterns
         // Note: matches() has already been called, so we know one of these will match
         // We check which one by examining the instructions directly
 
-        if (offset + 2 >= program.getInstructionCount())
+        if (offset + kBinaryFoldWindow > program.getInstructionCount())
         {
             return Replacement(0);
         }
@@ -72,7 +82,7 @@ namespace vm::optimization::patterns
         }
 
         // Unary (only needs 2 instructions)
-        if (offset + 1 < program.getInstructionCount())
+        if (offset + kUnaryFoldWindow <= program.getInstructionCount())
         {
             const auto& i2_unary = program.getInstruction(offset + 1);
             if ((i1.opcode == OpCode::PUSH_INT || i1.opcode == OpCode::PUSH_BOOL) &&
@@ -91,7 +101,7 @@ namespace vm::optimization::patterns
                                                    size_t offset,
                                                    const analysis::ControlFlowAnalyzer& cfg) const
     {
-        if (offset + 2 >= program.getInstructionCount())
+        if (offset + kBinaryFoldWindow > program.getInstructionCount())
         {
             return false;
         }
@@ -148,7 +158,7 @@ namespace vm::optimization::patterns
                                                      size_t offset,
                                                      const analysis::ControlFlowAnalyzer& cfg) const
     {
-        if (offset + 2 >= program.getInstructionCount())
+        if (offset + kBinaryFoldWindow > program.getInstructionCount())
         {
             return false;
         }
@@ -202,7 +212,7 @@ namespace vm::optimization::patterns
                                               size_t offset,
                                               const analysis::ControlFlowAnalyzer& cfg) const
     {
-        if (offset + 1 >= program.getInstructionCount())
+        if (offset + kUnaryFoldWindow > program.getInstructionCount())
         {
             return false;
         }
@@ -265,7 +275,7 @@ namespace vm::optimization::patterns
                                                     size_t offset,
                                                     const analysis::ControlFlowAnalyzer& cfg) const
     {
-        if (offset + 2 >= program.getInstructionCount())
+        if (offset + kBinaryFoldWindow > program.getInstructionCount())
         {
             return false;
         }
@@ -330,7 +340,7 @@ namespace vm::optimization::patterns
                                                  size_t offset,
                                                  const analysis::ControlFlowAnalyzer& cfg) const
     {
-        if (offset + 2 >= program.getInstructionCount())
+        if (offset + kBinaryFoldWindow > program.getInstructionCount())
         {
             return false;
         }

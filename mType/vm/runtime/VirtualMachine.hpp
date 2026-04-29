@@ -313,6 +313,26 @@ namespace vm::runtime
         // JIT helper: execute a function call from JIT code via interpreter
         value::Value callFunctionFromJit(const std::string& funcName, const std::vector<value::Value>& args);
 
+    private:
+        // Shared mini-interpret loop used by callFunctionFromJit and the two
+        // callMethodFromJitDirect overloads. The caller is responsible for
+        // pushing args/locals, pushing the call frame, and setting
+        // instructionPointer to the function's startOffset. The helper
+        // increments jitNativeDepth, runs instructions until the call frame
+        // pops back to savedCallStackDepth, pops the return value, restores
+        // IP (and the saved program if switchedProgram), and returns it. On
+        // any exception it unwinds intermediate frames, restores stack/IP/
+        // program, decrements jitNativeDepth, and re-throws the original
+        // exception object intact (the throw; preserves type and what()).
+        value::Value runJitMiniInterpret(size_t savedIP,
+                                          size_t savedCallStackDepth,
+                                          size_t savedStackSize,
+                                          const bytecode::BytecodeProgram* savedProgram,
+                                          bool switchedProgram);
+
+    public:
+
+
         // JIT helper: execute a method call from JIT code via interpreter (avoids re-entrant interpretLoop)
         value::Value callMethodFromJit(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
                                        const std::string& methodName,

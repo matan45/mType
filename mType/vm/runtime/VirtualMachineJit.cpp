@@ -27,51 +27,22 @@
 
 namespace vm::runtime
 {
-    value::Value VirtualMachine::callFunctionFromJit(const std::string& funcName,
-                                                      const std::vector<value::Value>& args)
+    value::Value VirtualMachine::runJitMiniInterpret(
+        size_t savedIP,
+        size_t savedCallStackDepth,
+        size_t savedStackSize,
+        const bytecode::BytecodeProgram* savedProgram,
+        bool switchedProgram)
     {
-        auto funcMeta = program->getFunction(funcName);
-        if (!funcMeta)
-        {
-            throw std::runtime_error("JIT interpreter fallback: function not found: " + funcName);
-        }
-
-        // Save current interpreter state
-        size_t savedIP = instructionPointer;
-        size_t savedCallStackDepth = callStack.size();
-        size_t savedStackSize = stackManager->size();
-
-        // Push arguments as locals
-        for (const auto& arg : args)
-        {
-            stackManager->push(arg);
-        }
-
-        // Initialize remaining locals to null
-        for (size_t i = args.size(); i < funcMeta->localCount; ++i)
-        {
-            stackManager->push(std::monostate{});
-        }
-
-        // Create call frame
-        CallFrame frame;
-        frame.returnAddress = savedIP;
-        frame.frameBase = savedStackSize;
-        frame.localBase = savedStackSize;
-        frame.functionName = program->internFrameName(funcName);
-        frame.thisInstance = nullptr;
-        pushCallFrame(frame);
-
-        // Track native depth — this function runs its own interpreter loop on the
-        // native C++ stack, so it contributes to native recursion depth
+        // This function runs its own interpreter loop on the native C++
+        // stack so it contributes to native recursion depth. Caller has
+        // already pushed the frame and set instructionPointer.
         ++jitNativeDepth;
 
-        // Jump to function start
-        instructionPointer = funcMeta->startOffset;
-
-        // Run interpreter until this call frame is popped
-        // Use post-increment to match interpretLoop pattern (executors set IP = target - 1)
-        // Use executionCtx->program so cross-library calls fetch from the correct bytecode
+        // Use executionCtx->program so cross-library calls fetch from the
+        // correct bytecode. Re-read each iteration via the reference so an
+        // executor that switches program (e.g. cross-library CALL) is
+        // honoured by the next instruction fetch.
         auto& jitCurrentProgram = executionCtx->program;
         while (callStack.size() > savedCallStackDepth)
         {
@@ -89,7 +60,8 @@ namespace vm::runtime
             catch (...)
             {
                 --jitNativeDepth;
-                // Restore state on exception
+                // Restore state on exception. throw; below preserves the
+                // original exception object (type + what()) intact.
                 while (callStack.size() > savedCallStackDepth)
                 {
                     // MYT-208: release stack-promoted allocations before pop.
@@ -101,9 +73,15 @@ namespace vm::runtime
                 {
                     stackManager->pop();
                 }
+                // MYT-182: restore the pre-call program on exception too.
+                if (switchedProgram)
+                {
+                    executionCtx->program = savedProgram;
+                }
                 throw;
             }
 
+            // Post-increment to match interpretLoop pattern (executors set IP = target - 1).
             instructionPointer++;
         }
 
@@ -125,7 +103,53 @@ namespace vm::runtime
         // Restore instruction pointer
         instructionPointer = savedIP;
 
+        // MYT-182: restore the pre-call program. The mini-interpret loop
+        // exits on frame-depth check rather than running a RETURN handler,
+        // so restore explicitly here.
+        if (switchedProgram)
+        {
+            executionCtx->program = savedProgram;
+        }
+
         return result;
+    }
+
+    value::Value VirtualMachine::callFunctionFromJit(const std::string& funcName,
+                                                      const std::vector<value::Value>& args)
+    {
+        auto funcMeta = program->getFunction(funcName);
+        if (!funcMeta)
+        {
+            throw std::runtime_error("JIT interpreter fallback: function not found: " + funcName);
+        }
+
+        size_t savedIP = instructionPointer;
+        size_t savedCallStackDepth = callStack.size();
+        size_t savedStackSize = stackManager->size();
+
+        // Push arguments, then null-fill the remaining locals.
+        for (const auto& arg : args)
+        {
+            stackManager->push(arg);
+        }
+        for (size_t i = args.size(); i < funcMeta->localCount; ++i)
+        {
+            stackManager->push(std::monostate{});
+        }
+
+        CallFrame frame;
+        frame.returnAddress = savedIP;
+        frame.frameBase = savedStackSize;
+        frame.localBase = savedStackSize;
+        frame.functionName = program->internFrameName(funcName);
+        frame.thisInstance = nullptr;
+        pushCallFrame(frame);
+
+        instructionPointer = funcMeta->startOffset;
+
+        return runJitMiniInterpret(savedIP, savedCallStackDepth, savedStackSize,
+                                    /*savedProgram=*/nullptr,
+                                    /*switchedProgram=*/false);
     }
 
     value::Value VirtualMachine::callMethodFromJit(
@@ -305,12 +329,10 @@ namespace vm::runtime
             throw errors::RuntimeException("JIT method direct: invalid state");
         }
 
-        size_t argCount = args.size();
-
         // MYT-182: if the callee lives in a different program (library),
         // resolve its programIndex up front so the frame can carry it for
-        // return restoration, and so the mini-interpret loop below runs
-        // against the correct bytecode.
+        // return restoration, and so the mini-interpret loop runs against
+        // the correct bytecode.
         const bytecode::BytecodeProgram* savedProgram = executionCtx->program;
         size_t calleeProgramIndex = callStack.empty() ? 0 : callStack.back().programIndex;
         bool switchedProgram = false;
@@ -328,8 +350,9 @@ namespace vm::runtime
             switchedProgram = true;
         }
 
-        // Defining class is the prefix of the qualified name (matches interpretation
-        // path that walks the class hierarchy to find the introducing class).
+        // Defining class is the prefix of the qualified name (matches the
+        // interpretation path that walks the class hierarchy to find the
+        // introducing class).
         std::string definingClassName = instance->getClassDefinition()->getName();
         size_t colonPos = qualifiedName.find("::");
         if (colonPos != std::string::npos)
@@ -337,41 +360,31 @@ namespace vm::runtime
             definingClassName = qualifiedName.substr(0, colonPos);
         }
 
-        // Save current interpreter state (lightweight — no full callStack copy)
         size_t savedIP = instructionPointer;
         size_t savedCallStackDepth = callStack.size();
         size_t savedStackSize = stackManager->size();
 
-        // Push 'this' as first local (slot 0)
+        // Push 'this' as local-0, then args, then null-fill remaining locals.
         stackManager->push(instance);
-
-        // Push method arguments
         for (const auto& arg : args)
         {
             stackManager->push(arg);
         }
-
-        // Initialize remaining locals to monostate
-        size_t pushedSlots = 1 + argCount;
-        if (funcMetadata->localCount > pushedSlots)
+        size_t pushedSlots = 1 + args.size();
+        for (size_t i = pushedSlots; i < funcMetadata->localCount; ++i)
         {
-            size_t additionalLocals = funcMetadata->localCount - pushedSlots;
-            for (size_t i = 0; i < additionalLocals; ++i)
-            {
-                stackManager->push(std::monostate{});
-            }
+            stackManager->push(std::monostate{});
         }
 
-        // Create call frame
         CallFrame frame;
         frame.returnAddress = savedIP;
         frame.frameBase = savedStackSize;
         frame.localBase = savedStackSize;
         // MYT-197: intern on the callee's owning program. Prefer calleeProgram
-        // (passed by the JIT caller) when it's set; fall back to whichever
-        // program `calleeProgramIndex` resolves to. Never index-dereference
-        // loadedPrograms blindly — if the lookup above didn't find calleeProgram
-        // in the list, calleeProgramIndex could point at the wrong program.
+        // (passed by the JIT caller) when set; fall back to whichever program
+        // calleeProgramIndex resolves to. Never index-dereference loadedPrograms
+        // blindly — if the lookup above didn't find calleeProgram in the list,
+        // calleeProgramIndex could point at the wrong program.
         const bytecode::BytecodeProgram* ownerProgram =
             calleeProgram ? calleeProgram
                           : (calleeProgramIndex < loadedPrograms.size()
@@ -380,87 +393,15 @@ namespace vm::runtime
         frame.functionName = ownerProgram->internFrameName(qualifiedName);
         frame.thisInstance = instance;
         frame.definingClassName = definingClassName;
-        // MYT-182: carry the callee's programIndex so the normal return
-        // path in ControlFlowExecutor restores context.program correctly.
+        // MYT-182: carry the callee's programIndex so the normal return path
+        // in ControlFlowExecutor restores context.program correctly.
         frame.programIndex = calleeProgramIndex;
         pushCallFrame(frame);
 
-        // Track native depth
-        ++jitNativeDepth;
-
-        // Jump to method start
         instructionPointer = funcMetadata->startOffset;
 
-        // Run interpreter until this call frame is popped
-        // Use post-increment to match interpretLoop pattern (executors set IP = target - 1)
-        // Use executionCtx->program so cross-library calls fetch from the correct bytecode
-        auto& jitCurrentProgram2 = executionCtx->program;
-        while (callStack.size() > savedCallStackDepth)
-        {
-            if (instructionPointer >= jitCurrentProgram2->getInstructionCount())
-            {
-                break;
-            }
-
-            const auto& instr = jitCurrentProgram2->getInstruction(instructionPointer);
-
-            try
-            {
-                executeInstruction(instr);
-            }
-            catch (...)
-            {
-                --jitNativeDepth;
-                // Restore state on exception
-                while (callStack.size() > savedCallStackDepth)
-                {
-                    // MYT-208: release stack-promoted allocations before pop.
-                    callStack.back().releaseStackObjects();
-                    callStack.pop_back();
-                }
-                instructionPointer = savedIP;
-                while (stackManager->size() > savedStackSize)
-                {
-                    stackManager->pop();
-                }
-                // MYT-182: restore the pre-call program on exception too.
-                if (switchedProgram)
-                {
-                    executionCtx->program = savedProgram;
-                }
-                throw;
-            }
-
-            instructionPointer++;
-        }
-
-        --jitNativeDepth;
-
-        // Get return value (if any)
-        value::Value result = std::monostate{};
-        if (stackManager->size() > savedStackSize)
-        {
-            result = stackManager->pop();
-        }
-
-        // Clean up stack to original size
-        while (stackManager->size() > savedStackSize)
-        {
-            stackManager->pop();
-        }
-
-        // Restore instruction pointer
-        instructionPointer = savedIP;
-
-        // MYT-182: restore the pre-call program. The mini-interpret loop
-        // above exits on frame-depth check rather than running a RETURN
-        // handler, so restore explicitly here.
-        if (switchedProgram)
-        {
-            executionCtx->program = savedProgram;
-        }
-
-        return result;
+        return runJitMiniInterpret(savedIP, savedCallStackDepth, savedStackSize,
+                                    savedProgram, switchedProgram);
     }
 
     value::Value VirtualMachine::callMethodFromJitDirect(
@@ -513,17 +454,16 @@ namespace vm::runtime
         const std::vector<value::Value>& args,
         const bytecode::BytecodeProgram* calleeProgram)
     {
-        // MYT-208: clone of callMethodFromJitDirect's mini-interpret loop with
-        // raw `this` and STACK_OBJECT-tagged Value pushed as local-0. Lifetime
-        // of the borrowed instance is owned by the caller's frame (via
-        // stackObjects), not by anything pushed here.
+        // MYT-208: STACK_OBJECT-receiver counterpart to callMethodFromJitDirect:
+        // raw `this` threaded through frame.thisInstanceRaw and the
+        // STACK_OBJECT-tagged Value pushed as local-0. Lifetime of the borrowed
+        // instance is owned by the caller's frame (via stackObjects), not by
+        // anything pushed here.
         auto* raw = value::asObjectInstanceRaw(receiverValue);
         if (!program || !raw || !funcMetadata)
         {
             throw errors::RuntimeException("JIT method direct (stack): invalid state");
         }
-
-        size_t argCount = args.size();
 
         const bytecode::BytecodeProgram* savedProgram = executionCtx->program;
         size_t calleeProgramIndex = callStack.empty() ? 0 : callStack.back().programIndex;
@@ -555,22 +495,16 @@ namespace vm::runtime
 
         // Push receiver Value (STACK_OBJECT-tagged) as local-0 — preserves the
         // tag for the callee's LOAD_LOCAL and keeps the operand stack
-        // refcount-free.
+        // refcount-free. Then args, then null-fill remaining locals.
         stackManager->push(receiverValue);
-
         for (const auto& arg : args)
         {
             stackManager->push(arg);
         }
-
-        size_t pushedSlots = 1 + argCount;
-        if (funcMetadata->localCount > pushedSlots)
+        size_t pushedSlots = 1 + args.size();
+        for (size_t i = pushedSlots; i < funcMetadata->localCount; ++i)
         {
-            size_t additionalLocals = funcMetadata->localCount - pushedSlots;
-            for (size_t i = 0; i < additionalLocals; ++i)
-            {
-                stackManager->push(std::monostate{});
-            }
+            stackManager->push(std::monostate{});
         }
 
         CallFrame frame;
@@ -588,68 +522,10 @@ namespace vm::runtime
         frame.programIndex = calleeProgramIndex;
         pushCallFrame(frame);
 
-        ++jitNativeDepth;
-
         instructionPointer = funcMetadata->startOffset;
 
-        auto& jitCurrentProgram2 = executionCtx->program;
-        while (callStack.size() > savedCallStackDepth)
-        {
-            if (instructionPointer >= jitCurrentProgram2->getInstructionCount())
-            {
-                break;
-            }
-
-            const auto& instr = jitCurrentProgram2->getInstruction(instructionPointer);
-
-            try
-            {
-                executeInstruction(instr);
-            }
-            catch (...)
-            {
-                --jitNativeDepth;
-                while (callStack.size() > savedCallStackDepth)
-                {
-                    callStack.back().releaseStackObjects();
-                    callStack.pop_back();
-                }
-                instructionPointer = savedIP;
-                while (stackManager->size() > savedStackSize)
-                {
-                    stackManager->pop();
-                }
-                if (switchedProgram)
-                {
-                    executionCtx->program = savedProgram;
-                }
-                throw;
-            }
-
-            instructionPointer++;
-        }
-
-        --jitNativeDepth;
-
-        value::Value result = std::monostate{};
-        if (stackManager->size() > savedStackSize)
-        {
-            result = stackManager->pop();
-        }
-
-        while (stackManager->size() > savedStackSize)
-        {
-            stackManager->pop();
-        }
-
-        instructionPointer = savedIP;
-
-        if (switchedProgram)
-        {
-            executionCtx->program = savedProgram;
-        }
-
-        return result;
+        return runJitMiniInterpret(savedIP, savedCallStackDepth, savedStackSize,
+                                    savedProgram, switchedProgram);
     }
 
     void VirtualMachine::trySpecializeArithmetic(

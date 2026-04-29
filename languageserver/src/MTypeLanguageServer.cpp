@@ -5,6 +5,7 @@
 #include <future>
 #include <iostream>
 #include <thread>
+#include <typeinfo>
 
 namespace mtype::lsp
 {
@@ -68,13 +69,20 @@ namespace mtype::lsp
                 json message = json::parse(content);
                 handleMessage(message);
             }
-            catch (const json::parse_error&)
+            catch (const json::parse_error& e)
             {
-                // Silently ignore parse errors
+                // Malformed frame from the client — log and keep reading. The
+                // LSP protocol allows free-form stderr for server diagnostics;
+                // VS Code surfaces this in the "MType" output channel.
+                std::cerr << "[mtype-lsp] json parse error: " << e.what() << "\n";
             }
-            catch (const std::exception&)
+            catch (const std::exception& e)
             {
-                // Silently ignore errors
+                // Anything else — bad_alloc, json::type_error from a malformed
+                // request, runtime_error from a handler — used to be swallowed
+                // silently, turning unrecoverable errors into an invisible
+                // busy loop. Surface them so failures are at least diagnosable.
+                std::cerr << "[mtype-lsp] " << typeid(e).name() << ": " << e.what() << "\n";
             }
         }
     }
@@ -84,6 +92,20 @@ namespace mtype::lsp
         if (!message.contains("method"))
         {
             return; // Response message, ignore for now
+        }
+
+        // The implicit string conversion below throws json::type_error if
+        // "method" is anything other than a string. Validate explicitly so a
+        // malformed request becomes a JSON-RPC -32600 (Invalid Request) reply
+        // rather than relying on the run() loop's catch-all to silently
+        // discard the frame.
+        if (!message["method"].is_string())
+        {
+            if (message.contains("id"))
+            {
+                sendError(message["id"], -32600, "method must be a string");
+            }
+            return;
         }
 
         std::string method = message["method"];
