@@ -2314,9 +2314,6 @@
     <None Include="tests\testFiles\bugs\infiniteLoopHangs.mt">
       <Filter>testFiles\bugs</Filter>
     </None>
-    <None Include="tests\testFiles\bugs\jitTailCallNoOverflow.mt">
-      <Filter>testFiles\bugs</Filter>
-    </None>
     <None Include="tests\testFiles\cast\error\castArrayCovariance_error.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
@@ -5090,6 +5087,9 @@
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\runtimeStackOverflow.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\runtimeStackOverflowTailCall.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\scopeFunctionParameterShadowing.mt">

@@ -9,6 +9,7 @@
 #include "../runtime/VirtualMachine.hpp"
 #include "../../value/StringPool.hpp"
 #include <vector>
+#include <sstream>
 
 namespace vm::jit
 {
@@ -275,6 +276,15 @@ namespace vm::jit
     void jit_throw_shift_out_of_range(int64_t /*count*/)
     {
         throw errors::RuntimeException("Shift amount must be between 0 and 63");
+    }
+
+    void jit_throw_stack_overflow(size_t maxDepth)
+    {
+        std::ostringstream oss;
+        oss << "Stack overflow: Maximum call stack depth of "
+            << maxDepth << " exceeded.\n"
+            << "This may indicate infinite recursion (JIT tail-call loop).";
+        throw errors::RuntimeException(oss.str());
     }
 
     void jit_value_copy(value::Value* dest, const value::Value* src)

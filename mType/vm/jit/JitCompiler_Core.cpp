@@ -618,6 +618,8 @@ namespace vm::jit
         if (!frame.usesBoxedTypes)
         {
             s.functionEntryLabel = cc.new_label();
+            s.tailCallCounter = cc.new_gp64("tailCallCounter");
+            cc.xor_(s.tailCallCounter, s.tailCallCounter);  // MYT-226
             cc.bind(s.functionEntryLabel);
         }
         else

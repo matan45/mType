@@ -167,6 +167,7 @@ namespace vm::jit
         // compiled frames leave this unbound and set selfTailCallEnabled=false
         // so the emitter falls through to the generic helper invoke.
         asmjit::Label functionEntryLabel;
+        asmjit::x86::Gp tailCallCounter;  // MYT-226: per-frame depth counter
         bool selfTailCallEnabled = true;
 
         // MYT-207: self-recursive direct-call optimization for NON-tail sites.

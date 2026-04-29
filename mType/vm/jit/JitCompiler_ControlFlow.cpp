@@ -434,6 +434,7 @@ namespace vm::jit
     {
         if (!s.selfTailCallEnabled) return false;
         if (s.usesBoxedTypes) return false;
+        if (!s.inlineStack.empty()) return false;
         if (!calleeMeta) return false;
         if (argCount != calleeMeta->parameterCount) return false;
         if (s.currentCompilingFn.empty()) return false;
@@ -519,12 +520,30 @@ namespace vm::jit
         s.slotTypes.push_back(retSlot);
         s.stackDepth++;
 
-        // GC safepoint: tail calls can iterate indefinitely without
-        // reaching the interpreter's per-N-instruction GC tick (gcd runs
-        // 50k iterations). Mirror JUMP_BACK's safepoint.
+        // MYT-226: per-frame tail-call counter overflow check.
+        auto& cc_ = s.cc;
+        Label tailOverflowLabel = cc_.new_label();
+        Gp vmReg = cc_.new_gp64();
+        cc_.mov(vmReg, Mem(s.ctxPtr, offsetof(JitContext, vm)));
+        Gp maxReg = cc_.new_gp64();
+        cc_.mov(maxReg, Mem(vmReg, vm::runtime::VirtualMachine::kMaxCallStackSizeOffset));
+        cc_.inc(s.tailCallCounter);
+        cc_.cmp(s.tailCallCounter, maxReg);
+        cc_.jae(tailOverflowLabel);
+
+        // existing GC safepoint + back-edge jmp:
         emitInlineGcSafepoint(s);
 
         cc.jmp(s.functionEntryLabel);
+
+        // MYT-226: throw path — dead fall-through from the jmp above.
+        cc_.bind(tailOverflowLabel);
+        InvokeNode* throwInv;
+        cc_.invoke(Out(throwInv),
+                   reinterpret_cast<uint64_t>(jit_throw_stack_overflow),
+                   FuncSignature::build<void, size_t>());
+        throwInv->set_arg(0, maxReg);
+        // helper does not return; asmjit handles the unwind. No trailing ret/jmp.
 
         // MYT-207 telemetry: compile-time bump (not runtime). Counts the
         // number of CALL sites lowered to a tail-loop, NOT the number of

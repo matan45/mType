@@ -434,6 +434,7 @@ namespace vm::runtime
         // refuses incomplete-type uses inside the class body). Read by
         // tryEmitSelfDirectCall.
         static const size_t kJitNativeDepthOffset;
+        static const size_t kMaxCallStackSizeOffset;
     };
 
     // MYT-207: out-of-line definition. `inline` lets the same constant live
@@ -443,4 +444,6 @@ namespace vm::runtime
     // through the VirtualMachine:: qualified name.
     inline const size_t VirtualMachine::kJitNativeDepthOffset =
         offsetof(VirtualMachine, jitNativeDepth);
+    inline const size_t VirtualMachine::kMaxCallStackSizeOffset =
+        offsetof(VirtualMachine, maxCallStackSize);
 }

@@ -25,6 +25,10 @@ namespace tests::testSuite
                         errorPath + "lexerUnteminatedString.mt",
                         TestType::ERROR_EXPECTED);
 
+        addTestFromFile("jit StackOverflow TailCall",
+                 errorPath + "runtimeStackOverflowTailCall.mt",
+                 TestType::ERROR_EXPECTED);
+        
         // Parser error tests (expected to fail)
         addTestFromFile("Parser Missing Semicolon Error",
                         errorPath + "parserMissingSemicolon.mt",
