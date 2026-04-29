@@ -198,6 +198,9 @@
     <ClInclude Include="vm\compiler\visitors\FunctionCompiler.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\GenericScopeHelper.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\visitors\LiteralCompiler.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
@@ -369,6 +372,9 @@
     <ClInclude Include="vm\runtime\utils\NullCheckUtils.hpp">
       <Filter>vm\runtime\utils</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\utils\TypeArgResolution.hpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\validation\AccessValidator.hpp">
       <Filter>vm\runtime\validation</Filter>
     </ClInclude>
@@ -489,6 +495,9 @@
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\FunctionCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\GenericScopeHelper.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\LiteralCompiler.cpp">

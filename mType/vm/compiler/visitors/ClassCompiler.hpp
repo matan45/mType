@@ -82,15 +82,10 @@ namespace vm::compiler::visitors
         // parameter name to its resolved value (concrete name OR an outer
         // type-param name to forward from the caller's frame). No-op if
         // bindings is empty. Identical operand layout to
-        // FunctionCallHelper::emitBindTypeArgsIfNeeded.
+        // FunctionCallHelper::emitBindTypeArgsIfNeeded. Forward-from-caller
+        // detection delegates to isTypeParamInScope (GenericScopeHelper.hpp).
         void emitBindTypeArgsForMethodCall(
             ast::ASTNode* node,
             const std::unordered_map<std::string, std::string>& bindings);
-
-        // MYT-228: returns true if `name` matches a type-parameter declared
-        // by any enclosing scope (class / method / function). Used by
-        // emitBindTypeArgsForMethodCall to decide between
-        // valueKind=0 (concrete) and valueKind=1 (forward-from-caller).
-        bool isCallerLevelTypeParam(const std::string& name) const;
     };
 }

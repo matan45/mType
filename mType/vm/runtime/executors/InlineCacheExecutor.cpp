@@ -607,7 +607,7 @@ namespace vm::runtime
         frame.programIndex = program
             ? programIndex
             : (context.callStack.empty() ? 0 : context.callStack.back().programIndex);
-        context.pushCallFrame(frame);
+        context.pushCallFrame(std::move(frame));
         context.stats.functionCalls++;
 
         // MYT-182: switch context.program to the callee's owning program.

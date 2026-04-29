@@ -3,6 +3,18 @@
 
 namespace vm::bytecode
 {
+    // MYT-228: BIND_TYPE_ARGS valueKind discriminator. Disambiguates
+    // "concrete type name to stage as-is" from "outer type-param name
+    // that needs to be resolved against the caller's frame at bind
+    // time". Stored as one operand byte in the BIND_TYPE_ARGS triplet
+    // (paramName_idx, valueKind, value_idx). See OpCode::BIND_TYPE_ARGS
+    // for the full operand layout.
+    enum class TypeArgValueKind : uint8_t
+    {
+        Concrete = 0,           // value_idx points at a concrete type name (e.g. "Dog")
+        ForwardFromCaller = 1,  // value_idx points at an outer type-param name to forward
+    };
+
     /**
      * Bytecode instruction set for mType VM
      * Designed for stack-based execution with optimization support
@@ -346,8 +358,7 @@ namespace vm::bytecode
         // for the next CALL_*. Variable-arity:
         //   operands[0] = n (pair count)
         //   operands[1 + 3*i + 0] = paramName constant-pool index
-        //   operands[1 + 3*i + 1] = valueKind (0 = concrete type name,
-        //                                      1 = forward-from-caller-frame)
+        //   operands[1 + 3*i + 1] = TypeArgValueKind (Concrete / ForwardFromCaller)
         //   operands[1 + 3*i + 2] = value constant-pool index (concrete name
         //                           OR caller-level type-param name to resolve)
         // Handler writes into ExecutionContext::pendingTypeArgs; the very

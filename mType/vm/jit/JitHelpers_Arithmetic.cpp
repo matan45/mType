@@ -87,7 +87,7 @@ namespace vm::jit
         frame.localBase = 0;
         frame.functionName = frameName;
         frame.thisInstance = nullptr;
-        ctx->vm->pushCallFrame(frame);
+        ctx->vm->pushCallFrame(std::move(frame));
         ctx->vm->incrementJitNativeDepth();
 
         JitContext nestedCtx{};

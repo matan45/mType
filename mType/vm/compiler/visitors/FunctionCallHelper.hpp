@@ -78,11 +78,9 @@ namespace vm::compiler::visitors
         // CALL_* emit, AFTER arguments have been pushed onto the operand
         // stack (so that nested generic calls in arguments can't clobber the
         // pendingTypeArgs scratch slot before our CALL consumes it).
+        // Forward-from-caller detection delegates to isTypeParamInScope
+        // (GenericScopeHelper.hpp) — shared with ClassCompiler and
+        // ExpressionCompiler.
         void emitBindTypeArgsIfNeeded(ast::ASTNode* node);
-
-        // MYT-228: returns true if `name` is a type-parameter name in any
-        // enclosing scope (class, method, or function). Used to decide
-        // valueKind=1 (forward-from-caller-frame) vs valueKind=0 (concrete).
-        bool isCallerLevelTypeParam(const std::string& name) const;
     };
 }

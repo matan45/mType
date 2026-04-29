@@ -133,7 +133,7 @@ namespace vm::runtime
             frame.thisInstance = instance;
             frame.definingClassName = className;
 
-            pushCallFrame(frame);
+            pushCallFrame(std::move(frame));
             stats.functionCalls++;
 
             // Execute constructor
@@ -366,7 +366,7 @@ namespace vm::runtime
             frame.definingClassName = lambda->creatingClassName;
             frame.originatingLambda = lambda;
 
-            pushCallFrame(frame);
+            pushCallFrame(std::move(frame));
             stats.functionCalls++;
 
             // Create shared frame for this invocation, link to parent captures

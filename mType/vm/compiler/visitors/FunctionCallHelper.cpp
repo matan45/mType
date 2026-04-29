@@ -1,4 +1,5 @@
 #include "FunctionCallHelper.hpp"
+#include "GenericScopeHelper.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../../errors/TypeException.hpp"
@@ -948,36 +949,6 @@ namespace vm::compiler::visitors
         return std::monostate{};
     }
 
-    bool FunctionCallHelper::isCallerLevelTypeParam(const std::string& name) const
-    {
-        // MYT-228: a type-arg value that itself names a type-param in any
-        // enclosing scope (class, method, function) needs to be tagged with
-        // valueKind=1 so the runtime forwards from the caller's frame
-        // bindings. Mirrors the scope walk in compileInstanceOf / compileCast.
-        if (ctx.currentClassNode)
-        {
-            for (const auto& p : ctx.currentClassNode->getGenericParameters())
-            {
-                if (p.name == name) return true;
-            }
-        }
-        if (ctx.currentMethodNode)
-        {
-            for (const auto& p : ctx.currentMethodNode->getGenericTypeParameters())
-            {
-                if (p.name == name) return true;
-            }
-        }
-        if (ctx.currentFunctionNode)
-        {
-            for (const auto& p : ctx.currentFunctionNode->getGenericTypeParameters())
-            {
-                if (p.name == name) return true;
-            }
-        }
-        return false;
-    }
-
     void FunctionCallHelper::emitBindTypeArgsIfNeeded(ast::ASTNode* node)
     {
         // MYT-228: if the current call has generic bindings, emit a
@@ -997,12 +968,14 @@ namespace vm::compiler::visitors
 
         for (const auto& [paramName, value] : bindings)
         {
-            uint8_t valueKind = isCallerLevelTypeParam(value) ? 1u : 0u;
+            const auto kind = isTypeParamInScope(ctx, value)
+                ? bytecode::TypeArgValueKind::ForwardFromCaller
+                : bytecode::TypeArgValueKind::Concrete;
             size_t paramNameIdx = ctx.program.getConstantPool().addString(paramName);
             size_t valueIdx = ctx.program.getConstantPool().addString(value);
 
             operands.push_back(static_cast<uint64_t>(paramNameIdx));
-            operands.push_back(static_cast<uint64_t>(valueKind));
+            operands.push_back(static_cast<uint64_t>(kind));
             operands.push_back(static_cast<uint64_t>(valueIdx));
         }
 

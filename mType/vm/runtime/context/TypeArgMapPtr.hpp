@@ -6,10 +6,13 @@
 //     8 bytes for a possibly-null pointer; nothing else).
 //   - Zero heap allocation per generic call after warmup (a thread-local
 //     pool of std::unordered_map recycles the storage).
-//   - Default copy/move semantics that play nicely with vector<CallFrame>:
-//     copy nulls the destination (the convention is that only the in-vector
-//     frame owns the map — local CallFrame instances built by callers
-//     never own one), move transfers ownership and nulls the source.
+//   - Move on the hot path (vector growth, pushCallFrame) — noexcept
+//     transfer of the pool slot, no allocation.
+//   - Deep copy on the snapshot-then-restore paths (interop/async) so a
+//     rollback after an exception preserves any bindings captured at
+//     snapshot time. Deep copy acquires a fresh pool slot per source
+//     binding — paid only at known-slow interop boundaries, not in
+//     tight CALL loops where everything moves.
 //
 // The previous representation was `std::optional<std::unordered_map<...>>`
 // (~72 bytes per frame on MSVC, with a heap alloc per generic call). The
@@ -47,25 +50,50 @@ namespace vm::runtime
 
     // RAII wrapper around a pool-owned TypeArgMap*.
     //
-    // Copy semantics are asymmetric on purpose: copy-construct yields a
-    // null destination (intentional — see header doc above). This matches
-    // how CallFrame is used: callers build local frames with no bindings,
-    // pushCallFrame copies them into the vector (yielding null in the
-    // vector entry), then attaches pendingTypeArgs after the copy. The
-    // source local CallFrame retains its null pointer.
+    // Hot path (frame push, vector growth): uses move semantics.
+    // pushCallFrame takes a CallFrame by value and the call sites all use
+    // std::move; vector::push_back / vector growth use noexcept move. No
+    // allocation happens on the hot path beyond what the pool already
+    // recycles.
     //
-    // Move semantics transfer ownership and null the source. std::vector
-    // growth uses move on noexcept-move-ctor types (which we are), so the
-    // map pointer stays attached to the right frame across vector growth.
+    // Cold path (interop/async snapshot-then-restore patterns —
+    // VirtualMachineInteropCall, VirtualMachineAsync, etc.): uses deep
+    // copy. The snapshot needs to preserve any bindings present at
+    // capture time so a rollback after an exception can restore the
+    // caller's pre-interop state. Each copy acquires a fresh pool slot
+    // and clones the map contents — paid only at known-slow boundaries,
+    // not in tight CALL loops.
+    //
+    // [[nodiscard]] on releasePtr() so accidentally discarding the
+    // returned pointer (which leaks the pool slot) is a compile-time
+    // warning instead of a silent leak.
     class TypeArgMapPtr
     {
     public:
         TypeArgMapPtr() noexcept = default;
 
-        TypeArgMapPtr(const TypeArgMapPtr&) noexcept : ptr_(nullptr) {}
-        TypeArgMapPtr& operator=(const TypeArgMapPtr&) noexcept
+        // Deep copy: clone map contents into a fresh pool slot. Used by
+        // the snapshot/restore paths in interop and async code; never
+        // hit on the hot CALL path (callers there std::move).
+        TypeArgMapPtr(const TypeArgMapPtr& other)
         {
-            release();
+            if (other.ptr_)
+            {
+                ptr_ = detail::threadLocalTypeArgPool().acquire();
+                *ptr_ = *other.ptr_;
+            }
+        }
+        TypeArgMapPtr& operator=(const TypeArgMapPtr& other)
+        {
+            if (this != &other)
+            {
+                release();
+                if (other.ptr_)
+                {
+                    ptr_ = detail::threadLocalTypeArgPool().acquire();
+                    *ptr_ = *other.ptr_;
+                }
+            }
             return *this;
         }
 
@@ -102,7 +130,8 @@ namespace vm::runtime
         }
 
         // Hand off ownership to a raw pointer; this wrapper becomes empty.
-        TypeArgMap* releasePtr() noexcept
+        // [[nodiscard]] — discarding the returned pointer leaks the pool slot.
+        [[nodiscard]] TypeArgMap* releasePtr() noexcept
         {
             auto* p = ptr_;
             ptr_ = nullptr;

@@ -453,8 +453,10 @@ namespace vm::runtime
         void popN(size_t count);
 
     public:
-        // Call stack management with overflow protection (public for JIT access)
-        void pushCallFrame(const CallFrame& frame);
+        // Call stack management with overflow protection (public for JIT access).
+        // Takes the frame by value — CallFrame is move-only (TypeArgMapPtr
+        // owns a pool slot). All call sites use `pushCallFrame(std::move(frame))`.
+        void pushCallFrame(CallFrame frame);
         void popCallStack();
 
         // JIT native depth tracking (public for JIT helpers access)

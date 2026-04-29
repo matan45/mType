@@ -1,6 +1,7 @@
 #include "ExpressionCompiler.hpp"
 #include "LiteralCompiler.hpp"
 #include "ArrayCompiler.hpp"
+#include "GenericScopeHelper.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/IntegerNode.hpp"
@@ -472,21 +473,9 @@ namespace vm::compiler::visitors
             // method falls through to plain CAST with name "T" and throws
             // at runtime. Mirrors the analogous fall-through in
             // compileInstanceOf.
-            if (!isDeclaredParam)
+            if (!isDeclaredParam && isTypeParamInScope(ctx, candidate))
             {
-                auto matchesParam = [&](const std::vector<ast::GenericTypeParameter>& params) {
-                    for (const auto& p : params) {
-                        if (p.name == candidate) return true;
-                    }
-                    return false;
-                };
-                bool isFnLevelParam =
-                    (ctx.currentMethodNode && matchesParam(ctx.currentMethodNode->getGenericTypeParameters())) ||
-                    (ctx.currentFunctionNode && matchesParam(ctx.currentFunctionNode->getGenericTypeParameters()));
-                if (isFnLevelParam)
-                {
-                    isDeclaredParam = true;
-                }
+                isDeclaredParam = true;
             }
 
             if (isDeclaredParam)
@@ -552,21 +541,9 @@ namespace vm::compiler::visitors
             // resolves it via CallFrame::typeArgBindings, populated by a
             // BIND_TYPE_ARGS opcode emitted before the call. Mirrors the
             // analogous fall-through in compileCast.
-            if (!isDeclaredParam)
+            if (!isDeclaredParam && isTypeParamInScope(ctx, candidate))
             {
-                auto matchesParam = [&](const std::vector<ast::GenericTypeParameter>& params) {
-                    for (const auto& p : params) {
-                        if (p.name == candidate) return true;
-                    }
-                    return false;
-                };
-                bool isFnLevelParam =
-                    (ctx.currentMethodNode && matchesParam(ctx.currentMethodNode->getGenericTypeParameters())) ||
-                    (ctx.currentFunctionNode && matchesParam(ctx.currentFunctionNode->getGenericTypeParameters()));
-                if (isFnLevelParam)
-                {
-                    isDeclaredParam = true;
-                }
+                isDeclaredParam = true;
             }
 
             if (isDeclaredParam)

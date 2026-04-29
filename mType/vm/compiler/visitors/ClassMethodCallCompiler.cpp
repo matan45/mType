@@ -1,4 +1,5 @@
 #include "ClassCompiler.hpp"
+#include "GenericScopeHelper.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
@@ -14,35 +15,6 @@
 
 namespace vm::compiler::visitors
 {
-    bool ClassCompiler::isCallerLevelTypeParam(const std::string& name) const
-    {
-        // MYT-228: mirror of FunctionCallHelper::isCallerLevelTypeParam.
-        // Walks the enclosing class / method / function generic parameter
-        // lists.
-        if (ctx.currentClassNode)
-        {
-            for (const auto& p : ctx.currentClassNode->getGenericParameters())
-            {
-                if (p.name == name) return true;
-            }
-        }
-        if (ctx.currentMethodNode)
-        {
-            for (const auto& p : ctx.currentMethodNode->getGenericTypeParameters())
-            {
-                if (p.name == name) return true;
-            }
-        }
-        if (ctx.currentFunctionNode)
-        {
-            for (const auto& p : ctx.currentFunctionNode->getGenericTypeParameters())
-            {
-                if (p.name == name) return true;
-            }
-        }
-        return false;
-    }
-
     void ClassCompiler::emitBindTypeArgsForMethodCall(
         ast::ASTNode* node,
         const std::unordered_map<std::string, std::string>& bindings)
@@ -50,7 +22,9 @@ namespace vm::compiler::visitors
         // MYT-228: stage method-level type-parameter bindings into
         // ExecutionContext::pendingTypeArgs. The next pushCallFrame
         // (triggered by the terminal CALL_*) consumes them into the new
-        // frame's typeArgBindings.
+        // frame's typeArgBindings. Forward-from-caller detection lives in
+        // isTypeParamInScope (GenericScopeHelper.hpp) — shared with
+        // FunctionCallHelper and ExpressionCompiler.
         if (bindings.empty())
         {
             return;
@@ -62,12 +36,14 @@ namespace vm::compiler::visitors
 
         for (const auto& [paramName, value] : bindings)
         {
-            uint8_t valueKind = isCallerLevelTypeParam(value) ? 1u : 0u;
+            const auto kind = isTypeParamInScope(ctx, value)
+                ? bytecode::TypeArgValueKind::ForwardFromCaller
+                : bytecode::TypeArgValueKind::Concrete;
             size_t paramNameIdx = ctx.program.getConstantPool().addString(paramName);
             size_t valueIdx = ctx.program.getConstantPool().addString(value);
 
             operands.push_back(static_cast<uint64_t>(paramNameIdx));
-            operands.push_back(static_cast<uint64_t>(valueKind));
+            operands.push_back(static_cast<uint64_t>(kind));
             operands.push_back(static_cast<uint64_t>(valueIdx));
         }
 

@@ -338,7 +338,9 @@ namespace vm::runtime::utils
         size_t callSiteIP = SIZE_MAX;
         if (!callStack.empty())
         {
-            CallFrame currentFrame = callStack.back();
+            // CallFrame is move-only (TypeArgMapPtr); move-out from the
+            // back, then pop_back below destroys the moved-from slot.
+            CallFrame currentFrame = std::move(callStack.back());
             callSiteIP = currentFrame.returnAddress;  // Where this function was called from
 
             if (vm::profiler::ProfilerHookHelper::isProfilingEnabled())

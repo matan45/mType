@@ -244,11 +244,19 @@ namespace vm::runtime
         stackManager->popN(count);
     }
 
-    void VirtualMachine::pushCallFrame(const CallFrame& frame)
+    void VirtualMachine::pushCallFrame(CallFrame frame)
     {
         // Check for stack overflow
         if (callStack.size() >= maxCallStackSize)
         {
+            // MYT-228: clear any stale pending bindings so a future call
+            // can't pick them up after the exception is caught. Mirrors
+            // the same guard in ExecutionContext::pushCallFrame.
+            if (executionCtx)
+            {
+                executionCtx->pendingTypeArgs.reset();
+            }
+
             // Build a helpful error message with stack trace
             std::ostringstream oss;
             oss << "Stack overflow: Maximum call stack depth of "
@@ -286,7 +294,15 @@ namespace vm::runtime
             throw errors::RuntimeException(oss.str());
         }
 
-        callStack.push_back(frame);
+        // MYT-228: same consume-and-clear convention as
+        // ExecutionContext::pushCallFrame so this VM-level entry stays
+        // in sync. Hot path: pendingTypeArgs is null, single branch.
+        if (executionCtx && executionCtx->pendingTypeArgs)
+        {
+            frame.typeArgBindings.adopt(executionCtx->pendingTypeArgs.releasePtr());
+        }
+
+        callStack.push_back(std::move(frame));
     }
 
     void VirtualMachine::popCallStack()

@@ -143,7 +143,7 @@ namespace vm::runtime
         frame.localBase = savedStackSize;
         frame.functionName = program->internFrameName(funcName);
         frame.thisInstance = nullptr;
-        pushCallFrame(frame);
+        pushCallFrame(std::move(frame));
 
         instructionPointer = funcMeta->startOffset;
 
@@ -396,7 +396,7 @@ namespace vm::runtime
         // MYT-182: carry the callee's programIndex so the normal return path
         // in ControlFlowExecutor restores context.program correctly.
         frame.programIndex = calleeProgramIndex;
-        pushCallFrame(frame);
+        pushCallFrame(std::move(frame));
 
         instructionPointer = funcMetadata->startOffset;
 
@@ -520,7 +520,7 @@ namespace vm::runtime
         frame.thisInstanceRaw = raw;  // STACK_OBJECT path
         frame.definingClassName = definingClassName;
         frame.programIndex = calleeProgramIndex;
-        pushCallFrame(frame);
+        pushCallFrame(std::move(frame));
 
         instructionPointer = funcMetadata->startOffset;
 

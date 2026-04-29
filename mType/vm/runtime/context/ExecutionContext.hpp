@@ -249,8 +249,11 @@ namespace vm::runtime
             , vm(vmPtr)
         {}
 
-        // Call stack management with overflow protection
-        void pushCallFrame(const CallFrame& frame);
+        // Call stack management with overflow protection.
+        // Takes the frame by value — CallFrame is move-only because
+        // TypeArgMapPtr owns a thread-local pool slot (MYT-228). All
+        // call sites use `pushCallFrame(std::move(frame))`.
+        void pushCallFrame(CallFrame frame);
 
         // MYT-173: obtain a mutable reference to the instruction at `offset` in
         // the current program. Runtime opcode rewriting (CALL_METHOD <->

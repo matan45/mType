@@ -143,7 +143,7 @@ namespace vm::runtime
                 context.program = targetProgram;
             }
 
-            context.pushCallFrame(frame);
+            context.pushCallFrame(std::move(frame));
             context.stats.functionCalls++;
 
             vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
@@ -231,7 +231,7 @@ namespace vm::runtime
         frame.thisInstance = nullptr;
         frame.programIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
 
-        context.pushCallFrame(frame);
+        context.pushCallFrame(std::move(frame));
         context.stats.functionCalls++;
 
         // Match the frame name (mangled when overloadable) so the profiler's
@@ -490,7 +490,7 @@ namespace vm::runtime
                 context.program = targetProgram;
             }
 
-            context.pushCallFrame(frame);
+            context.pushCallFrame(std::move(frame));
             context.stats.functionCalls++;
 
             vm::profiler::ProfilerHookHelper::onFunctionEntry(staticQualifiedName);
