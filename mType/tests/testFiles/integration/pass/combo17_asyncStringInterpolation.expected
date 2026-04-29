@@ -1,0 +1,10 @@
+=== Combo 17: Async + String Interpolation ===
+--- Greet ---
+Hello, Alice!
+--- Profile ---
+Alice the Engineer has 7 tasks
+--- Tenure ---
+Alice has 15 years experience
+--- Inline composite ---
+Alice/7/Engineer
+=== Combo 17 Complete ===

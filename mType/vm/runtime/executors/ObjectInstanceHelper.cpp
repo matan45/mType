@@ -227,7 +227,17 @@ namespace vm::runtime
                             break;
                     }
                 }
-                instance->setField(fieldName, initialValue);
+                // MYT-212: route default-init through THIS class's own slot
+                // (not the most-derived slot) so a child shadowing the field
+                // doesn't overwrite the parent's value. setField()'s name path
+                // would resolve via getFieldInHierarchy → child's slot.
+                size_t ownSlot = classInHierarchy->getOwnFieldIndex(fieldName);
+                if (ownSlot != SIZE_MAX) {
+                    instance->setFieldByIndex(ownSlot, initialValue);
+                } else {
+                    // Fallback for fields not in the indexed map (defensive).
+                    instance->setField(fieldName, initialValue);
+                }
             }
         }
     }
@@ -670,16 +680,33 @@ namespace vm::runtime
             throw errors::RuntimeException("Class " + classDef->getName() + " has no parent class");
         }
 
-        // Get field value from the instance (fields are stored on the instance, not the class)
-        value::Value fieldValue = instance->getFieldValue(memberName);
-
-        // Check if field exists
-        if (value::isVoid(fieldValue)) {
-            throw errors::RuntimeException("Field '" + memberName + "' not found in parent class");
+        // MYT-212: walk parent chain for the first ancestor that declares the
+        // field, then read its OWN slot. The previous code called
+        // instance->getFieldValue(name), which routes via the instance's
+        // runtime class (Child) and so returned the most-derived (shadowed)
+        // value — exactly what super.x is supposed to skip.
+        auto parent = classDef->getParentClass();
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> owner;
+        auto current = parent;
+        int depth = 0;
+        while (current && depth < 20) {
+            if (current->getField(memberName)) {
+                owner = current;
+                break;
+            }
+            current = current->getParentClass();
+            ++depth;
+        }
+        if (!owner) {
+            throw errors::RuntimeException("Field '" + memberName + "' not found in parent class chain of " + currentClassName);
         }
 
-        // Push the field value onto the stack
-        context.stackManager->push(fieldValue);
+        size_t slot = owner->getOwnFieldIndex(memberName);
+        if (slot == SIZE_MAX) {
+            throw errors::RuntimeException("Field '" + memberName + "' has no indexed slot in " + owner->getName());
+        }
+
+        context.stackManager->push(instance->getFieldByIndex(slot));
     }
 
     void ObjectInstanceHelper::handleSuperSetField(const bytecode::BytecodeProgram::Instruction& instr) {
@@ -709,8 +736,29 @@ namespace vm::runtime
         // Pop the value to assign from the stack
         value::Value assignValue = context.stackManager->pop();
 
-        // Set field value on the instance (fields are stored on the instance, not the class)
-        instance->setField(memberName, assignValue);
+        // MYT-212: write to parent's OWN slot (see handleSuperGetField for rationale).
+        auto parent = classDef->getParentClass();
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> owner;
+        auto current = parent;
+        int depth = 0;
+        while (current && depth < 20) {
+            if (current->getField(memberName)) {
+                owner = current;
+                break;
+            }
+            current = current->getParentClass();
+            ++depth;
+        }
+        if (!owner) {
+            throw errors::RuntimeException("Field '" + memberName + "' not found in parent class chain of " + currentClassName);
+        }
+
+        size_t slot = owner->getOwnFieldIndex(memberName);
+        if (slot == SIZE_MAX) {
+            throw errors::RuntimeException("Field '" + memberName + "' has no indexed slot in " + owner->getName());
+        }
+
+        instance->setFieldByIndex(slot, assignValue);
     }
 
     void ObjectInstanceHelper::invokeConstructor(const value::Value& receiverValue,

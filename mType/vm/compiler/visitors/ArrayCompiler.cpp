@@ -200,7 +200,7 @@ namespace vm::compiler::visitors
                 // Get value type information for validation
                 value::ValueType valueType = ctx.typeInference.inferExpressionType(node->getValue());
                 std::string valueClassName = ctx.typeInference.inferExpressionClassName(node->getValue());
-                bool isNullValue = dynamic_cast<ast::NullNode*>(node->getValue()) != nullptr;
+                bool isNullValue = ctx.typeInference.isEffectivelyNullLiteral(node->getValue());
 
                 // Check if element type is a Box type and value needs boxing
                 if (elementType == "Int" || elementType == "Float" ||

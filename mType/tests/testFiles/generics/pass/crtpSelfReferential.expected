@@ -1,0 +1,6 @@
+CRTP self-referential test
+alpha counter: 3
+alpha label: alpha
+beta counter: 1
+beta label: beta
+CRTP test completed

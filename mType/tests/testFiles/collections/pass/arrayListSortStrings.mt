@@ -19,14 +19,6 @@ class StringComparator implements Comparator<String> {
         if (aLen > bLen) return 1;
         return 0;
     }
-
-    public function reversed(): Comparator<String> {
-        throw "reversed() not implemented";
-    }
-
-    public function thenComparing(Comparator<String> other): Comparator<String> {
-        throw "thenComparing() not implemented";
-    }
 }
 
 function main(): void {

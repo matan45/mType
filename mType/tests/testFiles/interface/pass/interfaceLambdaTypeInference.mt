@@ -19,14 +19,6 @@ class IntComparator implements Comparator<Int> {
         }
         return 0;
     }
-
-    public function reversed(): Comparator<Int> {
-        throw new RuntimeException("reversed not implemented");
-    }
-
-    public function thenComparing(Comparator<Int> other): Comparator<Int> {
-        throw new RuntimeException("thenComparing not implemented");
-    }
 }
 
 class Sorter<T> {

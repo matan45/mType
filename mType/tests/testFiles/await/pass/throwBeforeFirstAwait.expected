@@ -1,0 +1,3 @@
+=== Throw Before First Await ===
+caught: synchronous failure before any await
+after try

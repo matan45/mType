@@ -1,0 +1,6 @@
+declared count: 1
+declared: honk
+inherited start: true
+inherited stop: true
+own honk: true
+Test passed

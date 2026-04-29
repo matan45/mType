@@ -1,0 +1,11 @@
+--- Test 21: Data and Control Flow Edge Cases ---
+Packet[INIT]: System Boot
+Initialization started with payload: System Boot
+Packet[DATA]: 0xDEADBEEF
+Processing data chunk: 0xDEADBEEF
+Packet[END]: System Halt
+Finalizing with: System Halt
+Packet[ERROR]: Core Dump
+Unknown command 'ERROR' containing 'Core Dump'
+--- String Pool Validation ---
+String pool matched concatenated string to literal!

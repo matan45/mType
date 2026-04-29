@@ -246,6 +246,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Array Stress",
                                   passPath + "arrayStress.mt");
 
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("Value Class Array For-Each",
+                                  passPath + "valueClassArrayForEach.mt");
+
         // Add error tests
         addTestFromFile("Negative Array Size",
                         errorPath + "negativeArraySize.mt",
@@ -322,5 +326,11 @@ namespace tests::testSuite
         addTestFromFile("Array Large Allocation",
                         errorPath + "arrayLargeAllocation.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - empty length+iter / array of lambdas ===
+        addOutputVerificationTest("Empty Array Length And Iteration",
+                        passPath + "emptyArrayLengthAndIteration.mt");
+        addOutputVerificationTest("Array Of Lambdas",
+                        passPath + "arrayOfLambdas.mt");
     }
 }

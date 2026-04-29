@@ -1,0 +1,14 @@
+=== Combo 20: HashSet + Stream + Lambda ===
+--- Set size ---
+size = 10
+--- Filter > 5 count ---
+filtered count = 5
+--- Filter > 5, map *2 count ---
+mapped count = 5
+--- Mapped values (sorted) ---
+  12
+  14
+  16
+  18
+  20
+=== Combo 20 Complete ===

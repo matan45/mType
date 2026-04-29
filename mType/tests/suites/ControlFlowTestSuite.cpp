@@ -1,4 +1,4 @@
-﻿#include "ControlFlowTestSuite.hpp"
+#include "ControlFlowTestSuite.hpp"
 
 namespace tests::testSuite
 {
@@ -9,6 +9,8 @@ namespace tests::testSuite
         // Function-related tests
         addOutputVerificationTest("Type Script Style Functions",
                         passPath + "typeScriptStyleFunctions.mt");
+        addOutputVerificationTest("switchBreakAfterReturnVoid",
+                        passPath + "switchBreakAfterReturnVoid.mt");
         addOutputVerificationTest("Complex Functions with New Syntax",
                         passPath + "complexFunctionsNewSyntax.mt");
         addOutputVerificationTest("Void Functions",
@@ -401,6 +403,12 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         */
 
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("Match Inside Async Function",
+                        passPath + "matchInsideAsync_pass.mt");
+        addOutputVerificationTest("Switch On Interpolated String",
+                        passPath + "switchOnInterpolatedString_pass.mt");
+
         // Error tests (expected to fail)
         addTestFromFile("Final Variable Reassignment Error",
                         errorPath + "finalVariableReassignment.mt",
@@ -417,5 +425,15 @@ namespace tests::testSuite
         addTestFromFile("Final For Loop Variable Error",
                         errorPath + "finalForLoopVariable.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - finally semantics / nesting / masking ===
+        addOutputVerificationTest("Final Return Overrides Try Return",
+                        passPath + "finalReturnOverridesTryReturn.mt");
+        addOutputVerificationTest("Throw Inside Catch Replaces Original",
+                        passPath + "throwInsideCatchReplacesOriginal.mt");
+        addOutputVerificationTest("Finally Masks Try Exception",
+                        passPath + "finallyMasksTryException.mt");
+        addOutputVerificationTest("Deeply Nested Blocks",
+                        passPath + "deeplyNestedBlocks.mt");
     }
 }

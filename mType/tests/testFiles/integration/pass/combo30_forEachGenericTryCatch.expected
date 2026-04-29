@@ -1,0 +1,9 @@
+=== Combo 30: ForEach + Generic + TryCatch ===
+ok: 1
+skip: negative -2
+ok: 9
+skip: zero not allowed
+ok: 25
+skip: negative -7
+processed=3 skipped=3
+=== Combo 30 Complete ===

@@ -66,6 +66,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Null With Primitive Overload",
                         passPath + "nullWithPrimitiveOverload.mt");
 
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("Overload Generic + Nullable",
+                        passPath + "overloadGenericNullable.mt");
+
         // === ERROR TESTS ===
         // Tests for overload resolution error scenarios
 
@@ -78,5 +82,24 @@ namespace tests::testSuite
         addTestFromFile("Null Ambiguity Two Classes",
                     errorPath + "nullAmbiguityTwoClasses.mt",
                     TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - static vs instance same name / generic vs concrete / Int-Float ambig ===
+        addOutputVerificationTest("Overload Static And Instance Same Name",
+                        passPath + "overloadStaticAndInstanceSameName.mt");
+        addOutputVerificationTest("Overload Generic Vs Concrete",
+                        passPath + "overloadGenericVsConcrete.mt");
+
+        addOutputVerificationTest("Overload Ambiguous Int Float",
+                        passPath + "overloadAmbiguousIntFloat.mt");
+        addOutputVerificationTest("Static Overload Return Type Recovery",
+                        passPath + "staticOverloadReturnsVoid.mt");
+        addOutputVerificationTest("Static Overload Chained Member Access",
+                        passPath + "overloadStaticChainedMemberAccess.mt");
+        addOutputVerificationTest("Static Overload Assigned To Var",
+                        passPath + "overloadStaticAssignedToVar.mt");
+        addOutputVerificationTest("Static Overload In Arithmetic",
+                        passPath + "overloadStaticInArithmetic.mt");
+        addOutputVerificationTest("Static Overload Nested As Arg",
+                        passPath + "overloadStaticNestedAsArg.mt");
     }
 }

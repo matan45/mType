@@ -1,0 +1,10 @@
+=== Combo 18: Generics + Match Pattern ===
+--- Three boxes ---
+answer -> int=42
+greeting -> str=hello
+pi -> float=3.14
+--- Direct dispatch ---
+int=7
+str=world
+float=2.5
+=== Combo 18 Complete ===

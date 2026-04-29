@@ -1,0 +1,6 @@
+Testing throw inside catch replaces original exception
+Inner try: throwing Ex1
+Inner catch caught: first
+Inner catch: throwing Ex2
+Outer catch caught Ex2: second
+Throw-replaces-original test completed

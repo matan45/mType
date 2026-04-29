@@ -1,0 +1,6 @@
+Testing return precedence: try vs catch vs finally
+Try block (about to return A)
+Finally block (about to return C)
+Observed: C
+Outcome: finally won
+Return precedence test completed

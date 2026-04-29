@@ -1,0 +1,17 @@
+=== Combo 07: Value Class + Interface + Cast + Match ===
+--- Describe each ---
+Distance: 1500m (1.5km)
+Weight: 72.5kg
+Duration: 3600s (60min)
+Distance: 42195m (42.195km)
+Weight: 0.5kg
+--- Cast + access ---
+Distance in km: 1.5
+Distance in km: 42.195
+--- Value copy ---
+d1: 100m
+d2: 100m
+--- Interface polymorphism ---
+Light: 0.001kg
+Heavy: 1000kg
+=== Combo 07 Complete ===

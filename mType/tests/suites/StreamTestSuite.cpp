@@ -52,6 +52,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Stream SortedWith Chaining",
                                   passPath + "streamSortedWithChaining.mt");
 
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("Stream Empty Array",
+                                  passPath + "streamEmptyArray.mt");
+        addOutputVerificationTest("Stream Box Conversions",
+                                  passPath + "streamBoxConversions.mt");
+
         // Add error tests for stream error handling
         addTestFromFile("Stream Reuse After Terminal Operation",
                        errorPath + "streamReuse.mt",

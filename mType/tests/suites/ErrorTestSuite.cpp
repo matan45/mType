@@ -25,6 +25,10 @@ namespace tests::testSuite
                         errorPath + "lexerUnteminatedString.mt",
                         TestType::ERROR_EXPECTED);
 
+        addTestFromFile("jit StackOverflow TailCall",
+                 errorPath + "runtimeStackOverflowTailCall.mt",
+                 TestType::ERROR_EXPECTED);
+        
         // Parser error tests (expected to fail)
         addTestFromFile("Parser Missing Semicolon Error",
                         errorPath + "parserMissingSemicolon.mt",
@@ -68,6 +72,14 @@ namespace tests::testSuite
         addTestFromFile("Runtime Null Pointer Dereference Error",
                         errorPath + "runtimeNullPointerDereference.mt",
                         TestType::ERROR_EXPECTED);
+        // VirtualMachine::pushCallFrame trips the call-stack guard at
+        // DEFAULT_MAX_CALL_STACK_SIZE and throws a RuntimeException whose
+        // message starts with "Stack overflow:" — pin that substring so a
+        // future change to the wording surfaces deliberately.
+        addTestFromFile("Runtime Stack Overflow Error",
+                        errorPath + "runtimeStackOverflow.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Stack overflow");
 
         addTestFromFile("Missing new Operator For Object Creation",
                         errorPath + "missingNew.mt",
@@ -579,5 +591,15 @@ namespace tests::testSuite
         // Test that static and instance methods with same name are allowed (different namespaces)
         addOutputVerificationTest("Allow Static And Instance Method Same Name",
                         passPath + "allowStaticAndInstanceSameName.mt");
+
+        // === EDGE CASE TESTS - empty bodies / precedence / masking / null guards ===
+        addOutputVerificationTest("Empty Try Empty Catch",
+                        passPath + "emptyTryEmptyCatch.mt");
+        addOutputVerificationTest("Return In Try Catch Finally Precedence",
+                        passPath + "returnInTryCatchFinallyPrecedence.mt");
+        addOutputVerificationTest("Nested Try Finally Exception Masking",
+                        passPath + "nestedTryFinallyExceptionMasking.mt");
+        addOutputVerificationTest("Throw Null Checked At Site",
+                        passPath + "throwNullCheckedAtSite.mt");
     }
 }

@@ -1,4 +1,4 @@
-﻿#include "IntegrationTestSuite.hpp"
+#include "IntegrationTestSuite.hpp"
 
 namespace tests::testSuite
 {
@@ -16,6 +16,14 @@ namespace tests::testSuite
                                   passPath + "test_array_types.mt");
         addOutputVerificationTest("Error Handling comprehensive",
                                   passPath + "test_error_handling.mt");
+        addOutputVerificationTest("OOP test 1",
+                                  passPath + "test22_asyncFunctionalStreams.mt");
+        addOutputVerificationTest("OOP test 2",
+                                  passPath + "test23_advancedTypesReflectionFFN.mt");
+        addOutputVerificationTest("OOP test 3",
+                                  passPath + "test24_oopExceptionsAndLoops.mt");
+        addOutputVerificationTest("OOP test 4",
+                          passPath + "test21_dataAndControlFlowEdgeCases.mt");
         // Complex Feature Integration tests
         addOutputVerificationTest("Classes with Final Variables and Loops",
                                   passPath + "classesWithFinalVariablesAndLoops.mt");
@@ -365,6 +373,87 @@ namespace tests::testSuite
                                   passPath + "ic/fused_lambda_safe.mt");
         addOutputVerificationTest("Fusion Skipped At Jump Target",
                                   passPath + "ic/fused_jump_target.mt");
+
+        // ====================================
+        // CROSS-FEATURE COMBO TESTS
+        // ====================================
+
+        addOutputVerificationTest("Combo 01: Value Class + Generics + Stream",
+                                  passPath + "combo01_valueClassGenericStream.mt");
+        addOutputVerificationTest("Combo 02: Pattern Match + Lambda + Async",
+                                  passPath + "combo02_patternMatchLambdaAsync.mt");
+        addOutputVerificationTest("Combo 03: Import Alias + Generics + Interface",
+                                  passPath + "combo03_importAliasGenericsInterface.mt");
+        addOutputVerificationTest("Combo 04: Annotation + Async + Reflection",
+                                  passPath + "combo04_annotationAsyncReflection.mt");
+        addOutputVerificationTest("Combo 05: Switch + Pattern Match + Cast in Loops",
+                                  passPath + "combo05_switchPatternCastLoop.mt");
+        addOutputVerificationTest("Combo 06: Interpolation + Lambda + Collections",
+                                  passPath + "combo06_interpolationLambdaCollections.mt");
+        addOutputVerificationTest("Combo 07: Value Class + Interface + Cast + Match",
+                                  passPath + "combo07_valueClassInterfaceCastMatch.mt");
+        addOutputVerificationTest("Combo 08: ForEach + Generics + TryCatch + Lambda",
+                                  passPath + "combo08_forEachGenericTryCatchLambda.mt");
+        addOutputVerificationTest("Combo 09: Recursive + Async + Generics + Error",
+                                  passPath + "combo09_recursiveAsyncGenericError.mt");
+        addOutputVerificationTest("Combo 10: Final + Lambda Capture + Async",
+                                  passPath + "combo10_finalLambdaCaptureAsync.mt");
+        addOutputVerificationTest("Combo 11: Static + Overload + Generics + Inherit",
+                                  passPath + "combo11_staticOverloadGenericInherit.mt");
+        addOutputVerificationTest("Combo 12: Box Classes + Stream + Lambda Pipeline",
+                                  passPath + "combo12_boxStreamLambdaPipeline.mt");
+        addOutputVerificationTest("Combo 13: Abstract + Async + Generic Constraint + Error",
+                                  passPath + "combo13_abstractAsyncGenericError.mt");
+        addOutputVerificationTest("Combo 14: Reflection + Value Class + Annotation",
+                                  passPath + "combo14_reflectionValueClassAnnotation.mt");
+        // TODO MYT-223: re-enable when static method overload calls no longer type as void.
+        // addOutputVerificationTest("Combo 15: Grand Feature Showcase",
+        //                           passPath + "combo15_allFeatureShowcase.mt");
+
+        // ====================================
+        // PHASE 4: ADDITIONAL CROSS-FEATURE COMBO TESTS
+        // ====================================
+        addOutputVerificationTest("Combo 16: Reflection + Lambda Introspection",
+                                  passPath + "combo16_reflectionLambdaIntrospection.mt");
+        addOutputVerificationTest("Combo 17: Async + String Interpolation",
+                                  passPath + "combo17_asyncStringInterpolation.mt");
+        addOutputVerificationTest("Combo 18: Generics + Switch + Pattern Match",
+                                  passPath + "combo18_genericsSwitchPattern.mt");
+        addOutputVerificationTest("Combo 19: Annotations + Abstract Methods",
+                                  passPath + "combo19_annotationsAbstractMethods.mt");
+        addOutputVerificationTest("Combo 20: HashSet + Lambda + Stream",
+                                  passPath + "combo20_hashSetLambdaStream.mt");
+        addOutputVerificationTest("Combo 21: Pattern Match + Annotation",
+                                  passPath + "combo21_patternMatchAnnotation.mt");
+        // TODO MYT-224: re-enable when generic overload resolution unifies functional-interface types.
+        // addOutputVerificationTest("Combo 22: Static + Generic + Lambda Overload",
+        //                           passPath + "combo22_staticGenericLambdaOverload.mt");
+        addOutputVerificationTest("Combo 23: Value Class + Reflection",
+                                  passPath + "combo23_valueClassReflection.mt");
+        addOutputVerificationTest("Combo 24: Inheritance + Async Super Call",
+                                  passPath + "combo24_inheritanceAsyncSuperCall.mt");
+        addOutputVerificationTest("Combo 25: Collections + Try/Finally + Lambda",
+                                  passPath + "combo25_collectionsTryFinallyLambda.mt");
+        addOutputVerificationTest("Combo 26: Import Alias + Generics + Lambda",
+                                  passPath + "combo26_importAliasGenericsLambda.mt");
+         addOutputVerificationTest("Combo 27: Recursive + Generic + Lambda",
+                                  passPath + "combo27_recursiveGenericLambda.mt");
+        addOutputVerificationTest("Combo 28: Stream + Switch + Pattern Match",
+                                  passPath + "combo28_streamSwitchPatternMatch.mt");
+        addOutputVerificationTest("Combo 29: Array + Casting + Generics",
+                                  passPath + "combo29_arrayCastingGenerics.mt");
+        addOutputVerificationTest("Combo 30: ForEach + Generic + Try/Catch",
+                                  passPath + "combo30_forEachGenericTryCatch.mt");
+        addOutputVerificationTest("Combo 31: Final + Overload Resolution",
+                                  passPath + "combo31_finalOverloadResolution.mt");
+        addOutputVerificationTest("Combo 32: Boxed + Switch Unbox",
+                                  passPath + "combo32_boxedSwitchUnbox.mt");
+        addOutputVerificationTest("Combo 33: Nested Generics + Lambda Pipeline",
+                                  passPath + "combo33_nestedGenericLambdaPipeline.mt");
+        addOutputVerificationTest("Combo 34: Reflection + Overload Enumeration",
+                                  passPath + "combo34_reflectionOverloadEnumeration.mt");
+        addOutputVerificationTest("Combo 35: Lambda In Static Initializer",
+                                  passPath + "combo35_lambdaInStaticInitializer.mt");
 
         // ====================================
         // COMMENTED OUT - Test files were not created

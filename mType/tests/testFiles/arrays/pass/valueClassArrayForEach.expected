@@ -1,0 +1,19 @@
+=== Edge: Value Class Array For-Each ===
+--- All pixels ---
+rgb(255,0,0) brightness=85
+rgb(0,255,0) brightness=85
+rgb(0,0,255) brightness=85
+rgb(128,128,128) brightness=128
+rgb(255,255,255) brightness=255
+--- Bright pixels (avg > 100) ---
+rgb(128,128,128)
+rgb(255,255,255)
+Count: 2
+--- Empty array ---
+Empty iteration completed
+--- Single element ---
+Single: rgb(42,42,42)
+--- Nested iteration ---
+Row 0: rgb(255,0,0)
+Row 1: rgb(0,255,0)
+=== Edge Complete ===

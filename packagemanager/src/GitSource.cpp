@@ -25,8 +25,13 @@ namespace packagemanager
 
     void GitSource::validateSafeString(const std::string& str, const std::string& context)
     {
-        // Reject shell metacharacters that could enable injection
-        static const std::string forbidden = "&|;$`(){}!#\n\r";
+        // Reject characters that could enable injection. The Windows runGit
+        // path wraps each arg in "..." before handing the line to
+        // CreateProcessA, so an unescaped " breaks out of its token and a
+        // trailing \ escapes the closing quote — both end up reinterpreted
+        // by CommandLineToArgvW in the child. Other shell metacharacters
+        // are kept too as defence-in-depth for any future shell-using path.
+        static const std::string forbidden = "&|;$`(){}!#\n\r\"\\";
         for (char c : str)
         {
             if (forbidden.find(c) != std::string::npos)
@@ -341,6 +346,24 @@ namespace packagemanager
         validateSafeString(version, "version");
 
         fs::path destPath = fs::path(registryRoot) / packageName / version;
+
+        // Defence against path traversal: validateSafeString lets `.` and `/`
+        // through (version strings need dots), so a packageName like
+        // "../../etc/passwd" would resolve outside registryRoot. Canonicalise
+        // both ends and require destPath stays under registryRoot before any
+        // filesystem mutation.
+        {
+            fs::path normalisedRoot = fs::weakly_canonical(fs::path(registryRoot));
+            fs::path normalisedDest = fs::weakly_canonical(destPath);
+            const std::string rootStr = normalisedRoot.string();
+            const std::string destStr = normalisedDest.string();
+            if (!startsWith(destStr, rootStr))
+            {
+                throw std::runtime_error(
+                    "Refusing package install: resolved path '" + destStr +
+                    "' escapes registry root '" + rootStr + "'");
+            }
+        }
 
         if (fs::exists(destPath / "mtpkg.json"))
         {

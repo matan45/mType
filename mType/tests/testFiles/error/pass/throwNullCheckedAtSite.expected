@@ -1,0 +1,7 @@
+Testing null-guarded throw site
+---- null path ----
+guard: null, not throwing
+after maybeThrow: no exception observed
+---- non-null path ----
+caught: real error
+Null-checked throw test completed

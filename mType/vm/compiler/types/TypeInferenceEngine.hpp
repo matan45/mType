@@ -37,6 +37,11 @@ namespace vm::compiler::types
         // Nullability inference - returns true if expression may evaluate to null
         bool inferExpressionNullable(ast::ASTNode* node) const;
 
+        // Returns true if the expression is the null literal, possibly wrapped in
+        // any number of cast expressions. Casts cannot launder null into a non-
+        // nullable target — null-assignment validation must see through them.
+        static bool isEffectivelyNullLiteral(ast::ASTNode* node);
+
         // Set null narrowing tracker for smart cast awareness
         void setNullNarrowingTracker(const NullNarrowingTracker* tracker);
 
@@ -62,6 +67,25 @@ namespace vm::compiler::types
 
         // Helper to resolve generic types
         std::string resolveGenericType(const std::string& typeName) const;
+
+        // Resolves overloaded function/method metadata by name. Tries an exact
+        // lookup first, then a prefix match against mangled names of the form
+        // "callName/<paramTypes>", scoring candidates by argument arity and
+        // parameter-type compatibility. Returns nullptr if no candidate is found.
+        // Used by both static-call (FunctionCallNode) and instance-call
+        // (MethodCallNode) type inference paths.
+        const bytecode::BytecodeProgram::FunctionMetadata* findOverloadMetadata(
+            const std::string& callName,
+            size_t argCount,
+            const std::vector<std::unique_ptr<ast::ASTNode>>& arguments) const;
+
+        // Returns true when the function's declared return type is one of its
+        // own generic type parameters (e.g. `<T> deserializeAs(...): T`) and no
+        // outer binding can substitute it. Inference must report VOID/empty in
+        // that case so the strict assignment validator can't mistake the bare
+        // "T" for a concrete class.
+        bool isUnboundGenericReturn(
+            const bytecode::BytecodeProgram::FunctionMetadata* metadata) const;
 
         // Helper methods for inferExpressionType
         value::ValueType inferLiteralType(ast::ASTNode* node) const;

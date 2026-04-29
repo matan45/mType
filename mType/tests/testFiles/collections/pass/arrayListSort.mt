@@ -8,14 +8,6 @@ class IntComparator implements Comparator<Int> {
     public function compare(Int a, Int b): int {
         return a.getValue() - b.getValue();
     }
-
-    public function reversed(): Comparator<Int> {
-        throw "reversed() not implemented";
-    }
-
-    public function thenComparing(Comparator<Int> other): Comparator<Int> {
-        throw "thenComparing() not implemented";
-    }
 }
 
 function main(): void {

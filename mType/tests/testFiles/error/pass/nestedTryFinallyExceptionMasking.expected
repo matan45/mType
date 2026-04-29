@@ -1,0 +1,5 @@
+Testing nested try/finally exception masking
+Inner try: throwing Ex1
+Inner finally: throwing Ex2
+Outer caught Ex2: inner-finally
+Nested-try-finally-masking test completed

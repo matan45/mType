@@ -1,0 +1,15 @@
+=== Combo 32: Boxed Switch + Unbox ===
+--- Int switch ---
+0 -> zero
+1 -> one
+2 -> two
+7 -> other
+10 -> ten
+99 -> other
+--- String switch ---
+red -> warm
+blue -> cool
+green -> cool
+purple -> neutral
+orange -> warm
+=== Combo 32 Complete ===

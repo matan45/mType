@@ -1,0 +1,7 @@
+=== Combo 26: Import Alias + Generics + Lambda ===
+--- Aliased Vec<Int> ---
+Even count: 2
+Greater than 2 count: 3
+--- Aliased Vec<String> ---
+Long words: 3
+=== Combo 26 Complete ===

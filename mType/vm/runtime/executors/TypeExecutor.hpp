@@ -26,6 +26,7 @@ namespace vm::runtime
         void handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr);
         void handleInstanceofTypeParam(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCast(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleCastTypeParam(const bytecode::BytecodeProgram::Instruction& instr);
 
         // ============================================================
         // Public FFI entry point (MYT-42)

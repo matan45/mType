@@ -315,6 +315,13 @@ namespace types
         const std::string& typeName,
         const std::unordered_map<std::string, std::string>& substitutions) const
     {
+        // Strip-recurse-reapply for the nullable suffix (e.g., "T?", "ArrayList<T>?", "T[]?")
+        if (!typeName.empty() && typeName.back() == '?')
+        {
+            std::string baseType = typeName.substr(0, typeName.size() - 1);
+            return resolveGenericType(baseType, substitutions) + "?";
+        }
+
         // Check if this is an array type (e.g., "T[]", "T[][]")
         size_t arrayPos = typeName.find('[');
         if (arrayPos != std::string::npos)

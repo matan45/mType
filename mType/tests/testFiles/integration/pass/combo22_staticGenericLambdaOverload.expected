@@ -1,0 +1,10 @@
+=== Combo 22: Static + Generic + Lambda + Overload ===
+--- Apply with UnaryFn ---
+doubler(7) = 14
+length(hello) = 5
+--- Apply with Predicate ---
+isEven(8) = true
+isEven(7) = false
+isLong(hi) = false
+isLong(hello) = true
+=== Combo 22 Complete ===

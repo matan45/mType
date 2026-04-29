@@ -9,6 +9,10 @@ namespace tests::testSuite
         // Basic generic functionality tests
         addOutputVerificationTest("Basic Generic Class",
                         passPath + "basicGenericClass.mt");
+        addOutputVerificationTest("castToTypeParam",
+                        passPath + "castToTypeParamThrows.mt");
+        addOutputVerificationTest("three Type Arg",
+                       passPath + "threeTypeArgDropsArg.mt");
         addOutputVerificationTest("Multiple Type Parameters",
                         passPath + "multipleTypeParameters.mt");
         addOutputVerificationTest("Generic with Primitive Types",
@@ -23,6 +27,8 @@ namespace tests::testSuite
                         passPath + "genericImportTest.mt");
         addOutputVerificationTest("HashMap HashSet Optimization",
                         passPath + "hashmapHashsetOptimization.mt");
+        addOutputVerificationTest("Generic Nullable Return Substitution",
+                        passPath + "genericNullableReturnSubstitution.mt");
 
         // Stress tests for deeply nested generics
         addOutputVerificationTest("Deeply Nested Generics Stress Test",
@@ -43,6 +49,8 @@ namespace tests::testSuite
                         passPath + "staticGenericSimpleContainer.mt");
         addOutputVerificationTest("Static Generic Collection Returns",
                         passPath + "staticGenericCollectionReturns.mt");
+        addOutputVerificationTest("Static Generic Functional Interface Unify",
+                        passPath + "staticGenericFunctionalInterfaceUnify.mt");
 
         // Instance generic method tests
         addOutputVerificationTest("Instance Generic Basic",
@@ -527,5 +535,16 @@ namespace tests::testSuite
                     passPath + "getClassFromGenericInstance.mt");
         addOutputVerificationTest("Get Class Identity Vs ForName",
                     passPath + "getClassIdentityVsForName.mt");
+
+        // === EDGE CASE TESTS - nesting / shadowing / CRTP / empty ===
+        addOutputVerificationTest("Recursive List Of List",
+                    passPath + "recursiveListOfList.mt");
+        addOutputVerificationTest("Generic Param Shadowing",
+                    passPath + "genericParamShadowing.mt");
+        // TODO MYT-222: re-enable when (T)cast against generic type-param no longer throws.
+        // addOutputVerificationTest("CRTP Self Referential",
+        //             passPath + "crtpSelfReferential.mt");
+        addOutputVerificationTest("Empty Generic Array",
+                    passPath + "emptyGenericArray.mt");
     }
 }

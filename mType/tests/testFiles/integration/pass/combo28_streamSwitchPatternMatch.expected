@@ -1,0 +1,16 @@
+=== Combo 28: Stream + Switch + Pattern Match ===
+--- Stream forEach pattern dispatch ---
+int=7
+str=hi
+float=1.5
+bool=true
+int=42
+str=end
+--- Plain forEach for sanity ---
+0: int=7
+1: str=hi
+2: float=1.5
+3: bool=true
+4: int=42
+5: str=end
+=== Combo 28 Complete ===

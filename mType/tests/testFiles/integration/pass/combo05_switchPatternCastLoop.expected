@@ -1,0 +1,17 @@
+=== Combo 05: Switch + Pattern Match + Cast in Loops ===
+--- Pattern match in loop ---
+Circle r=1 area=3.14 [small]
+Rect 5x20 area=100 [large]
+Triangle area=12 [medium]
+Circle r=10 area=314 [large]
+Rect 2x3 area=6 [small]
+--- Cast + filter in loop ---
+Circles found: 2
+Total circle area: 317.14
+--- Switch on shape name ---
+0: round shape
+1: rectangular shape
+2: triangular shape
+3: round shape
+4: rectangular shape
+=== Combo 05 Complete ===

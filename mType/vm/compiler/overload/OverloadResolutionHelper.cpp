@@ -373,7 +373,9 @@ namespace vm::compiler::overload
         const std::string& className,
         const std::string& methodName,
         const std::vector<std::unique_ptr<ast::ASTNode>>& arguments,
-        const ast::SourceLocation& location)
+        const ast::SourceLocation& location,
+        bool hasGenericTypeArgs,
+        const std::vector<std::string>& genericTypeArgs)
     {
         // Extract base class name (without nullable suffix or generic parameters)
         std::string baseClassName = ::types::TypeConversionUtils::stripNullable(className);
@@ -418,8 +420,106 @@ namespace vm::compiler::overload
             return mangledName + "$static";
         }
 
-        // For static methods, no filtering needed (yet) - use all overloads
-        auto filteredOverloads = overloads;
+        std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>> filteredOverloads;
+
+        // MYT-224: when the call provides explicit generic type arguments, substitute
+        // them into each candidate's declared parameter types and keep only those that
+        // unify with the actual argument types. Without this step, two competing generic
+        // overloads with parameterized parameters (e.g. UnaryFn<T,R> vs Predicate<T>)
+        // can't be disambiguated by the structural compare in OverloadResolver.
+        if (hasGenericTypeArgs)
+        {
+            std::vector<value::ParameterType> argTypes = inferArgumentTypes(arguments);
+
+            std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>> substitutionMatches;
+            for (const auto& overload : overloads)
+            {
+                const auto& typeParams = overload->getGenericTypeParameters();
+                if (typeParams.size() != genericTypeArgs.size())
+                {
+                    continue;
+                }
+
+                std::unordered_map<std::string, std::string> substitutions;
+                for (size_t i = 0; i < typeParams.size(); ++i)
+                {
+                    substitutions[typeParams[i].name] = genericTypeArgs[i];
+                }
+
+                // Static methods carry no implicit 'this' entry in getParametersWithTypes().
+                auto params = overload->getParametersWithTypes();
+                if (params.size() != argTypes.size())
+                {
+                    continue;
+                }
+
+                bool isCompatible = true;
+                for (size_t i = 0; i < params.size(); ++i)
+                {
+                    const auto& [paramName, paramType] = params[i];
+                    const auto& argType = argTypes[i];
+
+                    std::string paramTypeStr = paramType.className.has_value()
+                        ? paramType.className.value()
+                        : runtimeTypes::klass::SignatureUtils::getTypeName(paramType);
+
+                    std::string substitutedTypeStr = substituteTypeParameters(paramTypeStr, substitutions);
+
+                    std::string argTypeStr = argType.className.has_value()
+                        ? argType.className.value()
+                        : runtimeTypes::klass::SignatureUtils::getTypeName(argType);
+
+                    bool typesMatch = (substitutedTypeStr == argTypeStr);
+                    if (!typesMatch)
+                    {
+                        // Primitive case-insensitive fallback (e.g. "Int" vs "int").
+                        std::string lowerSubstituted = substitutedTypeStr;
+                        std::string lowerArg = argTypeStr;
+                        std::transform(lowerSubstituted.begin(), lowerSubstituted.end(), lowerSubstituted.begin(), ::tolower);
+                        std::transform(lowerArg.begin(), lowerArg.end(), lowerArg.begin(), ::tolower);
+                        typesMatch = (lowerSubstituted == lowerArg);
+                    }
+
+                    if (!typesMatch)
+                    {
+                        isCompatible = false;
+                        break;
+                    }
+                }
+
+                if (isCompatible)
+                {
+                    substitutionMatches.push_back(overload);
+                }
+            }
+
+            // Exactly one survivor — emit the resolved name directly. OverloadResolver
+            // can't be relied on here because the candidate's parameter strings still
+            // contain unsubstituted T/R that don't equal the concrete argument types.
+            if (substitutionMatches.size() == 1)
+            {
+                const auto& method = substitutionMatches[0];
+                const auto& uParams = method->getUnifiedParameters();
+
+                std::vector<std::string> typeNames;
+                typeNames.reserve(uParams.size());
+                for (const auto& [paramName, uType] : uParams) {
+                    typeNames.push_back(uType ? uType->toString() : "void");
+                }
+
+                std::string typeSignature = runtimeTypes::klass::SignatureUtils::generateTypeSignatureFromNames(typeNames);
+                std::string mangledName = runtimeTypes::klass::SignatureUtils::buildQualifiedName(baseClassName, methodName, typeSignature);
+                return mangledName + "$static";
+            }
+
+            // 0 or 2+ — narrow only when narrowing helps; otherwise keep the full set
+            // so the existing error path still lists every available overload.
+            filteredOverloads = substitutionMatches.empty() ? overloads : substitutionMatches;
+        }
+        else
+        {
+            filteredOverloads = overloads;
+        }
 
         // Multiple overloads - need resolution
         std::vector<value::ParameterType> argTypes = inferArgumentTypes(arguments);

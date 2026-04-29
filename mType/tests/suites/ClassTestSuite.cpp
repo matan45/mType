@@ -151,6 +151,9 @@ namespace tests::testSuite
                         passPath + "superFieldWithPolymorphism.mt");
         addOutputVerificationTest("Super Field Comprehensive",
                         passPath + "superFieldComprehensive.mt");
+        // MYT-212: shadowed-field static binding for super.x and parent-typed receivers.
+        addOutputVerificationTest("Super Field Static Binding",
+                        passPath + "superFieldStaticBinding.mt");
 
         // === SUPER METHOD ACCESS TESTS ===
         // These tests verify super.method() calls with access modifiers
@@ -520,6 +523,8 @@ namespace tests::testSuite
                         passPath + "valueClassJitPerformance.mt");
         addOutputVerificationTest("Value Class JIT Field Access",
                         passPath + "valueClassJitFieldAccess.mt");
+        addOutputVerificationTest("getFieldTypedNonThisAccess",
+                        passPath + "getFieldTypedNonThisAccess.mt");
         addOutputVerificationTest("JIT Benchmark",
                         passPath + "jitBenchmark.mt");
         addOutputVerificationTest("JIT Float Arithmetic",
@@ -596,5 +601,13 @@ namespace tests::testSuite
         addTestFromFile("Get Class On Null Error",
                         errorPath + "getClassOnNull.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - empty class / shadowing / static in abstract ===
+        addOutputVerificationTest("Empty Class Definition",
+                        passPath + "emptyClassDefinition.mt");
+        addOutputVerificationTest("Field Shadowing Parent",
+                        passPath + "fieldShadowingParent.mt");
+        addOutputVerificationTest("Static Field In Abstract Class",
+                        passPath + "staticFieldInAbstractClass.mt");
     }
 }

@@ -1,0 +1,18 @@
+=== Combo 01: Value Class + Generics + Stream ===
+--- Positive temperatures ---
+100°C
+25°C
+37°C
+--- Converted to Fahrenheit ---
+32°F
+212°F
+77°F
+98°F
+--- Generic measurements ---
+Room: 20°C
+Body: 37°C
+Boiling: 100°C
+--- Counts ---
+Positive temps: 3
+Freezing temps: 2
+=== Combo 01 Complete ===

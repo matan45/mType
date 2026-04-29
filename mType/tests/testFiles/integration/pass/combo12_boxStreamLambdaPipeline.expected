@@ -1,0 +1,22 @@
+=== Combo 12: Box Classes + Stream + Lambda ===
+--- Int stream pipeline ---
+  4
+  8
+  12
+  16
+  20
+--- Reduce sum ---
+Sum 1-10: 55
+--- Count ---
+Odd count: 5
+--- String stream ---
+  hello
+  world
+  mtype
+--- Chained operations ---
+Numbers between 3 and 8: 4
+--- Map to strings ---
+  item-1
+  item-2
+  item-3
+=== Combo 12 Complete ===

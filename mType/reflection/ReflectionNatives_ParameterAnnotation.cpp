@@ -54,7 +54,11 @@ namespace reflection
         auto& reg = ReflectionHandleRegistry::instance();
         auto info = reg.getMethod(methodHandle);
         if (!info.method) throw errors::RuntimeException("Invalid method handle");
-        size_t pi = requireIndex(paramIndexI, info.method->getParameters().size(), FN);
+        // MYT-214: paramIndex is user-facing (excludes implicit `this`). Translate
+        // to the underlying parameters/parameterAnnotations vector index.
+        const auto& params = info.method->getParameters();
+        const size_t thisOffset = (!info.method->isStatic() && !params.empty()) ? 1 : 0;
+        size_t pi = requireIndex(paramIndexI, params.size() - thisOffset, FN) + thisOffset;
 
         const auto& list = info.method->getParameterAnnotations(pi);
         std::vector<int64_t> handles;
@@ -80,7 +84,10 @@ namespace reflection
         auto& reg = ReflectionHandleRegistry::instance();
         auto info = reg.getMethod(methodHandle);
         if (!info.method) throw errors::RuntimeException("Invalid method handle");
-        size_t pi = requireIndex(paramIndexI, info.method->getParameters().size(), FN);
+        // MYT-214: paramIndex is user-facing; translate past implicit `this`.
+        const auto& params = info.method->getParameters();
+        const size_t thisOffset = (!info.method->isStatic() && !params.empty()) ? 1 : 0;
+        size_t pi = requireIndex(paramIndexI, params.size() - thisOffset, FN) + thisOffset;
 
         auto annotation = info.method->getParameterAnnotation(pi, name);
         // Return int 0 on not-found so mType `int handle = ...` receives a real int.
@@ -98,7 +105,10 @@ namespace reflection
 
         auto info = ReflectionHandleRegistry::instance().getMethod(methodHandle);
         if (!info.method) throw errors::RuntimeException("Invalid method handle");
-        size_t pi = requireIndex(paramIndexI, info.method->getParameters().size(), FN);
+        // MYT-214: paramIndex is user-facing; translate past implicit `this`.
+        const auto& params = info.method->getParameters();
+        const size_t thisOffset = (!info.method->isStatic() && !params.empty()) ? 1 : 0;
+        size_t pi = requireIndex(paramIndexI, params.size() - thisOffset, FN) + thisOffset;
         return info.method->hasParameterAnnotation(pi, name);
     }
 

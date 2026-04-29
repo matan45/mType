@@ -1,0 +1,4 @@
+this.x: 2
+super.x: 1
+child.x direct: 2
+parent.x via parent ref: 1

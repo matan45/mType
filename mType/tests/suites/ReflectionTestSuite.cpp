@@ -39,6 +39,8 @@ namespace tests::testSuite
                         passPath + "methodModifiers.mt");
         addOutputVerificationTest("Method Parameters",
                         passPath + "methodParameters.mt");
+        addOutputVerificationTest("Method Parameter Count Excludes This (MYT-214)",
+                        passPath + "getParameterCountExcludesThis.mt");
         addOutputVerificationTest("Method Return Types",
                         passPath + "methodReturnTypes.mt");
 
@@ -151,6 +153,16 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Private Method Access Error",
                         errorPath + "privateMethodAccess.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === EDGE CASE TESTS - private fields / inherited methods / null forName ===
+        addOutputVerificationTest("Reflect Private Field",
+                        passPath + "reflectPrivateField.mt");
+        addOutputVerificationTest("Reflect Inherited Methods",
+                        passPath + "reflectInheritedMethods.mt");
+
+        addTestFromFile("Reflect ForName Null Error",
+                        errorPath + "reflectForNameNull.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

@@ -1,0 +1,17 @@
+=== Combo 25: Stack + TryFinally + Lambda ===
+--- Pushing ---
+pushed 1 size=1
+pushed 2 size=2
+pushed 3 size=3
+pushed 4 size=4
+pushed 5 size=5
+--- Throwing ---
+caught: interrupted at size 5
+--- Cleanup ---
+  popped: 5
+  popped: 4
+  popped: 3
+  popped: 2
+  popped: 1
+final size=0
+=== Combo 25 Complete ===

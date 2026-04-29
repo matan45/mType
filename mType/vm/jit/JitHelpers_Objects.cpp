@@ -440,6 +440,58 @@ namespace vm::jit
         *dest = *src;
     }
 
+    void jit_cast_typeparam(value::Value* dest, const value::Value* src,
+                             JitContext* ctx,
+                             uint32_t paramNameIndex)
+    {
+        const std::string& paramName = ctx->program->getConstantPool().getString(paramNameIndex);
+        std::string resolved = paramName;
+        
+        if (ctx->vm)
+        {
+            auto& callStack = ctx->vm->getCallStack();
+            for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
+                const auto& frame = *it;
+                auto* rawThis = frame.getThisInstanceRaw();
+                if (rawThis) {
+                    const auto& bindings = rawThis->getGenericTypeBindings();
+                    auto found = bindings.find(paramName);
+                    if (found != bindings.end() && !found->second.empty()) {
+                        resolved = found->second;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (resolved == "Int" || resolved == "int")
+        {
+            if (value::isInt(*src))
+                { *dest = *src; return; }
+            if (value::isFloat(*src))
+                { *dest = static_cast<int64_t>(value::asFloat(*src)); return; }
+            if (value::isBool(*src))
+                { *dest = value::asBool(*src) ? static_cast<int64_t>(1) : static_cast<int64_t>(0); return; }
+        }
+        else if (resolved == "Float" || resolved == "float")
+        {
+            if (value::isFloat(*src))
+                { *dest = *src; return; }
+            if (value::isInt(*src))
+                { *dest = static_cast<double>(value::asInt(*src)); return; }
+        }
+        else if (resolved == "Bool" || resolved == "bool")
+        {
+            if (value::isBool(*src))
+                { *dest = *src; return; }
+            if (value::isInt(*src))
+                { *dest = (value::asInt(*src) != 0); return; }
+        }
+
+        // Phase 1 generics runtime erasure handling. If we reach here for an object type, we just pass it through.
+        *dest = *src;
+    }
+
     void jit_new_object(value::Value* dest, JitContext* ctx,
                          uint32_t classIndex, size_t argCount)
     {

@@ -69,6 +69,7 @@ namespace vm::jit
     void jit_throw_div_by_zero();
     void jit_throw_shift_out_of_range(int64_t count);
     void jit_throw_array_oob(int64_t index, int64_t size);
+    void jit_throw_stack_overflow(size_t maxDepth);
 
     void jit_value_copy(value::Value* dest, const value::Value* src);
     void jit_set_return_boxed(JitContext* ctx, const value::Value* val);
@@ -160,6 +161,9 @@ namespace vm::jit
     void jit_cast(value::Value* dest, const value::Value* src,
                    const vm::bytecode::BytecodeProgram* prog,
                    uint32_t typeIndex);
+    void jit_cast_typeparam(value::Value* dest, const value::Value* src,
+                             JitContext* ctx,
+                             uint32_t paramNameIndex);
     void jit_new_object(value::Value* dest, JitContext* ctx,
                          uint32_t classIndex, size_t argCount);
     // MYT-208: stack-promoted allocation. Same calling convention as

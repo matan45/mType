@@ -1,0 +1,32 @@
+=== Edge: Stream Box Conversions ===
+--- Int to String ---
+num-1
+num-2
+num-3
+num-4
+num-5
+--- Chain Int -> String with filters ---
+odd-1
+odd-3
+odd-5
+--- Int reduce ---
+Product 1*2*3*4*5: 120
+--- Match operations ---
+All positive: true
+Any > 4: true
+Any > 10: false
+--- Distinct ---
+Distinct count: 4
+  1
+  2
+  3
+  4
+--- Limit and Skip ---
+First 3:
+  1
+  2
+  3
+After skipping 3:
+  4
+  5
+=== Edge Complete ===

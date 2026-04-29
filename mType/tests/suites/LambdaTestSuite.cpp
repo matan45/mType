@@ -258,5 +258,23 @@ namespace tests::testSuite
                         passPath + "lambdaDeepNesting.mt");
         addOutputVerificationTest("Lambda Tight Loop Performance",
                         passPath + "lambdaTightLoopPerformance.mt");
+
+        // ====================================
+        // EDGE CASE TESTS - empty/zero/curry/this-capture
+        // ====================================
+        addOutputVerificationTest("Empty Lambda Body",
+                        passPath + "emptyLambdaBody.mt");
+        addOutputVerificationTest("Lambda Returning This",
+                        passPath + "lambdaReturningThis.mt");
+        addOutputVerificationTest("Lambda Zero Params",
+                        passPath + "lambdaZeroParams.mt");
+        addOutputVerificationTest("Nested Lambda Curry",
+                        passPath + "nestedLambdaCurry.mt");
+
+        // MYT-215: capturing a mutated variable in a lambda inside a loop is
+        // rejected at compile time (Java-style "must be effectively final").
+        addTestFromFile("Lambda Capture Mutable Loop Var Error (MYT-215)",
+                        errorPath + "lambdaCaptureMutableLoopVar.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

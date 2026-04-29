@@ -1,12 +1,13 @@
 /**
  * Represents an operation that accepts a single input argument and returns no result.
+ * Single-method functional interface (SAM); a lambda may be assigned directly.
  * Used for side-effect operations like forEach().
  *
  * @param T the type of the input to the operation
  *
  * Example:
- *   Consumer<String> printer = (String s) => print(s);
- *   printer.accept("Hello"); // prints "Hello"
+ *   Consumer<String> printer = s -> print(s.getValue());
+ *   printer.accept(new String("Hello")); // prints "Hello"
  */
 interface Consumer<T> {
     /**
@@ -15,14 +16,4 @@ interface Consumer<T> {
      * @param t the input argument
      */
     function accept(T t): void;
-
-    /**
-     * Returns a composed Consumer that performs, in sequence, this
-     * operation followed by the after operation.
-     *
-     * @param after the operation to perform after this operation
-     * @return a composed Consumer that performs in sequence this
-     *         operation followed by the after operation
-     */
-    function andThen(Consumer<T> after): Consumer<T>;
 }

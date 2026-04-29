@@ -1,0 +1,3 @@
+t isClassOf Marker: true
+a isClassOf Marker: true
+u isClassOf Marker: false

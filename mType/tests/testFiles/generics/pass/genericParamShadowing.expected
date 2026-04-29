@@ -1,0 +1,8 @@
+Testing generic parameter independence
+Class T value: 42
+foo called with: hello
+Method U returned: hello
+Class T value: world
+foo called with: 3.5
+Method U returned: 3.5
+Generic parameter independence test completed

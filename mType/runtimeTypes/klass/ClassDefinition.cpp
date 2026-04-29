@@ -194,8 +194,11 @@ namespace runtimeTypes::klass
 
         fieldIndexMap.clear();
         fieldIndexToName.clear();
+        ownFieldIndexMap.clear();
 
-        // First, add parent class fields (so inherited fields get lower indices)
+        // Inherit parent class slots so ancestor fields keep their original
+        // indices. When this class shadows an ancestor field, the ancestor's
+        // value is still reachable via the ancestor's getOwnFieldIndex.
         auto parent = parentClass.lock();
         if (parent)
         {
@@ -204,15 +207,17 @@ namespace runtimeTypes::klass
             fieldIndexToName = parent->fieldIndexToName;
         }
 
-        // Then add this class's own instance fields
+        // MYT-212: append a fresh slot for every field declared in THIS class,
+        // even when the name shadows an ancestor. The shadowed inherited entry
+        // remains in fieldIndexToName at its old position; fieldIndexMap[name]
+        // is overwritten so getFieldIndex(name) — used by the dynamic-dispatch
+        // GET_FIELD path — returns the most-derived slot.
         for (const auto& [name, field] : instanceFields)
         {
-            if (fieldIndexMap.find(name) == fieldIndexMap.end())
-            {
-                size_t index = fieldIndexToName.size();
-                fieldIndexMap[name] = index;
-                fieldIndexToName.push_back(name);
-            }
+            size_t index = fieldIndexToName.size();
+            fieldIndexToName.push_back(name);
+            fieldIndexMap[name] = index;
+            ownFieldIndexMap[name] = index;
         }
 
         fieldIndexMapBuilt = true;
@@ -223,6 +228,17 @@ namespace runtimeTypes::klass
         buildFieldIndexMap();
         auto it = fieldIndexMap.find(fieldName);
         if (it != fieldIndexMap.end())
+        {
+            return it->second;
+        }
+        return SIZE_MAX;
+    }
+
+    size_t ClassDefinition::getOwnFieldIndex(const std::string& fieldName) const
+    {
+        buildFieldIndexMap();
+        auto it = ownFieldIndexMap.find(fieldName);
+        if (it != ownFieldIndexMap.end())
         {
             return it->second;
         }

@@ -198,7 +198,10 @@ function testLifecycleManagement(): void {
 
     // Create multiple lambda interfaces to test memory management
     for (int i = 0; i < 3; i++) {
-        Adder tempCalc = (a, b) -> a + b + i;
+        // MYT-215: snapshot the loop counter so the lambda doesn't capture
+        // the mutated `i` directly.
+        int snap = i;
+        Adder tempCalc = (a, b) -> a + b + snap;
         int result = tempCalc.add(1, 1);
         print("Lifecycle test " + i + ": " + result);
     }

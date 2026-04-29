@@ -1143,6 +1143,30 @@ namespace vm::jit
         return true;
     }
 
+    static bool emitCastTypeParamOp(JitEmissionState& s,
+                                   const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        uint32_t paramNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        SlotType srcType = popType(s);
+        Gp srcAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, srcType);
+        Gp dest = cc.new_gp64();
+        cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+        Gp idx = cc.new_gp64();
+        cc.mov(idx, static_cast<int64_t>(paramNameIndex));
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_cast_typeparam),
+                  FuncSignature::build<void, value::Value*, const value::Value*,
+                      JitContext*, uint32_t>());
+        inv->set_arg(0, dest);
+        inv->set_arg(1, srcAddr);
+        inv->set_arg(2, s.ctxPtr);
+        inv->set_arg(3, idx);
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
     static bool emitCastOp(JitEmissionState& s,
                             const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -1285,6 +1309,28 @@ namespace vm::jit
             case OpCode::SET_FIELD_CACHED:
                 // MYT-194: see GET_FIELD_CACHED above.
                 return emitSetFieldOp(s, instr);
+            case OpCode::GET_FIELD_TYPED:
+            {
+                // MYT-212/MYT-225: typed-receiver field read. Route through
+                // the un-typed emit path using just the field-name operand.
+                // For value classes (no inheritance) and reference classes
+                // without field shadowing, the un-typed runtime-class lookup
+                // produces the same slot as the typed static-binding lookup.
+                // Field-shadowing across a hierarchy diverges; the interpreter
+                // path retains strict static-binding semantics. Dedicated JIT
+                // emit that resolves the owner's slot at compile time is a
+                // follow-up.
+                bytecode::BytecodeProgram::Instruction getField(
+                    OpCode::GET_FIELD, instr.operands[1]);
+                return emitGetFieldOp(s, getField);
+            }
+            case OpCode::SET_FIELD_TYPED:
+            {
+                // Symmetric to GET_FIELD_TYPED above. Same shadowing caveat.
+                bytecode::BytecodeProgram::Instruction setField(
+                    OpCode::SET_FIELD, instr.operands[1]);
+                return emitSetFieldOp(s, setField);
+            }
             case OpCode::INLINE_GET_FIELD: return emitGetFieldOp(s, instr);
             case OpCode::INLINE_SET_FIELD: return emitSetFieldOp(s, instr);
             case OpCode::CALL_STATIC:    return emitCallStaticOp(s, instr);
@@ -1347,7 +1393,9 @@ namespace vm::jit
                 return emitGetFieldOp(s, getField);
             }
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
+            case OpCode::INSTANCEOF_TYPEPARAM: return emitInstanceofOp(s, instr);
             case OpCode::CAST:           return emitCastOp(s, instr);
+            case OpCode::CAST_TYPEPARAM: return emitCastTypeParamOp(s, instr);
             case OpCode::NEW_OBJECT:
             case OpCode::NEW_VALUE_OBJECT: return emitNewObjectOp(s, instr);
             // MYT-208: dedicated emit path. jit_new_stack hits the

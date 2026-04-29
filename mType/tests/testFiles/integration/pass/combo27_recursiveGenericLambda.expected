@@ -1,0 +1,8 @@
+=== Combo 27: Recursive Generic Lambda ===
+--- Find in Int list ---
+First odd: 7
+First > 10: 12
+First > 999: none
+--- Find in String list ---
+First long word: hello
+=== Combo 27 Complete ===

@@ -1,0 +1,17 @@
+=== Combo 14: Reflection + Value Class + Annotation ===
+--- Value class usage ---
+v1: (3, 4)
+v2: (1, 2)
+v1 + v2: (4, 6)
+v1 magnitude^2: 25
+--- Reflection on value class ---
+Class name: Vector2D
+Has @Immutable: true
+--- Field annotations ---
+Field count: 0
+--- Method annotations ---
+@Pure method: magnitude
+@Pure method: add
+--- Constructor info ---
+Constructor count: 1
+=== Combo 14 Complete ===

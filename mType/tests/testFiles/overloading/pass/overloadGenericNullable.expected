@@ -1,0 +1,16 @@
+=== Edge: Overload Generic + Nullable ===
+--- Specific overloads ---
+int: 42
+string: hello
+--- Nullable overloads ---
+nullable-string: test
+null
+nullable-int: 99
+null-int
+--- Generic nullable ---
+value: present
+fallback: default
+--- Box type resolve ---
+int: 100
+string: boxed
+=== Edge Complete ===

@@ -63,7 +63,7 @@ namespace runtimeTypes::klass {
         bool isFunctionalInterface() const {
             return methodSignatures.size() == 1 && extendsInterfaces.empty();
         }
-    
+
         /**
          * Get the single method signature for functional interface
          * Returns nullptr if not a functional interface

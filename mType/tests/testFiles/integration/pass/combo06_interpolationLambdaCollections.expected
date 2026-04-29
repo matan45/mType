@@ -1,0 +1,21 @@
+=== Combo 06: Interpolation + Lambda + Collections ===
+[hello]
+<tag>world</tag>
+--- People list ---
+Hello, Alice! You are 30 years old.
+Hello, Bob! You are 25 years old.
+Hello, Charlie! You are 35 years old.
+Hello, Diana! You are 28 years old.
+--- Formatted output ---
+*** Alice ***
+*** Bob ***
+*** Charlie ***
+*** Diana ***
+--- Computed values ---
+Alice was born around 1996
+Bob was born around 2001
+Charlie was born around 1991
+Diana was born around 1998
+--- Summary ---
+Total people: 4, average age: 29
+=== Combo 06 Complete ===

@@ -13,6 +13,7 @@
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../../ast/nodes/expressions/LambdaNode.hpp"
+#include "../analysis/NestedReferenceCollector.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -33,6 +34,12 @@ namespace vm::compiler::visitors
             // Skip compilation - native functions are implemented in C++ and already registered
             return std::monostate{};
         }
+
+        // Track the enclosing function so visitors can see method/function-level
+        // generic type parameters. MYT-218 needs this for InstanceOf to reject
+        // free generic functions' T at compile time.
+        ast::FunctionNode* wasFunctionNode = ctx.currentFunctionNode;
+        ctx.currentFunctionNode = node;
 
         // Emit JUMP to skip over function body during main execution
         size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
@@ -260,6 +267,8 @@ namespace vm::compiler::visitors
         ctx.program.registerFunction(funcName, metadata);      // Original name
         ctx.program.registerFunction(mangledName, metadata);   // Mangled name
 
+        ctx.currentFunctionNode = wasFunctionNode;
+
         return std::monostate{};
     }
 
@@ -391,7 +400,7 @@ namespace vm::compiler::visitors
                         // Use TypeValidator for detailed class compatibility checking
                         if (!actualClassName.empty() && expectedReturnType != "object")
                         {
-                            bool isNullValue = dynamic_cast<ast::NullNode*>(returnValue) != nullptr;
+                            bool isNullValue = ctx.typeInference.isEffectivelyNullLiteral(returnValue);
                             ctx.typeValidator.validateAssignment(
                                 expectedType, expectedReturnType,
                                 actualType, actualClassName,
@@ -931,6 +940,29 @@ namespace vm::compiler::visitors
         size_t currentFrameStart = ctx.functionFrameManager.isInFunction()
                                        ? ctx.functionFrameManager.currentFrame().localStartSlot
                                        : 0;
+
+        // MYT-215: a lambda created inside a loop may not capture a variable
+        // whose slot has been reassigned (the for-loop counter is the canonical
+        // case). Reference capture lets every lambda in the loop see the
+        // post-loop value, which is the closure-over-loop-var footgun. Force
+        // the user to snapshot into a fresh local in the loop body.
+        // captureScopeVariables() over-captures (every local in the frame),
+        // so filter to names the lambda body actually references — otherwise
+        // we'd also reject lambdas that never read the loop counter.
+        if (ctx.loopManager.isInLoop())
+        {
+            auto refs = analysis::NestedReferenceCollector::collect(node);
+            for (const auto& captured : capturedVars)
+            {
+                if (!captured.isMutated) continue;
+                if (!refs.pessimistic && refs.names.find(captured.name) == refs.names.end()) continue;
+                throw errors::TypeException(
+                    "Variable '" + captured.name + "' is mutated within the enclosing "
+                    "loop and cannot be captured by a lambda. Copy it to a new local "
+                    "first (e.g., `int snap = " + captured.name + ";` and capture `snap`).",
+                    node->getLocation());
+            }
+        }
 
         // Reset local slot counter for lambda's own scope
         ctx.variableTracker.resetLocalSlot();

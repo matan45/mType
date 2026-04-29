@@ -9,8 +9,10 @@
 #include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../../errors/UndefinedException.hpp"
 #include "../../../diagnostics/IdentifierEnumerator.hpp"
 #include  <iostream>
@@ -209,6 +211,11 @@ namespace vm::compiler::visitors
                     size_t nameIndex = ctx.program.getConstantPool().addString(varName);
                     ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint64_t>(nameIndex), node);
                 } else if (isLocal) {
+                    // MYT-215: ++/-- mutates the slot.
+                    size_t absoluteSlot = localSlot + (ctx.functionFrameManager.isInFunction()
+                                          ? ctx.functionFrameManager.currentFrame().localStartSlot : 0);
+                    ctx.variableTracker.markVariableAsMutated(absoluteSlot);
+
                     size_t nameIndex = ctx.program.getConstantPool().addString(varNode->getName());
                     ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(localSlot), static_cast<uint64_t>(nameIndex), node);
                 } else {
@@ -421,6 +428,52 @@ namespace vm::compiler::visitors
         const auto* targetType = node->getTargetType();
         std::string targetTypeName = targetType->toString();
 
+        // IMPORTANT: GenericType::isGenericParameter() is a variant-shape check
+        // (variant holds<string>), not a semantic one — it returns true for any
+        // bare class name like `Car` or `Box`. We must additionally verify the
+        // name is a declared type parameter of the enclosing generic scope,
+        // otherwise ordinary casts get misrouted to CAST_TYPEPARAM and the
+        // runtime no-op fallback silently swallows real cast errors. Mirrors
+        // the guard in compileInstanceOf, broadened to also accept method-level
+        // params on free generic functions: FunctionCompiler pushes a self-
+        // mapping {T -> T} onto genericTypeBindingStack while compiling the
+        // body, and MYT-222's erased-semantics path for `function <T> foo() {
+        // (T)x }` depends on hitting CAST_TYPEPARAM here.
+        if (targetType->isGenericParameter() && !targetType->isParameterized())
+        {
+            const std::string& candidate = targetType->getBaseTypeName();
+            bool isDeclaredParam = false;
+
+            if (ctx.currentClassNode)
+            {
+                for (const auto& p : ctx.currentClassNode->getGenericParameters())
+                {
+                    if (p.name == candidate)
+                    {
+                        isDeclaredParam = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isDeclaredParam && !ctx.genericTypeBindingStack.empty())
+            {
+                const auto& bindings = ctx.genericTypeBindingStack.back();
+                if (bindings.find(candidate) != bindings.end())
+                {
+                    isDeclaredParam = true;
+                }
+            }
+
+            if (isDeclaredParam)
+            {
+                size_t nameIndex = ctx.program.getConstantPool().addString(candidate);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CAST_TYPEPARAM,
+                                             static_cast<uint64_t>(nameIndex), node);
+                return std::monostate{};
+            }
+        }
+
         // Store target type name in constant pool
         size_t typeNameIndex = ctx.program.getConstantPool().addString(targetTypeName);
 
@@ -456,11 +509,9 @@ namespace vm::compiler::visitors
             const std::string& candidate = targetType->getBaseTypeName();
             bool isDeclaredParam = false;
 
-            // Check class-level generic parameters. Method-level type
-            // parameters (`function<U> foo(...)`) are not currently tracked
-            // on CompilerContext — a free generic function RHS still emits
-            // INSTANCEOF and may surface a "Class not found" error at
-            // runtime, which is the existing behavior.
+            // Check class-level generic parameters first — those carry
+            // reified bindings on `this` at runtime and dispatch through
+            // INSTANCEOF_TYPEPARAM via TypeExecutor::resolveTypeParameter.
             if (ctx.currentClassNode)
             {
                 for (const auto& p : ctx.currentClassNode->getGenericParameters())
@@ -479,6 +530,33 @@ namespace vm::compiler::visitors
                 ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF_TYPEPARAM,
                                              static_cast<uint64_t>(nameIndex), node);
                 return std::monostate{};
+            }
+
+            // MYT-218: method/function-level T (free generic function or
+            // generic method whose T is not a class-level param) has no
+            // runtime binding. The runtime resolveTypeParameter only walks
+            // the receiver's bindings; without one, the dispatch falls back
+            // to a name lookup of "T" which silently returns false. Reject
+            // it at compile time so the user gets a clear diagnostic instead
+            // of a useless `false`.
+            auto matchesParam = [&](const std::vector<ast::GenericTypeParameter>& params) {
+                for (const auto& p : params) {
+                    if (p.name == candidate) return true;
+                }
+                return false;
+            };
+            bool isFnLevelParam =
+                (ctx.currentMethodNode && matchesParam(ctx.currentMethodNode->getGenericTypeParameters())) ||
+                (ctx.currentFunctionNode && matchesParam(ctx.currentFunctionNode->getGenericTypeParameters()));
+            if (isFnLevelParam)
+            {
+                throw errors::TypeException(
+                    "isClassOf cannot test the method-level generic type parameter '" +
+                    candidate + "': free generic functions do not carry reified " +
+                    "type information at runtime, so this check would always return false. " +
+                    "Either dispatch through an instance of a generic class (where T is reified), " +
+                    "or change the helper to accept a Class<T> token argument.",
+                    node->getLocation());
             }
         }
 

@@ -20,6 +20,6 @@ Class c = Class::forName("Demo");
 Method m = c.getDeclaredMethod("foo", 1);
 Parameter[] params = m.getParameters();
 
-// Index 0 is `this`, index 1 is x.
-print(params[1].hasAnnotation("Draft"));
-print(params[1].hasAnnotation("Keep"));
+// MYT-214: getParameters() returns user-declared parameters only; x is at index 0.
+print(params[0].hasAnnotation("Draft"));
+print(params[0].hasAnnotation("Keep"));

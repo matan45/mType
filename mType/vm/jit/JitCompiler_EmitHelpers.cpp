@@ -140,7 +140,7 @@ namespace vm::jit
                 case OpCode::ARRAY_GET_INT_LOCAL: case OpCode::ARRAY_SET_INT_LOCAL:
                 case OpCode::ARRAY_LENGTH_LOCAL:
                 case OpCode::INSTANCEOF:  case OpCode::INSTANCEOF_TYPEPARAM:
-                case OpCode::CAST:
+                case OpCode::CAST:        case OpCode::CAST_TYPEPARAM:
                 // MYT-147: iterator opcodes receive / produce boxed
                 // ObjectInstance values (ArrayIteratorHelper,
                 // HashMapKeyIterator, LinkedListIterator, ...) on the operand

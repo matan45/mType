@@ -1,0 +1,7 @@
+d isClassOf A: true
+d isClassOf B: true
+d isClassOf C: true
+asA matches D: true
+asB matches D: true
+asC matches D: true
+d.value: 7

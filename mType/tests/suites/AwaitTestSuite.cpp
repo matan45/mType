@@ -221,5 +221,24 @@ namespace tests::testSuite
                         passPath + "asyncSequentialAwaitsSameTick.mt");
         addOutputVerificationTest("Async Parallel Rejection Fanout",
                         passPath + "asyncParallelRejectionFanout.mt");
+
+        // === CROSS-FEATURE EDGE CASES ===
+        addOutputVerificationTest("Async Final Capture Lambda",
+                        passPath + "asyncFinalCaptureLambda.mt");
+
+        // === ADDITIONAL ASYNC EDGE CASES - completed promise / multi-await / finally / cleanup ===
+        addOutputVerificationTest("Await On Already Completed Promise",
+                        passPath + "awaitOnAlreadyCompletedPromise.mt");
+        addOutputVerificationTest("Multiple Awaits Same Promise",
+                        passPath + "multipleAwaitsSamePromise.mt");
+        addOutputVerificationTest("Finally After Async Exception",
+                        passPath + "finallyAfterAsyncException.mt");
+        addOutputVerificationTest("Async Exception Propagates Across Await",
+                        passPath + "asyncExceptionPropagatesAcrossAwait.mt");
+        addOutputVerificationTest("Async Try Finally Resource Cleanup",
+                        passPath + "asyncTryFinallyResourceCleanup.mt");
+
+        addOutputVerificationTest("Throw Before First Await",
+                        passPath + "throwBeforeFirstAwait.mt");
     }
 }

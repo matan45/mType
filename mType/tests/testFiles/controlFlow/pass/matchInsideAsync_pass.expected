@@ -1,0 +1,9 @@
+=== Edge: Match Inside Async ===
+Result 0: OK: data loaded
+Result 1: ERROR: timeout
+Result 2: WAITING
+Result 3: OK: cached
+Result 4: ERROR: 404 not found
+--- Match on await result ---
+Was success: OK: dynamic
+=== Edge Complete ===
