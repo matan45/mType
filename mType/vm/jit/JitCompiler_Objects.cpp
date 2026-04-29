@@ -1143,6 +1143,53 @@ namespace vm::jit
         return true;
     }
 
+    static bool emitInstanceofTypeParamOp(JitEmissionState& s,
+                                           const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        // MYT-228: emit a call to jit_instanceof_typeparam, which resolves
+        // the type-param name through the call stack's per-frame
+        // typeArgBindings before doing the name-based instanceof check.
+        // INSTANCEOF (concrete RHS) still uses the cheaper jit_instanceof
+        // helper — different signatures, can't share emit code.
+        auto& cc = s.cc;
+        uint32_t paramNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        SlotType vType = popType(s);
+        Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, vType);
+        Gp idx = cc.new_gp64();
+        cc.mov(idx, static_cast<int64_t>(paramNameIndex));
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_instanceof_typeparam),
+                  FuncSignature::build<int64_t, const value::Value*,
+                      JitContext*, uint32_t>());
+        inv->set_arg(0, valAddr);
+        inv->set_arg(1, s.ctxPtr);
+        inv->set_arg(2, idx);
+        Gp result = cc.new_gp64();
+        inv->set_ret(0, result);
+        if (isBoxedSlotType(vType))
+            emitValueDestroy(s, s.stackDepth - 1);
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
+        s.slotTypes.push_back(SlotType::BOOL);
+        return true;
+    }
+
+    static bool emitBindTypeArgsOp(JitEmissionState& s,
+                                    const bytecode::BytecodeProgram::Instruction& /*instr*/)
+    {
+        // MYT-228: stage type-arg bindings into ExecutionContext::pendingTypeArgs.
+        // The helper reads the instruction's operand vector by IP from the
+        // BytecodeProgram, so we just need to pass the current IP.
+        auto& cc = s.cc;
+        Gp ipReg = cc.new_gp64();
+        cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_bind_type_args),
+                  FuncSignature::build<void, JitContext*, uint64_t>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, ipReg);
+        return true;
+    }
+
     static bool emitCastTypeParamOp(JitEmissionState& s,
                                    const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -1393,9 +1440,10 @@ namespace vm::jit
                 return emitGetFieldOp(s, getField);
             }
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
-            case OpCode::INSTANCEOF_TYPEPARAM: return emitInstanceofOp(s, instr);
+            case OpCode::INSTANCEOF_TYPEPARAM: return emitInstanceofTypeParamOp(s, instr);
             case OpCode::CAST:           return emitCastOp(s, instr);
             case OpCode::CAST_TYPEPARAM: return emitCastTypeParamOp(s, instr);
+            case OpCode::BIND_TYPE_ARGS: return emitBindTypeArgsOp(s, instr);
             case OpCode::NEW_OBJECT:
             case OpCode::NEW_VALUE_OBJECT: return emitNewObjectOp(s, instr);
             // MYT-208: dedicated emit path. jit_new_stack hits the

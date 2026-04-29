@@ -9,6 +9,7 @@
 #include "../../../ast/nodes/expressions/BoolNode.hpp"
 #include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
+#include "../../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../types/GenericPatternAnalyzer.hpp"
@@ -573,6 +574,9 @@ namespace vm::compiler::visitors
             arg->accept(ctx.visitor);
         }
 
+        // MYT-228: stage type-arg bindings into the next frame.
+        emitBindTypeArgsIfNeeded(node);
+
         // MYT-197: bake the $static suffix at compile time so the runtime
         // CALL_STATIC handler doesn't rebuild the string on every call.
         // resolveStaticMethodOverload already appends $static on the happy
@@ -673,6 +677,9 @@ namespace vm::compiler::visitors
                     arg->accept(ctx.visitor);
                 }
 
+                // MYT-228: stage type-arg bindings into the next frame.
+                emitBindTypeArgsIfNeeded(node);
+
                 // MYT-197: $static suffix must live in the constant pool —
                 // the runtime CALL_STATIC handler no longer appends it.
                 // resolveStaticMethodOverload appends on the happy path;
@@ -702,6 +709,9 @@ namespace vm::compiler::visitors
                 {
                     arg->accept(ctx.visitor);
                 }
+
+                // MYT-228: stage type-arg bindings into the next frame.
+                emitBindTypeArgsIfNeeded(node);
 
                 size_t nameIndex = ctx.program.getConstantPool().addString(functionName);
                 // Call method on 'this' with source location
@@ -810,6 +820,11 @@ namespace vm::compiler::visitors
             }
         }
 
+        // MYT-228: stage type-arg bindings into the next frame. All three
+        // terminal CALL_* paths below trigger pushCallFrame which consumes
+        // ExecutionContext::pendingTypeArgs.
+        emitBindTypeArgsIfNeeded(node);
+
         if (isStaticMethodOfCurrentClass)
         {
             // Emit CALL_STATIC for static method of current class (use plain name, not resolved).
@@ -890,6 +905,20 @@ namespace vm::compiler::visitors
         // Validate function parameters (count and types)
         validateFunctionParameters(node, functionName, arguments);
 
+        // MYT-228: stash the bindings for THIS call so the terminal CALL emit
+        // can prepend a BIND_TYPE_ARGS opcode. Save/restore the previous slot
+        // so a nested generic call (when args themselves contain generic
+        // calls) doesn't clobber our bindings.
+        std::optional<std::unordered_map<std::string, std::string>> savedBindings = std::move(pendingBindings_);
+        if (hasGenericBindings)
+        {
+            pendingBindings_ = ctx.getCurrentGenericTypeBindings();
+        }
+        else
+        {
+            pendingBindings_.reset();
+        }
+
         // Emit appropriate bytecode based on call type
         if (functionName.find("::") != std::string::npos)
         {
@@ -907,6 +936,9 @@ namespace vm::compiler::visitors
             emitRegularFunctionCall(node, resolvedFunctionName, arguments);
         }
 
+        // MYT-228: restore the outer call's bindings (or absence thereof).
+        pendingBindings_ = std::move(savedBindings);
+
         // Pop generic type bindings if we pushed them
         if (hasGenericBindings)
         {
@@ -914,6 +946,67 @@ namespace vm::compiler::visitors
         }
 
         return std::monostate{};
+    }
+
+    bool FunctionCallHelper::isCallerLevelTypeParam(const std::string& name) const
+    {
+        // MYT-228: a type-arg value that itself names a type-param in any
+        // enclosing scope (class, method, function) needs to be tagged with
+        // valueKind=1 so the runtime forwards from the caller's frame
+        // bindings. Mirrors the scope walk in compileInstanceOf / compileCast.
+        if (ctx.currentClassNode)
+        {
+            for (const auto& p : ctx.currentClassNode->getGenericParameters())
+            {
+                if (p.name == name) return true;
+            }
+        }
+        if (ctx.currentMethodNode)
+        {
+            for (const auto& p : ctx.currentMethodNode->getGenericTypeParameters())
+            {
+                if (p.name == name) return true;
+            }
+        }
+        if (ctx.currentFunctionNode)
+        {
+            for (const auto& p : ctx.currentFunctionNode->getGenericTypeParameters())
+            {
+                if (p.name == name) return true;
+            }
+        }
+        return false;
+    }
+
+    void FunctionCallHelper::emitBindTypeArgsIfNeeded(ast::ASTNode* node)
+    {
+        // MYT-228: if the current call has generic bindings, emit a
+        // BIND_TYPE_ARGS opcode that stages them onto
+        // ExecutionContext::pendingTypeArgs. The next pushCallFrame
+        // (triggered by the terminal CALL_*) consumes them into the new
+        // frame's typeArgBindings.
+        if (!pendingBindings_ || pendingBindings_->empty())
+        {
+            return;
+        }
+
+        const auto& bindings = *pendingBindings_;
+        std::vector<uint64_t> operands;
+        operands.reserve(1 + 3 * bindings.size());
+        operands.push_back(static_cast<uint64_t>(bindings.size()));
+
+        for (const auto& [paramName, value] : bindings)
+        {
+            uint8_t valueKind = isCallerLevelTypeParam(value) ? 1u : 0u;
+            size_t paramNameIdx = ctx.program.getConstantPool().addString(paramName);
+            size_t valueIdx = ctx.program.getConstantPool().addString(value);
+
+            operands.push_back(static_cast<uint64_t>(paramNameIdx));
+            operands.push_back(static_cast<uint64_t>(valueKind));
+            operands.push_back(static_cast<uint64_t>(valueIdx));
+        }
+
+        ctx.emitter.emitWithLocation(bytecode::OpCode::BIND_TYPE_ARGS, operands, node);
     }
 
     // Phase 4: Auto-boxing/unboxing helper for function arguments

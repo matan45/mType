@@ -4,6 +4,8 @@
 #include <array>
 #include <cassert>
 #include <chrono>
+#include <optional>
+#include <string>
 #include <unordered_map>
 #include <iostream>
 #include "../../../value/ValueType.hpp"
@@ -134,6 +136,13 @@ namespace vm::runtime
         std::string definingClassName;           // Class that defines the method (for access control in inheritance)
         std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for closure capture (if this function creates lambdas)
         size_t programIndex = 0;                 // Which program in loadedPrograms this frame belongs to
+        // MYT-228: method/free-function generic type-parameter bindings staged
+        // by BIND_TYPE_ARGS and consumed by pushCallFrame. nullopt on every
+        // non-generic call — keeps the hot path zero-alloc. Resolved values
+        // are concrete type names (forwarding from caller frames is
+        // resolved at consume time so the resolveTypeParameter walk
+        // doesn't need to chase symbolic bindings).
+        std::optional<std::unordered_map<std::string, std::string>> typeArgBindings;
 
         // MYT-208: prefer raw `this` when set (NEW_STACK ctor), otherwise the
         // shared_ptr's underlying pointer. Both null is legal (static frames).
@@ -203,6 +212,14 @@ namespace vm::runtime
 
         // VM back-pointer for OSR and other VM-level operations
         VirtualMachine* vm = nullptr;
+
+        // MYT-228: scratch slot for type-argument bindings staged by
+        // BIND_TYPE_ARGS. The very next pushCallFrame move-consumes this
+        // into CallFrame::typeArgBindings and resets the optional.
+        // Defensive reset on exception unwind so a throw between
+        // BIND_TYPE_ARGS and the CALL can't leak bindings into an
+        // unrelated dispatch.
+        std::optional<std::unordered_map<std::string, std::string>> pendingTypeArgs;
 
         ExecutionContext(
             const bytecode::BytecodeProgram* prog,

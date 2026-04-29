@@ -74,6 +74,16 @@ namespace vm::runtime
 
     VirtualMachine::~VirtualMachine() = default;
 
+    void VirtualMachine::setPendingTypeArgs(std::unordered_map<std::string, std::string> bindings)
+    {
+        // MYT-228: stage type-arg bindings into the ExecutionContext scratch
+        // slot. The next pushCallFrame consumes them into the new frame.
+        if (executionCtx)
+        {
+            executionCtx->pendingTypeArgs = std::move(bindings);
+        }
+    }
+
     void VirtualMachine::setJitEnabled(bool enabled)
     {
         jitEnabled = enabled;

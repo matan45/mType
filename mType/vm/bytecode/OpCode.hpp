@@ -342,6 +342,21 @@ namespace vm::bytecode
         // operands: [classNameIndex, fieldNameIndex]
         SET_FIELD_TYPED,
 
+        // MYT-228: stage method/free-function generic type-parameter bindings
+        // for the next CALL_*. Variable-arity:
+        //   operands[0] = n (pair count)
+        //   operands[1 + 3*i + 0] = paramName constant-pool index
+        //   operands[1 + 3*i + 1] = valueKind (0 = concrete type name,
+        //                                      1 = forward-from-caller-frame)
+        //   operands[1 + 3*i + 2] = value constant-pool index (concrete name
+        //                           OR caller-level type-param name to resolve)
+        // Handler writes into ExecutionContext::pendingTypeArgs; the very
+        // next pushCallFrame consumes-and-clears that slot into the new
+        // CallFrame::typeArgBindings. INVARIANT: the compiler always emits
+        // BIND_TYPE_ARGS immediately before the matching CALL_* on the same
+        // logical path; nothing else may run between them.
+        BIND_TYPE_ARGS,
+
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
         // without requiring manual updates each time a new opcode is added.
@@ -583,6 +598,8 @@ namespace vm::bytecode
 
             case OpCode::GET_FIELD_TYPED: return "GET_FIELD_TYPED";
             case OpCode::SET_FIELD_TYPED: return "SET_FIELD_TYPED";
+
+            case OpCode::BIND_TYPE_ARGS: return "BIND_TYPE_ARGS";
 
             default: return "UNKNOWN";
         }

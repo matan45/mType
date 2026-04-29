@@ -155,7 +155,10 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::ARRAY_LENGTH_LOCAL),
 
             static_cast<uint8_t>(OpCode::INSTANCEOF),
+            static_cast<uint8_t>(OpCode::INSTANCEOF_TYPEPARAM),  // MYT-228
             static_cast<uint8_t>(OpCode::CAST),
+            static_cast<uint8_t>(OpCode::CAST_TYPEPARAM),        // MYT-222 / MYT-228
+            static_cast<uint8_t>(OpCode::BIND_TYPE_ARGS),        // MYT-228
 
             static_cast<uint8_t>(OpCode::NEW_VALUE_OBJECT),
             static_cast<uint8_t>(OpCode::OBJECT_TO_VALUE),

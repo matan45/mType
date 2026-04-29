@@ -440,18 +440,161 @@ namespace vm::jit
         *dest = *src;
     }
 
+    int64_t jit_instanceof_typeparam(const value::Value* val,
+                                      JitContext* ctx,
+                                      uint32_t paramNameIndex)
+    {
+        // MYT-228: resolve T against the current call stack's per-frame
+        // typeArgBindings (innermost-wins) and the receiver's class-level
+        // bindings, then delegate to the same name-based instanceof check
+        // jit_instanceof uses. Without this resolution the JIT path would
+        // try to match the literal name "T" against class hierarchies and
+        // always return 0.
+        const std::string& paramName = ctx->program->getConstantPool().getString(paramNameIndex);
+        std::string resolved = paramName;
+
+        if (ctx->vm)
+        {
+            const auto& callStack = ctx->vm->getCallStack();
+            for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
+                const auto& frame = *it;
+
+                if (frame.typeArgBindings) {
+                    auto found = frame.typeArgBindings->find(paramName);
+                    if (found != frame.typeArgBindings->end() && !found->second.empty()) {
+                        resolved = found->second;
+                        break;
+                    }
+                }
+
+                auto* rawThis = frame.getThisInstanceRaw();
+                if (rawThis) {
+                    const auto& bindings = rawThis->getGenericTypeBindings();
+                    auto found = bindings.find(paramName);
+                    if (found != bindings.end() && !found->second.empty()) {
+                        resolved = found->second;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (resolved == "Int" || resolved == "int")
+            return value::isInt(*val) ? 1 : 0;
+        if (resolved == "Float" || resolved == "float")
+            return value::isFloat(*val) ? 1 : 0;
+        if (resolved == "Bool" || resolved == "bool")
+            return value::isBool(*val) ? 1 : 0;
+        if (resolved == "String" || resolved == "string")
+            return (value::isString(*val) || value::isInternedString(*val)) ? 1 : 0;
+
+        if (value::isAnyObject(*val))
+        {
+            auto* raw = value::asObjectInstanceRaw(*val);
+            auto classDef = raw->getClassDefinition();
+            while (classDef)
+            {
+                if (classDef->getName() == resolved) return 1;
+                classDef = classDef->getParentClass();
+            }
+        }
+
+        if (value::isValueObject(*val))
+        {
+            auto valueObj = value::asValueObject(*val);
+            auto classDef = valueObj->getClassDefinition();
+            while (classDef)
+            {
+                if (classDef->getName() == resolved) return 1;
+                classDef = classDef->getParentClass();
+            }
+        }
+
+        return 0;
+    }
+
+    void jit_bind_type_args(JitContext* ctx, uint64_t ip)
+    {
+        // MYT-228: stage type-arg bindings for the next CALL_*. Mirrors
+        // TypeExecutor::handleBindTypeArgs but reads the instruction
+        // operands directly from the program by IP. Forward-from-caller
+        // (valueKind=1) is resolved against the current top frame.
+        if (!ctx->vm || !ctx->program) return;
+
+        const auto& instr = ctx->program->getInstructions()[static_cast<size_t>(ip)];
+        const auto& constantPool = ctx->program->getConstantPool();
+        const size_t n = static_cast<size_t>(instr.operands[0]);
+
+        std::unordered_map<std::string, std::string> staged;
+        staged.reserve(n);
+
+        const auto& callStack = ctx->vm->getCallStack();
+
+        for (size_t i = 0; i < n; ++i) {
+            const size_t base = 1 + 3 * i;
+            const std::string& paramName = constantPool.getString(
+                static_cast<uint32_t>(instr.operands[base + 0]));
+            const uint8_t valueKind = static_cast<uint8_t>(instr.operands[base + 1]);
+            const std::string& rawValue = constantPool.getString(
+                static_cast<uint32_t>(instr.operands[base + 2]));
+
+            std::string resolved;
+            if (valueKind == 1) {
+                bool found = false;
+                if (!callStack.empty()) {
+                    const auto& frame = callStack.back();
+                    if (frame.typeArgBindings) {
+                        auto it = frame.typeArgBindings->find(rawValue);
+                        if (it != frame.typeArgBindings->end() && !it->second.empty()) {
+                            resolved = it->second;
+                            found = true;
+                        }
+                    }
+                    if (!found) {
+                        if (auto* rawThis = frame.getThisInstanceRaw()) {
+                            const auto& bindings = rawThis->getGenericTypeBindings();
+                            auto it = bindings.find(rawValue);
+                            if (it != bindings.end() && !it->second.empty()) {
+                                resolved = it->second;
+                                found = true;
+                            }
+                        }
+                    }
+                }
+                if (!found) resolved = rawValue;
+            } else {
+                resolved = rawValue;
+            }
+
+            staged.emplace(paramName, std::move(resolved));
+        }
+
+        ctx->vm->setPendingTypeArgs(std::move(staged));
+    }
+
     void jit_cast_typeparam(value::Value* dest, const value::Value* src,
                              JitContext* ctx,
                              uint32_t paramNameIndex)
     {
         const std::string& paramName = ctx->program->getConstantPool().getString(paramNameIndex);
         std::string resolved = paramName;
-        
+
         if (ctx->vm)
         {
             auto& callStack = ctx->vm->getCallStack();
             for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
                 const auto& frame = *it;
+
+                // MYT-228: method/fn-level bindings staged by BIND_TYPE_ARGS
+                // take precedence over class-level reified bindings on `this`.
+                if (frame.typeArgBindings) {
+                    auto found = frame.typeArgBindings->find(paramName);
+                    if (found != frame.typeArgBindings->end() && !found->second.empty()) {
+                        resolved = found->second;
+                        break;
+                    }
+                }
+
                 auto* rawThis = frame.getThisInstanceRaw();
                 if (rawThis) {
                     const auto& bindings = rawThis->getGenericTypeBindings();

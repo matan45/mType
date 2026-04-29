@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <optional>
+#include <unordered_map>
 
 namespace vm::compiler::visitors
 {
@@ -26,6 +28,15 @@ namespace vm::compiler::visitors
     private:
         CompilerContext& ctx;
         std::unique_ptr<overload::OverloadResolutionHelper> overloadResolver;
+
+        // MYT-228: when set, emitBindTypeArgsIfNeeded will emit a BIND_TYPE_ARGS
+        // opcode just before the terminal CALL_* emit. compileFunctionCall
+        // save/restores this around the emit dispatch so nested generic calls
+        // (e.g. arguments that are themselves generic calls) don't clobber
+        // the outer call's bindings. Stores a copy of the map (not a pointer)
+        // because nested compileFunctionCall calls may reallocate
+        // ctx.genericTypeBindingStack while our emit is still pending.
+        std::optional<std::unordered_map<std::string, std::string>> pendingBindings_;
 
         // Helper methods
         bool setupGenericTypeBindings(ast::FunctionCallNode* node, const std::string& functionName);
@@ -61,5 +72,17 @@ namespace vm::compiler::visitors
         void compileArgumentWithAutoBoxing(ast::ASTNode* argument,
                                           const std::string& expectedTypeName,
                                           value::ValueType expectedType);
+
+        // MYT-228: emit BIND_TYPE_ARGS for the current call if pendingBindings_
+        // is set and non-empty. Call this immediately before each terminal
+        // CALL_* emit, AFTER arguments have been pushed onto the operand
+        // stack (so that nested generic calls in arguments can't clobber the
+        // pendingTypeArgs scratch slot before our CALL consumes it).
+        void emitBindTypeArgsIfNeeded(ast::ASTNode* node);
+
+        // MYT-228: returns true if `name` is a type-parameter name in any
+        // enclosing scope (class, method, or function). Used to decide
+        // valueKind=1 (forward-from-caller-frame) vs valueKind=0 (concrete).
+        bool isCallerLevelTypeParam(const std::string& name) const;
     };
 }

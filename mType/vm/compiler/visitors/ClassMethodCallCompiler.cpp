@@ -7,11 +7,73 @@
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
+#include "../../../ast/nodes/classes/MethodNode.hpp"
+#include "../../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../../types/TypeSubstitutionService.hpp"
 #include <iostream>
 
 namespace vm::compiler::visitors
 {
+    bool ClassCompiler::isCallerLevelTypeParam(const std::string& name) const
+    {
+        // MYT-228: mirror of FunctionCallHelper::isCallerLevelTypeParam.
+        // Walks the enclosing class / method / function generic parameter
+        // lists.
+        if (ctx.currentClassNode)
+        {
+            for (const auto& p : ctx.currentClassNode->getGenericParameters())
+            {
+                if (p.name == name) return true;
+            }
+        }
+        if (ctx.currentMethodNode)
+        {
+            for (const auto& p : ctx.currentMethodNode->getGenericTypeParameters())
+            {
+                if (p.name == name) return true;
+            }
+        }
+        if (ctx.currentFunctionNode)
+        {
+            for (const auto& p : ctx.currentFunctionNode->getGenericTypeParameters())
+            {
+                if (p.name == name) return true;
+            }
+        }
+        return false;
+    }
+
+    void ClassCompiler::emitBindTypeArgsForMethodCall(
+        ast::ASTNode* node,
+        const std::unordered_map<std::string, std::string>& bindings)
+    {
+        // MYT-228: stage method-level type-parameter bindings into
+        // ExecutionContext::pendingTypeArgs. The next pushCallFrame
+        // (triggered by the terminal CALL_*) consumes them into the new
+        // frame's typeArgBindings.
+        if (bindings.empty())
+        {
+            return;
+        }
+
+        std::vector<uint64_t> operands;
+        operands.reserve(1 + 3 * bindings.size());
+        operands.push_back(static_cast<uint64_t>(bindings.size()));
+
+        for (const auto& [paramName, value] : bindings)
+        {
+            uint8_t valueKind = isCallerLevelTypeParam(value) ? 1u : 0u;
+            size_t paramNameIdx = ctx.program.getConstantPool().addString(paramName);
+            size_t valueIdx = ctx.program.getConstantPool().addString(value);
+
+            operands.push_back(static_cast<uint64_t>(paramNameIdx));
+            operands.push_back(static_cast<uint64_t>(valueKind));
+            operands.push_back(static_cast<uint64_t>(valueIdx));
+        }
+
+        ctx.emitter.emitWithLocation(bytecode::OpCode::BIND_TYPE_ARGS, operands, node);
+    }
+
     void ClassCompiler::compileStaticMethodCall(ast::MethodCallNode* node)
     {
         std::string methodName = node->getMethodName();
@@ -153,6 +215,42 @@ namespace vm::compiler::visitors
                 {
                     arguments[i]->accept(ctx.visitor);
                 }
+            }
+
+            // MYT-228: stage method-level type-arg bindings into the next
+            // frame so `obj isClassOf T` and `(T)cast` inside the callee
+            // can resolve T against the call's type arguments.
+            if (node->hasGenericTypeArguments())
+            {
+                std::unordered_map<std::string, std::string> bindings;
+                const auto& typeArgs = node->getGenericTypeArguments();
+
+                std::vector<std::string> genericParamNames;
+                if (methodMetadata && !methodMetadata->genericTypeParameters.empty())
+                {
+                    genericParamNames = methodMetadata->genericTypeParameters;
+                }
+                else
+                {
+                    auto classDef = ctx.env->findClass(className);
+                    if (classDef)
+                    {
+                        auto methodDef = classDef->getMethod(methodName);
+                        if (methodDef)
+                        {
+                            for (const auto& p : methodDef->getGenericTypeParameters())
+                            {
+                                genericParamNames.push_back(p.name);
+                            }
+                        }
+                    }
+                }
+
+                for (size_t i = 0; i < genericParamNames.size() && i < typeArgs.size(); ++i)
+                {
+                    bindings[genericParamNames[i]] = typeArgs[i];
+                }
+                emitBindTypeArgsForMethodCall(node, bindings);
             }
 
             // Emit CALL_STATIC instruction with resolved (mangled) method name.
@@ -611,10 +709,24 @@ namespace vm::compiler::visitors
                 ctx.popGenericTypeBindings();
             }
 
+            // MYT-228: stage method-level type-arg bindings into the next
+            // frame. Class-level bindings (already on the receiver via
+            // ObjectInstance::genericTypeBindings) don't need forwarding —
+            // resolveTypeParameter walks them via getThisInstanceRaw.
+            // Skip the BIND_TYPE_ARGS path for primitive-optimized opcodes
+            // — those don't push a CallFrame so there'd be nothing to
+            // consume the staged bindings.
+            bool isPrimitiveOptimized =
+                vm::compiler::PrimitiveMethodOptimizer::canOptimizeMethod(baseClassName, methodName, arguments.size());
+            if (!isPrimitiveOptimized && !methodGenericBindings.empty())
+            {
+                emitBindTypeArgsForMethodCall(node, methodGenericBindings);
+            }
+
             // PHASE 3 OPTIMIZATION: Check if this is an optimizable primitive method call
             bytecode::OpCode opcodeToEmit = bytecode::OpCode::CALL_METHOD;
 
-            if (vm::compiler::PrimitiveMethodOptimizer::canOptimizeMethod(baseClassName, methodName, arguments.size())) {
+            if (isPrimitiveOptimized) {
                 // Get the optimized opcode for this primitive method
                 opcodeToEmit = vm::compiler::PrimitiveMethodOptimizer::getOptimizedOpCode(baseClassName, methodName);
 

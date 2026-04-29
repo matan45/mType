@@ -2281,6 +2281,9 @@
     <None Include="tests\testFiles\benchmarks\lambda_closure_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\generic_dispatch_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\lexer_stress.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -2369,9 +2372,6 @@
       <Filter>testFiles\cast\error</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\isClassOfMalformedParameterized.mt">
-      <Filter>testFiles\cast\error</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\error\isClassOfMethodTypeParam_error.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
     <None Include="tests\testFiles\cast\error\nullToPrimitiveCast.mt">
@@ -2626,6 +2626,18 @@
     <None Include="tests\testFiles\cast\pass\castMethodReference_pass.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\pass\castMethodTypeParam.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castMethodTypeParam.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castMethodTypeParamHierarchy.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\castMethodTypeParamHierarchy.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\cast\pass\castMultipleInterfaceSameMethod_pass.expected">
       <Filter>testFiles\cast\pass</Filter>
     </None>
@@ -2842,6 +2854,12 @@
     <None Include="tests\testFiles\cast\pass\genericInterfaceCast.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\pass\genericMethodOnPlainClass.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericMethodOnPlainClass.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\cast\pass\genericTypeParameterCast.expected">
       <Filter>testFiles\cast\pass</Filter>
     </None>
@@ -2950,6 +2968,12 @@
     <None Include="tests\testFiles\cast\pass\isClassOfGenericUpcast.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfInferredTypeParam.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfInferredTypeParam.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\cast\pass\isClassOfInterface.expected">
       <Filter>testFiles\cast\pass</Filter>
     </None>
@@ -2990,6 +3014,12 @@
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\isClassOfInterfaceParamRawFallback.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfMethodTypeParam.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\isClassOfMethodTypeParam.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\isClassOfMultipleInterfaces.expected">
@@ -3044,6 +3074,12 @@
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\mapGenericCast.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\methodTypeParamHotLoop.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\methodTypeParamHotLoop.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\multiLevelCast.expected">
@@ -3140,6 +3176,30 @@
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\typeCheckBeforeCast.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeParamForwarded.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeParamForwarded.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeParamForwardedDeep.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeParamForwardedDeep.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeParamForwardedFromClass.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeParamForwardedFromClass.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeParamMethodInsideGenericClass.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\typeParamMethodInsideGenericClass.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\upcastToParent.expected">

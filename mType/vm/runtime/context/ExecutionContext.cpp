@@ -55,5 +55,14 @@ namespace vm::runtime
         }
 
         callStack.push_back(frame);
+
+        // MYT-228: consume the type-argument scratch slot into the new
+        // frame. nullopt on every non-generic call, so the hot path
+        // is a single well-predicted branch.
+        if (pendingTypeArgs)
+        {
+            callStack.back().typeArgBindings = std::move(pendingTypeArgs);
+            pendingTypeArgs.reset();
+        }
     }
 }

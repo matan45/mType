@@ -292,6 +292,15 @@ namespace vm::runtime
         bool isDebuggingEnabled() const { return debuggingEnabled; }
         std::shared_ptr<environment::Environment> getEnvironment() const { return environment; }
         const std::vector<CallFrame>& getCallStack() const { return callStack; }
+        // MYT-228: mutable access for JIT helpers that need to consult the
+        // current top frame's typeArgBindings (jit_cast_typeparam,
+        // jit_instanceof_typeparam, jit_bind_type_args).
+        std::vector<CallFrame>& getCallStackMutable() { return callStack; }
+        // MYT-228: write to ExecutionContext::pendingTypeArgs from JIT
+        // helpers. The very next pushCallFrame consumes the slot. Defined
+        // out-of-line in VirtualMachine.cpp to avoid pulling
+        // ExecutionContext.hpp here for the inline.
+        void setPendingTypeArgs(std::unordered_map<std::string, std::string> bindings);
         std::shared_ptr<StackManager> getStackManager() const { return stackManager; }
         const bytecode::BytecodeProgram* getProgram() const { return program; }
 

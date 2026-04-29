@@ -465,6 +465,30 @@ namespace vm::compiler::visitors
                 }
             }
 
+            // MYT-228: also accept method/function-level T. MethodCompiler
+            // does NOT push a self-mapping onto genericTypeBindingStack
+            // (only FunctionCompiler does, for free generic functions),
+            // so without this scope walk `(T)a` inside a class's generic
+            // method falls through to plain CAST with name "T" and throws
+            // at runtime. Mirrors the analogous fall-through in
+            // compileInstanceOf.
+            if (!isDeclaredParam)
+            {
+                auto matchesParam = [&](const std::vector<ast::GenericTypeParameter>& params) {
+                    for (const auto& p : params) {
+                        if (p.name == candidate) return true;
+                    }
+                    return false;
+                };
+                bool isFnLevelParam =
+                    (ctx.currentMethodNode && matchesParam(ctx.currentMethodNode->getGenericTypeParameters())) ||
+                    (ctx.currentFunctionNode && matchesParam(ctx.currentFunctionNode->getGenericTypeParameters()));
+                if (isFnLevelParam)
+                {
+                    isDeclaredParam = true;
+                }
+            }
+
             if (isDeclaredParam)
             {
                 size_t nameIndex = ctx.program.getConstantPool().addString(candidate);
@@ -524,39 +548,33 @@ namespace vm::compiler::visitors
                 }
             }
 
+            // MYT-228: also accept method/function-level T. The runtime
+            // resolves it via CallFrame::typeArgBindings, populated by a
+            // BIND_TYPE_ARGS opcode emitted before the call. Mirrors the
+            // analogous fall-through in compileCast.
+            if (!isDeclaredParam)
+            {
+                auto matchesParam = [&](const std::vector<ast::GenericTypeParameter>& params) {
+                    for (const auto& p : params) {
+                        if (p.name == candidate) return true;
+                    }
+                    return false;
+                };
+                bool isFnLevelParam =
+                    (ctx.currentMethodNode && matchesParam(ctx.currentMethodNode->getGenericTypeParameters())) ||
+                    (ctx.currentFunctionNode && matchesParam(ctx.currentFunctionNode->getGenericTypeParameters()));
+                if (isFnLevelParam)
+                {
+                    isDeclaredParam = true;
+                }
+            }
+
             if (isDeclaredParam)
             {
                 size_t nameIndex = ctx.program.getConstantPool().addString(candidate);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::INSTANCEOF_TYPEPARAM,
                                              static_cast<uint64_t>(nameIndex), node);
                 return std::monostate{};
-            }
-
-            // MYT-218: method/function-level T (free generic function or
-            // generic method whose T is not a class-level param) has no
-            // runtime binding. The runtime resolveTypeParameter only walks
-            // the receiver's bindings; without one, the dispatch falls back
-            // to a name lookup of "T" which silently returns false. Reject
-            // it at compile time so the user gets a clear diagnostic instead
-            // of a useless `false`.
-            auto matchesParam = [&](const std::vector<ast::GenericTypeParameter>& params) {
-                for (const auto& p : params) {
-                    if (p.name == candidate) return true;
-                }
-                return false;
-            };
-            bool isFnLevelParam =
-                (ctx.currentMethodNode && matchesParam(ctx.currentMethodNode->getGenericTypeParameters())) ||
-                (ctx.currentFunctionNode && matchesParam(ctx.currentFunctionNode->getGenericTypeParameters()));
-            if (isFnLevelParam)
-            {
-                throw errors::TypeException(
-                    "isClassOf cannot test the method-level generic type parameter '" +
-                    candidate + "': free generic functions do not carry reified " +
-                    "type information at runtime, so this check would always return false. " +
-                    "Either dispatch through an instance of a generic class (where T is reified), " +
-                    "or change the helper to accept a Class<T> token argument.",
-                    node->getLocation());
             }
         }
 
