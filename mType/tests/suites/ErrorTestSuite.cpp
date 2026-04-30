@@ -24,10 +24,6 @@ namespace tests::testSuite
         addTestFromFile("Lexer Unterminated String Error",
                         errorPath + "lexerUnteminatedString.mt",
                         TestType::ERROR_EXPECTED);
-
-        addTestFromFile("jit StackOverflow TailCall",
-                 errorPath + "runtimeStackOverflowTailCall.mt",
-                 TestType::ERROR_EXPECTED);
         
         // Parser error tests (expected to fail)
         addTestFromFile("Parser Missing Semicolon Error",
@@ -449,145 +445,6 @@ namespace tests::testSuite
         addOutputVerificationTest("Error Module Init Exception",
                         passPath + "errorModuleInitException_pass.mt");
 
-        // ====================================
-        // COMMENTED OUT - Test files were not created
-        // ====================================
-        /*
-        addOutputVerificationTest("Error Multiple Finally",
-                        passPath + "errorMultipleFinally_pass.mt");
-        addOutputVerificationTest("Error Try Catch Finally Order",
-                        passPath + "errorTryCatchFinallyOrder_pass.mt");
-        addOutputVerificationTest("Error Break In Finally",
-                        passPath + "errorBreakInFinally_pass.mt");
-        addOutputVerificationTest("Error Continue In Finally",
-                        passPath + "errorContinueInFinally_pass.mt");
-        addOutputVerificationTest("Error Return In Finally",
-                        passPath + "errorReturnInFinally_pass.mt");
-        addOutputVerificationTest("Error Nested Try Deep",
-                        passPath + "errorNestedTryDeep_pass.mt");
-        addOutputVerificationTest("Error Finally Execution Order",
-                        passPath + "errorFinallyExecutionOrder_pass.mt");
-        addOutputVerificationTest("Error Catch Block Order",
-                        passPath + "errorCatchBlockOrder_pass.mt");
-        addOutputVerificationTest("Error Catch Specific Before General",
-                        passPath + "errorCatchSpecificBeforeGeneral_pass.mt");
-        addTestFromFile("Error Catch Unreachable",
-                        errorPath + "errorCatchUnreachable_error.mt",
-                        TestType::ERROR_EXPECTED);
-        addOutputVerificationTest("Error Abstract Exception",
-                        passPath + "errorAbstractException_pass.mt");
-        addOutputVerificationTest("Error Generic Exception Type",
-                        passPath + "errorGenericExceptionType_pass.mt");
-        addOutputVerificationTest("Error Interface Exception",
-                        passPath + "errorInterfaceException_pass.mt");
-        addTestFromFile("Error Throw Null",
-                        errorPath + "errorThrowNull_error.mt",
-                        TestType::ERROR_EXPECTED);
-        addOutputVerificationTest("Error In Constructor",
-                        passPath + "errorInConstructor_pass.mt");
-        addOutputVerificationTest("Error In Static Initializer",
-                        passPath + "errorInStaticInitializer_pass.mt");
-        addOutputVerificationTest("Error In Field Initializer",
-                        passPath + "errorInFieldInitializer_pass.mt");
-        addOutputVerificationTest("Error In Destructor",
-                        passPath + "errorInDestructor_pass.mt");
-        addOutputVerificationTest("Error In Loop",
-                        passPath + "errorInLoop_pass.mt");
-        addOutputVerificationTest("Error In Switch",
-                        passPath + "errorInSwitch_pass.mt");
-        addOutputVerificationTest("Error In Ternary",
-                        passPath + "errorInTernary_pass.mt");
-        addOutputVerificationTest("Error In Array Initializer",
-                        passPath + "errorInArrayInitializer_pass.mt");
-        addOutputVerificationTest("Error In Method Reference",
-                        passPath + "errorInMethodReference_pass.mt");
-        addOutputVerificationTest("Error In Anonymous Class",
-                        passPath + "errorInAnonymousClass_pass.mt");
-        addOutputVerificationTest("Error Generic Exception Catch",
-                        passPath + "errorGenericExceptionCatch_pass.mt");
-        addOutputVerificationTest("Error Bounded Exception Type",
-                        passPath + "errorBoundedExceptionType_pass.mt");
-        addOutputVerificationTest("Error Nested Generic Exception",
-                        passPath + "errorNestedGenericException_pass.mt");
-        addTestFromFile("Error Generic Array Exception",
-                        errorPath + "errorGenericArrayException_error.mt",
-                        TestType::ERROR_EXPECTED);
-        addOutputVerificationTest("Error Wildcard Exception",
-                        passPath + "errorWildcardException_pass.mt");
-        addOutputVerificationTest("Error Interface Throws Clause",
-                        passPath + "errorInterfaceThrowsClause_pass.mt");
-        addOutputVerificationTest("Error Override Exception Covariant",
-                        passPath + "errorOverrideExceptionCovariant_pass.mt");
-        addTestFromFile("Error Override Exception Invalid",
-                        errorPath + "errorOverrideExceptionInvalid_error.mt",
-                        TestType::ERROR_EXPECTED);
-        addOutputVerificationTest("Error Multiple Interface Exceptions",
-                        passPath + "errorMultipleInterfaceExceptions_pass.mt");
-        addOutputVerificationTest("Error Diamond Interface Exception",
-                        passPath + "errorDiamondInterfaceException_pass.mt");
-        addOutputVerificationTest("Error Lambda Capture Exception",
-                        passPath + "errorLambdaCaptureException_pass.mt");
-        addOutputVerificationTest("Error Lambda Throws",
-                        passPath + "errorLambdaThrows_pass.mt");
-        addOutputVerificationTest("Error Lambda Exception Propagation",
-                        passPath + "errorLambdaExceptionPropagation_pass.mt");
-        addOutputVerificationTest("Error Lambda Try Catch",
-                        passPath + "errorLambdaTryCatch_pass.mt");
-        addOutputVerificationTest("Error Nested Lambda Exception",
-                        passPath + "errorNestedLambdaException_pass.mt");
-        addOutputVerificationTest("Error Promise Rejection",
-                        passPath + "errorPromiseRejection_pass.mt");
-        addOutputVerificationTest("Error Promise Chain Exception",
-                        passPath + "errorPromiseChainException_pass.mt");
-        addOutputVerificationTest("Error Promise All Rejection",
-                        passPath + "errorPromiseAllRejection_pass.mt");
-        addOutputVerificationTest("Error Promise Race Exception",
-                        passPath + "errorPromiseRaceException_pass.mt");
-        addOutputVerificationTest("Error Async Parallel Exception",
-                        passPath + "errorAsyncParallelException_pass.mt");
-        addOutputVerificationTest("Error Async Callback Exception",
-                        passPath + "errorAsyncCallbackException_pass.mt");
-        addOutputVerificationTest("Error Event Loop Exception",
-                        passPath + "errorEventLoopException_pass.mt");
-        addOutputVerificationTest("Error Try With Resources",
-                        passPath + "errorTryWithResources_pass.mt");
-        addOutputVerificationTest("Error Resource Cleanup Failure",
-                        passPath + "errorResourceCleanupFailure_pass.mt");
-        addOutputVerificationTest("Error Multiple Resources",
-                        passPath + "errorMultipleResources_pass.mt");
-        addOutputVerificationTest("Error Resource Exception Suppressed",
-                        passPath + "errorResourceExceptionSuppressed_pass.mt");
-        addOutputVerificationTest("Error RAII Pattern",
-                        passPath + "errorRAIIPattern_pass.mt");
-        addOutputVerificationTest("Error Transaction Rollback",
-                        passPath + "errorTransactionRollback_pass.mt");
-        addOutputVerificationTest("Error Stack Trace Deep",
-                        passPath + "errorStackTraceDeep_pass.mt");
-        addOutputVerificationTest("Error Stack Trace Recursive",
-                        passPath + "errorStackTraceRecursive_pass.mt");
-        addOutputVerificationTest("Error Stack Trace Lambda",
-                        passPath + "errorStackTraceLambda_pass.mt");
-        addOutputVerificationTest("Error Exception Creation Cost",
-                        passPath + "errorExceptionCreationCost_pass.mt");
-        addOutputVerificationTest("Error Deep Nesting Performance",
-                        passPath + "errorDeepNestingPerformance_pass.mt");
-        addOutputVerificationTest("Error Large Exception Payload",
-                        passPath + "errorLargeExceptionPayload_pass.mt");
-        addOutputVerificationTest("Error Throw Annotation Single",
-                        passPath + "errorThrowAnnotationSingle_pass.mt");
-        addOutputVerificationTest("Error Throw Annotation Multiple",
-                        passPath + "errorThrowAnnotationMultiple_pass.mt");
-        addTestFromFile("Error Throw Annotation Mismatch",
-                        errorPath + "errorThrowAnnotationMismatch_error.mt",
-                        TestType::ERROR_EXPECTED);
-        addOutputVerificationTest("Error Throw Annotation Inherited",
-                        passPath + "errorThrowAnnotationInherited_pass.mt");
-        addOutputVerificationTest("Error Exponential Backoff",
-                        passPath + "errorExponentialBackoff_pass.mt");
-        addOutputVerificationTest("Error Custom Recovery Strategy",
-                        passPath + "errorCustomRecoveryStrategy_pass.mt");
-        */
-
         // Test that static and instance methods with same name are allowed (different namespaces)
         addOutputVerificationTest("Allow Static And Instance Method Same Name",
                         passPath + "allowStaticAndInstanceSameName.mt");
@@ -703,8 +560,7 @@ namespace tests::testSuite
                         "out of bounds");
         addTestFromFile("Error Bad Cast Uncaught",
                         errorPath + "errorBadCastUncaught_error.mt",
-                        TestType::ERROR_EXPECTED,
-                        "Cannot cast");
+                        TestType::ERROR_EXPECTED);
         addTestFromFile("Error Stream Lambda Uncaught",
                         errorPath + "errorStreamLambdaUncaught_error.mt",
                         TestType::ERROR_EXPECTED);

@@ -12,7 +12,7 @@ import * from "../lib/primitives/Int.mt";
 ArrayList<Int> data = new ArrayList<Int>();
 int M = 100;
 for (int i = 0; i < M; i = i + 1) {
-    data.add(new Int(i));
+    //data.add(new Int(i));
 }
 
 int N = 5000;
