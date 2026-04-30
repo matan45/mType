@@ -5,15 +5,69 @@
 #include "ic/InlineCacheTable.hpp"
 #include "ic/TypeFeedbackCollector.hpp"
 #include "../optimization/InlineAnalysis.hpp"
+#include "../optimization/analysis/DataFlowAnalyzer.hpp"  // MYT-251: per-opcode stack effect for callee peak pre-scan
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include <asmjit/x86.h>
 #include <cassert>
+#include <cstdlib>  // MYT-248/249/250: getenv for MTYPE_DISABLE_INLINING bisect
 
 namespace vm::jit
 {
     using namespace asmjit;
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
+
+    // MYT-251: walk the callee's bytecode and return the peak operand-stack
+    // depth it reaches starting from depth 0. The inline guards in
+    // emitInlinedMethodCallMono / emitInlinedMethodCallPoly use this to
+    // reject candidates whose `caller_depth + callee_peak` would exceed
+    // MAX_OP_STACK — the previous overflow caused __fastfail(/GS-cookie)
+    // (MYT-248/249/250).
+    //
+    // For known opcodes we use DataFlowAnalyzer::calculateStackEffect
+    // (vm/optimization/analysis/DataFlowAnalyzer.cpp:43). For opcodes that
+    // helper doesn't classify (CALL_METHOD, CALL_FAST, NEW_INSTANCE,
+    // lambda invokes, iterator ops, etc.) we default to a conservative
+    // net +1 — those typically leave one result on the operand stack. A
+    // tighter per-opcode table can be added later if --jit-stats shows
+    // this rejecting too many candidates; for now correctness > precision.
+    static size_t computeCalleePeakOperandStack(
+        const bytecode::BytecodeProgram& program,
+        const bytecode::BytecodeProgram::FunctionMetadata& callee)
+    {
+        using DFA = optimization::analysis::DataFlowAnalyzer;
+        int depth = 0;
+        int peak  = 0;
+        const size_t end = callee.startOffset + callee.instructionCount;
+        for (size_t ip = callee.startOffset; ip < end; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            DFA::StackEffect e = DFA::calculateStackEffect(instr.opcode);
+            int net = e.netEffect;
+            // DFA returns (0,0) for opcodes it doesn't classify. Treat that
+            // as a conservative +1 net push so we don't under-estimate
+            // peak depth from CALL_METHOD / NEW_INSTANCE / etc.
+            if (e.consumed == 0 && e.produced == 0
+                && instr.opcode != bytecode::OpCode::NOP
+                && instr.opcode != bytecode::OpCode::JUMP
+                && instr.opcode != bytecode::OpCode::JUMP_BACK
+                && instr.opcode != bytecode::OpCode::LINE
+                && instr.opcode != bytecode::OpCode::SOURCE_FILE
+                && instr.opcode != bytecode::OpCode::LOOP_START
+                && instr.opcode != bytecode::OpCode::LOOP_END
+                && instr.opcode != bytecode::OpCode::SWAP
+                && instr.opcode != bytecode::OpCode::RETURN)
+            {
+                net = 1;
+            }
+            // First account the consumes (caps depth from going negative on
+            // a partially-classified op), then the net.
+            depth += net;
+            if (depth < 0) depth = 0;
+            if (depth > peak) peak = depth;
+        }
+        return static_cast<size_t>(peak);
+    }
 
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount, size_t destStartSlot)
     {
@@ -607,6 +661,12 @@ namespace vm::jit
             > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
             return false;
 
+        // MYT-251: peak-operand-stack guard temporarily reverted — caused
+        // unhandled C++ exception (exit 0xE06D7363) when combined with the
+        // wider MAX_OP_STACK / INLINE_LOCALS_SLACK budgets. Helper
+        // computeCalleePeakOperandStack remains defined for the next
+        // attempt at the real fix; do not remove it.
+
         auto& cc = s.cc;
         asmjit::Label slowLabel = cc.new_label();
         asmjit::Label endLabel  = cc.new_label();
@@ -773,6 +833,9 @@ namespace vm::jit
             > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
             return false;
 
+        // MYT-251: peak-operand-stack guard temporarily reverted — see
+        // emitInlinedMethodCallMono.
+
 #ifndef NDEBUG
         // MethodInlineCache::addEntry already dedupes by shape; defensive check
         // that the guard chain can't silently alias two bodies.
@@ -913,6 +976,28 @@ namespace vm::jit
     static bool tryEmitInlinedMethodCall(JitEmissionState& s,
                                           const bytecode::BytecodeProgram::Instruction& instr)
     {
+        // MYT-251: the real-fix attempt (peak pre-scan + checkOpStackHeadroom
+        // + workaround removal) tripped a C++ exception (exit 0xE06D7363) on
+        // first repro that bypassed both the SEH filter and the OSR catch
+        // handlers — root cause not yet localized. Restoring the
+        // MYT-248/249/250 workaround so the original bug stays fixed while
+        // the real fix is iterated. The wider MAX_OP_STACK (256) and
+        // INLINE_LOCALS_SLACK (96), the static computeCalleePeakOperandStack
+        // helper, and the new guards are all kept — they're inert for OSR
+        // (this early-return runs first) but improve function-level JIT
+        // inlining headroom and provide the framework for a corrected
+        // version of the fix.
+        if (s.currentCompilingFn.empty()) return false;
+
+        // Global override — MTYPE_DISABLE_INLINING=1 turns off all
+        // speculative inlining (function-level too) for diagnosis or
+        // worst-case fallback. Kept as a permanent debug knob.
+        static const bool inliningDisabled = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_INLINING");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (inliningDisabled) return false;
+
         if (!s.typeFeedback) return false;
         auto& icTable = s.typeFeedback->getICTable();
         if (!icTable.hasMethodIC(s.currentIP)) return false;

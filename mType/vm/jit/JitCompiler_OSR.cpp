@@ -164,7 +164,13 @@ namespace vm::jit
                                    size_t loopStartOffset, size_t loopEndOffset,
                                    Gp ctxPtr)
     {
-        constexpr size_t MAX_OP_STACK = 64;
+        // MYT-251: use the single source of truth in JitEmissionState (was
+        // a local 64 here that could silently drift from the emitters'
+        // bound check). Pair with the operand-stack pre-scan in the inline
+        // guards (JitCompiler_Objects.cpp) so a hot OSR loop body that
+        // would overflow this budget bails at compile time instead of
+        // smashing the C++ /GS cookie at runtime.
+        constexpr size_t MAX_OP_STACK = JitEmissionState::MAX_OP_STACK;
         constexpr size_t valueSize = sizeof(value::Value);
 
         bool usesBoxedTypes = scanOpcodesForBoxedTypes(program, loopStartOffset, loopEndOffset + 1);

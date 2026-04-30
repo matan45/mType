@@ -189,15 +189,40 @@ namespace vm::jit
         uint64_t* tailCallsOptimized = nullptr;
         uint64_t* selfDirectCalls = nullptr;
 
+        // MYT-251: tried widening 64 → 256 along with peak pre-scan and
+        // workaround removal. Combo tripped a C++ exception (exit code
+        // 0xE06D7363) on first repro that bypassed both the SEH filter
+        // and the OSR catch handlers. Reverted to original 64 while the
+        // real fix is investigated; MYT-248/249/250 workaround
+        // (s.currentCompilingFn.empty() bail) restored in
+        // tryEmitInlinedMethodCall.
         static constexpr size_t MAX_OP_STACK = 64;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
 
-        // MYT-163: inline-locals slack reserved in every compiled frame so a
-        // hot call site can commit an inlined callee's locals without
-        // re-allocating stack. Sized conservatively for F-a; F-b will replace
-        // with a per-function pre-scan (computeInlineLocalsBudget).
+        // MYT-251: see MAX_OP_STACK comment. Reverted from 96 → 32 for
+        // the same reason.
         static constexpr size_t INLINE_LOCALS_SLACK = 32;
     };
+
+    // MYT-251: bounds-check stackDepth bumps in JIT emit. Belt-and-suspenders
+    // against the bug class fixed by MYT-248/249/250 — if a future emit path
+    // would push past MAX_OP_STACK, mark compileFailed so the JIT bails
+    // cleanly instead of emitting code that overflows cc.new_stack at
+    // runtime (which silently smashes the C++ /GS cookie via __fastfail).
+    // Returns true when there is room, false (and sets compileFailed) when
+    // the push would overflow. Callers must respect the false return —
+    // typically by skipping the optimization that prompted the push (e.g.
+    // bailing an inline candidate).
+    inline bool checkOpStackHeadroom(JitEmissionState& s, int additionalPushes = 1)
+    {
+        if (static_cast<size_t>(s.stackDepth) + additionalPushes
+            > JitEmissionState::MAX_OP_STACK)
+        {
+            s.compileFailed = true;
+            return false;
+        }
+        return true;
+    }
 
     // MYT-211: virtual-register operand-stack helpers. See SlotHint for the
     // model. All functions are no-ops in boxed mode (s.usesBoxedTypes == true)

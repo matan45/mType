@@ -468,7 +468,11 @@ namespace vm::jit
         const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
         size_t localCount)
     {
-        constexpr size_t MAX_OP_STACK = 64;
+        // MYT-251: use the single source of truth in JitEmissionState so all
+        // three setup paths (here, OSR, and the emitters' bounds checks)
+        // share one value. Previously a local 64 here, a local 64 in
+        // setupOSRFrame, and JitEmissionState::MAX_OP_STACK could drift.
+        constexpr size_t MAX_OP_STACK = JitEmissionState::MAX_OP_STACK;
         constexpr size_t valueSize = sizeof(value::Value);
 
         size_t scanEnd = funcMeta.startOffset + funcMeta.instructionCount;

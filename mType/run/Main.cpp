@@ -35,6 +35,34 @@
 #include <string>
 #include <filesystem>
 
+#ifdef _WIN32
+// MYT-248/249/250: SEH top-level filter so JIT-emitted code that triggers a
+// structured exception (access violation from a stale IC pointer, JIT helper
+// returning bad memory, etc.) prints a diagnostic instead of silently
+// terminating. With MSVC's default /EHsc, catch(...) does NOT catch SEH —
+// without this filter the process disappears with no output.
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <cstdint>
+namespace {
+    LONG WINAPI mtype_seh_filter(EXCEPTION_POINTERS* ep)
+    {
+        std::cerr.flush();
+        std::cerr << "\nFATAL: structured exception 0x"
+                  << std::hex
+                  << (ep && ep->ExceptionRecord ? ep->ExceptionRecord->ExceptionCode : 0u)
+                  << " at addr 0x"
+                  << static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(
+                       ep && ep->ExceptionRecord ? ep->ExceptionRecord->ExceptionAddress : nullptr))
+                  << std::dec
+                  << " — likely JIT-emitted code dereferenced freed/invalid memory.\n";
+        std::cerr.flush();
+        return EXCEPTION_CONTINUE_SEARCH;  // Let the OS terminate normally
+                                           // so post-mortem debuggers still attach.
+    }
+}
+#endif
+
 using namespace parser;
 using namespace lexer;
 using namespace services;
@@ -42,6 +70,13 @@ using namespace environment;
 
 int main(int argc, char* argv[])
 {
+#ifdef _WIN32
+    // MYT-248/249/250: install before any JIT compilation runs so silent SEH
+    // failures inside the JIT or its native helpers (the symptom of these
+    // three bugs) at least print a diagnostic line.
+    SetUnhandledExceptionFilter(mtype_seh_filter);
+#endif
+
     // Bytecode VM is the only execution mode
     constants::ExecutionMode execMode = constants::ExecutionMode::BYTECODE_VM;
 
@@ -1006,6 +1041,11 @@ int main(int argc, char* argv[])
         {
             std::cout << "Execution Mode: Bytecode VM\n\n";
         }
+        // MYT-248/249/250: flush so the mode header is visible even if the
+        // script terminates abnormally (silent SEH crash / unhandled non-std
+        // exception). std::cout is line-buffered to a TTY but not always to
+        // pipes, and the post-loop print() never reaches us in those cases.
+        std::cout.flush();
 
         interpreter.runScript(filename);
 
@@ -1051,6 +1091,26 @@ int main(int argc, char* argv[])
         reflection::ReflectionNatives::cleanup();
         json::JsonNatives::cleanup();
         return 1;
+    }
+    catch (...)
+    {
+        // MYT-248/249/250: silent zero-output failures under JIT were
+        // diagnosed as exceptions escaping runScript that derive from
+        // neither std::exception nor errors::UserException — without this
+        // catch the CRT terminates the process with no message and no
+        // crash dialog in Release. Always emit a diagnostic so the failure
+        // mode is at least visible.
+        std::cerr << "Error: unhandled non-std exception escaped script execution "
+                  << "(JIT-emitted code or native helper). "
+                  << "Check JIT IC / OSR / helper-call path." << std::endl;
+        if (profileMode != vm::profiler::ProfilerMode::DISABLED)
+        {
+            vm::profiler::ProfilerContext::shutdown();
+        }
+        gc::GC::shutdown();
+        reflection::ReflectionNatives::cleanup();
+        json::JsonNatives::cleanup();
+        return 2;
     }
 
     // Clean up GC to avoid static destruction order issues
