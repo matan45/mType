@@ -1,5 +1,6 @@
 #include "JitHelpers.hpp"
 #include "../../value/ValueShim.hpp"
+#include "../../value/AsyncPromiseValue.hpp"
 #include "../../gc/GC.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
@@ -193,4 +194,36 @@ namespace vm::jit
         }
 
     } // extern "C"
+
+    void jit_create_promise(value::Value* val)
+    {
+        if (value::isInt(*val))
+        {
+            *val = value::Value(value::asInt(*val), value::Value::PromiseIntTag{});
+            return;
+        }
+
+        auto promise = std::make_shared<value::AsyncPromiseValue>(*val);
+        *val = std::shared_ptr<value::PromiseValue>(promise);
+    }
+
+    void jit_object_to_value_create_promise(value::Value* val)
+    {
+        if (value::isObject(*val))
+        {
+            const auto& instance = value::asObject(*val);
+            if (instance && instance->getPrimitiveTag() == value::PrimitiveTypeTag::INT)
+            {
+                value::Value field = instance->getFieldValue("value");
+                if (value::isInt(field))
+                {
+                    *val = value::Value(value::asInt(field), value::Value::PromiseIntTag{});
+                    return;
+                }
+            }
+        }
+
+        jit_object_to_value(val);
+        jit_create_promise(val);
+    }
 }

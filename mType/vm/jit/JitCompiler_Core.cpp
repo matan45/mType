@@ -15,7 +15,7 @@ namespace vm::jit
     bool JitCompiler::canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
                                   const bytecode::BytecodeProgram& program) const
     {
-        if (meta.isNative || meta.isAsync)
+        if (meta.isNative)
             return false;
 
         const auto& supported = getSupportedOpcodes();

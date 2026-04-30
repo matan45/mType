@@ -189,6 +189,8 @@ namespace vm::jit
     void jit_new_stack(value::Value* dest, JitContext* ctx,
                         uint32_t classIndex, size_t argCount);
     void jit_object_to_value(value::Value* val);
+    void jit_create_promise(value::Value* val);
+    void jit_object_to_value_create_promise(value::Value* val);
 
     extern "C" {
         void jit_osr_write_local(JitContext* ctx, size_t slot, const value::Value* val);

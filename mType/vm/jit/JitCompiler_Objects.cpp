@@ -1311,6 +1311,60 @@ namespace vm::jit
         return true;
     }
 
+    static bool emitCreatePromiseOp(JitEmissionState& s)
+    {
+        if (!s.usesBoxedTypes || s.stackDepth <= 0)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        flushAllHints(s);
+
+        const int stackIdx = s.stackDepth - 1;
+        SlotType valueType = popType(s);
+        Gp valueAddr = cc.new_gp64();
+        cc.lea(valueAddr, Mem(s.boxedBase, static_cast<int32_t>(stackIdx * valueSize)));
+        emitBoxOrCopy(s, valueAddr, stackIdx, valueType);
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_create_promise),
+                  FuncSignature::build<void, value::Value*>());
+        inv->set_arg(0, valueAddr);
+
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
+    static bool emitObjectToValueCreatePromiseOp(JitEmissionState& s)
+    {
+        if (!s.usesBoxedTypes || s.stackDepth <= 0)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        flushAllHints(s);
+
+        const int stackIdx = s.stackDepth - 1;
+        SlotType valueType = popType(s);
+        Gp valueAddr = cc.new_gp64();
+        cc.lea(valueAddr, Mem(s.boxedBase, static_cast<int32_t>(stackIdx * valueSize)));
+        emitBoxOrCopy(s, valueAddr, stackIdx, valueType);
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_object_to_value_create_promise),
+                  FuncSignature::build<void, value::Value*>());
+        inv->set_arg(0, valueAddr);
+
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
     bool emitObjectOps(JitEmissionState& s,
                        const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -1451,6 +1505,17 @@ namespace vm::jit
             // stackObjects + STACK_OBJECT Value emit. Non-trivial ctors fall
             // back inside createStackObject to the heap path.
             case OpCode::NEW_STACK: return emitNewStackOp(s, instr);
+            case OpCode::CREATE_PROMISE:
+                return emitCreatePromiseOp(s);
+            case OpCode::OBJECT_TO_VALUE_CREATE_PROMISE:
+                return emitObjectToValueCreatePromiseOp(s);
+            case OpCode::CREATE_PROMISE_RETURN_VALUE:
+            {
+                if (!emitCreatePromiseOp(s))
+                    return false;
+                bytecode::BytecodeProgram::Instruction ret(OpCode::RETURN_VALUE);
+                return emitControlFlowOps(s, ret, nullptr);
+            }
 
             case OpCode::GET_ITERATOR:       return emitGetIteratorOp(s);
             case OpCode::ITERATOR_HAS_NEXT:  return emitIteratorHasNextOp(s);
