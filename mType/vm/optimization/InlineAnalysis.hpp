@@ -66,11 +66,19 @@ namespace vm::optimization
     // re-checking the constant.
     constexpr size_t INLINE_DEPTH_LIMIT = 2;
 
+    // MYT-251: `isOSRCompilation` makes the OSR-context signal explicit.
+    // Previously the self-recursion check below short-circuited silently
+    // when currentCompilingFn was empty (i.e. in OSR), which meant every
+    // method passed the self-recursion guard in OSR. The check is still a
+    // no-op in OSR (there is no static caller name to compare against),
+    // but the call site now communicates intent rather than relying on the
+    // emptiness of an unrelated string.
     InlineDecision checkInlineEligibility(
         const vm::bytecode::BytecodeProgram& program,
         const vm::jit::ic::MethodInlineCache& cache,
         const std::string& currentCompilingFn,
-        size_t currentInlineDepth);
+        size_t currentInlineDepth,
+        bool isOSRCompilation = false);
 
     // MYT-210: plain-CALL / CALL_FAST inlining eligibility. Mirrors
     // checkInlineEligibility but the callee is statically known (no IC, no

@@ -102,6 +102,55 @@ namespace {
         return EXCEPTION_CONTINUE_SEARCH;  // Let the OS terminate normally
                                            // so post-mortem debuggers still attach.
     }
+
+    // MYT-251: vectored exception handler. Fires BEFORE the normal SEH
+    // dispatcher walk, which means it sees C++ exceptions (0xE06D7363)
+    // even when the unwinder cannot traverse asmjit JIT-emitted frames
+    // (no PE x64 unwind data registered for the JIT region) — the path
+    // that bypasses both `set_terminate` and `SetUnhandledExceptionFilter`
+    // and produces a silent exit on stream_pipeline_hot / reflection_lookup_hot.
+    // Returns EXCEPTION_CONTINUE_SEARCH so normal handling still runs (this
+    // is a diagnostic, not a handler). Gated by MTYPE_TRACE_VEH=1 so the
+    // VEH does not interfere with normal program operation when not
+    // diagnosing a silent crash.
+    LONG WINAPI mtype_veh_diagnostic(EXCEPTION_POINTERS* ep)
+    {
+        if (!ep || !ep->ExceptionRecord) return EXCEPTION_CONTINUE_SEARCH;
+        const DWORD code = ep->ExceptionRecord->ExceptionCode;
+
+        // Filter out the noise: ignore everything except first-chance
+        // events that historically silently terminate. 0xE06D7363 is MSVC
+        // C++ throw raise; 0xC0000005 is access violation; 0xC0000409 is
+        // /GS cookie failure (__fastfail); 0xC0000374 is heap corruption.
+        // Page faults during normal operation (0x80000003 single-step etc.)
+        // are filtered out.
+        const bool isInteresting =
+            code == 0xE06D7363u || code == 0xC0000005u ||
+            code == 0xC0000409u || code == 0xC0000374u ||
+            code == 0xC00000FDu;  // stack overflow
+        if (!isInteresting) return EXCEPTION_CONTINUE_SEARCH;
+
+        std::cerr.flush();
+        std::cerr << "[VEH] first-chance exception code=0x"
+                  << std::hex << code
+                  << " at addr=0x"
+                  << static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(
+                       ep->ExceptionRecord->ExceptionAddress))
+                  << std::dec;
+        if (code == 0xE06D7363u && ep->ExceptionRecord->NumberParameters >= 3)
+        {
+            // Parameter[2] is a pointer to the ThrowInfo descriptor;
+            // dereference cautiously inside __try / SEH not C++ try.
+            std::cerr << " (C++ throw, ThrowInfo=0x"
+                      << std::hex
+                      << static_cast<std::uint64_t>(
+                             ep->ExceptionRecord->ExceptionInformation[2])
+                      << std::dec << ")";
+        }
+        std::cerr << "\n";
+        std::cerr.flush();
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
 }
 #endif
 
@@ -123,6 +172,20 @@ int main(int argc, char* argv[])
     // failures inside the JIT or its native helpers (the symptom of these
     // three bugs) at least print a diagnostic line.
     SetUnhandledExceptionFilter(mtype_seh_filter);
+
+    // MYT-251: optional vectored exception handler — set MTYPE_TRACE_VEH=1
+    // to install. Fires on first-chance exceptions before the normal
+    // dispatch walk, so it sees throws even when the C++ unwind cannot
+    // traverse asmjit JIT regions (no PE x64 unwind info registered).
+    // This is the path that produces silent 0xE06D7363 exits on the
+    // stream_pipeline_hot / reflection_lookup_hot benchmarks.
+    if (const char* v = std::getenv("MTYPE_TRACE_VEH");
+        v && v[0] == '1' && v[1] == '\0')
+    {
+        AddVectoredExceptionHandler(/*first=*/1, mtype_veh_diagnostic);
+        std::cerr << "[VEH] installed vectored exception diagnostic handler\n";
+        std::cerr.flush();
+    }
 #endif
 
     // Bytecode VM is the only execution mode
@@ -1048,12 +1111,36 @@ int main(int argc, char* argv[])
     {
         benchmarkOptions.jitEnabled = enableJit;
         benchmarkOptions.printJitStats = printJitStats;
-        int rc = runMain::runBenchmarks(benchmarkOptions);
-
-        gc::GC::shutdown();
-        reflection::ReflectionNatives::cleanup();
-        json::JsonNatives::cleanup();
-        return rc;
+        // MYT-251 (Phase C1): runBenchmarks runs OUTSIDE the existing
+        // script-execution try/catch below, so any C++ exception escaping
+        // the benchmark loop went straight to std::set_terminate (or
+        // bypassed everything via the asmjit unwind hole). Wrap and
+        // rethrow so the typed exception name surfaces at the actual
+        // escape point — the existing handlers still produce their
+        // secondary diagnostic if rethrow propagates.
+        try
+        {
+            int rc = runMain::runBenchmarks(benchmarkOptions);
+            gc::GC::shutdown();
+            reflection::ReflectionNatives::cleanup();
+            json::JsonNatives::cleanup();
+            return rc;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "[bench-fatal] std::exception escaped runBenchmarks: "
+                      << typeid(e).name() << ": " << e.what() << "\n";
+            std::cerr.flush();
+            throw;
+        }
+        catch (...)
+        {
+            std::cerr << "[bench-fatal] unknown C++ exception escaped runBenchmarks "
+                      << "— likely thrown from JIT-emitted code or a JIT helper "
+                      << "whose call site lacked a C++ unwind frame.\n";
+            std::cerr.flush();
+            throw;
+        }
     }
 
     if (filename.empty())

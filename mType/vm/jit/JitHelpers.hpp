@@ -195,6 +195,33 @@ namespace vm::jit
     extern "C" {
         void jit_osr_write_local(JitContext* ctx, size_t slot, const value::Value* val);
         void jit_osr_exit(JitContext* ctx, uint64_t exitOffset);
+
+        // MYT-251: runtime trace helper invokable from JIT-emitted code.
+        // Emitted at the start of each inlined-body opcode in emitInlineCalleeBody
+        // when MTYPE_TRACE_JIT_RUNTIME=1. Prints "ip=N op=X stackDepth=D" so a
+        // crash/throw inside the JIT'd region is bracketed by the last printed
+        // op — diagnoses the silent 0xE06D7363 escape route on the
+        // stream_pipeline_hot / reflection_lookup_hot benchmarks.
+        void jit_trace_runtime_op(uint64_t ip, uint64_t opcodeByte,
+                                  uint64_t stackDepth, uint64_t inlineLocalsBase);
+
+        // MYT-251: dump a Value's tag + first 16 bytes at runtime. Invoked
+        // from JIT-emitted code via cc.invoke at probe points (e.g. just
+        // before GET_FIELD_TYPED in the inlined body) so we can confirm
+        // whether the receiver Value at top-of-stack is the expected
+        // OBJECT_INSTANCE / VALUE_OBJECT or a corrupted VOID/garbage from
+        // the donation pattern.
+        void jit_trace_value(uint64_t label, const value::Value* val);
+
+        // MYT-251: push/pop the JIT-inlined callee's owner class for
+        // field/method access validation. Without these, an inlined
+        // ListIterator::hasNext body running inside a FilteringIterator
+        // OSR loop fails the private-field check on this.currentIndex
+        // because validate sees ctx->callingClassName == FilteringIterator.
+        // Push at inlined body entry, pop at body exit. Stack handles
+        // nested inlining; emitted via cc.invoke from emitInlineCalleeBody.
+        void jit_push_inlined_class(JitContext* ctx, const char* name);
+        void jit_pop_inlined_class(JitContext* ctx);
     }
 
     void jit_osr_deoptimize(JitContext* ctx, uint64_t bytecodeOffset);

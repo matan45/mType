@@ -143,6 +143,14 @@ namespace vm::jit
         // guarded by loop-specific logic).
         std::string currentCompilingFn;
 
+        // MYT-251: explicit OSR-context signal. Replaces the prior
+        // `currentCompilingFn.empty()` heuristic — set true by
+        // setupOSRFrame's caller (compileLoopOSR) and false (default) for
+        // function-level emission via setupCompilationFrame. Sites that
+        // need to vary behavior between OSR and function-level should read
+        // this directly instead of testing currentCompilingFn for emptiness.
+        bool isOSRCompilation = false;
+
         // MYT-163: active inline frames on the current emission path. Size 0
         // when emitting top-level caller code. LOAD_LOCAL / STORE_LOCAL consult
         // inlineLocalsBase (mirroring inlineStack.back().localsBaseSlot during

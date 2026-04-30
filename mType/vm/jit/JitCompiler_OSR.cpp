@@ -188,6 +188,37 @@ namespace vm::jit
             }
         }
 
+        // MYT-251: also mirror setupCompilationFrame's parameterTypes scan
+        // (JitCompiler_Core.cpp:480-490). Find the FunctionMetadata whose
+        // bytecode range contains loopStartOffset; if any of its parameter
+        // types is a non-primitive (i.e. a value-class or reference type),
+        // the boxed lane must be allocated even if neither the loop body
+        // nor the captured locals reach it directly. Without this, an
+        // inlined value-object receiver path inside the OSR'd loop reads
+        // an uninitialized boxedBase. Class methods are registered in the
+        // same function table by mangled name (see MethodCompilerHelper.cpp
+        // ::registerFunction call sites), so this scan covers them too.
+        if (!usesBoxedTypes)
+        {
+            for (const auto& [name, fm] : program.getFunctions())
+            {
+                if (fm.instructionCount == 0) continue;
+                const size_t fnEnd = fm.startOffset + fm.instructionCount;
+                if (loopStartOffset >= fm.startOffset && loopStartOffset < fnEnd)
+                {
+                    for (const auto& t : fm.parameterTypes)
+                    {
+                        if (t != "int" && t != "float" && t != "bool")
+                        {
+                            usesBoxedTypes = true;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
         const size_t localStride = usesBoxedTypes ? valueSize : 8;
 
         // MYT-163: reserve INLINE_LOCALS_SLACK slots so CALL_METHOD sites
@@ -349,6 +380,13 @@ namespace vm::jit
         s.inlineFieldSetICHits = inlineFieldSetICHits;
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
         s.inlineDecisions = inlineDecisions;
+        // MYT-251: explicit OSR-context signal. Replaces the
+        // currentCompilingFn.empty() heuristic at OSR-emit sites
+        // (e.g. tryEmitInlinedMethodCall's gate). currentCompilingFn
+        // remains empty here as before — it has no meaningful value
+        // for an OSR'd loop body — but downstream logic now keys off
+        // this flag instead of inferring OSR from the empty string.
+        s.isOSRCompilation = true;
         // Phase 1 (self-recursive TCO): OSR frames don't bind functionEntryLabel
         // (the generated code enters at the loop's back-edge target, not a
         // function prologue), so suppress tail-call lowering in OSR emission.

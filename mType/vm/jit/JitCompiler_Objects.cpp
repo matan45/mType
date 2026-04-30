@@ -11,6 +11,8 @@
 #include <cassert>
 #include <cstdlib>  // MYT-248/249/250: getenv for MTYPE_DISABLE_INLINING bisect
 #include <iostream> // MYT-251: MTYPE_TRACE_OSR_INLINE diagnostic
+#include <deque>    // MYT-251: stable storage for interned class names
+#include <string>   // MYT-251
 
 namespace vm::jit
 {
@@ -544,6 +546,33 @@ namespace vm::jit
     // The MYT-185/186/187 slot-type-bookkeeping fix lives entirely inside
     // emitReturnValueOp + the caller-supplied onExit; this helper just routes
     // opcodes through the existing emit*Ops dispatchers.
+    // MYT-251: stable storage for inlined-callee class names so the
+    // const char* baked into JIT-emitted cc.invoke immediates remains
+    // valid for the lifetime of the JIT'd code. std::deque guarantees
+    // element addresses are stable across appends (unlike std::vector),
+    // and std::string's heap buffer is stable as long as the std::string
+    // itself is not moved — which it isn't here.
+    static const char* internInlinedClassName(std::string&& name)
+    {
+        static std::deque<std::string> storage;
+        storage.push_back(std::move(name));
+        return storage.back().c_str();
+    }
+
+    // MYT-251: derive owner-class name from the callee's mangledName.
+    // Format is "ClassName::method/sig" for instance methods. Free
+    // functions have no "::" and return an empty string, which the
+    // push helper treats as "use outer ctx->callingClassName" (no
+    // override).
+    static const char* deriveOwnerClassNameCStr(
+        const bytecode::BytecodeProgram::FunctionMetadata& callee)
+    {
+        const std::string& mn = callee.mangledName;
+        size_t pos = mn.find("::");
+        if (pos == std::string::npos) return internInlinedClassName(std::string());
+        return internInlinedClassName(mn.substr(0, pos));
+    }
+
     static void emitInlineCalleeBody(
         JitEmissionState& s,
         const bytecode::BytecodeProgram::FunctionMetadata& callee,
@@ -557,7 +586,19 @@ namespace vm::jit
             const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
             return v && v[0] == '1' && v[1] == '\0';
         }();
-        const bool tracing = osrBodyTrace && s.currentCompilingFn.empty();
+        const bool tracing = osrBodyTrace && s.isOSRCompilation;
+
+        // MYT-251: runtime per-opcode trace gate. When MTYPE_TRACE_JIT_RUNTIME=1
+        // is set at process start, every inlined-body opcode emits a cc.invoke
+        // to jit_trace_runtime_op so the LAST line printed before a silent
+        // crash identifies the broken op. Decided once per process to avoid
+        // per-emit env-var lookups; emission overhead is significant
+        // (one cc.invoke per inlined op) so it must be opt-in.
+        static const bool runtimeTrace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_JIT_RUNTIME");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        const bool emitRuntimeTrace = runtimeTrace && s.isOSRCompilation;
 
         auto& cc = s.cc;
         if (tracing)
@@ -570,6 +611,29 @@ namespace vm::jit
                       << "\n";
             std::cerr.flush();
         }
+
+        // MYT-251: push the callee's owner class onto ctx->inlinedCallingClassStack
+        // so private/protected field-access checks inside the inlined body
+        // are validated against the right class (the callee's owner), not
+        // the outer function's class. Symptom without this push: an
+        // OSR-inlined `ListIterator::hasNext` body running inside a
+        // FilteringIterator OSR loop throws AccessViolationException on
+        // its own `this.currentIndex` read, because the helper sees
+        // ctx->callingClassName == "FilteringIterator". Pop is emitted
+        // both at fall-through (after the body loop) and inside each
+        // RETURN_VALUE's onExit handler (before the jmp to endLabel).
+        const char* ownerClassCstr = deriveOwnerClassNameCStr(callee);
+        {
+            InvokeNode* push = nullptr;
+            cc.invoke(Out(push),
+                      reinterpret_cast<uint64_t>(jit_push_inlined_class),
+                      FuncSignature::build<void, JitContext*, const char*>());
+            push->set_arg(0, s.ctxPtr);
+            Gp nameReg = cc.new_gp64();
+            cc.mov(nameReg, reinterpret_cast<uint64_t>(ownerClassCstr));
+            push->set_arg(1, nameReg);
+        }
+
         for (size_t ip = callee.startOffset;
              ip < callee.startOffset + callee.instructionCount && !s.compileFailed;
              ++ip)
@@ -614,6 +678,44 @@ namespace vm::jit
                 std::cerr.flush();
             }
 
+            // MYT-251: emit a cc.invoke to jit_trace_runtime_op so the
+            // last opcode reached at runtime is visible before any silent
+            // exit. The emit happens inside the inlined body — the trace
+            // line lands BEFORE the opcode's own emission, so the printed
+            // op is the one we are about to execute.
+            if (emitRuntimeTrace)
+            {
+                InvokeNode* trc = nullptr;
+                cc.invoke(Out(trc),
+                          reinterpret_cast<uint64_t>(jit_trace_runtime_op),
+                          FuncSignature::build<void, uint64_t, uint64_t,
+                                                     uint64_t, uint64_t>());
+                trc->set_arg(0, Imm(static_cast<int64_t>(ip)));
+                trc->set_arg(1, Imm(static_cast<int64_t>(
+                    static_cast<uint8_t>(cinstr.opcode))));
+                trc->set_arg(2, Imm(static_cast<int64_t>(s.stackDepth)));
+                trc->set_arg(3, Imm(static_cast<int64_t>(s.inlineLocalsBase)));
+
+                // Also dump the top-of-stack Value bytes when there is
+                // one — this surfaces the receiver state for ops like
+                // GET_FIELD_TYPED whose first action is to consume
+                // boxedBase[stackDepth - 1] as the receiver.
+                if (s.stackDepth >= 1)
+                {
+                    Gp topAddr = cc.new_gp64();
+                    cc.lea(topAddr, Mem(s.boxedBase,
+                        static_cast<int32_t>((s.stackDepth - 1) *
+                                             JitEmissionState::VALUE_SIZE)));
+                    InvokeNode* dump = nullptr;
+                    cc.invoke(Out(dump),
+                              reinterpret_cast<uint64_t>(jit_trace_value),
+                              FuncSignature::build<void, uint64_t,
+                                                         const value::Value*>());
+                    dump->set_arg(0, Imm(static_cast<int64_t>(ip)));
+                    dump->set_arg(1, topAddr);
+                }
+            }
+
             bool handled = false;
             if (emitCoreOps(s, cinstr)) handled = true;
             else if (emitArithmeticOps(s, cinstr)) handled = true;
@@ -621,6 +723,21 @@ namespace vm::jit
             else { emitObjectOps(s, cinstr); handled = true; }
             (void)handled;
         }
+
+        // MYT-251: fall-through pop (paired with the push above). Reachable
+        // for well-formed callees only when the body has no terminating
+        // RETURN_VALUE — a degenerate case whose RETURN_VALUE-emitted
+        // onExit handler also pops. Both pop sites are emitted at compile
+        // time; only one runs per execution because RETURN_VALUE jumps to
+        // endLabel before this fall-through is reached.
+        {
+            InvokeNode* pop = nullptr;
+            cc.invoke(Out(pop),
+                      reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                      FuncSignature::build<void, JitContext*>());
+            pop->set_arg(0, s.ctxPtr);
+        }
+
         if (tracing)
         {
             std::cerr << "[OSR-inline-body-exit] callee=" << callee.name
@@ -817,6 +934,18 @@ namespace vm::jit
             (JitEmissionState& es, size_t /*target*/) {
             emitInlineReturnMaterialize(es, receiverStackIdx, es.lastReturnSlotType);
             emitInlineLocalDestroy(es, localsBaseSlot, *callee);
+            // MYT-251: pop the inlined-callee class pushed at body entry,
+            // matched with the push in emitInlineCalleeBody. Must run on
+            // the RETURN_VALUE path before jumping to endLabel so post-
+            // inline code sees the correct caller-class context for any
+            // subsequent field-access checks.
+            {
+                InvokeNode* pop = nullptr;
+                es.cc.invoke(Out(pop),
+                          reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                          FuncSignature::build<void, JitContext*>());
+                pop->set_arg(0, es.ctxPtr);
+            }
             es.cc.jmp(endLabel);
         };
 
@@ -867,7 +996,7 @@ namespace vm::jit
             const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
             return v && v[0] == '1' && v[1] == '\0';
         }();
-        if (osrInlineTrace && s.currentCompilingFn.empty())
+        if (osrInlineTrace && s.isOSRCompilation)
         {
             std::cerr << "[OSR-inline-end-mono] ip=" << s.currentIP
                       << " callee=" << callee->name
@@ -1040,6 +1169,15 @@ namespace vm::jit
                 (JitEmissionState& es, size_t /*target*/) {
                 emitInlineReturnMaterialize(es, receiverStackIdx, es.lastReturnSlotType);
                 emitInlineLocalDestroy(es, localsBaseSlot, *callee);
+                // MYT-251: pop the inlined-callee class pushed at body
+                // entry. See MONO onExit for the rationale.
+                {
+                    InvokeNode* pop = nullptr;
+                    es.cc.invoke(Out(pop),
+                              reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                              FuncSignature::build<void, JitContext*>());
+                    pop->set_arg(0, es.ctxPtr);
+                }
                 es.cc.jmp(endLabel);
             };
 
@@ -1073,7 +1211,7 @@ namespace vm::jit
             const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
             return v && v[0] == '1' && v[1] == '\0';
         }();
-        if (osrInlineTracePoly && s.currentCompilingFn.empty())
+        if (osrInlineTracePoly && s.isOSRCompilation)
         {
             std::cerr << "[OSR-inline-end-poly] ip=" << s.currentIP
                       << " stackDepth=" << s.stackDepth
@@ -1094,15 +1232,20 @@ namespace vm::jit
     static bool tryEmitInlinedMethodCall(JitEmissionState& s,
                                           const bytecode::BytecodeProgram::Instruction& instr)
     {
-        // MYT-251: OSR-loop inlining is now ENABLED BY DEFAULT after the
-        // root-cause fix in emitInlineCalleeBody (the bogus stackDepth
-        // reset at jump-label binding inside the inlined body). Set
-        // MTYPE_ENABLE_OSR_INLINING=0 to re-disable for diagnosis if a
-        // regression surfaces.
+        // MYT-251: OSR-loop inlining is gated behind MTYPE_ENABLE_OSR_INLINING=1.
+        // The label-reset bug in emitInlineCalleeBody is now fixed (was driving
+        // stackDepth negative on short-circuit operator labels — caused
+        // STATUS_HEAP_CORRUPTION on boxed_primitive_dispatch_hot). However,
+        // enabling OSR inlining still surfaces additional correctness bugs:
+        // - boxed_primitive_dispatch_hot runs without crashing but produces
+        //   wrong output (Int/Bool/String method results all wrong)
+        // - stream_pipeline_hot / reflection_lookup_hot crash with 0xE06D7363
+        //   (unhandled C++ exception)
+        // Default is disabled until those are localized and fixed; opt in
+        // with the env var for further investigation.
         static const bool osrInliningEnabled = []() {
             const char* v = std::getenv("MTYPE_ENABLE_OSR_INLINING");
-            // Default: enabled. Only the explicit "0" disables.
-            return !(v && v[0] == '0' && v[1] == '\0');
+            return v && v[0] == '1' && v[1] == '\0';
         }();
         static const bool osrInlineTrace = []() {
             const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
@@ -1120,7 +1263,12 @@ namespace vm::jit
             return (endp && *endp == '\0' && n >= 0) ? n : 0;
         }();
         static long osrInlineCount = 0;
-        const bool isOSRContext = s.currentCompilingFn.empty();
+        // MYT-251: read the explicit flag set by setupOSRFrame's caller
+        // (compileLoopOSR). The previous currentCompilingFn.empty() proxy
+        // also worked but conflated "no static caller name" with
+        // "OSR emission" — see InlineAnalysis self-recursion check that
+        // silently bypassed in OSR for the same reason.
+        const bool isOSRContext = s.isOSRCompilation;
         if (isOSRContext && !osrInliningEnabled) return false;
         if (isOSRContext && osrInlineLimit > 0 && osrInlineCount >= osrInlineLimit)
         {
@@ -1148,7 +1296,8 @@ namespace vm::jit
 
         auto& cache = icTable.getMethodIC(s.currentIP);
         auto decision = optimization::checkInlineEligibility(
-            s.program, cache, s.currentCompilingFn, s.inlineStack.size());
+            s.program, cache, s.currentCompilingFn, s.inlineStack.size(),
+            s.isOSRCompilation);
         // MYT-210: telemetry — every site decision (including INLINE) is
         // counted so --jit-stats can report the eligibility breakdown.
         if (s.inlineDecisions) s.inlineDecisions->bumpMethod(decision);

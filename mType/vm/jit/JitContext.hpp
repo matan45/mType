@@ -2,6 +2,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <string>
+#include <vector>
 #include "../../value/ValueType.hpp"
 
 // Forward declarations
@@ -49,6 +51,16 @@ namespace vm::jit
 
         vm::jit::ic::InlineCacheTable* icTable = nullptr;
         std::string callingClassName;
+
+        // MYT-251: per-inlined-frame caller-class override. When the JIT
+        // inlines `Foo::bar`'s body inside another function's compilation,
+        // private/protected field accesses inside that body must be
+        // validated against `Foo`, not the outer function's class. The
+        // inlined-emit path pushes the callee's owner class onto this
+        // stack at body entry and pops at body exit; the field-access
+        // helpers prefer the top-of-stack name (when non-empty) over
+        // `callingClassName`. Vector handles nested inlining cleanly.
+        std::vector<std::string> inlinedCallingClassStack;
 
         value::Value* osrLocals = nullptr;
         size_t osrLocalCount = 0;
