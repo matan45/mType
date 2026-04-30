@@ -10,6 +10,7 @@
 #include <asmjit/x86.h>
 #include <cassert>
 #include <cstdlib>  // MYT-248/249/250: getenv for MTYPE_DISABLE_INLINING bisect
+#include <iostream> // MYT-251: MTYPE_TRACE_OSR_INLINE diagnostic
 
 namespace vm::jit
 {
@@ -549,7 +550,26 @@ namespace vm::jit
         int stackBaselineIdx,
         const ExitHandler& onExit)
     {
+        // MYT-251: per-opcode trace inside the inlined callee body. Gated
+        // by MTYPE_TRACE_OSR_INLINE so it only fires for OSR-context inline
+        // emission. Helps identify which body opcode plants the corruption.
+        static const bool osrBodyTrace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        const bool tracing = osrBodyTrace && s.currentCompilingFn.empty();
+
         auto& cc = s.cc;
+        if (tracing)
+        {
+            std::cerr << "[OSR-inline-body-enter] callee=" << callee.name
+                      << " baseline=" << stackBaselineIdx
+                      << " inlineLocalsBase=" << s.inlineLocalsBase
+                      << " stackDepth=" << s.stackDepth
+                      << " bodyOps=" << callee.instructionCount
+                      << "\n";
+            std::cerr.flush();
+        }
         for (size_t ip = callee.startOffset;
              ip < callee.startOffset + callee.instructionCount && !s.compileFailed;
              ++ip)
@@ -558,9 +578,25 @@ namespace vm::jit
             auto lit = topFrame.localJumpLabels.find(ip);
             if (lit != topFrame.localJumpLabels.end())
             {
+                // MYT-251: previously this reset s.stackDepth / s.slotTypes
+                // to stackBaselineIdx on the assumption that "labels are
+                // always at statement boundaries with empty operand stack."
+                // That invariant is FALSE for short-circuit operators —
+                // JUMP_IF_TRUE_OR_POP / JUMP_IF_FALSE_OR_POP target labels
+                // land mid-expression with one value still on stack. The
+                // bogus reset drove stackDepth negative (e.g. inlining
+                // Bool::xor's `(this.value || other.value) && ...` body),
+                // and subsequent emit reading boxedBase[stackDepth*VS]
+                // wrote into the heap allocation BEFORE boxedBase →
+                // STATUS_HEAP_CORRUPTION. Match emitCodegenLoop /
+                // emitOSRCodegenLoop's behavior: flush hints, bind,
+                // invalidate hints, clear arrayInfoCache when not a back-
+                // edge target. Do NOT touch stackDepth/slotTypes — the
+                // bytecode-compiler emits jumps that converge to a
+                // consistent depth on both paths.
+                flushAllHints(s);
                 cc.bind(lit->second);
-                s.stackDepth = stackBaselineIdx;
-                s.slotTypes.resize(static_cast<size_t>(stackBaselineIdx));
+                invalidateAllHints(s);
                 s.arrayInfoCache.clear();
             }
 
@@ -569,12 +605,29 @@ namespace vm::jit
             if (cinstr.opcode == OpCode::PROFILE_ENTER)
                 continue;  // no-op inside an inline frame
 
+            if (tracing)
+            {
+                std::cerr << "  [OSR-inline-body] ip=" << ip
+                          << " op=" << bytecode::getOpCodeName(cinstr.opcode)
+                          << " stackDepth=" << s.stackDepth
+                          << "\n";
+                std::cerr.flush();
+            }
+
             bool handled = false;
             if (emitCoreOps(s, cinstr)) handled = true;
             else if (emitArithmeticOps(s, cinstr)) handled = true;
             else if (emitControlFlowOps(s, cinstr, onExit)) handled = true;
             else { emitObjectOps(s, cinstr); handled = true; }
             (void)handled;
+        }
+        if (tracing)
+        {
+            std::cerr << "[OSR-inline-body-exit] callee=" << callee.name
+                      << " stackDepth=" << s.stackDepth
+                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
+                      << "\n";
+            std::cerr.flush();
         }
     }
 
@@ -804,6 +857,26 @@ namespace vm::jit
         // --- Join ---
         cc.bind(endLabel);
         s.arrayInfoCache.clear();  // conservative: inlined body may have touched fields
+
+        // MYT-251: end-of-emission trace so we can tell compile-time vs
+        // runtime crash. If this prints for every inline candidate but the
+        // process still crashes, the bug is at runtime (in the emitted
+        // code). If a candidate's start trace prints but its end trace
+        // doesn't, the bug is at compile time inside the body emission.
+        static const bool osrInlineTrace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (osrInlineTrace && s.currentCompilingFn.empty())
+        {
+            std::cerr << "[OSR-inline-end-mono] ip=" << s.currentIP
+                      << " callee=" << callee->name
+                      << " stackDepth=" << s.stackDepth
+                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
+                      << "\n";
+            std::cerr.flush();
+        }
+
         return true;
     }
 
@@ -994,6 +1067,21 @@ namespace vm::jit
 
         cc.bind(endLabel);
         s.arrayInfoCache.clear();
+
+        // MYT-251: matching end-trace for POLY (see MONO version).
+        static const bool osrInlineTracePoly = []() {
+            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (osrInlineTracePoly && s.currentCompilingFn.empty())
+        {
+            std::cerr << "[OSR-inline-end-poly] ip=" << s.currentIP
+                      << " stackDepth=" << s.stackDepth
+                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
+                      << "\n";
+            std::cerr.flush();
+        }
+
         return true;
     }
 
@@ -1006,12 +1094,44 @@ namespace vm::jit
     static bool tryEmitInlinedMethodCall(JitEmissionState& s,
                                           const bytecode::BytecodeProgram::Instruction& instr)
     {
-        // MYT-251: speculative method inlining is now permitted for
-        // OSR-emitted loop bodies. Bisection (Steps 1–3) confirmed the
-        // helper doesn't throw, the wider stack/locals budgets are safe,
-        // and the function-level guards reject over-budget candidates
-        // cleanly. The MYT-248/249/250 workaround
-        // (s.currentCompilingFn.empty() bail) is removed.
+        // MYT-251: OSR-loop inlining is now ENABLED BY DEFAULT after the
+        // root-cause fix in emitInlineCalleeBody (the bogus stackDepth
+        // reset at jump-label binding inside the inlined body). Set
+        // MTYPE_ENABLE_OSR_INLINING=0 to re-disable for diagnosis if a
+        // regression surfaces.
+        static const bool osrInliningEnabled = []() {
+            const char* v = std::getenv("MTYPE_ENABLE_OSR_INLINING");
+            // Default: enabled. Only the explicit "0" disables.
+            return !(v && v[0] == '0' && v[1] == '\0');
+        }();
+        static const bool osrInlineTrace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        // MYT-251: per-process cap on OSR inlines for bisecting which call
+        // site plants the corruption. Set MTYPE_OSR_INLINE_LIMIT=N to allow
+        // only the first N OSR-context inlines; subsequent sites bail to
+        // the generic path. Default 0 (no limit) when unset.
+        static const long osrInlineLimit = []() -> long {
+            const char* v = std::getenv("MTYPE_OSR_INLINE_LIMIT");
+            if (!v || !*v) return 0;
+            char* endp = nullptr;
+            long n = std::strtol(v, &endp, 10);
+            return (endp && *endp == '\0' && n >= 0) ? n : 0;
+        }();
+        static long osrInlineCount = 0;
+        const bool isOSRContext = s.currentCompilingFn.empty();
+        if (isOSRContext && !osrInliningEnabled) return false;
+        if (isOSRContext && osrInlineLimit > 0 && osrInlineCount >= osrInlineLimit)
+        {
+            if (osrInlineTrace)
+            {
+                std::cerr << "[OSR-inline] ip=" << s.currentIP
+                          << " SKIPPED (limit " << osrInlineLimit << " reached)\n";
+                std::cerr.flush();
+            }
+            return false;
+        }
 
         // Global override — MTYPE_DISABLE_INLINING=1 turns off all
         // speculative inlining (function-level too) for diagnosis or
@@ -1032,12 +1152,69 @@ namespace vm::jit
         // MYT-210: telemetry — every site decision (including INLINE) is
         // counted so --jit-stats can report the eligibility breakdown.
         if (s.inlineDecisions) s.inlineDecisions->bumpMethod(decision);
+
+        // MYT-251: trace every OSR-context decision so the next repro
+        // shows exactly which call sites are evaluated and what verdict
+        // checkInlineEligibility returned (in particular, whether the
+        // self-recursion check fires — it shouldn't, since it short-
+        // circuits on empty currentCompilingFn).
+        if (isOSRContext && osrInlineTrace)
+        {
+            const char* calleeName = "<unknown>";
+            if (cache.entryCount > 0 && cache.entries[0].funcMetadata)
+            {
+                const auto* m = static_cast<
+                    const bytecode::BytecodeProgram::FunctionMetadata*>(
+                        cache.entries[0].funcMetadata);
+                if (!m->name.empty()) calleeName = m->name.c_str();
+                else if (!m->mangledName.empty()) calleeName = m->mangledName.c_str();
+            }
+            std::cerr << "[OSR-inline] ip=" << s.currentIP
+                      << " callee=" << calleeName
+                      << " icState=" << static_cast<int>(cache.state)
+                      << " entries=" << static_cast<int>(cache.entryCount)
+                      << " decision=" << optimization::inlineDecisionName(decision)
+                      << " inlineDepth=" << s.inlineStack.size()
+                      << " stackDepth=" << s.stackDepth
+                      << " usesBoxedTypes=" << (s.usesBoxedTypes ? "1" : "0")
+                      << "\n";
+            std::cerr.flush();
+        }
+
         if (decision != optimization::InlineDecision::INLINE) return false;
 
         // Boxed-mode callee only: inlining assumes the caller emits in boxed
         // mode (guaranteed by scanOpcodesForBoxedTypes tripping on CALL_METHOD).
         // Bail if we somehow got here in unboxed mode.
         if (!s.usesBoxedTypes) return false;
+
+        // MYT-251 bisection: optionally skip value-object receivers in OSR
+        // context. Bool::xor (the first inline that plants the corruption
+        // in boxed_primitive_dispatch_hot) has a value-object receiver.
+        // Toggle MTYPE_OSR_SKIP_VALUE_OBJECT=1 to confirm the value-object
+        // path is the bug.
+        static const bool osrSkipValueObject = []() {
+            const char* v = std::getenv("MTYPE_OSR_SKIP_VALUE_OBJECT");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (isOSRContext && osrSkipValueObject)
+        {
+            bool anyValueObj = false;
+            for (uint8_t i = 0; i < cache.entryCount; ++i)
+                if (cache.entries[i].receiverIsValueObject) { anyValueObj = true; break; }
+            if (anyValueObj)
+            {
+                if (osrInlineTrace)
+                {
+                    std::cerr << "[OSR-inline] ip=" << s.currentIP
+                              << " SKIPPED (value-object receiver, MTYPE_OSR_SKIP_VALUE_OBJECT=1)\n";
+                    std::cerr.flush();
+                }
+                return false;
+            }
+        }
+
+        if (isOSRContext) ++osrInlineCount;
 
         if (cache.state == ic::ICState::MONOMORPHIC)
             return emitInlinedMethodCallMono(s, instr, cache);

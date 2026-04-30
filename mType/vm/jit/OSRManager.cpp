@@ -86,6 +86,21 @@ namespace vm::jit
         }
 
         osrCache[jumpBackOffset] = fn;
+
+        // MYT-251: gated by MTYPE_TRACE_OSR_INLINE — confirms the OSR-loop
+        // compile finished and the function is cached. If we see this print
+        // followed by a crash, the bug is at runtime; if we don't see it,
+        // the crash is during compilation.
+        static const bool trace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (trace) {
+            std::cerr << "[OSR-compile-done] jumpBackOffset=" << jumpBackOffset
+                      << " key=" << osrKey << "\n";
+            std::cerr.flush();
+        }
+
         return true;
     }
 

@@ -5,6 +5,8 @@
 #include "../bytecode/OpCode.hpp"
 #include <asmjit/x86.h>
 #include <unordered_set>
+#include <iostream>  // MYT-251: MTYPE_TRACE_OSR_INLINE diagnostic
+#include <cstdlib>   // MYT-251: getenv for MTYPE_TRACE_OSR_INLINE
 
 namespace vm::jit
 {
@@ -253,6 +255,13 @@ namespace vm::jit
                                     size_t loopStartOffset, size_t loopEndOffset,
                                     const bytecode::BytecodeProgram& program)
     {
+        // MYT-251: per-opcode trace so the crash phase narrows beyond
+        // tryEmitInlinedMethodCall. Gate behind same env var so trace is
+        // off by default. Prints just before each emit dispatch.
+        static const bool osrCodegenTrace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
         for (size_t ip = loopStartOffset; ip <= loopEndOffset && !s.compileFailed; ++ip)
         {
             auto labelIt = s.labels.find(ip);
@@ -270,6 +279,16 @@ namespace vm::jit
             s.currentIP = ip;
 
             uint8_t opByte = static_cast<uint8_t>(instr.opcode);
+
+            if (osrCodegenTrace)
+            {
+                std::cerr << "[OSR-codegen] ip=" << ip
+                          << " op=" << bytecode::getOpCodeName(instr.opcode)
+                          << "(0x" << std::hex << static_cast<int>(opByte) << std::dec << ")"
+                          << " stackDepth=" << s.stackDepth
+                          << "\n";
+                std::cerr.flush();
+            }
 
             if (emitCoreOps(s, instr)) continue;
             if (emitArithmeticOps(s, instr)) continue;

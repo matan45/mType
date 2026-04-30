@@ -1161,12 +1161,31 @@ int main(int argc, char* argv[])
         return 2;
     }
 
-    // Clean up GC to avoid static destruction order issues
-    gc::GC::shutdown();
-
-    // Cleanup reflection static state to avoid static destruction order issues
-    reflection::ReflectionNatives::cleanup();
-    json::JsonNatives::cleanup();
+    // MYT-251: post-main cleanup runs OUTSIDE the main try/catch. Prior
+    // failures along the inlining path produced exit code 0xE06D7363
+    // (MSVC C++ exception) with NO diagnostic output — the throw escaped
+    // here. Wrap so any cleanup-time exception surfaces a typed name
+    // before the process tears down.
+    try
+    {
+        gc::GC::shutdown();
+        reflection::ReflectionNatives::cleanup();
+        json::JsonNatives::cleanup();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[cleanup] caught std::exception during post-main shutdown: "
+                  << typeid(e).name() << ": " << e.what() << "\n";
+        std::cerr.flush();
+        return 3;
+    }
+    catch (...)
+    {
+        std::cerr << "[cleanup] caught unknown (non-std) exception during "
+                  << "post-main shutdown.\n";
+        std::cerr.flush();
+        return 4;
+    }
 
     return 0;
 }
