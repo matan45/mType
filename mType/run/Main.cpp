@@ -34,6 +34,48 @@
 #include <sstream>
 #include <string>
 #include <filesystem>
+#include <exception>
+#include <cstdlib>
+#include <typeinfo>
+
+namespace {
+    // MYT-251: route std::terminate through our printer. The previous
+    // attempt at the inlining real-fix exited with `0xE06D7363` (MSVC
+    // C++ exception SEH magic) and zero output — neither the SEH filter
+    // below nor the OSR catch handlers in OSRManager::executeOSRLoop
+    // saw it because the C++ unwind path runs `std::terminate()` before
+    // the OS surfaces the SEH event. This handler prints the typed
+    // exception name + message before aborting so future failures
+    // surface a usable diagnostic.
+    [[noreturn]] void mtype_terminate_handler() noexcept
+    {
+        std::cerr.flush();
+        std::cerr << "\nFATAL: std::terminate invoked"
+#ifdef _WIN32
+                  << " (likely C++ exception escape — exit code 0xE06D7363 family)"
+#endif
+                  << ".\n";
+        if (auto eptr = std::current_exception())
+        {
+            try {
+                std::rethrow_exception(eptr);
+            }
+            catch (const std::exception& e) {
+                std::cerr << "  active exception: " << typeid(e).name()
+                          << ": " << e.what() << "\n";
+            }
+            catch (...) {
+                std::cerr << "  active exception: <non-std type, unknown>\n";
+            }
+        }
+        else
+        {
+            std::cerr << "  no active exception object (called directly).\n";
+        }
+        std::cerr.flush();
+        std::abort();
+    }
+}
 
 #ifdef _WIN32
 // MYT-248/249/250: SEH top-level filter so JIT-emitted code that triggers a
@@ -70,6 +112,12 @@ using namespace environment;
 
 int main(int argc, char* argv[])
 {
+    // MYT-251: install the std::terminate handler before any user code runs
+    // (cross-platform, complementary to the Windows SEH filter below). The
+    // previous inlining attempt exited silently with 0xE06D7363; this is
+    // the diagnostic that catches that path next time.
+    std::set_terminate(mtype_terminate_handler);
+
 #ifdef _WIN32
     // MYT-248/249/250: install before any JIT compilation runs so silent SEH
     // failures inside the JIT or its native helpers (the symptom of these

@@ -189,19 +189,19 @@ namespace vm::jit
         uint64_t* tailCallsOptimized = nullptr;
         uint64_t* selfDirectCalls = nullptr;
 
-        // MYT-251: tried widening 64 → 256 along with peak pre-scan and
-        // workaround removal. Combo tripped a C++ exception (exit code
-        // 0xE06D7363) on first repro that bypassed both the SEH filter
-        // and the OSR catch handlers. Reverted to original 64 while the
-        // real fix is investigated; MYT-248/249/250 workaround
-        // (s.currentCompilingFn.empty() bail) restored in
-        // tryEmitInlinedMethodCall.
-        static constexpr size_t MAX_OP_STACK = 64;
+        // MYT-251 step 2: constants widened (64 → 256, 32 → 96) alone, with
+        // the MYT-248/249/250 workaround (s.currentCompilingFn.empty() bail
+        // in tryEmitInlinedMethodCall) still active. While the workaround
+        // is in place OSR-loop inlining doesn't fire — these wider budgets
+        // only affect frame sizing in setupOSRFrame and
+        // setupCompilationFrame. Step 3 plumbs in the peak-scan guards on
+        // function-level inlining; step 4 removes the workaround and lets
+        // OSR-emitted bodies inline again.
+        static constexpr size_t MAX_OP_STACK = 256;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
 
-        // MYT-251: see MAX_OP_STACK comment. Reverted from 96 → 32 for
-        // the same reason.
-        static constexpr size_t INLINE_LOCALS_SLACK = 32;
+        // MYT-251 step 2: see MAX_OP_STACK comment.
+        static constexpr size_t INLINE_LOCALS_SLACK = 96;
     };
 
     // MYT-251: bounds-check stackDepth bumps in JIT emit. Belt-and-suspenders

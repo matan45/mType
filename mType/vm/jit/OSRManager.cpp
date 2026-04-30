@@ -30,17 +30,46 @@ namespace vm::jit
         outReason = OSRBailoutReason::NONE;
         outOffendingOpcode = 0;
 
-        bool compiled = compiler.compileLoopOSR(
-            state.loopStartOffset,
-            state.loopEndOffset,
-            state.jumpBackOffset,
-            state.locals,
-            state.localCount,
-            program,
-            codeCache,
-            typeFeedback,
-            &outReason,
-            &outOffendingOpcode);
+        // MYT-251: the asmjit codegen path is otherwise uninstrumented all
+        // the way from compileLoopOSR -> tryOSR -> handleJumpBack to the VM
+        // loop's catch(UserException&) (which doesn't catch std::exception).
+        // Wrap the call so codegen-time exceptions surface with a typed
+        // diagnostic and demote the loop to interpreter execution instead
+        // of escaping silently (the prior fix attempt exited 0xE06D7363
+        // with no output along this path).
+        bool compiled = false;
+        try
+        {
+            compiled = compiler.compileLoopOSR(
+                state.loopStartOffset,
+                state.loopEndOffset,
+                state.jumpBackOffset,
+                state.locals,
+                state.localCount,
+                program,
+                codeCache,
+                typeFeedback,
+                &outReason,
+                &outOffendingOpcode);
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "[OSR-compile] caught std::exception during compileLoopOSR: "
+                      << typeid(e).name() << ": " << e.what()
+                      << " (jumpBackOffset=" << jumpBackOffset << ")\n";
+            std::cerr.flush();
+            outReason = OSRBailoutReason::CODEGEN_FAILURE;
+            return false;
+        }
+        catch (...)
+        {
+            std::cerr << "[OSR-compile] caught unknown (non-std) exception during "
+                      << "compileLoopOSR (jumpBackOffset=" << jumpBackOffset
+                      << "). Likely asmjit internal failure or SEH-translated event.\n";
+            std::cerr.flush();
+            outReason = OSRBailoutReason::CODEGEN_FAILURE;
+            return false;
+        }
 
         if (!compiled)
         {

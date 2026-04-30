@@ -8197,6 +8197,12 @@
     <None Include="tests\testFiles\integration\pass\inlining\inline_nested.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_osr_stress.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_osr_stress.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_poly.expected">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
@@ -9921,6 +9927,9 @@
     </None>
     <None Include="tests\testFiles\lib\collections\Stack.mt">
       <Filter>testFiles\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\ClassNotFoundException.mt">
+      <Filter>testFiles\lib\exceptions</Filter>
     </None>
     <None Include="tests\testFiles\lib\exceptions\Exception.mt">
       <Filter>testFiles\lib\exceptions</Filter>

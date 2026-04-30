@@ -288,6 +288,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline Nested Depth-2",
                                   passPath + "inlining/inline_nested.mt");
 
+        // MYT-251: 500k-iteration depth-2 chain — exercises speculative
+        // method inlining inside an OSR-compiled hot loop body. Regression
+        // guard for the silent-exit failure mode of MYT-248/249/250.
+        addOutputVerificationTest("Inline OSR Hot-Loop Stress",
+                                  passPath + "inlining/inline_osr_stress.mt");
+
         // MYT-165 Phase F-c: polymorphic inlining with chained shape guards.
         addOutputVerificationTest("Inline Polymorphic Chained Guards",
                                   passPath + "inlining/inline_poly.mt");

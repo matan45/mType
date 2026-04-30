@@ -35,38 +35,52 @@ namespace vm::jit
         const bytecode::BytecodeProgram& program,
         const bytecode::BytecodeProgram::FunctionMetadata& callee)
     {
-        using DFA = optimization::analysis::DataFlowAnalyzer;
-        int depth = 0;
-        int peak  = 0;
-        const size_t end = callee.startOffset + callee.instructionCount;
-        for (size_t ip = callee.startOffset; ip < end; ++ip)
+        // MYT-251 step 1: cheap insurance — wrap the body so any throw from
+        // within (DFA reading, bytecode access, etc.) returns a safe-failure
+        // sentinel rather than escaping. The eventual guard is
+        // `s.stackDepth + calleePeak > MAX_OP_STACK`, so returning
+        // MAX_OP_STACK + 1 forces every caller to reject the candidate
+        // cleanly. This eliminates the helper as a candidate root cause
+        // for any future bisection failure.
+        try
         {
-            const auto& instr = program.getInstruction(ip);
-            DFA::StackEffect e = DFA::calculateStackEffect(instr.opcode);
-            int net = e.netEffect;
-            // DFA returns (0,0) for opcodes it doesn't classify. Treat that
-            // as a conservative +1 net push so we don't under-estimate
-            // peak depth from CALL_METHOD / NEW_INSTANCE / etc.
-            if (e.consumed == 0 && e.produced == 0
-                && instr.opcode != bytecode::OpCode::NOP
-                && instr.opcode != bytecode::OpCode::JUMP
-                && instr.opcode != bytecode::OpCode::JUMP_BACK
-                && instr.opcode != bytecode::OpCode::LINE
-                && instr.opcode != bytecode::OpCode::SOURCE_FILE
-                && instr.opcode != bytecode::OpCode::LOOP_START
-                && instr.opcode != bytecode::OpCode::LOOP_END
-                && instr.opcode != bytecode::OpCode::SWAP
-                && instr.opcode != bytecode::OpCode::RETURN)
+            using DFA = optimization::analysis::DataFlowAnalyzer;
+            int depth = 0;
+            int peak  = 0;
+            const size_t end = callee.startOffset + callee.instructionCount;
+            for (size_t ip = callee.startOffset; ip < end; ++ip)
             {
-                net = 1;
+                const auto& instr = program.getInstruction(ip);
+                DFA::StackEffect e = DFA::calculateStackEffect(instr.opcode);
+                int net = e.netEffect;
+                // DFA returns (0,0) for opcodes it doesn't classify. Treat that
+                // as a conservative +1 net push so we don't under-estimate
+                // peak depth from CALL_METHOD / NEW_INSTANCE / etc.
+                if (e.consumed == 0 && e.produced == 0
+                    && instr.opcode != bytecode::OpCode::NOP
+                    && instr.opcode != bytecode::OpCode::JUMP
+                    && instr.opcode != bytecode::OpCode::JUMP_BACK
+                    && instr.opcode != bytecode::OpCode::LINE
+                    && instr.opcode != bytecode::OpCode::SOURCE_FILE
+                    && instr.opcode != bytecode::OpCode::LOOP_START
+                    && instr.opcode != bytecode::OpCode::LOOP_END
+                    && instr.opcode != bytecode::OpCode::SWAP
+                    && instr.opcode != bytecode::OpCode::RETURN)
+                {
+                    net = 1;
+                }
+                // First account the consumes (caps depth from going negative on
+                // a partially-classified op), then the net.
+                depth += net;
+                if (depth < 0) depth = 0;
+                if (depth > peak) peak = depth;
             }
-            // First account the consumes (caps depth from going negative on
-            // a partially-classified op), then the net.
-            depth += net;
-            if (depth < 0) depth = 0;
-            if (depth > peak) peak = depth;
+            return static_cast<size_t>(peak);
         }
-        return static_cast<size_t>(peak);
+        catch (...)
+        {
+            return JitEmissionState::MAX_OP_STACK + 1;
+        }
     }
 
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount, size_t destStartSlot)
@@ -661,11 +675,18 @@ namespace vm::jit
             > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
             return false;
 
-        // MYT-251: peak-operand-stack guard temporarily reverted — caused
-        // unhandled C++ exception (exit 0xE06D7363) when combined with the
-        // wider MAX_OP_STACK / INLINE_LOCALS_SLACK budgets. Helper
-        // computeCalleePeakOperandStack remains defined for the next
-        // attempt at the real fix; do not remove it.
+        // MYT-251 step 3a: peak-operand-stack guard. Reject candidates whose
+        // caller_depth + callee_peak would exceed MAX_OP_STACK — the
+        // overflow that smashed /GS cookies in MYT-248/249/250. With the
+        // workaround at tryEmitInlinedMethodCall still active, this guard
+        // only runs from function-level JIT (currentCompilingFn non-empty);
+        // OSR-loop inlining doesn't reach here until step 4.
+        {
+            const size_t calleePeak = computeCalleePeakOperandStack(s.program, *callee);
+            if (static_cast<size_t>(s.stackDepth) + calleePeak
+                > JitEmissionState::MAX_OP_STACK)
+                return false;
+        }
 
         auto& cc = s.cc;
         asmjit::Label slowLabel = cc.new_label();
@@ -814,8 +835,11 @@ namespace vm::jit
 
         // Per-entry argcount sanity + max-localCount computation. Only one
         // shape body runs per call, so the shared locals window is sized
-        // to the largest callee (MAX, not SUM).
+        // to the largest callee (MAX, not SUM). MYT-251 step 3b: same
+        // logic for the operand-stack peak — accumulate the worst case
+        // across entries so the shared frame fits any shape that runs.
         size_t maxLocalCount = 0;
+        size_t maxCalleePeak = 0;
         for (uint8_t i = 0; i < entryCount; ++i)
         {
             const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
@@ -823,6 +847,8 @@ namespace vm::jit
             if (callee->parameterCount != argCount + 1) return false;
             if (callee->localCount > maxLocalCount)
                 maxLocalCount = callee->localCount;
+            const size_t p = computeCalleePeakOperandStack(s.program, *callee);
+            if (p > maxCalleePeak) maxCalleePeak = p;
         }
 
         const size_t localsBaseSlot = s.inlineStack.empty()
@@ -833,8 +859,12 @@ namespace vm::jit
             > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
             return false;
 
-        // MYT-251: peak-operand-stack guard temporarily reverted — see
-        // emitInlinedMethodCallMono.
+        // MYT-251 step 3b: peak-operand-stack guard. See MONO emitter for
+        // the rationale; same gating (workaround active → function-level
+        // JIT only at this step).
+        if (static_cast<size_t>(s.stackDepth) + maxCalleePeak
+            > JitEmissionState::MAX_OP_STACK)
+            return false;
 
 #ifndef NDEBUG
         // MethodInlineCache::addEntry already dedupes by shape; defensive check
@@ -976,18 +1006,12 @@ namespace vm::jit
     static bool tryEmitInlinedMethodCall(JitEmissionState& s,
                                           const bytecode::BytecodeProgram::Instruction& instr)
     {
-        // MYT-251: the real-fix attempt (peak pre-scan + checkOpStackHeadroom
-        // + workaround removal) tripped a C++ exception (exit 0xE06D7363) on
-        // first repro that bypassed both the SEH filter and the OSR catch
-        // handlers — root cause not yet localized. Restoring the
-        // MYT-248/249/250 workaround so the original bug stays fixed while
-        // the real fix is iterated. The wider MAX_OP_STACK (256) and
-        // INLINE_LOCALS_SLACK (96), the static computeCalleePeakOperandStack
-        // helper, and the new guards are all kept — they're inert for OSR
-        // (this early-return runs first) but improve function-level JIT
-        // inlining headroom and provide the framework for a corrected
-        // version of the fix.
-        if (s.currentCompilingFn.empty()) return false;
+        // MYT-251: speculative method inlining is now permitted for
+        // OSR-emitted loop bodies. Bisection (Steps 1–3) confirmed the
+        // helper doesn't throw, the wider stack/locals budgets are safe,
+        // and the function-level guards reject over-budget candidates
+        // cleanly. The MYT-248/249/250 workaround
+        // (s.currentCompilingFn.empty() bail) is removed.
 
         // Global override — MTYPE_DISABLE_INLINING=1 turns off all
         // speculative inlining (function-level too) for diagnosis or
