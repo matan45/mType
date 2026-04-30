@@ -34,7 +34,8 @@ namespace vm::runtime::utils
         {
             if (isNullValue(objectValue))
             {
-                ErrorLocationHelper::throwError<errors::NullPointerException>(context,
+                ErrorLocationHelper::throwUserException(context,
+                    "NullPointerException",
                     "Cannot " + operation + " '" + name + "' on null object");
             }
         }

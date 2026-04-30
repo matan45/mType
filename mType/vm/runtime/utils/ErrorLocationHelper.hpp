@@ -1,8 +1,11 @@
 #pragma once
 #include <optional>
+#include <string>
 #include "../context/ExecutionContext.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/SourceLocation.hpp"
+
+namespace environment { class Environment; }
 
 namespace vm::runtime::utils
 {
@@ -62,5 +65,33 @@ namespace vm::runtime::utils
                 throw ExceptionType(message);
             }
         }
+
+        /**
+         * Construct an instance of the user-level Exception subclass `typeName`
+         * (resolved through the running environment's ClassRegistry), populate
+         * its `message` field, and throw it as `errors::UserException` so the
+         * existing `catch (errors::UserException&)` dispatch in the VM loop
+         * routes it through the function's ExceptionTable. If `typeName` is
+         * not loaded, falls back through "RuntimeException" -> "Exception" ->
+         * plain `errors::RuntimeException` so unimported scripts keep their
+         * old abort-on-runtime-error behaviour.
+         *
+         * Lifts MYT-243 (array bounds), MYT-244 (null receiver, CALL_METHOD
+         * non-object), MYT-246 (reflection forName).
+         */
+        [[noreturn]] static void throwUserException(
+            const ExecutionContext& context,
+            const std::string& typeName,
+            const std::string& message);
+
+        /**
+         * Same bridge for native callers that hold an Environment but no
+         * ExecutionContext (e.g. reflection / net natives). Source location
+         * is left empty — the dispatch loop attaches the catch-site IP.
+         */
+        [[noreturn]] static void throwUserException(
+            const std::shared_ptr<environment::Environment>& env,
+            const std::string& typeName,
+            const std::string& message);
     };
 }

@@ -9,6 +9,7 @@
 #include "../types/UnifiedType.hpp"
 #include "../types/ReifiedTypeRegistry.hpp"
 #include "../environment/registry/ClassRegistry.hpp"
+#include "../vm/runtime/utils/ErrorLocationHelper.hpp"
 #include <cctype>
 #include <utility>
 
@@ -132,14 +133,16 @@ namespace reflection
          */
         ::types::UnifiedTypePtr resolveToReifiedType(
             const std::string& typeExpr,
-            environment::Environment* env)
+            const std::shared_ptr<environment::Environment>& env)
         {
             auto [baseName, argStrings] = parseTypeNameArgs(typeExpr);
 
             auto baseDef = env->findClass(baseName);
             if (!baseDef)
             {
-                throw errors::RuntimeException("Class not found: " + baseName);
+                vm::runtime::utils::ErrorLocationHelper::throwUserException(
+                    env, "ClassNotFoundException",
+                    "Class not found: " + baseName);
             }
 
             std::vector<::types::UnifiedTypePtr> argTypes;
@@ -174,13 +177,15 @@ namespace reflection
         // "Box" handle.
         if (className.find('<') != std::string::npos)
         {
-            auto reified = resolveToReifiedType(className, ctx.env.get());
+            auto reified = resolveToReifiedType(className, ctx.env);
             auto baseDef = ctx.env->findClass(reified->getName());
             if (!baseDef)
             {
                 // resolveToReifiedType already verifies the base is resolvable,
                 // but guard defensively in case interning normalized the name.
-                throw errors::RuntimeException("Class not found: " + reified->getName());
+                vm::runtime::utils::ErrorLocationHelper::throwUserException(
+                    ctx.env, "ClassNotFoundException",
+                    "Class not found: " + reified->getName());
             }
             int64_t handle = registry.getOrCreateClosedClassHandle(baseDef, reified);
             return static_cast<int>(handle);
@@ -190,7 +195,9 @@ namespace reflection
         auto classDef = ctx.env->findClass(className);
         if (!classDef)
         {
-            throw errors::RuntimeException("Class not found: " + className);
+            vm::runtime::utils::ErrorLocationHelper::throwUserException(
+                ctx.env, "ClassNotFoundException",
+                "Class not found: " + className);
         }
 
         int64_t handle = registry.getOrCreateClassHandle(classDef);
