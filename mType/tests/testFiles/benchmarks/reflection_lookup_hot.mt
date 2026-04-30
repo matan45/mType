@@ -34,7 +34,7 @@ for (int i = 0; i < N; i = i + 1) {
     Field field = klass.getDeclaredField("value");
     Method add = klass.getMethod("add", 1);
     Method mul = klass.getMethod("mul", 1);
-    total = total + field.getName().length() + add.getParameterCount() + mul.getParameterCount();
+    total = total + strLength(field.getName()) + add.getParameterCount() + mul.getParameterCount();
 }
 
 print("reflection_lookup_hot total=" + total);
