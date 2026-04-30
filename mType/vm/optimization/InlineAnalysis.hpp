@@ -61,10 +61,18 @@ namespace vm::optimization
     constexpr size_t INLINE_SIZE_LIMIT = 32;
 
     // Max nested inline depth. The caller tracks depth in JitEmissionState
-    // (inlineStack.size()). F-a ships with depth 1 only (restriction forbids
-    // nested CALL); kept at 2 so F-b can unlock nested inlining without
-    // re-checking the constant.
-    constexpr size_t INLINE_DEPTH_LIMIT = 2;
+    // (inlineStack.size()). F-a originally shipped depth 1; F-b raised to
+    // 2 for nested-inline support.
+    //
+    // MYT-251 interim: lowered back to 1 because nested inlining (depth 2)
+    // hangs stream_pipeline_hot when the inlined chain is
+    // MappingIterator::hasNext → FilteringIterator::hasNext. Depth-1
+    // inlining (single level) is verified correct with the new
+    // inlinedCallingClassStack access check; nested inlining surfaces a
+    // separate runtime bug that was previously masked by the broad
+    // OSR-inlining workaround. Promote back to 2 once the nested-inline
+    // hang is rooted.
+    constexpr size_t INLINE_DEPTH_LIMIT = 1;
 
     // MYT-251: `isOSRCompilation` makes the OSR-context signal explicit.
     // Previously the self-recursion check below short-circuited silently

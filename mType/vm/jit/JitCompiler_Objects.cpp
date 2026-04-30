@@ -559,18 +559,24 @@ namespace vm::jit
         return storage.back().c_str();
     }
 
-    // MYT-251: derive owner-class name from the callee's mangledName.
-    // Format is "ClassName::method/sig" for instance methods. Free
-    // functions have no "::" and return an empty string, which the
-    // push helper treats as "use outer ctx->callingClassName" (no
-    // override).
+    // MYT-251: derive owner-class name from the callee's qualified name.
+    // For class methods registered by MethodCompilerHelper, `metadata.name`
+    // is the qualified name "ClassName::method/sig" while `mangledName`
+    // is left empty (only FunctionCompiler sets mangledName, for free
+    // functions). For instance methods we therefore prefer `name`; if
+    // it lacks "::" we fall back to mangledName, then to empty (free
+    // function — push pushes "" which the validator falls back from).
     static const char* deriveOwnerClassNameCStr(
         const bytecode::BytecodeProgram::FunctionMetadata& callee)
     {
-        const std::string& mn = callee.mangledName;
-        size_t pos = mn.find("::");
-        if (pos == std::string::npos) return internInlinedClassName(std::string());
-        return internInlinedClassName(mn.substr(0, pos));
+        auto extractClass = [](const std::string& s) -> std::string {
+            size_t pos = s.find("::");
+            return pos == std::string::npos ? std::string() : s.substr(0, pos);
+        };
+        std::string fromName = extractClass(callee.name);
+        if (!fromName.empty()) return internInlinedClassName(std::move(fromName));
+        std::string fromMangled = extractClass(callee.mangledName);
+        return internInlinedClassName(std::move(fromMangled));
     }
 
     static void emitInlineCalleeBody(
@@ -628,25 +634,18 @@ namespace vm::jit
         // (before the jmp to endLabel).
         const char* ownerClassCstr = deriveOwnerClassNameCStr(callee);
         {
-            // ctx->inlinedCallingClassNames[depth] = ownerClassCstr
-            // ctx->inlinedCallingClassDepth = depth + 1
-            //
-            // Compute slotAddr = ctx + offsetof(names) + depth*8 with
-            // only base+displacement Mem operands so we don't depend on
-            // asmjit's indexed-addressing form (uncommon in this codebase).
-            Gp depthReg = cc.new_gp64();
-            cc.mov(depthReg, qword_ptr(s.ctxPtr,
-                static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
-            cc.shl(depthReg, 3);  // depth * 8 (sizeof(const char*))
-            Gp slotAddr = cc.new_gp64();
-            cc.lea(slotAddr, Mem(s.ctxPtr,
-                static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassNames))));
-            cc.add(slotAddr, depthReg);
+            // asmjit emits in source order: load nameReg with the
+            // interned c_str pointer BEFORE cc.invoke, otherwise the
+            // call fires while nameReg still holds its prior value.
+            // Pattern matches emitGetFieldHelperInvoke (lines 173-187).
             Gp nameReg = cc.new_gp64();
             cc.mov(nameReg, reinterpret_cast<uint64_t>(ownerClassCstr));
-            cc.mov(qword_ptr(slotAddr), nameReg);
-            cc.inc(qword_ptr(s.ctxPtr,
-                static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
+            InvokeNode* push = nullptr;
+            cc.invoke(Out(push),
+                      reinterpret_cast<uint64_t>(jit_push_inlined_class),
+                      FuncSignature::build<void, JitContext*, const char*>());
+            push->set_arg(0, s.ctxPtr);
+            push->set_arg(1, nameReg);
         }
 
         for (size_t ip = callee.startOffset;
@@ -745,8 +744,13 @@ namespace vm::jit
         // onExit handler also pops. Both pop sites are emitted at compile
         // time; only one runs per execution because RETURN_VALUE jumps to
         // endLabel before this fall-through is reached.
-        cc.dec(qword_ptr(s.ctxPtr,
-            static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
+        {
+            InvokeNode* pop = nullptr;
+            cc.invoke(Out(pop),
+                      reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                      FuncSignature::build<void, JitContext*>());
+            pop->set_arg(0, s.ctxPtr);
+        }
 
         if (tracing)
         {
@@ -949,8 +953,13 @@ namespace vm::jit
             // the RETURN_VALUE path before jumping to endLabel so post-
             // inline code sees the correct caller-class context for any
             // subsequent field-access checks.
-            es.cc.dec(qword_ptr(es.ctxPtr,
-                static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
+            {
+                InvokeNode* pop = nullptr;
+                es.cc.invoke(Out(pop),
+                          reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                          FuncSignature::build<void, JitContext*>());
+                pop->set_arg(0, es.ctxPtr);
+            }
             es.cc.jmp(endLabel);
         };
 
@@ -1176,8 +1185,13 @@ namespace vm::jit
                 emitInlineLocalDestroy(es, localsBaseSlot, *callee);
                 // MYT-251: pop the inlined-callee class pushed at body
                 // entry. See MONO onExit for the rationale.
-                es.cc.dec(qword_ptr(es.ctxPtr,
-                    static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
+                {
+                    InvokeNode* pop = nullptr;
+                    es.cc.invoke(Out(pop),
+                              reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                              FuncSignature::build<void, JitContext*>());
+                    pop->set_arg(0, es.ctxPtr);
+                }
                 es.cc.jmp(endLabel);
             };
 
@@ -1232,20 +1246,26 @@ namespace vm::jit
     static bool tryEmitInlinedMethodCall(JitEmissionState& s,
                                           const bytecode::BytecodeProgram::Instruction& instr)
     {
-        // MYT-251: OSR-loop inlining is gated behind MTYPE_ENABLE_OSR_INLINING=1.
-        // The label-reset bug in emitInlineCalleeBody is now fixed (was driving
-        // stackDepth negative on short-circuit operator labels — caused
-        // STATUS_HEAP_CORRUPTION on boxed_primitive_dispatch_hot). However,
-        // enabling OSR inlining still surfaces additional correctness bugs:
-        // - boxed_primitive_dispatch_hot runs without crashing but produces
-        //   wrong output (Int/Bool/String method results all wrong)
-        // - stream_pipeline_hot / reflection_lookup_hot crash with 0xE06D7363
-        //   (unhandled C++ exception)
-        // Default is disabled until those are localized and fixed; opt in
-        // with the env var for further investigation.
+        // MYT-251: OSR-loop inlining re-enabled by default. The original
+        // root causes are fixed:
+        // - Label-reset bug in emitInlineCalleeBody (was driving stackDepth
+        //   negative on short-circuit operator labels) — fixed earlier in
+        //   the ticket; STATUS_HEAP_CORRUPTION on boxed_primitive_dispatch_hot
+        //   no longer reproduces.
+        // - Private-field access from an inlined callee body running inside
+        //   a different outer class now passes through the
+        //   inlinedCallingClassNames stack on JitContext (push at body
+        //   entry, pop at body exit) so jitValidateFieldAccess validates
+        //   against the callee's owner class rather than the OSR loop's
+        //   outer class. Resolves the silent 0xE06D7363
+        //   AccessViolationException on stream_pipeline_hot /
+        //   reflection_lookup_hot.
+        // Set MTYPE_ENABLE_OSR_INLINING=0 to disable for diagnosis if a
+        // regression resurfaces.
         static const bool osrInliningEnabled = []() {
             const char* v = std::getenv("MTYPE_ENABLE_OSR_INLINING");
-            return v && v[0] == '1' && v[1] == '\0';
+            // Default: enabled. Only explicit "0" disables.
+            return !(v && v[0] == '0' && v[1] == '\0');
         }();
         static const bool osrInlineTrace = []() {
             const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
