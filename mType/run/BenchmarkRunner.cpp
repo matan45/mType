@@ -31,7 +31,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 24> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 35> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -92,6 +92,18 @@ namespace
         // not on the non-generic hot path, so non-generic benchmarks must
         // not regress.
         "generic_dispatch_hot.mt",
+        // Runtime feature-surface coverage beyond the core VM hot paths above.
+        "try_catch_finally_hot.mt",
+        "switch_dispatch_hot.mt",
+        "overload_dispatch_hot.mt",
+        "abstract_dispatch_hot.mt",
+        "cast_hot.mt",
+        "collections_hash_hot.mt",
+        "stream_pipeline_hot.mt",
+        "reflection_lookup_hot.mt",
+        "pattern_match_hot.mt",
+        "string_interpolation_hot.mt",
+        "boxed_primitive_dispatch_hot.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";

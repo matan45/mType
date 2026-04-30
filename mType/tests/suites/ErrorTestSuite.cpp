@@ -601,5 +601,116 @@ namespace tests::testSuite
                         passPath + "nestedTryFinallyExceptionMasking.mt");
         addOutputVerificationTest("Throw Null Checked At Site",
                         passPath + "throwNullCheckedAtSite.mt");
+
+        // ====================================
+        // NEW COMBO TESTS — try/catch x other features
+        // Each pair is a try/catch/finally surface combined with one
+        // other language feature that wasn't previously exercised
+        // (final modifiers, overloading, annotations + reflection,
+        // do-while, foreach, casts, imports + alias, streams, value
+        // class, recursion, etc.).
+        // ====================================
+
+        // Group A: class-shape combinations
+        addOutputVerificationTest("Error Abstract Method Override",
+                        passPath + "errorAbstractMethodOverride_pass.mt");
+        addOutputVerificationTest("Error Final Var In Catch",
+                        passPath + "errorFinalVarInCatch_pass.mt");
+        addOutputVerificationTest("Error Final Method Throws",
+                        passPath + "errorFinalMethodThrows_pass.mt");
+        addOutputVerificationTest("Error Overloaded Throws",
+                        passPath + "errorOverloadedThrows_pass.mt");
+        addOutputVerificationTest("Error Annotation On Thrower",
+                        passPath + "errorAnnotationOnThrower_pass.mt");
+
+        // Group B: control flow
+        addOutputVerificationTest("Error For Loop Continue On Throw",
+                        passPath + "errorForLoopContinueOnThrow_pass.mt");
+        addOutputVerificationTest("Error While Retry Until Success",
+                        passPath + "errorWhileRetryUntilSuccess_pass.mt");
+        addOutputVerificationTest("Error Do While Finally Always",
+                        passPath + "errorDoWhileFinallyAlways_pass.mt");
+        addOutputVerificationTest("Error ForEach Skip Bad Item",
+                        passPath + "errorForEachSkipBadItem_pass.mt");
+        addOutputVerificationTest("Error ForEach Abort Iteration",
+                        passPath + "errorForEachAbortIteration_pass.mt");
+
+        // Group C: data shapes
+        addOutputVerificationTest("Error Array Bounds Caught",
+                        passPath + "errorArrayBoundsCaught_pass.mt");
+        addOutputVerificationTest("Error Array Null Element Caught",
+                        passPath + "errorArrayNullElementCaught_pass.mt");
+        addOutputVerificationTest("Error Cast Failure Caught",
+                        passPath + "errorCastFailureCaught_pass.mt");
+
+        // Group D: modules / pipelines
+        addOutputVerificationTest("Error Imported Function Throws",
+                        passPath + "errorImportedFunctionThrows_pass.mt");
+        addOutputVerificationTest("Error Import Alias Exception",
+                        passPath + "errorImportAliasException_pass.mt");
+        addOutputVerificationTest("Error Stream Lambda Throws",
+                        passPath + "errorStreamLambdaThrows_pass.mt");
+        addOutputVerificationTest("Error Reflect ClassNotFound Caught",
+                        passPath + "errorReflectClassNotFoundCaught_pass.mt");
+        addOutputVerificationTest("Error Reflect Invoke Throws",
+                        passPath + "errorReflectInvokeThrows_pass.mt");
+
+        // Group E: modifiers / visibility
+        addOutputVerificationTest("Error Static Method Throws Finally",
+                        passPath + "errorStaticMethodThrowsFinally_pass.mt");
+        addOutputVerificationTest("Error Private Field Finally Cleanup",
+                        passPath + "errorPrivateFieldFinallyCleanup_pass.mt");
+
+        // Group F: switch / match / interpolation / pool
+        addOutputVerificationTest("Error Switch Default Throws Caught",
+                        passPath + "errorSwitchDefaultThrowsCaught_pass.mt");
+        addOutputVerificationTest("Error Match Pattern Throws",
+                        passPath + "errorMatchPatternThrows_pass.mt");
+        addOutputVerificationTest("Error Interpolated Exception Message",
+                        passPath + "errorInterpolatedExceptionMessage_pass.mt");
+        addOutputVerificationTest("Error String Pool Across Throw",
+                        passPath + "errorStringPoolAcrossThrow_pass.mt");
+
+        // Group G: recursion / box / value class
+        addOutputVerificationTest("Error Recursion Finally Count",
+                        passPath + "errorRecursionFinallyCount_pass.mt");
+        addOutputVerificationTest("Error Box Class Throw Unbox",
+                        passPath + "errorBoxClassThrowUnbox_pass.mt");
+        addOutputVerificationTest("Error Value Class In Try Catch",
+                        passPath + "errorValueClassInTryCatch_pass.mt");
+
+        // Group H: polymorphism / multi-catch
+        addOutputVerificationTest("Error Virtual Throw Caught As Base",
+                        passPath + "errorVirtualThrowCaughtAsBase_pass.mt");
+        addOutputVerificationTest("Error Multi Custom Exception Types",
+                        passPath + "errorMultiCustomExceptionTypes_pass.mt");
+
+        // Error tests for the same combos — compile-time and runtime
+        // failures that the surrounding feature must reject.
+        addTestFromFile("Error Final Reassign In Catch",
+                        errorPath + "errorFinalReassignInCatch_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "final");
+        addTestFromFile("Error Final Method Override",
+                        errorPath + "errorFinalMethodOverride_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Error Annotation Wrong Target",
+                        errorPath + "errorAnnotationWrongTarget_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Error Array Bounds Uncaught",
+                        errorPath + "errorArrayBoundsUncaught_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "out of bounds");
+        addTestFromFile("Error Bad Cast Uncaught",
+                        errorPath + "errorBadCastUncaught_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Cannot cast");
+        addTestFromFile("Error Stream Lambda Uncaught",
+                        errorPath + "errorStreamLambdaUncaught_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Error Instantiate Abstract Exception",
+                        errorPath + "errorInstantiateAbstractException_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "abstract");
     }
 }
