@@ -702,12 +702,14 @@ namespace vm::jit
         // existing equality / hierarchy walk works unchanged.
         std::string callerStr;
         const std::string* callerPtr = nullptr;
+        bool resolvedFromInlinedStack = false;
         if (ctx->inlinedCallingClassDepth > 0)
         {
             const char* top =
                 ctx->inlinedCallingClassNames[ctx->inlinedCallingClassDepth - 1];
             callerStr.assign(top ? top : "");
             callerPtr = &callerStr;
+            resolvedFromInlinedStack = true;
         }
         else
         {
@@ -715,6 +717,28 @@ namespace vm::jit
         }
         const std::string& caller = *callerPtr;
         bool isSameClass = (caller == targetClassName);
+
+        // MYT-252: opt-in trace to confirm the inlined-caller-stack leak
+        // hypothesis on stream_pipeline_hot. Prints which source resolved
+        // the caller (inlined-stack vs callingClassName), the resolved
+        // depth, and the access target. Gated by MTYPE_TRACE_FIELD_ACCESS=1
+        // so cost is one branch on the field-access hot path. Permanent
+        // debug aid — leave silent by default.
+        static const bool fieldAccessTrace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_FIELD_ACCESS");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (fieldAccessTrace)
+        {
+            std::cerr << "[FIELD_ACCESS] caller=" << caller
+                      << " target=" << targetClassName
+                      << " field=" << fieldName
+                      << " depth=" << ctx->inlinedCallingClassDepth
+                      << " via=" << (resolvedFromInlinedStack
+                                     ? "inlined" : "callingClassName")
+                      << "\n";
+            std::cerr.flush();
+        }
 
         if (modifier == ast::AccessModifier::PRIVATE)
         {

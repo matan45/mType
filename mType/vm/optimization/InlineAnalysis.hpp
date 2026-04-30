@@ -64,15 +64,38 @@ namespace vm::optimization
     // (inlineStack.size()). F-a originally shipped depth 1; F-b raised to
     // 2 for nested-inline support.
     //
-    // MYT-251 interim: lowered back to 1 because nested inlining (depth 2)
-    // hangs stream_pipeline_hot when the inlined chain is
-    // MappingIterator::hasNext → FilteringIterator::hasNext. Depth-1
-    // inlining (single level) is verified correct with the new
-    // inlinedCallingClassStack access check; nested inlining surfaces a
-    // separate runtime bug that was previously masked by the broad
-    // OSR-inlining workaround. Promote back to 2 once the nested-inline
-    // hang is rooted.
-    constexpr size_t INLINE_DEPTH_LIMIT = 1;
+    // MYT-252: set to 0 (speculative inlining disabled entirely) as a
+    // hard workaround. Two distinct bugs were on the path to a healthy
+    // LIMIT >= 1:
+    //
+    //  (a) GET_FIELD on a primitive field in usesBoxedTypes mode wrote
+    //      only to boxedBase, but downstream NOT / JUMP_IF_FALSE /
+    //      JUMP_IF_TRUE / arith read raw primitives from stackBase —
+    //      CALL_METHOD's slow path mirrors via emitReturnValueCopyBoxed
+    //      (MYT-154); GET_FIELD had no equivalent. Fixed in
+    //      emitGetFieldHelperInvoke + tryEmitInlinedFieldGet (this branch).
+    //      Verified at LIMIT=2 with N=5 (single-iteration JIT scenarios).
+    //
+    //  (b) A separate multi-iteration hang remains on stream_pipeline_hot
+    //      (N >= ~50) at LIMIT >= 1: count()'s second OSR'd invocation
+    //      reads FilteringIterator's hasNextElement field as permanently
+    //      true, looping forever. SET_FIELD on hasNextElement is observed
+    //      to never reach jit_field_set_at or jit_set_field_ic — advance()
+    //      is running entirely in the interpreter, but the JIT'd count()
+    //      loop's view of hasNextElement isn't being invalidated. Likely
+    //      class of bug: OSR re-entry / shape-cache invalidation across
+    //      function-call boundaries (cousin of MYT-248/249/250 silent-OSR
+    //      issues). Tracked as MYT-254. Disabling inlining (this constant
+    //      = 0), nested inlining only (= 1), or OSR (MTYPE_DISABLE_OSR=1)
+    //      all clear the hang.
+    //
+    // The "InlineDepthGuard" hypothesis from earlier comment iterations
+    // was unrelated and stays reverted.
+    //
+    // Re-raising this constant (back to 1 for depth-1 wins, or 2 for the
+    // original F-b nested-inline target) requires MYT-254 to be rooted
+    // first — even depth-1 reproduces the multi-iter hang on this branch.
+    constexpr size_t INLINE_DEPTH_LIMIT = 0;
 
     // MYT-251: `isOSRCompilation` makes the OSR-context signal explicit.
     // Previously the self-recursion check below short-circuited silently

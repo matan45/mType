@@ -5,6 +5,8 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
 #include <new>
+#include <iostream> // MYT-252 / MYT-254: MTYPE_TRACE_BACKEDGE diagnostic
+#include <cstdlib>  // MYT-252 / MYT-254: getenv
 
 namespace vm::jit
 {
@@ -90,6 +92,22 @@ namespace vm::jit
 
         void jit_gc_safepoint()
         {
+            // MYT-252 / MYT-254 diagnostic: progress tracer — fires once
+            // per GC_CHECK_INTERVAL JUMP_BACK / tail-call edges. Useful
+            // for telling apart "JIT loop is iterating" vs "JIT loop is
+            // wedged" during the open multi-iteration hang.
+            static const bool backEdgeTrace = []() {
+                const char* v = std::getenv("MTYPE_TRACE_BACKEDGE");
+                return v && v[0] == '1' && v[1] == '\0';
+            }();
+            if (backEdgeTrace)
+            {
+                static thread_local uint64_t s_safepointCounter = 0;
+                std::cerr << "[BACKEDGE] safepoint #" << ++s_safepointCounter
+                          << "\n";
+                std::cerr.flush();
+            }
+
             // Reached only when the inline polling counter emitted by JIT
             // JUMP_BACK / tail-call crosses gc::config::GC_CHECK_INTERVAL.
             // Reset the counter here, not on the hot emitted path.

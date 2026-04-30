@@ -188,6 +188,24 @@ namespace vm::jit
         inv->set_arg(3, ipReg);
         inv->set_arg(4, idx);
         inv->set_arg(5, flagsReg);
+
+        // MYT-252: mirror primitive payload from boxedBase to stackBase so
+        // primitive consumers (NOT/JUMP_IF_FALSE/JUMP_IF_TRUE/arith)
+        // read the right value. Mirrors emitReturnValueCopyBoxed
+        // (MYT-154); jit_unbox_int returns 0 for non-numeric variants —
+        // harmless, boxed-mode consumers re-read variant from boxedBase
+        // anyway and ignore the unboxed mirror. One mirror per field
+        // read costs less than per-consumer unbox.
+        Gp unboxAddr = cc.new_gp64();
+        cc.lea(unboxAddr, Mem(s.boxedBase,
+                              static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+        InvokeNode* unbox;
+        cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        unbox->set_arg(0, unboxAddr);
+        Gp unboxed = cc.new_gp64();
+        unbox->set_ret(0, unboxed);
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), unboxed);
     }
 
     // MYT-172 AC #3: speculative-inline GET_FIELD when the field IC is in
@@ -213,6 +231,19 @@ namespace vm::jit
         if (!s.typeFeedback) return false;
         if (!s.usesBoxedTypes) return false;
         if (!s.inlineFieldICHits || !s.inlineFieldICMisses) return false;
+
+        // MYT-252: opt-in disable of the inline-IC fast path. When set,
+        // every GET_FIELD goes through emitGetFieldHelperInvoke (slow path)
+        // which always calls jit_get_field_ic → validateFieldAccessIfNeeded.
+        // Used to test whether the depth-2 hang originates inside this
+        // inline emit path (raw 16-byte memcpy bypassing access validation
+        // and the IC's runtime correctness checks). If the program runs
+        // fine with this disabled, the bug is here.
+        static const bool disableInlineFieldGet = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_INLINE_FIELD_GET");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (disableInlineFieldGet) return false;
 
         auto& icTable = s.typeFeedback->getICTable();
         if (!icTable.hasFieldIC(s.currentIP)) return false;
@@ -272,6 +303,17 @@ namespace vm::jit
         Vec tmp = cc.new_xmm();
         cc.movdqu(tmp, xmmword_ptr(srcAddr, 0));
         cc.movdqu(xmmword_ptr(destAddr, 0), tmp);
+
+        // MYT-252: mirror primitive variant payload (byte 8 onwards) to
+        // stackBase[receiverIdx] so primitive consumers see the unboxed
+        // value. Match the slow path's mirror via jit_unbox_int. The
+        // tag-check at step 4 already restricted to INT/FLOAT/BOOL, so
+        // the variant payload is a raw int64 / double at offset 8.
+        // Skip jit_unbox_int's helper-call cost — we know the layout:
+        // qword_ptr(srcAddr, 8) is the primitive payload.
+        Gp primPayload = cc.new_gp64();
+        cc.mov(primPayload, qword_ptr(srcAddr, 8));
+        cc.mov(Mem(s.stackBase, receiverIdx * 8), primPayload);
 
         // 7. Bump the inline-hit counter (address baked at compile time).
         Gp hitsAddr = cc.new_gp64();
@@ -372,6 +414,13 @@ namespace vm::jit
         if (!s.typeFeedback) return false;
         if (!s.usesBoxedTypes) return false;
         if (!s.inlineFieldSetICHits || !s.inlineFieldSetICMisses) return false;
+
+        // MYT-252: opt-in disable. See tryEmitInlinedFieldGet's gate.
+        static const bool disableInlineFieldSet = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_INLINE_FIELD_SET");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (disableInlineFieldSet) return false;
 
         auto& icTable = s.typeFeedback->getICTable();
         if (!icTable.hasFieldIC(s.currentIP)) return false;
@@ -618,6 +667,23 @@ namespace vm::jit
             std::cerr.flush();
         }
 
+        // MYT-252: comprehensive non-OSR-gated body trace.
+        static const bool inlineEmitTrace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_INLINE_EMIT");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (inlineEmitTrace)
+        {
+            std::cerr << "[INLINE_EMIT] BODY_ENTER callee=" << callee.name
+                      << " baseline=" << stackBaselineIdx
+                      << " inlineLocalsBase=" << s.inlineLocalsBase
+                      << " stackDepth=" << s.stackDepth
+                      << " bodyOps=" << callee.instructionCount
+                      << " depth=" << s.inlineStack.size()
+                      << "\n";
+            std::cerr.flush();
+        }
+
         // MYT-251: push the callee's owner class onto
         // ctx->inlinedCallingClassNames so private/protected field-access
         // checks inside the inlined body are validated against the right
@@ -691,6 +757,15 @@ namespace vm::jit
                           << "\n";
                 std::cerr.flush();
             }
+            if (inlineEmitTrace)
+            {
+                std::cerr << "  [INLINE_EMIT] OP ip=" << ip
+                          << " op=" << bytecode::getOpCodeName(cinstr.opcode)
+                          << " stackDepth=" << s.stackDepth
+                          << " depth=" << s.inlineStack.size()
+                          << "\n";
+                std::cerr.flush();
+            }
 
             // MYT-251: emit a cc.invoke to jit_trace_runtime_op so the
             // last opcode reached at runtime is visible before any silent
@@ -757,6 +832,15 @@ namespace vm::jit
             std::cerr << "[OSR-inline-body-exit] callee=" << callee.name
                       << " stackDepth=" << s.stackDepth
                       << " compileFailed=" << (s.compileFailed ? "1" : "0")
+                      << "\n";
+            std::cerr.flush();
+        }
+        if (inlineEmitTrace)
+        {
+            std::cerr << "[INLINE_EMIT] BODY_EXIT callee=" << callee.name
+                      << " stackDepth=" << s.stackDepth
+                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
+                      << " depth=" << s.inlineStack.size()
                       << "\n";
             std::cerr.flush();
         }
@@ -920,6 +1004,29 @@ namespace vm::jit
         s.inlineStack.push_back(frame);
         s.inlineLocalsBase = localsBaseSlot;
 
+        // MYT-252: comprehensive inline emit trace. Gated by
+        // MTYPE_TRACE_INLINE_EMIT=1. Prints frame push, inline-locals base,
+        // receiver/args layout, and depth so we can compare LIMIT=1 vs
+        // LIMIT=2 emit sequences end-to-end.
+        static const bool inlineEmitTrace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_INLINE_EMIT");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (inlineEmitTrace)
+        {
+            std::cerr << "[INLINE_EMIT] PUSH_FRAME callee=" << callee->name
+                      << " ip=" << s.currentIP
+                      << " depth=" << s.inlineStack.size()
+                      << " receiverStackIdx=" << receiverStackIdx
+                      << " localsBaseSlot=" << localsBaseSlot
+                      << " localCount=" << callee->localCount
+                      << " parameterCount=" << callee->parameterCount
+                      << " bodyOps=" << callee->instructionCount
+                      << " usesBoxedTypes=" << (s.usesBoxedTypes ? "1" : "0")
+                      << "\n";
+            std::cerr.flush();
+        }
+
         // Pop argCount+1 entries from slotTypes and align stackDepth so the
         // callee starts with an empty logical operand stack positioned where
         // the caller's receiver used to be.
@@ -976,6 +1083,17 @@ namespace vm::jit
         // matching state for the slow path).
         s.inlineStack.pop_back();
         s.inlineLocalsBase = prevInlineBase;
+
+        if (inlineEmitTrace)
+        {
+            std::cerr << "[INLINE_EMIT] POP_FRAME callee=" << callee->name
+                      << " ip=" << s.currentIP
+                      << " depth_after=" << s.inlineStack.size()
+                      << " stackDepth=" << s.stackDepth
+                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
+                      << "\n";
+            std::cerr.flush();
+        }
 
         if (s.compileFailed) return true;  // caller short-circuits; function aborts
 
@@ -1310,6 +1428,26 @@ namespace vm::jit
         }();
         if (inliningDisabled) return false;
 
+        // MYT-252: opt-in disable of nested inlining only (depth-1 still
+        // fires; depth-2 falls back to the generic slow path).
+        // Equivalent semantically to INLINE_DEPTH_LIMIT=1 but lets us
+        // toggle without recompiling. If the program runs with this set
+        // but hangs without it, the bug is specific to nested inline
+        // emission, not the depth-1 inline path.
+        static const bool disableNestedInlining = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_NESTED_INLINING");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (disableNestedInlining && !s.inlineStack.empty())
+        {
+            std::cerr << "[INLINE_PATH] ip=" << s.currentIP
+                      << " REJECTED_BY_DISABLE_NESTED depth="
+                      << s.inlineStack.size() << "\n";
+            std::cerr.flush();
+            return false;
+        }
+
+
         if (!s.typeFeedback) return false;
         auto& icTable = s.typeFeedback->getICTable();
         if (!icTable.hasMethodIC(s.currentIP)) return false;
@@ -1401,12 +1539,33 @@ namespace vm::jit
             s.compileFailed = true;
             return true;
         }
+        // MYT-252: per-site trace of which path the emitter took.
+        static const bool inlinePathTrace = []() {
+            const char* v = std::getenv("MTYPE_TRACE_INLINE_PATH");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        const size_t depth = s.inlineStack.size();
+        const size_t ip = s.currentIP;
         // MYT-163: attempt speculative inlining. On success the helper emits
         // both the shape-guarded fast path and the slow-path fallback. On
         // ineligible sites (cold IC, polymorphic, ValueObject receiver, etc.)
         // it returns false and we emit the generic path unchanged.
         if (tryEmitInlinedMethodCall(s, instr))
+        {
+            if (inlinePathTrace)
+            {
+                std::cerr << "[INLINE_PATH] ip=" << ip
+                          << " depth=" << depth << " path=INLINE\n";
+                std::cerr.flush();
+            }
             return true;
+        }
+        if (inlinePathTrace)
+        {
+            std::cerr << "[INLINE_PATH] ip=" << ip
+                      << " depth=" << depth << " path=GENERIC_SLOW\n";
+            std::cerr.flush();
+        }
         emitCallMethodOpGeneric(s, instr);
         return true;
     }
