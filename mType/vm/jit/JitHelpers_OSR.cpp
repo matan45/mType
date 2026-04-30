@@ -40,19 +40,25 @@ namespace vm::jit
         }
 
         // MYT-251: push/pop the inlined callee's owner-class for field
-        // access validation. Both helpers are noexcept-able no-ops on a
-        // bad ctx — the JIT pipeline only invokes them with a live ctx.
+        // access validation. The JIT-emit path lowers these to a few
+        // inline mov/inc/dec instructions; these C functions exist as
+        // a fallback / declared-but-unused path so the externally-linked
+        // symbols stay defined for any caller.
         void jit_push_inlined_class(JitContext* ctx, const char* name)
         {
             if (!ctx) return;
-            ctx->inlinedCallingClassStack.emplace_back(name ? name : "");
+            if (ctx->inlinedCallingClassDepth < JitContext::MAX_INLINED_CLASS_DEPTH)
+            {
+                ctx->inlinedCallingClassNames[ctx->inlinedCallingClassDepth] = name;
+                ++ctx->inlinedCallingClassDepth;
+            }
         }
 
         void jit_pop_inlined_class(JitContext* ctx)
         {
             if (!ctx) return;
-            if (!ctx->inlinedCallingClassStack.empty())
-                ctx->inlinedCallingClassStack.pop_back();
+            if (ctx->inlinedCallingClassDepth > 0)
+                --ctx->inlinedCallingClassDepth;
         }
 
         // MYT-251: dump a Value's tag and raw bytes. Useful for confirming

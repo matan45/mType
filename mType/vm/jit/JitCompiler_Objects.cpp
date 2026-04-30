@@ -612,26 +612,41 @@ namespace vm::jit
             std::cerr.flush();
         }
 
-        // MYT-251: push the callee's owner class onto ctx->inlinedCallingClassStack
-        // so private/protected field-access checks inside the inlined body
-        // are validated against the right class (the callee's owner), not
-        // the outer function's class. Symptom without this push: an
-        // OSR-inlined `ListIterator::hasNext` body running inside a
-        // FilteringIterator OSR loop throws AccessViolationException on
-        // its own `this.currentIndex` read, because the helper sees
-        // ctx->callingClassName == "FilteringIterator". Pop is emitted
-        // both at fall-through (after the body loop) and inside each
-        // RETURN_VALUE's onExit handler (before the jmp to endLabel).
+        // MYT-251: push the callee's owner class onto
+        // ctx->inlinedCallingClassNames so private/protected field-access
+        // checks inside the inlined body are validated against the right
+        // class (the callee's owner), not the outer function's class.
+        // Without this an OSR-inlined `ListIterator::hasNext` body
+        // running inside a FilteringIterator OSR loop throws
+        // AccessViolationException on its own `this.currentIndex` read,
+        // because the helper sees ctx->callingClassName == "FilteringIterator".
+        //
+        // Emitted as a few inline instructions (not cc.invoke) so the
+        // per-inlined-call overhead is ~3 mov + 1 inc rather than a
+        // function call. Pop is emitted both at fall-through (after the
+        // body loop) and inside each RETURN_VALUE's onExit handler
+        // (before the jmp to endLabel).
         const char* ownerClassCstr = deriveOwnerClassNameCStr(callee);
         {
-            InvokeNode* push = nullptr;
-            cc.invoke(Out(push),
-                      reinterpret_cast<uint64_t>(jit_push_inlined_class),
-                      FuncSignature::build<void, JitContext*, const char*>());
-            push->set_arg(0, s.ctxPtr);
+            // ctx->inlinedCallingClassNames[depth] = ownerClassCstr
+            // ctx->inlinedCallingClassDepth = depth + 1
+            //
+            // Compute slotAddr = ctx + offsetof(names) + depth*8 with
+            // only base+displacement Mem operands so we don't depend on
+            // asmjit's indexed-addressing form (uncommon in this codebase).
+            Gp depthReg = cc.new_gp64();
+            cc.mov(depthReg, qword_ptr(s.ctxPtr,
+                static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
+            cc.shl(depthReg, 3);  // depth * 8 (sizeof(const char*))
+            Gp slotAddr = cc.new_gp64();
+            cc.lea(slotAddr, Mem(s.ctxPtr,
+                static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassNames))));
+            cc.add(slotAddr, depthReg);
             Gp nameReg = cc.new_gp64();
             cc.mov(nameReg, reinterpret_cast<uint64_t>(ownerClassCstr));
-            push->set_arg(1, nameReg);
+            cc.mov(qword_ptr(slotAddr), nameReg);
+            cc.inc(qword_ptr(s.ctxPtr,
+                static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
         }
 
         for (size_t ip = callee.startOffset;
@@ -730,13 +745,8 @@ namespace vm::jit
         // onExit handler also pops. Both pop sites are emitted at compile
         // time; only one runs per execution because RETURN_VALUE jumps to
         // endLabel before this fall-through is reached.
-        {
-            InvokeNode* pop = nullptr;
-            cc.invoke(Out(pop),
-                      reinterpret_cast<uint64_t>(jit_pop_inlined_class),
-                      FuncSignature::build<void, JitContext*>());
-            pop->set_arg(0, s.ctxPtr);
-        }
+        cc.dec(qword_ptr(s.ctxPtr,
+            static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
 
         if (tracing)
         {
@@ -939,13 +949,8 @@ namespace vm::jit
             // the RETURN_VALUE path before jumping to endLabel so post-
             // inline code sees the correct caller-class context for any
             // subsequent field-access checks.
-            {
-                InvokeNode* pop = nullptr;
-                es.cc.invoke(Out(pop),
-                          reinterpret_cast<uint64_t>(jit_pop_inlined_class),
-                          FuncSignature::build<void, JitContext*>());
-                pop->set_arg(0, es.ctxPtr);
-            }
+            es.cc.dec(qword_ptr(es.ctxPtr,
+                static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
             es.cc.jmp(endLabel);
         };
 
@@ -1171,13 +1176,8 @@ namespace vm::jit
                 emitInlineLocalDestroy(es, localsBaseSlot, *callee);
                 // MYT-251: pop the inlined-callee class pushed at body
                 // entry. See MONO onExit for the rationale.
-                {
-                    InvokeNode* pop = nullptr;
-                    es.cc.invoke(Out(pop),
-                              reinterpret_cast<uint64_t>(jit_pop_inlined_class),
-                              FuncSignature::build<void, JitContext*>());
-                    pop->set_arg(0, es.ctxPtr);
-                }
+                es.cc.dec(qword_ptr(es.ctxPtr,
+                    static_cast<int32_t>(offsetof(JitContext, inlinedCallingClassDepth))));
                 es.cc.jmp(endLabel);
             };
 

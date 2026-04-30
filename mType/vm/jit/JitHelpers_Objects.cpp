@@ -693,15 +693,27 @@ namespace vm::jit
 
         // MYT-251: when the access fires inside a JIT-inlined callee body,
         // the access perspective is the callee's owner class, not the
-        // outer function's class. The inlined-emit path pushes the owner
-        // class onto inlinedCallingClassStack so the helpers below see the
-        // correct caller. Falls back to callingClassName when the stack
-        // is empty (function-level emission, top-level OSR without
-        // inlining).
-        const std::string& caller =
-            !ctx->inlinedCallingClassStack.empty()
-                ? ctx->inlinedCallingClassStack.back()
-                : ctx->callingClassName;
+        // outer function's class. The inlined-emit path bumps
+        // inlinedCallingClassDepth and writes the callee's owner-class
+        // c-string into inlinedCallingClassNames; the helpers below
+        // prefer that override. Falls back to callingClassName when
+        // depth == 0 (function-level emission, top-level OSR without
+        // inlining). Read the c-string into a stack std::string so the
+        // existing equality / hierarchy walk works unchanged.
+        std::string callerStr;
+        const std::string* callerPtr = nullptr;
+        if (ctx->inlinedCallingClassDepth > 0)
+        {
+            const char* top =
+                ctx->inlinedCallingClassNames[ctx->inlinedCallingClassDepth - 1];
+            callerStr.assign(top ? top : "");
+            callerPtr = &callerStr;
+        }
+        else
+        {
+            callerPtr = &ctx->callingClassName;
+        }
+        const std::string& caller = *callerPtr;
         bool isSameClass = (caller == targetClassName);
 
         if (modifier == ast::AccessModifier::PRIVATE)
