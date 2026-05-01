@@ -327,7 +327,7 @@ namespace tests::testSuite
         addOutputVerificationTest("Error Multiple Interface Conflict",
                         passPath + "errorMultipleInterfaceConflict_pass.mt");
 
-        // === LAMBDA TESTS (5 tests) ===
+        // === LAMBDA TESTS (6 tests) ===
         addOutputVerificationTest("Error Lambda Capturing Exception",
                         passPath + "errorLambdaCapturingException_pass.mt");
         addOutputVerificationTest("Error Lambda Chain Exception",
@@ -338,6 +338,10 @@ namespace tests::testSuite
                         passPath + "errorLambdaThrowingException_pass.mt");
         addOutputVerificationTest("Error Higher Order Exception",
                         passPath + "errorHigherOrderException_pass.mt");
+        // MYT-254: throw inside an OSR-compiled hot loop must propagate via
+        // the JIT context's pendingException check at the loop back-edge.
+        addOutputVerificationTest("Error JIT OSR Lambda Throws Propagates",
+                        passPath + "errorJitOSRLambdaThrowsPropagates_pass.mt");
 
         // === RESOURCE MANAGEMENT TESTS (7 tests) ===
         addOutputVerificationTest("Error Resource Cleanup Multiple Fail",

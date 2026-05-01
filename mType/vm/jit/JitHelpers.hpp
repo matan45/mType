@@ -38,6 +38,17 @@ namespace vm::jit
      * keeping the hot path free from variant overhead.
      */
     extern "C" {
+        // MYT-254: check if the JIT context has a pending exception caught
+        // by a helper. Used at OSR back-edges so any silently-stored
+        // exception (jit_call_method_ic and friends store exceptions on
+        // ctx->pendingException because asmjit-generated frames can't unwind
+        // through std::exception) bails out of the JIT loop at the next
+        // iteration instead of spinning forever in no-op CALL_METHODs.
+        // Returns 1 if pending, 0 otherwise. Not noexcept-attributed even
+        // though it can't throw, so asmjit's invoke matches it as a
+        // standard C function.
+        int64_t jit_has_pending_exception(const JitContext* ctx);
+
         int64_t jit_unbox_int(const value::Value* val);
         void jit_set_return_int(JitContext* ctx, int64_t val);
         void jit_set_return_bool(JitContext* ctx, int64_t val);
@@ -195,65 +206,6 @@ namespace vm::jit
     extern "C" {
         void jit_osr_write_local(JitContext* ctx, size_t slot, const value::Value* val);
         void jit_osr_exit(JitContext* ctx, uint64_t exitOffset);
-
-        // MYT-251: runtime trace helper invokable from JIT-emitted code.
-        // Emitted at the start of each inlined-body opcode in emitInlineCalleeBody
-        // when MTYPE_TRACE_JIT_RUNTIME=1. Prints "ip=N op=X stackDepth=D" so a
-        // crash/throw inside the JIT'd region is bracketed by the last printed
-        // op — diagnoses the silent 0xE06D7363 escape route on the
-        // stream_pipeline_hot / reflection_lookup_hot benchmarks.
-        void jit_trace_runtime_op(uint64_t ip, uint64_t opcodeByte,
-                                  uint64_t stackDepth, uint64_t inlineLocalsBase);
-
-        // MYT-251: dump a Value's tag + first 16 bytes at runtime. Invoked
-        // from JIT-emitted code via cc.invoke at probe points (e.g. just
-        // before GET_FIELD_TYPED in the inlined body) so we can confirm
-        // whether the receiver Value at top-of-stack is the expected
-        // OBJECT_INSTANCE / VALUE_OBJECT or a corrupted VOID/garbage from
-        // the donation pattern.
-        void jit_trace_value(uint64_t label, const value::Value* val);
-
-        // MYT-254: per-iteration field-IC fast-path probes. Emitted from
-        // tryEmitInlinedFieldGet / tryEmitInlinedFieldSet when
-        // MTYPE_TRACE_FIELD_GET / MTYPE_TRACE_FIELD_SET is set at compile
-        // time, so the runtime path has zero overhead when the env var is
-        // off. Use to confirm whether count()'s OSR'd body sees a stale
-        // FilteringIterator.hasNextElement after a nested advance() OSR.
-        void jit_trace_field_get(uint64_t ip, uint64_t fieldIndex,
-                                 const value::Value* receiver,
-                                 const value::Value* fieldData);
-        void jit_trace_field_set(uint64_t ip, uint64_t fieldIndex,
-                                 const value::Value* receiver,
-                                 const value::Value* newValue);
-
-        // MYT-254: per-iteration receiver probe at the OSR loop's back-edge
-        // target. Gated by MTYPE_TRACE_OSR_LOOP_ITER. Prints the loop's
-        // current IP and the address of the captured receiver (locals[0])
-        // so we can tell whether the receiver pointer drifts between
-        // iterations — corruption inside emitInlineLocalCopy would surface
-        // as a changing pointer even though the source receiver is stable.
-        void jit_trace_osr_loop_iter(uint64_t ip,
-                                     const value::Value* receiver);
-
-        // MYT-254 (E1/E2 disambiguation): probe at slow-path helper return
-        // sites. Wired into emitGetFieldHelperInvoke (after jit_get_field_ic)
-        // and emitCallMethodOpGeneric (after jit_call_method_ic) when
-        // MTYPE_TRACE_HELPER_RETURN=1, so we can read what value the helper
-        // delivered back to the JIT caller. helperKind is a stable c-string
-        // pointer ("GET_FIELD" / "CALL_METHOD") baked at compile time.
-        void jit_trace_helper_return(uint64_t ip, const char* helperKind,
-                                     const value::Value* returnValue);
-
-        // MYT-254 (F-a/F-b disambiguation): receiver probe at slow-path
-        // CALL_METHOD args staging. Wired into emitCallMethodOpGeneric AFTER
-        // emitBoxCallArgs has populated ctx->callArgs and BEFORE the
-        // jit_call_method_ic invoke, gated by MTYPE_TRACE_HELPER_ARGS=1.
-        // Prints the receiver pointer (= ObjectInstance*) so we can compare
-        // against MTYPE_TRACE_INTERP_FIELD_SET writes inside the interpreter
-        // body of advance(): if they differ, F-b (receiver drift) is the bug.
-        void jit_trace_call_method_args(uint64_t ip,
-                                        const value::Value* receiver,
-                                        uint64_t argCount);
 
         // MYT-251: push/pop the JIT-inlined callee's owner class for
         // field/method access validation. Without these, an inlined

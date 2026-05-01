@@ -86,21 +86,6 @@ namespace vm::jit
         }
 
         osrCache[jumpBackOffset] = fn;
-
-        // MYT-251: gated by MTYPE_TRACE_OSR_INLINE — confirms the OSR-loop
-        // compile finished and the function is cached. If we see this print
-        // followed by a crash, the bug is at runtime; if we don't see it,
-        // the crash is during compilation.
-        static const bool trace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (trace) {
-            std::cerr << "[OSR-compile-done] jumpBackOffset=" << jumpBackOffset
-                      << " key=" << osrKey << "\n";
-            std::cerr.flush();
-        }
-
         return true;
     }
 
@@ -123,63 +108,22 @@ namespace vm::jit
         }();
         if (osrDisabled) return false;
 
-        // MYT-248/249/250: opt-in OSR tracing. Setting MTYPE_OSR_TRACE=1
-        // logs every tryOSR entry, compile attempt, and execute call so a
-        // silent crash inside the JIT'd loop becomes visible — the last
-        // line printed before silence pinpoints which step died.
-        static const bool osrTrace = []() {
-            const char* v = std::getenv("MTYPE_OSR_TRACE");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-
         LoopId loopId{jumpBackOffset};
 
         // Check if we already have compiled code for this loop
         auto cacheIt = osrCache.find(jumpBackOffset);
         if (cacheIt != osrCache.end())
         {
-            if (osrTrace) {
-                std::cerr << "[OSR] cached entry hit jumpBack=" << jumpBackOffset << "\n";
-                std::cerr.flush();
-            }
             OSRState state;
             if (captureState(state, jumpBackOffset, program, context) != OSRBailoutReason::NONE)
-            {
-                if (osrTrace) {
-                    std::cerr << "[OSR] captureState failed for cached entry jumpBack="
-                              << jumpBackOffset << "\n";
-                    std::cerr.flush();
-                }
                 return false;
-            }
-            if (osrTrace) {
-                std::cerr << "[OSR] entering JIT loop (cached) jumpBack=" << jumpBackOffset
-                          << " loopStart=" << state.loopStartOffset
-                          << " loopEnd=" << state.loopEndOffset
-                          << " resumeOffset=" << state.resumeOffset
-                          << " localCount=" << state.localCount << "\n";
-                std::cerr.flush();
-            }
-            bool ok = executeOSRLoop(cacheIt->second, state, program, context, vm, codeCache);
-            if (osrTrace) {
-                std::cerr << "[OSR] returned from JIT loop (cached) jumpBack="
-                          << jumpBackOffset << " ok=" << ok
-                          << " resumeIP=" << lastResult.resumeIP
-                          << " deopt=" << lastResult.deoptimized << "\n";
-                std::cerr.flush();
-            }
-            return ok;
+            return executeOSRLoop(cacheIt->second, state, program, context, vm, codeCache);
         }
 
         // Profile the loop — returns true on exact threshold crossing
         if (!loopProfiler.recordIteration(loopId))
         {
             return false;
-        }
-
-        if (osrTrace) {
-            std::cerr << "[OSR] loop hot, attempting compile jumpBack=" << jumpBackOffset << "\n";
-            std::cerr.flush();
         }
 
         // Loop just became hot — try to compile it.
@@ -190,11 +134,6 @@ namespace vm::jit
             captureState(state, jumpBackOffset, program, context);
         if (captureReason != OSRBailoutReason::NONE)
         {
-            if (osrTrace) {
-                std::cerr << "[OSR] captureState failed reason=" << static_cast<int>(captureReason)
-                          << " jumpBack=" << jumpBackOffset << "\n";
-                std::cerr.flush();
-            }
             loopProfiler.markFailed(loopId, captureReason);
             return false;
         }
@@ -205,13 +144,6 @@ namespace vm::jit
                                  vm.getTypeFeedbackCollector(),
                                  compileReason, compileOpcode))
         {
-            if (osrTrace) {
-                std::cerr << "[OSR] compileAndCacheLoop failed reason="
-                          << static_cast<int>(compileReason)
-                          << " offendingOpcode=" << static_cast<int>(compileOpcode)
-                          << " jumpBack=" << jumpBackOffset << "\n";
-                std::cerr.flush();
-            }
             loopProfiler.markFailed(loopId,
                                      compileReason == OSRBailoutReason::NONE
                                        ? OSRBailoutReason::CODEGEN_FAILURE
@@ -221,22 +153,7 @@ namespace vm::jit
         }
 
         loopProfiler.markCompiled(loopId);
-        if (osrTrace) {
-            std::cerr << "[OSR] compile succeeded, entering JIT loop jumpBack=" << jumpBackOffset
-                      << " loopStart=" << state.loopStartOffset
-                      << " loopEnd=" << state.loopEndOffset
-                      << " resumeOffset=" << state.resumeOffset
-                      << " localCount=" << state.localCount << "\n";
-            std::cerr.flush();
-        }
         bool ok = executeOSRLoop(osrCache[jumpBackOffset], state, program, context, vm, codeCache);
-        if (osrTrace) {
-            std::cerr << "[OSR] returned from JIT loop (fresh compile) jumpBack="
-                      << jumpBackOffset << " ok=" << ok
-                      << " resumeIP=" << lastResult.resumeIP
-                      << " deopt=" << lastResult.deoptimized << "\n";
-            std::cerr.flush();
-        }
         return ok;
     }
 
@@ -468,30 +385,24 @@ namespace vm::jit
         buildOSRContext(jitCtx, state, program, context, vm, codeCache,
                         inputLocals.data(), outputLocals.data());
 
-        // MYT-248/249/250: trace boundary across the JIT-emitted call. If
-        // the JIT'd loop crashes (SEH / abort / __fastfail), the "before"
-        // line will print but the "after" line won't — that pinpoints the
-        // failure to inside the JIT'd code rather than the C++ wrapper.
-        static const bool osrTrace = []() {
-            const char* v = std::getenv("MTYPE_OSR_TRACE");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (osrTrace) {
-            std::cerr << "[OSR] before func() jumpBack=" << state.jumpBackOffset
-                      << " loopStart=" << state.loopStartOffset
-                      << " loopEnd=" << state.loopEndOffset << "\n";
-            std::cerr.flush();
-        }
-
         try
         {
             func(&jitCtx);
 
-            if (osrTrace) {
-                std::cerr << "[OSR] after func() jumpBack=" << state.jumpBackOffset
-                          << " osrExited=" << static_cast<int>(jitCtx.osrExited)
-                          << " osrExitOffset=" << jitCtx.osrExitOffset << "\n";
-                std::cerr.flush();
+            // MYT-254: any std::exception thrown by a JIT helper (e.g. a
+            // missing receiver-kind branch in jit_call_method) is caught at
+            // the helper's site and stored on the JIT context, since
+            // exceptions can't unwind through asmjit-generated frames. The
+            // emitted OSR loop checks ctx->pendingException at every back
+            // edge (see emitOSRCodegenLoop) and falls into the osrExit
+            // handler the moment one is observed, so by the time func()
+            // returns to us pendingException is the authoritative signal.
+            // Rethrow BEFORE inspecting osrExited / writing back updatedLocals
+            // so the catch (std::exception&) below restores the pre-OSR
+            // locals and the interpreter resumes the iteration that threw.
+            if (jitCtx.pendingException)
+            {
+                std::rethrow_exception(jitCtx.pendingException);
             }
 
             if (jitCtx.osrExited)

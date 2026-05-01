@@ -10,7 +10,6 @@
 #include <asmjit/x86.h>
 #include <cassert>
 #include <cstdlib>  // MYT-248/249/250: getenv for MTYPE_DISABLE_INLINING bisect
-#include <iostream> // MYT-251: MTYPE_TRACE_OSR_INLINE diagnostic
 #include <deque>    // MYT-251: stable storage for interned class names
 #include <string>   // MYT-251
 
@@ -189,31 +188,6 @@ namespace vm::jit
         inv->set_arg(4, idx);
         inv->set_arg(5, flagsReg);
 
-        // MYT-254 (E1/E2 disambiguation): runtime probe at slow-path
-        // GET_FIELD return. `dest` already points at the boxedBase slot
-        // jit_get_field_ic just wrote into, so we can dump it directly.
-        // Gated by MTYPE_TRACE_HELPER_RETURN; cached static so disabled
-        // trace = zero runtime overhead.
-        static const bool traceHelperReturnGet = []() {
-            const char* v = std::getenv("MTYPE_TRACE_HELPER_RETURN");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (traceHelperReturnGet)
-        {
-            Gp ipReg2 = cc.new_gp64();
-            cc.mov(ipReg2, static_cast<int64_t>(s.currentIP));
-            Gp kindReg = cc.new_gp64();
-            cc.mov(kindReg, reinterpret_cast<uint64_t>("GET_FIELD"));
-            InvokeNode* trc = nullptr;
-            cc.invoke(Out(trc),
-                      reinterpret_cast<uint64_t>(jit_trace_helper_return),
-                      FuncSignature::build<void, uint64_t, const char*,
-                                                 const value::Value*>());
-            trc->set_arg(0, ipReg2);
-            trc->set_arg(1, kindReg);
-            trc->set_arg(2, dest);
-        }
-
         // MYT-252: mirror primitive payload from boxedBase to stackBase so
         // primitive consumers (NOT/JUMP_IF_FALSE/JUMP_IF_TRUE/arith)
         // read the right value. Mirrors emitReturnValueCopyBoxed
@@ -309,32 +283,6 @@ namespace vm::jit
         Gp srcAddr = cc.new_gp64();
         cc.lea(srcAddr, Mem(dataPtr,
                             static_cast<int32_t>(fieldIndex * valueSize)));
-
-        // MYT-254: optional runtime probe — gated by MTYPE_TRACE_FIELD_GET
-        // at compile time so the runtime path has zero overhead when off.
-        // Cached via a function-scope static so the env-var lookup runs
-        // once per process (matches the pattern at lines 242-245).
-        static const bool traceFieldGet = []() {
-            const char* v = std::getenv("MTYPE_TRACE_FIELD_GET");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (traceFieldGet)
-        {
-            Gp ipReg = cc.new_gp64();
-            cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
-            Gp fieldIdxReg = cc.new_gp64();
-            cc.mov(fieldIdxReg, static_cast<int64_t>(fieldIndex));
-            InvokeNode* trc = nullptr;
-            cc.invoke(Out(trc),
-                      reinterpret_cast<uint64_t>(jit_trace_field_get),
-                      FuncSignature::build<void, uint64_t, uint64_t,
-                                                 const value::Value*,
-                                                 const value::Value*>());
-            trc->set_arg(0, ipReg);
-            trc->set_arg(1, fieldIdxReg);
-            trc->set_arg(2, receiverAddr);
-            trc->set_arg(3, srcAddr);
-        }
 
         // 4. Inline only when the field tag is a small primitive (INT/FLOAT/
         //    BOOL = 0/1/2). VOID/NULL_TYPE and heap tags fall to the slow
@@ -516,32 +464,6 @@ namespace vm::jit
         Gp fieldIdxReg = cc.new_gp64();
         cc.mov(fieldIdxReg, static_cast<int64_t>(fieldIndex));
 
-        // MYT-254: optional runtime probe — gated by MTYPE_TRACE_FIELD_SET
-        // at compile time. Emitted before the cc.invoke(jit_field_set_at)
-        // so the trace shows what value is about to be written. Mirrors
-        // tryEmitInlinedFieldGet's MTYPE_TRACE_FIELD_GET probe.
-        static const bool traceFieldSet = []() {
-            const char* v = std::getenv("MTYPE_TRACE_FIELD_SET");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (traceFieldSet)
-        {
-            Gp ipReg = cc.new_gp64();
-            cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
-            Gp fieldIdxTraceReg = cc.new_gp64();
-            cc.mov(fieldIdxTraceReg, static_cast<int64_t>(fieldIndex));
-            InvokeNode* trc = nullptr;
-            cc.invoke(Out(trc),
-                      reinterpret_cast<uint64_t>(jit_trace_field_set),
-                      FuncSignature::build<void, uint64_t, uint64_t,
-                                                 const value::Value*,
-                                                 const value::Value*>());
-            trc->set_arg(0, ipReg);
-            trc->set_arg(1, fieldIdxTraceReg);
-            trc->set_arg(2, slotAddr);
-            trc->set_arg(3, newValAddr);
-        }
-
         Gp retReg = cc.new_gp64();
         InvokeNode* setInv;
         cc.invoke(Out(setInv), reinterpret_cast<uint64_t>(jit_field_set_at),
@@ -712,55 +634,7 @@ namespace vm::jit
         int stackBaselineIdx,
         const ExitHandler& onExit)
     {
-        // MYT-251: per-opcode trace inside the inlined callee body. Gated
-        // by MTYPE_TRACE_OSR_INLINE so it only fires for OSR-context inline
-        // emission. Helps identify which body opcode plants the corruption.
-        static const bool osrBodyTrace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        const bool tracing = osrBodyTrace && s.isOSRCompilation;
-
-        // MYT-251: runtime per-opcode trace gate. When MTYPE_TRACE_JIT_RUNTIME=1
-        // is set at process start, every inlined-body opcode emits a cc.invoke
-        // to jit_trace_runtime_op so the LAST line printed before a silent
-        // crash identifies the broken op. Decided once per process to avoid
-        // per-emit env-var lookups; emission overhead is significant
-        // (one cc.invoke per inlined op) so it must be opt-in.
-        static const bool runtimeTrace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_JIT_RUNTIME");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        const bool emitRuntimeTrace = runtimeTrace && s.isOSRCompilation;
-
         auto& cc = s.cc;
-        if (tracing)
-        {
-            std::cerr << "[OSR-inline-body-enter] callee=" << callee.name
-                      << " baseline=" << stackBaselineIdx
-                      << " inlineLocalsBase=" << s.inlineLocalsBase
-                      << " stackDepth=" << s.stackDepth
-                      << " bodyOps=" << callee.instructionCount
-                      << "\n";
-            std::cerr.flush();
-        }
-
-        // MYT-252: comprehensive non-OSR-gated body trace.
-        static const bool inlineEmitTrace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_INLINE_EMIT");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (inlineEmitTrace)
-        {
-            std::cerr << "[INLINE_EMIT] BODY_ENTER callee=" << callee.name
-                      << " baseline=" << stackBaselineIdx
-                      << " inlineLocalsBase=" << s.inlineLocalsBase
-                      << " stackDepth=" << s.stackDepth
-                      << " bodyOps=" << callee.instructionCount
-                      << " depth=" << s.inlineStack.size()
-                      << "\n";
-            std::cerr.flush();
-        }
 
         // MYT-251: push the callee's owner class onto
         // ctx->inlinedCallingClassNames so private/protected field-access
@@ -827,62 +701,6 @@ namespace vm::jit
             if (cinstr.opcode == OpCode::PROFILE_ENTER)
                 continue;  // no-op inside an inline frame
 
-            if (tracing)
-            {
-                std::cerr << "  [OSR-inline-body] ip=" << ip
-                          << " op=" << bytecode::getOpCodeName(cinstr.opcode)
-                          << " stackDepth=" << s.stackDepth
-                          << "\n";
-                std::cerr.flush();
-            }
-            if (inlineEmitTrace)
-            {
-                std::cerr << "  [INLINE_EMIT] OP ip=" << ip
-                          << " op=" << bytecode::getOpCodeName(cinstr.opcode)
-                          << " stackDepth=" << s.stackDepth
-                          << " depth=" << s.inlineStack.size()
-                          << "\n";
-                std::cerr.flush();
-            }
-
-            // MYT-251: emit a cc.invoke to jit_trace_runtime_op so the
-            // last opcode reached at runtime is visible before any silent
-            // exit. The emit happens inside the inlined body — the trace
-            // line lands BEFORE the opcode's own emission, so the printed
-            // op is the one we are about to execute.
-            if (emitRuntimeTrace)
-            {
-                InvokeNode* trc = nullptr;
-                cc.invoke(Out(trc),
-                          reinterpret_cast<uint64_t>(jit_trace_runtime_op),
-                          FuncSignature::build<void, uint64_t, uint64_t,
-                                                     uint64_t, uint64_t>());
-                trc->set_arg(0, Imm(static_cast<int64_t>(ip)));
-                trc->set_arg(1, Imm(static_cast<int64_t>(
-                    static_cast<uint8_t>(cinstr.opcode))));
-                trc->set_arg(2, Imm(static_cast<int64_t>(s.stackDepth)));
-                trc->set_arg(3, Imm(static_cast<int64_t>(s.inlineLocalsBase)));
-
-                // Also dump the top-of-stack Value bytes when there is
-                // one — this surfaces the receiver state for ops like
-                // GET_FIELD_TYPED whose first action is to consume
-                // boxedBase[stackDepth - 1] as the receiver.
-                if (s.stackDepth >= 1)
-                {
-                    Gp topAddr = cc.new_gp64();
-                    cc.lea(topAddr, Mem(s.boxedBase,
-                        static_cast<int32_t>((s.stackDepth - 1) *
-                                             JitEmissionState::VALUE_SIZE)));
-                    InvokeNode* dump = nullptr;
-                    cc.invoke(Out(dump),
-                              reinterpret_cast<uint64_t>(jit_trace_value),
-                              FuncSignature::build<void, uint64_t,
-                                                         const value::Value*>());
-                    dump->set_arg(0, Imm(static_cast<int64_t>(ip)));
-                    dump->set_arg(1, topAddr);
-                }
-            }
-
             bool handled = false;
             if (emitCoreOps(s, cinstr)) handled = true;
             else if (emitArithmeticOps(s, cinstr)) handled = true;
@@ -903,24 +721,6 @@ namespace vm::jit
                       reinterpret_cast<uint64_t>(jit_pop_inlined_class),
                       FuncSignature::build<void, JitContext*>());
             pop->set_arg(0, s.ctxPtr);
-        }
-
-        if (tracing)
-        {
-            std::cerr << "[OSR-inline-body-exit] callee=" << callee.name
-                      << " stackDepth=" << s.stackDepth
-                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
-                      << "\n";
-            std::cerr.flush();
-        }
-        if (inlineEmitTrace)
-        {
-            std::cerr << "[INLINE_EMIT] BODY_EXIT callee=" << callee.name
-                      << " stackDepth=" << s.stackDepth
-                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
-                      << " depth=" << s.inlineStack.size()
-                      << "\n";
-            std::cerr.flush();
         }
     }
 
@@ -968,34 +768,6 @@ namespace vm::jit
         Gp acReg = cc.new_gp64();
         cc.mov(acReg, static_cast<int64_t>(argCount));
 
-        // MYT-254 (F-a/F-b disambiguation): runtime probe at slow-path
-        // CALL_METHOD args staging. Fires AFTER ctx->callArgs[0] holds the
-        // receiver (jit_value_copy above) and BEFORE the helper invoke, so
-        // the receiver pointer we print is exactly the one advance() will
-        // see as `this`. Gated by MTYPE_TRACE_HELPER_ARGS; cached static.
-        static const bool traceHelperArgs = []() {
-            const char* v = std::getenv("MTYPE_TRACE_HELPER_ARGS");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (traceHelperArgs)
-        {
-            Gp ipReg2 = cc.new_gp64();
-            cc.mov(ipReg2, static_cast<int64_t>(s.currentIP));
-            Gp recvAddr = cc.new_gp64();
-            cc.lea(recvAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)));
-            Gp acReg2 = cc.new_gp64();
-            cc.mov(acReg2, static_cast<int64_t>(argCount));
-            InvokeNode* trc = nullptr;
-            cc.invoke(Out(trc),
-                      reinterpret_cast<uint64_t>(jit_trace_call_method_args),
-                      FuncSignature::build<void, uint64_t,
-                                                 const value::Value*,
-                                                 uint64_t>());
-            trc->set_arg(0, ipReg2);
-            trc->set_arg(1, recvAddr);
-            trc->set_arg(2, acReg2);
-        }
-
         InvokeNode* callInv;
         cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_method_ic),
                   FuncSignature::build<void, JitContext*, size_t, uint32_t, size_t>());
@@ -1003,33 +775,6 @@ namespace vm::jit
         callInv->set_arg(1, ipReg);
         callInv->set_arg(2, miReg);
         callInv->set_arg(3, acReg);
-
-        // MYT-254 (E1/E2 disambiguation): runtime probe at slow-path
-        // CALL_METHOD return. ctx->returnValue holds the helper's result;
-        // we must trace it BEFORE emitReturnValueCopyBoxed copies it onto
-        // the operand stack (where it could be further mutated). Gated
-        // by MTYPE_TRACE_HELPER_RETURN; cached static.
-        static const bool traceHelperReturnCall = []() {
-            const char* v = std::getenv("MTYPE_TRACE_HELPER_RETURN");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (traceHelperReturnCall)
-        {
-            Gp ipReg2 = cc.new_gp64();
-            cc.mov(ipReg2, static_cast<int64_t>(s.currentIP));
-            Gp kindReg = cc.new_gp64();
-            cc.mov(kindReg, reinterpret_cast<uint64_t>("CALL_METHOD"));
-            Gp retAddr = cc.new_gp64();
-            cc.lea(retAddr, Mem(s.ctxPtr, offsetof(JitContext, returnValue)));
-            InvokeNode* trc = nullptr;
-            cc.invoke(Out(trc),
-                      reinterpret_cast<uint64_t>(jit_trace_helper_return),
-                      FuncSignature::build<void, uint64_t, const char*,
-                                                 const value::Value*>());
-            trc->set_arg(0, ipReg2);
-            trc->set_arg(1, kindReg);
-            trc->set_arg(2, retAddr);
-        }
 
         emitReturnValueCopyBoxed(s);
     }
@@ -1139,29 +884,6 @@ namespace vm::jit
         s.inlineStack.push_back(frame);
         s.inlineLocalsBase = localsBaseSlot;
 
-        // MYT-252: comprehensive inline emit trace. Gated by
-        // MTYPE_TRACE_INLINE_EMIT=1. Prints frame push, inline-locals base,
-        // receiver/args layout, and depth so we can compare LIMIT=1 vs
-        // LIMIT=2 emit sequences end-to-end.
-        static const bool inlineEmitTrace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_INLINE_EMIT");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (inlineEmitTrace)
-        {
-            std::cerr << "[INLINE_EMIT] PUSH_FRAME callee=" << callee->name
-                      << " ip=" << s.currentIP
-                      << " depth=" << s.inlineStack.size()
-                      << " receiverStackIdx=" << receiverStackIdx
-                      << " localsBaseSlot=" << localsBaseSlot
-                      << " localCount=" << callee->localCount
-                      << " parameterCount=" << callee->parameterCount
-                      << " bodyOps=" << callee->instructionCount
-                      << " usesBoxedTypes=" << (s.usesBoxedTypes ? "1" : "0")
-                      << "\n";
-            std::cerr.flush();
-        }
-
         // Pop argCount+1 entries from slotTypes and align stackDepth so the
         // callee starts with an empty logical operand stack positioned where
         // the caller's receiver used to be.
@@ -1219,17 +941,6 @@ namespace vm::jit
         s.inlineStack.pop_back();
         s.inlineLocalsBase = prevInlineBase;
 
-        if (inlineEmitTrace)
-        {
-            std::cerr << "[INLINE_EMIT] POP_FRAME callee=" << callee->name
-                      << " ip=" << s.currentIP
-                      << " depth_after=" << s.inlineStack.size()
-                      << " stackDepth=" << s.stackDepth
-                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
-                      << "\n";
-            std::cerr.flush();
-        }
-
         if (s.compileFailed) return true;  // caller short-circuits; function aborts
 
         // MYT-185/186/187: materialize + destroy are now emitted by onExit at
@@ -1253,25 +964,6 @@ namespace vm::jit
         // --- Join ---
         cc.bind(endLabel);
         s.arrayInfoCache.clear();  // conservative: inlined body may have touched fields
-
-        // MYT-251: end-of-emission trace so we can tell compile-time vs
-        // runtime crash. If this prints for every inline candidate but the
-        // process still crashes, the bug is at runtime (in the emitted
-        // code). If a candidate's start trace prints but its end trace
-        // doesn't, the bug is at compile time inside the body emission.
-        static const bool osrInlineTrace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (osrInlineTrace && s.isOSRCompilation)
-        {
-            std::cerr << "[OSR-inline-end-mono] ip=" << s.currentIP
-                      << " callee=" << callee->name
-                      << " stackDepth=" << s.stackDepth
-                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
-                      << "\n";
-            std::cerr.flush();
-        }
 
         return true;
     }
@@ -1473,20 +1165,6 @@ namespace vm::jit
         cc.bind(endLabel);
         s.arrayInfoCache.clear();
 
-        // MYT-251: matching end-trace for POLY (see MONO version).
-        static const bool osrInlineTracePoly = []() {
-            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (osrInlineTracePoly && s.isOSRCompilation)
-        {
-            std::cerr << "[OSR-inline-end-poly] ip=" << s.currentIP
-                      << " stackDepth=" << s.stackDepth
-                      << " compileFailed=" << (s.compileFailed ? "1" : "0")
-                      << "\n";
-            std::cerr.flush();
-        }
-
         return true;
     }
 
@@ -1520,39 +1198,8 @@ namespace vm::jit
             // Default: enabled. Only explicit "0" disables.
             return !(v && v[0] == '0' && v[1] == '\0');
         }();
-        static const bool osrInlineTrace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        // MYT-251: per-process cap on OSR inlines for bisecting which call
-        // site plants the corruption. Set MTYPE_OSR_INLINE_LIMIT=N to allow
-        // only the first N OSR-context inlines; subsequent sites bail to
-        // the generic path. Default 0 (no limit) when unset.
-        static const long osrInlineLimit = []() -> long {
-            const char* v = std::getenv("MTYPE_OSR_INLINE_LIMIT");
-            if (!v || !*v) return 0;
-            char* endp = nullptr;
-            long n = std::strtol(v, &endp, 10);
-            return (endp && *endp == '\0' && n >= 0) ? n : 0;
-        }();
-        static long osrInlineCount = 0;
-        // MYT-251: read the explicit flag set by setupOSRFrame's caller
-        // (compileLoopOSR). The previous currentCompilingFn.empty() proxy
-        // also worked but conflated "no static caller name" with
-        // "OSR emission" — see InlineAnalysis self-recursion check that
-        // silently bypassed in OSR for the same reason.
         const bool isOSRContext = s.isOSRCompilation;
         if (isOSRContext && !osrInliningEnabled) return false;
-        if (isOSRContext && osrInlineLimit > 0 && osrInlineCount >= osrInlineLimit)
-        {
-            if (osrInlineTrace)
-            {
-                std::cerr << "[OSR-inline] ip=" << s.currentIP
-                          << " SKIPPED (limit " << osrInlineLimit << " reached)\n";
-                std::cerr.flush();
-            }
-            return false;
-        }
 
         // Global override — MTYPE_DISABLE_INLINING=1 turns off all
         // speculative inlining (function-level too) for diagnosis or
@@ -1566,22 +1213,13 @@ namespace vm::jit
         // MYT-252: opt-in disable of nested inlining only (depth-1 still
         // fires; depth-2 falls back to the generic slow path).
         // Equivalent semantically to INLINE_DEPTH_LIMIT=1 but lets us
-        // toggle without recompiling. If the program runs with this set
-        // but hangs without it, the bug is specific to nested inline
-        // emission, not the depth-1 inline path.
+        // toggle without recompiling.
         static const bool disableNestedInlining = []() {
             const char* v = std::getenv("MTYPE_DISABLE_NESTED_INLINING");
             return v && v[0] == '1' && v[1] == '\0';
         }();
         if (disableNestedInlining && !s.inlineStack.empty())
-        {
-            std::cerr << "[INLINE_PATH] ip=" << s.currentIP
-                      << " REJECTED_BY_DISABLE_NESTED depth="
-                      << s.inlineStack.size() << "\n";
-            std::cerr.flush();
             return false;
-        }
-
 
         if (!s.typeFeedback) return false;
         auto& icTable = s.typeFeedback->getICTable();
@@ -1595,68 +1233,12 @@ namespace vm::jit
         // counted so --jit-stats can report the eligibility breakdown.
         if (s.inlineDecisions) s.inlineDecisions->bumpMethod(decision);
 
-        // MYT-251: trace every OSR-context decision so the next repro
-        // shows exactly which call sites are evaluated and what verdict
-        // checkInlineEligibility returned (in particular, whether the
-        // self-recursion check fires — it shouldn't, since it short-
-        // circuits on empty currentCompilingFn).
-        if (isOSRContext && osrInlineTrace)
-        {
-            const char* calleeName = "<unknown>";
-            if (cache.entryCount > 0 && cache.entries[0].funcMetadata)
-            {
-                const auto* m = static_cast<
-                    const bytecode::BytecodeProgram::FunctionMetadata*>(
-                        cache.entries[0].funcMetadata);
-                if (!m->name.empty()) calleeName = m->name.c_str();
-                else if (!m->mangledName.empty()) calleeName = m->mangledName.c_str();
-            }
-            std::cerr << "[OSR-inline] ip=" << s.currentIP
-                      << " callee=" << calleeName
-                      << " icState=" << static_cast<int>(cache.state)
-                      << " entries=" << static_cast<int>(cache.entryCount)
-                      << " decision=" << optimization::inlineDecisionName(decision)
-                      << " inlineDepth=" << s.inlineStack.size()
-                      << " stackDepth=" << s.stackDepth
-                      << " usesBoxedTypes=" << (s.usesBoxedTypes ? "1" : "0")
-                      << "\n";
-            std::cerr.flush();
-        }
-
         if (decision != optimization::InlineDecision::INLINE) return false;
 
         // Boxed-mode callee only: inlining assumes the caller emits in boxed
         // mode (guaranteed by scanOpcodesForBoxedTypes tripping on CALL_METHOD).
         // Bail if we somehow got here in unboxed mode.
         if (!s.usesBoxedTypes) return false;
-
-        // MYT-251 bisection: optionally skip value-object receivers in OSR
-        // context. Bool::xor (the first inline that plants the corruption
-        // in boxed_primitive_dispatch_hot) has a value-object receiver.
-        // Toggle MTYPE_OSR_SKIP_VALUE_OBJECT=1 to confirm the value-object
-        // path is the bug.
-        static const bool osrSkipValueObject = []() {
-            const char* v = std::getenv("MTYPE_OSR_SKIP_VALUE_OBJECT");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (isOSRContext && osrSkipValueObject)
-        {
-            bool anyValueObj = false;
-            for (uint8_t i = 0; i < cache.entryCount; ++i)
-                if (cache.entries[i].receiverIsValueObject) { anyValueObj = true; break; }
-            if (anyValueObj)
-            {
-                if (osrInlineTrace)
-                {
-                    std::cerr << "[OSR-inline] ip=" << s.currentIP
-                              << " SKIPPED (value-object receiver, MTYPE_OSR_SKIP_VALUE_OBJECT=1)\n";
-                    std::cerr.flush();
-                }
-                return false;
-            }
-        }
-
-        if (isOSRContext) ++osrInlineCount;
 
         if (cache.state == ic::ICState::MONOMORPHIC)
             return emitInlinedMethodCallMono(s, instr, cache);
@@ -1674,33 +1256,12 @@ namespace vm::jit
             s.compileFailed = true;
             return true;
         }
-        // MYT-252: per-site trace of which path the emitter took.
-        static const bool inlinePathTrace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_INLINE_PATH");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        const size_t depth = s.inlineStack.size();
-        const size_t ip = s.currentIP;
         // MYT-163: attempt speculative inlining. On success the helper emits
         // both the shape-guarded fast path and the slow-path fallback. On
         // ineligible sites (cold IC, polymorphic, ValueObject receiver, etc.)
         // it returns false and we emit the generic path unchanged.
         if (tryEmitInlinedMethodCall(s, instr))
-        {
-            if (inlinePathTrace)
-            {
-                std::cerr << "[INLINE_PATH] ip=" << ip
-                          << " depth=" << depth << " path=INLINE\n";
-                std::cerr.flush();
-            }
             return true;
-        }
-        if (inlinePathTrace)
-        {
-            std::cerr << "[INLINE_PATH] ip=" << ip
-                      << " depth=" << depth << " path=GENERIC_SLOW\n";
-            std::cerr.flush();
-        }
         emitCallMethodOpGeneric(s, instr);
         return true;
     }

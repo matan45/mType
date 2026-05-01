@@ -20,9 +20,6 @@
 #include "../../value/ValueObject.hpp"
 #include <vector>
 #include <memory>
-#include <iostream> // MYT-251: trace gate on jit_get_field_ic
-#include <cstdlib>  // MYT-251: getenv for MTYPE_TRACE_JIT_RUNTIME
-#include <typeinfo> // MYT-254: typeid(e).name() in pending-exc trace
 
 namespace vm::jit
 {
@@ -235,76 +232,7 @@ namespace vm::jit
                              size_t argCount)
     {
         if (ctx->pendingException)
-        {
-            // MYT-254 (F-c diagnosis): silent no-op on pendingException is
-            // the mechanism that causes the JIT loop to spin forever — every
-            // CALL_METHOD becomes a void-returning stub. Log the exception
-            // text on first observation so we know what actually broke.
-            // Gated by MTYPE_TRACE_PENDING_EXC=1; cached static; one-shot.
-            static const bool tracePendingExc = []() {
-                const char* v = std::getenv("MTYPE_TRACE_PENDING_EXC");
-                return v && v[0] == '1' && v[1] == '\0';
-            }();
-            if (tracePendingExc)
-            {
-                static bool logged = false;
-                if (!logged)
-                {
-                    logged = true;
-                    std::cerr << "[PENDING_EXC] first-observed at bytecodeOffset="
-                              << bytecodeOffset
-                              << " methodNameIndex=" << methodNameIndex
-                              << " argCount=" << argCount;
-                    if (ctx->program)
-                    {
-                        const auto& cp = ctx->program->getConstantPool();
-                        if (methodNameIndex < cp.strings.size())
-                        {
-                            std::cerr << " resolvedName=\""
-                                      << cp.strings[methodNameIndex] << "\"";
-                        }
-                        size_t instrCount = ctx->program->getInstructionCount();
-                        // Dump 4 instructions of context around the failing IP
-                        // so we can confirm whether the bytecode sequence
-                        // really is what the methodNameIndex implies, or
-                        // whether the JIT is dispatching with an off-by-N.
-                        std::cerr << " bytecode_context=[";
-                        for (size_t off = (bytecodeOffset >= 2 ? bytecodeOffset - 2 : 0);
-                             off <= bytecodeOffset + 2 && off < instrCount;
-                             ++off)
-                        {
-                            const auto& instr = ctx->program->getInstruction(off);
-                            std::cerr << " " << off << ":"
-                                      << bytecode::getOpCodeName(instr.opcode)
-                                      << "(";
-                            for (size_t i = 0; i < instr.operands.size(); ++i)
-                            {
-                                if (i) std::cerr << ",";
-                                std::cerr << instr.operands[i];
-                            }
-                            std::cerr << ")";
-                        }
-                        std::cerr << " ]";
-                    }
-                    try
-                    {
-                        std::rethrow_exception(ctx->pendingException);
-                    }
-                    catch (const std::exception& e)
-                    {
-                        std::cerr << " what=\"" << e.what() << "\""
-                                  << " typeid=" << typeid(e).name();
-                    }
-                    catch (...)
-                    {
-                        std::cerr << " what=<non-std::exception>";
-                    }
-                    std::cerr << "\n";
-                    std::cerr.flush();
-                }
-            }
             return;
-        }
 
         // Without an IC table or VM, fall back to the resolution path.
         if (!ctx->icTable || !ctx->vm)
@@ -810,28 +738,6 @@ namespace vm::jit
         const std::string& caller = *callerPtr;
         bool isSameClass = (caller == targetClassName);
 
-        // MYT-252: opt-in trace to confirm the inlined-caller-stack leak
-        // hypothesis on stream_pipeline_hot. Prints which source resolved
-        // the caller (inlined-stack vs callingClassName), the resolved
-        // depth, and the access target. Gated by MTYPE_TRACE_FIELD_ACCESS=1
-        // so cost is one branch on the field-access hot path. Permanent
-        // debug aid — leave silent by default.
-        static const bool fieldAccessTrace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_FIELD_ACCESS");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (fieldAccessTrace)
-        {
-            std::cerr << "[FIELD_ACCESS] caller=" << caller
-                      << " target=" << targetClassName
-                      << " field=" << fieldName
-                      << " depth=" << ctx->inlinedCallingClassDepth
-                      << " via=" << (resolvedFromInlinedStack
-                                     ? "inlined" : "callingClassName")
-                      << "\n";
-            std::cerr.flush();
-        }
-
         if (modifier == ast::AccessModifier::PRIVATE)
         {
             if (!isSameClass)
@@ -997,104 +903,31 @@ namespace vm::jit
                           JitContext* ctx, size_t bytecodeOffset,
                           uint32_t fieldNameIndex, uint8_t flags)
     {
-        // MYT-251: optional entry-trace. Gated by MTYPE_TRACE_JIT_RUNTIME=1
-        // so the helper-call overhead is opt-in. Surfaces the receiver tag
-        // and the field name when diagnosing the silent 0xE06D7363 escape
-        // route on stream_pipeline_hot — VEH localized the throw to the
-        // first GET_FIELD_TYPED inside the inlined ListIterator::hasNext
-        // body. The print here lands BEFORE any throw can fire, so the
-        // receiver state at the moment of failure is captured.
-        static const bool jitRtTrace = []() {
-            const char* v = std::getenv("MTYPE_TRACE_JIT_RUNTIME");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (jitRtTrace)
+        if (!(flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
         {
-            std::string fieldName = (ctx && ctx->program)
-                ? ctx->program->getConstantPool().getString(fieldNameIndex)
-                : std::string("<no-ctx>");
-            const int tag = object
-                ? static_cast<int>(object->tag())
-                : -1;
-            std::cerr << "[JIT-RT] jit_get_field_ic enter ip=" << bytecodeOffset
-                      << " field='" << fieldName << "'"
-                      << " receiverTag=" << tag
-                      << " receiverPtr=0x" << std::hex
-                      << reinterpret_cast<uintptr_t>(object) << std::dec
-                      << " flags=0x" << std::hex << static_cast<int>(flags) << std::dec
-                      << "\n";
-            std::cerr.flush();
+            if (vm::runtime::utils::isNullValue(*object))
+            {
+                throw errors::NullPointerException("Cannot access field on null");
+            }
         }
 
-        // MYT-251: wrap the body so any exception escaping toward
-        // jit-emitted code (which has no PE x64 unwind data registered)
-        // surfaces a typed-name diagnostic before the silent process kill.
-        try
-        {
-            if (!(flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
-            {
-                if (vm::runtime::utils::isNullValue(*object))
-                {
-                    throw errors::NullPointerException("Cannot access field on null");
-                }
-            }
+        if (getFieldFromValueObject(dest, object, ctx, bytecodeOffset, fieldNameIndex))
+            return;
 
-            if (getFieldFromValueObject(dest, object, ctx, bytecodeOffset, fieldNameIndex))
-                return;
+        // MYT-208: raw unwrap covers OBJECT and STACK_OBJECT receivers.
+        auto* instance = value::asObjectInstanceRaw(*object);
+        auto* classDef = instance->getClassDefinition().get();
 
-            // MYT-208: raw unwrap covers OBJECT and STACK_OBJECT receivers.
-            auto* instance = value::asObjectInstanceRaw(*object);
-            if (jitRtTrace)
-            {
-                std::cerr << "[JIT-RT]   instance=0x" << std::hex
-                          << reinterpret_cast<uintptr_t>(instance) << std::dec << "\n";
-                std::cerr.flush();
-            }
-            auto* classDef = instance->getClassDefinition().get();
-            if (jitRtTrace)
-            {
-                std::cerr << "[JIT-RT]   classDef=0x" << std::hex
-                          << reinterpret_cast<uintptr_t>(classDef) << std::dec
-                          << " name='"
-                          << (classDef ? classDef->getClassName() : std::string("<null>"))
-                          << "'\n";
-                std::cerr.flush();
-            }
+        if (getFieldICLookupOrFallback(dest, instance, classDef, ctx,
+                                        bytecodeOffset, fieldNameIndex))
+            return;
 
-            if (getFieldICLookupOrFallback(dest, instance, classDef, ctx,
-                                            bytecodeOffset, fieldNameIndex))
-                return;
+        const std::string& fieldName =
+            ctx->program->getConstantPool().getString(fieldNameIndex);
 
-            const std::string& fieldName =
-                ctx->program->getConstantPool().getString(fieldNameIndex);
-            if (jitRtTrace)
-            {
-                std::cerr << "[JIT-RT]   fallback path: validating + getFieldValue('"
-                          << fieldName << "')\n";
-                std::cerr.flush();
-            }
+        validateFieldAccessIfNeeded(instance, fieldName, classDef, ctx);
 
-            validateFieldAccessIfNeeded(instance, fieldName, classDef, ctx);
-
-            *dest = instance->getFieldValue(fieldName);
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr << "[JIT-RT] jit_get_field_ic THROWING std::exception: "
-                      << typeid(e).name() << ": " << e.what()
-                      << " (ip=" << bytecodeOffset
-                      << " fieldNameIndex=" << fieldNameIndex << ")\n";
-            std::cerr.flush();
-            throw;
-        }
-        catch (...)
-        {
-            std::cerr << "[JIT-RT] jit_get_field_ic THROWING unknown C++ type"
-                      << " (ip=" << bytecodeOffset
-                      << " fieldNameIndex=" << fieldNameIndex << ")\n";
-            std::cerr.flush();
-            throw;
-        }
+        *dest = instance->getFieldValue(fieldName);
     }
 
     static bool setFieldOnValueObject(value::Value* destValue,
