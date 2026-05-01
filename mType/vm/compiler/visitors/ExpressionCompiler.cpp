@@ -14,6 +14,7 @@
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/functions/FunctionNode.hpp"
+#include "../../../errors/TypeException.hpp"
 #include "../../../errors/UndefinedException.hpp"
 #include "../../../diagnostics/IdentifierEnumerator.hpp"
 #include  <iostream>
@@ -212,6 +213,17 @@ namespace vm::compiler::visitors
                     size_t nameIndex = ctx.program.getConstantPool().addString(varName);
                     ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC, static_cast<uint64_t>(nameIndex), node);
                 } else if (isLocal) {
+                    // MYT-247: reject ++/-- on a final local at compile time.
+                    size_t startSlot = ctx.functionFrameManager.isInFunction()
+                                       ? ctx.functionFrameManager.currentFrame().localStartSlot : 0;
+                    if (ctx.variableTracker.isLocalFinal(varNode->getName(), startSlot))
+                    {
+                        throw errors::TypeException(
+                            "Cannot increment/decrement final local variable '" + varNode->getName() + "'",
+                            node->getLocation()
+                        );
+                    }
+
                     // MYT-215: ++/-- mutates the slot.
                     size_t absoluteSlot = localSlot + (ctx.functionFrameManager.isInFunction()
                                           ? ctx.functionFrameManager.currentFrame().localStartSlot : 0);

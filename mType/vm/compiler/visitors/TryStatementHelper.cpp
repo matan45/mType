@@ -121,6 +121,26 @@ namespace vm::compiler::visitors
                 );
             }
 
+            // MYT-245: resolve aliased catch type to canonical class name. The throw
+            // site (NEW_OBJECT) emits canonical names, and ExceptionTable::isTypeCompatible
+            // string-compares the catch entry's exceptionType against the thrown type. If
+            // this catch was written with an aliased class (e.g. `catch (Boom e)` where
+            // Boom is `import {CustomException as Boom}`), findClass returned the canonical
+            // class def via the alias registration done by applyImportAliases — use its
+            // canonical name everywhere downstream.
+            const std::string canonicalBase = exceptionClass->getName();
+            if (canonicalBase != baseClassName)
+            {
+                if (genericStart != std::string::npos)
+                {
+                    exceptionType = canonicalBase + exceptionType.substr(genericStart);
+                }
+                else
+                {
+                    exceptionType = canonicalBase;
+                }
+            }
+
             // Register catch handler
             ctx.exceptionManager.registerCatchHandler(
                 exceptionType,

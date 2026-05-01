@@ -5113,6 +5113,12 @@
     <None Include="tests\testFiles\error\error\errorEmptyTry_error.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\error\errorFinalLocalCompoundAssign_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorFinalLocalIncrement_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
     <None Include="tests\testFiles\error\error\errorFinalMethodOverride_error.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
@@ -5201,9 +5207,6 @@
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\runtimeStackOverflow.mt">
-      <Filter>testFiles\error\error</Filter>
-    </None>
-    <None Include="tests\testFiles\error\error\runtimeStackOverflowTailCall.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\scopeFunctionParameterShadowing.mt">
@@ -5600,6 +5603,12 @@
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorInterpolatedExceptionMessage_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorJitOSRLambdaThrowsPropagates_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorJitOSRLambdaThrowsPropagates_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorLambdaCapturingException_pass.expected">

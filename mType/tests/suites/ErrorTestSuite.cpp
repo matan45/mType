@@ -552,6 +552,15 @@ namespace tests::testSuite
                         errorPath + "errorFinalReassignInCatch_error.mt",
                         TestType::ERROR_EXPECTED,
                         "final");
+        // MYT-247: ++/-- and compound assignment must be rejected on final locals.
+        addTestFromFile("Error Final Local Increment",
+                        errorPath + "errorFinalLocalIncrement_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "final");
+        addTestFromFile("Error Final Local Compound Assign",
+                        errorPath + "errorFinalLocalCompoundAssign_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "final");
         addTestFromFile("Error Final Method Override",
                         errorPath + "errorFinalMethodOverride_error.mt",
                         TestType::ERROR_EXPECTED);
