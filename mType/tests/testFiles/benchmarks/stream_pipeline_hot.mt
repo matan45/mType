@@ -10,7 +10,7 @@ import * from "../lib/functional/Function.mt";
 import * from "../lib/primitives/Int.mt";
 
 ArrayList<Int> data = new ArrayList<Int>();
-int M = 100;
+int M = 8;
 for (int i = 0; i < M; i = i + 1) {
     data.add(new Int(i));
 }

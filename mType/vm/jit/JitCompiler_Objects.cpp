@@ -189,6 +189,31 @@ namespace vm::jit
         inv->set_arg(4, idx);
         inv->set_arg(5, flagsReg);
 
+        // MYT-254 (E1/E2 disambiguation): runtime probe at slow-path
+        // GET_FIELD return. `dest` already points at the boxedBase slot
+        // jit_get_field_ic just wrote into, so we can dump it directly.
+        // Gated by MTYPE_TRACE_HELPER_RETURN; cached static so disabled
+        // trace = zero runtime overhead.
+        static const bool traceHelperReturnGet = []() {
+            const char* v = std::getenv("MTYPE_TRACE_HELPER_RETURN");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (traceHelperReturnGet)
+        {
+            Gp ipReg2 = cc.new_gp64();
+            cc.mov(ipReg2, static_cast<int64_t>(s.currentIP));
+            Gp kindReg = cc.new_gp64();
+            cc.mov(kindReg, reinterpret_cast<uint64_t>("GET_FIELD"));
+            InvokeNode* trc = nullptr;
+            cc.invoke(Out(trc),
+                      reinterpret_cast<uint64_t>(jit_trace_helper_return),
+                      FuncSignature::build<void, uint64_t, const char*,
+                                                 const value::Value*>());
+            trc->set_arg(0, ipReg2);
+            trc->set_arg(1, kindReg);
+            trc->set_arg(2, dest);
+        }
+
         // MYT-252: mirror primitive payload from boxedBase to stackBase so
         // primitive consumers (NOT/JUMP_IF_FALSE/JUMP_IF_TRUE/arith)
         // read the right value. Mirrors emitReturnValueCopyBoxed
@@ -284,6 +309,32 @@ namespace vm::jit
         Gp srcAddr = cc.new_gp64();
         cc.lea(srcAddr, Mem(dataPtr,
                             static_cast<int32_t>(fieldIndex * valueSize)));
+
+        // MYT-254: optional runtime probe — gated by MTYPE_TRACE_FIELD_GET
+        // at compile time so the runtime path has zero overhead when off.
+        // Cached via a function-scope static so the env-var lookup runs
+        // once per process (matches the pattern at lines 242-245).
+        static const bool traceFieldGet = []() {
+            const char* v = std::getenv("MTYPE_TRACE_FIELD_GET");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (traceFieldGet)
+        {
+            Gp ipReg = cc.new_gp64();
+            cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
+            Gp fieldIdxReg = cc.new_gp64();
+            cc.mov(fieldIdxReg, static_cast<int64_t>(fieldIndex));
+            InvokeNode* trc = nullptr;
+            cc.invoke(Out(trc),
+                      reinterpret_cast<uint64_t>(jit_trace_field_get),
+                      FuncSignature::build<void, uint64_t, uint64_t,
+                                                 const value::Value*,
+                                                 const value::Value*>());
+            trc->set_arg(0, ipReg);
+            trc->set_arg(1, fieldIdxReg);
+            trc->set_arg(2, receiverAddr);
+            trc->set_arg(3, srcAddr);
+        }
 
         // 4. Inline only when the field tag is a small primitive (INT/FLOAT/
         //    BOOL = 0/1/2). VOID/NULL_TYPE and heap tags fall to the slow
@@ -464,6 +515,33 @@ namespace vm::jit
                              static_cast<int32_t>(receiverIdx * valueSize)));
         Gp fieldIdxReg = cc.new_gp64();
         cc.mov(fieldIdxReg, static_cast<int64_t>(fieldIndex));
+
+        // MYT-254: optional runtime probe — gated by MTYPE_TRACE_FIELD_SET
+        // at compile time. Emitted before the cc.invoke(jit_field_set_at)
+        // so the trace shows what value is about to be written. Mirrors
+        // tryEmitInlinedFieldGet's MTYPE_TRACE_FIELD_GET probe.
+        static const bool traceFieldSet = []() {
+            const char* v = std::getenv("MTYPE_TRACE_FIELD_SET");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (traceFieldSet)
+        {
+            Gp ipReg = cc.new_gp64();
+            cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
+            Gp fieldIdxTraceReg = cc.new_gp64();
+            cc.mov(fieldIdxTraceReg, static_cast<int64_t>(fieldIndex));
+            InvokeNode* trc = nullptr;
+            cc.invoke(Out(trc),
+                      reinterpret_cast<uint64_t>(jit_trace_field_set),
+                      FuncSignature::build<void, uint64_t, uint64_t,
+                                                 const value::Value*,
+                                                 const value::Value*>());
+            trc->set_arg(0, ipReg);
+            trc->set_arg(1, fieldIdxTraceReg);
+            trc->set_arg(2, slotAddr);
+            trc->set_arg(3, newValAddr);
+        }
+
         Gp retReg = cc.new_gp64();
         InvokeNode* setInv;
         cc.invoke(Out(setInv), reinterpret_cast<uint64_t>(jit_field_set_at),
@@ -889,6 +967,35 @@ namespace vm::jit
         cc.mov(miReg, static_cast<int64_t>(methodNameIndex));
         Gp acReg = cc.new_gp64();
         cc.mov(acReg, static_cast<int64_t>(argCount));
+
+        // MYT-254 (F-a/F-b disambiguation): runtime probe at slow-path
+        // CALL_METHOD args staging. Fires AFTER ctx->callArgs[0] holds the
+        // receiver (jit_value_copy above) and BEFORE the helper invoke, so
+        // the receiver pointer we print is exactly the one advance() will
+        // see as `this`. Gated by MTYPE_TRACE_HELPER_ARGS; cached static.
+        static const bool traceHelperArgs = []() {
+            const char* v = std::getenv("MTYPE_TRACE_HELPER_ARGS");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (traceHelperArgs)
+        {
+            Gp ipReg2 = cc.new_gp64();
+            cc.mov(ipReg2, static_cast<int64_t>(s.currentIP));
+            Gp recvAddr = cc.new_gp64();
+            cc.lea(recvAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)));
+            Gp acReg2 = cc.new_gp64();
+            cc.mov(acReg2, static_cast<int64_t>(argCount));
+            InvokeNode* trc = nullptr;
+            cc.invoke(Out(trc),
+                      reinterpret_cast<uint64_t>(jit_trace_call_method_args),
+                      FuncSignature::build<void, uint64_t,
+                                                 const value::Value*,
+                                                 uint64_t>());
+            trc->set_arg(0, ipReg2);
+            trc->set_arg(1, recvAddr);
+            trc->set_arg(2, acReg2);
+        }
+
         InvokeNode* callInv;
         cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_method_ic),
                   FuncSignature::build<void, JitContext*, size_t, uint32_t, size_t>());
@@ -896,6 +1003,34 @@ namespace vm::jit
         callInv->set_arg(1, ipReg);
         callInv->set_arg(2, miReg);
         callInv->set_arg(3, acReg);
+
+        // MYT-254 (E1/E2 disambiguation): runtime probe at slow-path
+        // CALL_METHOD return. ctx->returnValue holds the helper's result;
+        // we must trace it BEFORE emitReturnValueCopyBoxed copies it onto
+        // the operand stack (where it could be further mutated). Gated
+        // by MTYPE_TRACE_HELPER_RETURN; cached static.
+        static const bool traceHelperReturnCall = []() {
+            const char* v = std::getenv("MTYPE_TRACE_HELPER_RETURN");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (traceHelperReturnCall)
+        {
+            Gp ipReg2 = cc.new_gp64();
+            cc.mov(ipReg2, static_cast<int64_t>(s.currentIP));
+            Gp kindReg = cc.new_gp64();
+            cc.mov(kindReg, reinterpret_cast<uint64_t>("CALL_METHOD"));
+            Gp retAddr = cc.new_gp64();
+            cc.lea(retAddr, Mem(s.ctxPtr, offsetof(JitContext, returnValue)));
+            InvokeNode* trc = nullptr;
+            cc.invoke(Out(trc),
+                      reinterpret_cast<uint64_t>(jit_trace_helper_return),
+                      FuncSignature::build<void, uint64_t, const char*,
+                                                 const value::Value*>());
+            trc->set_arg(0, ipReg2);
+            trc->set_arg(1, kindReg);
+            trc->set_arg(2, retAddr);
+        }
+
         emitReturnValueCopyBoxed(s);
     }
 

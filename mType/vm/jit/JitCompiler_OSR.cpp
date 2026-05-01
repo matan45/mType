@@ -293,6 +293,27 @@ namespace vm::jit
             const char* v = std::getenv("MTYPE_TRACE_OSR_INLINE");
             return v && v[0] == '1' && v[1] == '\0';
         }();
+        // MYT-254: per-iteration runtime probe at the loop's back-edge
+        // target. Emits a cc.invoke(jit_trace_osr_loop_iter) just after the
+        // bind so we observe the receiver pointer at the top of every
+        // iteration. Cached env-var lookup; gating happens at compile time
+        // so disabled trace = zero runtime overhead. Limited to
+        // usesBoxedTypes mode because non-boxed locals do not store a
+        // Value at localsBase[0] (the trace would print garbage).
+        static const bool traceOsrLoopIter = []() {
+            const char* v = std::getenv("MTYPE_TRACE_OSR_LOOP_ITER");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        // MYT-254 (E1/E2 disambiguation): per-opcode runtime trace for the
+        // OUTER OSR body. Mirrors emitInlineCalleeBody's
+        // MTYPE_TRACE_JIT_RUNTIME hook (which only fires inside inlined
+        // bodies). Separate env var so we can observe the outer body
+        // alone — combining with the inlined-body trace produces
+        // unmanageable output volume.
+        static const bool traceOuterOp = []() {
+            const char* v = std::getenv("MTYPE_TRACE_OSR_OUTER_OP");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
         for (size_t ip = loopStartOffset; ip <= loopEndOffset && !s.compileFailed; ++ip)
         {
             auto labelIt = s.labels.find(ip);
@@ -304,6 +325,26 @@ namespace vm::jit
                 invalidateAllHints(s);
                 if (s.backEdgeTargets.find(ip) == s.backEdgeTargets.end())
                     s.arrayInfoCache.clear();
+
+                // MYT-254: emit the per-iteration receiver probe at every
+                // back-edge target — these are exactly the IPs that a
+                // JUMP_BACK targets, i.e. the top of the loop body. The
+                // helper takes a `const value::Value*` so we feed it
+                // `localsBase` (== &locals[0]) which in usesBoxedTypes mode
+                // holds the captured receiver Value.
+                if (traceOsrLoopIter && s.usesBoxedTypes
+                    && s.backEdgeTargets.find(ip) != s.backEdgeTargets.end())
+                {
+                    Gp ipReg = s.cc.new_gp64();
+                    s.cc.mov(ipReg, static_cast<int64_t>(ip));
+                    InvokeNode* trc = nullptr;
+                    s.cc.invoke(Out(trc),
+                                reinterpret_cast<uint64_t>(jit_trace_osr_loop_iter),
+                                FuncSignature::build<void, uint64_t,
+                                                           const value::Value*>());
+                    trc->set_arg(0, ipReg);
+                    trc->set_arg(1, s.localsBase);
+                }
             }
 
             const auto& instr = program.getInstruction(ip);
@@ -319,6 +360,26 @@ namespace vm::jit
                           << " stackDepth=" << s.stackDepth
                           << "\n";
                 std::cerr.flush();
+            }
+
+            // MYT-254 (E1/E2 disambiguation): emit per-opcode runtime trace
+            // for the OUTER OSR body. This fires BEFORE the opcode's own
+            // emission so the printed op is the one about to execute. We
+            // observe whether count's outer body actually steps through
+            // CALL_METHOD/JUMP_IF_FALSE on each iteration, or whether the
+            // body is being skipped (E1-skip) versus running with a stale
+            // condition (E1-condition / E2).
+            if (traceOuterOp)
+            {
+                InvokeNode* trc = nullptr;
+                s.cc.invoke(Out(trc),
+                            reinterpret_cast<uint64_t>(jit_trace_runtime_op),
+                            FuncSignature::build<void, uint64_t, uint64_t,
+                                                       uint64_t, uint64_t>());
+                trc->set_arg(0, Imm(static_cast<int64_t>(ip)));
+                trc->set_arg(1, Imm(static_cast<int64_t>(opByte)));
+                trc->set_arg(2, Imm(static_cast<int64_t>(s.stackDepth)));
+                trc->set_arg(3, Imm(static_cast<int64_t>(s.inlineLocalsBase)));
             }
 
             if (emitCoreOps(s, instr)) continue;

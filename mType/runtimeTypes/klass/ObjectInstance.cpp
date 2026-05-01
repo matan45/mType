@@ -6,11 +6,58 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <iostream>
 #include <unordered_set>
 #include <vector>
 
 namespace runtimeTypes::klass
 {
+    namespace
+    {
+        // MYT-254 (F-a/F-b disambiguation): interpreter-side setField probe.
+        // The JIT's slow-path CALL_METHOD at IP 1402 (FilteringIterator.advance)
+        // re-enters the interpreter; advance() writes hasNextElement via this
+        // path, which is invisible to jit_field_set_at. This probe prints the
+        // ObjectInstance* being mutated so we can compare against
+        // [CALL_ARGS receiver=...] lines emitted by jit_trace_call_method_args:
+        // if the addresses differ, advance() is writing to a different
+        // FilteringIterator than the inlined hasNext() chain reads from.
+        // Gated by MTYPE_TRACE_INTERP_FIELD_SET=1; cached static so the off
+        // path is one branch on a cached bool.
+        inline bool interpFieldSetTraceEnabled() noexcept
+        {
+            static const bool enabled = []() {
+                const char* v = std::getenv("MTYPE_TRACE_INTERP_FIELD_SET");
+                return v && v[0] == '1' && v[1] == '\0';
+            }();
+            return enabled;
+        }
+
+        void traceInterpFieldSet(const void* instance,
+                                 const void* classDef,
+                                 const char* fieldName,
+                                 size_t fieldIndex,
+                                 const Value& value)
+        {
+            std::cerr << "[INTERP_FIELD_SET]"
+                      << " instance=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(instance) << std::dec
+                      << " classDef=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(classDef) << std::dec
+                      << " field=" << (fieldName ? fieldName : "<null>")
+                      << " index=" << fieldIndex
+                      << " valueTag=" << static_cast<int>(value.tag());
+            const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&value);
+            std::cerr << " bytes=" << std::hex;
+            for (size_t i = 0; i < 16; ++i)
+                std::cerr << static_cast<int>(bytes[i]) << " ";
+            std::cerr << std::dec << "\n";
+            std::cerr.flush();
+        }
+    } // namespace
+
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4413)  // offsetof on non-standard-layout (enable_shared_from_this base)
@@ -111,6 +158,15 @@ namespace runtimeTypes::klass
                "ObjectInstance::setField: STACK_OBJECT escaped its frame — "
                "EscapeAnalysisPass should have demoted this allocation");
 
+        if (interpFieldSetTraceEnabled())
+        {
+            size_t idx = SIZE_MAX;
+            if (classDefinition)
+                idx = classDefinition->getFieldIndex(fieldName);
+            traceInterpFieldSet(this, classDefinition.get(),
+                                fieldName.c_str(), idx, value);
+        }
+
         auto field = getField(fieldName);
 
         if (field) {
@@ -193,6 +249,12 @@ namespace runtimeTypes::klass
         assert(!value::isStackObject(value) &&
                "ObjectInstance::setFieldByIndex: STACK_OBJECT escaped its frame — "
                "EscapeAnalysisPass should have demoted this allocation");
+
+        if (interpFieldSetTraceEnabled())
+        {
+            traceInterpFieldSet(this, classDefinition.get(),
+                                "<by-index>", index, value);
+        }
 
         if (index >= fieldVector.size()) return;
 

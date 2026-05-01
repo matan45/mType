@@ -1,6 +1,8 @@
 #include "JitHelpers.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "../bytecode/OpCode.hpp"
+#include "../../value/ValueShim.hpp"
+#include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include <iostream>
 
 namespace vm::jit
@@ -87,6 +89,183 @@ namespace vm::jit
             else
             {
                 std::cerr << " <null pointer>";
+            }
+            std::cerr << "\n";
+            std::cerr.flush();
+        }
+
+        // MYT-254: shared formatter for jit_trace_field_get / _set. Prints
+        // the receiver's underlying ObjectInstance* (so we can tell whether
+        // the receiver pointer drifts between iterations) and a 16-byte hex
+        // dump of `payload` (the field-vector slot for GET; the new value
+        // for SET).
+        static void traceFieldImpl(const char* tag, uint64_t ip,
+                                   uint64_t fieldIndex,
+                                   const value::Value* receiver,
+                                   const value::Value* payload)
+        {
+            std::cerr << tag
+                      << " ip=" << ip
+                      << " fieldIndex=" << fieldIndex
+                      << " receiverPtr=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(receiver) << std::dec;
+
+            // Resolve receiver to the underlying ObjectInstance*. Guard
+            // against null / unexpected tag so the probe never crashes the
+            // process — we want trace lines, not segfaults.
+            void* instancePtr = nullptr;
+            int receiverTag = -1;
+            if (receiver)
+            {
+                receiverTag = static_cast<int>(receiver->tag());
+                if (value::isAnyObject(*receiver))
+                {
+                    instancePtr = static_cast<void*>(
+                        value::asObjectInstanceRaw(*receiver));
+                }
+            }
+            std::cerr << " receiverTag=" << receiverTag
+                      << " instance=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(instancePtr) << std::dec
+                      << " payloadPtr=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(payload) << std::dec;
+
+            if (payload)
+            {
+                std::cerr << " payloadTag=" << static_cast<int>(payload->tag());
+                const uint8_t* bytes = reinterpret_cast<const uint8_t*>(payload);
+                std::cerr << " bytes=";
+                std::cerr << std::hex;
+                for (size_t i = 0; i < 16; ++i)
+                {
+                    std::cerr << static_cast<int>(bytes[i]) << " ";
+                }
+                std::cerr << std::dec;
+            }
+            else
+            {
+                std::cerr << " <null payload>";
+            }
+            std::cerr << "\n";
+            std::cerr.flush();
+        }
+
+        void jit_trace_field_get(uint64_t ip, uint64_t fieldIndex,
+                                 const value::Value* receiver,
+                                 const value::Value* fieldData)
+        {
+            traceFieldImpl("[FIELD_GET]", ip, fieldIndex, receiver, fieldData);
+        }
+
+        void jit_trace_field_set(uint64_t ip, uint64_t fieldIndex,
+                                 const value::Value* receiver,
+                                 const value::Value* newValue)
+        {
+            traceFieldImpl("[FIELD_SET]", ip, fieldIndex, receiver, newValue);
+        }
+
+        // MYT-254: per-iteration receiver probe at the back-edge target
+        // of the OSR'd loop. Prints `ip` (the back-edge target's bytecode
+        // offset) and the address of locals[0] (the captured `this` for
+        // method-bodied OSR) so we can verify the receiver pointer stays
+        // stable across iterations of count()'s outer loop.
+        void jit_trace_osr_loop_iter(uint64_t ip,
+                                     const value::Value* receiver)
+        {
+            std::cerr << "[OSR-LOOP-ITER] ip=" << ip
+                      << " receiverPtr=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(receiver) << std::dec;
+            void* instancePtr = nullptr;
+            int receiverTag = -1;
+            if (receiver)
+            {
+                receiverTag = static_cast<int>(receiver->tag());
+                if (value::isAnyObject(*receiver))
+                {
+                    instancePtr = static_cast<void*>(
+                        value::asObjectInstanceRaw(*receiver));
+                }
+            }
+            std::cerr << " receiverTag=" << receiverTag
+                      << " instance=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(instancePtr) << std::dec
+                      << "\n";
+            std::cerr.flush();
+        }
+
+        // MYT-254 (E1/E2 disambiguation): slow-path helper-return probe.
+        // Called immediately after a jit_get_field_ic or jit_call_method_ic
+        // helper invoke — `returnValue` is the same memory location the
+        // emitted code wrote into (boxedBase[..] for GET_FIELD,
+        // ctx->returnValue for CALL_METHOD). helperKind is a stable
+        // c-string baked at compile time.
+        void jit_trace_helper_return(uint64_t ip, const char* helperKind,
+                                     const value::Value* returnValue)
+        {
+            std::cerr << "[HELPER_RET] ip=" << ip
+                      << " kind=" << (helperKind ? helperKind : "<null>")
+                      << " ptr=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(returnValue) << std::dec;
+            if (returnValue)
+            {
+                std::cerr << " tag=" << static_cast<int>(returnValue->tag());
+                const uint8_t* bytes =
+                    reinterpret_cast<const uint8_t*>(returnValue);
+                std::cerr << " bytes=";
+                std::cerr << std::hex;
+                for (size_t i = 0; i < 16; ++i)
+                {
+                    std::cerr << static_cast<int>(bytes[i]) << " ";
+                }
+                std::cerr << std::dec;
+            }
+            else
+            {
+                std::cerr << " <null pointer>";
+            }
+            std::cerr << "\n";
+            std::cerr.flush();
+        }
+
+        // MYT-254 (F-a/F-b disambiguation): print the receiver Value handed
+        // to the slow-path CALL_METHOD helper. Resolves to the underlying
+        // ObjectInstance* the same way traceFieldImpl does so the address we
+        // print is comparable against [INTERP_FIELD_SET instance=...] lines.
+        void jit_trace_call_method_args(uint64_t ip,
+                                        const value::Value* receiver,
+                                        uint64_t argCount)
+        {
+            std::cerr << "[CALL_ARGS] ip=" << ip
+                      << " argCount=" << argCount
+                      << " receiverPtr=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(receiver) << std::dec;
+
+            void* instancePtr = nullptr;
+            int receiverTag = -1;
+            if (receiver)
+            {
+                receiverTag = static_cast<int>(receiver->tag());
+                if (value::isAnyObject(*receiver))
+                {
+                    instancePtr = static_cast<void*>(
+                        value::asObjectInstanceRaw(*receiver));
+                }
+            }
+            std::cerr << " receiverTag=" << receiverTag
+                      << " instance=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(instancePtr) << std::dec;
+
+            if (receiver)
+            {
+                const uint8_t* bytes =
+                    reinterpret_cast<const uint8_t*>(receiver);
+                std::cerr << " bytes=";
+                std::cerr << std::hex;
+                for (size_t i = 0; i < 16; ++i)
+                {
+                    std::cerr << static_cast<int>(bytes[i]) << " ";
+                }
+                std::cerr << std::dec;
             }
             std::cerr << "\n";
             std::cerr.flush();

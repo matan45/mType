@@ -22,6 +22,7 @@
 #include <memory>
 #include <iostream> // MYT-251: trace gate on jit_get_field_ic
 #include <cstdlib>  // MYT-251: getenv for MTYPE_TRACE_JIT_RUNTIME
+#include <typeinfo> // MYT-254: typeid(e).name() in pending-exc trace
 
 namespace vm::jit
 {
@@ -185,6 +186,28 @@ namespace vm::jit
                 }
             }
 
+            // MYT-254: LAMBDA receiver. Per-spec lambdas are invoked via
+            // CALL_METHOD apply (see lib/functional/Function.mt etc.) — the
+            // interpreter's ObjectExecutor::handleCallMethod (ObjectExecutor.cpp:978)
+            // routes such receivers to invokeLambdaMethod. Mirror that here:
+            // delegate to VirtualMachine::invokeLambda, which sets up the
+            // lambda's CallFrame, restores capturedThis / capturedFrame, and
+            // drives the body to completion. Without this branch the slow
+            // path falls through to the throw below, the exception lands in
+            // ctx->pendingException, and every subsequent jit_call_method_ic
+            // becomes a silent no-op — turning the OSR'd outer loop into an
+            // infinite spin (stream_pipeline_hot regression).
+            if (value::isLambda(objectValue))
+            {
+                if (ctx->vm)
+                {
+                    auto lambda = value::asLambda(objectValue);
+                    ctx->returnValue = ctx->vm->invokeLambda(lambda, args);
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+            }
+
             throw errors::RuntimeException("JIT: cannot call method '" + methodName + "'");
         }
         catch (...)
@@ -212,7 +235,76 @@ namespace vm::jit
                              size_t argCount)
     {
         if (ctx->pendingException)
+        {
+            // MYT-254 (F-c diagnosis): silent no-op on pendingException is
+            // the mechanism that causes the JIT loop to spin forever — every
+            // CALL_METHOD becomes a void-returning stub. Log the exception
+            // text on first observation so we know what actually broke.
+            // Gated by MTYPE_TRACE_PENDING_EXC=1; cached static; one-shot.
+            static const bool tracePendingExc = []() {
+                const char* v = std::getenv("MTYPE_TRACE_PENDING_EXC");
+                return v && v[0] == '1' && v[1] == '\0';
+            }();
+            if (tracePendingExc)
+            {
+                static bool logged = false;
+                if (!logged)
+                {
+                    logged = true;
+                    std::cerr << "[PENDING_EXC] first-observed at bytecodeOffset="
+                              << bytecodeOffset
+                              << " methodNameIndex=" << methodNameIndex
+                              << " argCount=" << argCount;
+                    if (ctx->program)
+                    {
+                        const auto& cp = ctx->program->getConstantPool();
+                        if (methodNameIndex < cp.strings.size())
+                        {
+                            std::cerr << " resolvedName=\""
+                                      << cp.strings[methodNameIndex] << "\"";
+                        }
+                        size_t instrCount = ctx->program->getInstructionCount();
+                        // Dump 4 instructions of context around the failing IP
+                        // so we can confirm whether the bytecode sequence
+                        // really is what the methodNameIndex implies, or
+                        // whether the JIT is dispatching with an off-by-N.
+                        std::cerr << " bytecode_context=[";
+                        for (size_t off = (bytecodeOffset >= 2 ? bytecodeOffset - 2 : 0);
+                             off <= bytecodeOffset + 2 && off < instrCount;
+                             ++off)
+                        {
+                            const auto& instr = ctx->program->getInstruction(off);
+                            std::cerr << " " << off << ":"
+                                      << bytecode::getOpCodeName(instr.opcode)
+                                      << "(";
+                            for (size_t i = 0; i < instr.operands.size(); ++i)
+                            {
+                                if (i) std::cerr << ",";
+                                std::cerr << instr.operands[i];
+                            }
+                            std::cerr << ")";
+                        }
+                        std::cerr << " ]";
+                    }
+                    try
+                    {
+                        std::rethrow_exception(ctx->pendingException);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        std::cerr << " what=\"" << e.what() << "\""
+                                  << " typeid=" << typeid(e).name();
+                    }
+                    catch (...)
+                    {
+                        std::cerr << " what=<non-std::exception>";
+                    }
+                    std::cerr << "\n";
+                    std::cerr.flush();
+                }
+            }
             return;
+        }
 
         // Without an IC table or VM, fall back to the resolution path.
         if (!ctx->icTable || !ctx->vm)

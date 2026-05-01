@@ -213,6 +213,48 @@ namespace vm::jit
         // the donation pattern.
         void jit_trace_value(uint64_t label, const value::Value* val);
 
+        // MYT-254: per-iteration field-IC fast-path probes. Emitted from
+        // tryEmitInlinedFieldGet / tryEmitInlinedFieldSet when
+        // MTYPE_TRACE_FIELD_GET / MTYPE_TRACE_FIELD_SET is set at compile
+        // time, so the runtime path has zero overhead when the env var is
+        // off. Use to confirm whether count()'s OSR'd body sees a stale
+        // FilteringIterator.hasNextElement after a nested advance() OSR.
+        void jit_trace_field_get(uint64_t ip, uint64_t fieldIndex,
+                                 const value::Value* receiver,
+                                 const value::Value* fieldData);
+        void jit_trace_field_set(uint64_t ip, uint64_t fieldIndex,
+                                 const value::Value* receiver,
+                                 const value::Value* newValue);
+
+        // MYT-254: per-iteration receiver probe at the OSR loop's back-edge
+        // target. Gated by MTYPE_TRACE_OSR_LOOP_ITER. Prints the loop's
+        // current IP and the address of the captured receiver (locals[0])
+        // so we can tell whether the receiver pointer drifts between
+        // iterations — corruption inside emitInlineLocalCopy would surface
+        // as a changing pointer even though the source receiver is stable.
+        void jit_trace_osr_loop_iter(uint64_t ip,
+                                     const value::Value* receiver);
+
+        // MYT-254 (E1/E2 disambiguation): probe at slow-path helper return
+        // sites. Wired into emitGetFieldHelperInvoke (after jit_get_field_ic)
+        // and emitCallMethodOpGeneric (after jit_call_method_ic) when
+        // MTYPE_TRACE_HELPER_RETURN=1, so we can read what value the helper
+        // delivered back to the JIT caller. helperKind is a stable c-string
+        // pointer ("GET_FIELD" / "CALL_METHOD") baked at compile time.
+        void jit_trace_helper_return(uint64_t ip, const char* helperKind,
+                                     const value::Value* returnValue);
+
+        // MYT-254 (F-a/F-b disambiguation): receiver probe at slow-path
+        // CALL_METHOD args staging. Wired into emitCallMethodOpGeneric AFTER
+        // emitBoxCallArgs has populated ctx->callArgs and BEFORE the
+        // jit_call_method_ic invoke, gated by MTYPE_TRACE_HELPER_ARGS=1.
+        // Prints the receiver pointer (= ObjectInstance*) so we can compare
+        // against MTYPE_TRACE_INTERP_FIELD_SET writes inside the interpreter
+        // body of advance(): if they differ, F-b (receiver drift) is the bug.
+        void jit_trace_call_method_args(uint64_t ip,
+                                        const value::Value* receiver,
+                                        uint64_t argCount);
+
         // MYT-251: push/pop the JIT-inlined callee's owner class for
         // field/method access validation. Without these, an inlined
         // ListIterator::hasNext body running inside a FilteringIterator

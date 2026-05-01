@@ -27,6 +27,78 @@
 
 namespace vm::runtime
 {
+    namespace
+    {
+        // MYT-254 (F-c diagnosis): probe at every callMethodFromJitDirect
+        // entry. The trace from MTYPE_TRACE_HELPER_ARGS + INTERP_FIELD_SET
+        // showed that IP 1402's slow-path advance() call dispatches and
+        // returns void 11k+ times in steady state but never executes any
+        // STORE_FIELD inside the callee. This probe prints the dispatched
+        // method's identity (qualifiedName), its funcMetadata pointer +
+        // startOffset + localCount, the receiver instance, and the first
+        // opcode at startOffset — so we can confirm whether the IC entry
+        // is dispatching to the right method, whether startOffset is in
+        // range, and whether the very first instruction is RETURN_VOID
+        // (i.e. an empty/no-op stub) or the expected STORE_FIELD for
+        // FilteringIterator.advance(). Gated by MTYPE_TRACE_JIT_DISPATCH=1;
+        // cached static so the off path is one branch on a cached bool.
+        inline bool jitDispatchTraceEnabled() noexcept
+        {
+            static const bool enabled = []() {
+                const char* v = std::getenv("MTYPE_TRACE_JIT_DISPATCH");
+                return v && v[0] == '1' && v[1] == '\0';
+            }();
+            return enabled;
+        }
+
+        void traceJitDispatch(const char* origin,
+                              const std::string& qualifiedName,
+                              const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata,
+                              const void* receiverInstance,
+                              const bytecode::BytecodeProgram* program)
+        {
+            std::cerr << "[JIT_DISPATCH] origin=" << (origin ? origin : "<null>")
+                      << " name=" << qualifiedName
+                      << " funcMeta=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(funcMetadata) << std::dec
+                      << " instance=0x" << std::hex
+                      << reinterpret_cast<uintptr_t>(receiverInstance) << std::dec;
+
+            if (funcMetadata)
+            {
+                std::cerr << " startOffset=" << funcMetadata->startOffset
+                          << " localCount=" << funcMetadata->localCount
+                          << " parameterCount=" << funcMetadata->parameterCount;
+
+                if (program)
+                {
+                    size_t instrCount = program->getInstructionCount();
+                    std::cerr << " programInstrCount=" << instrCount;
+                    if (funcMetadata->startOffset < instrCount)
+                    {
+                        const auto& firstInstr = program->getInstruction(funcMetadata->startOffset);
+                        std::cerr << " firstOpcode="
+                                  << bytecode::getOpCodeName(firstInstr.opcode);
+                    }
+                    else
+                    {
+                        std::cerr << " firstOpcode=<OUT_OF_RANGE>";
+                    }
+                }
+                else
+                {
+                    std::cerr << " program=<null>";
+                }
+            }
+            else
+            {
+                std::cerr << " funcMeta=<null>";
+            }
+            std::cerr << "\n";
+            std::cerr.flush();
+        }
+    } // namespace
+
     value::Value VirtualMachine::runJitMiniInterpret(
         size_t savedIP,
         size_t savedCallStackDepth,
@@ -324,6 +396,13 @@ namespace vm::runtime
         const std::vector<value::Value>& args,
         const bytecode::BytecodeProgram* calleeProgram)
     {
+        if (jitDispatchTraceEnabled())
+        {
+            traceJitDispatch("Direct(shared_ptr)", qualifiedName, funcMetadata,
+                             instance.get(),
+                             calleeProgram ? calleeProgram : program);
+        }
+
         if (!program || !instance || !funcMetadata)
         {
             throw errors::RuntimeException("JIT method direct: invalid state");
@@ -460,6 +539,13 @@ namespace vm::runtime
         // instance is owned by the caller's frame (via stackObjects), not by
         // anything pushed here.
         auto* raw = value::asObjectInstanceRaw(receiverValue);
+
+        if (jitDispatchTraceEnabled())
+        {
+            traceJitDispatch("DirectStack", qualifiedName, funcMetadata, raw,
+                             calleeProgram ? calleeProgram : program);
+        }
+
         if (!program || !raw || !funcMetadata)
         {
             throw errors::RuntimeException("JIT method direct (stack): invalid state");
