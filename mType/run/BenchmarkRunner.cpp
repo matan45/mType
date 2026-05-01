@@ -104,6 +104,12 @@ namespace
         "pattern_match_hot.mt",
         "string_interpolation_hot.mt",
         "boxed_primitive_dispatch_hot.mt",
+        // MYT-254: linked-list traversal under nested loops. Inner walks
+        // all M elements via get(k), which chases Node.next pointers each
+        // call — O(M^2) per outer iter, exercising field-chain inlining
+        // at depth 2+ on a linked container (vs the ArrayList-backed
+        // stream_pipeline_hot).
+        "linked_list_nested_hot.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";
