@@ -215,10 +215,37 @@ namespace vm::jit
         inv->set_arg(1, leftAddr);
         inv->set_arg(2, rightAddr);
 
-        SlotType resType = (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
-                         ? SlotType::FLOAT : SlotType::INT;
-        emitUnbox(s, resultAddr, s.stackDepth - 1, resType);
-        s.slotTypes.push_back(resType);
+        // MYT-254: when either operand is string-like or BOXED, the helper
+        // (jit_generic_add) may return a STRING value via the string-concat
+        // path. emitUnbox via jit_unbox_int would silently return 0 for a
+        // STRING, leaving the operand stack with garbage that downstream
+        // ops (e.g. NEW String) would treat as the actual concat result.
+        // Copy the result Value into boxedBase so the downstream BOXED
+        // consumer sees the real concatenated string. Pure numeric mixed
+        // cases (e.g. INT+FLOAT) keep the FLOAT/INT unbox path.
+        const bool maybeStringConcat =
+            lType == SlotType::STRING || rType == SlotType::STRING ||
+            isBoxedSlotType(lType)    || isBoxedSlotType(rType);
+
+        if (maybeStringConcat)
+        {
+            Gp destAddr = cc.new_gp64();
+            cc.lea(destAddr, Mem(s.boxedBase,
+                                 static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+            InvokeNode* cpInv;
+            cc.invoke(Out(cpInv), reinterpret_cast<uint64_t>(jit_value_copy),
+                      FuncSignature::build<void, value::Value*, const value::Value*>());
+            cpInv->set_arg(0, destAddr);
+            cpInv->set_arg(1, resultAddr);
+            s.slotTypes.push_back(SlotType::BOXED);
+        }
+        else
+        {
+            SlotType resType = (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
+                             ? SlotType::FLOAT : SlotType::INT;
+            emitUnbox(s, resultAddr, s.stackDepth - 1, resType);
+            s.slotTypes.push_back(resType);
+        }
     }
 
     // Returns true if comparison was fully handled (both-boxed EQ/NE).

@@ -254,6 +254,47 @@ namespace vm::jit
         SlotType rType = popType(s), lType = popType(s);
         s.stackDepth--;
 
+        // MYT-254: for ADD with any non-numeric-primitive operand, route to
+        // emitGenericBinop. The original code path called emitEnsureUnboxed
+        // with target=INT, which routes the value through jit_unbox_int —
+        // returning 0 for STRING/OBJECT/etc. The subsequent INT+INT path
+        // then computes 0+0 (or 0+rhs), producing junk INT that flows into
+        // downstream consumers (e.g. `new String(...)` with the int payload
+        // as if it were a string). For ADD, route through jit_generic_add
+        // which handles string concat properly. For SUB/MUL with non-numeric
+        // operands, also route to generic so the helper's typed throw
+        // surfaces (instead of the silent 0 + 0 result).
+        //
+        // Numeric-feedback specialization is preserved: when both operands
+        // are BOXED but type feedback dominates as INT/FLOAT, we keep the
+        // fast unbox path. For STRING/OBJECT/ARRAY/VALUE_OBJECT/STACK_OBJECT
+        // (the boxed-but-not-numeric set) we always go generic.
+        auto isNonNumericBoxed = [](SlotType t) {
+            return t == SlotType::STRING || t == SlotType::OBJECT
+                || t == SlotType::ARRAY  || t == SlotType::VALUE_OBJECT
+                || t == SlotType::STACK_OBJECT;
+        };
+        const bool eitherStringy = isNonNumericBoxed(lType) || isNonNumericBoxed(rType);
+        bool feedbackSaysNumeric = false;
+        if (s.typeFeedback && s.typeFeedback->shouldSpecialize(s.currentIP))
+        {
+            auto [lt, rt] = s.typeFeedback->getDominantTypes(s.currentIP);
+            feedbackSaysNumeric =
+                (lt == ic::ObservedType::INT || lt == ic::ObservedType::FLOAT) &&
+                (rt == ic::ObservedType::INT || rt == ic::ObservedType::FLOAT);
+        }
+        const bool eitherUnknownBoxed =
+            (lType == SlotType::BOXED || rType == SlotType::BOXED) && !feedbackSaysNumeric;
+        if (eitherStringy || (instr.opcode == OpCode::ADD && eitherUnknownBoxed))
+        {
+            uint64_t fn;
+            if (instr.opcode == OpCode::ADD) fn = (uint64_t)jit_generic_add;
+            else if (instr.opcode == OpCode::SUB) fn = (uint64_t)jit_generic_sub;
+            else fn = (uint64_t)jit_generic_mul;
+            emitGenericBinop(s, fn, lType, rType);
+            return true;
+        }
+
         // Determine unbox target: if either operand is FLOAT, unbox as FLOAT
         SlotType unboxTarget = (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
             ? SlotType::FLOAT : SlotType::INT;
