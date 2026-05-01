@@ -460,12 +460,10 @@ namespace vm::runtime
         {
             const std::string& rawMethodName =
                 context.program->getConstantPool().getString(instr.operands[0]);
-            // MYT-181: strip class prefix + signature suffix. The compiler
-            // emits mangled names ("Shape::compute/int") but
-            // findInstanceMethodCached expects the simple name.
             const std::string simpleMethodName =
                 runtimeTypes::klass::SignatureUtils::extractSimpleName(rawMethodName);
-            auto lookupResult = classDef->findInstanceMethodCached(simpleMethodName, argCount);
+            auto lookupResult =
+                classDef->findInstanceMethodForCallNameCached(rawMethodName, argCount);
             if (lookupResult.method)
             {
                 // MYT-182: resolve across main + loaded library programs so

@@ -482,6 +482,10 @@ namespace vm::jit
             // local slot from stackBase; BOXED values use the existing raw
             // memcpy + tag-reset donation path.
             const int srcSlot = receiverStackIdx + static_cast<int>(i);
+            const SlotType srcType =
+                (srcSlot >= 0 && static_cast<size_t>(srcSlot) < s.slotTypes.size())
+                    ? s.slotTypes[static_cast<size_t>(srcSlot)]
+                    : SlotType::BOXED;
 
             Gp dst = cc.new_gp64();
             cc.lea(dst, Mem(s.localsBase,
@@ -517,7 +521,19 @@ namespace vm::jit
                 if (paramType == SlotType::FLOAT)
                 {
                     Vec srcVal = cc.new_xmm();
-                    cc.movsd(srcVal, Mem(s.stackBase, srcSlot * 8));
+                    if (srcType == SlotType::FLOAT)
+                    {
+                        cc.movsd(srcVal, Mem(s.stackBase, srcSlot * 8));
+                    }
+                    else
+                    {
+                        Gp srcAddr = emitGetBoxedValueAddr(s, srcSlot, srcType);
+                        InvokeNode* unbox;
+                        cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_float),
+                                  FuncSignature::build<double, const value::Value*>());
+                        unbox->set_arg(0, srcAddr);
+                        unbox->set_ret(0, srcVal);
+                    }
                     InvokeNode* inv;
                     cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_float),
                               FuncSignature::build<void, value::Value*, double>());
@@ -527,7 +543,19 @@ namespace vm::jit
                 else
                 {
                     Gp srcVal = cc.new_gp64();
-                    cc.mov(srcVal, Mem(s.stackBase, srcSlot * 8));
+                    if (!isBoxedSlotType(srcType) && srcType != SlotType::FLOAT)
+                    {
+                        cc.mov(srcVal, Mem(s.stackBase, srcSlot * 8));
+                    }
+                    else
+                    {
+                        Gp srcAddr = emitGetBoxedValueAddr(s, srcSlot, srcType);
+                        InvokeNode* unbox;
+                        cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                                  FuncSignature::build<int64_t, const value::Value*>());
+                        unbox->set_arg(0, srcAddr);
+                        unbox->set_ret(0, srcVal);
+                    }
                     InvokeNode* inv;
                     const uint64_t fn = (paramType == SlotType::BOOL)
                         ? reinterpret_cast<uint64_t>(jit_box_bool)
