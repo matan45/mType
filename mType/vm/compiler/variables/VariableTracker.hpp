@@ -22,6 +22,7 @@ namespace vm::compiler::variables
             bool isCaptured = false;  // True if captured by a lambda
             bool isNullable = false;  // True if type is nullable (T?)
             bool isMutated = false;   // MYT-215: assignment after initial declaration
+            bool isFinal = false;     // MYT-247: declared with `final` modifier
         };
 
         VariableTracker();
@@ -31,7 +32,11 @@ namespace vm::compiler::variables
         size_t resolveLocal(const std::string& name, size_t startSlot) const;
 
         // Variable declaration
-        void declareLocal(const std::string& name, value::ValueType type, const std::string& className = "", bool isNullable = false);
+        void declareLocal(const std::string& name, value::ValueType type, const std::string& className = "", bool isNullable = false, bool isFinal = false);
+
+        // MYT-247: check whether a local variable in the current function frame
+        // (slot >= startSlot) was declared with the `final` modifier.
+        bool isLocalFinal(const std::string& name, size_t startSlot) const;
 
         // Scope management
         void beginScope();

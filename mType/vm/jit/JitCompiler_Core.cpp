@@ -15,7 +15,7 @@ namespace vm::jit
     bool JitCompiler::canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
                                   const bytecode::BytecodeProgram& program) const
     {
-        if (meta.isNative || meta.isAsync)
+        if (meta.isNative)
             return false;
 
         const auto& supported = getSupportedOpcodes();
@@ -215,10 +215,37 @@ namespace vm::jit
         inv->set_arg(1, leftAddr);
         inv->set_arg(2, rightAddr);
 
-        SlotType resType = (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
-                         ? SlotType::FLOAT : SlotType::INT;
-        emitUnbox(s, resultAddr, s.stackDepth - 1, resType);
-        s.slotTypes.push_back(resType);
+        // MYT-254: when either operand is string-like or BOXED, the helper
+        // (jit_generic_add) may return a STRING value via the string-concat
+        // path. emitUnbox via jit_unbox_int would silently return 0 for a
+        // STRING, leaving the operand stack with garbage that downstream
+        // ops (e.g. NEW String) would treat as the actual concat result.
+        // Copy the result Value into boxedBase so the downstream BOXED
+        // consumer sees the real concatenated string. Pure numeric mixed
+        // cases (e.g. INT+FLOAT) keep the FLOAT/INT unbox path.
+        const bool maybeStringConcat =
+            lType == SlotType::STRING || rType == SlotType::STRING ||
+            isBoxedSlotType(lType)    || isBoxedSlotType(rType);
+
+        if (maybeStringConcat)
+        {
+            Gp destAddr = cc.new_gp64();
+            cc.lea(destAddr, Mem(s.boxedBase,
+                                 static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+            InvokeNode* cpInv;
+            cc.invoke(Out(cpInv), reinterpret_cast<uint64_t>(jit_value_copy),
+                      FuncSignature::build<void, value::Value*, const value::Value*>());
+            cpInv->set_arg(0, destAddr);
+            cpInv->set_arg(1, resultAddr);
+            s.slotTypes.push_back(SlotType::BOXED);
+        }
+        else
+        {
+            SlotType resType = (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
+                             ? SlotType::FLOAT : SlotType::INT;
+            emitUnbox(s, resultAddr, s.stackDepth - 1, resType);
+            s.slotTypes.push_back(resType);
+        }
     }
 
     // Returns true if comparison was fully handled (both-boxed EQ/NE).
@@ -468,7 +495,11 @@ namespace vm::jit
         const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
         size_t localCount)
     {
-        constexpr size_t MAX_OP_STACK = 64;
+        // MYT-251: use the single source of truth in JitEmissionState so all
+        // three setup paths (here, OSR, and the emitters' bounds checks)
+        // share one value. Previously a local 64 here, a local 64 in
+        // setupOSRFrame, and JitEmissionState::MAX_OP_STACK could drift.
+        constexpr size_t MAX_OP_STACK = JitEmissionState::MAX_OP_STACK;
         constexpr size_t valueSize = sizeof(value::Value);
 
         size_t scanEnd = funcMeta.startOffset + funcMeta.instructionCount;

@@ -2233,6 +2233,9 @@
     <None Include="tests\testFiles\await\pass\throwBeforeFirstAwait.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\abstract_dispatch_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\arithmetic_tight_loop.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -2249,6 +2252,15 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\bitwise_tight_loop.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\boxed_primitive_dispatch_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\cast_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\collections_hash_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\field_read_hot.mt">
@@ -2296,16 +2308,37 @@
     <None Include="tests\testFiles\benchmarks\object_alloc_nested.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\overload_dispatch_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\pattern_match_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\primitive_method_dispatch.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\recursive.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\reflection_lookup_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\short_circuit_chain.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\stream_pipeline_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\string_interpolation_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\string_ops.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\switch_dispatch_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\try_catch_finally_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\bugs\infiniteLoopHangs.mt">
@@ -5062,6 +5095,15 @@
     <None Include="tests\testFiles\error\error\enhancedUndefinedFunctionLocation.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
+    <None Include="tests\testFiles\error\error\errorAnnotationWrongTarget_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorArrayBoundsUncaught_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorBadCastUncaught_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
     <None Include="tests\testFiles\error\error\errorCatchBlockOrdering_error.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
@@ -5069,6 +5111,24 @@
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\errorEmptyTry_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorFinalLocalCompoundAssign_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorFinalLocalIncrement_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorFinalMethodOverride_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorFinalReassignInCatch_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorInstantiateAbstractException_error.mt">
+      <Filter>testFiles\error\error</Filter>
+    </None>
+    <None Include="tests\testFiles\error\error\errorStreamLambdaUncaught_error.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
     <None Include="tests\testFiles\error\error\errorThrowMismatch_error.mt">
@@ -5149,9 +5209,6 @@
     <None Include="tests\testFiles\error\error\runtimeStackOverflow.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
-    <None Include="tests\testFiles\error\error\runtimeStackOverflowTailCall.mt">
-      <Filter>testFiles\error\error</Filter>
-    </None>
     <None Include="tests\testFiles\error\error\scopeFunctionParameterShadowing.mt">
       <Filter>testFiles\error\error</Filter>
     </None>
@@ -5218,10 +5275,34 @@
     <None Include="tests\testFiles\error\pass\emptyTryEmptyCatch.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorAbstractMethodOverride_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAbstractMethodOverride_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorAggregation_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorAggregation_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAnnotationOnThrower_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorAnnotationOnThrower_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorArrayBoundsCaught_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorArrayBoundsCaught_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorArrayNullElementCaught_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorArrayNullElementCaught_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorAsyncAwaitException_pass.expected">
@@ -5278,10 +5359,22 @@
     <None Include="tests\testFiles\error\pass\errorBoundedGenericException_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorBoxClassThrowUnbox_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorBoxClassThrowUnbox_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorBreakInTryFinally_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorBreakInTryFinally_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCastFailureCaught_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorCastFailureCaught_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorCatchAbstractException_pass.expected">
@@ -5350,6 +5443,12 @@
     <None Include="tests\testFiles\error\pass\errorDefaultMethodException_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorDoWhileFinallyAlways_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorDoWhileFinallyAlways_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorEmptyCatch_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
@@ -5366,6 +5465,36 @@
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorFallbackValue_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorFinalMethodThrows_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorFinalMethodThrows_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorFinalVarInCatch_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorFinalVarInCatch_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorForEachAbortIteration_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorForEachAbortIteration_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorForEachSkipBadItem_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorForEachSkipBadItem_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorForLoopContinueOnThrow_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorForLoopContinueOnThrow_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorGenericException_pass.expected">
@@ -5390,6 +5519,18 @@
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorImplDifferentThrows_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorImportAliasException_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorImportAliasException_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorImportedFunctionThrows_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorImportedFunctionThrows_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorInArrayInit_pass.expected">
@@ -5458,6 +5599,18 @@
     <None Include="tests\testFiles\error\pass\errorInterfaceMethodThrows_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorInterpolatedExceptionMessage_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorInterpolatedExceptionMessage_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorJitOSRLambdaThrowsPropagates_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorJitOSRLambdaThrowsPropagates_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorLambdaCapturingException_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
@@ -5494,10 +5647,22 @@
     <None Include="tests\testFiles\error\pass\errorManyExceptions_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorMatchPatternThrows_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorMatchPatternThrows_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorModuleInitException_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorModuleInitException_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorMultiCustomExceptionTypes_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorMultiCustomExceptionTypes_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorMultipleFinallyNoCatch_pass.expected">
@@ -5518,10 +5683,22 @@
     <None Include="tests\testFiles\error\pass\errorMultipleInterfaceConflict_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorOverloadedThrows_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorOverloadedThrows_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorPartialFailure_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorPartialFailure_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorPrivateFieldFinallyCleanup_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorPrivateFieldFinallyCleanup_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorPropagationTypedNoMatch_pass.expected">
@@ -5530,10 +5707,28 @@
     <None Include="tests\testFiles\error\pass\errorPropagationTypedNoMatch_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorRecursionFinallyCount_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorRecursionFinallyCount_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorRecursiveCatch_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorRecursiveCatch_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorReflectClassNotFoundCaught_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorReflectClassNotFoundCaught_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorReflectInvokeThrows_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorReflectInvokeThrows_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\errorResourceCleanupMultipleFail_pass.expected">
@@ -5644,6 +5839,30 @@
     <None Include="tests\testFiles\error\pass\errorStackTraceWithLambda_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorStaticMethodThrowsFinally_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStaticMethodThrowsFinally_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStreamLambdaThrows_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStreamLambdaThrows_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStringPoolAcrossThrow_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorStringPoolAcrossThrow_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorSwitchDefaultThrowsCaught_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorSwitchDefaultThrowsCaught_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\errorThrowGenericException_pass.expected">
       <Filter>testFiles\error\pass</Filter>
     </None>
@@ -5674,7 +5893,28 @@
     <None Include="tests\testFiles\error\pass\errorThrowPolymorphic_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
+    <None Include="tests\testFiles\error\pass\errorValueClassInTryCatch_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorValueClassInTryCatch_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorVirtualThrowCaughtAsBase_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorVirtualThrowCaughtAsBase_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorWhileRetryUntilSuccess_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\errorWhileRetryUntilSuccess_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
     <None Include="tests\testFiles\error\pass\modules\CustomException.mt">
+      <Filter>testFiles\error\pass\modules</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\modules\ThrowingHelper.mt">
       <Filter>testFiles\error\pass\modules</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\modules\ThrowingModule.mt">
@@ -7966,6 +8206,12 @@
     <None Include="tests\testFiles\integration\pass\inlining\inline_nested.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_osr_stress.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_osr_stress.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_poly.expected">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
@@ -9690,6 +9936,9 @@
     </None>
     <None Include="tests\testFiles\lib\collections\Stack.mt">
       <Filter>testFiles\lib\collections</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\exceptions\ClassNotFoundException.mt">
+      <Filter>testFiles\lib\exceptions</Filter>
     </None>
     <None Include="tests\testFiles\lib\exceptions\Exception.mt">
       <Filter>testFiles\lib\exceptions</Filter>

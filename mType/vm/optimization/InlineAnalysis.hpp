@@ -61,16 +61,56 @@ namespace vm::optimization
     constexpr size_t INLINE_SIZE_LIMIT = 32;
 
     // Max nested inline depth. The caller tracks depth in JitEmissionState
-    // (inlineStack.size()). F-a ships with depth 1 only (restriction forbids
-    // nested CALL); kept at 2 so F-b can unlock nested inlining without
-    // re-checking the constant.
+    // (inlineStack.size()). F-a originally shipped depth 1; F-b raised to
+    // 2 for nested-inline support.
+    //
+    // MYT-252: kept at 2 (the original F-b nested-inline target). Two
+    // distinct bugs were on the path here:
+    //
+    //  (a) GET_FIELD on a primitive field in usesBoxedTypes mode wrote
+    //      only to boxedBase, but downstream NOT / JUMP_IF_FALSE /
+    //      JUMP_IF_TRUE / arith read raw primitives from stackBase —
+    //      CALL_METHOD's slow path mirrors via emitReturnValueCopyBoxed
+    //      (MYT-154); GET_FIELD had no equivalent. Fixed in
+    //      emitGetFieldHelperInvoke + tryEmitInlinedFieldGet (this branch).
+    //
+    //  (b) A separate hang on stream_pipeline_hot triggers when both
+    //      count()'s outer loop AND FilteringIterator::advance()'s inner
+    //      loop become hot enough to OSR-compile (M >= ~6 elements).
+    //      Once both are OSR'd, count()'s depth-2 inlined view of
+    //      hasNextElement reads it as permanently true.
+    //
+    //      Confirmed OSR-specific: MTYPE_DISABLE_OSR=1 + LIMIT=2 +
+    //      M=10 produces the correct total=25000. With OSR off but
+    //      inlining on (function-level JIT), depth-2 inlined chain
+    //      compiles and runs correctly. The InlineAnalysis decision
+    //      sequence is identical between passing (M=4) and hanging
+    //      (M=10) runs — the bug is in OSR codegen / re-entry, not
+    //      in inline eligibility. Tracked as MYT-254. Cousin of
+    //      MYT-248/249/250 silent-OSR family.
+    //
+    // Workaround for (b) until MYT-254 lands: run with
+    // MTYPE_DISABLE_OSR=1. Other bypasses that also clear the hang:
+    // setting this constant to 0 or 1, MTYPE_DISABLE_NESTED_INLINING=1,
+    // MTYPE_DISABLE_INLINING=1.
+    //
+    // The "InlineDepthGuard" hypothesis from earlier comment iterations
+    // was unrelated and stays reverted.
     constexpr size_t INLINE_DEPTH_LIMIT = 2;
 
+    // MYT-251: `isOSRCompilation` makes the OSR-context signal explicit.
+    // Previously the self-recursion check below short-circuited silently
+    // when currentCompilingFn was empty (i.e. in OSR), which meant every
+    // method passed the self-recursion guard in OSR. The check is still a
+    // no-op in OSR (there is no static caller name to compare against),
+    // but the call site now communicates intent rather than relying on the
+    // emptiness of an unrelated string.
     InlineDecision checkInlineEligibility(
         const vm::bytecode::BytecodeProgram& program,
         const vm::jit::ic::MethodInlineCache& cache,
         const std::string& currentCompilingFn,
-        size_t currentInlineDepth);
+        size_t currentInlineDepth,
+        bool isOSRCompilation = false);
 
     // MYT-210: plain-CALL / CALL_FAST inlining eligibility. Mirrors
     // checkInlineEligibility but the callee is statically known (no IC, no

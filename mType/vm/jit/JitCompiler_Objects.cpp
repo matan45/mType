@@ -5,15 +5,85 @@
 #include "ic/InlineCacheTable.hpp"
 #include "ic/TypeFeedbackCollector.hpp"
 #include "../optimization/InlineAnalysis.hpp"
+#include "../optimization/analysis/DataFlowAnalyzer.hpp"  // MYT-251: per-opcode stack effect for callee peak pre-scan
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include <asmjit/x86.h>
 #include <cassert>
+#include <cstdlib>  // MYT-248/249/250: getenv for MTYPE_DISABLE_INLINING bisect
+#include <deque>    // MYT-251: stable storage for interned class names
+#include <string>   // MYT-251
 
 namespace vm::jit
 {
     using namespace asmjit;
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
+
+    // MYT-251: walk the callee's bytecode and return the peak operand-stack
+    // depth it reaches starting from depth 0. The inline guards in
+    // emitInlinedMethodCallMono / emitInlinedMethodCallPoly use this to
+    // reject candidates whose `caller_depth + callee_peak` would exceed
+    // MAX_OP_STACK — the previous overflow caused __fastfail(/GS-cookie)
+    // (MYT-248/249/250).
+    //
+    // For known opcodes we use DataFlowAnalyzer::calculateStackEffect
+    // (vm/optimization/analysis/DataFlowAnalyzer.cpp:43). For opcodes that
+    // helper doesn't classify (CALL_METHOD, CALL_FAST, NEW_INSTANCE,
+    // lambda invokes, iterator ops, etc.) we default to a conservative
+    // net +1 — those typically leave one result on the operand stack. A
+    // tighter per-opcode table can be added later if --jit-stats shows
+    // this rejecting too many candidates; for now correctness > precision.
+    static size_t computeCalleePeakOperandStack(
+        const bytecode::BytecodeProgram& program,
+        const bytecode::BytecodeProgram::FunctionMetadata& callee)
+    {
+        // MYT-251 step 1: cheap insurance — wrap the body so any throw from
+        // within (DFA reading, bytecode access, etc.) returns a safe-failure
+        // sentinel rather than escaping. The eventual guard is
+        // `s.stackDepth + calleePeak > MAX_OP_STACK`, so returning
+        // MAX_OP_STACK + 1 forces every caller to reject the candidate
+        // cleanly. This eliminates the helper as a candidate root cause
+        // for any future bisection failure.
+        try
+        {
+            using DFA = optimization::analysis::DataFlowAnalyzer;
+            int depth = 0;
+            int peak  = 0;
+            const size_t end = callee.startOffset + callee.instructionCount;
+            for (size_t ip = callee.startOffset; ip < end; ++ip)
+            {
+                const auto& instr = program.getInstruction(ip);
+                DFA::StackEffect e = DFA::calculateStackEffect(instr.opcode);
+                int net = e.netEffect;
+                // DFA returns (0,0) for opcodes it doesn't classify. Treat that
+                // as a conservative +1 net push so we don't under-estimate
+                // peak depth from CALL_METHOD / NEW_INSTANCE / etc.
+                if (e.consumed == 0 && e.produced == 0
+                    && instr.opcode != bytecode::OpCode::NOP
+                    && instr.opcode != bytecode::OpCode::JUMP
+                    && instr.opcode != bytecode::OpCode::JUMP_BACK
+                    && instr.opcode != bytecode::OpCode::LINE
+                    && instr.opcode != bytecode::OpCode::SOURCE_FILE
+                    && instr.opcode != bytecode::OpCode::LOOP_START
+                    && instr.opcode != bytecode::OpCode::LOOP_END
+                    && instr.opcode != bytecode::OpCode::SWAP
+                    && instr.opcode != bytecode::OpCode::RETURN)
+                {
+                    net = 1;
+                }
+                // First account the consumes (caps depth from going negative on
+                // a partially-classified op), then the net.
+                depth += net;
+                if (depth < 0) depth = 0;
+                if (depth > peak) peak = depth;
+            }
+            return static_cast<size_t>(peak);
+        }
+        catch (...)
+        {
+            return JitEmissionState::MAX_OP_STACK + 1;
+        }
+    }
 
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount, size_t destStartSlot)
     {
@@ -117,6 +187,24 @@ namespace vm::jit
         inv->set_arg(3, ipReg);
         inv->set_arg(4, idx);
         inv->set_arg(5, flagsReg);
+
+        // MYT-252: mirror primitive payload from boxedBase to stackBase so
+        // primitive consumers (NOT/JUMP_IF_FALSE/JUMP_IF_TRUE/arith)
+        // read the right value. Mirrors emitReturnValueCopyBoxed
+        // (MYT-154); jit_unbox_int returns 0 for non-numeric variants —
+        // harmless, boxed-mode consumers re-read variant from boxedBase
+        // anyway and ignore the unboxed mirror. One mirror per field
+        // read costs less than per-consumer unbox.
+        Gp unboxAddr = cc.new_gp64();
+        cc.lea(unboxAddr, Mem(s.boxedBase,
+                              static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+        InvokeNode* unbox;
+        cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        unbox->set_arg(0, unboxAddr);
+        Gp unboxed = cc.new_gp64();
+        unbox->set_ret(0, unboxed);
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), unboxed);
     }
 
     // MYT-172 AC #3: speculative-inline GET_FIELD when the field IC is in
@@ -142,6 +230,19 @@ namespace vm::jit
         if (!s.typeFeedback) return false;
         if (!s.usesBoxedTypes) return false;
         if (!s.inlineFieldICHits || !s.inlineFieldICMisses) return false;
+
+        // MYT-252: opt-in disable of the inline-IC fast path. When set,
+        // every GET_FIELD goes through emitGetFieldHelperInvoke (slow path)
+        // which always calls jit_get_field_ic → validateFieldAccessIfNeeded.
+        // Used to test whether the depth-2 hang originates inside this
+        // inline emit path (raw 16-byte memcpy bypassing access validation
+        // and the IC's runtime correctness checks). If the program runs
+        // fine with this disabled, the bug is here.
+        static const bool disableInlineFieldGet = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_INLINE_FIELD_GET");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (disableInlineFieldGet) return false;
 
         auto& icTable = s.typeFeedback->getICTable();
         if (!icTable.hasFieldIC(s.currentIP)) return false;
@@ -201,6 +302,17 @@ namespace vm::jit
         Vec tmp = cc.new_xmm();
         cc.movdqu(tmp, xmmword_ptr(srcAddr, 0));
         cc.movdqu(xmmword_ptr(destAddr, 0), tmp);
+
+        // MYT-252: mirror primitive variant payload (byte 8 onwards) to
+        // stackBase[receiverIdx] so primitive consumers see the unboxed
+        // value. Match the slow path's mirror via jit_unbox_int. The
+        // tag-check at step 4 already restricted to INT/FLOAT/BOOL, so
+        // the variant payload is a raw int64 / double at offset 8.
+        // Skip jit_unbox_int's helper-call cost — we know the layout:
+        // qword_ptr(srcAddr, 8) is the primitive payload.
+        Gp primPayload = cc.new_gp64();
+        cc.mov(primPayload, qword_ptr(srcAddr, 8));
+        cc.mov(Mem(s.stackBase, receiverIdx * 8), primPayload);
 
         // 7. Bump the inline-hit counter (address baked at compile time).
         Gp hitsAddr = cc.new_gp64();
@@ -302,6 +414,13 @@ namespace vm::jit
         if (!s.usesBoxedTypes) return false;
         if (!s.inlineFieldSetICHits || !s.inlineFieldSetICMisses) return false;
 
+        // MYT-252: opt-in disable. See tryEmitInlinedFieldGet's gate.
+        static const bool disableInlineFieldSet = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_INLINE_FIELD_SET");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (disableInlineFieldSet) return false;
+
         auto& icTable = s.typeFeedback->getICTable();
         if (!icTable.hasFieldIC(s.currentIP)) return false;
 
@@ -344,6 +463,7 @@ namespace vm::jit
                              static_cast<int32_t>(receiverIdx * valueSize)));
         Gp fieldIdxReg = cc.new_gp64();
         cc.mov(fieldIdxReg, static_cast<int64_t>(fieldIndex));
+
         Gp retReg = cc.new_gp64();
         InvokeNode* setInv;
         cc.invoke(Out(setInv), reinterpret_cast<uint64_t>(jit_field_set_at),
@@ -475,6 +595,39 @@ namespace vm::jit
     // The MYT-185/186/187 slot-type-bookkeeping fix lives entirely inside
     // emitReturnValueOp + the caller-supplied onExit; this helper just routes
     // opcodes through the existing emit*Ops dispatchers.
+    // MYT-251: stable storage for inlined-callee class names so the
+    // const char* baked into JIT-emitted cc.invoke immediates remains
+    // valid for the lifetime of the JIT'd code. std::deque guarantees
+    // element addresses are stable across appends (unlike std::vector),
+    // and std::string's heap buffer is stable as long as the std::string
+    // itself is not moved — which it isn't here.
+    static const char* internInlinedClassName(std::string&& name)
+    {
+        static std::deque<std::string> storage;
+        storage.push_back(std::move(name));
+        return storage.back().c_str();
+    }
+
+    // MYT-251: derive owner-class name from the callee's qualified name.
+    // For class methods registered by MethodCompilerHelper, `metadata.name`
+    // is the qualified name "ClassName::method/sig" while `mangledName`
+    // is left empty (only FunctionCompiler sets mangledName, for free
+    // functions). For instance methods we therefore prefer `name`; if
+    // it lacks "::" we fall back to mangledName, then to empty (free
+    // function — push pushes "" which the validator falls back from).
+    static const char* deriveOwnerClassNameCStr(
+        const bytecode::BytecodeProgram::FunctionMetadata& callee)
+    {
+        auto extractClass = [](const std::string& s) -> std::string {
+            size_t pos = s.find("::");
+            return pos == std::string::npos ? std::string() : s.substr(0, pos);
+        };
+        std::string fromName = extractClass(callee.name);
+        if (!fromName.empty()) return internInlinedClassName(std::move(fromName));
+        std::string fromMangled = extractClass(callee.mangledName);
+        return internInlinedClassName(std::move(fromMangled));
+    }
+
     static void emitInlineCalleeBody(
         JitEmissionState& s,
         const bytecode::BytecodeProgram::FunctionMetadata& callee,
@@ -482,6 +635,37 @@ namespace vm::jit
         const ExitHandler& onExit)
     {
         auto& cc = s.cc;
+
+        // MYT-251: push the callee's owner class onto
+        // ctx->inlinedCallingClassNames so private/protected field-access
+        // checks inside the inlined body are validated against the right
+        // class (the callee's owner), not the outer function's class.
+        // Without this an OSR-inlined `ListIterator::hasNext` body
+        // running inside a FilteringIterator OSR loop throws
+        // AccessViolationException on its own `this.currentIndex` read,
+        // because the helper sees ctx->callingClassName == "FilteringIterator".
+        //
+        // Emitted as a few inline instructions (not cc.invoke) so the
+        // per-inlined-call overhead is ~3 mov + 1 inc rather than a
+        // function call. Pop is emitted both at fall-through (after the
+        // body loop) and inside each RETURN_VALUE's onExit handler
+        // (before the jmp to endLabel).
+        const char* ownerClassCstr = deriveOwnerClassNameCStr(callee);
+        {
+            // asmjit emits in source order: load nameReg with the
+            // interned c_str pointer BEFORE cc.invoke, otherwise the
+            // call fires while nameReg still holds its prior value.
+            // Pattern matches emitGetFieldHelperInvoke (lines 173-187).
+            Gp nameReg = cc.new_gp64();
+            cc.mov(nameReg, reinterpret_cast<uint64_t>(ownerClassCstr));
+            InvokeNode* push = nullptr;
+            cc.invoke(Out(push),
+                      reinterpret_cast<uint64_t>(jit_push_inlined_class),
+                      FuncSignature::build<void, JitContext*, const char*>());
+            push->set_arg(0, s.ctxPtr);
+            push->set_arg(1, nameReg);
+        }
+
         for (size_t ip = callee.startOffset;
              ip < callee.startOffset + callee.instructionCount && !s.compileFailed;
              ++ip)
@@ -490,9 +674,25 @@ namespace vm::jit
             auto lit = topFrame.localJumpLabels.find(ip);
             if (lit != topFrame.localJumpLabels.end())
             {
+                // MYT-251: previously this reset s.stackDepth / s.slotTypes
+                // to stackBaselineIdx on the assumption that "labels are
+                // always at statement boundaries with empty operand stack."
+                // That invariant is FALSE for short-circuit operators —
+                // JUMP_IF_TRUE_OR_POP / JUMP_IF_FALSE_OR_POP target labels
+                // land mid-expression with one value still on stack. The
+                // bogus reset drove stackDepth negative (e.g. inlining
+                // Bool::xor's `(this.value || other.value) && ...` body),
+                // and subsequent emit reading boxedBase[stackDepth*VS]
+                // wrote into the heap allocation BEFORE boxedBase →
+                // STATUS_HEAP_CORRUPTION. Match emitCodegenLoop /
+                // emitOSRCodegenLoop's behavior: flush hints, bind,
+                // invalidate hints, clear arrayInfoCache when not a back-
+                // edge target. Do NOT touch stackDepth/slotTypes — the
+                // bytecode-compiler emits jumps that converge to a
+                // consistent depth on both paths.
+                flushAllHints(s);
                 cc.bind(lit->second);
-                s.stackDepth = stackBaselineIdx;
-                s.slotTypes.resize(static_cast<size_t>(stackBaselineIdx));
+                invalidateAllHints(s);
                 s.arrayInfoCache.clear();
             }
 
@@ -507,6 +707,20 @@ namespace vm::jit
             else if (emitControlFlowOps(s, cinstr, onExit)) handled = true;
             else { emitObjectOps(s, cinstr); handled = true; }
             (void)handled;
+        }
+
+        // MYT-251: fall-through pop (paired with the push above). Reachable
+        // for well-formed callees only when the body has no terminating
+        // RETURN_VALUE — a degenerate case whose RETURN_VALUE-emitted
+        // onExit handler also pops. Both pop sites are emitted at compile
+        // time; only one runs per execution because RETURN_VALUE jumps to
+        // endLabel before this fall-through is reached.
+        {
+            InvokeNode* pop = nullptr;
+            cc.invoke(Out(pop),
+                      reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                      FuncSignature::build<void, JitContext*>());
+            pop->set_arg(0, s.ctxPtr);
         }
     }
 
@@ -553,6 +767,7 @@ namespace vm::jit
         cc.mov(miReg, static_cast<int64_t>(methodNameIndex));
         Gp acReg = cc.new_gp64();
         cc.mov(acReg, static_cast<int64_t>(argCount));
+
         InvokeNode* callInv;
         cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_method_ic),
                   FuncSignature::build<void, JitContext*, size_t, uint32_t, size_t>());
@@ -560,6 +775,7 @@ namespace vm::jit
         callInv->set_arg(1, ipReg);
         callInv->set_arg(2, miReg);
         callInv->set_arg(3, acReg);
+
         emitReturnValueCopyBoxed(s);
     }
 
@@ -606,6 +822,19 @@ namespace vm::jit
         if (localsBaseSlot + callee->localCount
             > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
             return false;
+
+        // MYT-251 step 3a: peak-operand-stack guard. Reject candidates whose
+        // caller_depth + callee_peak would exceed MAX_OP_STACK — the
+        // overflow that smashed /GS cookies in MYT-248/249/250. With the
+        // workaround at tryEmitInlinedMethodCall still active, this guard
+        // only runs from function-level JIT (currentCompilingFn non-empty);
+        // OSR-loop inlining doesn't reach here until step 4.
+        {
+            const size_t calleePeak = computeCalleePeakOperandStack(s.program, *callee);
+            if (static_cast<size_t>(s.stackDepth) + calleePeak
+                > JitEmissionState::MAX_OP_STACK)
+                return false;
+        }
 
         auto& cc = s.cc;
         asmjit::Label slowLabel = cc.new_label();
@@ -683,6 +912,18 @@ namespace vm::jit
             (JitEmissionState& es, size_t /*target*/) {
             emitInlineReturnMaterialize(es, receiverStackIdx, es.lastReturnSlotType);
             emitInlineLocalDestroy(es, localsBaseSlot, *callee);
+            // MYT-251: pop the inlined-callee class pushed at body entry,
+            // matched with the push in emitInlineCalleeBody. Must run on
+            // the RETURN_VALUE path before jumping to endLabel so post-
+            // inline code sees the correct caller-class context for any
+            // subsequent field-access checks.
+            {
+                InvokeNode* pop = nullptr;
+                es.cc.invoke(Out(pop),
+                          reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                          FuncSignature::build<void, JitContext*>());
+                pop->set_arg(0, es.ctxPtr);
+            }
             es.cc.jmp(endLabel);
         };
 
@@ -723,6 +964,7 @@ namespace vm::jit
         // --- Join ---
         cc.bind(endLabel);
         s.arrayInfoCache.clear();  // conservative: inlined body may have touched fields
+
         return true;
     }
 
@@ -754,8 +996,11 @@ namespace vm::jit
 
         // Per-entry argcount sanity + max-localCount computation. Only one
         // shape body runs per call, so the shared locals window is sized
-        // to the largest callee (MAX, not SUM).
+        // to the largest callee (MAX, not SUM). MYT-251 step 3b: same
+        // logic for the operand-stack peak — accumulate the worst case
+        // across entries so the shared frame fits any shape that runs.
         size_t maxLocalCount = 0;
+        size_t maxCalleePeak = 0;
         for (uint8_t i = 0; i < entryCount; ++i)
         {
             const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
@@ -763,6 +1008,8 @@ namespace vm::jit
             if (callee->parameterCount != argCount + 1) return false;
             if (callee->localCount > maxLocalCount)
                 maxLocalCount = callee->localCount;
+            const size_t p = computeCalleePeakOperandStack(s.program, *callee);
+            if (p > maxCalleePeak) maxCalleePeak = p;
         }
 
         const size_t localsBaseSlot = s.inlineStack.empty()
@@ -771,6 +1018,13 @@ namespace vm::jit
               + s.inlineStack.back().calleeMeta->localCount;
         if (localsBaseSlot + maxLocalCount
             > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+            return false;
+
+        // MYT-251 step 3b: peak-operand-stack guard. See MONO emitter for
+        // the rationale; same gating (workaround active → function-level
+        // JIT only at this step).
+        if (static_cast<size_t>(s.stackDepth) + maxCalleePeak
+            > JitEmissionState::MAX_OP_STACK)
             return false;
 
 #ifndef NDEBUG
@@ -874,6 +1128,15 @@ namespace vm::jit
                 (JitEmissionState& es, size_t /*target*/) {
                 emitInlineReturnMaterialize(es, receiverStackIdx, es.lastReturnSlotType);
                 emitInlineLocalDestroy(es, localsBaseSlot, *callee);
+                // MYT-251: pop the inlined-callee class pushed at body
+                // entry. See MONO onExit for the rationale.
+                {
+                    InvokeNode* pop = nullptr;
+                    es.cc.invoke(Out(pop),
+                              reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                              FuncSignature::build<void, JitContext*>());
+                    pop->set_arg(0, es.ctxPtr);
+                }
                 es.cc.jmp(endLabel);
             };
 
@@ -901,6 +1164,7 @@ namespace vm::jit
 
         cc.bind(endLabel);
         s.arrayInfoCache.clear();
+
         return true;
     }
 
@@ -913,16 +1177,62 @@ namespace vm::jit
     static bool tryEmitInlinedMethodCall(JitEmissionState& s,
                                           const bytecode::BytecodeProgram::Instruction& instr)
     {
+        // MYT-251: OSR-loop inlining re-enabled by default. The original
+        // root causes are fixed:
+        // - Label-reset bug in emitInlineCalleeBody (was driving stackDepth
+        //   negative on short-circuit operator labels) — fixed earlier in
+        //   the ticket; STATUS_HEAP_CORRUPTION on boxed_primitive_dispatch_hot
+        //   no longer reproduces.
+        // - Private-field access from an inlined callee body running inside
+        //   a different outer class now passes through the
+        //   inlinedCallingClassNames stack on JitContext (push at body
+        //   entry, pop at body exit) so jitValidateFieldAccess validates
+        //   against the callee's owner class rather than the OSR loop's
+        //   outer class. Resolves the silent 0xE06D7363
+        //   AccessViolationException on stream_pipeline_hot /
+        //   reflection_lookup_hot.
+        // Set MTYPE_ENABLE_OSR_INLINING=0 to disable for diagnosis if a
+        // regression resurfaces.
+        static const bool osrInliningEnabled = []() {
+            const char* v = std::getenv("MTYPE_ENABLE_OSR_INLINING");
+            // Default: enabled. Only explicit "0" disables.
+            return !(v && v[0] == '0' && v[1] == '\0');
+        }();
+        const bool isOSRContext = s.isOSRCompilation;
+        if (isOSRContext && !osrInliningEnabled) return false;
+
+        // Global override — MTYPE_DISABLE_INLINING=1 turns off all
+        // speculative inlining (function-level too) for diagnosis or
+        // worst-case fallback. Kept as a permanent debug knob.
+        static const bool inliningDisabled = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_INLINING");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (inliningDisabled) return false;
+
+        // MYT-252: opt-in disable of nested inlining only (depth-1 still
+        // fires; depth-2 falls back to the generic slow path).
+        // Equivalent semantically to INLINE_DEPTH_LIMIT=1 but lets us
+        // toggle without recompiling.
+        static const bool disableNestedInlining = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_NESTED_INLINING");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (disableNestedInlining && !s.inlineStack.empty())
+            return false;
+
         if (!s.typeFeedback) return false;
         auto& icTable = s.typeFeedback->getICTable();
         if (!icTable.hasMethodIC(s.currentIP)) return false;
 
         auto& cache = icTable.getMethodIC(s.currentIP);
         auto decision = optimization::checkInlineEligibility(
-            s.program, cache, s.currentCompilingFn, s.inlineStack.size());
+            s.program, cache, s.currentCompilingFn, s.inlineStack.size(),
+            s.isOSRCompilation);
         // MYT-210: telemetry — every site decision (including INLINE) is
         // counted so --jit-stats can report the eligibility breakdown.
         if (s.inlineDecisions) s.inlineDecisions->bumpMethod(decision);
+
         if (decision != optimization::InlineDecision::INLINE) return false;
 
         // Boxed-mode callee only: inlining assumes the caller emits in boxed
@@ -1311,6 +1621,60 @@ namespace vm::jit
         return true;
     }
 
+    static bool emitCreatePromiseOp(JitEmissionState& s)
+    {
+        if (!s.usesBoxedTypes || s.stackDepth <= 0)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        flushAllHints(s);
+
+        const int stackIdx = s.stackDepth - 1;
+        SlotType valueType = popType(s);
+        Gp valueAddr = cc.new_gp64();
+        cc.lea(valueAddr, Mem(s.boxedBase, static_cast<int32_t>(stackIdx * valueSize)));
+        emitBoxOrCopy(s, valueAddr, stackIdx, valueType);
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_create_promise),
+                  FuncSignature::build<void, value::Value*>());
+        inv->set_arg(0, valueAddr);
+
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
+    static bool emitObjectToValueCreatePromiseOp(JitEmissionState& s)
+    {
+        if (!s.usesBoxedTypes || s.stackDepth <= 0)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        flushAllHints(s);
+
+        const int stackIdx = s.stackDepth - 1;
+        SlotType valueType = popType(s);
+        Gp valueAddr = cc.new_gp64();
+        cc.lea(valueAddr, Mem(s.boxedBase, static_cast<int32_t>(stackIdx * valueSize)));
+        emitBoxOrCopy(s, valueAddr, stackIdx, valueType);
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_object_to_value_create_promise),
+                  FuncSignature::build<void, value::Value*>());
+        inv->set_arg(0, valueAddr);
+
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
     bool emitObjectOps(JitEmissionState& s,
                        const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -1451,6 +1815,17 @@ namespace vm::jit
             // stackObjects + STACK_OBJECT Value emit. Non-trivial ctors fall
             // back inside createStackObject to the heap path.
             case OpCode::NEW_STACK: return emitNewStackOp(s, instr);
+            case OpCode::CREATE_PROMISE:
+                return emitCreatePromiseOp(s);
+            case OpCode::OBJECT_TO_VALUE_CREATE_PROMISE:
+                return emitObjectToValueCreatePromiseOp(s);
+            case OpCode::CREATE_PROMISE_RETURN_VALUE:
+            {
+                if (!emitCreatePromiseOp(s))
+                    return false;
+                bytecode::BytecodeProgram::Instruction ret(OpCode::RETURN_VALUE);
+                return emitControlFlowOps(s, ret, nullptr);
+            }
 
             case OpCode::GET_ITERATOR:       return emitGetIteratorOp(s);
             case OpCode::ITERATOR_HAS_NEXT:  return emitIteratorHasNextOp(s);

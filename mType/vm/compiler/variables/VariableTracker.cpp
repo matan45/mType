@@ -20,7 +20,7 @@ namespace vm::compiler::variables
         return SIZE_MAX;  // Not found
     }
 
-    void VariableTracker::declareLocal(const std::string& name, value::ValueType type, const std::string& className, bool isNullable)
+    void VariableTracker::declareLocal(const std::string& name, value::ValueType type, const std::string& className, bool isNullable, bool isFinal)
     {
         LocalVariable local;
         local.name = name;
@@ -29,7 +29,19 @@ namespace vm::compiler::variables
         local.type = type;
         local.className = className;
         local.isNullable = isNullable;
+        local.isFinal = isFinal;
         locals.push_back(local);
+    }
+
+    bool VariableTracker::isLocalFinal(const std::string& name, size_t startSlot) const
+    {
+        for (size_t i = locals.size(); i > 0; --i) {
+            const LocalVariable& local = locals[i - 1];
+            if (local.slot >= startSlot && local.name == name) {
+                return local.isFinal;
+            }
+        }
+        return false;
     }
 
     void VariableTracker::beginScope()

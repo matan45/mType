@@ -164,7 +164,13 @@ namespace vm::jit
                                    size_t loopStartOffset, size_t loopEndOffset,
                                    Gp ctxPtr)
     {
-        constexpr size_t MAX_OP_STACK = 64;
+        // MYT-251: use the single source of truth in JitEmissionState (was
+        // a local 64 here that could silently drift from the emitters'
+        // bound check). Pair with the operand-stack pre-scan in the inline
+        // guards (JitCompiler_Objects.cpp) so a hot OSR loop body that
+        // would overflow this budget bails at compile time instead of
+        // smashing the C++ /GS cookie at runtime.
+        constexpr size_t MAX_OP_STACK = JitEmissionState::MAX_OP_STACK;
         constexpr size_t valueSize = sizeof(value::Value);
 
         bool usesBoxedTypes = scanOpcodesForBoxedTypes(program, loopStartOffset, loopEndOffset + 1);
@@ -175,6 +181,37 @@ namespace vm::jit
                 if (isBoxedSlotType(ls.type))
                 {
                     usesBoxedTypes = true;
+                    break;
+                }
+            }
+        }
+
+        // MYT-251: also mirror setupCompilationFrame's parameterTypes scan
+        // (JitCompiler_Core.cpp:480-490). Find the FunctionMetadata whose
+        // bytecode range contains loopStartOffset; if any of its parameter
+        // types is a non-primitive (i.e. a value-class or reference type),
+        // the boxed lane must be allocated even if neither the loop body
+        // nor the captured locals reach it directly. Without this, an
+        // inlined value-object receiver path inside the OSR'd loop reads
+        // an uninitialized boxedBase. Class methods are registered in the
+        // same function table by mangled name (see MethodCompilerHelper.cpp
+        // ::registerFunction call sites), so this scan covers them too.
+        if (!usesBoxedTypes)
+        {
+            for (const auto& [name, fm] : program.getFunctions())
+            {
+                if (fm.instructionCount == 0) continue;
+                const size_t fnEnd = fm.startOffset + fm.instructionCount;
+                if (loopStartOffset >= fm.startOffset && loopStartOffset < fnEnd)
+                {
+                    for (const auto& t : fm.parameterTypes)
+                    {
+                        if (t != "int" && t != "float" && t != "bool")
+                        {
+                            usesBoxedTypes = true;
+                            break;
+                        }
+                    }
                     break;
                 }
             }
@@ -258,6 +295,35 @@ namespace vm::jit
                 invalidateAllHints(s);
                 if (s.backEdgeTargets.find(ip) == s.backEdgeTargets.end())
                     s.arrayInfoCache.clear();
+
+                // MYT-254 (defense-in-depth): at every back-edge target
+                // (top of every loop iteration), check whether a JIT helper
+                // has stashed an exception on ctx->pendingException and
+                // fall into osrExit if so. Without this the helper's own
+                // `if (ctx->pendingException) return;` early-out turns
+                // every subsequent CALL_METHOD into a silent no-op and the
+                // OSR'd loop spins forever instead of surfacing the throw.
+                // OSRManager::executeOSRLoop rethrows immediately after the
+                // JIT call returns, so the path is: helper catches → loop
+                // back-edge sees → osrExit → OSRManager rethrows. Bounded
+                // one cc.invoke + cmp + je per outer iteration (back-edges
+                // are rare; one per loop level).
+                if (s.backEdgeTargets.find(ip) != s.backEdgeTargets.end())
+                {
+                    InvokeNode* checkInv = nullptr;
+                    s.cc.invoke(Out(checkInv),
+                                reinterpret_cast<uint64_t>(jit_has_pending_exception),
+                                FuncSignature::build<int64_t, const JitContext*>());
+                    checkInv->set_arg(0, s.ctxPtr);
+                    Gp pendingResult = s.cc.new_gp64();
+                    checkInv->set_ret(0, pendingResult);
+
+                    Label noPendingExc = s.cc.new_label();
+                    s.cc.test(pendingResult, pendingResult);
+                    s.cc.je(noPendingExc);
+                    osrExit(s, ip);
+                    s.cc.bind(noPendingExc);
+                }
             }
 
             const auto& instr = program.getInstruction(ip);
@@ -324,6 +390,13 @@ namespace vm::jit
         s.inlineFieldSetICHits = inlineFieldSetICHits;
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
         s.inlineDecisions = inlineDecisions;
+        // MYT-251: explicit OSR-context signal. Replaces the
+        // currentCompilingFn.empty() heuristic at OSR-emit sites
+        // (e.g. tryEmitInlinedMethodCall's gate). currentCompilingFn
+        // remains empty here as before — it has no meaningful value
+        // for an OSR'd loop body — but downstream logic now keys off
+        // this flag instead of inferring OSR from the empty string.
+        s.isOSRCompilation = true;
         // Phase 1 (self-recursive TCO): OSR frames don't bind functionEntryLabel
         // (the generated code enters at the loop's back-edge target, not a
         // function prologue), so suppress tail-call lowering in OSR emission.

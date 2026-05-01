@@ -162,6 +162,9 @@ namespace vm::jit
 
             static_cast<uint8_t>(OpCode::NEW_VALUE_OBJECT),
             static_cast<uint8_t>(OpCode::OBJECT_TO_VALUE),
+            static_cast<uint8_t>(OpCode::CREATE_PROMISE),
+            static_cast<uint8_t>(OpCode::OBJECT_TO_VALUE_CREATE_PROMISE),
+            static_cast<uint8_t>(OpCode::CREATE_PROMISE_RETURN_VALUE),
 
             static_cast<uint8_t>(OpCode::INVOKE_INT_ADD),
             static_cast<uint8_t>(OpCode::INVOKE_INT_SUB),

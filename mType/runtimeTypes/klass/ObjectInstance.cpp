@@ -11,6 +11,7 @@
 
 namespace runtimeTypes::klass
 {
+
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4413)  // offsetof on non-standard-layout (enable_shared_from_this base)

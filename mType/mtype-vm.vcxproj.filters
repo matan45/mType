@@ -665,6 +665,9 @@
     <ClCompile Include="vm\runtime\stack\StackManager.cpp">
       <Filter>vm\runtime\stack</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\utils\ErrorLocationHelper.cpp">
+      <Filter>vm\runtime\utils</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\utils\ExceptionHandler.cpp">
       <Filter>vm\runtime\utils</Filter>
     </ClCompile>

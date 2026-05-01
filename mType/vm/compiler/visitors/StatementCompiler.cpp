@@ -496,7 +496,7 @@ namespace vm::compiler::visitors
                 }
             }
 
-            ctx.variableTracker.declareLocal(name, varType, node->getClassName(), node->isNullableType());
+            ctx.variableTracker.declareLocal(name, varType, node->getClassName(), node->isNullableType(), node->getIsFinal());
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
             // STORE_LOCAL will consume the value from the stack - no DUP needed
@@ -567,6 +567,17 @@ namespace vm::compiler::visitors
         // If found as existing local, store to it
         if (localSlot != SIZE_MAX)
         {
+            // MYT-247: reject reassignment of a final local at compile time,
+            // mirroring the field-level enforcement below.
+            size_t startSlot = ctx.functionFrameManager.currentFrame().localStartSlot;
+            if (ctx.variableTracker.isLocalFinal(name, startSlot))
+            {
+                throw errors::TypeException(
+                    "Cannot reassign final local variable '" + name + "'",
+                    node->getLocation()
+                );
+            }
+
             // MYT-215: this is a reassignment to an existing slot; mark mutated so
             // the lambda-capture-in-loop check can reject the captures.
             size_t absoluteSlot = localSlot + ctx.functionFrameManager.currentFrame().localStartSlot;
@@ -714,7 +725,7 @@ namespace vm::compiler::visitors
                 }
             }
 
-            ctx.variableTracker.declareLocal(name, varType, node->getClassName(), node->isNullableType());
+            ctx.variableTracker.declareLocal(name, varType, node->getClassName(), node->isNullableType(), node->getIsFinal());
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
             // STORE_LOCAL will consume the value from the stack - no DUP needed

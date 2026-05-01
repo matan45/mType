@@ -143,6 +143,14 @@ namespace vm::jit
         // guarded by loop-specific logic).
         std::string currentCompilingFn;
 
+        // MYT-251: explicit OSR-context signal. Replaces the prior
+        // `currentCompilingFn.empty()` heuristic — set true by
+        // setupOSRFrame's caller (compileLoopOSR) and false (default) for
+        // function-level emission via setupCompilationFrame. Sites that
+        // need to vary behavior between OSR and function-level should read
+        // this directly instead of testing currentCompilingFn for emptiness.
+        bool isOSRCompilation = false;
+
         // MYT-163: active inline frames on the current emission path. Size 0
         // when emitting top-level caller code. LOAD_LOCAL / STORE_LOCAL consult
         // inlineLocalsBase (mirroring inlineStack.back().localsBaseSlot during
@@ -189,15 +197,40 @@ namespace vm::jit
         uint64_t* tailCallsOptimized = nullptr;
         uint64_t* selfDirectCalls = nullptr;
 
-        static constexpr size_t MAX_OP_STACK = 64;
+        // MYT-251 step 2: constants widened (64 → 256, 32 → 96) alone, with
+        // the MYT-248/249/250 workaround (s.currentCompilingFn.empty() bail
+        // in tryEmitInlinedMethodCall) still active. While the workaround
+        // is in place OSR-loop inlining doesn't fire — these wider budgets
+        // only affect frame sizing in setupOSRFrame and
+        // setupCompilationFrame. Step 3 plumbs in the peak-scan guards on
+        // function-level inlining; step 4 removes the workaround and lets
+        // OSR-emitted bodies inline again.
+        static constexpr size_t MAX_OP_STACK = 256;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
 
-        // MYT-163: inline-locals slack reserved in every compiled frame so a
-        // hot call site can commit an inlined callee's locals without
-        // re-allocating stack. Sized conservatively for F-a; F-b will replace
-        // with a per-function pre-scan (computeInlineLocalsBudget).
-        static constexpr size_t INLINE_LOCALS_SLACK = 32;
+        // MYT-251 step 2: see MAX_OP_STACK comment.
+        static constexpr size_t INLINE_LOCALS_SLACK = 96;
     };
+
+    // MYT-251: bounds-check stackDepth bumps in JIT emit. Belt-and-suspenders
+    // against the bug class fixed by MYT-248/249/250 — if a future emit path
+    // would push past MAX_OP_STACK, mark compileFailed so the JIT bails
+    // cleanly instead of emitting code that overflows cc.new_stack at
+    // runtime (which silently smashes the C++ /GS cookie via __fastfail).
+    // Returns true when there is room, false (and sets compileFailed) when
+    // the push would overflow. Callers must respect the false return —
+    // typically by skipping the optimization that prompted the push (e.g.
+    // bailing an inline candidate).
+    inline bool checkOpStackHeadroom(JitEmissionState& s, int additionalPushes = 1)
+    {
+        if (static_cast<size_t>(s.stackDepth) + additionalPushes
+            > JitEmissionState::MAX_OP_STACK)
+        {
+            s.compileFailed = true;
+            return false;
+        }
+        return true;
+    }
 
     // MYT-211: virtual-register operand-stack helpers. See SlotHint for the
     // model. All functions are no-ops in boxed mode (s.usesBoxedTypes == true)

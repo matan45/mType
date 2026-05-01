@@ -1,0 +1,7 @@
+normal 1
+finally 1
+caught at 2
+finally 2
+normal 3
+finally 3
+count=3 finallyHits=3

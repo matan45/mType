@@ -9,6 +9,7 @@
 #include "../../value/StringPool.hpp"
 #include <iostream>      // MYT-XXX DEBUG
 #include <cstdlib>       // MYT-XXX DEBUG (getenv)
+#include <typeinfo>      // MYT-248/249/250: typeid(e).name() in catch handler
 
 namespace vm::jit
 {
@@ -29,17 +30,46 @@ namespace vm::jit
         outReason = OSRBailoutReason::NONE;
         outOffendingOpcode = 0;
 
-        bool compiled = compiler.compileLoopOSR(
-            state.loopStartOffset,
-            state.loopEndOffset,
-            state.jumpBackOffset,
-            state.locals,
-            state.localCount,
-            program,
-            codeCache,
-            typeFeedback,
-            &outReason,
-            &outOffendingOpcode);
+        // MYT-251: the asmjit codegen path is otherwise uninstrumented all
+        // the way from compileLoopOSR -> tryOSR -> handleJumpBack to the VM
+        // loop's catch(UserException&) (which doesn't catch std::exception).
+        // Wrap the call so codegen-time exceptions surface with a typed
+        // diagnostic and demote the loop to interpreter execution instead
+        // of escaping silently (the prior fix attempt exited 0xE06D7363
+        // with no output along this path).
+        bool compiled = false;
+        try
+        {
+            compiled = compiler.compileLoopOSR(
+                state.loopStartOffset,
+                state.loopEndOffset,
+                state.jumpBackOffset,
+                state.locals,
+                state.localCount,
+                program,
+                codeCache,
+                typeFeedback,
+                &outReason,
+                &outOffendingOpcode);
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "[OSR-compile] caught std::exception during compileLoopOSR: "
+                      << typeid(e).name() << ": " << e.what()
+                      << " (jumpBackOffset=" << jumpBackOffset << ")\n";
+            std::cerr.flush();
+            outReason = OSRBailoutReason::CODEGEN_FAILURE;
+            return false;
+        }
+        catch (...)
+        {
+            std::cerr << "[OSR-compile] caught unknown (non-std) exception during "
+                      << "compileLoopOSR (jumpBackOffset=" << jumpBackOffset
+                      << "). Likely asmjit internal failure or SEH-translated event.\n";
+            std::cerr.flush();
+            outReason = OSRBailoutReason::CODEGEN_FAILURE;
+            return false;
+        }
 
         if (!compiled)
         {
@@ -66,6 +96,18 @@ namespace vm::jit
                              JitCompiler& compiler,
                              JitCodeCache& codeCache)
     {
+        // MYT-248/249/250: bisect helper. Setting MTYPE_DISABLE_OSR=1 keeps
+        // JIT enabled but skips the on-stack-replacement path entirely, so
+        // the user can determine whether the silent-exit failure mode lives
+        // in OSR machinery or elsewhere (IC fast-path, JIT helpers).
+        // Cached on first call to keep the hot-loop path branch-predictor
+        // friendly.
+        static const bool osrDisabled = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_OSR");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (osrDisabled) return false;
+
         LoopId loopId{jumpBackOffset};
 
         // Check if we already have compiled code for this loop
@@ -74,9 +116,7 @@ namespace vm::jit
         {
             OSRState state;
             if (captureState(state, jumpBackOffset, program, context) != OSRBailoutReason::NONE)
-            {
                 return false;
-            }
             return executeOSRLoop(cacheIt->second, state, program, context, vm, codeCache);
         }
 
@@ -113,7 +153,8 @@ namespace vm::jit
         }
 
         loopProfiler.markCompiled(loopId);
-        return executeOSRLoop(osrCache[jumpBackOffset], state, program, context, vm, codeCache);
+        bool ok = executeOSRLoop(osrCache[jumpBackOffset], state, program, context, vm, codeCache);
+        return ok;
     }
 
     bool OSRManager::findLoopBoundaries(size_t jumpBackOffset,
@@ -348,6 +389,22 @@ namespace vm::jit
         {
             func(&jitCtx);
 
+            // MYT-254: any std::exception thrown by a JIT helper (e.g. a
+            // missing receiver-kind branch in jit_call_method) is caught at
+            // the helper's site and stored on the JIT context, since
+            // exceptions can't unwind through asmjit-generated frames. The
+            // emitted OSR loop checks ctx->pendingException at every back
+            // edge (see emitOSRCodegenLoop) and falls into the osrExit
+            // handler the moment one is observed, so by the time func()
+            // returns to us pendingException is the authoritative signal.
+            // Rethrow BEFORE inspecting osrExited / writing back updatedLocals
+            // so the catch (std::exception&) below restores the pre-OSR
+            // locals and the interpreter resumes the iteration that threw.
+            if (jitCtx.pendingException)
+            {
+                std::rethrow_exception(jitCtx.pendingException);
+            }
+
             if (jitCtx.osrExited)
             {
                 lastResult.success = true;
@@ -375,8 +432,46 @@ namespace vm::jit
             lastResult.resumeIP = e.bytecodeOffset;
             return true;
         }
+        catch (const std::exception& e)
+        {
+            // MYT-248/249/250: surface the typed exception name + message
+            // before rolling back state and rethrowing. Without this an
+            // exception thrown by a native helper (use-after-free, bad alloc,
+            // logic_error from MethodResolver, etc.) bubbles up through the
+            // VM loop's UserException-only catch and is silently swallowed
+            // when Main.cpp's std::exception catch can't classify it as a
+            // script error.
+            std::cerr << "[OSR] caught std::exception during JIT loop execution: "
+                      << typeid(e).name() << ": " << e.what()
+                      << " (jumpBackOffset=" << state.jumpBackOffset << ")\n";
+            std::cerr.flush();
+
+            lastResult.success = false;
+            lastResult.deoptimized = true;
+            lastResult.resumeIP = state.jumpBackOffset;
+
+            lastResult.updatedLocals.clear();
+            for (const auto& slot : state.locals)
+            {
+                lastResult.updatedLocals.push_back(slot.value);
+            }
+            writeBackState(lastResult, state, context);
+
+            throw;
+        }
         catch (...)
         {
+            // MYT-248/249/250: this is the silent-zero-output failure mode
+            // for the three benchmarks — a non-std exception (or SEH if MSVC
+            // is configured to translate them) escapes from JIT-emitted code
+            // or the IC populate path. Make it visible so the next repro is
+            // not silent.
+            std::cerr << "[OSR] caught unknown (non-std) exception during JIT "
+                      << "loop execution (jumpBackOffset=" << state.jumpBackOffset
+                      << "). Likely culprit: JIT helper returning into freed memory, "
+                      << "stale IC entry, or SEH from JIT-emitted code.\n";
+            std::cerr.flush();
+
             lastResult.success = false;
             lastResult.deoptimized = true;
             lastResult.resumeIP = state.jumpBackOffset;

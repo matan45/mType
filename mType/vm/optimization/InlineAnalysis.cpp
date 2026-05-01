@@ -135,7 +135,8 @@ namespace vm::optimization
         const BytecodeProgram::FunctionMetadata* callee,
         bool receiverIsValueObject,
         const std::string& qualifiedName,
-        const std::string& currentCompilingFn)
+        const std::string& currentCompilingFn,
+        bool isOSRCompilation = false)
     {
         if (!callee)
             return InlineDecision::UNKNOWN_SHAPE;
@@ -166,6 +167,14 @@ namespace vm::optimization
         // Self-recursive inlining is forbidden — would chase unbounded emit.
         // For plain CALL the qualifiedName is empty; the mangled/name compare
         // still catches direct self-recursion on the function table.
+        //
+        // MYT-251: in OSR (`isOSRCompilation == true`) there is no static
+        // caller name — the OSR'd loop body belongs to whatever function
+        // owns the loop, but the JIT compiles the loop range in isolation
+        // and currentCompilingFn is intentionally left empty. The check is
+        // therefore a no-op in OSR; emit-time depth bounding (INLINE_DEPTH_LIMIT
+        // and inlineStack.size()) keeps recursion finite.
+        (void)isOSRCompilation;
         if (!currentCompilingFn.empty() &&
             (callee->mangledName == currentCompilingFn ||
              callee->name == currentCompilingFn ||
@@ -182,7 +191,8 @@ namespace vm::optimization
     static InlineDecision checkEntryEligibility(
         const BytecodeProgram& program,
         const MethodICEntry& entry,
-        const std::string& currentCompilingFn)
+        const std::string& currentCompilingFn,
+        bool isOSRCompilation = false)
     {
         if (!entry.shape || !entry.funcMetadata)
             return InlineDecision::UNKNOWN_SHAPE;
@@ -191,14 +201,16 @@ namespace vm::optimization
             entry.funcMetadata);
 
         return checkCalleeEligibility(program, callee, entry.receiverIsValueObject,
-                                       entry.qualifiedName, currentCompilingFn);
+                                       entry.qualifiedName, currentCompilingFn,
+                                       isOSRCompilation);
     }
 
     InlineDecision checkInlineEligibility(
         const BytecodeProgram& program,
         const MethodInlineCache& cache,
         const std::string& currentCompilingFn,
-        size_t currentInlineDepth)
+        size_t currentInlineDepth,
+        bool isOSRCompilation)
     {
         if (currentInlineDepth >= INLINE_DEPTH_LIMIT)
             return InlineDecision::DEPTH_EXCEEDED;
@@ -218,7 +230,8 @@ namespace vm::optimization
         size_t combinedSize = 0;
         for (uint8_t i = 0; i < cache.entryCount; ++i)
         {
-            auto d = checkEntryEligibility(program, cache.entries[i], currentCompilingFn);
+            auto d = checkEntryEligibility(program, cache.entries[i], currentCompilingFn,
+                                            isOSRCompilation);
             if (d != InlineDecision::INLINE)
                 return d;
 

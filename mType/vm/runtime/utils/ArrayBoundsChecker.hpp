@@ -24,7 +24,8 @@ namespace vm::runtime::utils
                               const std::string& arrayType = "Array")
         {
             if (index < 0 || static_cast<size_t>(index) >= arraySize) {
-                ErrorLocationHelper::throwRuntimeError(context,
+                ErrorLocationHelper::throwUserException(context,
+                    "IndexOutOfBoundsException",
                     arrayType + " index out of bounds: " + std::to_string(index) +
                     " for array of size " + std::to_string(arraySize));
             }

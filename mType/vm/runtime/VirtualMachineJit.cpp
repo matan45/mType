@@ -1,6 +1,8 @@
 #include "VirtualMachine.hpp"
 #include <cassert>
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/UserException.hpp"
+#include "utils/ExceptionHandler.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../value/SmallArgsBuffer.hpp"
@@ -56,6 +58,69 @@ namespace vm::runtime
             try
             {
                 executeInstruction(instr);
+            }
+            catch (errors::UserException& e)
+            {
+                // MYT-254: dispatch user exceptions to a catch handler in the
+                // current frame, mirroring VirtualMachineLoop's main-loop
+                // handling. Without this the exception bubbles out of the
+                // mini-interpret loop, gets caught at the JIT helper boundary
+                // (jit_call_method_ic stores it on ctx->pendingException), and
+                // the surrounding OSR loop's back-edge check rethrows it past
+                // the user's try/catch — turning a perfectly handlable in-
+                // function throw into an uncaught escape (try_catch_finally_hot
+                // regression). Pre-check: only call handleUserException when
+                // the top frame has a covering handler entry, so we never
+                // unwind past savedCallStackDepth (handleUserException can pop
+                // frames as it searches; we don't want to lose our entry frame).
+                bool dispatchInScope = false;
+                if (!callStack.empty() && callStack.size() > savedCallStackDepth)
+                {
+                    auto* funcMeta = jitCurrentProgram->getFunctionMeta(
+                        callStack.back().functionName);
+                    if (funcMeta && funcMeta->exceptionTable.size() > 0)
+                    {
+                        const auto* handler = funcMeta->exceptionTable.findHandler(
+                            instructionPointer,
+                            e.getExceptionTypeName(),
+                            e.getExceptionValue());
+                        if (handler) dispatchInScope = true;
+                    }
+                }
+                if (dispatchInScope && exceptionHandler)
+                {
+                    auto result = exceptionHandler->handleUserException(
+                        e, instructionPointer, currentFinallyOffset);
+                    if (result.handled
+                        && callStack.size() > savedCallStackDepth)
+                    {
+                        instructionPointer = result.newInstructionPointer;
+                        if (result.jumpedToFinally)
+                        {
+                            pendingException =
+                                std::make_unique<errors::UserException>(e);
+                        }
+                        continue;
+                    }
+                }
+                // No in-scope handler — restore state and rethrow so the
+                // outer interpreter's main loop catches and dispatches.
+                --jitNativeDepth;
+                while (callStack.size() > savedCallStackDepth)
+                {
+                    callStack.back().releaseStackObjects();
+                    callStack.pop_back();
+                }
+                instructionPointer = savedIP;
+                while (stackManager->size() > savedStackSize)
+                {
+                    stackManager->pop();
+                }
+                if (switchedProgram)
+                {
+                    executionCtx->program = savedProgram;
+                }
+                throw;
             }
             catch (...)
             {

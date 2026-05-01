@@ -38,6 +38,17 @@ namespace vm::jit
      * keeping the hot path free from variant overhead.
      */
     extern "C" {
+        // MYT-254: check if the JIT context has a pending exception caught
+        // by a helper. Used at OSR back-edges so any silently-stored
+        // exception (jit_call_method_ic and friends store exceptions on
+        // ctx->pendingException because asmjit-generated frames can't unwind
+        // through std::exception) bails out of the JIT loop at the next
+        // iteration instead of spinning forever in no-op CALL_METHODs.
+        // Returns 1 if pending, 0 otherwise. Not noexcept-attributed even
+        // though it can't throw, so asmjit's invoke matches it as a
+        // standard C function.
+        int64_t jit_has_pending_exception(const JitContext* ctx);
+
         int64_t jit_unbox_int(const value::Value* val);
         void jit_set_return_int(JitContext* ctx, int64_t val);
         void jit_set_return_bool(JitContext* ctx, int64_t val);
@@ -189,10 +200,22 @@ namespace vm::jit
     void jit_new_stack(value::Value* dest, JitContext* ctx,
                         uint32_t classIndex, size_t argCount);
     void jit_object_to_value(value::Value* val);
+    void jit_create_promise(value::Value* val);
+    void jit_object_to_value_create_promise(value::Value* val);
 
     extern "C" {
         void jit_osr_write_local(JitContext* ctx, size_t slot, const value::Value* val);
         void jit_osr_exit(JitContext* ctx, uint64_t exitOffset);
+
+        // MYT-251: push/pop the JIT-inlined callee's owner class for
+        // field/method access validation. Without these, an inlined
+        // ListIterator::hasNext body running inside a FilteringIterator
+        // OSR loop fails the private-field check on this.currentIndex
+        // because validate sees ctx->callingClassName == FilteringIterator.
+        // Push at inlined body entry, pop at body exit. Stack handles
+        // nested inlining; emitted via cc.invoke from emitInlineCalleeBody.
+        void jit_push_inlined_class(JitContext* ctx, const char* name);
+        void jit_pop_inlined_class(JitContext* ctx);
     }
 
     void jit_osr_deoptimize(JitContext* ctx, uint64_t bytecodeOffset);

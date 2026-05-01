@@ -1615,3 +1615,34 @@ per-call alloc was eliminated by the pool. Both wins land together via the same 
 
 - `generic_dispatch_hot.mt`: `generic_dispatch_hot dogs=666667 cats=333333`
   (zoo=[Dog,Cat,Dog,Dog,Cat,Dog], N=1000000 → 4-of-6 dogs ≈ 666667, 2-of-6 cats ≈ 333333; verify on first clean run)
+
+## 2026-04-30
+
+```
+=== Summary (jit=on) ===
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt             50.56         51.81           20017         0
+  method_dispatch.mt                   77.21         77.23           14043       506
+  object_alloc.mt                     539.37        549.94           12511         0
+  object_alloc_nested.mt              908.57        916.78           16811       500
+  field_write_hot.mt                   58.69         59.37            8018         1
+  field_read_hot.mt                    55.09         55.68            9020         1
+  string_ops.mt                        83.63         83.73           19019         0
+  recursive.mt                        842.07        842.18           17261   2545487
+  bitwise_tight_loop.mt                45.40         45.65           23019         0
+  short_circuit_chain.mt               54.15         54.94           24909         0
+  primitive_method_dispatch.mt        475.33        479.56           32039         0
+  array_multi_alloc.mt                 54.88         55.10            9911       500
+  array_multi_get.mt                  342.23        343.67           49787       500
+  for_each_loop.mt                    320.23        322.38           75654      5604
+  inline_monomorphic.mt                46.75         47.72           13017       501
+  inline_branching.mt                  49.67         50.11           15017       501
+  inline_polymorphic.mt                76.90         77.77           14052       508
+  inline_value_object_hot.mt          127.00        127.55           12518       500
+  function_call_hot.mt                170.70        172.75           15011       500
+  async_await_tight_loop.mt           915.46        915.99        23000933   1000001
+  async_await_chain.mt               1406.23       1407.95        20502833   2000001
+  lambda_call_hot.mt                   63.13         64.03           12522         1
+  lambda_closure_hot.mt                61.76         62.81           12527         2
+  generic_dispatch_hot.mt             690.65        690.94           20075      1012
+```

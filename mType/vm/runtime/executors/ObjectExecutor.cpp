@@ -996,7 +996,8 @@ namespace vm::runtime
         // tag-branches the frame.thisInstance / thisInstanceRaw assignment
         // and pushes the original Value onto the stack as `this`.
         if (!value::isAnyObject(objectValue)) {
-            utils::ErrorLocationHelper::throwRuntimeError(context,
+            utils::ErrorLocationHelper::throwUserException(context,
+                "RuntimeException",
                 "CALL_METHOD requires an object instance or lambda");
         }
 

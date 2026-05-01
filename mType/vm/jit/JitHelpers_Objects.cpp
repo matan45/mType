@@ -183,6 +183,28 @@ namespace vm::jit
                 }
             }
 
+            // MYT-254: LAMBDA receiver. Per-spec lambdas are invoked via
+            // CALL_METHOD apply (see lib/functional/Function.mt etc.) — the
+            // interpreter's ObjectExecutor::handleCallMethod (ObjectExecutor.cpp:978)
+            // routes such receivers to invokeLambdaMethod. Mirror that here:
+            // delegate to VirtualMachine::invokeLambda, which sets up the
+            // lambda's CallFrame, restores capturedThis / capturedFrame, and
+            // drives the body to completion. Without this branch the slow
+            // path falls through to the throw below, the exception lands in
+            // ctx->pendingException, and every subsequent jit_call_method_ic
+            // becomes a silent no-op — turning the OSR'd outer loop into an
+            // infinite spin (stream_pipeline_hot regression).
+            if (value::isLambda(objectValue))
+            {
+                if (ctx->vm)
+                {
+                    auto lambda = value::asLambda(objectValue);
+                    ctx->returnValue = ctx->vm->invokeLambda(lambda, args);
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+            }
+
             throw errors::RuntimeException("JIT: cannot call method '" + methodName + "'");
         }
         catch (...)
@@ -689,7 +711,31 @@ namespace vm::jit
         if (modifier == ast::AccessModifier::PUBLIC)
             return;
 
-        const std::string& caller = ctx->callingClassName;
+        // MYT-251: when the access fires inside a JIT-inlined callee body,
+        // the access perspective is the callee's owner class, not the
+        // outer function's class. The inlined-emit path bumps
+        // inlinedCallingClassDepth and writes the callee's owner-class
+        // c-string into inlinedCallingClassNames; the helpers below
+        // prefer that override. Falls back to callingClassName when
+        // depth == 0 (function-level emission, top-level OSR without
+        // inlining). Read the c-string into a stack std::string so the
+        // existing equality / hierarchy walk works unchanged.
+        std::string callerStr;
+        const std::string* callerPtr = nullptr;
+        bool resolvedFromInlinedStack = false;
+        if (ctx->inlinedCallingClassDepth > 0)
+        {
+            const char* top =
+                ctx->inlinedCallingClassNames[ctx->inlinedCallingClassDepth - 1];
+            callerStr.assign(top ? top : "");
+            callerPtr = &callerStr;
+            resolvedFromInlinedStack = true;
+        }
+        else
+        {
+            callerPtr = &ctx->callingClassName;
+        }
+        const std::string& caller = *callerPtr;
         bool isSameClass = (caller == targetClassName);
 
         if (modifier == ast::AccessModifier::PRIVATE)
