@@ -57,6 +57,12 @@ namespace tests::testFramework
 
         void setExecutionModeForAll(constants::ExecutionMode mode);
 
+        // MYT-259: flip JIT on/off for every test in the suite. Lets the
+        // top-level runner do a JIT pass and a `--no-jit` pass so CI catches
+        // any JIT/interpreter divergence (e.g. the OSR HashMap bug that
+        // motivated this).
+        void setJitEnabledForAll(bool enabled);
+
     private:
         void generateHtmlReport();
     

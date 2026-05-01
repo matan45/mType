@@ -121,8 +121,9 @@ namespace tests::testFramework
             {
                 // Always use ScriptInterpreter with bytecode mode
                 ScriptInterpreter testInterpreter(executionMode);
-                // Enable JIT compilation for all tests
-                testInterpreter.getVM()->setJitEnabled(true);
+                // MYT-259: JIT defaults on; suite runner can flip this off
+                // via setJitEnabledForAll for a `--no-jit --tests` pass.
+                testInterpreter.getVM()->setJitEnabled(jitEnabled);
 
                 if (type == TestType::SCRIPT_INTEROP)
                 {
@@ -346,7 +347,7 @@ namespace tests::testFramework
         try
         {
             ScriptInterpreter testInterpreter(executionMode);
-            testInterpreter.getVM()->setJitEnabled(true);
+            testInterpreter.getVM()->setJitEnabled(jitEnabled);
 
             // Parse-and-register the bootstrap file WITHOUT executing its
             // top-level code (same mechanism SCRIPT_INTEROP uses, so the

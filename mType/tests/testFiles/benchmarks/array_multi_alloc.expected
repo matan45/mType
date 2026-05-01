@@ -1,0 +1,14 @@
+array_multi_alloc dummy=4999950000
+mType.exe : warning[MT-W2001]: unused variable 'arr'
+At line:1 char:219
++ ... me"; $out = & "bin\mType\Release\x64\mType.exe" "--no-jit" $b.FullNam ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning[MT-W2001]: unused variable 'arr':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  --> C:\matan\mType\mType\tests\testFiles\benchmarks\array_multi_alloc.mt:25:15
+   |
+25 |     int[][][] arr = allocOne();
+   |               ^ declared but never read
+   = help: help: prefix with '_' to mark intentionally unused
+
