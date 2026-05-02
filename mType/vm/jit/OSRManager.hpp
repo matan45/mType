@@ -43,12 +43,6 @@ namespace vm::jit
         // Cache of compiled OSR loops: jumpBackOffset -> compiled code
         std::unordered_map<size_t, OSRLoopFunction> osrCache;
 
-        // MYT-259: gate decision cache. Keyed by jumpBackOffset, value=true means
-        // "skip OSR for this back-edge". Populated lazily on the first tryOSR call
-        // for each back-edge, then reused on every subsequent fire so the bytecode
-        // walk in shouldSkipMultiBackEdgeTinyLoop runs at most once per back-edge.
-        std::unordered_map<size_t, bool> tinyLoopSkipCache;
-
         // Analyze loop structure and build OSR state from current interpreter
         // state. Returns OSRBailoutReason::NONE on success, or the specific
         // reason (LOOP_MARKERS_MISSING / SHARED_FRAME_REJECTION / ...) on
@@ -76,18 +70,6 @@ namespace vm::jit
                                const bytecode::BytecodeProgram& program,
                                size_t& loopStartOffset,
                                size_t& loopEndOffset);
-
-        // MYT-259: returns true if this back-edge sits inside a "tiny inner loop
-        // with multiple back-edges". The OSR codegen miscompiles such loops (each
-        // back-edge becomes its own LoopId/osrCache entry, and each individual
-        // compilation is wrong — proven by the disable-one/disable-both bisect on
-        // HashMap.findKeyInBucket). The win OSR delivers on tiny bodies is small,
-        // so the gate is a safe correctness backstop until the codegen bug is
-        // diagnosed and fixed. Result is cached in tinyLoopSkipCache.
-        bool shouldSkipMultiBackEdgeTinyLoop(
-            size_t jumpBackOffset,
-            const bytecode::BytecodeProgram& program,
-            const vm::runtime::ExecutionContext& context);
 
         // Capture local variables from the interpreter stack into OSRState
         void captureLocals(OSRState& state,

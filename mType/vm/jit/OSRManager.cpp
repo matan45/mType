@@ -10,7 +10,6 @@
 #include <iostream>      // MYT-XXX DEBUG
 #include <cstdlib>       // MYT-XXX DEBUG (getenv)
 #include <typeinfo>      // MYT-248/249/250: typeid(e).name() in catch handler
-#include <unordered_set> // MYT-259: distinct-back-edge-targets count in OSR gate
 
 namespace vm::jit
 {
@@ -90,87 +89,6 @@ namespace vm::jit
         return true;
     }
 
-    namespace
-    {
-        // MYT-259 hotfix gate thresholds. Tuned to the failing case
-        // (HashMap.findKeyInBucket: localCount=4, body=~36 instructions, 2 distinct
-        // JUMP_BACK targets) with a small margin. Predicate matches the bug profile
-        // exactly — single-back-edge OSR works fine, only multi-back-edge tiny
-        // loops are known broken — so the gate stays narrow.
-        constexpr size_t kTinyLocalCount = 5;
-        constexpr size_t kTinyBodyLen    = 50;
-    }
-
-    bool OSRManager::shouldSkipMultiBackEdgeTinyLoop(
-        size_t jumpBackOffset,
-        const bytecode::BytecodeProgram& program,
-        const vm::runtime::ExecutionContext& context)
-    {
-        auto cacheIt = tinyLoopSkipCache.find(jumpBackOffset);
-        if (cacheIt != tinyLoopSkipCache.end())
-            return cacheIt->second;
-
-        size_t loopStart = 0, loopEnd = 0;
-        if (!findLoopBoundaries(jumpBackOffset, program, loopStart, loopEnd))
-        {
-            // No enclosing loop region — captureState will bail with
-            // LOOP_MARKERS_MISSING anyway. Cache "don't skip" so this lookup
-            // doesn't repeat on every back-edge fire.
-            tinyLoopSkipCache[jumpBackOffset] = false;
-            return false;
-        }
-
-        const size_t bodyLen = loopEnd - loopStart;
-        if (bodyLen > kTinyBodyLen)
-        {
-            tinyLoopSkipCache[jumpBackOffset] = false;
-            return false;
-        }
-
-        // Resolve localCount via the same path captureState uses (line ~280-300).
-        // We can't call captureState directly: it has side effects (state.locals
-        // population). Mirror just the metadata lookup here.
-        size_t localCount = 0;
-        if (!context.callStack.empty())
-        {
-            const auto& frame = context.callStack.back();
-            auto funcMeta = program.getFunctionMeta(frame.functionName);
-            if (funcMeta)
-            {
-                localCount = funcMeta->localCount;
-            }
-            else if (program.getFrameName(frame.functionName) == "__script_main__")
-            {
-                localCount = program.getTopLevelLocalCount();
-            }
-        }
-        if (localCount == 0 || localCount > kTinyLocalCount)
-        {
-            tinyLoopSkipCache[jumpBackOffset] = false;
-            return false;
-        }
-
-        // Count distinct JUMP_BACK targets inside [loopStart, loopEnd]. A
-        // source-level for-loop emits two: incr→header and body→incr. A while
-        // or single-statement for emits one. Multi-back-edge is the bug
-        // signature.
-        std::unordered_set<size_t> targets;
-        for (size_t ip = loopStart; ip <= loopEnd; ++ip)
-        {
-            const auto& instr = program.getInstruction(ip);
-            if (instr.opcode == bytecode::OpCode::JUMP_BACK && !instr.operands.empty())
-            {
-                targets.insert(instr.operands[0]);
-                if (targets.size() >= 2)
-                    break;
-            }
-        }
-
-        const bool skip = (targets.size() >= 2);
-        tinyLoopSkipCache[jumpBackOffset] = skip;
-        return skip;
-    }
-
     bool OSRManager::tryOSR(size_t jumpBackOffset,
                              const bytecode::BytecodeProgram& program,
                              vm::runtime::ExecutionContext& context,
@@ -200,24 +118,6 @@ namespace vm::jit
             if (captureState(state, jumpBackOffset, program, context) != OSRBailoutReason::NONE)
                 return false;
             return executeOSRLoop(cacheIt->second, state, program, context, vm, codeCache);
-        }
-
-        // MYT-259 hotfix: tiny inner for-loops with two distinct JUMP_BACK
-        // targets (the canonical lowering: incr→header AND body→incr) miscompile
-        // under OSR — see comment on OSRBailoutReason::MULTI_BACKEDGE_TINY_LOOP.
-        // Gate them off here, before we burn profiler counts and a compile
-        // attempt. MTYPE_DISABLE_INNER_OSR_GUARD=1 turns the gate OFF for
-        // bisecting / reproducing the underlying codegen bug.
-        static const bool guardDisabled = []() {
-            const char* v = std::getenv("MTYPE_DISABLE_INNER_OSR_GUARD");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (!guardDisabled && shouldSkipMultiBackEdgeTinyLoop(jumpBackOffset, program, context))
-        {
-            // Mark the loop failed so --jit-stats surfaces the gate decision and
-            // the profiler won't keep retrying it on every back-edge.
-            loopProfiler.markFailed(loopId, OSRBailoutReason::MULTI_BACKEDGE_TINY_LOOP);
-            return false;
         }
 
         // Profile the loop — returns true on exact threshold crossing

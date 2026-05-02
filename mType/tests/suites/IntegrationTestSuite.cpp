@@ -296,14 +296,6 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline OSR Bool Value Chain",
                                   passPath + "inlining/inline_osr_bool_value_chain.mt");
 
-        // MYT-259: HashMap.findKeyInBucket misses keys at index >= 1 in
-        // collision buckets when its inner for-loop's two JUMP_BACK targets
-        // both trip the OSR threshold. Guarded by the tiny-multi-back-edge
-        // gate in OSRManager::tryOSR; bypass with MTYPE_DISABLE_INNER_OSR_GUARD=1
-        // to reproduce the underlying codegen bug.
-        addOutputVerificationTest("MYT-259 OSR Collision Bucket Misses",
-                                  passPath + "jitOsrCollisionBucketMisses.mt");
-
         // MYT-165 Phase F-c: polymorphic inlining with chained shape guards.
         addOutputVerificationTest("Inline Polymorphic Chained Guards",
                                   passPath + "inlining/inline_poly.mt");

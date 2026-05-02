@@ -14,7 +14,6 @@ namespace vm::jit
             case OSRBailoutReason::UNSUPPORTED_OPCODE:      return "UNSUPPORTED_OPCODE";
             case OSRBailoutReason::LOCAL_COUNT_EXCEEDED:    return "LOCAL_COUNT_EXCEEDED";
             case OSRBailoutReason::CODEGEN_FAILURE:         return "CODEGEN_FAILURE";
-            case OSRBailoutReason::MULTI_BACKEDGE_TINY_LOOP: return "MULTI_BACKEDGE_TINY_LOOP";
         }
         return "UNKNOWN";
     }
