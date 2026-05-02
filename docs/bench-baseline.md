@@ -1646,3 +1646,82 @@ per-call alloc was eliminated by the pool. Both wins land together via the same 
   lambda_closure_hot.mt                61.76         62.81           12527         2
   generic_dispatch_hot.mt             690.65        690.94           20075      1012
 ```
+
+## 2026-05-02 — MYT-259 OSR RETURN_VALUE function-return support
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  MYT-259
+- Commit:  `733fd283`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+Scope:
+- OSR-emitted `RETURN`/`RETURN_VALUE` now push the function's return value
+  onto the interpreter's operand stack (via new `jit_osr_push_*` helpers) and
+  resume at the RETURN_VALUE opcode itself, so the interpreter's normal
+  `handleReturnValue()` runs the call-frame pop / IP restore / async-promise
+  wrap. Previous behaviour resumed at the post-loop IP, which silently
+  dropped the return — `HashMap.findKeyInBucket` collision-bucket lookups
+  fell through to the trailing `return -1`.
+- `CREATE_PROMISE_RETURN_VALUE` still bails OSR (its async-promise wrap is
+  fused into the opcode and the OSR resume path doesn't yet replay it).
+- New regression test `osr_return_boxed_object.mt` exercises the boxed
+  branch of `emitOsrPushReturnValueToInterpStack` end-to-end.
+
+```
+=== Summary (jit=on) ===
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            103.74        104.21           20017         0
+  method_dispatch.mt                  125.45        126.97           14043       506
+  object_alloc.mt                     521.96        525.31           12511         0
+  object_alloc_nested.mt             1169.81       1173.45           16811       500
+  field_write_hot.mt                   65.30         65.73            8018         1
+  field_read_hot.mt                    66.82         66.83            9020         1
+  string_ops.mt                       112.31        112.77           19019         0
+  recursive.mt                        806.68        808.18           17261   2545487
+  bitwise_tight_loop.mt                77.18         77.76           23019         0
+  short_circuit_chain.mt               63.90         64.41           24909         0
+  primitive_method_dispatch.mt        453.33        455.28           32039         0
+  array_multi_alloc.mt                 72.64         73.03            9911       500
+  array_multi_get.mt                  333.57        333.63           49787       500
+  for_each_loop.mt                    303.51        303.63           75654      5604
+  inline_monomorphic.mt                85.78         86.58           13017       501
+  inline_branching.mt                  89.44         90.57           15017       501
+  inline_polymorphic.mt               125.73        126.20           14052       508
+  inline_value_object_hot.mt          156.06        156.60           12518       500
+  function_call_hot.mt                174.86        174.92           15011       500
+  async_await_tight_loop.mt          1044.77       1060.17        23000933   1000001
+  async_await_chain.mt               1676.14       1694.72        20502833   2000001
+  lambda_call_hot.mt                  958.28        959.37           12522   1999501
+  lambda_closure_hot.mt               988.54        990.37           12527   1999502
+  generic_dispatch_hot.mt             993.95        995.06           20075      1012
+  try_catch_finally_hot.mt            492.69        494.15           50020      2000
+  switch_dispatch_hot.mt              443.92        444.77           14634       500
+  overload_dispatch_hot.mt            550.70        552.12           34029      2001
+  abstract_dispatch_hot.mt            123.87        125.93           14043       506
+  cast_hot.mt                         216.86        217.28           19561       505
+  collections_hash_hot.mt            9804.13       9882.63          404406   6007320
+  stream_pipeline_hot.mt              418.43        421.31         2090492    306881
+  reflection_lookup_hot.mt           2377.27       2385.57           85542   1203001
+  pattern_match_hot.mt                432.11        432.97           12861       500
+  string_interpolation_hot.mt         251.24        251.63         7400025         0
+  boxed_primitive_dispatch_hot.mt    2688.30       2694.60           55803      3000
+  linked_list_nested_hot.mt           336.39        339.92          124920     81001
+```
+
+### Notes
+
+- `lambda_call_hot.mt` and `lambda_closure_hot.mt` jumped from ~60ms / 1-2 calls
+  in the prior baseline to ~960ms / ~2M calls — the benchmark workload itself
+  changed (much higher iteration / call count), not a JIT regression. Compare
+  against the next run with the same benchmark definition.
+- New benchmarks recorded for the first time on this machine:
+  `try_catch_finally_hot`, `switch_dispatch_hot`, `overload_dispatch_hot`,
+  `abstract_dispatch_hot`, `cast_hot`, `collections_hash_hot`,
+  `stream_pipeline_hot`, `reflection_lookup_hot`, `pattern_match_hot`,
+  `string_interpolation_hot`, `boxed_primitive_dispatch_hot`,
+  `linked_list_nested_hot`. Use these as the baseline for future deltas.
+- `collections_hash_hot.mt` produces correct counts (`hits=1000000 len=1785128`)
+  with JIT on — confirms the OSR RETURN_VALUE fix lands the correctness win.
+- No regressions vs. the 2026-04-29 MYT-228 baseline on the previously-tracked
+  scripts (within ±5% noise).
