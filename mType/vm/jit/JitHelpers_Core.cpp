@@ -5,6 +5,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
 #include <new>
+#include <cstdio>   // MYT-259 trace probe
 
 namespace vm::jit
 {
@@ -196,6 +197,37 @@ namespace vm::jit
                 return value::asInternedString(*left) == value::asInternedString(*right) ? 1 : 0;
 
             return 0;
+        }
+
+        // MYT-259 trace probe. JIT emits cc.invoke to this from the OSR body
+        // codegen at strategic points (entry, every back-edge target, after
+        // CALL_METHOD return) when MTYPE_TRACE_OSR_BODY=1 was set at compile
+        // time. Prints raw values to stderr for offline analysis. Format:
+        //   [osr-trace] tag=<tag> ip=<ip> v=<v>
+        // Tag conventions:
+        //   0 = OSR entry (one-shot), v = jumpBackTarget
+        //   1 = label bind (per-iteration), v = 1 if back-edge target else 0
+        //
+        // Output capped at MTYPE_TRACE_OSR_LIMIT lines (default 200) to keep
+        // long-running benchmarks from flooding stderr; the cap is enough to
+        // see the failure-case control-flow pattern from a multi-iter loop.
+        void jit_trace_probe(int64_t tag, int64_t ip, int64_t v)
+        {
+            static size_t emitted = 0;
+            static const size_t limit = []() {
+                const char* lim = std::getenv("MTYPE_TRACE_OSR_LIMIT");
+                if (!lim) return size_t{200};
+                size_t n = 0;
+                for (const char* p = lim; *p >= '0' && *p <= '9'; ++p)
+                    n = n * 10 + size_t(*p - '0');
+                return n ? n : size_t{200};
+            }();
+            if (emitted >= limit) return;
+            std::fprintf(stderr, "[osr-trace] tag=%lld ip=%lld v=%lld\n",
+                         (long long)tag, (long long)ip, (long long)v);
+            std::fflush(stderr);
+            if (++emitted == limit)
+                std::fprintf(stderr, "[osr-trace] (output capped at %zu lines)\n", limit);
         }
 
     } // extern "C"

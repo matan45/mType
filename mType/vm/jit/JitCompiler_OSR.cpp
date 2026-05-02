@@ -284,6 +284,15 @@ namespace vm::jit
                                     size_t loopStartOffset, size_t loopEndOffset,
                                     const bytecode::BytecodeProgram& program)
     {
+        // MYT-259 trace probe gate. When MTYPE_TRACE_OSR_BODY=1, emit
+        // cc.invoke to jit_trace_probe at every label bind so we get a runtime
+        // trace of label/back-edge entries per OSR-loop iteration. tag=1 means
+        // "label bind", v=(0/1) marks back-edge-target vs forward-jump-target.
+        static const bool traceOsrBody = []() {
+            const char* v = std::getenv("MTYPE_TRACE_OSR_BODY");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+
         for (size_t ip = loopStartOffset; ip <= loopEndOffset && !s.compileFailed; ++ip)
         {
             auto labelIt = s.labels.find(ip);
@@ -295,6 +304,24 @@ namespace vm::jit
                 invalidateAllHints(s);
                 if (s.backEdgeTargets.find(ip) == s.backEdgeTargets.end())
                     s.arrayInfoCache.clear();
+
+                if (traceOsrBody)
+                {
+                    const bool isBackEdge = s.backEdgeTargets.find(ip) != s.backEdgeTargets.end();
+                    InvokeNode* probeInv = nullptr;
+                    s.cc.invoke(Out(probeInv),
+                                reinterpret_cast<uint64_t>(jit_trace_probe),
+                                FuncSignature::build<void, int64_t, int64_t, int64_t>());
+                    Gp tagReg = s.cc.new_gp64();
+                    s.cc.mov(tagReg, 1);
+                    Gp ipReg = s.cc.new_gp64();
+                    s.cc.mov(ipReg, static_cast<int64_t>(ip));
+                    Gp vReg = s.cc.new_gp64();
+                    s.cc.mov(vReg, isBackEdge ? 1 : 0);
+                    probeInv->set_arg(0, tagReg);
+                    probeInv->set_arg(1, ipReg);
+                    probeInv->set_arg(2, vReg);
+                }
 
                 // MYT-254 (defense-in-depth): at every back-edge target
                 // (top of every loop iteration), check whether a JIT helper
@@ -421,6 +448,31 @@ namespace vm::jit
         if (!jbInstr.operands.empty())
         {
             size_t jumpBackTarget = jbInstr.operands[0];
+
+            // MYT-259 trace probe: OSR-entry one-shot. tag=0, ip=jumpBackOffset,
+            // v=jumpBackTarget. Fires once per OSR-compiled-blob invocation
+            // (every time the interpreter dispatches into this OSR loop).
+            static const bool traceOsrBody = []() {
+                const char* v = std::getenv("MTYPE_TRACE_OSR_BODY");
+                return v && v[0] == '1' && v[1] == '\0';
+            }();
+            if (traceOsrBody)
+            {
+                InvokeNode* probeInv = nullptr;
+                cc.invoke(Out(probeInv),
+                          reinterpret_cast<uint64_t>(jit_trace_probe),
+                          FuncSignature::build<void, int64_t, int64_t, int64_t>());
+                Gp tagReg = cc.new_gp64();
+                cc.mov(tagReg, 0);
+                Gp ipReg = cc.new_gp64();
+                cc.mov(ipReg, static_cast<int64_t>(jumpBackOffset));
+                Gp vReg = cc.new_gp64();
+                cc.mov(vReg, static_cast<int64_t>(jumpBackTarget));
+                probeInv->set_arg(0, tagReg);
+                probeInv->set_arg(1, ipReg);
+                probeInv->set_arg(2, vReg);
+            }
+
             auto it = labels.find(jumpBackTarget);
             if (it != labels.end())
                 cc.jmp(it->second);
