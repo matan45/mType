@@ -289,47 +289,89 @@ namespace vm::jit
         {
             const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
 
-            // Always try JIT→JIT direct dispatch first. If the callee is
-            // itself JIT-compiled (very common for hot static methods), we
-            // get full native-to-native invocation via tryJitDispatchResolved
-            // — same fast path plain CALL takes. The IC below only short-
-            // circuits the bottom-level program->getFunction lookup; it must
-            // NOT bypass the JIT dispatch path or all hot static methods
-            // get pinned to the interpreter mini-loop (static_call_hot.mt
-            // regression: 1749ms vs 170ms for the equivalent CALL bench).
-            if (tryJitDispatch(ctx, funcName, argCount))
-                return;
+            // IC slot lookup. On warm path we route based on what was probed
+            // and cached on the first call at this IP. The JIT-dispatch arm
+            // is split out into a "do we even attempt tryJitDispatchResolved"
+            // gate (jitProbeDone) so a callee that's NOT separately JIT-
+            // compiled never re-pays the jitCodeCache hashmap probe — that
+            // probe was the source of the generic_dispatch_hot.mt regression
+            // when added blindly to every IC hit.
+            auto* cached = ctx->program->findCachedState(bytecodeOffset);
 
-            if (tryNativeDispatch(ctx, funcName, argCount))
-                return;
-
-            if (!ctx->vm)
-                throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
-
-            // IC slot: skip the program->getFunction(funcName) hashmap probe.
-            // Static call sites are monomorphic in the resolved metadata
-            // (the qualified name is a fixed bytecode operand), so a single-
-            // entry IP-keyed cache is always semantically valid.
-            const bytecode::BytecodeProgram::FunctionMetadata* funcMeta = nullptr;
-            if (auto* cached = ctx->program->findCachedState(bytecodeOffset);
-                cached && cached->cachedFuncMetadata)
+            if (cached && cached->jitProbeDone)
             {
-                funcMeta = cached->cachedFuncMetadata;
+                // Native callee: cached delegate, invoke directly.
+                if (cached->cachedNativeFunc && ctx->vm)
+                {
+                    environment::NativeContext nativeCtx{ ctx->vm->getEnvironment(), ctx->vm->shared_from_this() };
+                    ctx->returnValue = cached->cachedNativeFunc(
+                        nativeCtx, std::span<const value::Value>(ctx->callArgs, argCount));
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+                // Interpreter-only callee (most common: small bodies that
+                // never crossed the JIT compilation threshold). Cached
+                // FunctionMetadata lets us skip the program->getFunction
+                // hashmap probe.
+                if (cached->cachedFuncMetadata && ctx->vm)
+                {
+                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                    ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
+                        funcName, cached->cachedFuncMetadata, argVec);
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+                // jitProbeDone but no cached target — name didn't resolve last
+                // time. Fall through to the throw at the end with a fresh lookup.
             }
-            else
+
+            // Cold path: first call at this IP. Probe native + funcMeta and
+            // populate the IC. Deliberately do NOT cache the JIT-compiled
+            // entry here — calling JIT-compiled callees from inside the
+            // OSR'd outer loop nests asmjit frames, and per MYT-184 that
+            // path corrupted the native stack on some Math::-style callees
+            // (silent /GS cookie failure / STATUS_STACK_BUFFER_OVERRUN).
+            // Routing all IC hits through callFunctionFromJitDirect (mini-
+            // interpreter) keeps both static_call_hot.mt and
+            // generic_dispatch_hot.mt correct; speeding up the leaf-static
+            // case is a follow-up that needs a JIT-side inliner for static
+            // methods (mirrors the MYT-163 instance-method inliner).
+            ::environment::registry::NativeDelegate nativeFn{};
+            auto nativeRegistry = ctx->environment ? ctx->environment->getNativeRegistry() : nullptr;
+            if (nativeRegistry && nativeRegistry->hasNativeFunction(funcName))
+            {
+                nativeFn = nativeRegistry->findNativeFunction(funcName);
+            }
+
+            const bytecode::BytecodeProgram::FunctionMetadata* funcMeta = nullptr;
+            if (!nativeFn)
             {
                 funcMeta = ctx->program->getFunction(funcName);
+            }
+
+            // Populate IC slot for warm path.
+            {
+                auto& slot = ctx->program->getOrCreateCachedState(bytecodeOffset);
+                slot.cachedNativeFunc = nativeFn;
                 if (funcMeta)
                 {
-                    auto& slot = ctx->program->getOrCreateCachedState(bytecodeOffset);
                     slot.cachedFuncMetadata = funcMeta;
                     slot.cachedStartOffset = funcMeta->startOffset;
                     slot.cachedProgram = ctx->program;
                     slot.cachedProgramIndex = 0;
                 }
+                slot.jitProbeDone = true;
             }
 
-            if (funcMeta)
+            if (nativeFn && ctx->vm)
+            {
+                environment::NativeContext nativeCtx{ ctx->vm->getEnvironment(), ctx->vm->shared_from_this() };
+                ctx->returnValue = nativeFn(
+                    nativeCtx, std::span<const value::Value>(ctx->callArgs, argCount));
+                ctx->hasReturnValue = true;
+                return;
+            }
+            if (funcMeta && ctx->vm)
             {
                 std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
                 ctx->returnValue = ctx->vm->callFunctionFromJitDirect(

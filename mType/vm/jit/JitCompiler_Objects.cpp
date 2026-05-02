@@ -85,6 +85,10 @@ namespace vm::jit
         }
     }
 
+    static bool tryEmitInlinedStaticCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr);
+
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount, size_t destStartSlot)
     {
         auto& cc = s.cc;
@@ -532,6 +536,8 @@ namespace vm::jit
             s.compileFailed = true;
             return true;
         }
+        if (tryEmitInlinedStaticCall(s, instr))
+            return true;
         emitBoxCallArgs(s, argCount);
         emitPopAndDestroyArgs(s, argCount);
         // Pass the call-site IP so jit_call_function_ic can cache the resolved
@@ -1171,6 +1177,145 @@ namespace vm::jit
         cc.bind(endLabel);
         s.arrayInfoCache.clear();
 
+        return true;
+    }
+
+    static bool isInlineStaticPrimitiveType(const std::string& type)
+    {
+        return type == "int" || type == "float" || type == "bool";
+    }
+
+    // Static CALL_STATIC sites are monomorphic in the bytecode operand. For
+    // small non-generic primitive callees, paste the callee body into the
+    // caller instead of routing every iteration through jit_call_function_ic's
+    // mini-interpreter frame.
+    static bool tryEmitInlinedStaticCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        const uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
+        const size_t argCount = instr.operands[1];
+        if (nameIndex >= s.program.getConstantPool().strings.size())
+            return false;
+
+        static const bool osrInliningEnabled = []() {
+            const char* v = std::getenv("MTYPE_ENABLE_OSR_INLINING");
+            return !(v && v[0] == '0' && v[1] == '\0');
+        }();
+        if (s.isOSRCompilation && !osrInliningEnabled)
+            return false;
+
+        static const bool inliningDisabled = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_INLINING");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (inliningDisabled)
+            return false;
+
+        static const bool disableNestedInlining = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_NESTED_INLINING");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (disableNestedInlining && !s.inlineStack.empty())
+            return false;
+
+        if (!s.usesBoxedTypes)
+            return false;
+
+        const std::string& funcName = s.program.getConstantPool().getString(nameIndex);
+        const auto* callee = s.program.getFunction(funcName);
+        if (!callee)
+            return false;
+        if (callee->parameterCount != argCount)
+            return false;
+        if (!callee->genericTypeParameters.empty())
+            return false;
+        for (const auto& paramType : callee->parameterTypes)
+        {
+            if (!isInlineStaticPrimitiveType(paramType))
+                return false;
+        }
+        if (!isInlineStaticPrimitiveType(callee->returnType))
+            return false;
+
+        auto decision = optimization::checkFunctionInlineEligibility(
+            s.program, *callee, s.currentCompilingFn, s.inlineStack.size());
+        if (s.inlineDecisions)
+            s.inlineDecisions->bumpFunction(decision);
+        if (decision != optimization::InlineDecision::INLINE)
+            return false;
+
+        const size_t localsBaseSlot = s.inlineStack.empty()
+            ? s.localCount
+            : s.inlineStack.back().localsBaseSlot
+              + s.inlineStack.back().calleeMeta->localCount;
+        if (localsBaseSlot + callee->localCount
+            > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+            return false;
+
+        const size_t calleePeak = computeCalleePeakOperandStack(s.program, *callee);
+        if (static_cast<size_t>(s.stackDepth) + calleePeak
+            > JitEmissionState::MAX_OP_STACK)
+            return false;
+
+        auto& cc = s.cc;
+        Label endLabel = cc.new_label();
+        auto localJumpLabels = createJumpLabels(
+            cc, s.program, callee->startOffset,
+            callee->startOffset + callee->instructionCount);
+
+        const InlineEmitStateSnapshot snap = snapshotEmitStateForInline(s);
+        const int firstArgStackIdx = snap.stackDepth - static_cast<int>(argCount);
+        if (firstArgStackIdx < 0)
+            return false;
+
+        emitInlineLocalCopy(s, firstArgStackIdx, localsBaseSlot, *callee);
+
+        InlineFrame frame;
+        frame.calleeMeta = callee;
+        frame.localsBaseSlot = localsBaseSlot;
+        frame.inlineEndLabel = endLabel;
+        frame.returnResultStackIdx = firstArgStackIdx;
+        frame.localJumpLabels = std::move(localJumpLabels);
+
+        const size_t prevInlineBase = s.inlineLocalsBase;
+        s.inlineStack.push_back(frame);
+        s.inlineLocalsBase = localsBaseSlot;
+
+        s.slotTypes.resize(s.slotTypes.size() - argCount);
+        s.stackDepth = firstArgStackIdx;
+        s.arrayInfoCache.clear();
+
+        ExitHandler onExit = [endLabel, firstArgStackIdx, localsBaseSlot, callee]
+            (JitEmissionState& es, size_t /*target*/) {
+            emitInlineReturnMaterialize(es, firstArgStackIdx, es.lastReturnSlotType);
+            emitInlineLocalDestroy(es, localsBaseSlot, *callee);
+            {
+                InvokeNode* pop = nullptr;
+                es.cc.invoke(Out(pop),
+                          reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                          FuncSignature::build<void, JitContext*>());
+                pop->set_arg(0, es.ctxPtr);
+            }
+            es.cc.jmp(endLabel);
+        };
+
+        emitInlineCalleeBody(s, *callee, firstArgStackIdx, onExit);
+
+        s.inlineStack.pop_back();
+        s.inlineLocalsBase = prevInlineBase;
+        s.currentIP = snap.currentIP;
+
+        if (s.compileFailed)
+            return true;
+
+        cc.jmp(endLabel);
+        cc.bind(endLabel);
+
+        s.stackDepth = firstArgStackIdx + 1;
+        s.slotTypes.resize(static_cast<size_t>(firstArgStackIdx));
+        s.slotTypes.push_back(SlotType::BOXED);
+        s.arrayInfoCache.clear();
         return true;
     }
 
