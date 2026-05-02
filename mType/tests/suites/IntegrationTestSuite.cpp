@@ -293,6 +293,8 @@ namespace tests::testSuite
         // guard for the silent-exit failure mode of MYT-248/249/250.
         addOutputVerificationTest("Inline OSR Hot-Loop Stress",
                                   passPath + "inlining/inline_osr_stress.mt");
+        addOutputVerificationTest("Inline OSR Bool Value Chain",
+                                  passPath + "inlining/inline_osr_bool_value_chain.mt");
 
         // MYT-165 Phase F-c: polymorphic inlining with chained shape guards.
         addOutputVerificationTest("Inline Polymorphic Chained Guards",

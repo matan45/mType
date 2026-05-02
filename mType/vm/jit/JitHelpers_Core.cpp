@@ -15,7 +15,7 @@ namespace vm::jit
 
     namespace
     {
-        // Boxed Int / Float primitives always keep their scalar under field index 0;
+        // Boxed Int / Float / Bool primitives always keep their scalar under field index 0;
         // the invariant is asserted in PrimitiveMethodExecutor and PrimitiveTypeTag.
         template <typename T>
         bool tryReadBoxedField(const value::Value& val, T& out)
@@ -72,6 +72,11 @@ namespace vm::jit
             if (tryReadBoxedField<int64_t>(*val, boxed))
             {
                 return boxed;
+            }
+            bool boxedBool = false;
+            if (tryReadBoxedField<bool>(*val, boxedBool))
+            {
+                return boxedBool ? 1 : 0;
             }
             return 0;
         }
