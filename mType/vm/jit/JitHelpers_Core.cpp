@@ -277,6 +277,13 @@ namespace vm::jit
                                   const value::Value* receiver,
                                   const value::Value* arg)
     {
+        // ALIASING NOTE: the JIT emit case passes the same operand-stack slot
+        // address for both `dest` and `receiver` (recvAddr is reused so the
+        // result lands on the receiver's slot after the arg pop). The reads
+        // through `tryReadString(*receiver, ...)` MUST happen before the
+        // `std::destroy_at(dest)` below — `a` and `b` are owning copies, so
+        // the in-place destruction is safe ONLY because the source bytes have
+        // already been copied out. Do not reorder these two blocks.
         std::string a, b;
         if (!tryReadString(*receiver, a) || !tryReadString(*arg, b))
         {
@@ -288,7 +295,7 @@ namespace vm::jit
         // Mirror the interpreter handler: try to intern. For cycling concat
         // patterns the pool collapses repeated allocations into refcount bumps.
         value::InternedString interned = value::StringPool::getInstance().intern(result);
-        std::destroy_at(dest);
+        std::destroy_at(dest);  // safe: receiver/arg payloads already copied into a/b above
         if (!interned.empty())
         {
             new (dest) value::Value(std::move(interned));
