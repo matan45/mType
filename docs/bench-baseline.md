@@ -1827,3 +1827,135 @@ Other scripts within ±5% of prior baseline (noise).
   order. Two new `.expected` files added: `serializeHashMap.expected`,
   `serializeHashSet.expected`.
 - Full integration suite passing on this commit (jit on and `--no-jit`).
+
+## 2026-05-02 — boxed-primitive INVOKE_BOOL_*/INVOKE_STRING_* + CALL_STATIC IC hoist
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  improve-2
+- Commit:  `698229e1` (uncommitted on top)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+Scope:
+- Extended `PrimitiveMethodOptimizer` whitelist with `Bool::{and,or,xor,not,
+  equals}` and `String::{length,concat,equals,isEmpty}` and added matching
+  `INVOKE_BOOL_*` / `INVOKE_STRING_*` opcodes. Bool ops JIT-emit inline
+  (cmp + setcc); String ops route through `jit_invoke_string_*` helpers
+  that read field-0 directly. `INVOKE_STRING_CONCAT` interns the result
+  via `StringPool::intern` — for cycling concat patterns this collapses
+  per-iteration bridge allocations into refcount bumps after warmup.
+- Extended `autoBoxPrimitive` to handle raw STRING / INTERNED_STRING
+  receivers so lazy-rebox-at-escape works through `concat.toString()`-style
+  chains.
+- `handleCallStatic` IC check hoisted to the top of the function — the
+  cached `funcMetadata` slot existed already but the cache check ran
+  AFTER `findClass` + `findStaticMethod` + `validateStaticMethodAccess`.
+  On hit we now skip all of those.
+- New `cachedTypeArgBindings` slot on `CachedInstructionState`. When every
+  binding at a `BIND_TYPE_ARGS` IP is `Concrete` (the common case),
+  snapshot the resolved `(paramName, resolvedType)` pairs on first
+  execution. Subsequent calls bulk-copy from the snapshot. Both the
+  interpreter (`TypeExecutor`) and the JIT (`jit_bind_type_args`) helper
+  share this cache. `ForwardFromCaller` bindings stay uncached because
+  they depend on caller-frame state.
+- New `jit_call_function_ic` helper + `VirtualMachine::callFunctionFromJitDirect`.
+  The JIT `emitCallStaticOp` now passes `currentIP` and dispatches via the
+  IC variant, caching `FunctionMetadata*` at the call-site IP. Eliminates
+  the per-call `program->getFunction(funcName)` hashmap probe inside the
+  JIT-compiled outer loop.
+- Three new isolation benchmarks registered (`BenchmarkRunner.cpp` +
+  `IntegrationTestSuite.cpp` + `mtype-tests.vcxproj.filters`):
+  `boxed_bool_dispatch_hot.mt` (Bool INVOKE only, no allocation in the hot
+  loop), `boxed_string_dispatch_hot.mt` (String INVOKE + StringPool intern
+  cycle), `static_call_hot.mt` (non-generic `CALL_STATIC` IC isolation —
+  strips BIND_TYPE_ARGS / INSTANCEOF_TYPEPARAM from the measurement).
+
+```
+=== Summary (jit=on) ===
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            103.22        104.91           20017         0
+  method_dispatch.mt                  128.38        131.13           14043       506
+  object_alloc.mt                     520.08        521.52           12511         0
+  object_alloc_nested.mt             1216.98       1217.88           16811       500
+  field_write_hot.mt                   65.95         66.53            8018         1
+  field_read_hot.mt                    66.58         66.86            9020         1
+  string_ops.mt                       113.82        114.54           19019         0
+  recursive.mt                        752.86        753.85           17261   2545487
+  bitwise_tight_loop.mt                75.72         76.46           23019         0
+  short_circuit_chain.mt               63.01         63.12           24909         0
+  primitive_method_dispatch.mt        463.03        469.72           32039         0
+  array_multi_alloc.mt                 77.13         77.79            9911       500
+  array_multi_get.mt                  330.24        332.53           49787       500
+  for_each_loop.mt                    305.38        309.14           75654      5604
+  inline_monomorphic.mt                87.72         87.76           13017       501
+  inline_branching.mt                  93.62         94.75           15017       501
+  inline_polymorphic.mt               124.38        125.85           14052       508
+  inline_value_object_hot.mt          153.57        154.08           12518       500
+  function_call_hot.mt                173.66        175.67           15011       500
+  async_await_tight_loop.mt          1024.41       1026.89        23000933   1000001
+  async_await_chain.mt               1628.67       1629.99        20502833   2000001
+  lambda_call_hot.mt                  840.40        840.58           12522   1999501
+  lambda_closure_hot.mt               862.18        862.68           12527   1999502
+  generic_dispatch_hot.mt             662.69        670.41           20075      1012
+  try_catch_finally_hot.mt            455.23        455.70           50020      2000
+  switch_dispatch_hot.mt              445.16        452.31           14634       500
+  overload_dispatch_hot.mt            562.23        571.42           34029      2001
+  abstract_dispatch_hot.mt            124.45        124.64           14043       506
+  cast_hot.mt                         218.21        218.79           19561       505
+  collections_hash_hot.mt            6909.93       6926.25          265401   2581948
+  collections_hashset_hot.mt         2269.29       2293.67          112923    860655
+  stream_pipeline_hot.mt              413.55        415.69         2090492    306881
+  reflection_lookup_hot.mt           2240.75       2243.56           85542   1203001
+  pattern_match_hot.mt                439.24        440.53           12861       500
+  string_interpolation_hot.mt         247.33        247.48         7400025         0
+  boxed_primitive_dispatch_hot.mt        981.65        982.23           32803         0
+  boxed_bool_dispatch_hot.mt          943.32        949.47           29277         0
+  boxed_string_dispatch_hot.mt        497.81        498.05           24262         0
+  static_call_hot.mt                 1734.19       1749.14           32517      2000
+  linked_list_nested_hot.mt           347.31        349.45          124920     81001
+```
+
+### Delta vs prior 2026-05-02 (MYT-258 Phase 3) baseline
+
+| Script                              | Before (median, ms) | After (median, ms) | Change   |
+|-------------------------------------|--------------------:|-------------------:|---------:|
+| boxed_primitive_dispatch_hot.mt     |             2697.15 |             982.23 | **-63.6%** |
+| generic_dispatch_hot.mt             |             1007.10 |             670.41 | **-33.4%** |
+| collections_hash_hot.mt             |             7127.58 |            6926.25 |   -2.8%  |
+| collections_hashset_hot.mt          |             2335.60 |            2293.67 |   -1.8%  |
+| reflection_lookup_hot.mt            |             2356.41 |            2243.56 |   -4.8%  |
+
+Other scripts within ±5% of prior baseline (noise). New benchmarks recorded
+for the first time on this run: `boxed_bool_dispatch_hot.mt` (949ms),
+`boxed_string_dispatch_hot.mt` (498ms), `static_call_hot.mt` (1749ms).
+
+### Notes
+
+- **`boxed_primitive_dispatch_hot.mt`** dropped 2697 → 982 ms (-63.6%),
+  far beyond the predicted -22%. The `String::concat` workload cycles 13
+  unique result strings 500K times; once the StringPool warms, every
+  `intern()` is a refcount bump rather than a new bridge alloc. Also the
+  4 generic `CALL_METHOD` calls per iteration (`Bool::xor`, `Bool::not`,
+  `String::concat`, `String::length`) collapsed into single-instruction
+  `INVOKE_*` opcodes, eliminating both IC dispatch and frame setup.
+- **`generic_dispatch_hot.mt`** dropped 1007 → 670 ms (-33.4%). Two-thirds
+  of the remaining gap to the `method_dispatch.mt` baseline (~131ms) is
+  the per-call mini-interpret of the static method body — caching the
+  resolved `FunctionMetadata` skipped the hashmap probe but `matches` is
+  too small to warrant separate JIT compilation, so it still runs through
+  the interpreter loop inside `callFunctionFromJitDirect`.
+- **`static_call_hot.mt` is unexpectedly slow** at 1749ms (predicted ~200ms).
+  217 ns/call vs 64 ns/call for `method_dispatch.mt`. Suspected cause:
+  `callFunctionFromJitDirect`'s mini-interpret loop is hot per call (frame
+  push, bytecode dispatch loop entry, RETURN_VALUE handling, frame pop)
+  even with the IC populated. The `Math::clamp` body has internal `if`s
+  with returns which would block JIT inlining of the callee. Worth
+  investigating in a follow-up — either a JIT-friendly inline path for
+  small static methods, or a leaner mini-interpret entry that skips the
+  full dispatch table for known-leaf bytecode bodies.
+- No regressions in the watch list: `method_dispatch.mt` (128 vs 128),
+  `inline_value_object_hot.mt` (154 vs 159), `arithmetic_tight_loop.mt`
+  (103 vs 105), `inline_monomorphic.mt` (87 vs 86) — all within noise.
+- Correctness: `valueClassBoxing.mt` regression caught + fixed during
+  development (extended `autoBoxPrimitive` for STRING tag). Full
+  integration suite passing on this commit (jit on).

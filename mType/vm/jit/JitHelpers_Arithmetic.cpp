@@ -287,36 +287,38 @@ namespace vm::jit
 
         try
         {
-            // Hot path: cached FunctionMetadata at this IP. Skips both the
-            // const-pool getString and program->getFunction hashmap probe
-            // that the slow path runs every call.
-            if (auto* cached = ctx->program->findCachedState(bytecodeOffset);
-                cached && cached->cachedFuncMetadata && ctx->vm)
-            {
-                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                // Re-look up the qualified name from the constant pool —
-                // needed for the frame's intern-name + debugger hooks. Cheap
-                // (vector index). Caching the FunctionNameHandle would shave
-                // the intern hashmap probe but hasn't been profiled yet.
-                const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
-                ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
-                    funcName, cached->cachedFuncMetadata, argVec);
-                ctx->hasReturnValue = true;
-                return;
-            }
-
-            // Slow path: full resolution + cache populate.
             const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
 
+            // Always try JIT→JIT direct dispatch first. If the callee is
+            // itself JIT-compiled (very common for hot static methods), we
+            // get full native-to-native invocation via tryJitDispatchResolved
+            // — same fast path plain CALL takes. The IC below only short-
+            // circuits the bottom-level program->getFunction lookup; it must
+            // NOT bypass the JIT dispatch path or all hot static methods
+            // get pinned to the interpreter mini-loop (static_call_hot.mt
+            // regression: 1749ms vs 170ms for the equivalent CALL bench).
             if (tryJitDispatch(ctx, funcName, argCount))
                 return;
 
             if (tryNativeDispatch(ctx, funcName, argCount))
                 return;
 
-            if (ctx->vm)
+            if (!ctx->vm)
+                throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+
+            // IC slot: skip the program->getFunction(funcName) hashmap probe.
+            // Static call sites are monomorphic in the resolved metadata
+            // (the qualified name is a fixed bytecode operand), so a single-
+            // entry IP-keyed cache is always semantically valid.
+            const bytecode::BytecodeProgram::FunctionMetadata* funcMeta = nullptr;
+            if (auto* cached = ctx->program->findCachedState(bytecodeOffset);
+                cached && cached->cachedFuncMetadata)
             {
-                auto funcMeta = ctx->program->getFunction(funcName);
+                funcMeta = cached->cachedFuncMetadata;
+            }
+            else
+            {
+                funcMeta = ctx->program->getFunction(funcName);
                 if (funcMeta)
                 {
                     auto& slot = ctx->program->getOrCreateCachedState(bytecodeOffset);
@@ -324,16 +326,14 @@ namespace vm::jit
                     slot.cachedStartOffset = funcMeta->startOffset;
                     slot.cachedProgram = ctx->program;
                     slot.cachedProgramIndex = 0;
-
-                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                    ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
-                        funcName, funcMeta, argVec);
-                    ctx->hasReturnValue = true;
-                    return;
                 }
+            }
 
+            if (funcMeta)
+            {
                 std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
+                    funcName, funcMeta, argVec);
                 ctx->hasReturnValue = true;
                 return;
             }
