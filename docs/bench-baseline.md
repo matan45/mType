@@ -1826,3 +1826,4 @@ Other scripts within ±5% of prior baseline (noise).
   `forEachHashSet.expected`) regenerated for the new linear-probe visit
   order. Two new `.expected` files added: `serializeHashMap.expected`,
   `serializeHashSet.expected`.
+- Full integration suite passing on this commit (jit on and `--no-jit`).
