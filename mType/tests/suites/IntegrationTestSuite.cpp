@@ -298,6 +298,13 @@ namespace tests::testSuite
         addOutputVerificationTest("OSR Return Value Loop Bailout",
                                   passPath + "osr_return_value_loop_bailout.mt");
 
+        // MYT-259: OSR-emitted RETURN_VALUE on a freshly-allocated boxed
+        // object returned from inside a hot inner loop. Guards both the
+        // boxed branch of emitOsrPushReturnValueToInterpStack and EA's
+        // decision to keep escaping objects on the heap.
+        addOutputVerificationTest("OSR Return Boxed Object",
+                                  passPath + "inlining/osr_return_boxed_object.mt");
+
         // MYT-165 Phase F-c: polymorphic inlining with chained shape guards.
         addOutputVerificationTest("Inline Polymorphic Chained Guards",
                                   passPath + "inlining/inline_poly.mt");

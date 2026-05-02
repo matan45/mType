@@ -59,4 +59,31 @@ namespace vm::jit
     {
         throw OSRDeoptException(static_cast<size_t>(bytecodeOffset));
     }
+
+    // MYT-259: push the function's return value onto the interpreter's
+    // operand stack so the resumed RETURN_VALUE bytecode (dispatched at
+    // ctx->osrExitOffset by the interpreter) can pop it via the normal
+    // handleReturnValue() path. Free functions (not extern "C") because
+    // value::Value's copy constructor + StackManager::push aren't ABI-stable
+    // C symbols; the JIT calls these via cc.invoke with Compiler-managed
+    // argument marshaling, which doesn't require C linkage.
+    void jit_osr_push_value(JitContext* ctx, const value::Value* val)
+    {
+        ctx->stackManager->push(*val);
+    }
+
+    void jit_osr_push_int(JitContext* ctx, int64_t val)
+    {
+        ctx->stackManager->push(value::Value(val));
+    }
+
+    void jit_osr_push_float(JitContext* ctx, double val)
+    {
+        ctx->stackManager->push(value::Value(val));
+    }
+
+    void jit_osr_push_bool(JitContext* ctx, int64_t val)
+    {
+        ctx->stackManager->push(value::Value(val != 0));
+    }
 }

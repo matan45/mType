@@ -86,6 +86,19 @@ namespace vm::jit
     void jit_set_return_boxed(JitContext* ctx, const value::Value* val);
     void jit_value_swap(value::Value* a, value::Value* b);
 
+    // MYT-259: OSR-emitted RETURN/RETURN_VALUE push the function's return
+    // value onto the interpreter's operand stack, then exit OSR at the
+    // RETURN_VALUE bytecode offset. The interpreter then dispatches the
+    // RETURN_VALUE opcode normally (handleReturnValue: pop operand stack,
+    // pop call frame, restore caller IP, async-promise-wrap if needed).
+    // This lets OSR support loops with early-return statements (a very
+    // common pattern: `for (...) { if (cond) return x; }`) without the
+    // OSR-exit-IP-only mechanism falling through past the loop body.
+    void jit_osr_push_value(JitContext* ctx, const value::Value* val);
+    void jit_osr_push_int(JitContext* ctx, int64_t val);
+    void jit_osr_push_float(JitContext* ctx, double val);
+    void jit_osr_push_bool(JitContext* ctx, int64_t val);
+
     void jit_push_string(value::Value* dest,
                           const vm::bytecode::BytecodeProgram* prog,
                           uint32_t constIndex);

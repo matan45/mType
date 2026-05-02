@@ -331,6 +331,56 @@ namespace vm::jit
         }
     }
 
+    // MYT-259: emit a cc.invoke that pushes the JIT operand-stack top onto
+    // the interpreter's operand stack via the appropriate jit_osr_push_*
+    // helper. Used by OSR-emitted RETURN_VALUE / CREATE_PROMISE_RETURN_VALUE
+    // so the resumed RETURN_VALUE bytecode can pop the value normally.
+    // Caller must pass the slotType BEFORE popping s.slotTypes.
+    static void emitOsrPushReturnValueToInterpStack(JitEmissionState& s, SlotType retType)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        const int topSlot = s.stackDepth - 1;
+
+        if (isBoxedSlotType(retType))
+        {
+            // Boxed Value already lives at boxedBase[topSlot]. Pass its
+            // address; helper does *val copy into stackManager.
+            Gp valAddr = cc.new_gp64();
+            cc.lea(valAddr, Mem(s.boxedBase, static_cast<int32_t>(topSlot * valueSize)));
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_osr_push_value),
+                      FuncSignature::build<void, JitContext*, const value::Value*>());
+            inv->set_arg(0, s.ctxPtr);
+            inv->set_arg(1, valAddr);
+        }
+        else if (retType == SlotType::FLOAT)
+        {
+            Vec val = cc.new_xmm();
+            cc.movsd(val, Mem(s.stackBase, topSlot * 8));
+            InvokeNode* inv;
+            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_osr_push_float),
+                      FuncSignature::build<void, JitContext*, double>());
+            inv->set_arg(0, s.ctxPtr);
+            inv->set_arg(1, val);
+        }
+        else
+        {
+            // INT / BOOL — raw int64 in stackBase[topSlot]. Helper picks
+            // the right box variant based on which jit_osr_push_* we call.
+            Gp val = cc.new_gp64();
+            cc.mov(val, Mem(s.stackBase, topSlot * 8));
+            const uint64_t fn = (retType == SlotType::BOOL)
+                ? reinterpret_cast<uint64_t>(jit_osr_push_bool)
+                : reinterpret_cast<uint64_t>(jit_osr_push_int);
+            InvokeNode* inv;
+            cc.invoke(Out(inv), fn,
+                      FuncSignature::build<void, JitContext*, int64_t>());
+            inv->set_arg(0, s.ctxPtr);
+            inv->set_arg(1, val);
+        }
+    }
+
     static void emitReturnValueOp(JitEmissionState& s, const ExitHandler& onExit)
     {
         if (onExit)
@@ -339,6 +389,27 @@ namespace vm::jit
             // handlers can choose the correct box/unbox direction when
             // materializing the return value at endLabel.
             s.lastReturnSlotType = topType(s);
+
+            // MYT-259: in OSR context (s.isOSRCompilation), the onExit
+            // handler is osrExit which resumes the interpreter at a bytecode
+            // offset. The previous behaviour passed target=0 meaning
+            // "resume after the loop", which silently dropped the function
+            // return — the interpreter then fell through to whatever code
+            // followed the loop (e.g. the trailing `return -1;` in
+            // HashMap.findKeyInBucket). Instead, push the return value to
+            // the interpreter's operand stack and resume AT this RETURN_VALUE
+            // opcode — the interpreter then runs handleReturnValue() which
+            // pops, async-wraps if needed, and does the function-return
+            // semantics correctly.
+            if (s.isOSRCompilation)
+            {
+                emitOsrPushReturnValueToInterpStack(s, s.lastReturnSlotType);
+                s.stackDepth--;
+                popType(s);
+                onExit(s, s.currentIP);
+                return;
+            }
+
             s.stackDepth--;
             popType(s);
             onExit(s, 0);
@@ -1043,7 +1114,12 @@ namespace vm::jit
             {
                 if (onExit)
                 {
-                    onExit(s, 0);
+                    // MYT-259: in OSR, resume at THIS opcode so the
+                    // interpreter runs handleReturn() (call-frame pop, IP
+                    // restore). Pre-fix used target=0 → resume after the
+                    // loop, which dropped the function return entirely.
+                    // No value to push (RETURN has no operand stack value).
+                    onExit(s, s.isOSRCompilation ? s.currentIP : 0);
                 }
                 else
                 {
