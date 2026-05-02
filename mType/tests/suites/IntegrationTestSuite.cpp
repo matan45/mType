@@ -105,6 +105,8 @@ namespace tests::testSuite
                                   passPath + "classGenericSerialization.mt");
         addOutputVerificationTest("Collections As Data Members",
                                   passPath + "collectionsAsDataMembers.mt");
+        addOutputVerificationTest("HashMap Remove Back-shift",
+                                  passPath + "hashmapRemoveBackshift.mt");
         addOutputVerificationTest("Generic Class Compilation",
                                   passPath + "genericClassCompilation.mt");
         addOutputVerificationTest("Generic Import Serialization",
@@ -177,6 +179,8 @@ namespace tests::testSuite
                                   passPath + "classGenericSerialization.mt");
         addOutputVerificationTest("Collections As Data Members",
                                   passPath + "collectionsAsDataMembers.mt");
+        addOutputVerificationTest("HashMap Remove Back-shift",
+                                  passPath + "hashmapRemoveBackshift.mt");
         addOutputVerificationTest("Complex Control Flow Performance",
                                   passPath + "complexControlFlowPerformance.mt");
         addOutputVerificationTest("Complex Inheritance With Namespaces",
@@ -293,6 +297,17 @@ namespace tests::testSuite
         // guard for the silent-exit failure mode of MYT-248/249/250.
         addOutputVerificationTest("Inline OSR Hot-Loop Stress",
                                   passPath + "inlining/inline_osr_stress.mt");
+        addOutputVerificationTest("Inline OSR Bool Value Chain",
+                                  passPath + "inlining/inline_osr_bool_value_chain.mt");
+        addOutputVerificationTest("OSR Return Value Loop Bailout",
+                                  passPath + "osr_return_value_loop_bailout.mt");
+
+        // MYT-259: OSR-emitted RETURN_VALUE on a freshly-allocated boxed
+        // object returned from inside a hot inner loop. Guards both the
+        // boxed branch of emitOsrPushReturnValueToInterpStack and EA's
+        // decision to keep escaping objects on the heap.
+        addOutputVerificationTest("OSR Return Boxed Object",
+                                  passPath + "inlining/osr_return_boxed_object.mt");
 
         // MYT-165 Phase F-c: polymorphic inlining with chained shape guards.
         addOutputVerificationTest("Inline Polymorphic Chained Guards",
@@ -460,6 +475,90 @@ namespace tests::testSuite
                                   passPath + "combo34_reflectionOverloadEnumeration.mt");
         addOutputVerificationTest("Combo 35: Lambda In Static Initializer",
                                   passPath + "combo35_lambdaInStaticInitializer.mt");
+
+        // ====================================
+        // MYT-259: BENCHMARK JIT-CORRECTNESS REGRESSION TESTS
+        // ====================================
+        // Each benchmark has a sibling .expected captured from a `--no-jit`
+        // reference run. Running with JIT on must produce the same output.
+        // Drives BOTH the JIT-on default `--tests` pass and the `--tests
+        // --no-jit` regression pass (added for the OSR HashMap bug, MYT-259).
+        addOutputVerificationTest("Benchmark: abstract_dispatch_hot",
+                                  benchmarkPath + "abstract_dispatch_hot.mt");
+        addOutputVerificationTest("Benchmark: arithmetic_tight_loop",
+                                  benchmarkPath + "arithmetic_tight_loop.mt");
+        addOutputVerificationTest("Benchmark: array_multi_alloc",
+                                  benchmarkPath + "array_multi_alloc.mt");
+        addOutputVerificationTest("Benchmark: array_multi_get",
+                                  benchmarkPath + "array_multi_get.mt");
+        addOutputVerificationTest("Benchmark: async_await_chain",
+                                  benchmarkPath + "async_await_chain.mt");
+        addOutputVerificationTest("Benchmark: async_await_tight_loop",
+                                  benchmarkPath + "async_await_tight_loop.mt");
+        addOutputVerificationTest("Benchmark: bitwise_tight_loop",
+                                  benchmarkPath + "bitwise_tight_loop.mt");
+        addOutputVerificationTest("Benchmark: boxed_primitive_dispatch_hot",
+                                  benchmarkPath + "boxed_primitive_dispatch_hot.mt");
+        addOutputVerificationTest("Benchmark: cast_hot",
+                                  benchmarkPath + "cast_hot.mt");
+        addOutputVerificationTest("Benchmark: collections_hash_hot",
+                                  benchmarkPath + "collections_hash_hot.mt");
+        addOutputVerificationTest("Benchmark: collections_hashset_hot",
+                                  benchmarkPath + "collections_hashset_hot.mt");
+        addOutputVerificationTest("Benchmark: field_read_hot",
+                                  benchmarkPath + "field_read_hot.mt");
+        addOutputVerificationTest("Benchmark: field_write_hot",
+                                  benchmarkPath + "field_write_hot.mt");
+        addOutputVerificationTest("Benchmark: for_each_loop",
+                                  benchmarkPath + "for_each_loop.mt");
+        addOutputVerificationTest("Benchmark: function_call_hot",
+                                  benchmarkPath + "function_call_hot.mt");
+        addOutputVerificationTest("Benchmark: generic_dispatch_hot",
+                                  benchmarkPath + "generic_dispatch_hot.mt");
+        addOutputVerificationTest("Benchmark: inline_branching",
+                                  benchmarkPath + "inline_branching.mt");
+        addOutputVerificationTest("Benchmark: inline_monomorphic",
+                                  benchmarkPath + "inline_monomorphic.mt");
+        addOutputVerificationTest("Benchmark: inline_polymorphic",
+                                  benchmarkPath + "inline_polymorphic.mt");
+        addOutputVerificationTest("Benchmark: inline_value_object_hot",
+                                  benchmarkPath + "inline_value_object_hot.mt");
+        addOutputVerificationTest("Benchmark: lambda_call_hot",
+                                  benchmarkPath + "lambda_call_hot.mt");
+        addOutputVerificationTest("Benchmark: lambda_closure_hot",
+                                  benchmarkPath + "lambda_closure_hot.mt");
+        // lexer_stress skipped: --no-jit reference run exits non-zero;
+        // needs separate investigation before it can be a regression test.
+        addOutputVerificationTest("Benchmark: linked_list_nested_hot",
+                                  benchmarkPath + "linked_list_nested_hot.mt");
+        addOutputVerificationTest("Benchmark: method_dispatch",
+                                  benchmarkPath + "method_dispatch.mt");
+        addOutputVerificationTest("Benchmark: object_alloc",
+                                  benchmarkPath + "object_alloc.mt");
+        addOutputVerificationTest("Benchmark: object_alloc_nested",
+                                  benchmarkPath + "object_alloc_nested.mt");
+        addOutputVerificationTest("Benchmark: overload_dispatch_hot",
+                                  benchmarkPath + "overload_dispatch_hot.mt");
+        addOutputVerificationTest("Benchmark: pattern_match_hot",
+                                  benchmarkPath + "pattern_match_hot.mt");
+        addOutputVerificationTest("Benchmark: primitive_method_dispatch",
+                                  benchmarkPath + "primitive_method_dispatch.mt");
+        addOutputVerificationTest("Benchmark: recursive",
+                                  benchmarkPath + "recursive.mt");
+        addOutputVerificationTest("Benchmark: reflection_lookup_hot",
+                                  benchmarkPath + "reflection_lookup_hot.mt");
+        addOutputVerificationTest("Benchmark: short_circuit_chain",
+                                  benchmarkPath + "short_circuit_chain.mt");
+        addOutputVerificationTest("Benchmark: stream_pipeline_hot",
+                                  benchmarkPath + "stream_pipeline_hot.mt");
+        addOutputVerificationTest("Benchmark: string_interpolation_hot",
+                                  benchmarkPath + "string_interpolation_hot.mt");
+        addOutputVerificationTest("Benchmark: string_ops",
+                                  benchmarkPath + "string_ops.mt");
+        addOutputVerificationTest("Benchmark: switch_dispatch_hot",
+                                  benchmarkPath + "switch_dispatch_hot.mt");
+        addOutputVerificationTest("Benchmark: try_catch_finally_hot",
+                                  benchmarkPath + "try_catch_finally_hot.mt");
 
         // ====================================
         // COMMENTED OUT - Test files were not created

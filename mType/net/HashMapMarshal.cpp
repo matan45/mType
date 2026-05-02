@@ -47,18 +47,16 @@ namespace net
             return inst;
         }
 
-        // Mirrors HashMap.mt's getBucketIndex (and JsonDeserializer::computeBucketIndex).
-        int64_t computeBucketIndex(int64_t hash, int64_t capacity)
+        // Mirrors HashMap.mt's hash-to-slot mapping after MYT-258 Phase 3:
+        // open-addressing on flat arrays with `(rawHash * MAGIC ^ shift) & (cap - 1)`.
+        int64_t computeSlotIndex(int64_t hash, int64_t capacity)
         {
-            if (hash < 0) { hash = -hash; if (hash < 0) hash += 1; }
-            hash = hash * 1610612741;
-            hash = hash + (hash / capacity);
-            if (hash < 0) hash = -hash;
-            return hash % capacity;
+            int64_t mixed = hash * 1610612741;
+            return (mixed ^ (mixed >> 16)) & (capacity - 1);
         }
 
         // Mirror BuiltinNatives::hashCode_fn string hash (std::hash<std::string> & 0x7FFFFFFF)
-        // so bucket placement matches what mType's HashMap.put would produce.
+        // so slot placement matches what mType's HashMap.put would produce.
         int64_t stringHash(const std::string& s)
         {
             std::hash<std::string> hasher;
@@ -75,42 +73,24 @@ namespace net
         auto inst = value::asObject(v);
         if (!inst) return result;
 
-        auto keyBucketsVal = inst->getFieldValue("keyBuckets");
-        auto valBucketsVal = inst->getFieldValue("valueBuckets");
-        auto bucketSizesVal = inst->getFieldValue("bucketSizes");
+        auto keysVal = inst->getFieldValue("keys");
+        auto valsVal = inst->getFieldValue("values");
 
-        if (!value::isNativeArray(keyBucketsVal) ||
-            !value::isNativeArray(valBucketsVal) ||
-            !value::isNativeArray(bucketSizesVal))
-        {
+        if (!value::isNativeArray(keysVal) || !value::isNativeArray(valsVal))
             return result;
-        }
 
-        auto keyBuckets = value::asNativeArray(keyBucketsVal);
-        auto valBuckets = value::asNativeArray(valBucketsVal);
-        auto bucketSizes = value::asNativeArray(bucketSizesVal);
+        auto keys = value::asNativeArray(keysVal);
+        auto values = value::asNativeArray(valsVal);
 
-        size_t cap = keyBuckets->size();
+        size_t cap = keys->size();
         for (size_t i = 0; i < cap; ++i)
         {
-            auto sizeVal = bucketSizes->get(i);
-            if (!value::isInt(sizeVal)) continue;
-            int64_t bSize = value::asInt(sizeVal);
+            auto kVal = keys->get(i);
+            if (value::isNullType(kVal)) continue;
 
-            auto kRowVal = keyBuckets->get(i);
-            auto vRowVal = valBuckets->get(i);
-            if (!value::isNativeArray(kRowVal) ||
-                !value::isNativeArray(vRowVal))
-                continue;
-
-            auto kRow = value::asNativeArray(kRowVal);
-            auto vRow = value::asNativeArray(vRowVal);
-            for (int64_t j = 0; j < bSize; ++j)
-            {
-                std::string key = extractString(kRow->get(static_cast<size_t>(j)));
-                std::string val = extractString(vRow->get(static_cast<size_t>(j)));
-                result[key] = val;
-            }
+            std::string key = extractString(kVal);
+            std::string val = extractString(values->get(i));
+            result[key] = val;
         }
         return result;
     }
@@ -128,53 +108,37 @@ namespace net
         auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
 
         int64_t count = static_cast<int64_t>(map.size());
-        int64_t capacity = 16;
+        int64_t capacity = 32;
         while (count > capacity * 3 / 4) capacity *= 2;
-        int64_t bucketWidth = 4;
 
-        auto keyBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
-        auto valBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
-        auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto keys = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto values = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto hashes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        // 1-arg NativeArray ctor uses VOID type — null-init so linear probe finds empty slots.
         for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
         {
-            keyBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
-            valBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
-            bucketSizes->set(i, int64_t(0));
+            keys->set(i, nullptr);
+            values->set(i, nullptr);
         }
 
+        const int64_t mask = capacity - 1;
         for (const auto& [k, v] : map)
         {
-            int64_t hash = stringHash(k);
-            int64_t bucket = computeBucketIndex(hash, capacity);
+            int64_t rawHash = stringHash(k);
+            int64_t idx = computeSlotIndex(rawHash, capacity);
 
-            int64_t bSize = value::asInt(bucketSizes->get(static_cast<size_t>(bucket)));
-            auto kRow = value::asNativeArray(keyBuckets->get(static_cast<size_t>(bucket)));
-            auto vRow = value::asNativeArray(valBuckets->get(static_cast<size_t>(bucket)));
+            // Linear probe to next empty slot.
+            while (!value::isNullType(keys->get(static_cast<size_t>(idx))))
+                idx = (idx + 1) & mask;
 
-            if (bSize >= static_cast<int64_t>(kRow->size()))
-            {
-                size_t newSize = kRow->size() * 2;
-                auto nk = std::make_shared<value::NativeArray>(newSize);
-                auto nv = std::make_shared<value::NativeArray>(newSize);
-                for (size_t i = 0; i < kRow->size(); ++i)
-                {
-                    nk->set(i, kRow->get(i));
-                    nv->set(i, vRow->get(i));
-                }
-                keyBuckets->set(static_cast<size_t>(bucket), nk);
-                valBuckets->set(static_cast<size_t>(bucket), nv);
-                kRow = nk;
-                vRow = nv;
-            }
-
-            kRow->set(static_cast<size_t>(bSize), boxString(env, k));
-            vRow->set(static_cast<size_t>(bSize), boxString(env, v));
-            bucketSizes->set(static_cast<size_t>(bucket), bSize + 1);
+            keys->set(static_cast<size_t>(idx), boxString(env, k));
+            values->set(static_cast<size_t>(idx), boxString(env, v));
+            hashes->set(static_cast<size_t>(idx), rawHash);
         }
 
-        instance->setField("keyBuckets", keyBuckets);
-        instance->setField("valueBuckets", valBuckets);
-        instance->setField("bucketSizes", bucketSizes);
+        instance->setField("keys", keys);
+        instance->setField("values", values);
+        instance->setField("hashes", hashes);
         instance->setField("capacity", capacity);
         instance->setField("count", count);
 

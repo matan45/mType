@@ -518,15 +518,14 @@ namespace json
         return 0;
     }
 
-    // Mirrors HashMap.getBucketIndex() from lib/collections/HashMap.mt (line ~210).
+    // Mirrors HashMap.getBucketIndex() from lib/collections/HashMap.mt (line ~265).
     // WARNING: if HashMap.mt's getBucketIndex() changes, this must be updated to match.
+    // Capacity is always a power of two; the AND mask discards sign-extended bits
+    // from the arithmetic right shift, so the result is always in [0, capacity-1].
     int64_t JsonDeserializer::computeBucketIndex(int64_t hash, int64_t capacity)
     {
-        if (hash < 0) { hash = -hash; if (hash < 0) hash += 1; }
-        hash = hash * 1610612741;
-        hash = hash + (hash / capacity);
-        if (hash < 0) hash = -hash;
-        return hash % capacity;
+        int64_t mixed = hash * 1610612741;
+        return (mixed ^ (mixed >> 16)) & (capacity - 1);
     }
 
     value::Value JsonDeserializer::deserializeHashMapCollection(
@@ -550,22 +549,23 @@ namespace json
 
         if (!json->hasProperty("entries"))
         {
-            // Empty map with default jagged NativeArray structure
-            int64_t capacity = 16;
-            int64_t bucketWidth = 4;
-            auto keyBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
-            auto valBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
-            auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            // Phase 3 layout: flat 1D NativeArrays, length = capacity.
+            // keys[i] == null marks empty slot.
+            int64_t capacity = 32;
+            auto keys = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            auto values = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            auto hashes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            // 1-arg NativeArray ctor uses VOID type — slots default to monostate,
+            // not NULL_TYPE. Explicitly null-init so the linear probe terminates.
             for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
             {
-                keyBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
-                valBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
-                bucketSizes->set(i, int64_t(0));
+                keys->set(i, nullptr);
+                values->set(i, nullptr);
             }
 
-            instance->setField("keyBuckets", keyBuckets);
-            instance->setField("valueBuckets", valBuckets);
-            instance->setField("bucketSizes", bucketSizes);
+            instance->setField("keys", keys);
+            instance->setField("values", values);
+            instance->setField("hashes", hashes);
             instance->setField("capacity", capacity);
             instance->setField("count", int64_t(0));
             return instance;
@@ -574,25 +574,24 @@ namespace json
         const auto& entries = json->getProperty("entries")->asArray();
         int64_t count = static_cast<int64_t>(entries.size());
 
-        // Choose capacity to avoid triggering resize (count > capacity * 3/4)
-        int64_t capacity = 16;
+        int64_t capacity = 32;
         while (count > capacity * 3 / 4) capacity *= 2;
 
-        int64_t bucketWidth = 4;
-        // Create jagged NativeArray structure (NativeArray of NativeArrays) to match VM runtime
-        auto keyBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
-        auto valBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
-        auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto keys = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto values = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto hashes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        // Null-init: VOID-typed arrays don't default to NULL_TYPE, so the
+        // linear probe needs explicit nulls to find empty slots.
         for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
         {
-            keyBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
-            valBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
-            bucketSizes->set(i, int64_t(0));
+            keys->set(i, nullptr);
+            values->set(i, nullptr);
         }
 
-        for (size_t i = 0; i < entries.size(); ++i)
+        const int64_t mask = capacity - 1;
+        for (size_t e = 0; e < entries.size(); ++e)
         {
-            auto entry = entries[i];
+            auto entry = entries[e];
             value::Value key = keyType.empty()
                 ? fromJsonValue(entry->getProperty("key"))
                 : convertToFieldType(entry->getProperty("key"), keyType);
@@ -600,44 +599,22 @@ namespace json
                 ? fromJsonValue(entry->getProperty("value"))
                 : convertToFieldType(entry->getProperty("value"), valType);
 
-            int64_t hash = computeHashCode(key);
-            int64_t bucket = computeBucketIndex(hash, capacity);
+            int64_t rawHash = computeHashCode(key);
+            int64_t mixed = rawHash * 1610612741;
+            int64_t idx = (mixed ^ (mixed >> 16)) & mask;
 
-            int64_t bSize = safeGet<int64_t>(bucketSizes->get(static_cast<size_t>(bucket)),
-                "deserializing HashMap: bucketSizes element is not an int");
+            // Linear probe to find empty slot.
+            while (!value::isNullType(keys->get(static_cast<size_t>(idx))))
+                idx = (idx + 1) & mask;
 
-            auto keyRow = safeGet<std::shared_ptr<value::NativeArray>>(
-                keyBuckets->get(static_cast<size_t>(bucket)),
-                "deserializing HashMap: keyBuckets row is not an array");
-            auto valRow = safeGet<std::shared_ptr<value::NativeArray>>(
-                valBuckets->get(static_cast<size_t>(bucket)),
-                "deserializing HashMap: valueBuckets row is not an array");
-
-            // Resize bucket row if needed
-            if (bSize >= static_cast<int64_t>(keyRow->size()))
-            {
-                size_t newSize = keyRow->size() * 2;
-                auto newKeyRow = std::make_shared<value::NativeArray>(newSize);
-                auto newValRow = std::make_shared<value::NativeArray>(newSize);
-                for (size_t k = 0; k < keyRow->size(); ++k)
-                {
-                    newKeyRow->set(k, keyRow->get(k));
-                    newValRow->set(k, valRow->get(k));
-                }
-                keyBuckets->set(static_cast<size_t>(bucket), newKeyRow);
-                valBuckets->set(static_cast<size_t>(bucket), newValRow);
-                keyRow = newKeyRow;
-                valRow = newValRow;
-            }
-
-            keyRow->set(static_cast<size_t>(bSize), key);
-            valRow->set(static_cast<size_t>(bSize), val);
-            bucketSizes->set(static_cast<size_t>(bucket), bSize + 1);
+            keys->set(static_cast<size_t>(idx), key);
+            values->set(static_cast<size_t>(idx), val);
+            hashes->set(static_cast<size_t>(idx), rawHash);
         }
 
-        instance->setField("keyBuckets", keyBuckets);
-        instance->setField("valueBuckets", valBuckets);
-        instance->setField("bucketSizes", bucketSizes);
+        instance->setField("keys", keys);
+        instance->setField("values", values);
+        instance->setField("hashes", hashes);
         instance->setField("capacity", capacity);
         instance->setField("count", count);
 
@@ -663,72 +640,53 @@ namespace json
 
         if (!json->hasProperty("elements"))
         {
-            int64_t capacity = 16;
-            int64_t bucketWidth = 4;
-            auto buckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
-            auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            // Phase 3 layout: flat 1D NativeArrays.
+            int64_t capacity = 32;
+            auto elements = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            auto hashes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            // Null-init for empty-slot detection (VOID array slots default to monostate).
             for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
-            {
-                buckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
-                bucketSizes->set(i, int64_t(0));
-            }
+                elements->set(i, nullptr);
 
-            instance->setField("buckets", buckets);
-            instance->setField("bucketSizes", bucketSizes);
+            instance->setField("elements", elements);
+            instance->setField("hashes", hashes);
             instance->setField("capacity", capacity);
             instance->setField("count", int64_t(0));
             return instance;
         }
 
-        const auto& elements = json->getProperty("elements")->asArray();
-        int64_t count = static_cast<int64_t>(elements.size());
+        const auto& elementsJson = json->getProperty("elements")->asArray();
+        int64_t count = static_cast<int64_t>(elementsJson.size());
 
-        int64_t capacity = 16;
+        int64_t capacity = 32;
         while (count > capacity * 3 / 4) capacity *= 2;
 
-        int64_t bucketWidth = 4;
-        // Create jagged NativeArray structure to match VM runtime
-        auto buckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
-        auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto elements = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto hashes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        // Null-init for empty-slot detection.
         for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
-        {
-            buckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
-            bucketSizes->set(i, int64_t(0));
-        }
+            elements->set(i, nullptr);
 
-        for (size_t i = 0; i < elements.size(); ++i)
+        const int64_t mask = capacity - 1;
+        for (size_t e = 0; e < elementsJson.size(); ++e)
         {
             value::Value elem = elemType.empty()
-                ? fromJsonValue(elements[i])
-                : convertToFieldType(elements[i], elemType);
+                ? fromJsonValue(elementsJson[e])
+                : convertToFieldType(elementsJson[e], elemType);
 
-            int64_t hash = computeHashCode(elem);
-            int64_t bucket = computeBucketIndex(hash, capacity);
+            int64_t rawHash = computeHashCode(elem);
+            int64_t mixed = rawHash * 1610612741;
+            int64_t idx = (mixed ^ (mixed >> 16)) & mask;
 
-            int64_t bSize = safeGet<int64_t>(bucketSizes->get(static_cast<size_t>(bucket)),
-                "deserializing HashSet: bucketSizes element is not an int");
+            while (!value::isNullType(elements->get(static_cast<size_t>(idx))))
+                idx = (idx + 1) & mask;
 
-            auto row = safeGet<std::shared_ptr<value::NativeArray>>(
-                buckets->get(static_cast<size_t>(bucket)),
-                "deserializing HashSet: buckets row is not an array");
-
-            // Resize bucket row if needed
-            if (bSize >= static_cast<int64_t>(row->size()))
-            {
-                size_t newSize = row->size() * 2;
-                auto newRow = std::make_shared<value::NativeArray>(newSize);
-                for (size_t k = 0; k < row->size(); ++k)
-                    newRow->set(k, row->get(k));
-                buckets->set(static_cast<size_t>(bucket), newRow);
-                row = newRow;
-            }
-
-            row->set(static_cast<size_t>(bSize), elem);
-            bucketSizes->set(static_cast<size_t>(bucket), bSize + 1);
+            elements->set(static_cast<size_t>(idx), elem);
+            hashes->set(static_cast<size_t>(idx), rawHash);
         }
 
-        instance->setField("buckets", buckets);
-        instance->setField("bucketSizes", bucketSizes);
+        instance->setField("elements", elements);
+        instance->setField("hashes", hashes);
         instance->setField("capacity", capacity);
         instance->setField("count", count);
 

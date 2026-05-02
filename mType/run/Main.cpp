@@ -212,32 +212,52 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Check for test suite execution
-    if (argc >= 2 && std::string(argv[argc - 2]) == "--test" && argc >= 3)
+    // MYT-259: scan for --no-jit anywhere in argv so it can be combined with
+    // --tests / --test (e.g. `mType --tests --no-jit` or `mType --no-jit --tests`).
+    // Default: JIT is on.
+    bool testJitEnabled = true;
+    for (int i = 1; i < argc; ++i)
     {
-        std::string suiteName = argv[argc - 1];
-        runSpecificTestSuite(suiteName, execMode);
-        return 0;
+        if (std::string(argv[i]) == "--no-jit")
+        {
+            testJitEnabled = false;
+            break;
+        }
     }
 
-    if (argc >= 2 && std::string(argv[argc - 1]) == "--tests")
+    auto isTestArg = [](const std::string& s) {
+        return s == "--tests";
+    };
+    auto isTestFlag = [](const std::string& s) {
+        return s == "--no-jit" || s == "--tests" || s == "--test";
+    };
+
+    // Check for test suite execution. Find `--test <suite>` anywhere in argv
+    // (so `--test integration --no-jit` and `--no-jit --test integration` both
+    // work).
+    for (int i = 1; i + 1 < argc; ++i)
     {
-        runAllTests(execMode);
-        return 0;
+        if (std::string(argv[i]) == "--test")
+        {
+            std::string suiteName = argv[i + 1];
+            // Guard against `--test --no-jit` (no suite name).
+            if (!isTestFlag(suiteName))
+            {
+                runSpecificTestSuite(suiteName, execMode, testJitEnabled);
+                return 0;
+            }
+        }
     }
 
-    if (argc == 2 && std::string(argv[1]) == "--tests")
+    // `--tests` anywhere in argv runs the full suite. Combined with --no-jit
+    // for the JIT-disabled regression pass.
+    for (int i = 1; i < argc; ++i)
     {
-        runAllTests(execMode);
-        return 0;
-    }
-
-    if (argc == 3 && std::string(argv[1]) == "--test")
-    {
-        std::string suiteName = argv[2];
-        runSpecificTestSuite(suiteName, execMode);
-
-        return 0;
+        if (isTestArg(argv[i]))
+        {
+            runAllTests(execMode, testJitEnabled);
+            return 0;
+        }
     }
 
     if (argc >= 2 && std::string(argv[1]) == "--help")
@@ -275,8 +295,10 @@ int main(int argc, char* argv[])
             " --find-script-classes <script.mt> - Analyze script and show all @Script classes\n";
         std::cout << "  " << argv[0] <<
             " --test-script-objects <script.mt> - Demo: Create objects and call methods from C++\n";
-        std::cout << "  " << argv[0] << " --tests                    - Run all test suites\n";
-        std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite\n";
+        std::cout << "  " << argv[0] << " --tests                    - Run all test suites (JIT on)\n";
+        std::cout << "  " << argv[0] << " --tests --no-jit           - Run all test suites with JIT disabled (regression pass)\n";
+        std::cout << "  " << argv[0] << " --test <suite>             - Run specific test suite (JIT on)\n";
+        std::cout << "  " << argv[0] << " --test <suite> --no-jit    - Run specific test suite with JIT disabled\n";
         std::cout << "  " << argv[0] << " --benchmark                - Run the interpreter benchmark suite\n";
         std::cout << "  " << argv[0] << " --benchmark=<script.mt>    - Run a single benchmark script\n";
         std::cout << "  " << argv[0] << " --benchmark-lexer=<path>   - Run a lexer-only microbenchmark on this .mt file\n";

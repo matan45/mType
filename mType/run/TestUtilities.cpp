@@ -237,7 +237,8 @@ void printAvailableTestSuites()
 }
 
 void runSpecificTestSuite(const std::string& suiteName,
-                          constants::ExecutionMode execMode)
+                          constants::ExecutionMode execMode,
+                          bool jitEnabled)
 {
     auto suite = createTestSuite(suiteName);
     if (!suite)
@@ -247,11 +248,14 @@ void runSpecificTestSuite(const std::string& suiteName,
         return;
     }
 
-    std::cout << "Running " << suite->getName() << "...\n\n";
+    std::cout << "Running " << suite->getName()
+              << " (JIT " << (jitEnabled ? "ON" : "OFF") << ")...\n\n";
     suite->setupTests();
 
     // Set execution mode on all test cases
     suite->setExecutionModeForAll(execMode);
+    // MYT-259: propagate the JIT toggle to every test in the suite.
+    suite->setJitEnabledForAll(jitEnabled);
 
     suite->run();
 
@@ -264,10 +268,12 @@ void runSpecificTestSuite(const std::string& suiteName,
     project::mtclib::LibraryNatives::cleanup();
 }
 
-void runAllTests(constants::ExecutionMode execMode)
+void runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
 {
     std::cout << "Running all test suites...\n";
-    std::cout << "Execution Mode: Bytecode VM\n\n";
+    std::cout << "Execution Mode: Bytecode VM"
+              << (jitEnabled ? " + JIT" : " (JIT disabled, --no-jit)")
+              << "\n\n";
 
     std::vector<std::unique_ptr<TestSuite>> suites;
     suites.push_back(std::make_unique<ControlFlowTestSuite>());
@@ -309,6 +315,9 @@ void runAllTests(constants::ExecutionMode execMode)
     {
         suite->setupTests(); // Initialize test cases
         suite->setExecutionModeForAll(execMode); // Set execution mode
+        // MYT-259: thread the JIT toggle through every suite so the same
+        // test set can be driven twice — once with JIT, once with --no-jit.
+        suite->setJitEnabledForAll(jitEnabled);
         suite->run(); // Run tests and generate reports
     }
 

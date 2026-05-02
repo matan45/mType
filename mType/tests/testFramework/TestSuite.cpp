@@ -35,6 +35,14 @@ namespace tests::testFramework
         // Kept for backwards compatibility
     }
 
+    void TestSuite::setJitEnabledForAll(bool enabled)
+    {
+        for (auto& tc : testCases)
+        {
+            tc.setJitEnabled(enabled);
+        }
+    }
+
     void TestSuite::generateReport()
     {
         // Generate both console and HTML reports

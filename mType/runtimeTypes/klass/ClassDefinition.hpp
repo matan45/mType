@@ -307,6 +307,13 @@ namespace runtimeTypes::klass
         // Returns the method, defining class, and pre-built qualified name in a single traversal
         MethodLookupResult findInstanceMethodCached(const std::string& methodName, size_t argCount) const;
 
+        // Signature-aware cached instance method lookup for compiler-emitted
+        // call names. If callName contains a type signature, the exact overload
+        // is selected; otherwise this falls back to arg-count lookup.
+        MethodLookupResult findInstanceMethodForCallNameCached(
+            const std::string& callName,
+            size_t argCount) const;
+
         // Polymorphic field lookup (search in parent classes)
         std::shared_ptr<FieldDefinition> getFieldInHierarchy(const std::string& fieldName) const;
 

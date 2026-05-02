@@ -731,7 +731,7 @@ namespace vm::runtime
         if (methodName.find('/') == std::string::npos && methodName.find("::") == std::string::npos) {
             // Legacy path: methodName is just "add" without class or signature
             // PERFORMANCE: Use cached lookup that returns method, defining class, AND qualified name
-            auto lookupResult = classDef->findInstanceMethodCached(simpleMethodName, argCount);
+            auto lookupResult = classDef->findInstanceMethodForCallNameCached(methodName, argCount);
             if (!lookupResult.method) {
                 utils::ErrorLocationHelper::throwRuntimeError(context,
                     "Instance method not found: " + methodName +
@@ -750,17 +750,9 @@ namespace vm::runtime
             // For virtual dispatch, replace the declared class with the ACTUAL object class
             // BUT preserve the signature part to maintain overload resolution
 
-            // Extract the signature part (everything after the class name)
-            std::string signaturePart = "";
-            size_t classEndPos = methodName.find("::");
-            if (classEndPos != std::string::npos) {
-                signaturePart = methodName.substr(classEndPos + 2);  // Get "methodName/type1,type2"
-            } else {
-                signaturePart = methodName;  // No class prefix
-            }
-
-            // PERFORMANCE: Use cached lookup that returns both method AND defining class
-            auto lookupResult = classDef->findInstanceMethodCached(simpleMethodName, argCount);
+            // PERFORMANCE: Use cached lookup that returns both method AND defining class.
+            // Signed call names must bind the exact overload selected by the compiler.
+            auto lookupResult = classDef->findInstanceMethodForCallNameCached(methodName, argCount);
             if (lookupResult.method) {
                 // Use cached defining class name (no duplicate hierarchy traversal!)
                 definingClassName = lookupResult.definingClassName;
@@ -768,8 +760,7 @@ namespace vm::runtime
                 auto accessContext = createAccessContext(definingClassName, false);
                 validation::AccessValidator::validateMethodAccess(simpleMethodName, lookupResult.method->getAccessModifier(), accessContext);
 
-                // Rebuild with ACTUAL class but preserve signature for overload resolution
-                qualifiedName = definingClassName + "::" + signaturePart;
+                qualifiedName = lookupResult.qualifiedName;
             }
         }
 

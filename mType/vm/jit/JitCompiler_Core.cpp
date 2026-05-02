@@ -38,6 +38,22 @@ namespace vm::jit
         {
             const auto& instr = program.getInstruction(ip);
             uint8_t op = static_cast<uint8_t>(instr.opcode);
+            // MYT-259: OSR-emitted RETURN/RETURN_VALUE now push the return
+            // value onto the interpreter's operand stack and resume at the
+            // RETURN_VALUE opcode itself (see emitReturnValueOp), so loops
+            // with early-return statements (e.g. HashMap.findKeyInBucket's
+            // `return i;`) compile correctly. CREATE_PROMISE_RETURN_VALUE
+            // remains OSR-unsafe — its async-promise wrap is fused into the
+            // opcode and the OSR-resume path doesn't yet replay it; an
+            // OSR'd async function with an early return still falls through.
+            // Re-enable once the OSR push helper grows a promise-wrap variant
+            // (or once CREATE_PROMISE_RETURN_VALUE is split into separate
+            // opcodes the interpreter dispatches on resume).
+            if (instr.opcode == OpCode::CREATE_PROMISE_RETURN_VALUE)
+            {
+                if (outOpcode) *outOpcode = op;
+                return false;
+            }
             if (supported.find(op) == supported.end())
             {
                 if (outOpcode) *outOpcode = op;

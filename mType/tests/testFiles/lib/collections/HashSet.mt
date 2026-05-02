@@ -1,25 +1,41 @@
-// HashSet<T> - Hash table implementation for O(1) operations
+// HashSet<T> - Open-addressing hash table with linear probing on flat 1D arrays
+//
+// HASH-TO-SLOT FORMULA: must match HashMap.mt exactly. See header in HashMap.mt
+// for the list of native mirror sites that must be kept in sync.
+
 import * from "../../lib/interfaces/Set.mt";
 import * from "../../lib/Iterator.mt";
 import * from "../../lib/iterators/HashSetIterator.mt";
 import * from "../../lib/stream/Stream.mt";
 import * from "../../lib/stream/StreamImpl.mt";
 
+// Storage layout: 2 parallel flat arrays of length `capacity` (power of 2).
+// `elements[i] == null` marks an empty slot — terminates probe sequences.
+// Null elements are forbidden by the public API, so this sentinel is unambiguous.
 class HashSet<T> implements Set<T> {
-    T[][] buckets;
-    int[] bucketSizes;
+    T[] elements;
+    int[] hashes;
     int capacity;
     int count;
 
     public constructor() {
-        this.capacity = 16;
-        this.buckets = new T[this.capacity][4];
-        this.bucketSizes = new int[this.capacity];
+        this.capacity = 32;
+        this.elements = new T[this.capacity];
+        this.hashes = new int[this.capacity];
         this.count = 0;
+    }
 
-        for (int i = 0; i < this.capacity; i++) {
-            this.bucketSizes[i] = 0;
+    // Accepts any int; rounds up to the next power of two >= 4. Required
+    // because the slot index uses `& (capacity - 1)` as its modulo.
+    public constructor(int initialCapacity) {
+        int cap = 4;
+        while (cap < initialCapacity) {
+            cap = cap * 2;
         }
+        this.capacity = cap;
+        this.elements = new T[this.capacity];
+        this.hashes = new int[this.capacity];
+        this.count = 0;
     }
 
     public function add(T item): bool {
@@ -28,25 +44,25 @@ class HashSet<T> implements Set<T> {
             return false;
         }
 
-        int bucketIndex = this.getBucketIndex(item);
+        int rawHash = item.hashCode();
+        int mixed = rawHash * 1610612741;
+        int mask = this.capacity - 1;
+        int idx = (mixed ^ (mixed >> 16)) & mask;
 
-        if (this.findItemInBucket(bucketIndex, item) >= 0) {
-            return false;
+        while (this.elements[idx] != null) {
+            if (this.hashes[idx] == rawHash && this.elements[idx].equals(item)) {
+                return false;
+            }
+            idx = (idx + 1) & mask;
         }
 
-        if (this.bucketSizes[bucketIndex] >= this.buckets[bucketIndex].length) {
-            this.resizeBucket(bucketIndex);
-        }
-
-        int newIndex = this.bucketSizes[bucketIndex];
-        this.buckets[bucketIndex][newIndex] = item;
-        this.bucketSizes[bucketIndex] = this.bucketSizes[bucketIndex] + 1;
+        this.elements[idx] = item;
+        this.hashes[idx] = rawHash;
         this.count++;
 
         if (this.count > this.capacity * 3 / 4) {
             this.resize();
         }
-
         return true;
     }
 
@@ -56,8 +72,18 @@ class HashSet<T> implements Set<T> {
             return false;
         }
 
-        int bucketIndex = this.getBucketIndex(item);
-        return this.findItemInBucket(bucketIndex, item) >= 0;
+        int rawHash = item.hashCode();
+        int mixed = rawHash * 1610612741;
+        int mask = this.capacity - 1;
+        int idx = (mixed ^ (mixed >> 16)) & mask;
+
+        while (this.elements[idx] != null) {
+            if (this.hashes[idx] == rawHash && this.elements[idx].equals(item)) {
+                return true;
+            }
+            idx = (idx + 1) & mask;
+        }
+        return false;
     }
 
     public function remove(T item): bool {
@@ -66,16 +92,42 @@ class HashSet<T> implements Set<T> {
             return false;
         }
 
-        int bucketIndex = this.getBucketIndex(item);
-        int itemIndex = this.findItemInBucket(bucketIndex, item);
+        int rawHash = item.hashCode();
+        int mixed = rawHash * 1610612741;
+        int mask = this.capacity - 1;
+        int idx = (mixed ^ (mixed >> 16)) & mask;
 
-        if (itemIndex >= 0) {
-            for (int i = itemIndex; i < this.bucketSizes[bucketIndex] - 1; i++) {
-                this.buckets[bucketIndex][i] = this.buckets[bucketIndex][i + 1];
+        while (this.elements[idx] != null) {
+            if (this.hashes[idx] == rawHash && this.elements[idx].equals(item)) {
+                // Knuth Algorithm 6.4R back-shift. See HashMap.remove() for the
+                // full explanation. Two cursors: hole (only advances on shift)
+                // and probe (always advances).
+                int hole = idx;
+                int probe = (hole + 1) & mask;
+                while (this.elements[probe] != null) {
+                    int hj = this.hashes[probe];
+                    int mj = hj * 1610612741;
+                    int kIdeal = (mj ^ (mj >> 16)) & mask;
+
+                    bool inRange = false;
+                    if (hole < probe) {
+                        inRange = (kIdeal > hole && kIdeal <= probe);
+                    } else {
+                        inRange = (kIdeal > hole || kIdeal <= probe);
+                    }
+
+                    if (!inRange) {
+                        this.elements[hole] = this.elements[probe];
+                        this.hashes[hole] = this.hashes[probe];
+                        hole = probe;
+                    }
+                    probe = (probe + 1) & mask;
+                }
+                this.elements[hole] = null;
+                this.count--;
+                return true;
             }
-            this.bucketSizes[bucketIndex] = this.bucketSizes[bucketIndex] - 1;
-            this.count--;
-            return true;
+            idx = (idx + 1) & mask;
         }
         return false;
     }
@@ -90,7 +142,7 @@ class HashSet<T> implements Set<T> {
 
     public function clear(): void {
         for (int i = 0; i < this.capacity; i++) {
-            this.bucketSizes[i] = 0;
+            this.elements[i] = null;
         }
         this.count = 0;
     }
@@ -98,10 +150,9 @@ class HashSet<T> implements Set<T> {
     public function toArray(): T[] {
         T[] result = new T[this.count];
         int index = 0;
-
-        for (int bucket = 0; bucket < this.capacity; bucket++) {
-            for (int i = 0; i < this.bucketSizes[bucket]; i++) {
-                result[index] = this.buckets[bucket][i];
+        for (int i = 0; i < this.capacity; i++) {
+            if (this.elements[i] != null) {
+                result[index] = this.elements[i];
                 index++;
             }
         }
@@ -110,9 +161,9 @@ class HashSet<T> implements Set<T> {
 
     public function hashCode(): int {
         int hash = 0;
-        for (int bucket = 0; bucket < this.capacity; bucket++) {
-            for (int i = 0; i < this.bucketSizes[bucket]; i++) {
-                hash = hash + hashCode(this.buckets[bucket][i]);
+        for (int i = 0; i < this.capacity; i++) {
+            if (this.elements[i] != null) {
+                hash = hash + hashCode(this.elements[i]);
             }
         }
         return hash;
@@ -188,76 +239,28 @@ class HashSet<T> implements Set<T> {
         }
     }
 
-    function getBucketIndex(T item): int {
-        int hash = item.hashCode();
-
-        if (hash < 0) {
-            hash = -hash;
-            if (hash < 0) {
-                hash = hash + 1;
-            }
-        }
-
-        hash = hash * 1610612741;
-        hash = hash + (hash / this.capacity);
-
-        if (hash < 0) {
-            hash = -hash;
-        }
-
-        return hash % this.capacity;
-    }
-
-    function findItemInBucket(int bucketIndex, T item): int {
-        for (int i = 0; i < this.bucketSizes[bucketIndex]; i++) {
-            T storedItem = this.buckets[bucketIndex][i];
-            if (storedItem != null && storedItem.equals(item)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    function resizeBucket(int bucketIndex): void {
-        int oldSize = this.buckets[bucketIndex].length;
-        int newSize = oldSize * 2;
-
-        T[] newBucket = new T[newSize];
-        for (int i = 0; i < oldSize; i++) {
-            newBucket[i] = this.buckets[bucketIndex][i];
-        }
-
-        for (int i = 0; i < oldSize; i++) {
-            this.buckets[bucketIndex][i] = newBucket[i];
-        }
-    }
-
     function resize(): void {
-        T[][] oldBuckets = this.buckets;
-        int[] oldBucketSizes = this.bucketSizes;
+        T[] oldElements = this.elements;
+        int[] oldHashes = this.hashes;
         int oldCapacity = this.capacity;
 
         this.capacity = this.capacity * 2;
-        this.buckets = new T[this.capacity][4];
-        this.bucketSizes = new int[this.capacity];
+        this.elements = new T[this.capacity];
+        this.hashes = new int[this.capacity];
         this.count = 0;
 
-        for (int i = 0; i < this.capacity; i++) {
-            this.bucketSizes[i] = 0;
-        }
-
-        for (int bucket = 0; bucket < oldCapacity; bucket++) {
-            for (int i = 0; i < oldBucketSizes[bucket]; i++) {
-                T item = oldBuckets[bucket][i];
-                int newBucketIndex = this.getBucketIndex(item);
-
-                if (this.bucketSizes[newBucketIndex] >= this.buckets[newBucketIndex].length) {
-                    this.resizeBucket(newBucketIndex);
+        int mask = this.capacity - 1;
+        for (int slot = 0; slot < oldCapacity; slot++) {
+            T item = oldElements[slot];
+            if (item != null) {
+                int rawHash = oldHashes[slot];
+                int mixed = rawHash * 1610612741;
+                int idx = (mixed ^ (mixed >> 16)) & mask;
+                while (this.elements[idx] != null) {
+                    idx = (idx + 1) & mask;
                 }
-
-                int newIndex = this.bucketSizes[newBucketIndex];
-                this.buckets[newBucketIndex][newIndex] = item;
-                this.bucketSizes[newBucketIndex] = this.bucketSizes[newBucketIndex] + 1;
+                this.elements[idx] = item;
+                this.hashes[idx] = rawHash;
                 this.count++;
             }
         }

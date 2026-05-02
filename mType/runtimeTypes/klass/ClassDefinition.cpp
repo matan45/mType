@@ -1,6 +1,7 @@
 #include "ClassDefinition.hpp"
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
+#include "SignatureUtils.hpp"
 #include "../../vm/MethodSignature.hpp"
 #include "../../types/TypeSubstitutionService.hpp"
 #include "../../value/ValueShim.hpp"
@@ -724,6 +725,185 @@ namespace runtimeTypes::klass
         return result;
     }
 
+    ClassDefinition::MethodLookupResult ClassDefinition::findInstanceMethodForCallNameCached(
+        const std::string& callName,
+        size_t argCount) const
+    {
+        std::string simpleMethodName;
+        std::string typeSignature;
+
+        if (SignatureUtils::hasSignature(callName))
+        {
+            std::string ignoredClassName;
+            if (!SignatureUtils::parseQualifiedName(
+                    callName, ignoredClassName, simpleMethodName, typeSignature))
+            {
+                SignatureUtils::parseFunctionName(callName, simpleMethodName, typeSignature);
+            }
+
+            const std::string cacheKey = "sig:" + simpleMethodName + "/" + typeSignature;
+            auto cacheIt = instanceMethodCache.find(cacheKey);
+            if (cacheIt != instanceMethodCache.end())
+            {
+                return cacheIt->second;
+            }
+
+            MethodLookupResult result;
+
+            std::vector<std::string> candidateSignatures;
+            auto addCandidateSignature = [&candidateSignatures](const std::string& signature)
+            {
+                if (std::find(candidateSignatures.begin(), candidateSignatures.end(), signature) ==
+                    candidateSignatures.end())
+                {
+                    candidateSignatures.push_back(signature);
+                }
+            };
+            auto addSignatureWithNullableErasure =
+                [&addCandidateSignature](const std::string& signature)
+            {
+                auto parts = SignatureUtils::parseTypeSignature(signature);
+                bool changed = false;
+                for (auto& part : parts)
+                {
+                    if (!part.empty() && part.back() == '?')
+                    {
+                        part.pop_back();
+                        changed = true;
+                    }
+                }
+
+                if (changed)
+                {
+                    addCandidateSignature(SignatureUtils::generateTypeSignatureFromNames(parts));
+                }
+            };
+
+            std::unordered_map<std::string, std::string> substitutions = parentTypeSubstitutionMap;
+            if (!inheritanceSubstitutionChain.empty())
+            {
+                ::types::TypeSubstitutionService substitutionService;
+                auto composedMap = substitutionService.composeChain(inheritanceSubstitutionChain);
+                for (const auto& [param, concreteType] : composedMap)
+                {
+                    if (concreteType)
+                    {
+                        substitutions[param] = concreteType->toString();
+                    }
+                }
+            }
+
+            if (!substitutions.empty() && !typeSignature.empty())
+            {
+                ::types::TypeSubstitutionService substitutionService;
+                auto parts = SignatureUtils::parseTypeSignature(typeSignature);
+                bool changed = false;
+                for (auto& part : parts)
+                {
+                    std::string resolved = substitutionService.resolveGenericType(part, substitutions);
+                    if (resolved != part)
+                    {
+                        changed = true;
+                        part = std::move(resolved);
+                    }
+                }
+
+                if (changed)
+                {
+                    std::string substitutedSignature =
+                        SignatureUtils::generateTypeSignatureFromNames(parts);
+                    addCandidateSignature(substitutedSignature);
+                    addSignatureWithNullableErasure(substitutedSignature);
+                }
+            }
+
+            addSignatureWithNullableErasure(typeSignature);
+            addCandidateSignature(typeSignature);
+
+            auto assignResult = [&result](std::shared_ptr<MethodDefinition> method,
+                                          const std::string& definingClassName)
+            {
+                result.method = std::move(method);
+                result.definingClassName = definingClassName;
+                auto signature = vm::MethodSignature::fromMethodDefinition(result.method.get());
+                result.qualifiedName = signature.toMangledName(result.definingClassName, false);
+            };
+
+            for (const auto& candidateSignature : candidateSignatures)
+            {
+                auto method = findInstanceMethodByTypeSignature(simpleMethodName, candidateSignature);
+                if (method && !method->isAbstract())
+                {
+                    assignResult(method, getName());
+                    instanceMethodCache[cacheKey] = result;
+                    return result;
+                }
+
+                auto current = parentClass.lock();
+                int depth = 0;
+                while (current && depth < MAX_INHERITANCE_DEPTH)
+                {
+                    method = current->findInstanceMethodByTypeSignature(simpleMethodName, candidateSignature);
+                    if (method && !method->isAbstract())
+                    {
+                        assignResult(method, current->getName());
+                        instanceMethodCache[cacheKey] = result;
+                        return result;
+                    }
+                    current = current->parentClass.lock();
+                    depth++;
+                }
+            }
+
+            size_t arityMatches = 0;
+            auto countArityMatches = [&](const ClassDefinition* classDef)
+            {
+                if (!classDef) return;
+                auto it = classDef->instanceMethods.find(simpleMethodName);
+                if (it == classDef->instanceMethods.end()) return;
+
+                for (const auto& method : it->second)
+                {
+                    if (!method || method->isAbstract()) continue;
+                    size_t methodParamCount = method->getParameters().size();
+                    if (!method->isStatic() && methodParamCount > 0)
+                    {
+                        methodParamCount--;
+                    }
+                    if (methodParamCount == argCount)
+                    {
+                        arityMatches++;
+                    }
+                }
+            };
+
+            countArityMatches(this);
+            auto current = parentClass.lock();
+            int depth = 0;
+            while (current && depth < MAX_INHERITANCE_DEPTH && arityMatches <= 1)
+            {
+                countArityMatches(current.get());
+                current = current->parentClass.lock();
+                depth++;
+            }
+
+            auto fallbackResult = (arityMatches == 1)
+                ? findInstanceMethodCached(simpleMethodName, argCount)
+                : MethodLookupResult{};
+            if (fallbackResult.method && !fallbackResult.method->isAbstract())
+            {
+                instanceMethodCache[cacheKey] = fallbackResult;
+                return fallbackResult;
+            }
+
+            instanceMethodCache[cacheKey] = result;
+            return result;
+        }
+
+        simpleMethodName = SignatureUtils::extractSimpleName(callName);
+        return findInstanceMethodCached(simpleMethodName, argCount);
+    }
+
     std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodInHierarchy(const std::string& methodName, size_t argCount) const
     {
         // First, check in this class (static methods only)
@@ -1089,20 +1269,13 @@ namespace runtimeTypes::klass
             return nullptr;
         }
 
-        // Search all overloads for matching type signature
+        // Search all overloads for matching type signature. getTypeSignature()
+        // is the canonical representation used in mangled bytecode names and
+        // skips implicit "this" for instance methods.
         for (const auto& method : it->second) {
             if (!method) continue;
 
-            // Generate signature for this method and compare
-            std::string methodSig;
-            const auto& params = method->getParametersWithTypes();
-            for (size_t i = 0; i < params.size(); ++i) {
-                if (i > 0) methodSig += ",";
-                // Use ParameterType's toString() method
-                methodSig += params[i].second.toString();
-            }
-
-            if (methodSig == typeSignature) {
+            if (method->getTypeSignature() == typeSignature) {
                 return method;
             }
         }
@@ -1119,20 +1292,11 @@ namespace runtimeTypes::klass
             return nullptr;
         }
 
-        // Search all overloads for matching type signature
+        // Search all overloads for matching type signature.
         for (const auto& method : it->second) {
             if (!method) continue;
 
-            // Generate signature for this method and compare
-            std::string methodSig;
-            const auto& params = method->getParametersWithTypes();
-            for (size_t i = 0; i < params.size(); ++i) {
-                if (i > 0) methodSig += ",";
-                // Use ParameterType's toString() method
-                methodSig += params[i].second.toString();
-            }
-
-            if (methodSig == typeSignature) {
+            if (method->getTypeSignature() == typeSignature) {
                 return method;
             }
         }

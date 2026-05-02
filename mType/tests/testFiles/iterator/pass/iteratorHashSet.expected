@@ -1,7 +1,7 @@
 Testing HashSet iterator:
-cherry
 apple
 banana
 date
+cherry
 Count: 4
 HashSet iterator test passed!

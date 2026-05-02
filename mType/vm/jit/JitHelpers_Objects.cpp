@@ -332,12 +332,10 @@ namespace vm::jit
             {
                 const std::string& rawMethodName =
                     ctx->program->getConstantPool().getString(methodNameIndex);
-                // MYT-181: strip class prefix + signature suffix. The compiler
-                // emits mangled names; findInstanceMethodCached expects the
-                // simple name.
                 const std::string simpleMethodName =
                     runtimeTypes::klass::SignatureUtils::extractSimpleName(rawMethodName);
-                auto lookupResult = classDef->findInstanceMethodCached(simpleMethodName, argCount);
+                auto lookupResult =
+                    classDef->findInstanceMethodForCallNameCached(rawMethodName, argCount);
                 if (lookupResult.method)
                 {
                     // MYT-182: resolve across main + loaded library programs

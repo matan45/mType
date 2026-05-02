@@ -230,49 +230,25 @@ namespace vm::runtime
         auto classDef = instance->getClassDefinition();
         size_t argCount = args.size();
 
-        // Extract simple method name (strip class prefix and signature if present)
-        std::string simpleMethodName = methodName;
-        std::string signaturePart;
-        size_t colonPos = methodName.find("::");
-        if (colonPos != std::string::npos)
+        auto lookupResult = classDef->findInstanceMethodForCallNameCached(methodName, argCount);
+        if (!lookupResult.method)
         {
-            simpleMethodName = methodName.substr(colonPos + 2);
-        }
-        size_t slashPos = simpleMethodName.find('/');
-        if (slashPos != std::string::npos)
-        {
-            signaturePart = simpleMethodName.substr(slashPos);
-            simpleMethodName = simpleMethodName.substr(0, slashPos);
-        }
-
-        // Find method in hierarchy
-        auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
-        if (!method)
-        {
+            std::string simpleMethodName = methodName;
+            size_t colonPos = simpleMethodName.find("::");
+            if (colonPos != std::string::npos)
+            {
+                simpleMethodName = simpleMethodName.substr(colonPos + 2);
+            }
+            size_t slashPos = simpleMethodName.find('/');
+            if (slashPos != std::string::npos)
+            {
+                simpleMethodName = simpleMethodName.substr(0, slashPos);
+            }
             throw errors::RuntimeException("Instance method not found: " + simpleMethodName +
                 " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
         }
 
-        // Find defining class and type signature
-        std::string definingClassName = classDef->getName();
-        std::string typeSignature;
-        auto currentClass = classDef;
-        while (currentClass)
-        {
-            auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
-            if (localMethod)
-            {
-                definingClassName = currentClass->getName();
-                typeSignature = localMethod->getTypeSignature();
-                break;
-            }
-            currentClass = currentClass->getParentClass();
-        }
-
-        // Build qualified name
-        std::string qualifiedName = typeSignature.empty()
-            ? definingClassName + "::" + simpleMethodName
-            : definingClassName + "::" + simpleMethodName + "/" + typeSignature;
+        std::string qualifiedName = lookupResult.qualifiedName;
         auto* funcMetadata = program->getFunction(qualifiedName);
         if (!funcMetadata)
         {
@@ -307,43 +283,25 @@ namespace vm::runtime
             auto classDef = raw->getClassDefinition();
             size_t argCount = args.size();
 
-            std::string simpleMethodName = methodName;
-            size_t colonPos = methodName.find("::");
-            if (colonPos != std::string::npos)
+            auto lookupResult = classDef->findInstanceMethodForCallNameCached(methodName, argCount);
+            if (!lookupResult.method)
             {
-                simpleMethodName = methodName.substr(colonPos + 2);
-            }
-            size_t slashPos = simpleMethodName.find('/');
-            if (slashPos != std::string::npos)
-            {
-                simpleMethodName = simpleMethodName.substr(0, slashPos);
-            }
-
-            auto method = classDef->findInstanceMethodInHierarchy(simpleMethodName, argCount);
-            if (!method)
-            {
+                std::string simpleMethodName = methodName;
+                size_t colonPos = simpleMethodName.find("::");
+                if (colonPos != std::string::npos)
+                {
+                    simpleMethodName = simpleMethodName.substr(colonPos + 2);
+                }
+                size_t slashPos = simpleMethodName.find('/');
+                if (slashPos != std::string::npos)
+                {
+                    simpleMethodName = simpleMethodName.substr(0, slashPos);
+                }
                 throw errors::RuntimeException("Instance method not found: " + simpleMethodName +
                     " with " + std::to_string(argCount) + " arguments in class " + classDef->getName());
             }
 
-            std::string definingClassName = classDef->getName();
-            std::string typeSignature;
-            auto currentClass = classDef;
-            while (currentClass)
-            {
-                auto localMethod = currentClass->findInstanceMethod(simpleMethodName, argCount);
-                if (localMethod)
-                {
-                    definingClassName = currentClass->getName();
-                    typeSignature = localMethod->getTypeSignature();
-                    break;
-                }
-                currentClass = currentClass->getParentClass();
-            }
-
-            std::string qualifiedName = typeSignature.empty()
-                ? definingClassName + "::" + simpleMethodName
-                : definingClassName + "::" + simpleMethodName + "/" + typeSignature;
+            std::string qualifiedName = lookupResult.qualifiedName;
             auto* funcMetadata = program->getFunction(qualifiedName);
             if (!funcMetadata)
             {

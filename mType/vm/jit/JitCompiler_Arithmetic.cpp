@@ -109,9 +109,13 @@ namespace vm::jit
         emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
         emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
 
-        // MYT-211: reg-reg + publish pattern.
-        Gp right = consumeGpHint(s, s.stackDepth);
-        Gp left = consumeGpHint(s, s.stackDepth - 1);
+        // Read the coherent stack slots directly. Bitwise ops are not hot
+        // enough to need the virtual-register hint path, and the direct loads
+        // mirror the older primitive-method emitters below.
+        Gp right = cc.new_gp64();
+        Gp left = cc.new_gp64();
+        cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
+        cc.mov(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
         switch (opcode)
         {
             case OpCode::BITWISE_AND_OP: cc.and_(left, right); break;
@@ -873,6 +877,12 @@ namespace vm::jit
             case OpCode::ADD_INT: case OpCode::SUB_INT:
             case OpCode::MUL_INT: case OpCode::DIV_INT:
             case OpCode::NEG: case OpCode::INC: case OpCode::DEC:
+            case OpCode::BITWISE_AND_OP: case OpCode::BITWISE_OR_OP:
+            case OpCode::BITWISE_XOR_OP: case OpCode::BITWISE_NOT_OP:
+            case OpCode::BITWISE_AND_INT: case OpCode::BITWISE_OR_INT:
+            case OpCode::BITWISE_XOR_INT: case OpCode::BITWISE_NOT_INT:
+            case OpCode::LEFT_SHIFT_OP: case OpCode::RIGHT_SHIFT_OP:
+            case OpCode::LEFT_SHIFT_INT: case OpCode::RIGHT_SHIFT_INT:
                 return emitIntArithmeticOps(s, instr);
 
             case OpCode::LOAD_LOAD_ADD_INT:

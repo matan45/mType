@@ -40,6 +40,10 @@ namespace tests::testFramework
         std::chrono::milliseconds executionTime;
         std::string output;
         constants::ExecutionMode executionMode;
+        // MYT-259: per-test JIT toggle so the suite runner can run the same
+        // tests with both JIT on (default) and `--no-jit` to catch JIT vs
+        // interpreter divergence in CI.
+        bool jitEnabled = true;
 
         // MYT-38 — optional substring required to appear inside the thrown
         // exception's `what()` for an ERROR_EXPECTED test to pass. Empty
@@ -101,6 +105,12 @@ namespace tests::testFramework
         std::chrono::milliseconds getExecutionTime() const { return executionTime; }
         const std::string& getOutput() const { return output; }
         
+        // MYT-259: control whether this test runs with JIT enabled. Defaults
+        // to true; flip to false via the suite's setJitEnabledForAll to drive
+        // a `--no-jit --tests` pass.
+        void setJitEnabled(bool enabled) { jitEnabled = enabled; }
+        bool isJitEnabled() const { return jitEnabled; }
+
         // Status string conversion
         static std::string statusToString(TestStatus status);
         static std::string typeToString(TestType type);

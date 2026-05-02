@@ -1,4 +1,17 @@
-// HashMap<K,V> - Hash table implementation for O(1) operations using 2D arrays
+// HashMap<K,V> - Open-addressing hash table with linear probing on flat 1D arrays
+//
+// HASH-TO-SLOT FORMULA (single source of truth):
+//     int mixed = rawHash * 1610612741;
+//     int idx   = (mixed ^ (mixed >> 16)) & (capacity - 1);
+//
+// THIS FORMULA IS DUPLICATED IN NATIVE CODE. If you change it here, you MUST
+// also update every site below — silent divergence breaks containsKey/get
+// for any HashMap instance constructed via reflection or interop:
+//   - mType/json/JsonDeserializer.cpp :: deserializeHashMapCollection
+//   - mType/json/JsonDeserializer.cpp :: computeBucketIndex (helper)
+//   - mType/net/HashMapMarshal.cpp    :: stdMapToHashMap (computeSlotIndex)
+// HashSet.mt mirrors the same formula; keep them in sync.
+
 import * from "../../lib/interfaces/Map.mt";
 import * from "../../lib/interfaces/MapEntry.mt";
 import * from "../../lib/Iterator.mt";
@@ -8,23 +21,37 @@ import * from "../../lib/iterators/HashMapValueIterator.mt";
 import * from "../../lib/stream/Stream.mt";
 import * from "../../lib/stream/StreamImpl.mt";
 
+// Storage layout: 4 parallel flat arrays of length `capacity` (power of 2).
+// `keys[i] == null` marks an empty slot — terminates probe sequences.
+// Null keys are forbidden by the public API, so this sentinel is unambiguous.
 class HashMap<K,V> implements Map<K,V> {
-    K[][] keyBuckets;
-    V[][] valueBuckets;
-    int[] bucketSizes;
+    K[] keys;
+    V[] values;
+    int[] hashes;
     int capacity;
     int count;
 
     public constructor() {
-        this.capacity = 16;
-        this.keyBuckets = new K[this.capacity][4];
-        this.valueBuckets = new V[this.capacity][4];
-        this.bucketSizes = new int[this.capacity];
+        this.capacity = 32;
+        this.keys = new K[this.capacity];
+        this.values = new V[this.capacity];
+        this.hashes = new int[this.capacity];
         this.count = 0;
+    }
 
-        for (int i = 0; i < this.capacity; i++) {
-            this.bucketSizes[i] = 0;
+    // Accepts any int; rounds up to the next power of two >= 4. Required
+    // because the slot index uses `& (capacity - 1)` as its modulo, which
+    // is only correct when capacity is a power of two.
+    public constructor(int initialCapacity) {
+        int cap = 4;
+        while (cap < initialCapacity) {
+            cap = cap * 2;
         }
+        this.capacity = cap;
+        this.keys = new K[this.capacity];
+        this.values = new V[this.capacity];
+        this.hashes = new int[this.capacity];
+        this.count = 0;
     }
 
     public function put(K key, V value): V {
@@ -33,29 +60,29 @@ class HashMap<K,V> implements Map<K,V> {
             return null;
         }
 
-        int bucketIndex = this.getBucketIndex(key);
-        int keyIndex = this.findKeyInBucket(bucketIndex, key);
+        int rawHash = key.hashCode();
+        int mixed = rawHash * 1610612741;
+        int mask = this.capacity - 1;
+        int idx = (mixed ^ (mixed >> 16)) & mask;
 
-        if (keyIndex >= 0) {
-            V oldValue = this.valueBuckets[bucketIndex][keyIndex];
-            this.valueBuckets[bucketIndex][keyIndex] = value;
-            return oldValue;
-        } else {
-            if (this.bucketSizes[bucketIndex] >= this.keyBuckets[bucketIndex].length) {
-                this.resizeBucket(bucketIndex);
+        while (this.keys[idx] != null) {
+            if (this.hashes[idx] == rawHash && this.keys[idx].equals(key)) {
+                V oldValue = this.values[idx];
+                this.values[idx] = value;
+                return oldValue;
             }
-
-            int newIndex = this.bucketSizes[bucketIndex];
-            this.keyBuckets[bucketIndex][newIndex] = key;
-            this.valueBuckets[bucketIndex][newIndex] = value;
-            this.bucketSizes[bucketIndex] = this.bucketSizes[bucketIndex] + 1;
-            this.count++;
-
-            if (this.count > this.capacity * 3 / 4) {
-                this.resize();
-            }
-            return null;
+            idx = (idx + 1) & mask;
         }
+
+        this.keys[idx] = key;
+        this.values[idx] = value;
+        this.hashes[idx] = rawHash;
+        this.count++;
+
+        if (this.count > this.capacity * 3 / 4) {
+            this.resize();
+        }
+        return null;
     }
 
     public function get(K key): V {
@@ -64,11 +91,16 @@ class HashMap<K,V> implements Map<K,V> {
             return null;
         }
 
-        int bucketIndex = this.getBucketIndex(key);
-        int keyIndex = this.findKeyInBucket(bucketIndex, key);
+        int rawHash = key.hashCode();
+        int mixed = rawHash * 1610612741;
+        int mask = this.capacity - 1;
+        int idx = (mixed ^ (mixed >> 16)) & mask;
 
-        if (keyIndex >= 0) {
-            return this.valueBuckets[bucketIndex][keyIndex];
+        while (this.keys[idx] != null) {
+            if (this.hashes[idx] == rawHash && this.keys[idx].equals(key)) {
+                return this.values[idx];
+            }
+            idx = (idx + 1) & mask;
         }
         return null;
     }
@@ -79,8 +111,18 @@ class HashMap<K,V> implements Map<K,V> {
             return false;
         }
 
-        int bucketIndex = this.getBucketIndex(key);
-        return this.findKeyInBucket(bucketIndex, key) >= 0;
+        int rawHash = key.hashCode();
+        int mixed = rawHash * 1610612741;
+        int mask = this.capacity - 1;
+        int idx = (mixed ^ (mixed >> 16)) & mask;
+
+        while (this.keys[idx] != null) {
+            if (this.hashes[idx] == rawHash && this.keys[idx].equals(key)) {
+                return true;
+            }
+            idx = (idx + 1) & mask;
+        }
+        return false;
     }
 
     public function remove(K key): bool {
@@ -89,17 +131,49 @@ class HashMap<K,V> implements Map<K,V> {
             return false;
         }
 
-        int bucketIndex = this.getBucketIndex(key);
-        int keyIndex = this.findKeyInBucket(bucketIndex, key);
+        int rawHash = key.hashCode();
+        int mixed = rawHash * 1610612741;
+        int mask = this.capacity - 1;
+        int idx = (mixed ^ (mixed >> 16)) & mask;
 
-        if (keyIndex >= 0) {
-            for (int i = keyIndex; i < this.bucketSizes[bucketIndex] - 1; i++) {
-                this.keyBuckets[bucketIndex][i] = this.keyBuckets[bucketIndex][i + 1];
-                this.valueBuckets[bucketIndex][i] = this.valueBuckets[bucketIndex][i + 1];
+        while (this.keys[idx] != null) {
+            if (this.hashes[idx] == rawHash && this.keys[idx].equals(key)) {
+                // Knuth Algorithm 6.4R back-shift. Two cursors:
+                //   hole  — empty slot we are trying to fill (only advances on shift)
+                //   probe — scan cursor (always advances)
+                // For each entry at `probe` with ideal slot kIdeal:
+                //   If kIdeal is in cyclic range (hole, probe] the entry is
+                //   "settled" — moving it back would put it before its ideal,
+                //   violating the probe-sequence invariant. Skip it.
+                //   Otherwise the entry probed past hole on insertion, so we
+                //   shift it down to hole and make probe's old slot the new hole.
+                int hole = idx;
+                int probe = (hole + 1) & mask;
+                while (this.keys[probe] != null) {
+                    int hj = this.hashes[probe];
+                    int mj = hj * 1610612741;
+                    int kIdeal = (mj ^ (mj >> 16)) & mask;
+
+                    bool inRange = false;
+                    if (hole < probe) {
+                        inRange = (kIdeal > hole && kIdeal <= probe);
+                    } else {
+                        inRange = (kIdeal > hole || kIdeal <= probe);
+                    }
+
+                    if (!inRange) {
+                        this.keys[hole] = this.keys[probe];
+                        this.values[hole] = this.values[probe];
+                        this.hashes[hole] = this.hashes[probe];
+                        hole = probe;
+                    }
+                    probe = (probe + 1) & mask;
+                }
+                this.keys[hole] = null;
+                this.count--;
+                return true;
             }
-            this.bucketSizes[bucketIndex] = this.bucketSizes[bucketIndex] - 1;
-            this.count--;
-            return true;
+            idx = (idx + 1) & mask;
         }
         return false;
     }
@@ -114,7 +188,7 @@ class HashMap<K,V> implements Map<K,V> {
 
     public function clear(): void {
         for (int i = 0; i < this.capacity; i++) {
-            this.bucketSizes[i] = 0;
+            this.keys[i] = null;
         }
         this.count = 0;
     }
@@ -122,10 +196,9 @@ class HashMap<K,V> implements Map<K,V> {
     public function getKeys(): K[] {
         K[] result = new K[this.count];
         int index = 0;
-
-        for (int bucket = 0; bucket < this.capacity; bucket++) {
-            for (int i = 0; i < this.bucketSizes[bucket]; i++) {
-                result[index] = this.keyBuckets[bucket][i];
+        for (int i = 0; i < this.capacity; i++) {
+            if (this.keys[i] != null) {
+                result[index] = this.keys[i];
                 index++;
             }
         }
@@ -135,10 +208,9 @@ class HashMap<K,V> implements Map<K,V> {
     public function getValues(): V[] {
         V[] result = new V[this.count];
         int index = 0;
-
-        for (int bucket = 0; bucket < this.capacity; bucket++) {
-            for (int i = 0; i < this.bucketSizes[bucket]; i++) {
-                result[index] = this.valueBuckets[bucket][i];
+        for (int i = 0; i < this.capacity; i++) {
+            if (this.keys[i] != null) {
+                result[index] = this.values[i];
                 index++;
             }
         }
@@ -151,10 +223,10 @@ class HashMap<K,V> implements Map<K,V> {
 
     public function hashCode(): int {
         int hash = 0;
-        for (int bucket = 0; bucket < this.capacity; bucket++) {
-            for (int i = 0; i < this.bucketSizes[bucket]; i++) {
-                int keyHash = hashCode(this.keyBuckets[bucket][i]);
-                int valueHash = hashCode(this.valueBuckets[bucket][i]);
+        for (int i = 0; i < this.capacity; i++) {
+            if (this.keys[i] != null) {
+                int keyHash = hashCode(this.keys[i]);
+                int valueHash = hashCode(this.values[i]);
                 hash = hash + keyHash + valueHash;
             }
         }
@@ -186,9 +258,9 @@ class HashMap<K,V> implements Map<K,V> {
     }
 
     public function containsValue(V value): bool {
-        for (int bucket = 0; bucket < this.capacity; bucket++) {
-            for (int i = 0; i < this.bucketSizes[bucket]; i++) {
-                V v = this.valueBuckets[bucket][i];
+        for (int i = 0; i < this.capacity; i++) {
+            if (this.keys[i] != null) {
+                V v = this.values[i];
                 if (v != null && v.equals(value)) {
                     return true;
                 }
@@ -201,78 +273,38 @@ class HashMap<K,V> implements Map<K,V> {
     }
 
     public function putAll(Map<K,V> other): void {
-        K[] keys = other.getKeys();
-        for (K key : keys) {
+        K[] otherKeys = other.getKeys();
+        for (K key : otherKeys) {
             this.put(key, other.get(key));
         }
     }
 
-    function getBucketIndex(K key): int {
-        int hash = key.hashCode();
-
-        if (hash < 0) {
-            hash = -hash;
-            if (hash < 0) {
-                hash = hash + 1;
-            }
-        }
-
-        hash = hash * 1610612741;
-        hash = hash + (hash / this.capacity);
-
-        if (hash < 0) {
-            hash = -hash;
-        }
-
-        return hash % this.capacity;
-    }
-
-    function findKeyInBucket(int bucketIndex, K key): int {
-        for (int i = 0; i < this.bucketSizes[bucketIndex]; i++) {
-            if (this.keyBuckets[bucketIndex][i] != null && this.keyBuckets[bucketIndex][i].equals(key)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    function resizeBucket(int bucketIndex): void {
-        int oldSize = this.keyBuckets[bucketIndex].length;
-        int newSize = oldSize * 2;
-
-        K[] newKeys = new K[newSize];
-        V[] newValues = new V[newSize];
-
-        for (int i = 0; i < oldSize; i++) {
-            newKeys[i] = this.keyBuckets[bucketIndex][i];
-            newValues[i] = this.valueBuckets[bucketIndex][i];
-        }
-
-        for (int i = 0; i < oldSize; i++) {
-            this.keyBuckets[bucketIndex][i] = newKeys[i];
-            this.valueBuckets[bucketIndex][i] = newValues[i];
-        }
-    }
-
     function resize(): void {
-        K[][] oldKeyBuckets = this.keyBuckets;
-        V[][] oldValueBuckets = this.valueBuckets;
-        int[] oldBucketSizes = this.bucketSizes;
+        K[] oldKeys = this.keys;
+        V[] oldValues = this.values;
+        int[] oldHashes = this.hashes;
         int oldCapacity = this.capacity;
 
         this.capacity = this.capacity * 2;
-        this.keyBuckets = new K[this.capacity][4];
-        this.valueBuckets = new V[this.capacity][4];
-        this.bucketSizes = new int[this.capacity];
+        this.keys = new K[this.capacity];
+        this.values = new V[this.capacity];
+        this.hashes = new int[this.capacity];
         this.count = 0;
 
-        for (int i = 0; i < this.capacity; i++) {
-            this.bucketSizes[i] = 0;
-        }
-
-        for (int bucket = 0; bucket < oldCapacity; bucket++) {
-            for (int i = 0; i < oldBucketSizes[bucket]; i++) {
-                this.put(oldKeyBuckets[bucket][i], oldValueBuckets[bucket][i]);
+        int mask = this.capacity - 1;
+        for (int slot = 0; slot < oldCapacity; slot++) {
+            K key = oldKeys[slot];
+            if (key != null) {
+                int rawHash = oldHashes[slot];
+                int mixed = rawHash * 1610612741;
+                int idx = (mixed ^ (mixed >> 16)) & mask;
+                while (this.keys[idx] != null) {
+                    idx = (idx + 1) & mask;
+                }
+                this.keys[idx] = key;
+                this.values[idx] = oldValues[slot];
+                this.hashes[idx] = rawHash;
+                this.count++;
             }
         }
     }

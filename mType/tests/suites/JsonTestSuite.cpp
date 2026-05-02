@@ -51,12 +51,10 @@ namespace tests::testSuite
                         passPath + "serializeStack.mt");
         addOutputVerificationTest("Serialize ArrayQueue",
                         passPath + "serializeQueue.mt");
-        addTestFromFile("Serialize HashMap",
-                        passPath + "serializeHashMap.mt",
-                        TestType::NORMAL);
-        addTestFromFile("Serialize HashSet",
-                        passPath + "serializeHashSet.mt",
-                        TestType::NORMAL);
+        addOutputVerificationTest("Serialize HashMap",
+                        passPath + "serializeHashMap.mt");
+        addOutputVerificationTest("Serialize HashSet",
+                        passPath + "serializeHashSet.mt");
 
         // === FORMAT TEST ===
 
