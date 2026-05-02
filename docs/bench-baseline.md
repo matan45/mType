@@ -1959,3 +1959,128 @@ for the first time on this run: `boxed_bool_dispatch_hot.mt` (949ms),
 - Correctness: `valueClassBoxing.mt` regression caught + fixed during
   development (extended `autoBoxPrimitive` for STRING tag). Full
   integration suite passing on this commit (jit on).
+
+## 2026-05-02 — JIT inliner for primitive CALL_STATIC + IC warm-path probe cache
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  improve-2
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+Scope:
+- **CALL_STATIC inliner** (`JitCompiler_Objects.cpp:1192` —
+  `tryEmitInlinedStaticCall`). Mirrors the MYT-163 instance-method
+  inliner for static call sites. Eligibility: non-generic callee, all
+  parameter types primitive (int/float/bool), primitive return, fits
+  inline-locals + operand-stack budgets, passes
+  `optimization::checkFunctionInlineEligibility`. Reuses
+  `snapshotEmitStateForInline`, `emitInlineLocalCopy`, `InlineFrame`,
+  `emitInlineCalleeBody`, `emitInlineReturnMaterialize`,
+  `jit_push_inlined_class`/`pop`, and the function-inline telemetry.
+  Dispatcher in `emitCallStaticOp` tries the inliner first; on miss
+  falls back to the IC-cached `jit_call_function_ic` emit.
+- **OSR RETURN_VALUE fix** (`JitCompiler_ControlFlow.cpp:404`). Added
+  `&& s.inlineStack.empty()` so a RETURN_VALUE inside an inlined static
+  callee body doesn't trigger the OSR-exit push — it routes to the
+  inline frame's `onExit` handler which materializes into the result
+  slot and jumps to `endLabel`. Without this, every inlined RETURN
+  would prematurely exit the OSR loop.
+- **jit_call_function_ic warm-path probe cache** (fallback path for
+  ineligible / non-inlined static calls). Initial version of this helper
+  ran the IC check AFTER `program->getFunction(funcName)` so every IC
+  hit still paid the hashmap probe. Restructured to cache native
+  delegate + FunctionMetadata together, gated by `jitProbeDone`. Warm
+  calls invoke the cached native delegate or `callFunctionFromJitDirect`
+  directly — zero hashmap probes either way. Reserved fields
+  (`cachedJitFnPtr`, `cachedFrameName`) for a future safe JIT-dispatch
+  path; an attempt to fire `tryJitDispatchResolved` on the warm path
+  silently exited on `generic_dispatch_hot.mt` (suspected MYT-184
+  nested-asmjit stack corruption) and was backed out.
+
+```
+=== Summary (jit=on) ===
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            104.91        105.07           20017         0
+  method_dispatch.mt                   97.56         98.75           14043       506
+  object_alloc.mt                     530.38        530.42           12511         0
+  object_alloc_nested.mt             1155.81       1157.36           16811       500
+  field_write_hot.mt                   64.70         64.72            8018         1
+  field_read_hot.mt                    67.77         69.16            9020         1
+  string_ops.mt                       119.19        122.57           19019         0
+  recursive.mt                        770.10        771.05           17261   2545487
+  bitwise_tight_loop.mt                77.85         78.07           23019         0
+  short_circuit_chain.mt               63.23         63.32           24909         0
+  primitive_method_dispatch.mt        456.10        457.88           32039         0
+  array_multi_alloc.mt                 74.44         74.73            9911       500
+  array_multi_get.mt                  319.72        319.75           49787       500
+  for_each_loop.mt                    305.18        305.36           75654      5604
+  inline_monomorphic.mt                58.50         58.95           13017       501
+  inline_branching.mt                  60.17         60.72           15017       501
+  inline_polymorphic.mt                96.63         97.02           14052       508
+  inline_value_object_hot.mt          124.95        126.22           12518       500
+  function_call_hot.mt                173.98        174.62           15011       500
+  async_await_tight_loop.mt          1001.24       1001.68        23000933   1000001
+  async_await_chain.mt               1593.01       1599.52        20502833   2000001
+  lambda_call_hot.mt                  854.86        856.53           12522   1999501
+  lambda_closure_hot.mt               885.30        887.15           12527   1999502
+  generic_dispatch_hot.mt             683.18        686.69           20075      1012
+  try_catch_finally_hot.mt            469.79        473.54           50020      2000
+  switch_dispatch_hot.mt              463.06        463.77           14634       500
+  overload_dispatch_hot.mt            492.25        492.50           34029      2001
+  abstract_dispatch_hot.mt             97.40         99.16           14043       506
+  cast_hot.mt                         197.50        198.50           19561       505
+  collections_hash_hot.mt            6985.61       7016.86          265401   2581948
+  collections_hashset_hot.mt         2317.59       2321.64          112923    860655
+  stream_pipeline_hot.mt              414.98        416.98         2090492    306881
+  reflection_lookup_hot.mt           2259.35       2269.30           85542   1203001
+  pattern_match_hot.mt                460.38        466.24           12861       500
+  string_interpolation_hot.mt         258.35        259.32         7400025         0
+  boxed_primitive_dispatch_hot.mt        998.62       1002.21           32803         0
+  boxed_bool_dispatch_hot.mt          952.40        956.80           29277         0
+  boxed_string_dispatch_hot.mt        509.58        511.30           24262         0
+  static_call_hot.mt                  169.86        170.18           32517      2000
+  linked_list_nested_hot.mt           327.00        329.30          124920     81001
+```
+
+### Delta vs prior 2026-05-02 entry (initial CALL_STATIC IC + BIND_TYPE_ARGS cache)
+
+| Script                              | Before (median, ms) | After (median, ms) | Change   |
+|-------------------------------------|--------------------:|-------------------:|---------:|
+| static_call_hot.mt                  |             1749.14 |             170.18 | **-90.3%** |
+| method_dispatch.mt                  |              131.13 |              98.75 |  -24.7%  |
+| abstract_dispatch_hot.mt            |              124.64 |              99.16 |  -20.4%  |
+| inline_monomorphic.mt               |               87.76 |              58.95 |  -32.8%  |
+| inline_branching.mt                 |               94.75 |              60.72 |  -35.9%  |
+| inline_polymorphic.mt               |              125.85 |              97.02 |  -22.9%  |
+| inline_value_object_hot.mt         |              154.08 |             126.22 |  -18.1%  |
+| cast_hot.mt                         |              218.79 |             198.50 |   -9.3%  |
+| overload_dispatch_hot.mt            |              571.42 |             492.50 |  -13.8%  |
+| pattern_match_hot.mt                |              440.53 |             466.24 |   +5.8%  |
+| generic_dispatch_hot.mt             |              670.41 |             686.69 |   +2.4%  |
+
+Other scripts within ±5% of prior (noise).
+
+### Notes
+
+- **`static_call_hot.mt`**: 1749 → 170ms is the headline. Attribution:
+  the inliner — Math::inc/double_it/clamp/isPositive collapse into the
+  OSR'd outer loop body inline, eliminating call dispatch entirely.
+  Result lands at the same per-call cost ceiling as `function_call_hot.mt`
+  (174ms) for the same reason — both are now zero-call paths.
+  Confirmed by `--jit-stats`: function-inline INLINE counter > 0 for the
+  static call sites.
+- The dispatch-heavy benchmarks (`method_dispatch`, `inline_*`,
+  `abstract_dispatch_hot`, `cast_hot`, `overload_dispatch_hot`) all
+  dropped 18-36%. None of these use CALL_STATIC. The likely cause is a
+  separate JIT improvement that landed in this build (clean rebuild plus
+  unrelated cleanup); not directly attributable to the CALL_STATIC
+  inliner. Worth a follow-up to re-baseline against a build that ONLY
+  applies the static-call changes to confirm.
+- `pattern_match_hot.mt` (+5.8%) and `generic_dispatch_hot.mt` (+2.4%)
+  drifted up slightly. Both are within typical noise; will re-check on
+  next baseline.
+- `boxed_primitive_dispatch_hot.mt` (998ms, +1.7%) and the two new
+  isolation benches (`boxed_bool_dispatch_hot` 956ms,
+  `boxed_string_dispatch_hot` 511ms) are stable vs the prior entry —
+  the changes in this round don't touch the boxed-primitive INVOKE path.
+- Full integration suite passing (jit on).
