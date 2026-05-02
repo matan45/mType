@@ -11,14 +11,16 @@ import * from "../../lib/stream/StreamImpl.mt";
 class HashMap<K,V> implements Map<K,V> {
     K[][] keyBuckets;
     V[][] valueBuckets;
+    int[][] hashBuckets;
     int[] bucketSizes;
     int capacity;
     int count;
 
     public constructor() {
-        this.capacity = 16;
-        this.keyBuckets = new K[this.capacity][4];
-        this.valueBuckets = new V[this.capacity][4];
+        this.capacity = 32;
+        this.keyBuckets = new K[this.capacity][16];
+        this.valueBuckets = new V[this.capacity][16];
+        this.hashBuckets = new int[this.capacity][16];
         this.bucketSizes = new int[this.capacity];
         this.count = 0;
 
@@ -27,60 +29,104 @@ class HashMap<K,V> implements Map<K,V> {
         }
     }
 
+    // initialCapacity must be a power of two >= 4 (caller responsibility).
+    public constructor(int initialCapacity) {
+        this.capacity = initialCapacity;
+        this.keyBuckets = new K[this.capacity][16];
+        this.valueBuckets = new V[this.capacity][16];
+        this.hashBuckets = new int[this.capacity][16];
+        this.bucketSizes = new int[this.capacity];
+        this.count = 0;
+
+        for (int i = 0; i < this.capacity; i++) {
+            this.bucketSizes[i] = 0;
+        }
+    }
+
+    // Hot path: inlines getBucketIndex + findKeyInBucket. Subclass overrides
+    // of those helpers will NOT affect this method (only `remove` dispatches).
     public function put(K key, V value): V {
         if (key == null) {
             print("Error: HashMap.put() - key cannot be null");
             return null;
         }
 
-        int bucketIndex = this.getBucketIndex(key);
-        int keyIndex = this.findKeyInBucket(bucketIndex, key);
+        int rawHash = key.hashCode();
+        int mixed = rawHash * 1610612741;
+        int bucketIndex = (mixed ^ (mixed >> 16)) & (this.capacity - 1);
 
-        if (keyIndex >= 0) {
-            V oldValue = this.valueBuckets[bucketIndex][keyIndex];
-            this.valueBuckets[bucketIndex][keyIndex] = value;
-            return oldValue;
-        } else {
-            if (this.bucketSizes[bucketIndex] >= this.keyBuckets[bucketIndex].length) {
-                this.resizeBucket(bucketIndex);
+        int bucketSize = this.bucketSizes[bucketIndex];
+        for (int i = 0; i < bucketSize; i++) {
+            if (this.hashBuckets[bucketIndex][i] == rawHash) {
+                K existing = this.keyBuckets[bucketIndex][i];
+                if (existing != null && existing.equals(key)) {
+                    V oldValue = this.valueBuckets[bucketIndex][i];
+                    this.valueBuckets[bucketIndex][i] = value;
+                    return oldValue;
+                }
             }
-
-            int newIndex = this.bucketSizes[bucketIndex];
-            this.keyBuckets[bucketIndex][newIndex] = key;
-            this.valueBuckets[bucketIndex][newIndex] = value;
-            this.bucketSizes[bucketIndex] = this.bucketSizes[bucketIndex] + 1;
-            this.count++;
-
-            if (this.count > this.capacity * 3 / 4) {
-                this.resize();
-            }
-            return null;
         }
+
+        if (bucketSize >= this.keyBuckets[bucketIndex].length) {
+            this.resizeBucket(bucketIndex);
+        }
+
+        this.keyBuckets[bucketIndex][bucketSize] = key;
+        this.valueBuckets[bucketIndex][bucketSize] = value;
+        this.hashBuckets[bucketIndex][bucketSize] = rawHash;
+        this.bucketSizes[bucketIndex] = bucketSize + 1;
+        this.count++;
+
+        if (this.count > this.capacity * 3 / 4) {
+            this.resize();
+        }
+        return null;
     }
 
+    // Hot path: inlines getBucketIndex + findKeyInBucket. See note on `put`.
     public function get(K key): V {
         if (key == null) {
             print("Error: HashMap.get() - key cannot be null");
             return null;
         }
 
-        int bucketIndex = this.getBucketIndex(key);
-        int keyIndex = this.findKeyInBucket(bucketIndex, key);
+        int rawHash = key.hashCode();
+        int mixed = rawHash * 1610612741;
+        int bucketIndex = (mixed ^ (mixed >> 16)) & (this.capacity - 1);
 
-        if (keyIndex >= 0) {
-            return this.valueBuckets[bucketIndex][keyIndex];
+        int bucketSize = this.bucketSizes[bucketIndex];
+        for (int i = 0; i < bucketSize; i++) {
+            if (this.hashBuckets[bucketIndex][i] == rawHash) {
+                K existing = this.keyBuckets[bucketIndex][i];
+                if (existing != null && existing.equals(key)) {
+                    return this.valueBuckets[bucketIndex][i];
+                }
+            }
         }
         return null;
     }
 
+    // Hot path: inlines getBucketIndex + findKeyInBucket. See note on `put`.
     public function containsKey(K key): bool {
         if (key == null) {
             print("Error: HashMap.containsKey() - key cannot be null");
             return false;
         }
 
-        int bucketIndex = this.getBucketIndex(key);
-        return this.findKeyInBucket(bucketIndex, key) >= 0;
+        int rawHash = key.hashCode();
+        int mixed = rawHash * 1610612741;
+        int bucketIndex = (mixed ^ (mixed >> 16)) & (this.capacity - 1);
+
+        int bucketSize = this.bucketSizes[bucketIndex];
+        for (int i = 0; i < bucketSize; i++) {
+            if (this.hashBuckets[bucketIndex][i] == rawHash) {
+                K existing = this.keyBuckets[bucketIndex][i];
+                if (existing != null && existing.equals(key)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public function remove(K key): bool {
@@ -93,11 +139,13 @@ class HashMap<K,V> implements Map<K,V> {
         int keyIndex = this.findKeyInBucket(bucketIndex, key);
 
         if (keyIndex >= 0) {
-            for (int i = keyIndex; i < this.bucketSizes[bucketIndex] - 1; i++) {
+            int bs = this.bucketSizes[bucketIndex];
+            for (int i = keyIndex; i < bs - 1; i++) {
                 this.keyBuckets[bucketIndex][i] = this.keyBuckets[bucketIndex][i + 1];
                 this.valueBuckets[bucketIndex][i] = this.valueBuckets[bucketIndex][i + 1];
+                this.hashBuckets[bucketIndex][i] = this.hashBuckets[bucketIndex][i + 1];
             }
-            this.bucketSizes[bucketIndex] = this.bucketSizes[bucketIndex] - 1;
+            this.bucketSizes[bucketIndex] = bs - 1;
             this.count--;
             return true;
         }
@@ -208,23 +256,8 @@ class HashMap<K,V> implements Map<K,V> {
     }
 
     function getBucketIndex(K key): int {
-        int hash = key.hashCode();
-
-        if (hash < 0) {
-            hash = -hash;
-            if (hash < 0) {
-                hash = hash + 1;
-            }
-        }
-
-        hash = hash * 1610612741;
-        hash = hash + (hash / this.capacity);
-
-        if (hash < 0) {
-            hash = -hash;
-        }
-
-        return hash % this.capacity;
+        int hash = key.hashCode() * 1610612741;
+        return (hash ^ (hash >> 16)) & (this.capacity - 1);
     }
 
     function findKeyInBucket(int bucketIndex, K key): int {
@@ -236,33 +269,42 @@ class HashMap<K,V> implements Map<K,V> {
         return -1;
     }
 
+    // NOTE: K[][] is a FlatMultiArray — one contiguous allocation. The runtime
+    // does not support replacing a whole row, so we cannot actually grow an
+    // inner bucket. In practice, the load-factor doubling in `resize()` keeps
+    // per-bucket population below the initial inner-array size (4), so this
+    // path is never triggered. Kept as a structural no-op for safety.
     function resizeBucket(int bucketIndex): void {
         int oldSize = this.keyBuckets[bucketIndex].length;
-        int newSize = oldSize * 2;
 
-        K[] newKeys = new K[newSize];
-        V[] newValues = new V[newSize];
+        K[] newKeys = new K[oldSize];
+        V[] newValues = new V[oldSize];
+        int[] newHashes = new int[oldSize];
 
         for (int i = 0; i < oldSize; i++) {
             newKeys[i] = this.keyBuckets[bucketIndex][i];
             newValues[i] = this.valueBuckets[bucketIndex][i];
+            newHashes[i] = this.hashBuckets[bucketIndex][i];
         }
 
         for (int i = 0; i < oldSize; i++) {
             this.keyBuckets[bucketIndex][i] = newKeys[i];
             this.valueBuckets[bucketIndex][i] = newValues[i];
+            this.hashBuckets[bucketIndex][i] = newHashes[i];
         }
     }
 
     function resize(): void {
         K[][] oldKeyBuckets = this.keyBuckets;
         V[][] oldValueBuckets = this.valueBuckets;
+        int[][] oldHashBuckets = this.hashBuckets;
         int[] oldBucketSizes = this.bucketSizes;
         int oldCapacity = this.capacity;
 
         this.capacity = this.capacity * 2;
-        this.keyBuckets = new K[this.capacity][4];
-        this.valueBuckets = new V[this.capacity][4];
+        this.keyBuckets = new K[this.capacity][16];
+        this.valueBuckets = new V[this.capacity][16];
+        this.hashBuckets = new int[this.capacity][16];
         this.bucketSizes = new int[this.capacity];
         this.count = 0;
 
@@ -270,9 +312,25 @@ class HashMap<K,V> implements Map<K,V> {
             this.bucketSizes[i] = 0;
         }
 
+        int mask = this.capacity - 1;
         for (int bucket = 0; bucket < oldCapacity; bucket++) {
-            for (int i = 0; i < oldBucketSizes[bucket]; i++) {
-                this.put(oldKeyBuckets[bucket][i], oldValueBuckets[bucket][i]);
+            int bs = oldBucketSizes[bucket];
+            for (int i = 0; i < bs; i++) {
+                K key = oldKeyBuckets[bucket][i];
+                V value = oldValueBuckets[bucket][i];
+                int rawHash = oldHashBuckets[bucket][i];
+                int mixed = rawHash * 1610612741;
+                int newBucketIndex = (mixed ^ (mixed >> 16)) & mask;
+
+                int newSlot = this.bucketSizes[newBucketIndex];
+                if (newSlot >= this.keyBuckets[newBucketIndex].length) {
+                    this.resizeBucket(newBucketIndex);
+                }
+                this.keyBuckets[newBucketIndex][newSlot] = key;
+                this.valueBuckets[newBucketIndex][newSlot] = value;
+                this.hashBuckets[newBucketIndex][newSlot] = rawHash;
+                this.bucketSizes[newBucketIndex] = newSlot + 1;
+                this.count++;
             }
         }
     }

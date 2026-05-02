@@ -1,6 +1,6 @@
 Testing HashMap entry iterator:
-cherry = 3
 apple = 1
 banana = 2
+cherry = 3
 Count: 3
 HashMap entry iterator test passed!

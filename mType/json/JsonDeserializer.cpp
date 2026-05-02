@@ -518,15 +518,14 @@ namespace json
         return 0;
     }
 
-    // Mirrors HashMap.getBucketIndex() from lib/collections/HashMap.mt (line ~210).
+    // Mirrors HashMap.getBucketIndex() from lib/collections/HashMap.mt (line ~265).
     // WARNING: if HashMap.mt's getBucketIndex() changes, this must be updated to match.
+    // Capacity is always a power of two; the AND mask discards sign-extended bits
+    // from the arithmetic right shift, so the result is always in [0, capacity-1].
     int64_t JsonDeserializer::computeBucketIndex(int64_t hash, int64_t capacity)
     {
-        if (hash < 0) { hash = -hash; if (hash < 0) hash += 1; }
-        hash = hash * 1610612741;
-        hash = hash + (hash / capacity);
-        if (hash < 0) hash = -hash;
-        return hash % capacity;
+        int64_t mixed = hash * 1610612741;
+        return (mixed ^ (mixed >> 16)) & (capacity - 1);
     }
 
     value::Value JsonDeserializer::deserializeHashMapCollection(
@@ -551,20 +550,23 @@ namespace json
         if (!json->hasProperty("entries"))
         {
             // Empty map with default jagged NativeArray structure
-            int64_t capacity = 16;
-            int64_t bucketWidth = 4;
+            int64_t capacity = 32;
+            int64_t bucketWidth = 16;
             auto keyBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
             auto valBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            auto hashBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
             auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
             for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
             {
                 keyBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
                 valBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+                hashBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
                 bucketSizes->set(i, int64_t(0));
             }
 
             instance->setField("keyBuckets", keyBuckets);
             instance->setField("valueBuckets", valBuckets);
+            instance->setField("hashBuckets", hashBuckets);
             instance->setField("bucketSizes", bucketSizes);
             instance->setField("capacity", capacity);
             instance->setField("count", int64_t(0));
@@ -575,18 +577,20 @@ namespace json
         int64_t count = static_cast<int64_t>(entries.size());
 
         // Choose capacity to avoid triggering resize (count > capacity * 3/4)
-        int64_t capacity = 16;
+        int64_t capacity = 32;
         while (count > capacity * 3 / 4) capacity *= 2;
 
-        int64_t bucketWidth = 4;
+        int64_t bucketWidth = 16;
         // Create jagged NativeArray structure (NativeArray of NativeArrays) to match VM runtime
         auto keyBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
         auto valBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto hashBuckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
         auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
         for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
         {
             keyBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
             valBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+            hashBuckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
             bucketSizes->set(i, int64_t(0));
         }
 
@@ -612,31 +616,40 @@ namespace json
             auto valRow = safeGet<std::shared_ptr<value::NativeArray>>(
                 valBuckets->get(static_cast<size_t>(bucket)),
                 "deserializing HashMap: valueBuckets row is not an array");
+            auto hashRow = safeGet<std::shared_ptr<value::NativeArray>>(
+                hashBuckets->get(static_cast<size_t>(bucket)),
+                "deserializing HashMap: hashBuckets row is not an array");
 
-            // Resize bucket row if needed
+            // Resize bucket row if needed (rare given bucketWidth=16)
             if (bSize >= static_cast<int64_t>(keyRow->size()))
             {
                 size_t newSize = keyRow->size() * 2;
                 auto newKeyRow = std::make_shared<value::NativeArray>(newSize);
                 auto newValRow = std::make_shared<value::NativeArray>(newSize);
+                auto newHashRow = std::make_shared<value::NativeArray>(newSize);
                 for (size_t k = 0; k < keyRow->size(); ++k)
                 {
                     newKeyRow->set(k, keyRow->get(k));
                     newValRow->set(k, valRow->get(k));
+                    newHashRow->set(k, hashRow->get(k));
                 }
                 keyBuckets->set(static_cast<size_t>(bucket), newKeyRow);
                 valBuckets->set(static_cast<size_t>(bucket), newValRow);
+                hashBuckets->set(static_cast<size_t>(bucket), newHashRow);
                 keyRow = newKeyRow;
                 valRow = newValRow;
+                hashRow = newHashRow;
             }
 
             keyRow->set(static_cast<size_t>(bSize), key);
             valRow->set(static_cast<size_t>(bSize), val);
+            hashRow->set(static_cast<size_t>(bSize), hash);
             bucketSizes->set(static_cast<size_t>(bucket), bSize + 1);
         }
 
         instance->setField("keyBuckets", keyBuckets);
         instance->setField("valueBuckets", valBuckets);
+        instance->setField("hashBuckets", hashBuckets);
         instance->setField("bucketSizes", bucketSizes);
         instance->setField("capacity", capacity);
         instance->setField("count", count);
@@ -663,17 +676,20 @@ namespace json
 
         if (!json->hasProperty("elements"))
         {
-            int64_t capacity = 16;
-            int64_t bucketWidth = 4;
+            int64_t capacity = 32;
+            int64_t bucketWidth = 16;
             auto buckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+            auto itemHashes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
             auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
             for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
             {
                 buckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+                itemHashes->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
                 bucketSizes->set(i, int64_t(0));
             }
 
             instance->setField("buckets", buckets);
+            instance->setField("itemHashes", itemHashes);
             instance->setField("bucketSizes", bucketSizes);
             instance->setField("capacity", capacity);
             instance->setField("count", int64_t(0));
@@ -683,16 +699,18 @@ namespace json
         const auto& elements = json->getProperty("elements")->asArray();
         int64_t count = static_cast<int64_t>(elements.size());
 
-        int64_t capacity = 16;
+        int64_t capacity = 32;
         while (count > capacity * 3 / 4) capacity *= 2;
 
-        int64_t bucketWidth = 4;
+        int64_t bucketWidth = 16;
         // Create jagged NativeArray structure to match VM runtime
         auto buckets = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
+        auto itemHashes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
         auto bucketSizes = std::make_shared<value::NativeArray>(static_cast<size_t>(capacity));
         for (size_t i = 0; i < static_cast<size_t>(capacity); ++i)
         {
             buckets->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
+            itemHashes->set(i, std::make_shared<value::NativeArray>(static_cast<size_t>(bucketWidth)));
             bucketSizes->set(i, int64_t(0));
         }
 
@@ -711,23 +729,34 @@ namespace json
             auto row = safeGet<std::shared_ptr<value::NativeArray>>(
                 buckets->get(static_cast<size_t>(bucket)),
                 "deserializing HashSet: buckets row is not an array");
+            auto hashRow = safeGet<std::shared_ptr<value::NativeArray>>(
+                itemHashes->get(static_cast<size_t>(bucket)),
+                "deserializing HashSet: itemHashes row is not an array");
 
-            // Resize bucket row if needed
+            // Resize bucket row if needed (rare given bucketWidth=16)
             if (bSize >= static_cast<int64_t>(row->size()))
             {
                 size_t newSize = row->size() * 2;
                 auto newRow = std::make_shared<value::NativeArray>(newSize);
+                auto newHashRow = std::make_shared<value::NativeArray>(newSize);
                 for (size_t k = 0; k < row->size(); ++k)
+                {
                     newRow->set(k, row->get(k));
+                    newHashRow->set(k, hashRow->get(k));
+                }
                 buckets->set(static_cast<size_t>(bucket), newRow);
+                itemHashes->set(static_cast<size_t>(bucket), newHashRow);
                 row = newRow;
+                hashRow = newHashRow;
             }
 
             row->set(static_cast<size_t>(bSize), elem);
+            hashRow->set(static_cast<size_t>(bSize), hash);
             bucketSizes->set(static_cast<size_t>(bucket), bSize + 1);
         }
 
         instance->setField("buckets", buckets);
+        instance->setField("itemHashes", itemHashes);
         instance->setField("bucketSizes", bucketSizes);
         instance->setField("capacity", capacity);
         instance->setField("count", count);
