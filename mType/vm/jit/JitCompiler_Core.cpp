@@ -38,6 +38,17 @@ namespace vm::jit
         {
             const auto& instr = program.getInstruction(ip);
             uint8_t op = static_cast<uint8_t>(instr.opcode);
+            // OSR loop exits resume in the interpreter at a bytecode offset;
+            // they do not currently model a function return. Treat loop-local
+            // returns as OSR-unsafe so early-return loops keep interpreter
+            // semantics instead of resuming after the loop body.
+            if (instr.opcode == OpCode::RETURN ||
+                instr.opcode == OpCode::RETURN_VALUE ||
+                instr.opcode == OpCode::CREATE_PROMISE_RETURN_VALUE)
+            {
+                if (outOpcode) *outOpcode = op;
+                return false;
+            }
             if (supported.find(op) == supported.end())
             {
                 if (outOpcode) *outOpcode = op;

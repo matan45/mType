@@ -66,13 +66,6 @@ namespace vm::jit
         void jit_locals_cleanup(value::Value* base, size_t count);
         void jit_value_destroy(value::Value* dest);
         int64_t jit_values_equal(const value::Value* left, const value::Value* right);
-
-        // MYT-259 trace probe. Prints "[osr-trace] tag=<tag> ip=<ip> v=<v>\n"
-        // to stderr when emitted by JIT-compiled code. The JIT emits
-        // cc.invoke calls to this only when MTYPE_TRACE_OSR_BODY=1 was read
-        // at compile time (gated where the cc.invoke is emitted, not here),
-        // so the helper itself is unconditional and just prints.
-        void jit_trace_probe(int64_t tag, int64_t ip, int64_t v);
     }
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount);

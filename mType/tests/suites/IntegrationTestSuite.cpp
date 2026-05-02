@@ -295,6 +295,8 @@ namespace tests::testSuite
                                   passPath + "inlining/inline_osr_stress.mt");
         addOutputVerificationTest("Inline OSR Bool Value Chain",
                                   passPath + "inlining/inline_osr_bool_value_chain.mt");
+        addOutputVerificationTest("OSR Return Value Loop Bailout",
+                                  passPath + "osr_return_value_loop_bailout.mt");
 
         // MYT-165 Phase F-c: polymorphic inlining with chained shape guards.
         addOutputVerificationTest("Inline Polymorphic Chained Guards",
