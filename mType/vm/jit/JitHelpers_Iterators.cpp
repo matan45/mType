@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include "guards/DeoptimizationHandler.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/NullPointerException.hpp"
@@ -243,6 +244,10 @@ namespace vm::jit
 
             *dest = ctx->vm->callMethodFromJit(collection, "iterator", {});
         }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
         catch (...)
         {
             ctx->pendingException = std::current_exception();
@@ -278,6 +283,10 @@ namespace vm::jit
 
             *dest = ctx->vm->callMethodFromJit(iterator, "hasNext", {});
         }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
         catch (...)
         {
             ctx->pendingException = std::current_exception();
@@ -312,6 +321,10 @@ namespace vm::jit
 
             *dest = ctx->vm->callMethodFromJit(iterator, "next", {});
         }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
         catch (...)
         {
             ctx->pendingException = std::current_exception();
@@ -339,6 +352,11 @@ namespace vm::jit
         try
         {
             (void)ctx->vm->callMethodFromJit(iterator, "close", {});
+        }
+        catch (const OSRDeoptException&)
+        {
+            // Deopt must reach the call boundary even if close() raises it.
+            throw;
         }
         catch (...)
         {

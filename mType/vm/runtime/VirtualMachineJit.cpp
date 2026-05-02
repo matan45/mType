@@ -15,6 +15,7 @@
 #include "../jit/JitContext.hpp"
 #include "../jit/OSRManager.hpp"
 #include "../jit/LoopProfiler.hpp"
+#include "../jit/guards/DeoptimizationHandler.hpp"
 #include "../jit/ic/InlineCacheTable.hpp"
 #include "../jit/ic/TypeFeedbackCollector.hpp"
 #include "executors/FunctionExecutor.hpp"
@@ -217,6 +218,17 @@ namespace vm::runtime
         pushCallFrame(std::move(frame));
 
         instructionPointer = funcMeta->startOffset;
+
+        // Set the flag so any CALL inside the fallback mini-interpret routes
+        // through handleCall (interpreter) instead of re-spawning a nested
+        // JIT dispatch + callFunctionFromJit cycle. RAII restore even on
+        // exception so finite recursion through this path stays correct.
+        struct FallbackFlagGuard {
+            VirtualMachine* vm;
+            bool prev;
+            ~FallbackFlagGuard() { vm->inJitFallbackInterpreter = prev; }
+        } guard{ this, inJitFallbackInterpreter };
+        inJitFallbackInterpreter = true;
 
         return runJitMiniInterpret(savedIP, savedCallStackDepth, savedStackSize,
                                     /*savedProgram=*/nullptr,
@@ -702,7 +714,8 @@ namespace vm::runtime
     {
         using OpCode = bytecode::OpCode;
 
-        if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH)
+        if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH
+            && !inJitFallbackInterpreter)
         {
             std::string funcName = program->getConstantPool().getString(instr.operands[0]);
             auto jitCode = jitCodeCache->lookup(funcName);
@@ -731,7 +744,28 @@ namespace vm::runtime
                     jitCtx.callingClassName = funcName.substr(0, sepPos);
 
                 ++jitNativeDepth;
-                jitCode(&jitCtx);
+                try
+                {
+                    jitCode(&jitCtx);
+                }
+                catch (const jit::OSRDeoptException&)
+                {
+                    // JIT-AWAIT deopt landed at the function-level boundary.
+                    // The JIT body uses asmjit-private locals/operand-stack,
+                    // so we can't materialize its mid-body state into the
+                    // interpreter cleanly. Re-execute the call from scratch
+                    // in the interpreter. Side-effect-free bodies (the async
+                    // benchmarks, which never deopt anyway because they hit
+                    // PROMISE_INT inline) re-execute cleanly. Bodies with
+                    // externally visible side effects before deopt may
+                    // double-execute them — known v1 limitation.
+                    --jitNativeDepth;
+                    for (size_t i = 0; i < args.size(); ++i)
+                        stackManager->push(args[i]);
+                    functionExecutor->handleCall(instr);
+                    stats.functionCalls++;
+                    return;
+                }
                 --jitNativeDepth;
 
                 // Rethrow any exception that was caught inside JIT helpers
@@ -753,7 +787,8 @@ namespace vm::runtime
     void VirtualMachine::executeCallFastWithJit(
         const bytecode::BytecodeProgram::Instruction& instr)
     {
-        if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH)
+        if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH
+            && !inJitFallbackInterpreter)
         {
             const auto* funcMeta = program->getFunctionByIndex(instr.operands[0]);
             if (funcMeta) {
@@ -783,7 +818,20 @@ namespace vm::runtime
                         jitCtx.callingClassName = funcMeta->name.substr(0, sepPos);
 
                     ++jitNativeDepth;
-                    jitCode(&jitCtx);
+                    try
+                    {
+                        jitCode(&jitCtx);
+                    }
+                    catch (const jit::OSRDeoptException&)
+                    {
+                        // See executeCallWithJit for rationale.
+                        --jitNativeDepth;
+                        for (size_t i = 0; i < args.size(); ++i)
+                            stackManager->push(args[i]);
+                        functionExecutor->handleCallFast(instr);
+                        stats.functionCalls++;
+                        return;
+                    }
                     --jitNativeDepth;
 
                     if (jitCtx.pendingException)

@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include "guards/DeoptimizationHandler.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
 #include "../../gc/GC.hpp"
@@ -298,8 +299,15 @@ namespace vm::jit
         }
     }
 
-    void jit_create_promise(value::Value* val)
+    void jit_create_promise(JitContext* ctx, value::Value* val)
     {
+        // *val may be uninitialized garbage if a previous CALL helper stashed
+        // an exception (function-level JIT bodies have no implicit pending-
+        // exception check between opcodes). Skip work in that case; the body
+        // will fall through to RETURN_VALUE and executeCallWithJit's
+        // pendingException rethrow surfaces the original error.
+        if (ctx && ctx->pendingException) return;
+
         if (value::isInt(*val))
         {
             *val = value::Value(value::asInt(*val), value::Value::PromiseIntTag{});
@@ -310,8 +318,10 @@ namespace vm::jit
         *val = std::shared_ptr<value::PromiseValue>(promise);
     }
 
-    void jit_object_to_value_create_promise(value::Value* val)
+    void jit_object_to_value_create_promise(JitContext* ctx, value::Value* val)
     {
+        if (ctx && ctx->pendingException) return;
+
         if (value::isObject(*val))
         {
             const auto& instance = value::asObject(*val);
@@ -327,6 +337,40 @@ namespace vm::jit
         }
 
         jit_object_to_value(val);
-        jit_create_promise(val);
+        jit_create_promise(ctx, val);
+    }
+
+    // Mirrors VirtualMachine::executeAwait, fast-path arms only.
+    // - PROMISE_INT: unwrap inline; rebuild as a plain INT Value.
+    // - Heap PROMISE in FULFILLED state: copy out promise->getValue().
+    // - Anything else (pending, rejected, non-promise, null): deopt to the
+    //   interpreter via OSRDeoptException so the interpreter's existing
+    //   suspend / UserException / type-error paths run.
+    void jit_await(JitContext* ctx, value::Value* val, uint64_t bytecodeOffset)
+    {
+        // Skip when an earlier CALL helper stashed an exception — *val may
+        // be garbage (the JIT body emits a "push return value" after every
+        // cc.invoke regardless of hasReturnValue, and isPromise/isPromiseInt
+        // could match by accident on uninitialized memory and crash on a
+        // bogus shared_ptr deref).
+        if (ctx && ctx->pendingException) return;
+
+        if (value::isPromiseInt(*val))
+        {
+            *val = value::Value(value::asPromiseIntValue(*val));
+            return;
+        }
+
+        if (value::isPromise(*val))
+        {
+            const auto& promise = value::asPromise(*val);
+            if (promise && promise->isFulfilled())
+            {
+                *val = promise->getValue();
+                return;
+            }
+        }
+
+        throw OSRDeoptException(static_cast<size_t>(bytecodeOffset));
     }
 }

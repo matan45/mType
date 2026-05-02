@@ -2084,3 +2084,153 @@ Other scripts within ±5% of prior (noise).
   `boxed_string_dispatch_hot` 511ms) are stable vs the prior entry —
   the changes in this round don't touch the boxed-primitive INVOKE path.
 - Full integration suite passing (jit on).
+
+## 2026-05-02 — JIT-AWAIT (async function bodies through the JIT)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  improve-2
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+Scope:
+- **OpCode::AWAIT in `getSupportedOpcodes`** (`JitCompiler_StackOps.cpp`)
+  + boxed-types scan (`JitCompiler_EmitHelpers.cpp`). Async function
+  bodies that previously bailed out of `canCompile` due to the unsupported
+  AWAIT opcode now compile.
+- **`emitAwaitOp`** (`JitCompiler_Objects.cpp`) — thin emit case
+  shaped like `emitCreatePromiseOp`: `flushAllHints` + `lea` TOS
+  Value + `cc.invoke jit_await(ctx, val, currentIP)`. Single helper
+  covers PROMISE_INT inline unwrap, heap-fulfilled inline value
+  extract, and `OSRDeoptException(ip)` for pending/rejected/non-promise.
+- **Pending-exception entry checks** in the three async helpers
+  (`jit_await`, `jit_create_promise`, `jit_object_to_value_create_promise`)
+  — function-level JIT bodies have no implicit `jit_has_pending_exception`
+  check between opcodes (only OSR back-edges do), so a CALL helper that
+  stashed an exception leaves the operand-stack TOS pointing at undefined
+  garbage. Without the entry check, the next AWAIT would inspect garbage
+  and either match `isPromise` by accident or segfault on a bogus
+  `shared_ptr` deref.
+- **Cycle prevention flag** `inJitFallbackInterpreter` set during
+  `callFunctionFromJitDirect`'s `runJitMiniInterpret`. Prevents
+  `executeCallWithJit` / `_Fast` from re-entering JIT when called from a
+  fallback mini-interpret — would otherwise form an 8-frame-per-iteration
+  cycle that exhausts Windows' 1MB native stack on any deep self-recursion
+  through the fallback path.
+- **Self-recursive async early bail** in `tryJitDispatchResolved`. Async
+  / boxed-mode bodies allocate ~10KB of asmjit-stack per frame
+  (256-slot stackBase + 256-slot boxedBase × 32B Value + locals); the
+  global MAX_JIT_NATIVE_DEPTH=256 is calibrated for non-boxed (pure-
+  primitive) frames at ~1KB. Even ~80 levels of async self-recursion blow
+  the native stack before the managed callStack can throw. Bailing async
+  self-recursive dispatch on the first level routes recursion through
+  `callFunctionFromJit`'s mini-interpret + flag, where the managed
+  callStack reaches its 10000 limit and throws cleanly. fib/ack/gcd and
+  other non-async self-recursion stay fully JIT-compiled.
+- **`OSRDeoptException` propagation arms** added before every `catch (...)`
+  in `JitHelpers_Variables`/`_Iterators`/`_Objects`/`_Arithmetic` (~14
+  sites) — without these, an AWAIT-deopt thrown from a callee inside a
+  helper's own `callMethodFromJit` / IC populate / etc. would be silently
+  stashed in `pendingException` instead of unwinding to the function-level
+  catch. `executeCallWithJit` / `_Fast` catch the deopt and re-execute
+  the call interpreter-side (the JIT body's asmjit-private operand-stack
+  state can't be cleanly materialized into the interpreter mid-body, so
+  full re-execution is the v1 strategy; side-effect-free benchmark bodies
+  re-execute correctly, side-effecting bodies pre-deopt may double-execute
+  — known v1 limitation).
+
+```
+=== Summary (jit=on) ===
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            113.53        113.59           20017         0
+  method_dispatch.mt                   93.68         94.21           14043       506
+  object_alloc.mt                     530.65        535.98           12511         0
+  object_alloc_nested.mt             1214.20       1217.76           16811       500
+  field_write_hot.mt                   65.86         67.12            8018         1
+  field_read_hot.mt                    65.17         65.53            9020         1
+  string_ops.mt                       115.27        115.55           19019         0
+  recursive.mt                        772.88        773.97           17261   2545487
+  bitwise_tight_loop.mt                83.38         85.46           23019         0
+  short_circuit_chain.mt               66.75         66.88           24909         0
+  primitive_method_dispatch.mt        452.43        453.66           32039         0
+  array_multi_alloc.mt                 69.49         69.56            9911       500
+  array_multi_get.mt                  330.58        331.48           49787       500
+  for_each_loop.mt                    300.26        302.93           75654      5604
+  inline_monomorphic.mt                58.58         59.16           13017       501
+  inline_branching.mt                  60.43         60.64           15017       501
+  inline_polymorphic.mt                93.72         94.56           14052       508
+  inline_value_object_hot.mt          126.55        126.74           12518       500
+  function_call_hot.mt                184.23        186.14           15011       500
+  async_await_tight_loop.mt           653.31        653.54           12423       501
+  async_await_chain.mt               1290.23       1292.03           23323      2001
+  lambda_call_hot.mt                  853.47        861.35           12522   1999501
+  lambda_closure_hot.mt               888.93        891.14           12527   1999502
+  generic_dispatch_hot.mt             684.15        688.75           20075      1012
+  try_catch_finally_hot.mt            471.50        472.89           50020      2000
+  switch_dispatch_hot.mt              461.67        465.60           14634       500
+  overload_dispatch_hot.mt            503.62        503.87           34029      2001
+  abstract_dispatch_hot.mt             94.81         95.17           14043       506
+  cast_hot.mt                         188.89        189.96           19561       505
+  collections_hash_hot.mt            7019.31       7067.01          265401   2581948
+  collections_hashset_hot.mt         2300.92       2307.58          112923    860655
+  stream_pipeline_hot.mt              421.00        423.60         2090492    306881
+  reflection_lookup_hot.mt           2253.68       2258.61           85542   1203001
+  pattern_match_hot.mt                455.68        459.12           12861       500
+  string_interpolation_hot.mt         252.31        254.80         7400025         0
+  boxed_primitive_dispatch_hot.mt        991.86       1000.71           32803         0
+  boxed_bool_dispatch_hot.mt          941.80        948.51           29277         0
+  boxed_string_dispatch_hot.mt        495.25        498.04           24262         0
+  static_call_hot.mt                  162.98        163.35           32517      2000
+  linked_list_nested_hot.mt           325.91        326.56          124920     81001
+```
+
+### Delta vs prior 2026-05-02 entry (CALL_STATIC inliner)
+
+Async-only benchmarks (target of this round):
+
+| Script                       | Before (median, ms) | After (median, ms) | Change   |
+|------------------------------|--------------------:|-------------------:|---------:|
+| async_await_tight_loop.mt    |             1001.68 |             653.54 |  -34.8%  |
+| async_await_chain.mt         |             1599.52 |            1292.03 |  -19.2%  |
+
+Other scripts within ±5% of prior (noise) — no regressions on the
+38 non-async benchmarks. Notable steady values: `recursive.mt`
+(771 → 774, +0.4%), `static_call_hot.mt` (170 → 163, -4.1%),
+`method_dispatch.mt` (98.8 → 94.2, -4.6%).
+
+### Notes
+
+- **async_await_tight_loop**: 1001 → 653 ms (-34.8%). 1M awaits at
+  ~1µs/await down toward ~650ns/await. Still dominated by interpreter
+  dispatch of the surrounding loop body — the JIT compiles `run` and
+  `compute` but the recursive call into `compute` from the JIT'd
+  `run`'s loop body still pays a cc.invoke + helper-call overhead per
+  AWAIT. Below the 150-250 ms target from the original plan, but the
+  step-change confirms the AWAIT JIT is on the hot path. A future
+  follow-up (inline `compute`'s body into `run`'s loop via the
+  function-call inliner) should close most of the remaining gap.
+- **async_await_chain**: 1599 → 1292 ms (-19.2%). 4 awaits per
+  iteration × 500K iterations = 2M awaits. Smaller relative gain than
+  tight_loop because each iteration has 4 inter-step CALLs and AWAITs
+  rather than 1 — call dispatch overhead is a larger fraction of the
+  remaining cost.
+- The async benchmarks' AWAITs all hit the inline `PROMISE_INT`
+  fast-path in `jit_await` (the bench callees return `new Int(...)`
+  which `OBJECT_TO_VALUE_CREATE_PROMISE` collapses to the inline tag
+  form). The heap-fulfilled and deopt branches in `jit_await` are not
+  exercised by the benchmark.
+- **`asyncInfiniteRecursion`** (error-expected test) initially regressed
+  from this round: with async functions JIT-compiled, deep self-recursion
+  blew the native stack at depth ~200 (asmjit boxed-mode frames are
+  ~10KB each) and the process exited silently before the managed
+  callStack overflow could throw. Fixed by the
+  self-recursive-async early-bail + `inJitFallbackInterpreter` flag
+  (described above). Now produces the expected
+  `Stack overflow: Maximum call stack depth of 10000 exceeded`
+  diagnostic at depth ~9997.
+- Full async test suite (`testFiles/await/pass/`) and recursive.mt /
+  recursive callee benchmarks (fib/ack/gcd) pass under jit on.
+- Coverage gap filed as **MYT-265**: no pure-`.mt` test currently
+  exercises `executeAwait`'s suspend/resume branch (mType has no
+  native deferred primitives, so every script-level promise sync-resolves
+  before its await). The branch is covered only via C++-driven
+  `callMethod` interop (the test framework's `eventLoop->tick()` drain).

@@ -128,6 +128,7 @@ namespace vm::jit
                 case OpCode::CREATE_PROMISE:
                 case OpCode::OBJECT_TO_VALUE_CREATE_PROMISE:
                 case OpCode::CREATE_PROMISE_RETURN_VALUE:
+                case OpCode::AWAIT:
                 case OpCode::CALL_METHOD: case OpCode::CALL_METHOD_CACHED:
                 case OpCode::CALL_METHOD_POLY_CACHED:  // MYT-203
                 case OpCode::CALL_STATIC:

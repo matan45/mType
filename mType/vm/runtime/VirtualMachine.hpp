@@ -175,6 +175,19 @@ namespace vm::runtime
         bool jitEnabled;
         size_t jitNativeDepth = 0;  // Tracks JIT native recursion depth to prevent C++ stack overflow
 
+        // Cycle-prevention flag: set while runJitMiniInterpret is draining a
+        // frame on behalf of a JIT-helper fallback (callFunctionFromJit /
+        // callMethodFromJit). When set, executeCallWithJit / _Fast skip JIT
+        // dispatch and route directly to the interpreter's handleCall —
+        // avoiding the 8-native-frame-per-iteration cycle that otherwise
+        // forms when a JIT-fallback mini-interpret hits a CALL whose JIT
+        // dispatch re-spawns another callFunctionFromJit (the asmjit-frame
+        // sizes blow Windows' 1MB native stack before the managed callStack's
+        // own 1000-frame overflow check fires). Non-recursive calls inside
+        // the fallback also stay in the interpreter — minor speed loss in a
+        // path that was already pessimised by the helper bailing out.
+        bool inJitFallbackInterpreter = false;
+
         // Phase 6: Inline caching and type specialization
         std::unique_ptr<vm::jit::ic::InlineCacheTable> inlineCacheTable;
         std::unique_ptr<vm::jit::ic::TypeFeedbackCollector> typeFeedbackCollector;

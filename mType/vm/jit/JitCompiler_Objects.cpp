@@ -1792,8 +1792,9 @@ namespace vm::jit
 
         InvokeNode* inv;
         cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_create_promise),
-                  FuncSignature::build<void, value::Value*>());
-        inv->set_arg(0, valueAddr);
+                  FuncSignature::build<void, JitContext*, value::Value*>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, valueAddr);
 
         s.slotTypes.push_back(SlotType::BOXED);
         return true;
@@ -1819,8 +1820,48 @@ namespace vm::jit
 
         InvokeNode* inv;
         cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_object_to_value_create_promise),
-                  FuncSignature::build<void, value::Value*>());
-        inv->set_arg(0, valueAddr);
+                  FuncSignature::build<void, JitContext*, value::Value*>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, valueAddr);
+
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
+    // AWAIT is shaped like CREATE_PROMISE: TOS holds the Value to resolve,
+    // helper rewrites it in place. The single helper covers PROMISE_INT
+    // unwrap (always-taken in the benchmarks), heap-fulfilled value extract,
+    // and the deopt-throw for pending / rejected / non-promise. We pass the
+    // bytecode IP so the deopt path lands at the same AWAIT in the
+    // interpreter and re-runs through executeAwait's full suspend / throw
+    // machinery.
+    static bool emitAwaitOp(JitEmissionState& s)
+    {
+        if (!s.usesBoxedTypes || s.stackDepth <= 0)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        flushAllHints(s);
+
+        const int stackIdx = s.stackDepth - 1;
+        SlotType valueType = popType(s);
+        Gp valueAddr = cc.new_gp64();
+        cc.lea(valueAddr, Mem(s.boxedBase, static_cast<int32_t>(stackIdx * valueSize)));
+        emitBoxOrCopy(s, valueAddr, stackIdx, valueType);
+
+        Gp ipReg = cc.new_gp64();
+        cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_await),
+                  FuncSignature::build<void, JitContext*, value::Value*, uint64_t>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, valueAddr);
+        inv->set_arg(2, ipReg);
 
         s.slotTypes.push_back(SlotType::BOXED);
         return true;
@@ -1977,6 +2018,8 @@ namespace vm::jit
                 bytecode::BytecodeProgram::Instruction ret(OpCode::RETURN_VALUE);
                 return emitControlFlowOps(s, ret, nullptr);
             }
+            case OpCode::AWAIT:
+                return emitAwaitOp(s);
 
             case OpCode::GET_ITERATOR:       return emitGetIteratorOp(s);
             case OpCode::ITERATOR_HAS_NEXT:  return emitIteratorHasNextOp(s);

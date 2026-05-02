@@ -220,8 +220,20 @@ namespace vm::jit
     void jit_new_stack(value::Value* dest, JitContext* ctx,
                         uint32_t classIndex, size_t argCount);
     void jit_object_to_value(value::Value* val);
-    void jit_create_promise(value::Value* val);
-    void jit_object_to_value_create_promise(value::Value* val);
+    void jit_create_promise(JitContext* ctx, value::Value* val);
+    void jit_object_to_value_create_promise(JitContext* ctx, value::Value* val);
+
+    // AWAIT: handles all three resolution paths in a single helper so the
+    // emit case stays a thin cc.invoke. PROMISE_INT inline-tag and heap-
+    // fulfilled paths write the resolved value back through `val`. Pending,
+    // rejected, or non-promise inputs throw OSRDeoptException(bytecodeOffset),
+    // which the interpreter-resume catch sites unwind into normal AWAIT
+    // execution (suspend, throw UserException, or throw RuntimeException).
+    // Returns early without touching `val` when ctx->pendingException is
+    // set — a CALL helper on an earlier opcode may have stashed an exception
+    // (Stack overflow, etc.) and the operand-stack TOS is undefined garbage
+    // until executeCallWithJit's pendingException rethrow at body-return.
+    void jit_await(JitContext* ctx, value::Value* val, uint64_t bytecodeOffset);
 
     extern "C" {
         void jit_osr_write_local(JitContext* ctx, size_t slot, const value::Value* val);

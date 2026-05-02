@@ -1,5 +1,6 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
+#include "guards/DeoptimizationHandler.hpp"
 #include "ic/InlineCacheTable.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../errors/AccessViolationException.hpp"
@@ -220,6 +221,10 @@ namespace vm::jit
 
             throw errors::RuntimeException("JIT: cannot call method '" + methodName + "'");
         }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
         catch (...)
         {
             ctx->pendingException = std::current_exception();
@@ -402,6 +407,10 @@ namespace vm::jit
                     }
                 }
             }
+        }
+        catch (const OSRDeoptException&)
+        {
+            throw;
         }
         catch (...)
         {
@@ -689,6 +698,10 @@ namespace vm::jit
 
             throw errors::RuntimeException("JIT: cannot create object '" + className + "'");
         }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
         catch (...)
         {
             ctx->pendingException = std::current_exception();
@@ -721,6 +734,10 @@ namespace vm::jit
             }
 
             throw errors::RuntimeException("JIT: cannot create stack object '" + className + "'");
+        }
+        catch (const OSRDeoptException&)
+        {
+            throw;
         }
         catch (...)
         {
