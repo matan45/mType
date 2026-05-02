@@ -38,7 +38,13 @@ namespace vm::jit
         OPERAND_STACK_NOT_EMPTY,     // captureState(): values left on operand stack at back-edge
         UNSUPPORTED_OPCODE,          // canCompileLoopOSR(): opcode not in getSupportedOpcodes
         LOCAL_COUNT_EXCEEDED,        // compileLoopOSR(): localCount > MAX_LOCAL_COUNT
-        CODEGEN_FAILURE              // Generic compileFailed during emission
+        CODEGEN_FAILURE,             // Generic compileFailed during emission
+        MULTI_BACKEDGE_TINY_LOOP     // MYT-259 hotfix: tiny inner loop (<=5 locals, <=50 ops)
+                                     // with >=2 distinct JUMP_BACK targets in same LOOP region.
+                                     // Each back-edge OSR-compiles independently and miscompiles
+                                     // collision-bucket scans in HashMap.findKeyInBucket. Gate
+                                     // off until root cause is found; bypass with
+                                     // MTYPE_DISABLE_INNER_OSR_GUARD=1 to reproduce.
     };
 
     const char* osrBailoutReasonName(OSRBailoutReason r);
