@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include "guards/DeoptimizationHandler.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../environment/registry/ClassRegistry.hpp"
@@ -88,6 +89,11 @@ namespace vm::jit
             if (jitTryLoadFromStaticField(dest, ctx, varName)) return;
 
             throw errors::RuntimeException("Variable not found: " + varName);
+        }
+        catch (const OSRDeoptException&)
+        {
+            // JIT-AWAIT deopt must unwind to the call boundary; never stash.
+            throw;
         }
         catch (...)
         {
@@ -208,6 +214,10 @@ namespace vm::jit
 
             throw errors::RuntimeException("Variable not found: " + varName);
         }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
         catch (...)
         {
             ctx->pendingException = std::current_exception();
@@ -233,6 +243,10 @@ namespace vm::jit
             auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
                 varName, type, *val, isFinal != 0);
             ctx->environment->declareVariable(varName, varDef);
+        }
+        catch (const OSRDeoptException&)
+        {
+            throw;
         }
         catch (...)
         {

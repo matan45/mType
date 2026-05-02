@@ -165,6 +165,7 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::CREATE_PROMISE),
             static_cast<uint8_t>(OpCode::OBJECT_TO_VALUE_CREATE_PROMISE),
             static_cast<uint8_t>(OpCode::CREATE_PROMISE_RETURN_VALUE),
+            static_cast<uint8_t>(OpCode::AWAIT),
 
             static_cast<uint8_t>(OpCode::INVOKE_INT_ADD),
             static_cast<uint8_t>(OpCode::INVOKE_INT_SUB),
@@ -195,6 +196,21 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::INVOKE_FLOAT_LESS_EQUAL),
             static_cast<uint8_t>(OpCode::INVOKE_FLOAT_GREATER_THAN),
             static_cast<uint8_t>(OpCode::INVOKE_FLOAT_GREATER_EQUAL),
+
+            // Bool object methods — pure value ops on raw bool, JIT inline-emitted.
+            static_cast<uint8_t>(OpCode::INVOKE_BOOL_AND),
+            static_cast<uint8_t>(OpCode::INVOKE_BOOL_OR),
+            static_cast<uint8_t>(OpCode::INVOKE_BOOL_XOR),
+            static_cast<uint8_t>(OpCode::INVOKE_BOOL_NOT),
+            static_cast<uint8_t>(OpCode::INVOKE_BOOL_EQUALS),
+
+            // String object methods — call C++ handlers via cc.invoke (concat
+            // allocates and length/equals/isEmpty access the pool, all too
+            // complex to inline in the JIT). Still skips IC + frame setup.
+            static_cast<uint8_t>(OpCode::INVOKE_STRING_LENGTH),
+            static_cast<uint8_t>(OpCode::INVOKE_STRING_CONCAT),
+            static_cast<uint8_t>(OpCode::INVOKE_STRING_EQUALS),
+            static_cast<uint8_t>(OpCode::INVOKE_STRING_IS_EMPTY),
 
             static_cast<uint8_t>(OpCode::GET_ITERATOR),
             static_cast<uint8_t>(OpCode::ITERATOR_HAS_NEXT),

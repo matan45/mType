@@ -85,10 +85,14 @@ namespace vm::runtime
         const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
         value::Value objectValue = context.stackManager->pop();
 
-        // Auto-box raw primitives at escape point (lazy re-boxing support)
+        // Auto-box raw primitives at escape point (lazy re-boxing support).
+        // INVOKE_STRING_CONCAT can leave a raw STRING / INTERNED_STRING on the
+        // stack; route those through the same boxing path as int/float/bool.
         if (value::isInt(objectValue) ||
             value::isFloat(objectValue) ||
-            value::isBool(objectValue)) {
+            value::isBool(objectValue) ||
+            value::isString(objectValue) ||
+            value::isInternedString(objectValue)) {
             objectValue = autoBoxPrimitive(objectValue, context.environment);
         }
 
@@ -956,10 +960,14 @@ namespace vm::runtime
         // Pop object and check for null (skip if compiler guarantees non-null)
         value::Value objectValue = context.stackManager->pop();
 
-        // Auto-box raw primitives at escape point (lazy re-boxing support)
+        // Auto-box raw primitives at escape point (lazy re-boxing support).
+        // INVOKE_STRING_CONCAT can leave a raw STRING / INTERNED_STRING on the
+        // stack; route those through the same boxing path as int/float/bool.
         if (value::isInt(objectValue) ||
             value::isFloat(objectValue) ||
-            value::isBool(objectValue)) {
+            value::isBool(objectValue) ||
+            value::isString(objectValue) ||
+            value::isInternedString(objectValue)) {
             objectValue = autoBoxPrimitive(objectValue, context.environment);
         }
 

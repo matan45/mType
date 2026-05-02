@@ -128,6 +128,7 @@ namespace vm::jit
                 case OpCode::CREATE_PROMISE:
                 case OpCode::OBJECT_TO_VALUE_CREATE_PROMISE:
                 case OpCode::CREATE_PROMISE_RETURN_VALUE:
+                case OpCode::AWAIT:
                 case OpCode::CALL_METHOD: case OpCode::CALL_METHOD_CACHED:
                 case OpCode::CALL_METHOD_POLY_CACHED:  // MYT-203
                 case OpCode::CALL_STATIC:
@@ -170,6 +171,13 @@ namespace vm::jit
                 case OpCode::INVOKE_FLOAT_GET_VALUE: case OpCode::INVOKE_BOOL_GET_VALUE:
                 case OpCode::INVOKE_FLOAT_LESS_THAN: case OpCode::INVOKE_FLOAT_LESS_EQUAL:
                 case OpCode::INVOKE_FLOAT_GREATER_THAN: case OpCode::INVOKE_FLOAT_GREATER_EQUAL:
+                // Bool/String object methods receive boxed Bool/String objects on
+                // the operand stack, same boxed-mode trigger as INVOKE_INT/FLOAT.
+                case OpCode::INVOKE_BOOL_AND: case OpCode::INVOKE_BOOL_OR:
+                case OpCode::INVOKE_BOOL_XOR: case OpCode::INVOKE_BOOL_NOT:
+                case OpCode::INVOKE_BOOL_EQUALS:
+                case OpCode::INVOKE_STRING_LENGTH: case OpCode::INVOKE_STRING_CONCAT:
+                case OpCode::INVOKE_STRING_EQUALS: case OpCode::INVOKE_STRING_IS_EMPTY:
                     return true;
                 default: break;
             }

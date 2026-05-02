@@ -1,5 +1,6 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
+#include "guards/DeoptimizationHandler.hpp"
 #include "ic/InlineCacheTable.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../errors/AccessViolationException.hpp"
@@ -130,9 +131,21 @@ namespace vm::jit
 
         try
         {
-            const std::string& methodName = ctx->program->getConstantPool().getString(methodNameIndex);
-
             value::Value& objectValue = ctx->callArgs[0];
+
+            if (value::isLambda(objectValue))
+            {
+                if (ctx->vm)
+                {
+                    auto lambda = value::asLambda(objectValue);
+                    ctx->returnValue = ctx->vm->invokeLambda(
+                        lambda, &ctx->callArgs[1], argCount);
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+            }
+
+            const std::string& methodName = ctx->program->getConstantPool().getString(methodNameIndex);
 
             std::vector<value::Value> args;
             for (size_t i = 1; i <= argCount; i++)
@@ -199,13 +212,18 @@ namespace vm::jit
                 if (ctx->vm)
                 {
                     auto lambda = value::asLambda(objectValue);
-                    ctx->returnValue = ctx->vm->invokeLambda(lambda, args);
+                    ctx->returnValue = ctx->vm->invokeLambda(
+                        lambda, &ctx->callArgs[1], argCount);
                     ctx->hasReturnValue = true;
                     return;
                 }
             }
 
             throw errors::RuntimeException("JIT: cannot call method '" + methodName + "'");
+        }
+        catch (const OSRDeoptException&)
+        {
+            throw;
         }
         catch (...)
         {
@@ -244,6 +262,15 @@ namespace vm::jit
         try
         {
             value::Value& receiverValue = ctx->callArgs[0];
+
+            if (value::isLambda(receiverValue))
+            {
+                auto lambda = value::asLambda(receiverValue);
+                ctx->returnValue = ctx->vm->invokeLambda(
+                    lambda, &ctx->callArgs[1], argCount);
+                ctx->hasReturnValue = true;
+                return;
+            }
 
             // Unified receiver-kind handling: ObjectInstance and ValueObject
             // hits both route through callMethodFromJitDirect(Value). The
@@ -381,6 +408,10 @@ namespace vm::jit
                 }
             }
         }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
         catch (...)
         {
             ctx->pendingException = std::current_exception();
@@ -472,18 +503,20 @@ namespace vm::jit
         // would try to match the literal name "T" against class hierarchies
         // and always return 0.
         const std::string& paramName = ctx->program->getConstantPool().getString(paramNameIndex);
-        std::string resolved = paramName;
+        const std::string* resolvedPtr = &paramName;
 
         if (ctx->vm)
         {
             const auto& callStack = ctx->vm->getCallStack();
             for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
                 if (const auto* p = vm::runtime::utils::resolveTypeParamInFrame(*it, paramName)) {
-                    resolved = *p;
+                    resolvedPtr = p;
                     break;
                 }
             }
         }
+
+        const std::string& resolved = *resolvedPtr;
 
         if (resolved == "Int" || resolved == "int")
             return value::isInt(*val) ? 1 : 0;
@@ -528,7 +561,22 @@ namespace vm::jit
         // per-frame resolve walk via utils::resolveTypeParamInFrame).
         if (!ctx->vm || !ctx->program) return;
 
-        const auto& instr = ctx->program->getInstructions()[static_cast<size_t>(ip)];
+        // Per-IP fast path mirroring TypeExecutor::handleBindTypeArgs: when
+        // every binding at this site is Concrete, the resolved pairs are
+        // stable. Bulk-copy from the cached snapshot and skip the per-binding
+        // const-pool indexing + kind branch.
+        const size_t bindIp = static_cast<size_t>(ip);
+        if (auto* cached = ctx->program->findCachedState(bindIp);
+            cached && cached->cachedTypeArgBindingsValid)
+        {
+            auto& staged = ctx->vm->beginPendingTypeArgs();
+            for (const auto& [paramName, resolved] : cached->cachedTypeArgBindings) {
+                staged.emplace(paramName, resolved);
+            }
+            return;
+        }
+
+        const auto& instr = ctx->program->getInstructions()[bindIp];
         if (instr.operands.empty()) return;
         const auto& constantPool = ctx->program->getConstantPool();
         const size_t n = static_cast<size_t>(instr.operands[0]);
@@ -536,6 +584,10 @@ namespace vm::jit
 
         auto& staged = ctx->vm->beginPendingTypeArgs();
         const auto& callStack = ctx->vm->getCallStack();
+
+        bool allConcrete = true;
+        std::vector<std::pair<std::string, std::string>> snapshot;
+        snapshot.reserve(n);
 
         for (size_t i = 0; i < n; ++i) {
             const size_t base = 1 + 3 * i;
@@ -548,6 +600,7 @@ namespace vm::jit
 
             std::string resolved;
             if (kind == vm::bytecode::TypeArgValueKind::ForwardFromCaller) {
+                allConcrete = false;
                 if (!callStack.empty()) {
                     if (const auto* p = vm::runtime::utils::resolveTypeParamInFrame(
                             callStack.back(), rawValue)) {
@@ -560,9 +613,18 @@ namespace vm::jit
                 }
             } else {
                 resolved = rawValue;
+                if (allConcrete) {
+                    snapshot.emplace_back(paramName, resolved);
+                }
             }
 
             staged.emplace(paramName, std::move(resolved));
+        }
+
+        if (allConcrete) {
+            auto& slot = ctx->program->getOrCreateCachedState(bindIp);
+            slot.cachedTypeArgBindings = std::move(snapshot);
+            slot.cachedTypeArgBindingsValid = true;
         }
     }
 
@@ -636,6 +698,10 @@ namespace vm::jit
 
             throw errors::RuntimeException("JIT: cannot create object '" + className + "'");
         }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
         catch (...)
         {
             ctx->pendingException = std::current_exception();
@@ -668,6 +734,10 @@ namespace vm::jit
             }
 
             throw errors::RuntimeException("JIT: cannot create stack object '" + className + "'");
+        }
+        catch (const OSRDeoptException&)
+        {
+            throw;
         }
         catch (...)
         {

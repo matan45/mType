@@ -38,6 +38,13 @@ namespace reflection
             paramCount = paramArray->size();
         }
 
+        int64_t cachedHandle = handleRegistry.findCachedMethodLookup(
+            classHandle, methodName, paramCount, declaredOnly);
+        if (cachedHandle != -1)
+        {
+            return static_cast<int>(cachedHandle);
+        }
+
         std::shared_ptr<MethodDefinition> methodDef = nullptr;
 
         if (declaredOnly)
@@ -68,6 +75,7 @@ namespace reflection
         }
 
         int64_t methodHandle = handleRegistry.registerMethod(methodDef, classHandle, methodName);
+        handleRegistry.cacheMethodLookup(classHandle, methodName, paramCount, declaredOnly, methodHandle);
         return static_cast<int>(methodHandle);
     }
 
@@ -210,9 +218,7 @@ namespace reflection
             throw errors::RuntimeException("Invalid method handle");
         }
 
-        const auto& params = methodInfo.method->getParameters();
-        const bool skipThis = !methodInfo.method->isStatic() && !params.empty();
-        return static_cast<int>(params.size() - (skipThis ? 1 : 0));
+        return static_cast<int>(methodInfo.userParamCount);
     }
 
     Value ReflectionNatives::__reflect_getMethodDeclaringClass(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)

@@ -25,6 +25,13 @@ namespace reflection
             throw errors::RuntimeException("Invalid class handle");
         }
 
+        int64_t cachedHandle = handleRegistry.findCachedFieldLookup(
+            classHandle, fieldName, declaredOnly);
+        if (cachedHandle != -1)
+        {
+            return static_cast<int>(cachedHandle);
+        }
+
         std::shared_ptr<FieldDefinition> fieldDef = nullptr;
 
         // Check instance fields
@@ -64,6 +71,7 @@ namespace reflection
         }
 
         int64_t fieldHandle = handleRegistry.registerField(fieldDef, classHandle, fieldName);
+        handleRegistry.cacheFieldLookup(classHandle, fieldName, declaredOnly, fieldHandle);
         return static_cast<int>(fieldHandle);
     }
 

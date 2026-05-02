@@ -309,6 +309,22 @@ namespace vm::runtime
         if (instr.operands.empty()) {
             throw errors::RuntimeException("BIND_TYPE_ARGS: missing operand count");
         }
+
+        // Per-IP fast path: when every binding at this site is Concrete the
+        // resolved (paramName,resolved) pairs are stable. Snapshot them on
+        // first execution and bulk-copy thereafter — skips N const-pool
+        // indexes + N kind-branch + N rawValue construction per call.
+        const size_t bindIp = context.instructionPointer;
+        if (auto* cached = context.findCachedState(bindIp);
+            cached && cached->cachedTypeArgBindingsValid)
+        {
+            auto& staged = context.pendingTypeArgs.acquireFresh();
+            for (const auto& [paramName, resolved] : cached->cachedTypeArgBindings) {
+                staged.emplace(paramName, resolved);
+            }
+            return;
+        }
+
         const auto& constantPool = context.program->getConstantPool();
         const size_t n = static_cast<size_t>(instr.operands[0]);
         // Variable-arity guard — well-formed bytecode satisfies this; a
@@ -319,6 +335,10 @@ namespace vm::runtime
 
         // Acquire from the pool — recycles the unordered_map across calls.
         auto& staged = context.pendingTypeArgs.acquireFresh();
+
+        bool allConcrete = true;
+        std::vector<std::pair<std::string, std::string>> snapshot;
+        snapshot.reserve(n);
 
         for (size_t i = 0; i < n; ++i) {
             const size_t base = 1 + 3 * i;
@@ -331,12 +351,9 @@ namespace vm::runtime
 
             std::string resolved;
             if (kind == bytecode::TypeArgValueKind::ForwardFromCaller) {
-                // Forward-from-caller: resolve `rawValue` against the
-                // current top frame (the caller — pushCallFrame hasn't
-                // run yet). If unbound, fall back to the raw name so a
-                // free-floating `T` cast/instanceof still degrades
-                // gracefully (cast erases to no-op; instanceof returns
-                // false via name-lookup miss).
+                // Forward-from-caller depends on the caller's frame state and
+                // can't be cached at this IP. Mark the site uncacheable.
+                allConcrete = false;
                 if (!context.callStack.empty()) {
                     if (const auto* p = utils::resolveTypeParamInFrame(
                             context.callStack.back(), rawValue)) {
@@ -349,9 +366,18 @@ namespace vm::runtime
                 }
             } else {
                 resolved = rawValue;
+                if (allConcrete) {
+                    snapshot.emplace_back(paramName, resolved);
+                }
             }
 
             staged.emplace(paramName, std::move(resolved));
+        }
+
+        if (allConcrete) {
+            auto& slot = context.getOrCreateCachedState(bindIp);
+            slot.cachedTypeArgBindings = std::move(snapshot);
+            slot.cachedTypeArgBindingsValid = true;
         }
     }
 

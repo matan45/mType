@@ -279,57 +279,7 @@ namespace vm::runtime
 
     void FunctionExecutor::handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        // Get static method name from constant pool (should be fully qualified: ClassName::methodName)
-        std::string qualifiedName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
-
-        // Parse qualified name: ClassName::methodName
-        size_t colonPos = qualifiedName.find("::");
-        if (colonPos == std::string::npos)
-        {
-            throw errors::RuntimeException(
-                "Static method call requires qualified name (ClassName::methodName): " + qualifiedName);
-        }
-
-        std::string className = qualifiedName.substr(0, colonPos);
-        std::string methodName = qualifiedName.substr(colonPos + 2);
-
-        // Extract simple method name from potentially mangled name
-        // methodName could be: "max/int,int$static", "max$static", or just "max"
-        std::string simpleMethodName = methodName;
-
-        // Remove $static suffix if present
-        size_t staticPos = simpleMethodName.find("$static");
-        if (staticPos != std::string::npos)
-        {
-            simpleMethodName = simpleMethodName.substr(0, staticPos);
-        }
-
-        // Remove signature suffix if present
-        size_t slashPos = simpleMethodName.find('/');
-        if (slashPos != std::string::npos)
-        {
-            simpleMethodName = simpleMethodName.substr(0, slashPos);
-        }
-
-        // Get class definition
-        auto classRegistry = context.environment->getClassRegistry();
-        auto classDef = classRegistry->findClass(className);
-        if (!classDef)
-        {
-            throw errors::RuntimeException("Class not found: " + className);
-        }
-
-        // Find static method in class (use simple name for ClassDefinition lookup)
-        auto method = classDef->findStaticMethod(simpleMethodName, argCount);
-        if (!method)
-        {
-            throw errors::RuntimeException("Static method not found: " + className + "::" + simpleMethodName +
-                " with " + std::to_string(argCount) + " arguments");
-        }
-
-        // Check access modifiers (use simple name)
-        validateStaticMethodAccess(className, simpleMethodName, method->getAccessModifier());
 
         // Calculate frameBase BEFORE popping arguments
         size_t frameBase = context.stackManager->size() - argCount;
@@ -341,13 +291,19 @@ namespace vm::runtime
             args[i - 1] = context.stackManager->pop();
         }
 
-        // MYT-197: $static suffix is now baked into the constant pool at
-        // compile time (see FunctionCallHelper::emitStaticMethodCall), so
-        // qualifiedName already ends in $static — no per-call concat.
-        const std::string& staticQualifiedName = qualifiedName;
+        // Get qualified name from the constant pool — vector index, ~no cost.
+        // Needed by frame setup (functionName intern, profiler/debugger hooks)
+        // on both cache hit and miss; the substring parsing into className /
+        // simpleMethodName is only needed on miss and lives below.
+        const std::string& qualifiedName = context.program->getConstantPool().getString(instr.operands[0]);
 
-        // Check inline cache first, then fall back to full resolution.
-        // MYT-201: CALL IC state lives in the per-IP side table.
+        // Try the per-IP IC FIRST — on hit we skip the qualified-name string
+        // parsing, findClass, findStaticMethod, and validateStaticMethodAccess
+        // entirely. The previous structure ran all of those on every call and
+        // only used the cache to skip the type-signature build, leaving ~150ns
+        // of per-call overhead even after warmup. Static call sites are
+        // monomorphic by definition (the qualified name is baked into the
+        // bytecode operand), so a hit is always semantically valid.
         const bytecode::BytecodeProgram::FunctionMetadata* funcMetadata = nullptr;
         size_t targetProgramIndex = context.callStack.empty() ? 0 : context.callStack.back().programIndex;
         const bytecode::BytecodeProgram* targetProgram = context.program;
@@ -357,7 +313,6 @@ namespace vm::runtime
         {
             if (cached->cachedFuncMetadata)
             {
-                // Cache hit — skip type-signature building and hash lookups
                 funcMetadata = cached->cachedFuncMetadata;
                 targetProgram = cached->cachedProgram;
                 targetProgramIndex = cached->cachedProgramIndex;
@@ -365,6 +320,59 @@ namespace vm::runtime
         }
 
         if (!funcMetadata) {
+            // Slow path — first call (or post-deopt). Parse the qualified
+            // name, resolve through the class registry, validate access, and
+            // populate the IC for subsequent calls.
+            size_t colonPos = qualifiedName.find("::");
+            if (colonPos == std::string::npos)
+            {
+                throw errors::RuntimeException(
+                    "Static method call requires qualified name (ClassName::methodName): " + qualifiedName);
+            }
+
+            std::string className = qualifiedName.substr(0, colonPos);
+            std::string methodName = qualifiedName.substr(colonPos + 2);
+
+            // Extract simple method name from potentially mangled name
+            // methodName could be: "max/int,int$static", "max$static", or just "max"
+            std::string simpleMethodName = methodName;
+
+            size_t staticPos = simpleMethodName.find("$static");
+            if (staticPos != std::string::npos)
+            {
+                simpleMethodName = simpleMethodName.substr(0, staticPos);
+            }
+
+            size_t slashPos = simpleMethodName.find('/');
+            if (slashPos != std::string::npos)
+            {
+                simpleMethodName = simpleMethodName.substr(0, slashPos);
+            }
+
+            // Get class definition
+            auto classRegistry = context.environment->getClassRegistry();
+            auto classDef = classRegistry->findClass(className);
+            if (!classDef)
+            {
+                throw errors::RuntimeException("Class not found: " + className);
+            }
+
+            // Find static method in class (use simple name for ClassDefinition lookup)
+            auto method = classDef->findStaticMethod(simpleMethodName, argCount);
+            if (!method)
+            {
+                throw errors::RuntimeException("Static method not found: " + className + "::" + simpleMethodName +
+                    " with " + std::to_string(argCount) + " arguments");
+            }
+
+            // Check access modifiers (use simple name)
+            validateStaticMethodAccess(className, simpleMethodName, method->getAccessModifier());
+
+            // MYT-197: $static suffix is baked into the constant pool at compile
+            // time (see FunctionCallHelper::emitStaticMethodCall), so
+            // qualifiedName already ends in $static — no per-call concat.
+            const std::string& staticQualifiedName = qualifiedName;
+
             // Cache miss — full resolution with type-signature-based overload lookup
 
             // Build type signature from runtime argument types
@@ -481,7 +489,7 @@ namespace vm::runtime
             frame.localBase = context.stackManager->size(); // Locals start after arguments (which are now popped)
             // MYT-197: intern on the target program so the handle belongs to
             // the program that actually owns the function.
-            frame.functionName = targetProgram->internFrameName(staticQualifiedName);
+            frame.functionName = targetProgram->internFrameName(qualifiedName);
             frame.thisInstance = nullptr; // No 'this' for static methods
             frame.programIndex = targetProgramIndex;
 
@@ -493,7 +501,7 @@ namespace vm::runtime
             context.pushCallFrame(std::move(frame));
             context.stats.functionCalls++;
 
-            vm::profiler::ProfilerHookHelper::onFunctionEntry(staticQualifiedName);
+            vm::profiler::ProfilerHookHelper::onFunctionEntry(qualifiedName);
 
             // Notify debugger of static method entry
             if (debugger::DebugHookHelper::isDebuggingEnabled())
@@ -502,7 +510,7 @@ namespace vm::runtime
                 if (sourceLoc)
                 {
                     errors::SourceLocation errorsLoc(sourceLoc->filename, sourceLoc->line, sourceLoc->column);
-                    debugger::DebugHookHelper::enterFunctionHook(staticQualifiedName, errorsLoc);
+                    debugger::DebugHookHelper::enterFunctionHook(qualifiedName, errorsLoc);
                 }
                 else
                 {
@@ -512,11 +520,11 @@ namespace vm::runtime
                     {
                         errors::SourceLocation errorsLoc(funcStartLoc->filename, funcStartLoc->line,
                                                          funcStartLoc->column);
-                        debugger::DebugHookHelper::enterFunctionHook(staticQualifiedName, errorsLoc);
+                        debugger::DebugHookHelper::enterFunctionHook(qualifiedName, errorsLoc);
                     }
                     else
                     {
-                        debugger::DebugHookHelper::enterFunctionHook(staticQualifiedName, errors::SourceLocation());
+                        debugger::DebugHookHelper::enterFunctionHook(qualifiedName, errors::SourceLocation());
                     }
                 }
             }

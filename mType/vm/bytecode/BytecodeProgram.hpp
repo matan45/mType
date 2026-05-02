@@ -71,6 +71,32 @@ namespace vm::bytecode
             uint8_t  fusedDeoptCount = 0;
 
             uint8_t  observedValueType = 0xFF;
+
+            // BIND_TYPE_ARGS resolved-binding cache. Populated on first
+            // execution when every binding kind is Concrete (the rawValue
+            // string is the resolved type name itself, no per-call walk
+            // needed). Subsequent calls bulk-copy these pairs into the
+            // pending map and skip the per-binding constant-pool indexing
+            // and Concrete/ForwardFromCaller branch. Empty by default;
+            // ForwardFromCaller bindings are NOT cached (they depend on
+            // the caller frame state, which changes per call).
+            std::vector<std::pair<std::string, std::string>> cachedTypeArgBindings;
+            bool cachedTypeArgBindingsValid = false;
+
+            // jit_call_function_ic per-IP probe cache. The first call at this
+            // IP probes jitCodeCache + nativeRegistry; subsequent calls reuse
+            // the result. cachedJitFnPtr stores the JitFunction (or null when
+            // the callee isn't JIT-compiled). cachedFrameName is pre-interned
+            // for fast tryJitDispatchResolved use. jitProbeDone gates re-probe.
+            //
+            // Trade-off: a callee that gets JIT-compiled AFTER first probe at
+            // this site won't be picked up. For hot loops (the only case that
+            // matters for perf) the callee is either compiled before the loop
+            // starts or never — re-polling per call would re-introduce the
+            // hashmap probe cost the cache exists to eliminate.
+            void* cachedJitFnPtr = nullptr;
+            FunctionNameHandle cachedFrameName{ INVALID_FN_HANDLE };
+            bool jitProbeDone = false;
         };
 
         struct Instruction

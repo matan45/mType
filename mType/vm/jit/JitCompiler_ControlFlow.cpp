@@ -401,7 +401,7 @@ namespace vm::jit
             // opcode — the interpreter then runs handleReturnValue() which
             // pops, async-wraps if needed, and does the function-return
             // semantics correctly.
-            if (s.isOSRCompilation)
+            if (s.isOSRCompilation && s.inlineStack.empty())
             {
                 emitOsrPushReturnValueToInterpStack(s, s.lastReturnSlotType);
                 s.stackDepth--;

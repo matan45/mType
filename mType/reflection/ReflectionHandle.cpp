@@ -24,6 +24,18 @@ namespace reflection
         return key;
     }
 
+    std::string ReflectionHandleRegistry::makeLookupKey(
+        int64_t classHandle,
+        const std::string& name,
+        size_t arity,
+        bool declaredOnly)
+    {
+        return std::to_string(classHandle) + ":" +
+               (declaredOnly ? "D:" : "P:") +
+               std::to_string(name.length()) + ":" + name + "#" +
+               std::to_string(arity);
+    }
+
     std::string ReflectionHandleRegistry::makeConstructorKey(int64_t classHandle, int constructorIndex)
     {
         return std::to_string(classHandle) + ":ctor:" + std::to_string(constructorIndex);
@@ -193,6 +205,26 @@ namespace reflection
         return FieldHandleInfo{nullptr, -1, ""};
     }
 
+    int64_t ReflectionHandleRegistry::findCachedFieldLookup(
+        int64_t classHandle,
+        const std::string& fieldName,
+        bool declaredOnly) const
+    {
+        auto it = fieldLookupKeyToHandle.find(
+            makeLookupKey(classHandle, fieldName, 0, declaredOnly));
+        return it != fieldLookupKeyToHandle.end() ? it->second : -1;
+    }
+
+    void ReflectionHandleRegistry::cacheFieldLookup(
+        int64_t classHandle,
+        const std::string& fieldName,
+        bool declaredOnly,
+        int64_t fieldHandle)
+    {
+        fieldLookupKeyToHandle[
+            makeLookupKey(classHandle, fieldName, 0, declaredOnly)] = fieldHandle;
+    }
+
     // ========== Method Handle Management ==========
 
     int64_t ReflectionHandleRegistry::registerMethod(
@@ -222,7 +254,12 @@ namespace reflection
 
         // Create new handle
         int64_t handle = nextHandle++;
-        methodHandles[handle] = MethodHandleInfo{method, classHandle, methodName};
+        size_t userParamCount = method->getParameters().size();
+        if (!method->isStatic() && userParamCount > 0)
+        {
+            --userParamCount;
+        }
+        methodHandles[handle] = MethodHandleInfo{method, classHandle, methodName, userParamCount};
         methodKeyToHandle[key] = handle;
         handleTypeMap[handle] = HandleType::METHOD;
 
@@ -236,7 +273,29 @@ namespace reflection
         {
             return it->second;
         }
-        return MethodHandleInfo{nullptr, -1, ""};
+        return MethodHandleInfo{nullptr, -1, "", 0};
+    }
+
+    int64_t ReflectionHandleRegistry::findCachedMethodLookup(
+        int64_t classHandle,
+        const std::string& methodName,
+        size_t paramCount,
+        bool declaredOnly) const
+    {
+        auto it = methodLookupKeyToHandle.find(
+            makeLookupKey(classHandle, methodName, paramCount, declaredOnly));
+        return it != methodLookupKeyToHandle.end() ? it->second : -1;
+    }
+
+    void ReflectionHandleRegistry::cacheMethodLookup(
+        int64_t classHandle,
+        const std::string& methodName,
+        size_t paramCount,
+        bool declaredOnly,
+        int64_t methodHandle)
+    {
+        methodLookupKeyToHandle[
+            makeLookupKey(classHandle, methodName, paramCount, declaredOnly)] = methodHandle;
     }
 
     // ========== Constructor Handle Management ==========
@@ -374,6 +433,16 @@ namespace reflection
                 {
                     std::string key = makeFieldKey(fieldIt->second.classHandle, fieldIt->second.fieldName);
                     fieldKeyToHandle.erase(key);
+                    fieldLookupKeyToHandle.erase(makeLookupKey(
+                        fieldIt->second.classHandle,
+                        fieldIt->second.fieldName,
+                        0,
+                        true));
+                    fieldLookupKeyToHandle.erase(makeLookupKey(
+                        fieldIt->second.classHandle,
+                        fieldIt->second.fieldName,
+                        0,
+                        false));
                     fieldHandles.erase(fieldIt);
                 }
                 break;
@@ -393,6 +462,16 @@ namespace reflection
                         std::string key = makeMethodKey(methodIt->second.classHandle, methodIt->second.methodName,
                                                         paramTypes);
                         methodKeyToHandle.erase(key);
+                        methodLookupKeyToHandle.erase(makeLookupKey(
+                            methodIt->second.classHandle,
+                            methodIt->second.methodName,
+                            methodIt->second.userParamCount,
+                            true));
+                        methodLookupKeyToHandle.erase(makeLookupKey(
+                            methodIt->second.classHandle,
+                            methodIt->second.methodName,
+                            methodIt->second.userParamCount,
+                            false));
                     }
                     methodHandles.erase(methodIt);
                 }
@@ -439,6 +518,8 @@ namespace reflection
         classNameToHandle.clear();
         fieldKeyToHandle.clear();
         methodKeyToHandle.clear();
+        fieldLookupKeyToHandle.clear();
+        methodLookupKeyToHandle.clear();
         constructorKeyToHandle.clear();
         annotationPtrToHandle.clear();
 

@@ -69,6 +69,13 @@ namespace vm::jit
     }
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount);
+    // IC-aware variant for CALL_STATIC: caches resolved FunctionMetadata at
+    // the call-site IP so subsequent calls skip the program->getFunction
+    // hashmap lookup. Static call sites are monomorphic (the qualified name
+    // is a fixed bytecode operand), so the cache is single-entry, no shape
+    // guard needed.
+    void jit_call_function_ic(JitContext* ctx, size_t bytecodeOffset,
+                              uint32_t nameIndex, size_t argCount);
     void jit_call_function_fast(JitContext* ctx, uint32_t funcIndex, size_t argCount);
 
     void jit_generic_add(value::Value* result, const value::Value* left, const value::Value* right);
@@ -213,8 +220,20 @@ namespace vm::jit
     void jit_new_stack(value::Value* dest, JitContext* ctx,
                         uint32_t classIndex, size_t argCount);
     void jit_object_to_value(value::Value* val);
-    void jit_create_promise(value::Value* val);
-    void jit_object_to_value_create_promise(value::Value* val);
+    void jit_create_promise(JitContext* ctx, value::Value* val);
+    void jit_object_to_value_create_promise(JitContext* ctx, value::Value* val);
+
+    // AWAIT: handles all three resolution paths in a single helper so the
+    // emit case stays a thin cc.invoke. PROMISE_INT inline-tag and heap-
+    // fulfilled paths write the resolved value back through `val`. Pending,
+    // rejected, or non-promise inputs throw OSRDeoptException(bytecodeOffset),
+    // which the interpreter-resume catch sites unwind into normal AWAIT
+    // execution (suspend, throw UserException, or throw RuntimeException).
+    // Returns early without touching `val` when ctx->pendingException is
+    // set — a CALL helper on an earlier opcode may have stashed an exception
+    // (Stack overflow, etc.) and the operand-stack TOS is undefined garbage
+    // until executeCallWithJit's pendingException rethrow at body-return.
+    void jit_await(JitContext* ctx, value::Value* val, uint64_t bytecodeOffset);
 
     extern "C" {
         void jit_osr_write_local(JitContext* ctx, size_t slot, const value::Value* val);
@@ -246,6 +265,18 @@ namespace vm::jit
     void jit_array_set_int(const value::Value* array, int64_t index,
                            int64_t val);
     int64_t* jit_array_get_raw_int_ptr(const value::Value* array);
+
+    // String primitive-method helpers (paired with INVOKE_STRING_* opcodes).
+    // Operate directly on boxed Values living on the JIT operand stack —
+    // emitter passes lea(boxedBase + slot*VALUE_SIZE) for receiver/arg/dest.
+    // No-throw: std::string operations only fail on OOM (catastrophic) and
+    // type mismatches return a safe default rather than raising.
+    int64_t jit_invoke_string_length(const value::Value* receiver);
+    int64_t jit_invoke_string_is_empty(const value::Value* receiver);
+    int64_t jit_invoke_string_equals(const value::Value* receiver, const value::Value* arg);
+    void jit_invoke_string_concat(value::Value* dest,
+                                  const value::Value* receiver,
+                                  const value::Value* arg);
 
     struct JitArrayInfo {
         int64_t* data;     // raw int pointer (nullptr if heterogeneous)

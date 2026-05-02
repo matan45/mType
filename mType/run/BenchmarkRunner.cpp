@@ -31,7 +31,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 37> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 40> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -105,6 +105,18 @@ namespace
         "pattern_match_hot.mt",
         "string_interpolation_hot.mt",
         "boxed_primitive_dispatch_hot.mt",
+        // Isolation benchmarks for the boxed-primitive INVOKE_BOOL_* /
+        // INVOKE_STRING_* fast paths and the StringPool intern hit rate.
+        // Companions to boxed_primitive_dispatch_hot.mt — staying pure-Bool
+        // / pure-String makes regressions in either path attributable.
+        "boxed_bool_dispatch_hot.mt",
+        "boxed_string_dispatch_hot.mt",
+        // Isolation benchmark for non-generic CALL_STATIC dispatch.
+        // Companion to generic_dispatch_hot.mt; strips BIND_TYPE_ARGS and
+        // INSTANCEOF_TYPEPARAM so the measured cost is purely the
+        // jit_call_function_ic + interpreter-side cached-static-call path.
+        // Should land near method_dispatch.mt (~125ms) once warmed.
+        "static_call_hot.mt",
         // MYT-254: linked-list traversal under nested loops. Inner walks
         // all M elements via get(k), which chases Node.next pointers each
         // call — O(M^2) per outer iter, exercising field-chain inlining

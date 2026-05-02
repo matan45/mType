@@ -1,10 +1,13 @@
 #include "JitHelpers.hpp"
+#include "guards/DeoptimizationHandler.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
 #include "../../gc/GC.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
+#include "../../value/StringPool.hpp"
 #include <new>
+#include <string>
 
 namespace vm::jit
 {
@@ -200,8 +203,111 @@ namespace vm::jit
 
     } // extern "C"
 
-    void jit_create_promise(value::Value* val)
+    namespace
     {
+        // Read the string content out of a Value of either raw STRING /
+        // INTERNED_STRING form, or a boxed String ObjectInstance/ValueObject
+        // with field 0 = string. Returns true on success and writes into out;
+        // returns false otherwise (caller treats as empty/equal-mismatch).
+        bool tryReadString(const value::Value& val, std::string& out)
+        {
+            if (value::isString(val))
+            {
+                out = value::asString(val);
+                return true;
+            }
+            if (value::isInternedString(val))
+            {
+                out = std::string(value::asInternedString(val).getString());
+                return true;
+            }
+            if (value::isAnyObject(val))
+            {
+                auto* obj = value::asObjectInstanceRaw(val);
+                if (!obj) return false;
+                obj->ensureFieldVector();
+                const value::Value& field = obj->getFieldByIndex(0);
+                if (value::isString(field)) { out = value::asString(field); return true; }
+                if (value::isInternedString(field))
+                {
+                    out = std::string(value::asInternedString(field).getString());
+                    return true;
+                }
+                return false;
+            }
+            if (value::isValueObject(val))
+            {
+                const auto& obj = value::asValueObject(val);
+                if (!obj) return false;
+                const value::Value& field = obj->getFieldByIndex(0);
+                if (value::isString(field)) { out = value::asString(field); return true; }
+                if (value::isInternedString(field))
+                {
+                    out = std::string(value::asInternedString(field).getString());
+                    return true;
+                }
+                return false;
+            }
+            return false;
+        }
+    }
+
+    int64_t jit_invoke_string_length(const value::Value* receiver)
+    {
+        std::string s;
+        if (!tryReadString(*receiver, s)) return 0;
+        return static_cast<int64_t>(s.size());
+    }
+
+    int64_t jit_invoke_string_is_empty(const value::Value* receiver)
+    {
+        std::string s;
+        if (!tryReadString(*receiver, s)) return 1;
+        return s.empty() ? 1 : 0;
+    }
+
+    int64_t jit_invoke_string_equals(const value::Value* receiver, const value::Value* arg)
+    {
+        std::string a, b;
+        if (!tryReadString(*receiver, a) || !tryReadString(*arg, b)) return 0;
+        return (a == b) ? 1 : 0;
+    }
+
+    void jit_invoke_string_concat(value::Value* dest,
+                                  const value::Value* receiver,
+                                  const value::Value* arg)
+    {
+        std::string a, b;
+        if (!tryReadString(*receiver, a) || !tryReadString(*arg, b))
+        {
+            std::destroy_at(dest);
+            new (dest) value::Value(std::string{});
+            return;
+        }
+        std::string result = std::move(a) + b;
+        // Mirror the interpreter handler: try to intern. For cycling concat
+        // patterns the pool collapses repeated allocations into refcount bumps.
+        value::InternedString interned = value::StringPool::getInstance().intern(result);
+        std::destroy_at(dest);
+        if (!interned.empty())
+        {
+            new (dest) value::Value(std::move(interned));
+        }
+        else
+        {
+            new (dest) value::Value(std::move(result));
+        }
+    }
+
+    void jit_create_promise(JitContext* ctx, value::Value* val)
+    {
+        // *val may be uninitialized garbage if a previous CALL helper stashed
+        // an exception (function-level JIT bodies have no implicit pending-
+        // exception check between opcodes). Skip work in that case; the body
+        // will fall through to RETURN_VALUE and executeCallWithJit's
+        // pendingException rethrow surfaces the original error.
+        if (ctx && ctx->pendingException) return;
+
         if (value::isInt(*val))
         {
             *val = value::Value(value::asInt(*val), value::Value::PromiseIntTag{});
@@ -212,8 +318,10 @@ namespace vm::jit
         *val = std::shared_ptr<value::PromiseValue>(promise);
     }
 
-    void jit_object_to_value_create_promise(value::Value* val)
+    void jit_object_to_value_create_promise(JitContext* ctx, value::Value* val)
     {
+        if (ctx && ctx->pendingException) return;
+
         if (value::isObject(*val))
         {
             const auto& instance = value::asObject(*val);
@@ -229,6 +337,40 @@ namespace vm::jit
         }
 
         jit_object_to_value(val);
-        jit_create_promise(val);
+        jit_create_promise(ctx, val);
+    }
+
+    // Mirrors VirtualMachine::executeAwait, fast-path arms only.
+    // - PROMISE_INT: unwrap inline; rebuild as a plain INT Value.
+    // - Heap PROMISE in FULFILLED state: copy out promise->getValue().
+    // - Anything else (pending, rejected, non-promise, null): deopt to the
+    //   interpreter via OSRDeoptException so the interpreter's existing
+    //   suspend / UserException / type-error paths run.
+    void jit_await(JitContext* ctx, value::Value* val, uint64_t bytecodeOffset)
+    {
+        // Skip when an earlier CALL helper stashed an exception — *val may
+        // be garbage (the JIT body emits a "push return value" after every
+        // cc.invoke regardless of hasReturnValue, and isPromise/isPromiseInt
+        // could match by accident on uninitialized memory and crash on a
+        // bogus shared_ptr deref).
+        if (ctx && ctx->pendingException) return;
+
+        if (value::isPromiseInt(*val))
+        {
+            *val = value::Value(value::asPromiseIntValue(*val));
+            return;
+        }
+
+        if (value::isPromise(*val))
+        {
+            const auto& promise = value::asPromise(*val);
+            if (promise && promise->isFulfilled())
+            {
+                *val = promise->getValue();
+                return;
+            }
+        }
+
+        throw OSRDeoptException(static_cast<size_t>(bytecodeOffset));
     }
 }

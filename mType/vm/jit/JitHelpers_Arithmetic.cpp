@@ -1,5 +1,6 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
+#include "guards/DeoptimizationHandler.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../value/ValueObject.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
@@ -173,6 +174,31 @@ namespace vm::jit
         if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
             return false;
 
+        // Self-recursive async dispatch refusal. Async / boxed-mode bodies
+        // allocate ~10KB of asmjit-stack per frame (256-slot stackBase +
+        // 256-slot boxedBase × Value=32B + locals); the global MAX=256 is
+        // calibrated for non-boxed (pure-primitive) frames at ~1KB. Even
+        // ~80 levels of async self-recursion blow Windows' 1MB native stack
+        // — and unlike a clean unwind via OSRDeoptException, a deep
+        // pushCallFrame throw stashes through pendingException across each
+        // JIT-from-JIT level whose asmjit body has no pending-exception
+        // checks between opcodes (jit_has_pending_exception is only emitted
+        // for OSR loops). The result is a silent process exit before the
+        // managed callStack overflow message can print. Bailing async
+        // self-recursive dispatch on the first level routes the recursion
+        // through callFunctionFromJit's mini-interpret with the
+        // inJitFallbackInterpreter flag, where managed callStack growth
+        // hits maxCallStackSize=10000 and throws cleanly. fib/ack and
+        // other non-async self-recursion stay fully JIT-compiled.
+        const auto& cs = ctx->vm->getCallStack();
+        if (!cs.empty() && cs.back().functionName == frameName)
+        {
+            const std::string& fname = ctx->program->getFrameName(frameName);
+            const auto* meta = ctx->program->getFunction(fname);
+            if (meta && meta->isAsync)
+                return false;
+        }
+
         vm::runtime::CallFrame frame;
         frame.returnAddress = 0;
         frame.frameBase = 0;
@@ -194,8 +220,20 @@ namespace vm::jit
         nestedCtx.icTable = ctx->icTable;
         nestedCtx.callingClassName = ctx->callingClassName;
 
-        jitFn(&nestedCtx);
-
+        try
+        {
+            jitFn(&nestedCtx);
+        }
+        catch (const OSRDeoptException&)
+        {
+            // JIT callee deopted mid-AWAIT. Roll back the frame + native-
+            // depth bookkeeping we set up above, then let the deopt unwind
+            // further. It propagates through the JIT caller's asmjit frame
+            // to executeCallWithJit's catch, which falls back to interpreter.
+            ctx->vm->decrementJitNativeDepth();
+            ctx->vm->popCallStack();
+            throw;
+        }
         ctx->vm->decrementJitNativeDepth();
         ctx->vm->popCallStack();
 
@@ -272,9 +310,171 @@ namespace vm::jit
 
             throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
         }
+        catch (const OSRDeoptException&)
+        {
+            // A JIT-compiled callee deopted on AWAIT. Handle it locally so
+            // the deopt does NOT unwind further into the JIT caller's frame
+            // (re-running the callee in the interpreter from scratch loses
+            // less than the alternative — a stale OSR catch would set the
+            // outer frame's IP to the inner IP and corrupt it). Side-effect
+            // free callees re-execute cleanly; bodies with externally-visible
+            // side effects pre-deopt may double-execute them — known v1
+            // limitation. Wrap in another try so a throw from the fallback
+            // routes through the normal pendingException stash.
+            try
+            {
+                if (ctx->vm)
+                {
+                    const std::string& funcName =
+                        ctx->program->getConstantPool().getString(nameIndex);
+                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                    ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                    ctx->hasReturnValue = true;
+                }
+            }
+            catch (const errors::RuntimeException&)
+            {
+                throw;
+            }
+            catch (...)
+            {
+                ctx->pendingException = std::current_exception();
+            }
+        }
         catch (...)
         {
-            // Store exception — don't let it unwind through JIT-generated frames
+            // Store exception — don't let it unwind through JIT-generated frames.
+            // (Function-level JIT bodies have no implicit pendingException check
+            // between opcodes; rely on each helper's entry-check to short-circuit
+            // until the body returns and executeCallWithJit rethrows.)
+            ctx->pendingException = std::current_exception();
+        }
+    }
+
+    void jit_call_function_ic(JitContext* ctx, size_t bytecodeOffset,
+                              uint32_t nameIndex, size_t argCount)
+    {
+        if (ctx->pendingException)
+            return;
+
+        try
+        {
+            const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
+
+            // IC slot lookup. On warm path we route based on what was probed
+            // and cached on the first call at this IP. The JIT-dispatch arm
+            // is split out into a "do we even attempt tryJitDispatchResolved"
+            // gate (jitProbeDone) so a callee that's NOT separately JIT-
+            // compiled never re-pays the jitCodeCache hashmap probe — that
+            // probe was the source of the generic_dispatch_hot.mt regression
+            // when added blindly to every IC hit.
+            auto* cached = ctx->program->findCachedState(bytecodeOffset);
+
+            if (cached && cached->jitProbeDone)
+            {
+                // Native callee: cached delegate, invoke directly.
+                if (cached->cachedNativeFunc && ctx->vm)
+                {
+                    environment::NativeContext nativeCtx{ ctx->vm->getEnvironment(), ctx->vm->shared_from_this() };
+                    ctx->returnValue = cached->cachedNativeFunc(
+                        nativeCtx, std::span<const value::Value>(ctx->callArgs, argCount));
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+                // Interpreter-only callee (most common: small bodies that
+                // never crossed the JIT compilation threshold). Cached
+                // FunctionMetadata lets us skip the program->getFunction
+                // hashmap probe.
+                if (cached->cachedFuncMetadata && ctx->vm)
+                {
+                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                    ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
+                        funcName, cached->cachedFuncMetadata, argVec);
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+                // jitProbeDone but no cached target — name didn't resolve last
+                // time. Fall through to the throw at the end with a fresh lookup.
+            }
+
+            // Cold path: first call at this IP. Probe native + funcMeta and
+            // populate the IC. Deliberately do NOT cache the JIT-compiled
+            // entry here — calling JIT-compiled callees from inside the
+            // OSR'd outer loop nests asmjit frames, and per MYT-184 that
+            // path corrupted the native stack on some Math::-style callees
+            // (silent /GS cookie failure / STATUS_STACK_BUFFER_OVERRUN).
+            // Routing all IC hits through callFunctionFromJitDirect (mini-
+            // interpreter) keeps both static_call_hot.mt and
+            // generic_dispatch_hot.mt correct; speeding up the leaf-static
+            // case is a follow-up that needs a JIT-side inliner for static
+            // methods (mirrors the MYT-163 instance-method inliner).
+            ::environment::registry::NativeDelegate nativeFn{};
+            auto nativeRegistry = ctx->environment ? ctx->environment->getNativeRegistry() : nullptr;
+            if (nativeRegistry && nativeRegistry->hasNativeFunction(funcName))
+            {
+                nativeFn = nativeRegistry->findNativeFunction(funcName);
+            }
+
+            const bytecode::BytecodeProgram::FunctionMetadata* funcMeta = nullptr;
+            if (!nativeFn)
+            {
+                funcMeta = ctx->program->getFunction(funcName);
+            }
+
+            // Populate IC slot for warm path.
+            {
+                auto& slot = ctx->program->getOrCreateCachedState(bytecodeOffset);
+                slot.cachedNativeFunc = nativeFn;
+                if (funcMeta)
+                {
+                    slot.cachedFuncMetadata = funcMeta;
+                    slot.cachedStartOffset = funcMeta->startOffset;
+                    slot.cachedProgram = ctx->program;
+                    slot.cachedProgramIndex = 0;
+                }
+                slot.jitProbeDone = true;
+            }
+
+            if (nativeFn && ctx->vm)
+            {
+                environment::NativeContext nativeCtx{ ctx->vm->getEnvironment(), ctx->vm->shared_from_this() };
+                ctx->returnValue = nativeFn(
+                    nativeCtx, std::span<const value::Value>(ctx->callArgs, argCount));
+                ctx->hasReturnValue = true;
+                return;
+            }
+            if (funcMeta && ctx->vm)
+            {
+                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
+                    funcName, funcMeta, argVec);
+                ctx->hasReturnValue = true;
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+        }
+        catch (const OSRDeoptException&)
+        {
+            // See jit_call_function above for rationale.
+            try
+            {
+                if (ctx->vm)
+                {
+                    const std::string& funcName =
+                        ctx->program->getConstantPool().getString(nameIndex);
+                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                    ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                    ctx->hasReturnValue = true;
+                }
+            }
+            catch (...)
+            {
+                ctx->pendingException = std::current_exception();
+            }
+        }
+        catch (...)
+        {
             ctx->pendingException = std::current_exception();
         }
     }
@@ -328,6 +528,30 @@ namespace vm::jit
             }
 
             throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+        }
+        catch (const OSRDeoptException&)
+        {
+            // See jit_call_function above for rationale. Fast variant has
+            // funcIndex; resolve the metadata to get a function name.
+            try
+            {
+                if (ctx->vm)
+                {
+                    const auto* meta = ctx->program->getFunctionByIndex(funcIndex);
+                    if (meta)
+                    {
+                        const std::string& funcName =
+                            meta->mangledName.empty() ? meta->name : meta->mangledName;
+                        std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                        ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                        ctx->hasReturnValue = true;
+                    }
+                }
+            }
+            catch (...)
+            {
+                ctx->pendingException = std::current_exception();
+            }
         }
         catch (...)
         {

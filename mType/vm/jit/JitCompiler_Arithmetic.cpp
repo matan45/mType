@@ -826,6 +826,170 @@ namespace vm::jit
         return true;
     }
 
+    // INVOKE_BOOL_AND/OR/XOR/EQUALS: pop arg + receiver, normalize both to
+    // raw bool (jit_unbox_int treats bool as 0/1 in int64), inline-emit the
+    // op, push BOOL. Hint cache flushed at the dispatch level (the emitter
+    // reads stackBase memory directly).
+    static bool emitInvokeBoolBinary(JitEmissionState& s, OpCode op)
+    {
+        auto& cc = s.cc;
+        s.stackDepth--;
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::BOOL);
+        emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::BOOL);
+        Gp left = cc.new_gp64();
+        Gp right = cc.new_gp64();
+        cc.mov(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+        cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
+        // Normalize each operand to {0,1}: TEST + SETNE collapses any non-zero
+        // int64 into 1 so OR/XOR over arbitrary truthy ints stay correct.
+        Gp nl = cc.new_gp64();
+        Gp nr = cc.new_gp64();
+        cc.xor_(nl, nl);
+        cc.test(left, left);
+        cc.setne(nl.r8());
+        cc.xor_(nr, nr);
+        cc.test(right, right);
+        cc.setne(nr.r8());
+        switch (op)
+        {
+            case OpCode::INVOKE_BOOL_AND:    cc.and_(nl, nr); break;
+            case OpCode::INVOKE_BOOL_OR:     cc.or_(nl, nr); break;
+            case OpCode::INVOKE_BOOL_XOR:    cc.xor_(nl, nr); break;
+            case OpCode::INVOKE_BOOL_EQUALS:
+            {
+                Gp eq = cc.new_gp64();
+                cc.xor_(eq, eq);
+                cc.cmp(nl, nr);
+                cc.sete(eq.r8());
+                cc.mov(nl, eq);
+                break;
+            }
+            default: return false;
+        }
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), nl);
+        s.slotTypes.push_back(SlotType::BOOL);
+        return true;
+    }
+
+    // INVOKE_BOOL_NOT: pop receiver, push !receiver as BOOL.
+    static bool emitInvokeBoolNot(JitEmissionState& s)
+    {
+        auto& cc = s.cc;
+        SlotType rType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth - 1, rType, SlotType::BOOL);
+        Gp val = cc.new_gp64();
+        Gp result = cc.new_gp64();
+        cc.mov(val, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+        cc.xor_(result, result);
+        cc.test(val, val);
+        cc.sete(result.r8());
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), result);
+        s.slotTypes.push_back(SlotType::BOOL);
+        return true;
+    }
+
+    // INVOKE_STRING_LENGTH / IS_EMPTY: pop boxed receiver, call helper that
+    // reads field 0 / raw-string content, push int (length) or bool (isEmpty).
+    // Receiver lives on boxedBase (boxed-mode trigger fires for these opcodes).
+    static bool emitInvokeStringUnary(JitEmissionState& s, OpCode op)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        SlotType rType = popType(s);
+        // Receiver is a boxed Value at boxedBase[stackDepth-1].
+        Gp recvAddr = cc.new_gp64();
+        cc.lea(recvAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+        InvokeNode* inv;
+        uint64_t fn = (op == OpCode::INVOKE_STRING_LENGTH)
+            ? reinterpret_cast<uint64_t>(jit_invoke_string_length)
+            : reinterpret_cast<uint64_t>(jit_invoke_string_is_empty);
+        cc.invoke(Out(inv), fn,
+                  FuncSignature::build<int64_t, const value::Value*>());
+        inv->set_arg(0, recvAddr);
+        Gp ret = cc.new_gp64();
+        inv->set_ret(0, ret);
+        // Destroy the boxed receiver in place (it's being consumed) and write
+        // the raw int/bool result into stackBase[stackDepth-1].
+        InvokeNode* dest;
+        cc.invoke(Out(dest), reinterpret_cast<uint64_t>(jit_value_destroy),
+                  FuncSignature::build<void, value::Value*>());
+        dest->set_arg(0, recvAddr);
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), ret);
+        s.slotTypes.push_back(op == OpCode::INVOKE_STRING_LENGTH
+                                ? SlotType::INT : SlotType::BOOL);
+        (void)rType;
+        return true;
+    }
+
+    // INVOKE_STRING_EQUALS: pop arg + receiver (both boxed), call helper, push BOOL.
+    static bool emitInvokeStringEquals(JitEmissionState& s)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        s.stackDepth--;
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        Gp argAddr = cc.new_gp64();
+        cc.lea(argAddr, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
+        Gp recvAddr = cc.new_gp64();
+        cc.lea(recvAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_invoke_string_equals),
+                  FuncSignature::build<int64_t, const value::Value*, const value::Value*>());
+        inv->set_arg(0, recvAddr);
+        inv->set_arg(1, argAddr);
+        Gp ret = cc.new_gp64();
+        inv->set_ret(0, ret);
+        // Destroy both boxed Values (consumed) before overwriting their slot.
+        InvokeNode* dArg;
+        cc.invoke(Out(dArg), reinterpret_cast<uint64_t>(jit_value_destroy),
+                  FuncSignature::build<void, value::Value*>());
+        dArg->set_arg(0, argAddr);
+        InvokeNode* dRecv;
+        cc.invoke(Out(dRecv), reinterpret_cast<uint64_t>(jit_value_destroy),
+                  FuncSignature::build<void, value::Value*>());
+        dRecv->set_arg(0, recvAddr);
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), ret);
+        s.slotTypes.push_back(SlotType::BOOL);
+        (void)rType; (void)lType;
+        return true;
+    }
+
+    // INVOKE_STRING_CONCAT: pop arg + receiver (both boxed), allocate the
+    // concatenation result via jit_invoke_string_concat which interns into
+    // the StringPool when possible. Result is a boxed STRING/INTERNED_STRING
+    // Value written back to boxedBase[stackDepth-1].
+    static bool emitInvokeStringConcat(JitEmissionState& s)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        s.stackDepth--;
+        SlotType rType = popType(s);
+        SlotType lType = popType(s);
+        Gp argAddr = cc.new_gp64();
+        cc.lea(argAddr, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
+        Gp recvAddr = cc.new_gp64();
+        cc.lea(recvAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+        // jit_invoke_string_concat reads receiver+arg, destroys *dest in place,
+        // and writes the new boxed result. dest = receiver slot (in-place).
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_invoke_string_concat),
+                  FuncSignature::build<void, value::Value*, const value::Value*, const value::Value*>());
+        inv->set_arg(0, recvAddr);  // dest
+        inv->set_arg(1, recvAddr);  // receiver (read before destroy)
+        inv->set_arg(2, argAddr);
+        // Destroy the consumed arg slot.
+        InvokeNode* dArg;
+        cc.invoke(Out(dArg), reinterpret_cast<uint64_t>(jit_value_destroy),
+                  FuncSignature::build<void, value::Value*>());
+        dArg->set_arg(0, argAddr);
+        s.slotTypes.push_back(SlotType::BOXED);
+        (void)rType; (void)lType;
+        return true;
+    }
+
     static bool emitInvokePrimitiveOps(JitEmissionState& s,
                                         const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -864,6 +1028,22 @@ namespace vm::jit
 
             case OpCode::INVOKE_BOOL_GET_VALUE:
                 return emitInvokeBoolGetValue(s);
+
+            case OpCode::INVOKE_BOOL_AND:
+            case OpCode::INVOKE_BOOL_OR:
+            case OpCode::INVOKE_BOOL_XOR:
+            case OpCode::INVOKE_BOOL_EQUALS:
+                return emitInvokeBoolBinary(s, instr.opcode);
+            case OpCode::INVOKE_BOOL_NOT:
+                return emitInvokeBoolNot(s);
+
+            case OpCode::INVOKE_STRING_LENGTH:
+            case OpCode::INVOKE_STRING_IS_EMPTY:
+                return emitInvokeStringUnary(s, instr.opcode);
+            case OpCode::INVOKE_STRING_EQUALS:
+                return emitInvokeStringEquals(s);
+            case OpCode::INVOKE_STRING_CONCAT:
+                return emitInvokeStringConcat(s);
 
             default: return false;
         }
@@ -998,6 +1178,11 @@ namespace vm::jit
             case OpCode::INVOKE_BOOL_GET_VALUE:
             case OpCode::INVOKE_FLOAT_LESS_THAN: case OpCode::INVOKE_FLOAT_LESS_EQUAL:
             case OpCode::INVOKE_FLOAT_GREATER_THAN: case OpCode::INVOKE_FLOAT_GREATER_EQUAL:
+            case OpCode::INVOKE_BOOL_AND: case OpCode::INVOKE_BOOL_OR:
+            case OpCode::INVOKE_BOOL_XOR: case OpCode::INVOKE_BOOL_NOT:
+            case OpCode::INVOKE_BOOL_EQUALS:
+            case OpCode::INVOKE_STRING_LENGTH: case OpCode::INVOKE_STRING_IS_EMPTY:
+            case OpCode::INVOKE_STRING_EQUALS: case OpCode::INVOKE_STRING_CONCAT:
                 return emitInvokePrimitiveOps(s, instr);
 
             default:

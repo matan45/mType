@@ -175,6 +175,19 @@ namespace vm::runtime
         bool jitEnabled;
         size_t jitNativeDepth = 0;  // Tracks JIT native recursion depth to prevent C++ stack overflow
 
+        // Cycle-prevention flag: set while runJitMiniInterpret is draining a
+        // frame on behalf of a JIT-helper fallback (callFunctionFromJit /
+        // callMethodFromJit). When set, executeCallWithJit / _Fast skip JIT
+        // dispatch and route directly to the interpreter's handleCall —
+        // avoiding the 8-native-frame-per-iteration cycle that otherwise
+        // forms when a JIT-fallback mini-interpret hits a CALL whose JIT
+        // dispatch re-spawns another callFunctionFromJit (the asmjit-frame
+        // sizes blow Windows' 1MB native stack before the managed callStack's
+        // own 1000-frame overflow check fires). Non-recursive calls inside
+        // the fallback also stay in the interpreter — minor speed loss in a
+        // path that was already pessimised by the helper bailing out.
+        bool inJitFallbackInterpreter = false;
+
         // Phase 6: Inline caching and type specialization
         std::unique_ptr<vm::jit::ic::InlineCacheTable> inlineCacheTable;
         std::unique_ptr<vm::jit::ic::TypeFeedbackCollector> typeFeedbackCollector;
@@ -229,6 +242,9 @@ namespace vm::runtime
                                         std::span<const value::Value> args);
         value::Value invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
                                   const std::vector<value::Value>& args);
+        value::Value invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
+                                  const value::Value* args,
+                                  size_t argCount);
 
         // C++ Interop API - Field access
         value::Value getField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,
@@ -328,6 +344,13 @@ namespace vm::runtime
 
         // JIT helper: execute a function call from JIT code via interpreter
         value::Value callFunctionFromJit(const std::string& funcName, const std::vector<value::Value>& args);
+
+        // JIT IC fast path: skip the program->getFunction(funcName) hashmap
+        // lookup when the caller already has the resolved FunctionMetadata
+        // cached at the call-site IP.
+        value::Value callFunctionFromJitDirect(const std::string& funcName,
+                                                const bytecode::BytecodeProgram::FunctionMetadata* funcMeta,
+                                                const std::vector<value::Value>& args);
 
     private:
         // Shared mini-interpret loop used by callFunctionFromJit and the two

@@ -2275,10 +2275,22 @@
     <None Include="tests\testFiles\benchmarks\bitwise_tight_loop.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\boxed_bool_dispatch_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\boxed_bool_dispatch_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\boxed_primitive_dispatch_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\boxed_primitive_dispatch_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\boxed_string_dispatch_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\boxed_string_dispatch_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\cast_hot.expected">
@@ -2291,6 +2303,12 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\collections_hash_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\collections_hashset_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\collections_hashset_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\field_read_hot.expected">
@@ -2420,6 +2438,12 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\short_circuit_chain.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\static_call_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\static_call_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\stream_pipeline_hot.expected">
@@ -8119,6 +8143,12 @@
     <None Include="tests\testFiles\integration\pass\genericLibrary.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\hashmapRemoveBackshift.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\hashmapRemoveBackshift.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\ic\add_int_const_fuse.expected">
       <Filter>testFiles\integration\pass\ic</Filter>
     </None>
@@ -8365,6 +8395,12 @@
     <None Include="tests\testFiles\integration\pass\inlining\inline_with_loop.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\inlining\osr_return_boxed_object.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\osr_return_boxed_object.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>
@@ -8447,6 +8483,12 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\objectLifecycleEdgeCases.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\osr_return_value_loop_bailout.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\osr_return_value_loop_bailout.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\performanceWithLargeNamespaces.expected">
@@ -9448,7 +9490,13 @@
     <None Include="tests\testFiles\json\pass\serializeGenerics.mt">
       <Filter>testFiles\json\pass</Filter>
     </None>
+    <None Include="tests\testFiles\json\pass\serializeHashMap.expected">
+      <Filter>testFiles\json\pass</Filter>
+    </None>
     <None Include="tests\testFiles\json\pass\serializeHashMap.mt">
+      <Filter>testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\serializeHashSet.expected">
       <Filter>testFiles\json\pass</Filter>
     </None>
     <None Include="tests\testFiles\json\pass\serializeHashSet.mt">

@@ -85,6 +85,10 @@ namespace vm::jit
         }
     }
 
+    static bool tryEmitInlinedStaticCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr);
+
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount, size_t destStartSlot)
     {
         auto& cc = s.cc;
@@ -532,18 +536,26 @@ namespace vm::jit
             s.compileFailed = true;
             return true;
         }
+        if (tryEmitInlinedStaticCall(s, instr))
+            return true;
         emitBoxCallArgs(s, argCount);
         emitPopAndDestroyArgs(s, argCount);
+        // Pass the call-site IP so jit_call_function_ic can cache the resolved
+        // FunctionMetadata. Static call sites are monomorphic by definition;
+        // the cache eliminates the per-call program->getFunction hashmap probe.
+        Gp ipReg = cc.new_gp64();
+        cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
         Gp niReg = cc.new_gp64();
         cc.mov(niReg, static_cast<int64_t>(nameIndex));
         Gp acReg = cc.new_gp64();
         cc.mov(acReg, static_cast<int64_t>(argCount));
         InvokeNode* callInv;
-        cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_function),
-                  FuncSignature::build<void, JitContext*, uint32_t, size_t>());
+        cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_function_ic),
+                  FuncSignature::build<void, JitContext*, size_t, uint32_t, size_t>());
         callInv->set_arg(0, s.ctxPtr);
-        callInv->set_arg(1, niReg);
-        callInv->set_arg(2, acReg);
+        callInv->set_arg(1, ipReg);
+        callInv->set_arg(2, niReg);
+        callInv->set_arg(3, acReg);
         emitReturnValueCopyBoxed(s);
         return true;
     }
@@ -1168,6 +1180,145 @@ namespace vm::jit
         return true;
     }
 
+    static bool isInlineStaticPrimitiveType(const std::string& type)
+    {
+        return type == "int" || type == "float" || type == "bool";
+    }
+
+    // Static CALL_STATIC sites are monomorphic in the bytecode operand. For
+    // small non-generic primitive callees, paste the callee body into the
+    // caller instead of routing every iteration through jit_call_function_ic's
+    // mini-interpreter frame.
+    static bool tryEmitInlinedStaticCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        const uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
+        const size_t argCount = instr.operands[1];
+        if (nameIndex >= s.program.getConstantPool().strings.size())
+            return false;
+
+        static const bool osrInliningEnabled = []() {
+            const char* v = std::getenv("MTYPE_ENABLE_OSR_INLINING");
+            return !(v && v[0] == '0' && v[1] == '\0');
+        }();
+        if (s.isOSRCompilation && !osrInliningEnabled)
+            return false;
+
+        static const bool inliningDisabled = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_INLINING");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (inliningDisabled)
+            return false;
+
+        static const bool disableNestedInlining = []() {
+            const char* v = std::getenv("MTYPE_DISABLE_NESTED_INLINING");
+            return v && v[0] == '1' && v[1] == '\0';
+        }();
+        if (disableNestedInlining && !s.inlineStack.empty())
+            return false;
+
+        if (!s.usesBoxedTypes)
+            return false;
+
+        const std::string& funcName = s.program.getConstantPool().getString(nameIndex);
+        const auto* callee = s.program.getFunction(funcName);
+        if (!callee)
+            return false;
+        if (callee->parameterCount != argCount)
+            return false;
+        if (!callee->genericTypeParameters.empty())
+            return false;
+        for (const auto& paramType : callee->parameterTypes)
+        {
+            if (!isInlineStaticPrimitiveType(paramType))
+                return false;
+        }
+        if (!isInlineStaticPrimitiveType(callee->returnType))
+            return false;
+
+        auto decision = optimization::checkFunctionInlineEligibility(
+            s.program, *callee, s.currentCompilingFn, s.inlineStack.size());
+        if (s.inlineDecisions)
+            s.inlineDecisions->bumpFunction(decision);
+        if (decision != optimization::InlineDecision::INLINE)
+            return false;
+
+        const size_t localsBaseSlot = s.inlineStack.empty()
+            ? s.localCount
+            : s.inlineStack.back().localsBaseSlot
+              + s.inlineStack.back().calleeMeta->localCount;
+        if (localsBaseSlot + callee->localCount
+            > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+            return false;
+
+        const size_t calleePeak = computeCalleePeakOperandStack(s.program, *callee);
+        if (static_cast<size_t>(s.stackDepth) + calleePeak
+            > JitEmissionState::MAX_OP_STACK)
+            return false;
+
+        auto& cc = s.cc;
+        Label endLabel = cc.new_label();
+        auto localJumpLabels = createJumpLabels(
+            cc, s.program, callee->startOffset,
+            callee->startOffset + callee->instructionCount);
+
+        const InlineEmitStateSnapshot snap = snapshotEmitStateForInline(s);
+        const int firstArgStackIdx = snap.stackDepth - static_cast<int>(argCount);
+        if (firstArgStackIdx < 0)
+            return false;
+
+        emitInlineLocalCopy(s, firstArgStackIdx, localsBaseSlot, *callee);
+
+        InlineFrame frame;
+        frame.calleeMeta = callee;
+        frame.localsBaseSlot = localsBaseSlot;
+        frame.inlineEndLabel = endLabel;
+        frame.returnResultStackIdx = firstArgStackIdx;
+        frame.localJumpLabels = std::move(localJumpLabels);
+
+        const size_t prevInlineBase = s.inlineLocalsBase;
+        s.inlineStack.push_back(frame);
+        s.inlineLocalsBase = localsBaseSlot;
+
+        s.slotTypes.resize(s.slotTypes.size() - argCount);
+        s.stackDepth = firstArgStackIdx;
+        s.arrayInfoCache.clear();
+
+        ExitHandler onExit = [endLabel, firstArgStackIdx, localsBaseSlot, callee]
+            (JitEmissionState& es, size_t /*target*/) {
+            emitInlineReturnMaterialize(es, firstArgStackIdx, es.lastReturnSlotType);
+            emitInlineLocalDestroy(es, localsBaseSlot, *callee);
+            {
+                InvokeNode* pop = nullptr;
+                es.cc.invoke(Out(pop),
+                          reinterpret_cast<uint64_t>(jit_pop_inlined_class),
+                          FuncSignature::build<void, JitContext*>());
+                pop->set_arg(0, es.ctxPtr);
+            }
+            es.cc.jmp(endLabel);
+        };
+
+        emitInlineCalleeBody(s, *callee, firstArgStackIdx, onExit);
+
+        s.inlineStack.pop_back();
+        s.inlineLocalsBase = prevInlineBase;
+        s.currentIP = snap.currentIP;
+
+        if (s.compileFailed)
+            return true;
+
+        cc.jmp(endLabel);
+        cc.bind(endLabel);
+
+        s.stackDepth = firstArgStackIdx + 1;
+        s.slotTypes.resize(static_cast<size_t>(firstArgStackIdx));
+        s.slotTypes.push_back(SlotType::BOXED);
+        s.arrayInfoCache.clear();
+        return true;
+    }
+
     // Dispatcher: checks IC presence + eligibility + boxed mode, then routes
     // to the MONO or POLY emitter based on cache.state.
     //
@@ -1641,8 +1792,9 @@ namespace vm::jit
 
         InvokeNode* inv;
         cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_create_promise),
-                  FuncSignature::build<void, value::Value*>());
-        inv->set_arg(0, valueAddr);
+                  FuncSignature::build<void, JitContext*, value::Value*>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, valueAddr);
 
         s.slotTypes.push_back(SlotType::BOXED);
         return true;
@@ -1668,8 +1820,48 @@ namespace vm::jit
 
         InvokeNode* inv;
         cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_object_to_value_create_promise),
-                  FuncSignature::build<void, value::Value*>());
-        inv->set_arg(0, valueAddr);
+                  FuncSignature::build<void, JitContext*, value::Value*>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, valueAddr);
+
+        s.slotTypes.push_back(SlotType::BOXED);
+        return true;
+    }
+
+    // AWAIT is shaped like CREATE_PROMISE: TOS holds the Value to resolve,
+    // helper rewrites it in place. The single helper covers PROMISE_INT
+    // unwrap (always-taken in the benchmarks), heap-fulfilled value extract,
+    // and the deopt-throw for pending / rejected / non-promise. We pass the
+    // bytecode IP so the deopt path lands at the same AWAIT in the
+    // interpreter and re-runs through executeAwait's full suspend / throw
+    // machinery.
+    static bool emitAwaitOp(JitEmissionState& s)
+    {
+        if (!s.usesBoxedTypes || s.stackDepth <= 0)
+        {
+            s.compileFailed = true;
+            return true;
+        }
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        flushAllHints(s);
+
+        const int stackIdx = s.stackDepth - 1;
+        SlotType valueType = popType(s);
+        Gp valueAddr = cc.new_gp64();
+        cc.lea(valueAddr, Mem(s.boxedBase, static_cast<int32_t>(stackIdx * valueSize)));
+        emitBoxOrCopy(s, valueAddr, stackIdx, valueType);
+
+        Gp ipReg = cc.new_gp64();
+        cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
+
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_await),
+                  FuncSignature::build<void, JitContext*, value::Value*, uint64_t>());
+        inv->set_arg(0, s.ctxPtr);
+        inv->set_arg(1, valueAddr);
+        inv->set_arg(2, ipReg);
 
         s.slotTypes.push_back(SlotType::BOXED);
         return true;
@@ -1826,6 +2018,8 @@ namespace vm::jit
                 bytecode::BytecodeProgram::Instruction ret(OpCode::RETURN_VALUE);
                 return emitControlFlowOps(s, ret, nullptr);
             }
+            case OpCode::AWAIT:
+                return emitAwaitOp(s);
 
             case OpCode::GET_ITERATOR:       return emitGetIteratorOp(s);
             case OpCode::ITERATOR_HAS_NEXT:  return emitIteratorHasNextOp(s);
