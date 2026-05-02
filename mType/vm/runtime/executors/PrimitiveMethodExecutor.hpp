@@ -78,6 +78,25 @@ public:
     void handleInvokeFloatEquals(); // Float.equals(Float) -> bool
     void handleInvokeFloatCompare();// Float.compareTo(Float) -> int
 
+    // === Bool Object Method Handlers ===
+    // Pure value ops on raw bool — no allocation. Receiver/arg arrive as
+    // boxed Bool ObjectInstance/ValueObject or raw bool (lazy re-boxing);
+    // result is pushed as raw bool.
+    void handleInvokeBoolAnd();     // Bool.and(Bool) -> Bool (raw bool result)
+    void handleInvokeBoolOr();      // Bool.or(Bool) -> Bool
+    void handleInvokeBoolXor();     // Bool.xor(Bool) -> Bool
+    void handleInvokeBoolNot();     // Bool.not() -> Bool
+    void handleInvokeBoolEquals();  // Bool.equals(Bool) -> bool
+
+    // === String Object Method Handlers ===
+    // Inputs arrive as boxed String ObjectInstance/ValueObject or raw string
+    // (lazy re-boxing). length/isEmpty are pure reads; concat allocates a
+    // string bridge but skips the dispatch frame setup; equals is pure compare.
+    void handleInvokeStringLength();   // String.length() -> int
+    void handleInvokeStringConcat();   // String.concat(String) -> String (raw string result)
+    void handleInvokeStringEquals();   // String.equals(String) -> bool
+    void handleInvokeStringIsEmpty();  // String.isEmpty() -> bool
+
 private:
     ExecutionContext& context;
 
@@ -94,6 +113,11 @@ private:
     // Value-based unbox: handles both ObjectInstance and ValueObject
     int64_t unboxIntFromValue(const value::Value& val);
     double unboxFloatFromValue(const value::Value& val);
+    // Bool/String unbox helpers used by INVOKE_BOOL_* / INVOKE_STRING_*.
+    // Each handles raw primitive (lazy-rebox fast path), ValueObject, and
+    // ObjectInstance forms uniformly. Throws on null receiver/arg.
+    bool unboxBoolFromValue(const value::Value& val);
+    std::string unboxStringFromValue(const value::Value& val);
 
     // Box that returns appropriate type (ValueObject if value class, ObjectInstance otherwise)
     value::Value boxIntValue(int64_t val);

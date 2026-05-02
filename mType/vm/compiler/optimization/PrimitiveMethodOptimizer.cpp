@@ -42,6 +42,17 @@ const std::unordered_map<std::string, bytecode::OpCode> PrimitiveMethodOptimizer
 
     // Bool methods
     {"Bool::getValue", bytecode::OpCode::INVOKE_BOOL_GET_VALUE},
+    {"Bool::and", bytecode::OpCode::INVOKE_BOOL_AND},
+    {"Bool::or", bytecode::OpCode::INVOKE_BOOL_OR},
+    {"Bool::xor", bytecode::OpCode::INVOKE_BOOL_XOR},
+    {"Bool::not", bytecode::OpCode::INVOKE_BOOL_NOT},
+    {"Bool::equals", bytecode::OpCode::INVOKE_BOOL_EQUALS},
+
+    // String methods
+    {"String::length", bytecode::OpCode::INVOKE_STRING_LENGTH},
+    {"String::concat", bytecode::OpCode::INVOKE_STRING_CONCAT},
+    {"String::equals", bytecode::OpCode::INVOKE_STRING_EQUALS},
+    {"String::isEmpty", bytecode::OpCode::INVOKE_STRING_IS_EMPTY},
 };
 
 bool PrimitiveMethodOptimizer::isPrimitiveBoxType(const std::string& className) {
@@ -71,9 +82,11 @@ bool PrimitiveMethodOptimizer::canOptimizeMethod(const std::string& className,
     }
 
     // Validate argument count matches expected
-    // Binary operations (add, subtract, multiply, divide, modulo, equals, compareTo): 1 arg
-    // Unary operations (negate, abs, getValue): 0 args
-    if (methodName == "negate" || methodName == "abs" || methodName == "getValue") {
+    // Binary operations (add, subtract, multiply, divide, modulo, equals,
+    // compareTo, and, or, xor, concat): 1 arg
+    // Unary operations (negate, abs, getValue, not, length, isEmpty): 0 args
+    if (methodName == "negate" || methodName == "abs" || methodName == "getValue"
+        || methodName == "not" || methodName == "length" || methodName == "isEmpty") {
         return argCount == 0;
     } else {
         return argCount == 1;

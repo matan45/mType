@@ -4,7 +4,9 @@
 #include "../../gc/GC.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
+#include "../../value/StringPool.hpp"
 #include <new>
+#include <string>
 
 namespace vm::jit
 {
@@ -199,6 +201,102 @@ namespace vm::jit
         }
 
     } // extern "C"
+
+    namespace
+    {
+        // Read the string content out of a Value of either raw STRING /
+        // INTERNED_STRING form, or a boxed String ObjectInstance/ValueObject
+        // with field 0 = string. Returns true on success and writes into out;
+        // returns false otherwise (caller treats as empty/equal-mismatch).
+        bool tryReadString(const value::Value& val, std::string& out)
+        {
+            if (value::isString(val))
+            {
+                out = value::asString(val);
+                return true;
+            }
+            if (value::isInternedString(val))
+            {
+                out = std::string(value::asInternedString(val).getString());
+                return true;
+            }
+            if (value::isAnyObject(val))
+            {
+                auto* obj = value::asObjectInstanceRaw(val);
+                if (!obj) return false;
+                obj->ensureFieldVector();
+                const value::Value& field = obj->getFieldByIndex(0);
+                if (value::isString(field)) { out = value::asString(field); return true; }
+                if (value::isInternedString(field))
+                {
+                    out = std::string(value::asInternedString(field).getString());
+                    return true;
+                }
+                return false;
+            }
+            if (value::isValueObject(val))
+            {
+                const auto& obj = value::asValueObject(val);
+                if (!obj) return false;
+                const value::Value& field = obj->getFieldByIndex(0);
+                if (value::isString(field)) { out = value::asString(field); return true; }
+                if (value::isInternedString(field))
+                {
+                    out = std::string(value::asInternedString(field).getString());
+                    return true;
+                }
+                return false;
+            }
+            return false;
+        }
+    }
+
+    int64_t jit_invoke_string_length(const value::Value* receiver)
+    {
+        std::string s;
+        if (!tryReadString(*receiver, s)) return 0;
+        return static_cast<int64_t>(s.size());
+    }
+
+    int64_t jit_invoke_string_is_empty(const value::Value* receiver)
+    {
+        std::string s;
+        if (!tryReadString(*receiver, s)) return 1;
+        return s.empty() ? 1 : 0;
+    }
+
+    int64_t jit_invoke_string_equals(const value::Value* receiver, const value::Value* arg)
+    {
+        std::string a, b;
+        if (!tryReadString(*receiver, a) || !tryReadString(*arg, b)) return 0;
+        return (a == b) ? 1 : 0;
+    }
+
+    void jit_invoke_string_concat(value::Value* dest,
+                                  const value::Value* receiver,
+                                  const value::Value* arg)
+    {
+        std::string a, b;
+        if (!tryReadString(*receiver, a) || !tryReadString(*arg, b))
+        {
+            std::destroy_at(dest);
+            new (dest) value::Value(std::string{});
+            return;
+        }
+        std::string result = std::move(a) + b;
+        // Mirror the interpreter handler: try to intern. For cycling concat
+        // patterns the pool collapses repeated allocations into refcount bumps.
+        value::InternedString interned = value::StringPool::getInstance().intern(result);
+        std::destroy_at(dest);
+        if (!interned.empty())
+        {
+            new (dest) value::Value(std::move(interned));
+        }
+        else
+        {
+            new (dest) value::Value(std::move(result));
+        }
+    }
 
     void jit_create_promise(value::Value* val)
     {

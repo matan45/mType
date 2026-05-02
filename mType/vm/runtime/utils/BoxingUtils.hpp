@@ -34,6 +34,8 @@ namespace vm::runtime::utils
             className = "Float";
         else if (value::isBool(val))
             className = "Bool";
+        else if (value::isString(val) || value::isInternedString(val))
+            className = "String";
         else
             return val;
 

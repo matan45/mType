@@ -294,6 +294,25 @@ namespace vm::bytecode
         INVOKE_FLOAT_GREATER_THAN, // Float.greaterThan(Float) (MYT-155)
         INVOKE_FLOAT_GREATER_EQUAL,// Float.greaterThanOrEqual(Float) (MYT-155)
 
+        // Bool object methods. Inputs arrive as boxed Bool ObjectInstance /
+        // ValueObject or raw bool primitives (via lazy re-boxing); handlers
+        // unbox to raw bool, compute, push raw bool. No allocation.
+        INVOKE_BOOL_AND,        // Bool.and(Bool) -> Bool
+        INVOKE_BOOL_OR,         // Bool.or(Bool) -> Bool
+        INVOKE_BOOL_XOR,        // Bool.xor(Bool) -> Bool
+        INVOKE_BOOL_NOT,        // Bool.not() -> Bool
+        INVOKE_BOOL_EQUALS,     // Bool.equals(Bool) -> bool
+
+        // String object methods. Inputs arrive as boxed String ObjectInstance /
+        // ValueObject or raw string primitives. Handlers unbox to std::string,
+        // compute, push raw result (string for concat, int for length, bool for
+        // equals/isEmpty). concat still allocates a string bridge but skips the
+        // method-dispatch frame setup.
+        INVOKE_STRING_LENGTH,   // String.length() -> int
+        INVOKE_STRING_CONCAT,   // String.concat(String) -> String
+        INVOKE_STRING_EQUALS,   // String.equals(String) -> bool
+        INVOKE_STRING_IS_EMPTY, // String.isEmpty() -> bool
+
         // === Iterator Operations (151-154) ===
         GET_ITERATOR,           // Get iterator from iterable object (calls iterator() method)
         ITERATOR_HAS_NEXT,      // Check if iterator has more elements (calls hasNext())
@@ -582,6 +601,17 @@ namespace vm::bytecode
             case OpCode::INVOKE_FLOAT_LESS_EQUAL: return "INVOKE_FLOAT_LESS_EQUAL";
             case OpCode::INVOKE_FLOAT_GREATER_THAN: return "INVOKE_FLOAT_GREATER_THAN";
             case OpCode::INVOKE_FLOAT_GREATER_EQUAL: return "INVOKE_FLOAT_GREATER_EQUAL";
+
+            case OpCode::INVOKE_BOOL_AND: return "INVOKE_BOOL_AND";
+            case OpCode::INVOKE_BOOL_OR: return "INVOKE_BOOL_OR";
+            case OpCode::INVOKE_BOOL_XOR: return "INVOKE_BOOL_XOR";
+            case OpCode::INVOKE_BOOL_NOT: return "INVOKE_BOOL_NOT";
+            case OpCode::INVOKE_BOOL_EQUALS: return "INVOKE_BOOL_EQUALS";
+
+            case OpCode::INVOKE_STRING_LENGTH: return "INVOKE_STRING_LENGTH";
+            case OpCode::INVOKE_STRING_CONCAT: return "INVOKE_STRING_CONCAT";
+            case OpCode::INVOKE_STRING_EQUALS: return "INVOKE_STRING_EQUALS";
+            case OpCode::INVOKE_STRING_IS_EMPTY: return "INVOKE_STRING_IS_EMPTY";
 
             case OpCode::GET_ITERATOR: return "GET_ITERATOR";
             case OpCode::ITERATOR_HAS_NEXT: return "ITERATOR_HAS_NEXT";

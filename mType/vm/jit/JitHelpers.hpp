@@ -247,6 +247,18 @@ namespace vm::jit
                            int64_t val);
     int64_t* jit_array_get_raw_int_ptr(const value::Value* array);
 
+    // String primitive-method helpers (paired with INVOKE_STRING_* opcodes).
+    // Operate directly on boxed Values living on the JIT operand stack —
+    // emitter passes lea(boxedBase + slot*VALUE_SIZE) for receiver/arg/dest.
+    // No-throw: std::string operations only fail on OOM (catastrophic) and
+    // type mismatches return a safe default rather than raising.
+    int64_t jit_invoke_string_length(const value::Value* receiver);
+    int64_t jit_invoke_string_is_empty(const value::Value* receiver);
+    int64_t jit_invoke_string_equals(const value::Value* receiver, const value::Value* arg);
+    void jit_invoke_string_concat(value::Value* dest,
+                                  const value::Value* receiver,
+                                  const value::Value* arg);
+
     struct JitArrayInfo {
         int64_t* data;     // raw int pointer (nullptr if heterogeneous)
         int64_t  length;   // element count

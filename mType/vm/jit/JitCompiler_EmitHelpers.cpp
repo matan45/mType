@@ -170,6 +170,13 @@ namespace vm::jit
                 case OpCode::INVOKE_FLOAT_GET_VALUE: case OpCode::INVOKE_BOOL_GET_VALUE:
                 case OpCode::INVOKE_FLOAT_LESS_THAN: case OpCode::INVOKE_FLOAT_LESS_EQUAL:
                 case OpCode::INVOKE_FLOAT_GREATER_THAN: case OpCode::INVOKE_FLOAT_GREATER_EQUAL:
+                // Bool/String object methods receive boxed Bool/String objects on
+                // the operand stack, same boxed-mode trigger as INVOKE_INT/FLOAT.
+                case OpCode::INVOKE_BOOL_AND: case OpCode::INVOKE_BOOL_OR:
+                case OpCode::INVOKE_BOOL_XOR: case OpCode::INVOKE_BOOL_NOT:
+                case OpCode::INVOKE_BOOL_EQUALS:
+                case OpCode::INVOKE_STRING_LENGTH: case OpCode::INVOKE_STRING_CONCAT:
+                case OpCode::INVOKE_STRING_EQUALS: case OpCode::INVOKE_STRING_IS_EMPTY:
                     return true;
                 default: break;
             }

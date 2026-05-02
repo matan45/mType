@@ -620,6 +620,28 @@ namespace vm::runtime
         case OpCode::INVOKE_FLOAT_GREATER_EQUAL: primitiveMethodExecutor->handleInvokeFloatGreaterEqual();
             break;
 
+        // Bool object methods
+        case OpCode::INVOKE_BOOL_AND: primitiveMethodExecutor->handleInvokeBoolAnd();
+            break;
+        case OpCode::INVOKE_BOOL_OR: primitiveMethodExecutor->handleInvokeBoolOr();
+            break;
+        case OpCode::INVOKE_BOOL_XOR: primitiveMethodExecutor->handleInvokeBoolXor();
+            break;
+        case OpCode::INVOKE_BOOL_NOT: primitiveMethodExecutor->handleInvokeBoolNot();
+            break;
+        case OpCode::INVOKE_BOOL_EQUALS: primitiveMethodExecutor->handleInvokeBoolEquals();
+            break;
+
+        // String object methods
+        case OpCode::INVOKE_STRING_LENGTH: primitiveMethodExecutor->handleInvokeStringLength();
+            break;
+        case OpCode::INVOKE_STRING_CONCAT: primitiveMethodExecutor->handleInvokeStringConcat();
+            break;
+        case OpCode::INVOKE_STRING_EQUALS: primitiveMethodExecutor->handleInvokeStringEquals();
+            break;
+        case OpCode::INVOKE_STRING_IS_EMPTY: primitiveMethodExecutor->handleInvokeStringIsEmpty();
+            break;
+
         // Arrays - delegated to ArrayExecutor
         case OpCode::NEW_ARRAY: arrayExecutor->handleNewArray(instr);
             break;

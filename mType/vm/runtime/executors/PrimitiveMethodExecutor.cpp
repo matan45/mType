@@ -4,6 +4,7 @@
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
+#include "../../../value/StringPool.hpp"
 #include <variant>
 #include <cassert>
 
@@ -93,6 +94,61 @@ double PrimitiveMethodExecutor::unboxFloatFromValue(const value::Value& val) {
         return unboxFloat(value::asObject(val));
     }
     throw errors::RuntimeException("Cannot unbox Float: unexpected value type");
+}
+
+bool PrimitiveMethodExecutor::unboxBoolFromValue(const value::Value& val) {
+    // Fast path: lazy re-boxing left a raw bool.
+    if (value::isBool(val)) {
+        return value::asBool(val);
+    }
+    if (value::isValueObject(val)) {
+        const auto& obj = value::asValueObject(val);
+        if (!obj) throw errors::RuntimeException("Cannot unbox null Bool value object");
+        const value::Value& fieldValue = obj->getFieldByIndex(0);
+        if (!value::isBool(fieldValue)) {
+            throw errors::RuntimeException("Bool value object 'value' field is not a bool");
+        }
+        return value::asBool(fieldValue);
+    }
+    if (value::isObject(val)) {
+        const auto& obj = value::asObject(val);
+        if (!obj) throw errors::RuntimeException("Cannot unbox null Bool object");
+        const value::Value& fieldValue = obj->getFieldByIndex(0);
+        if (!value::isBool(fieldValue)) {
+            throw errors::RuntimeException("Bool object 'value' field is not a bool");
+        }
+        return value::asBool(fieldValue);
+    }
+    throw errors::RuntimeException("Cannot unbox Bool: unexpected value type");
+}
+
+std::string PrimitiveMethodExecutor::unboxStringFromValue(const value::Value& val) {
+    // Fast path: raw string (lazy re-boxing).
+    if (value::isString(val)) {
+        return value::asString(val);
+    }
+    if (value::isInternedString(val)) {
+        return std::string(value::asInternedString(val).getString());
+    }
+    if (value::isValueObject(val)) {
+        const auto& obj = value::asValueObject(val);
+        if (!obj) throw errors::RuntimeException("Cannot unbox null String value object");
+        const value::Value& fieldValue = obj->getFieldByIndex(0);
+        if (value::isString(fieldValue)) return value::asString(fieldValue);
+        if (value::isInternedString(fieldValue))
+            return std::string(value::asInternedString(fieldValue).getString());
+        throw errors::RuntimeException("String value object 'value' field is not a string");
+    }
+    if (value::isObject(val)) {
+        const auto& obj = value::asObject(val);
+        if (!obj) throw errors::RuntimeException("Cannot unbox null String object");
+        const value::Value& fieldValue = obj->getFieldByIndex(0);
+        if (value::isString(fieldValue)) return value::asString(fieldValue);
+        if (value::isInternedString(fieldValue))
+            return std::string(value::asInternedString(fieldValue).getString());
+        throw errors::RuntimeException("String object 'value' field is not a string");
+    }
+    throw errors::RuntimeException("Cannot unbox String: unexpected value type");
 }
 
 value::Value PrimitiveMethodExecutor::boxIntValue(int64_t val) {
@@ -446,6 +502,88 @@ void PrimitiveMethodExecutor::handleInvokeFloatCompare() {
 
     int64_t result = (receiver < arg) ? -1 : (receiver > arg) ? 1 : 0;
     context.stackManager->push(result);
+}
+
+// === Bool Object Method Handlers ===
+
+void PrimitiveMethodExecutor::handleInvokeBoolAnd() {
+    value::Value argValue = context.stackManager->pop();
+    bool arg = unboxBoolFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    bool receiver = unboxBoolFromValue(receiverValue);
+    context.stackManager->push(value::Value(receiver && arg));
+}
+
+void PrimitiveMethodExecutor::handleInvokeBoolOr() {
+    value::Value argValue = context.stackManager->pop();
+    bool arg = unboxBoolFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    bool receiver = unboxBoolFromValue(receiverValue);
+    context.stackManager->push(value::Value(receiver || arg));
+}
+
+void PrimitiveMethodExecutor::handleInvokeBoolXor() {
+    value::Value argValue = context.stackManager->pop();
+    bool arg = unboxBoolFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    bool receiver = unboxBoolFromValue(receiverValue);
+    // Mirror Bool.xor: (a||b) && !(a&&b), equivalent to a != b for bools.
+    context.stackManager->push(value::Value(receiver != arg));
+}
+
+void PrimitiveMethodExecutor::handleInvokeBoolNot() {
+    value::Value receiverValue = context.stackManager->pop();
+    bool receiver = unboxBoolFromValue(receiverValue);
+    context.stackManager->push(value::Value(!receiver));
+}
+
+void PrimitiveMethodExecutor::handleInvokeBoolEquals() {
+    value::Value argValue = context.stackManager->pop();
+    bool arg = unboxBoolFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    bool receiver = unboxBoolFromValue(receiverValue);
+    context.stackManager->push(value::Value(receiver == arg));
+}
+
+// === String Object Method Handlers ===
+
+void PrimitiveMethodExecutor::handleInvokeStringLength() {
+    value::Value receiverValue = context.stackManager->pop();
+    std::string s = unboxStringFromValue(receiverValue);
+    context.stackManager->push(static_cast<int64_t>(s.size()));
+}
+
+void PrimitiveMethodExecutor::handleInvokeStringConcat() {
+    value::Value argValue = context.stackManager->pop();
+    std::string arg = unboxStringFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    std::string receiver = unboxStringFromValue(receiverValue);
+    std::string result = std::move(receiver) + arg;
+    // Try the global StringPool first — for cycling patterns (e.g. the
+    // benchmark concats "item-" + (i%13) producing 13 unique strings) every
+    // hit after warmup avoids the bridge allocation. intern() returns an
+    // empty handle for strings outside [1, 1024] chars; fall back to the raw
+    // STD_STRING bridge in that case.
+    value::InternedString interned = value::StringPool::getInstance().intern(result);
+    if (!interned.empty()) {
+        context.stackManager->push(value::Value(std::move(interned)));
+    } else {
+        context.stackManager->push(value::Value(std::move(result)));
+    }
+}
+
+void PrimitiveMethodExecutor::handleInvokeStringEquals() {
+    value::Value argValue = context.stackManager->pop();
+    std::string arg = unboxStringFromValue(argValue);
+    value::Value receiverValue = context.stackManager->pop();
+    std::string receiver = unboxStringFromValue(receiverValue);
+    context.stackManager->push(value::Value(receiver == arg));
+}
+
+void PrimitiveMethodExecutor::handleInvokeStringIsEmpty() {
+    value::Value receiverValue = context.stackManager->pop();
+    std::string s = unboxStringFromValue(receiverValue);
+    context.stackManager->push(value::Value(s.empty()));
 }
 
 } // namespace vm::runtime
