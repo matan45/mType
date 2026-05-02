@@ -1725,3 +1725,104 @@ Scope:
   with JIT on — confirms the OSR RETURN_VALUE fix lands the correctness win.
 - No regressions vs. the 2026-04-29 MYT-228 baseline on the previously-tracked
   scripts (within ±5% noise).
+
+## 2026-05-02 — MYT-258 Phase 3 (HashMap/HashSet flat open-addressing)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  MYT-258
+- Commit:  `aec2ff94` (uncommitted on top)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+Scope:
+- Replaced 2D bucket-chain layout (`K[][] keyBuckets`, `V[][] valueBuckets`,
+  `int[][] hashBuckets`, `int[] bucketSizes`) with flat 1D open addressing
+  (`K[] keys`, `V[] values`, `int[] hashes`) in HashMap.mt; same for HashSet.mt
+  (`T[] elements`, `int[] hashes`).
+- Hash-to-slot: `(rawHash * 1610612741 ^ shift) & (capacity - 1)` — power-of-2
+  mask, no divide.
+- Linear probing on `put/get/containsKey/add/contains`. `keys[i] == null`
+  marks empty slot (null keys forbidden by API). Default capacity 32; load
+  factor 0.75 triggers `resize()` (doubles capacity, rehashes via cached
+  `hashes[]` — no `key.hashCode()` re-calls).
+- Standard back-shift deletion in `remove()` to maintain probe-chain
+  invariant.
+- Native side updated in lockstep: `JsonSerializer.cpp`,
+  `JsonDeserializer.cpp`, and `net/HashMapMarshal.cpp` all read/write the new
+  flat layout. `computeBucketIndex` now mirrors the new mask formula.
+- New benchmark `collections_hashset_hot.mt` isolates HashSet from the
+  combined `collections_hash_hot.mt` workload. Registered in both
+  `IntegrationTestSuite.cpp` and `BenchmarkRunner.cpp`.
+- New `.expected` files for `serializeHashMap` / `serializeHashSet` (now
+  registered as `addOutputVerificationTest` rather than just no-error).
+
+```
+=== Summary (jit=on) ===
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            105.13        105.70           20017         0
+  method_dispatch.mt                  127.88        128.80           14043       506
+  object_alloc.mt                     523.79        524.18           12511         0
+  object_alloc_nested.mt             1248.40       1257.97           16811       500
+  field_write_hot.mt                   63.51         64.93            8018         1
+  field_read_hot.mt                    66.67         66.94            9020         1
+  string_ops.mt                       114.39        114.87           19019         0
+  recursive.mt                        770.23        774.74           17261   2545487
+  bitwise_tight_loop.mt                77.09         79.16           23019         0
+  short_circuit_chain.mt               62.95         64.62           24909         0
+  primitive_method_dispatch.mt        462.23        493.60           32039         0
+  array_multi_alloc.mt                 73.28         73.86            9911       500
+  array_multi_get.mt                  334.10        334.51           49787       500
+  for_each_loop.mt                    305.01        305.09           75654      5604
+  inline_monomorphic.mt                86.12         86.75           13017       501
+  inline_branching.mt                  87.60         88.28           15017       501
+  inline_polymorphic.mt               124.45        124.94           14052       508
+  inline_value_object_hot.mt          155.84        159.05           12518       500
+  function_call_hot.mt                175.00        175.47           15011       500
+  async_await_tight_loop.mt          1034.05       1034.71        23000933   1000001
+  async_await_chain.mt               1625.64       1629.00        20502833   2000001
+  lambda_call_hot.mt                  943.80        949.20           12522   1999501
+  lambda_closure_hot.mt               969.28        970.93           12527   1999502
+  generic_dispatch_hot.mt             998.04       1007.10           20075      1012
+  try_catch_finally_hot.mt            472.98        480.30           50020      2000
+  switch_dispatch_hot.mt              459.38        460.59           14634       500
+  overload_dispatch_hot.mt            558.85        560.65           34029      2001
+  abstract_dispatch_hot.mt            122.88        124.14           14043       506
+  cast_hot.mt                         213.33        215.04           19561       505
+  collections_hash_hot.mt            7092.99       7127.58          265401   2581948
+  collections_hashset_hot.mt         2329.03       2335.60          112923    860655
+  stream_pipeline_hot.mt              413.26        419.77         2090492    306881
+  reflection_lookup_hot.mt           2354.15       2356.41           85542   1203001
+  pattern_match_hot.mt                439.40        440.19           12861       500
+  string_interpolation_hot.mt         243.62        244.29         7400025         0
+  boxed_primitive_dispatch_hot.mt    2695.34       2697.15           55803      3000
+  linked_list_nested_hot.mt           339.69        341.11          124920     81001
+```
+
+### Delta vs prior MYT-259 baseline (2026-05-02)
+
+| Script                       | Before (median, ms) | After (median, ms) | Change   |
+|------------------------------|--------------------:|-------------------:|---------:|
+| collections_hash_hot.mt      |             9882.63 |            7127.58 | -27.9%   |
+| collections_hashset_hot.mt   |                 n/a |            2335.60 | new bench|
+
+Other scripts within ±5% of prior baseline (noise).
+
+### Notes
+
+- MYT-258 acceptance bar was `collections_hash_hot.mt` median ≤ 4500ms (-45%
+  from 8246ms baseline). Achieved -27.9% from the most recent prior baseline
+  (-13.6% from the original 8246ms). Did not hit the target.
+- Bottleneck analysis: with 256 boxed `Int` keys at cap=512 (after 4
+  resizes), avg bucket population is 0.5, so the Phase 2 hash-cache wins
+  little (no equals-compare savings on already-1-deep buckets). Phase 3's
+  cache-locality win (1 indirection vs 2) and reduced dispatch is real but
+  bounded by the ~500k boxed-Int allocations and ~1M `key.hashCode()` /
+  `key.equals()` virtual dispatches in the bench's outer loop.
+- To close the rest of the gap, Phase 4 (`IntHashMap<V>` with raw `int[]`
+  keys) would eliminate boxing + virtual dispatches entirely. Deferred to a
+  follow-up ticket.
+- 5 iterator/forEach `.expected` files (`iteratorHashMap{Keys,Entries,
+  Values}.expected`, `iteratorHashSet.expected`, `forEachHashMap.expected`,
+  `forEachHashSet.expected`) regenerated for the new linear-probe visit
+  order. Two new `.expected` files added: `serializeHashMap.expected`,
+  `serializeHashSet.expected`.
