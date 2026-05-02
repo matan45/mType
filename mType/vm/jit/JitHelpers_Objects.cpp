@@ -130,9 +130,21 @@ namespace vm::jit
 
         try
         {
-            const std::string& methodName = ctx->program->getConstantPool().getString(methodNameIndex);
-
             value::Value& objectValue = ctx->callArgs[0];
+
+            if (value::isLambda(objectValue))
+            {
+                if (ctx->vm)
+                {
+                    auto lambda = value::asLambda(objectValue);
+                    ctx->returnValue = ctx->vm->invokeLambda(
+                        lambda, &ctx->callArgs[1], argCount);
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+            }
+
+            const std::string& methodName = ctx->program->getConstantPool().getString(methodNameIndex);
 
             std::vector<value::Value> args;
             for (size_t i = 1; i <= argCount; i++)
@@ -199,7 +211,8 @@ namespace vm::jit
                 if (ctx->vm)
                 {
                     auto lambda = value::asLambda(objectValue);
-                    ctx->returnValue = ctx->vm->invokeLambda(lambda, args);
+                    ctx->returnValue = ctx->vm->invokeLambda(
+                        lambda, &ctx->callArgs[1], argCount);
                     ctx->hasReturnValue = true;
                     return;
                 }
@@ -244,6 +257,15 @@ namespace vm::jit
         try
         {
             value::Value& receiverValue = ctx->callArgs[0];
+
+            if (value::isLambda(receiverValue))
+            {
+                auto lambda = value::asLambda(receiverValue);
+                ctx->returnValue = ctx->vm->invokeLambda(
+                    lambda, &ctx->callArgs[1], argCount);
+                ctx->hasReturnValue = true;
+                return;
+            }
 
             // Unified receiver-kind handling: ObjectInstance and ValueObject
             // hits both route through callMethodFromJitDirect(Value). The
@@ -472,18 +494,20 @@ namespace vm::jit
         // would try to match the literal name "T" against class hierarchies
         // and always return 0.
         const std::string& paramName = ctx->program->getConstantPool().getString(paramNameIndex);
-        std::string resolved = paramName;
+        const std::string* resolvedPtr = &paramName;
 
         if (ctx->vm)
         {
             const auto& callStack = ctx->vm->getCallStack();
             for (auto it = callStack.rbegin(); it != callStack.rend(); ++it) {
                 if (const auto* p = vm::runtime::utils::resolveTypeParamInFrame(*it, paramName)) {
-                    resolved = *p;
+                    resolvedPtr = p;
                     break;
                 }
             }
         }
+
+        const std::string& resolved = *resolvedPtr;
 
         if (resolved == "Int" || resolved == "int")
             return value::isInt(*val) ? 1 : 0;

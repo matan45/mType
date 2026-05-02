@@ -312,6 +312,13 @@ namespace vm::runtime
     value::Value VirtualMachine::invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
                                                const std::vector<value::Value>& args)
     {
+        return invokeLambda(lambda, args.data(), args.size());
+    }
+
+    value::Value VirtualMachine::invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
+                                               const value::Value* args,
+                                               size_t argCount)
+    {
         // Save current state up front so the typed catch can decorate the
         // exception against the LIVE callStack before we restore.
         size_t savedIP = instructionPointer;
@@ -332,19 +339,19 @@ namespace vm::runtime
             }
 
             size_t paramCount = lambda->parameterCount;
-            if (args.size() != paramCount)
+            if (argCount != paramCount)
             {
                 throw errors::RuntimeException("Lambda expects " + std::to_string(paramCount) +
-                    " arguments but got " + std::to_string(args.size()));
+                    " arguments but got " + std::to_string(argCount));
             }
 
             currentFinallyOffset = SIZE_MAX;
             size_t frameBase = stackManager->size();
 
             // Push arguments onto stack
-            for (const auto& arg : args)
+            for (size_t i = 0; i < argCount; ++i)
             {
-                push(arg);
+                push(args[i]);
             }
 
             // Create call frame
@@ -378,7 +385,7 @@ namespace vm::runtime
             }
 
             // Register parameter names in shared frame
-            for (size_t i = 0; i < args.size(); ++i)
+            for (size_t i = 0; i < argCount; ++i)
             {
                 if (i < lambda->parameterNames.size() && !lambda->parameterNames[i].empty())
                 {
@@ -401,7 +408,7 @@ namespace vm::runtime
             auto* lambdaMetadata = program->getFunctionMeta(lambda->functionName);
             if (lambdaMetadata)
             {
-                size_t pushedSlots = args.size() + lambda->capturedSlots.size();
+                size_t pushedSlots = argCount + lambda->capturedSlots.size();
                 if (lambdaMetadata->localCount > pushedSlots)
                 {
                     size_t additionalLocals = lambdaMetadata->localCount - pushedSlots;

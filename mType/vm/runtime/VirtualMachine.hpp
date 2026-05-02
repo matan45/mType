@@ -229,6 +229,9 @@ namespace vm::runtime
                                         std::span<const value::Value> args);
         value::Value invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
                                   const std::vector<value::Value>& args);
+        value::Value invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
+                                  const value::Value* args,
+                                  size_t argCount);
 
         // C++ Interop API - Field access
         value::Value getField(std::shared_ptr<runtimeTypes::klass::ObjectInstance> instance,

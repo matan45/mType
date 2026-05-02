@@ -45,6 +45,7 @@ namespace reflection
         std::shared_ptr<runtimeTypes::klass::MethodDefinition> method;
         int64_t classHandle;
         std::string methodName;
+        size_t userParamCount = 0;
     };
 
     /**
@@ -108,6 +109,11 @@ namespace reflection
         // "classHandle:methodName(param1,param2,...)" -> handle
         std::unordered_map<std::string, int64_t> methodKeyToHandle;
 
+        // Hot lookup caches for Class.getField/getMethod style reflection.
+        // Key includes declared/public mode so access filtering semantics stay exact.
+        std::unordered_map<std::string, int64_t> fieldLookupKeyToHandle;
+        std::unordered_map<std::string, int64_t> methodLookupKeyToHandle;
+
         // "classHandle:ctor:index" -> handle
         std::unordered_map<std::string, int64_t> constructorKeyToHandle;
 
@@ -134,6 +140,8 @@ namespace reflection
         static std::string makeFieldKey(int64_t classHandle, const std::string& fieldName);
         static std::string makeMethodKey(int64_t classHandle, const std::string& methodName,
                                          const std::vector<std::string>& paramTypes);
+        static std::string makeLookupKey(int64_t classHandle, const std::string& name,
+                                         size_t arity, bool declaredOnly);
         static std::string makeConstructorKey(int64_t classHandle, int constructorIndex);
 
         // Private constructor for singleton
@@ -152,6 +160,8 @@ namespace reflection
             // Clear reverse mapping caches
             fieldKeyToHandle.clear();
             methodKeyToHandle.clear();
+            fieldLookupKeyToHandle.clear();
+            methodLookupKeyToHandle.clear();
             constructorKeyToHandle.clear();
             annotationPtrToHandle.clear();
             // Clear handle type tracking
@@ -257,6 +267,11 @@ namespace reflection
          */
         FieldHandleInfo getField(int64_t handle) const;
 
+        int64_t findCachedFieldLookup(int64_t classHandle, const std::string& fieldName,
+                                      bool declaredOnly) const;
+        void cacheFieldLookup(int64_t classHandle, const std::string& fieldName,
+                              bool declaredOnly, int64_t fieldHandle);
+
         // ========== Method Handle Management ==========
 
         /**
@@ -275,6 +290,11 @@ namespace reflection
          * @return MethodHandleInfo (method may be nullptr if not found)
          */
         MethodHandleInfo getMethod(int64_t handle) const;
+
+        int64_t findCachedMethodLookup(int64_t classHandle, const std::string& methodName,
+                                       size_t paramCount, bool declaredOnly) const;
+        void cacheMethodLookup(int64_t classHandle, const std::string& methodName,
+                               size_t paramCount, bool declaredOnly, int64_t methodHandle);
 
         // ========== Constructor Handle Management ==========
 
