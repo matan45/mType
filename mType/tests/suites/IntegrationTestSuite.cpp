@@ -499,6 +499,8 @@ namespace tests::testSuite
                                   benchmarkPath + "cast_hot.mt");
         addOutputVerificationTest("Benchmark: collections_hash_hot",
                                   benchmarkPath + "collections_hash_hot.mt");
+        addOutputVerificationTest("Benchmark: collections_hashset_hot",
+                                  benchmarkPath + "collections_hashset_hot.mt");
         addOutputVerificationTest("Benchmark: field_read_hot",
                                   benchmarkPath + "field_read_hot.mt");
         addOutputVerificationTest("Benchmark: field_write_hot",

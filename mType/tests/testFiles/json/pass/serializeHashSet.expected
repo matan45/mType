@@ -1,0 +1,26 @@
+{
+    "__type": "HashSet",
+    "__collection": "set",
+    "__generics": {
+        "T": "String"
+    },
+    "elements": [
+        {
+            "__type": "String",
+            "value": "apple"
+        },
+        {
+            "__type": "String",
+            "value": "banana"
+        },
+        {
+            "__type": "String",
+            "value": "cherry"
+        }
+    ]
+}
+3
+true
+true
+true
+Test passed

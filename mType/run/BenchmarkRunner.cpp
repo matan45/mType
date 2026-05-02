@@ -31,7 +31,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 36> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 37> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -99,6 +99,7 @@ namespace
         "abstract_dispatch_hot.mt",
         "cast_hot.mt",
         "collections_hash_hot.mt",
+        "collections_hashset_hot.mt",
         "stream_pipeline_hot.mt",
         "reflection_lookup_hot.mt",
         "pattern_match_hot.mt",

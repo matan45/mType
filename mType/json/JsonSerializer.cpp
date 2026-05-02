@@ -406,46 +406,29 @@ namespace json
         auto jsonArr = JsonValue::array();
 
         value::Value capVal = obj->getFieldValue("capacity");
-        value::Value sizesVal = obj->getFieldValue("bucketSizes");
-        value::Value keysVal = obj->getFieldValue("keyBuckets");
-        value::Value valsVal = obj->getFieldValue("valueBuckets");
-        
-        if (value::isVoid(capVal) || value::isVoid(sizesVal) ||
-            value::isVoid(keysVal) || value::isVoid(valsVal))
+        value::Value keysVal = obj->getFieldValue("keys");
+        value::Value valsVal = obj->getFieldValue("values");
+
+        if (value::isVoid(capVal) || value::isVoid(keysVal) || value::isVoid(valsVal))
             return jsonArr;
 
         int64_t capacity = safeGet<int64_t>(capVal,
             "serializing HashMap: 'capacity' is not an int");
-        auto bucketSizes = safeGet<std::shared_ptr<value::NativeArray>>(sizesVal,
-            "serializing HashMap: 'bucketSizes' is not an array");
-        // 2D bucket arrays are jagged NativeArrays (NativeArray of NativeArrays)
-        auto keyBuckets = safeGet<std::shared_ptr<value::NativeArray>>(keysVal,
-            "serializing HashMap: 'keyBuckets' is not an array");
-        auto valBuckets = safeGet<std::shared_ptr<value::NativeArray>>(valsVal,
-            "serializing HashMap: 'valueBuckets' is not an array");
-        if (!bucketSizes || !keyBuckets || !valBuckets) return jsonArr;
+        auto keys = safeGet<std::shared_ptr<value::NativeArray>>(keysVal,
+            "serializing HashMap: 'keys' is not an array");
+        auto values = safeGet<std::shared_ptr<value::NativeArray>>(valsVal,
+            "serializing HashMap: 'values' is not an array");
+        if (!keys || !values) return jsonArr;
 
-        for (int64_t b = 0; b < capacity; ++b)
+        for (int64_t i = 0; i < capacity; ++i)
         {
-            int64_t bSize = safeGet<int64_t>(bucketSizes->get(static_cast<size_t>(b)),
-                "serializing HashMap: bucketSizes element is not an int");
-            if (bSize <= 0) continue;
+            value::Value keyVal = keys->get(static_cast<size_t>(i));
+            if (value::isNullType(keyVal)) continue;
 
-            auto keyRow = safeGet<std::shared_ptr<value::NativeArray>>(
-                keyBuckets->get(static_cast<size_t>(b)),
-                "serializing HashMap: keyBuckets row is not an array");
-            auto valRow = safeGet<std::shared_ptr<value::NativeArray>>(
-                valBuckets->get(static_cast<size_t>(b)),
-                "serializing HashMap: valueBuckets row is not an array");
-            if (!keyRow || !valRow) continue;
-
-            for (int64_t j = 0; j < bSize; ++j)
-            {
-                auto entry = JsonValue::object();
-                entry->setProperty("key", serializeValue(keyRow->get(static_cast<size_t>(j))));
-                entry->setProperty("value", serializeValue(valRow->get(static_cast<size_t>(j))));
-                jsonArr->addToArray(std::move(entry));
-            }
+            auto entry = JsonValue::object();
+            entry->setProperty("key", serializeValue(keyVal));
+            entry->setProperty("value", serializeValue(values->get(static_cast<size_t>(i))));
+            jsonArr->addToArray(std::move(entry));
         }
 
         return jsonArr;
@@ -457,34 +440,22 @@ namespace json
         auto jsonArr = JsonValue::array();
 
         value::Value capVal = obj->getFieldValue("capacity");
-        value::Value sizesVal = obj->getFieldValue("bucketSizes");
-        value::Value bucketsVal = obj->getFieldValue("buckets");
-        
-        if (value::isVoid(capVal) || value::isVoid(sizesVal) || value::isVoid(bucketsVal))
+        value::Value elemsVal = obj->getFieldValue("elements");
+
+        if (value::isVoid(capVal) || value::isVoid(elemsVal))
             return jsonArr;
 
         int64_t capacity = safeGet<int64_t>(capVal,
             "serializing HashSet: 'capacity' is not an int");
-        auto bucketSizes = safeGet<std::shared_ptr<value::NativeArray>>(sizesVal,
-            "serializing HashSet: 'bucketSizes' is not an array");
-        // 2D bucket array is a jagged NativeArray (NativeArray of NativeArrays)
-        auto buckets = safeGet<std::shared_ptr<value::NativeArray>>(bucketsVal,
-            "serializing HashSet: 'buckets' is not an array");
-        if (!bucketSizes || !buckets) return jsonArr;
+        auto elements = safeGet<std::shared_ptr<value::NativeArray>>(elemsVal,
+            "serializing HashSet: 'elements' is not an array");
+        if (!elements) return jsonArr;
 
-        for (int64_t b = 0; b < capacity; ++b)
+        for (int64_t i = 0; i < capacity; ++i)
         {
-            int64_t bSize = safeGet<int64_t>(bucketSizes->get(static_cast<size_t>(b)),
-                "serializing HashSet: bucketSizes element is not an int");
-            if (bSize <= 0) continue;
-
-            auto row = safeGet<std::shared_ptr<value::NativeArray>>(
-                buckets->get(static_cast<size_t>(b)),
-                "serializing HashSet: buckets row is not an array");
-            if (!row) continue;
-
-            for (int64_t j = 0; j < bSize; ++j)
-                jsonArr->addToArray(serializeValue(row->get(static_cast<size_t>(j))));
+            value::Value elem = elements->get(static_cast<size_t>(i));
+            if (value::isNullType(elem)) continue;
+            jsonArr->addToArray(serializeValue(elem));
         }
 
         return jsonArr;

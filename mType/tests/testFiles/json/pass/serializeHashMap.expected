@@ -1,0 +1,34 @@
+{
+    "__type": "HashMap",
+    "__collection": "map",
+    "__generics": {
+        "K": "String",
+        "V": "Int"
+    },
+    "entries": [
+        {
+            "key": {
+                "__type": "String",
+                "value": "alice"
+            },
+            "value": {
+                "__type": "Int",
+                "value": 30
+            }
+        },
+        {
+            "key": {
+                "__type": "String",
+                "value": "bob"
+            },
+            "value": {
+                "__type": "Int",
+                "value": 25
+            }
+        }
+    ]
+}
+2
+30
+25
+Test passed
