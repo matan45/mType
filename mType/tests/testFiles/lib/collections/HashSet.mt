@@ -1,4 +1,8 @@
 // HashSet<T> - Open-addressing hash table with linear probing on flat 1D arrays
+//
+// HASH-TO-SLOT FORMULA: must match HashMap.mt exactly. See header in HashMap.mt
+// for the list of native mirror sites that must be kept in sync.
+
 import * from "../../lib/interfaces/Set.mt";
 import * from "../../lib/Iterator.mt";
 import * from "../../lib/iterators/HashSetIterator.mt";
@@ -21,9 +25,14 @@ class HashSet<T> implements Set<T> {
         this.count = 0;
     }
 
-    // initialCapacity must be a power of two >= 4 (caller responsibility).
+    // Accepts any int; rounds up to the next power of two >= 4. Required
+    // because the slot index uses `& (capacity - 1)` as its modulo.
     public constructor(int initialCapacity) {
-        this.capacity = initialCapacity;
+        int cap = 4;
+        while (cap < initialCapacity) {
+            cap = cap * 2;
+        }
+        this.capacity = cap;
         this.elements = new T[this.capacity];
         this.hashes = new int[this.capacity];
         this.count = 0;
@@ -90,33 +99,33 @@ class HashSet<T> implements Set<T> {
 
         while (this.elements[idx] != null) {
             if (this.hashes[idx] == rawHash && this.elements[idx].equals(item)) {
-                int i = idx;
-                while (true) {
-                    int j = (i + 1) & mask;
-                    if (this.elements[j] == null) {
-                        this.elements[i] = null;
-                        this.count--;
-                        return true;
-                    }
-                    int hj = this.hashes[j];
+                // Knuth Algorithm 6.4R back-shift. See HashMap.remove() for the
+                // full explanation. Two cursors: hole (only advances on shift)
+                // and probe (always advances).
+                int hole = idx;
+                int probe = (hole + 1) & mask;
+                while (this.elements[probe] != null) {
+                    int hj = this.hashes[probe];
                     int mj = hj * 1610612741;
                     int kIdeal = (mj ^ (mj >> 16)) & mask;
 
-                    bool inBetween = false;
-                    if (i <= j) {
-                        inBetween = (kIdeal > i && kIdeal <= j);
+                    bool inRange = false;
+                    if (hole < probe) {
+                        inRange = (kIdeal > hole && kIdeal <= probe);
                     } else {
-                        inBetween = (kIdeal > i || kIdeal <= j);
+                        inRange = (kIdeal > hole || kIdeal <= probe);
                     }
 
-                    if (inBetween) {
-                        i = j;
-                    } else {
-                        this.elements[i] = this.elements[j];
-                        this.hashes[i] = this.hashes[j];
-                        i = j;
+                    if (!inRange) {
+                        this.elements[hole] = this.elements[probe];
+                        this.hashes[hole] = this.hashes[probe];
+                        hole = probe;
                     }
+                    probe = (probe + 1) & mask;
                 }
+                this.elements[hole] = null;
+                this.count--;
+                return true;
             }
             idx = (idx + 1) & mask;
         }

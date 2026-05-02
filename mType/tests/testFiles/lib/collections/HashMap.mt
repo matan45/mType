@@ -1,4 +1,17 @@
 // HashMap<K,V> - Open-addressing hash table with linear probing on flat 1D arrays
+//
+// HASH-TO-SLOT FORMULA (single source of truth):
+//     int mixed = rawHash * 1610612741;
+//     int idx   = (mixed ^ (mixed >> 16)) & (capacity - 1);
+//
+// THIS FORMULA IS DUPLICATED IN NATIVE CODE. If you change it here, you MUST
+// also update every site below — silent divergence breaks containsKey/get
+// for any HashMap instance constructed via reflection or interop:
+//   - mType/json/JsonDeserializer.cpp :: deserializeHashMapCollection
+//   - mType/json/JsonDeserializer.cpp :: computeBucketIndex (helper)
+//   - mType/net/HashMapMarshal.cpp    :: stdMapToHashMap (computeSlotIndex)
+// HashSet.mt mirrors the same formula; keep them in sync.
+
 import * from "../../lib/interfaces/Map.mt";
 import * from "../../lib/interfaces/MapEntry.mt";
 import * from "../../lib/Iterator.mt";
@@ -26,9 +39,15 @@ class HashMap<K,V> implements Map<K,V> {
         this.count = 0;
     }
 
-    // initialCapacity must be a power of two >= 4 (caller responsibility).
+    // Accepts any int; rounds up to the next power of two >= 4. Required
+    // because the slot index uses `& (capacity - 1)` as its modulo, which
+    // is only correct when capacity is a power of two.
     public constructor(int initialCapacity) {
-        this.capacity = initialCapacity;
+        int cap = 4;
+        while (cap < initialCapacity) {
+            cap = cap * 2;
+        }
+        this.capacity = cap;
         this.keys = new K[this.capacity];
         this.values = new V[this.capacity];
         this.hashes = new int[this.capacity];
@@ -119,38 +138,40 @@ class HashMap<K,V> implements Map<K,V> {
 
         while (this.keys[idx] != null) {
             if (this.hashes[idx] == rawHash && this.keys[idx].equals(key)) {
-                // Back-shift: walk forward; for each entry j past idx, check if
-                // its ideal slot is in the cyclic range (i, j]. If yes, leave
-                // it (it's already in a valid position past the hole). If no,
-                // shift it back to fill the hole and advance the hole to j.
-                int i = idx;
-                while (true) {
-                    int j = (i + 1) & mask;
-                    if (this.keys[j] == null) {
-                        this.keys[i] = null;
-                        this.count--;
-                        return true;
-                    }
-                    int hj = this.hashes[j];
+                // Knuth Algorithm 6.4R back-shift. Two cursors:
+                //   hole  — empty slot we are trying to fill (only advances on shift)
+                //   probe — scan cursor (always advances)
+                // For each entry at `probe` with ideal slot kIdeal:
+                //   If kIdeal is in cyclic range (hole, probe] the entry is
+                //   "settled" — moving it back would put it before its ideal,
+                //   violating the probe-sequence invariant. Skip it.
+                //   Otherwise the entry probed past hole on insertion, so we
+                //   shift it down to hole and make probe's old slot the new hole.
+                int hole = idx;
+                int probe = (hole + 1) & mask;
+                while (this.keys[probe] != null) {
+                    int hj = this.hashes[probe];
                     int mj = hj * 1610612741;
                     int kIdeal = (mj ^ (mj >> 16)) & mask;
 
-                    bool inBetween = false;
-                    if (i <= j) {
-                        inBetween = (kIdeal > i && kIdeal <= j);
+                    bool inRange = false;
+                    if (hole < probe) {
+                        inRange = (kIdeal > hole && kIdeal <= probe);
                     } else {
-                        inBetween = (kIdeal > i || kIdeal <= j);
+                        inRange = (kIdeal > hole || kIdeal <= probe);
                     }
 
-                    if (inBetween) {
-                        i = j;
-                    } else {
-                        this.keys[i] = this.keys[j];
-                        this.values[i] = this.values[j];
-                        this.hashes[i] = this.hashes[j];
-                        i = j;
+                    if (!inRange) {
+                        this.keys[hole] = this.keys[probe];
+                        this.values[hole] = this.values[probe];
+                        this.hashes[hole] = this.hashes[probe];
+                        hole = probe;
                     }
+                    probe = (probe + 1) & mask;
                 }
+                this.keys[hole] = null;
+                this.count--;
+                return true;
             }
             idx = (idx + 1) & mask;
         }

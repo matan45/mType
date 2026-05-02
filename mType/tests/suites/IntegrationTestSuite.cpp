@@ -105,6 +105,8 @@ namespace tests::testSuite
                                   passPath + "classGenericSerialization.mt");
         addOutputVerificationTest("Collections As Data Members",
                                   passPath + "collectionsAsDataMembers.mt");
+        addOutputVerificationTest("HashMap Remove Back-shift",
+                                  passPath + "hashmapRemoveBackshift.mt");
         addOutputVerificationTest("Generic Class Compilation",
                                   passPath + "genericClassCompilation.mt");
         addOutputVerificationTest("Generic Import Serialization",
@@ -177,6 +179,8 @@ namespace tests::testSuite
                                   passPath + "classGenericSerialization.mt");
         addOutputVerificationTest("Collections As Data Members",
                                   passPath + "collectionsAsDataMembers.mt");
+        addOutputVerificationTest("HashMap Remove Back-shift",
+                                  passPath + "hashmapRemoveBackshift.mt");
         addOutputVerificationTest("Complex Control Flow Performance",
                                   passPath + "complexControlFlowPerformance.mt");
         addOutputVerificationTest("Complex Inheritance With Namespaces",

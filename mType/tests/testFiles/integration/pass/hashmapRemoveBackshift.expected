@@ -1,0 +1,8 @@
+map.size=50
+set.size=50
+mapHits=50
+mapValueOk=50
+setHits=50
+mapStale=0
+setStale=0
+Test passed
