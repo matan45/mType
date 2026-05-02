@@ -552,7 +552,22 @@ namespace vm::jit
         // per-frame resolve walk via utils::resolveTypeParamInFrame).
         if (!ctx->vm || !ctx->program) return;
 
-        const auto& instr = ctx->program->getInstructions()[static_cast<size_t>(ip)];
+        // Per-IP fast path mirroring TypeExecutor::handleBindTypeArgs: when
+        // every binding at this site is Concrete, the resolved pairs are
+        // stable. Bulk-copy from the cached snapshot and skip the per-binding
+        // const-pool indexing + kind branch.
+        const size_t bindIp = static_cast<size_t>(ip);
+        if (auto* cached = ctx->program->findCachedState(bindIp);
+            cached && cached->cachedTypeArgBindingsValid)
+        {
+            auto& staged = ctx->vm->beginPendingTypeArgs();
+            for (const auto& [paramName, resolved] : cached->cachedTypeArgBindings) {
+                staged.emplace(paramName, resolved);
+            }
+            return;
+        }
+
+        const auto& instr = ctx->program->getInstructions()[bindIp];
         if (instr.operands.empty()) return;
         const auto& constantPool = ctx->program->getConstantPool();
         const size_t n = static_cast<size_t>(instr.operands[0]);
@@ -560,6 +575,10 @@ namespace vm::jit
 
         auto& staged = ctx->vm->beginPendingTypeArgs();
         const auto& callStack = ctx->vm->getCallStack();
+
+        bool allConcrete = true;
+        std::vector<std::pair<std::string, std::string>> snapshot;
+        snapshot.reserve(n);
 
         for (size_t i = 0; i < n; ++i) {
             const size_t base = 1 + 3 * i;
@@ -572,6 +591,7 @@ namespace vm::jit
 
             std::string resolved;
             if (kind == vm::bytecode::TypeArgValueKind::ForwardFromCaller) {
+                allConcrete = false;
                 if (!callStack.empty()) {
                     if (const auto* p = vm::runtime::utils::resolveTypeParamInFrame(
                             callStack.back(), rawValue)) {
@@ -584,9 +604,18 @@ namespace vm::jit
                 }
             } else {
                 resolved = rawValue;
+                if (allConcrete) {
+                    snapshot.emplace_back(paramName, resolved);
+                }
             }
 
             staged.emplace(paramName, std::move(resolved));
+        }
+
+        if (allConcrete) {
+            auto& slot = ctx->program->getOrCreateCachedState(bindIp);
+            slot.cachedTypeArgBindings = std::move(snapshot);
+            slot.cachedTypeArgBindingsValid = true;
         }
     }
 

@@ -279,6 +279,73 @@ namespace vm::jit
         }
     }
 
+    void jit_call_function_ic(JitContext* ctx, size_t bytecodeOffset,
+                              uint32_t nameIndex, size_t argCount)
+    {
+        if (ctx->pendingException)
+            return;
+
+        try
+        {
+            // Hot path: cached FunctionMetadata at this IP. Skips both the
+            // const-pool getString and program->getFunction hashmap probe
+            // that the slow path runs every call.
+            if (auto* cached = ctx->program->findCachedState(bytecodeOffset);
+                cached && cached->cachedFuncMetadata && ctx->vm)
+            {
+                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                // Re-look up the qualified name from the constant pool —
+                // needed for the frame's intern-name + debugger hooks. Cheap
+                // (vector index). Caching the FunctionNameHandle would shave
+                // the intern hashmap probe but hasn't been profiled yet.
+                const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
+                ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
+                    funcName, cached->cachedFuncMetadata, argVec);
+                ctx->hasReturnValue = true;
+                return;
+            }
+
+            // Slow path: full resolution + cache populate.
+            const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
+
+            if (tryJitDispatch(ctx, funcName, argCount))
+                return;
+
+            if (tryNativeDispatch(ctx, funcName, argCount))
+                return;
+
+            if (ctx->vm)
+            {
+                auto funcMeta = ctx->program->getFunction(funcName);
+                if (funcMeta)
+                {
+                    auto& slot = ctx->program->getOrCreateCachedState(bytecodeOffset);
+                    slot.cachedFuncMetadata = funcMeta;
+                    slot.cachedStartOffset = funcMeta->startOffset;
+                    slot.cachedProgram = ctx->program;
+                    slot.cachedProgramIndex = 0;
+
+                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                    ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
+                        funcName, funcMeta, argVec);
+                    ctx->hasReturnValue = true;
+                    return;
+                }
+
+                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
+                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->hasReturnValue = true;
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
+    }
+
     void jit_call_function_fast(JitContext* ctx, uint32_t funcIndex, size_t argCount)
     {
         if (ctx->pendingException)

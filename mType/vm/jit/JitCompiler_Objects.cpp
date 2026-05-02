@@ -534,16 +534,22 @@ namespace vm::jit
         }
         emitBoxCallArgs(s, argCount);
         emitPopAndDestroyArgs(s, argCount);
+        // Pass the call-site IP so jit_call_function_ic can cache the resolved
+        // FunctionMetadata. Static call sites are monomorphic by definition;
+        // the cache eliminates the per-call program->getFunction hashmap probe.
+        Gp ipReg = cc.new_gp64();
+        cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
         Gp niReg = cc.new_gp64();
         cc.mov(niReg, static_cast<int64_t>(nameIndex));
         Gp acReg = cc.new_gp64();
         cc.mov(acReg, static_cast<int64_t>(argCount));
         InvokeNode* callInv;
-        cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_function),
-                  FuncSignature::build<void, JitContext*, uint32_t, size_t>());
+        cc.invoke(Out(callInv), reinterpret_cast<uint64_t>(jit_call_function_ic),
+                  FuncSignature::build<void, JitContext*, size_t, uint32_t, size_t>());
         callInv->set_arg(0, s.ctxPtr);
-        callInv->set_arg(1, niReg);
-        callInv->set_arg(2, acReg);
+        callInv->set_arg(1, ipReg);
+        callInv->set_arg(2, niReg);
+        callInv->set_arg(3, acReg);
         emitReturnValueCopyBoxed(s);
         return true;
     }

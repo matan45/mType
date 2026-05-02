@@ -69,6 +69,13 @@ namespace vm::jit
     }
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount);
+    // IC-aware variant for CALL_STATIC: caches resolved FunctionMetadata at
+    // the call-site IP so subsequent calls skip the program->getFunction
+    // hashmap lookup. Static call sites are monomorphic (the qualified name
+    // is a fixed bytecode operand), so the cache is single-entry, no shape
+    // guard needed.
+    void jit_call_function_ic(JitContext* ctx, size_t bytecodeOffset,
+                              uint32_t nameIndex, size_t argCount);
     void jit_call_function_fast(JitContext* ctx, uint32_t funcIndex, size_t argCount);
 
     void jit_generic_add(value::Value* result, const value::Value* left, const value::Value* right);

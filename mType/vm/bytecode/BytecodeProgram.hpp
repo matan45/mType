@@ -71,6 +71,17 @@ namespace vm::bytecode
             uint8_t  fusedDeoptCount = 0;
 
             uint8_t  observedValueType = 0xFF;
+
+            // BIND_TYPE_ARGS resolved-binding cache. Populated on first
+            // execution when every binding kind is Concrete (the rawValue
+            // string is the resolved type name itself, no per-call walk
+            // needed). Subsequent calls bulk-copy these pairs into the
+            // pending map and skip the per-binding constant-pool indexing
+            // and Concrete/ForwardFromCaller branch. Empty by default;
+            // ForwardFromCaller bindings are NOT cached (they depend on
+            // the caller frame state, which changes per call).
+            std::vector<std::pair<std::string, std::string>> cachedTypeArgBindings;
+            bool cachedTypeArgBindingsValid = false;
         };
 
         struct Instruction

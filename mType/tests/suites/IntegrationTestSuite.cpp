@@ -497,8 +497,12 @@ namespace tests::testSuite
                                   benchmarkPath + "async_await_tight_loop.mt");
         addOutputVerificationTest("Benchmark: bitwise_tight_loop",
                                   benchmarkPath + "bitwise_tight_loop.mt");
+        addOutputVerificationTest("Benchmark: boxed_bool_dispatch_hot",
+                                  benchmarkPath + "boxed_bool_dispatch_hot.mt");
         addOutputVerificationTest("Benchmark: boxed_primitive_dispatch_hot",
                                   benchmarkPath + "boxed_primitive_dispatch_hot.mt");
+        addOutputVerificationTest("Benchmark: boxed_string_dispatch_hot",
+                                  benchmarkPath + "boxed_string_dispatch_hot.mt");
         addOutputVerificationTest("Benchmark: cast_hot",
                                   benchmarkPath + "cast_hot.mt");
         addOutputVerificationTest("Benchmark: collections_hash_hot",
@@ -549,6 +553,8 @@ namespace tests::testSuite
                                   benchmarkPath + "reflection_lookup_hot.mt");
         addOutputVerificationTest("Benchmark: short_circuit_chain",
                                   benchmarkPath + "short_circuit_chain.mt");
+        addOutputVerificationTest("Benchmark: static_call_hot",
+                                  benchmarkPath + "static_call_hot.mt");
         addOutputVerificationTest("Benchmark: stream_pipeline_hot",
                                   benchmarkPath + "stream_pipeline_hot.mt");
         addOutputVerificationTest("Benchmark: string_interpolation_hot",

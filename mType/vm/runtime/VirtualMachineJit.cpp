@@ -187,7 +187,13 @@ namespace vm::runtime
         {
             throw std::runtime_error("JIT interpreter fallback: function not found: " + funcName);
         }
+        return callFunctionFromJitDirect(funcName, funcMeta, args);
+    }
 
+    value::Value VirtualMachine::callFunctionFromJitDirect(const std::string& funcName,
+                                                            const bytecode::BytecodeProgram::FunctionMetadata* funcMeta,
+                                                            const std::vector<value::Value>& args)
+    {
         size_t savedIP = instructionPointer;
         size_t savedCallStackDepth = callStack.size();
         size_t savedStackSize = stackManager->size();
