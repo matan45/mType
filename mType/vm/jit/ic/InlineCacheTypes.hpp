@@ -83,6 +83,13 @@ namespace vm::jit::ic
     // mini-interpret loop — no cached native entry is consulted, so the
     // per-entry pointer served no purpose.
 
+    enum class MethodProtocolFastKind : uint8_t
+    {
+        NONE,
+        PRIMITIVE_HASH_CODE,
+        PRIMITIVE_EQUALS
+    };
+
     struct MethodICEntry
     {
         const runtimeTypes::klass::ClassDefinition* shape = nullptr;
@@ -110,6 +117,10 @@ namespace vm::jit::ic
         // handling.
         const bytecode::BytecodeProgram* program = nullptr;
         size_t programIndex = 0;
+        // Protocol-level fast leaf for hot generic calls like K.hashCode()
+        // and K.equals(K). Populated only when the resolved target is known
+        // to be semantically equivalent to a direct field-0 primitive op.
+        MethodProtocolFastKind protocolFastKind = MethodProtocolFastKind::NONE;
     };
 
     struct MethodInlineCache
