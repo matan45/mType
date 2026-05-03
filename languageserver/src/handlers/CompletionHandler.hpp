@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../utils/LSPTypes.hpp"
@@ -29,11 +30,29 @@ public:
         const Position& position
     );
 
+    // Lazy enrichment for completionItem/resolve. The client echoes the
+    // original CompletionItem (including the opaque `data` blob the
+    // server stamped during the initial response); this fills in
+    // documentation derived from the registry without recomputing the
+    // whole list.
+    CompletionItem resolveCompletion(const CompletionItem& item) const;
+
 private:
     std::vector<CompletionItem> getKeywordCompletions() const;
-    std::vector<CompletionItem> getTypeCompletions() const;
+    // Lowercase primitive keywords + the capitalized wrapper classes
+    // (Int / Float / Bool / String / Promise). The wrappers are real
+    // classes living in lib/primitives/*.mt — when the workspace index
+    // can resolve them they're emitted with an auto-import attached so
+    // accepting the completion also inserts `import { Int } from "..."`.
+    std::vector<CompletionItem> getTypeCompletions(const std::string& uri) const;
     std::vector<CompletionItem> getBuiltinCompletions() const;
     std::vector<CompletionItem> getCollectionCompletions() const;
+    // Annotation completions sourced from the per-document
+    // AnnotationRegistry (populated with built-ins via
+    // BuiltInAnnotations + any user-declared annotations). Triggered
+    // when the cursor sits right after `@` (optionally followed by a
+    // partial identifier).
+    std::vector<CompletionItem> getAnnotationCompletions(const std::string& uri) const;
 
     // MYT-51 — unified identifier enumeration. Walks the environment's
     // scope chain + class/interface/function registries through
@@ -75,6 +94,22 @@ private:
     DocumentManager* documentManager_;
     std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
     std::unique_ptr<PathCompletionHandler> pathCompletionHandler_;
+
+    // Per-document member completion cache. `getMemberCompletions` is
+    // called on every keystroke after `.` / `::`, and the underlying
+    // inheritance walk + dedup is the same answer until the document
+    // changes. Keyed by `uri + "|v" + docVersion + "|" + access + "|"
+    // + typeName` (the version is part of the key so stale entries
+    // are naturally bypassed and pruned on the next miss for that
+    // uri). NOT thread-safe: the LSP request loop in
+    // MTypeLanguageServer::run is single-threaded today, so the cache
+    // never sees concurrent access. If/when dispatch goes parallel,
+    // wrap reads/writes in a mutex.
+    struct MemberCacheEntry {
+        int docVersion;
+        std::vector<CompletionItem> items;
+    };
+    mutable std::unordered_map<std::string, MemberCacheEntry> memberCache_;
 };
 
 } // namespace mtype::lsp

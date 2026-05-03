@@ -43,6 +43,7 @@ private:
     void handleDidChangeTextDocument(const json& params);
     void handleDidCloseTextDocument(const json& params);
     void handleCompletion(const json& id, const json& params);
+    void handleCompletionItemResolve(const json& id, const json& params);
     void handleHover(const json& id, const json& params);
     void handleDefinition(const json& id, const json& params);
     void handleCodeAction(const json& id, const json& params);

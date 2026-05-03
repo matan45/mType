@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_set>
 #include <vector>
 #include <string>
 #include "../utils/LSPTypes.hpp"
@@ -66,10 +67,14 @@ private:
         int line
     );
 
-    // Helper to get all methods required by an interface
+    // Helper to get all methods required by an interface. When
+    // `outReferencedTypes` is non-null it also collects the unique
+    // type names appearing in parameter and return positions so the
+    // caller can attach matching import edits.
     std::vector<std::string> getRequiredMethods(
         const std::string& interfaceName,
-        const Document* doc
+        const Document* doc,
+        std::unordered_set<std::string>* outReferencedTypes = nullptr
     );
 
     // Helper to check if a class already has a method

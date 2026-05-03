@@ -2,6 +2,7 @@
 
 #include "../DocumentManager.hpp"  // full definition of SymbolLocationInfo
 #include "../utils/MtFileWalker.hpp"
+#include "../utils/StringUtils.hpp"
 #include "../utils/UriUtils.hpp"
 #include "../utils/MemoryFileReader.hpp"
 #include "SymbolRegistrationVisitor.hpp"
@@ -17,6 +18,7 @@
 #include "../../../mType/ast/nodes/statements/ProgramNode.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -33,6 +35,23 @@ namespace mtype::lsp::analysis
         bool isTopLevelKey(const std::string& key)
         {
             return key.find('.') == std::string::npos;
+        }
+
+        // toLowerAscii lives in utils/StringUtils.hpp — shared with the
+        // completion handler so both call sites have one definition.
+        using mtype::lsp::utils::toLowerAscii;
+
+        bool startsWithCaseInsensitive(const std::string& text,
+                                       const std::string& prefix)
+        {
+            if (prefix.size() > text.size()) return false;
+            for (std::size_t i = 0; i < prefix.size(); ++i)
+            {
+                const auto a = static_cast<unsigned char>(text[i]);
+                const auto b = static_cast<unsigned char>(prefix[i]);
+                if (std::tolower(a) != std::tolower(b)) return false;
+            }
+            return true;
         }
 
         // Best-effort kind detection by inspecting top-level program
@@ -191,6 +210,67 @@ namespace mtype::lsp::analysis
         return results;
     }
 
+    std::vector<WorkspaceSymbol> WorkspaceSymbolIndex::findByPrefix(
+        const std::string& prefix, std::size_t maxResults) const
+    {
+        if (prefix.empty() || maxResults == 0) return {};
+
+        // Hold the mutex only long enough to copy the matching entries
+        // into a local vector. The sort below operates on the copy,
+        // so other readers and writers can proceed in parallel while
+        // we rank.
+        std::vector<WorkspaceSymbol> results;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            for (const auto& [name, symbols] : byName_)
+            {
+                if (!startsWithCaseInsensitive(name, prefix)) continue;
+                results.insert(results.end(), symbols.begin(), symbols.end());
+            }
+        }
+
+        if (results.empty()) return results;
+
+        // Pre-compute lowered names once so the sort comparator can
+        // reduce to integer + cached-string comparisons. Without this
+        // each comparator call would re-lower both sides — O(N log N)
+        // sort × O(2) heap allocations per compare gets pricey for
+        // even small result sets.
+        struct Ranked {
+            std::size_t idx;
+            std::string lowered;
+        };
+        std::vector<Ranked> ranked;
+        ranked.reserve(results.size());
+        for (std::size_t i = 0; i < results.size(); ++i)
+        {
+            ranked.push_back({ i, toLowerAscii(results[i].name) });
+        }
+
+        const std::string loweredPrefix = toLowerAscii(prefix);
+        std::sort(ranked.begin(), ranked.end(),
+            [&loweredPrefix, &results](const Ranked& a, const Ranked& b)
+            {
+                const bool aExact = a.lowered == loweredPrefix;
+                const bool bExact = b.lowered == loweredPrefix;
+                if (aExact != bExact) return aExact;
+                if (a.lowered != b.lowered) return a.lowered < b.lowered;
+                const auto& sa = results[a.idx];
+                const auto& sb = results[b.idx];
+                if (sa.name != sb.name) return sa.name < sb.name;
+                return sa.fileUri < sb.fileUri;
+            });
+
+        std::vector<WorkspaceSymbol> sorted;
+        sorted.reserve(std::min(ranked.size(), maxResults));
+        for (const auto& r : ranked)
+        {
+            sorted.push_back(std::move(results[r.idx]));
+            if (sorted.size() == maxResults) break;
+        }
+        return sorted;
+    }
+
     void WorkspaceSymbolIndex::indexFileLocked(const std::string& filePath,
                                                 const std::string& content)
     {
@@ -273,14 +353,16 @@ namespace mtype::lsp::analysis
                 return symbolFilePath;
             }
 
-            // Drop the .mt extension to match existing import convention.
-            if (rel.extension() == ".mt")
-            {
-                rel.replace_extension();
-            }
-
-            // Normalize separators to forward slashes.
+            // mType requires the explicit `.mt` suffix in import paths
+            // (the parser rejects extensionless imports — see test
+            // suites under tests/testFiles/import/error/). If somehow
+            // the symbol path didn't carry it, append.
             std::string spelling = rel.generic_string();
+            if (spelling.size() < 3
+                || spelling.compare(spelling.size() - 3, 3, ".mt") != 0)
+            {
+                spelling += ".mt";
+            }
 
             // Ensure relative imports start with `./` so the parser
             // recognises them as relative.

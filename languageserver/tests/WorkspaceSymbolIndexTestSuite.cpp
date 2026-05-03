@@ -70,8 +70,15 @@ void WorkspaceSymbolIndexTestSuite::registerTests(LspTestHarness& harness) {
             "C:/project/Foo.mt", "C:/project/Main.mt");
         require(spelling.find("Foo") != std::string::npos,
             "spelling should contain 'Foo'");
-        require(spelling.find(".mt") == std::string::npos,
-            "spelling should not contain .mt extension");
+        // mType requires the explicit .mt suffix in import paths
+        // (the parser rejects extensionless imports — see
+        // tests/testFiles/import/error/importMissingExtension.mt).
+        require(spelling.find(".mt") != std::string::npos,
+            "spelling should contain .mt extension");
+        // Sibling imports use a leading ./ so the parser treats them
+        // as relative rather than search-path lookups.
+        require(spelling.rfind("./", 0) == 0,
+            "sibling spelling should start with './'");
     });
 
     harness.addTest("thread safety: concurrent reindex and find do not crash", []() {

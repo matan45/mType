@@ -48,6 +48,80 @@ std::pair<int, int> wordRangeAt(const std::string& line, int character) {
     return { start, end };
 }
 
+// Lowercase primitive type keywords that never need an import. The
+// capitalized wrapper classes (Int / Float / Bool / String / Promise)
+// are deliberately NOT in this list — they're real classes living in
+// lib/primitives/*.mt and have to be imported like any other type.
+// Treating them as builtins here would silently suppress their
+// auto-import edits.
+bool isBuiltinTypeName(const std::string& name) {
+    static const std::unordered_set<std::string> kBuiltins = {
+        "int", "float", "bool", "string", "void", "object"
+    };
+    return kBuiltins.count(name) > 0;
+}
+
+// Walk a type expression (e.g. "List<Foo>", "Bar[]", "HashMap<K, V>")
+// and emit each base identifier into `out`. Generic args, array
+// suffixes, and whitespace are stripped so "List<Foo[]>" yields
+// {"List", "Foo"}. Empty / non-identifier tokens are ignored.
+void extractTypeNames(const std::string& typeExpr,
+                      std::unordered_set<std::string>& out)
+{
+    std::string token;
+    auto flush = [&]() {
+        if (token.empty()) return;
+        // Strip a trailing "[]" array suffix.
+        while (token.size() >= 2
+               && token.compare(token.size() - 2, 2, "[]") == 0) {
+            token.resize(token.size() - 2);
+        }
+        if (!token.empty()) {
+            const char first = token.front();
+            if (std::isalpha(static_cast<unsigned char>(first)) || first == '_') {
+                out.insert(token);
+            }
+        }
+        token.clear();
+    };
+    for (char c : typeExpr) {
+        if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+            token.push_back(c);
+        } else if (c == '[' || c == ']') {
+            // Keep [] attached so the flush can strip a trailing pair.
+            token.push_back(c);
+        } else {
+            flush();
+        }
+    }
+    flush();
+}
+
+// Parse generic type parameter names declared on the implementing
+// class header line (e.g. "class MyList<T> implements List<T>" →
+// {"T"}). Used so we don't try to import the class's own type
+// parameters as if they were external symbols.
+//
+// Limitation: the close-angle is matched as the FIRST `>` after the
+// opening `<`, so a nested-generic header like
+// `class Foo<T extends Bar<X>> implements IFoo` would stop at the
+// inner `>` and miss the outer parameter list. mType doesn't support
+// that form today, so this is fine — but anyone extending the language
+// to allow it should swap this scan for a depth-aware one.
+std::unordered_set<std::string> extractClassGenericParams(
+    const std::string& classDeclLine)
+{
+    std::unordered_set<std::string> params;
+    const size_t classPos = classDeclLine.find("class ");
+    if (classPos == std::string::npos) return params;
+    const size_t open = classDeclLine.find('<', classPos);
+    if (open == std::string::npos) return params;
+    const size_t close = classDeclLine.find('>', open + 1);
+    if (close == std::string::npos) return params;
+    extractTypeNames(classDeclLine.substr(open + 1, close - open - 1), params);
+    return params;
+}
+
 // Pick line `lineNumber` (0-based) out of a document's content.
 // Returns an empty string if the line is out of range.
 std::string getLine(const std::string& content, int lineNumber) {
@@ -335,8 +409,13 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
     // Trim whitespace
     interfaceName.erase(interfaceName.find_last_not_of(" \t\r\n") + 1);
 
-    // Get required methods from interface
-    auto requiredMethods = getRequiredMethods(interfaceName, doc);
+    // Get required methods from interface, collecting the unique type
+    // names referenced in parameter / return positions. We use that
+    // set below to attach `import` edits for any type that isn't a
+    // built-in, isn't a generic parameter declared on the implementing
+    // class, and isn't already in scope.
+    std::unordered_set<std::string> referencedTypes;
+    auto requiredMethods = getRequiredMethods(interfaceName, doc, &referencedTypes);
 
     if (requiredMethods.empty()) {
         return actions;
@@ -401,6 +480,52 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
     textEdit.newText = stubsBuilder.str();
 
     edit.changes[uri].push_back(textEdit);
+
+    // Auto-import any referenced types not already in scope. Mirrors
+    // the missing-import quick fix's approach: skip self-references,
+    // route through the workspace symbol index, and reuse
+    // util::findImportInsertLine + buildImportInsertEdit so the
+    // emitted import lines match the rest of the codebase byte for byte.
+    if (workspaceIndex_ && !referencedTypes.empty()) {
+        const auto genericParams = extractClassGenericParams(currentLine);
+        auto classRegistry = doc->environment ? doc->environment->getClassRegistry() : nullptr;
+        auto interfaceRegistry = doc->environment ? doc->environment->getInterfaceRegistry() : nullptr;
+
+        // Workspace index is built off-thread at initialise; short-block
+        // so an action fired before the scan finishes still sees results.
+        workspaceIndex_->waitForReady(std::chrono::milliseconds(50));
+
+        const std::string referencingPath = UriUtils::uriToFilePath(uri);
+        const int insertLine = util::findImportInsertLine(doc->content);
+        std::unordered_set<std::string> emittedSpellings;
+
+        for (const auto& typeName : referencedTypes) {
+            if (typeName == className) continue;
+            if (typeName == interfaceName) continue;  // already in scope
+            if (isBuiltinTypeName(typeName)) continue;
+            if (genericParams.count(typeName) > 0) continue;
+            if (classRegistry && classRegistry->hasClass(typeName)) continue;
+            if (interfaceRegistry && interfaceRegistry->findInterface(typeName)) continue;
+
+            auto matches = workspaceIndex_->findByName(typeName, /*maxResults=*/1);
+            if (matches.empty()) continue;
+            const auto& match = matches.front();
+
+            const std::string symbolPath = UriUtils::uriToFilePath(match.fileUri);
+            if (symbolPath == referencingPath) continue;
+
+            const std::string spelling =
+                analysis::WorkspaceSymbolIndex::computeImportSpelling(
+                    symbolPath, referencingPath);
+
+            const std::string dedupKey = typeName + "\n" + spelling;
+            if (!emittedSpellings.insert(dedupKey).second) continue;
+
+            edit.changes[uri].push_back(
+                utils::buildImportInsertEdit(insertLine, typeName, spelling));
+        }
+    }
+
     action.edit = edit;
 
     actions.push_back(action);
@@ -410,7 +535,8 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
 
 std::vector<std::string> CodeActionHandler::getRequiredMethods(
     const std::string& interfaceName,
-    const Document* doc
+    const Document* doc,
+    std::unordered_set<std::string>* outReferencedTypes
 ) {
     std::vector<std::string> methods;
 
@@ -433,19 +559,24 @@ std::vector<std::string> CodeActionHandler::getRequiredMethods(
     const auto& signatures = interfaceDef->getMethodSignatures();
 
     for (const auto& sig : signatures) {
-        // Build method signature string
+        // Build method signature string. mType uses C/Java-style param
+        // syntax (`int index`, not `index: int`); interface-implemented
+        // methods are conventionally `public`.
         std::stringstream methodBuilder;
-        methodBuilder << "function " << sig.name << "(";
+        methodBuilder << "public function " << sig.name << "(";
 
-        // Add parameters
         bool first = true;
         for (const auto& [paramName, paramType] : sig.parameters) {
             if (!first) methodBuilder << ", ";
-            methodBuilder << paramName << ": " << paramType->getName();
+            const std::string typeName = paramType->getName();
+            methodBuilder << typeName << " " << paramName;
+            if (outReferencedTypes) extractTypeNames(typeName, *outReferencedTypes);
             first = false;
         }
 
-        methodBuilder << "): " << sig.returnType->getName();
+        const std::string returnTypeName = sig.returnType->getName();
+        methodBuilder << "): " << returnTypeName;
+        if (outReferencedTypes) extractTypeNames(returnTypeName, *outReferencedTypes);
 
         methods.push_back(methodBuilder.str());
     }

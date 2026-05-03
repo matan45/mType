@@ -41,6 +41,10 @@ private:
     // Tokenization passes — each appends to the supplied vector
     void tokenizeAnnotations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     void tokenizeClassDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    // `annotation Foo { ... }` declarations — colors both the
+    // `annotation` keyword and the type name. Mirrors the
+    // class/interface declaration passes.
+    void tokenizeAnnotationDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     void tokenizeInterfaceDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     void tokenizeMethodDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     void tokenizeVariableDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
@@ -58,6 +62,7 @@ private:
 
     // Pre-compiled regexes (built once in constructor)
     std::regex annotationRegex_;
+    std::regex annotationDeclRegex_;
     std::regex classRegex_;
     std::regex interfaceRegex_;
     std::regex methodRegex_;

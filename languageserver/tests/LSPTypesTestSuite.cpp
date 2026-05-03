@@ -81,6 +81,27 @@ void LSPTypesTestSuite::registerTests(LspTestHarness& harness) {
             "edit should contain import");
     });
 
+    harness.addTest("CompletionItem toJson includes ranking and replacement metadata when set", []() {
+        CompletionItem item;
+        item.label = "print";
+        item.kind = 3;
+        item.insertText = "print(${1:value})";
+        item.insertTextFormat = 2;
+        item.filterText = "print";
+        item.sortText = "01_print_0000";
+        TextEdit edit;
+        edit.range = {{0, 0}, {0, 4}};
+        edit.newText = "print(${1:value})";
+        item.textEdit = edit;
+
+        json j = item.toJson();
+        require(j["insertTextFormat"] == 2, "snippet insertTextFormat should serialize");
+        require(j["filterText"] == "print", "filterText should serialize");
+        require(j["sortText"] == "01_print_0000", "sortText should serialize");
+        require(j.contains("textEdit"), "textEdit should serialize");
+        require(j["textEdit"]["newText"] == "print(${1:value})", "textEdit newText mismatch");
+    });
+
     harness.addTest("CompletionItem toJson omits optional fields when absent", []() {
         CompletionItem item;
         item.label = "class";
@@ -92,6 +113,10 @@ void LSPTypesTestSuite::registerTests(LspTestHarness& harness) {
         require(!j.contains("detail"), "detail should be absent");
         require(!j.contains("documentation"), "documentation should be absent");
         require(!j.contains("insertText"), "insertText should be absent");
+        require(!j.contains("insertTextFormat"), "insertTextFormat should be absent");
+        require(!j.contains("filterText"), "filterText should be absent");
+        require(!j.contains("sortText"), "sortText should be absent");
+        require(!j.contains("textEdit"), "textEdit should be absent");
         require(!j.contains("additionalTextEdits"), "additionalTextEdits should be absent");
     });
 

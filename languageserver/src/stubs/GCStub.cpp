@@ -19,7 +19,6 @@ namespace gc
 
     // Static member definitions
     std::unique_ptr<GCCoordinator> GC::coordinator = nullptr;
-    std::mutex GC::initMutex;
     bool GC::initialized = false;
 
     void GC::initialize() {

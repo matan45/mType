@@ -123,6 +123,14 @@ namespace mtype::lsp::analysis
             std::size_t maxResults = 5) const;
 
         /**
+         * Top-level prefix lookup for completion. Matches names
+         * case-insensitively but returns original symbol spelling.
+         */
+        std::vector<WorkspaceSymbol> findByPrefix(
+            const std::string& prefix,
+            std::size_t maxResults = 20) const;
+
+        /**
          * Return the URIs of all files currently in the index.
          * Used by the references handler to search across the workspace.
          */

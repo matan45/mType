@@ -20,7 +20,7 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 -- Shared configuration applied to all LSP projects
 function lspCommonConfig()
     language "C++"
-    cppdialect "C++17"
+    cppdialect "C++20"
 
     targetdir ("bin/" .. outputdir)
     objdir ("bin-int/" .. outputdir)
@@ -212,7 +212,16 @@ project "mtype-language-server-lib"
         "../mType/runtimeTypes/klass/InterfaceDefinition.cpp",
         "../mType/runtimeTypes/klass/InterfaceRegistry.cpp",
         "../mType/runtimeTypes/klass/MethodDefinition.cpp",
+        "../mType/runtimeTypes/klass/SignatureUtils.cpp",
         -- Note: ObjectInstance.cpp excluded - using stub in src/stubs/ObjectInstanceStub.cpp
+
+        -- Annotation parsing/registration (compile-time only — no runtime deps)
+        "../mType/parser/AnnotationDeclarationParser.cpp",
+        "../mType/validation/builtins/BuiltInAnnotations.cpp",
+
+        -- mtclib path resolution (filesystem only — TransitiveDependencyLoader
+        -- itself is stubbed in src/stubs/MtclibStub.cpp because it pulls in VM)
+        "../mType/project/mtclib/MtcPathResolver.cpp",
 
         -- Circular dependency detection
         "../mType/circularDependency/CircularDependencyDetector.cpp",
