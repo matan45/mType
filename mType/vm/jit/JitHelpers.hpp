@@ -226,13 +226,21 @@ namespace vm::jit
     // AWAIT: handles all three resolution paths in a single helper so the
     // emit case stays a thin cc.invoke. PROMISE_INT inline-tag and heap-
     // fulfilled paths write the resolved value back through `val`. Pending,
-    // rejected, or non-promise inputs throw OSRDeoptException(bytecodeOffset),
-    // which the interpreter-resume catch sites unwind into normal AWAIT
-    // execution (suspend, throw UserException, or throw RuntimeException).
+    // rejected, or non-promise inputs stash an OSRDeoptException(bytecodeOffset)
+    // on ctx->pendingException; emitAwaitOp emits a jit_has_pending_exception
+    // check after the cc.invoke and jumps to the per-function deopt-exit
+    // label on hit. The interpreter-resume catch sites in executeCallWithJit
+    // / executeCallFastWithJit / OSRManager::executeOSRLoop rethrow the
+    // stashed exception and run the existing AWAIT execution (suspend,
+    // UserException, RuntimeException) on the interpreter side.
     // Returns early without touching `val` when ctx->pendingException is
-    // set — a CALL helper on an earlier opcode may have stashed an exception
-    // (Stack overflow, etc.) and the operand-stack TOS is undefined garbage
-    // until executeCallWithJit's pendingException rethrow at body-return.
+    // already set — a CALL helper on an earlier opcode may have stashed
+    // an exception (Stack overflow, etc.) and the operand-stack TOS is
+    // undefined garbage until executeCallWithJit's pendingException
+    // rethrow at body-return.
+    // MYT-268: previously threw OSRDeoptException directly; on Windows
+    // x64 the throw silently terminated the process because the asmjit
+    // JIT frame has no PE x64 unwind data registered.
     void jit_await(JitContext* ctx, value::Value* val, uint64_t bytecodeOffset);
 
     extern "C" {

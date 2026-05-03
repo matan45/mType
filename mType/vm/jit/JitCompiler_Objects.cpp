@@ -1831,10 +1831,19 @@ namespace vm::jit
     // AWAIT is shaped like CREATE_PROMISE: TOS holds the Value to resolve,
     // helper rewrites it in place. The single helper covers PROMISE_INT
     // unwrap (always-taken in the benchmarks), heap-fulfilled value extract,
-    // and the deopt-throw for pending / rejected / non-promise. We pass the
+    // and the deopt-stash for pending / rejected / non-promise. We pass the
     // bytecode IP so the deopt path lands at the same AWAIT in the
     // interpreter and re-runs through executeAwait's full suspend / throw
     // machinery.
+    //
+    // MYT-268: jit_await stashes OSRDeoptException on ctx->pendingException
+    // instead of throwing (the throw form crashed silently on Windows x64
+    // — no PE unwind data registered for the asmjit frame). After the
+    // cc.invoke we emit a jit_has_pending_exception check and jump to the
+    // per-function deopt-exit label on hit. The exit label runs emitCleanup
+    // + cc.ret; executeCallWithJit / executeCallFastWithJit detect the
+    // stashed OSRDeoptException after jitCode returns and route to the
+    // interpreter fallback. Pattern copied from JitCompiler_OSR.cpp:311-326.
     static bool emitAwaitOp(JitEmissionState& s)
     {
         if (!s.usesBoxedTypes || s.stackDepth <= 0)
@@ -1862,6 +1871,24 @@ namespace vm::jit
         inv->set_arg(0, s.ctxPtr);
         inv->set_arg(1, valueAddr);
         inv->set_arg(2, ipReg);
+
+        // MYT-268: post-invoke deopt-exit check. Lazily allocate the
+        // per-function exit label on first AWAIT; emitFunctionBody binds
+        // it after emitCodegenLoop and emits cleanup + cc.ret.
+        if (!s.functionDeoptExitBound)
+        {
+            s.functionDeoptExitLabel = cc.new_label();
+            s.functionDeoptExitBound = true;
+        }
+        InvokeNode* checkInv = nullptr;
+        cc.invoke(Out(checkInv),
+                  reinterpret_cast<uint64_t>(jit_has_pending_exception),
+                  FuncSignature::build<int64_t, const JitContext*>());
+        checkInv->set_arg(0, s.ctxPtr);
+        Gp pendingResult = cc.new_gp64();
+        checkInv->set_ret(0, pendingResult);
+        cc.test(pendingResult, pendingResult);
+        cc.jnz(s.functionDeoptExitLabel);
 
         s.slotTypes.push_back(SlotType::BOXED);
         return true;

@@ -681,6 +681,25 @@ namespace vm::jit
 
         emitCleanup(s);
         cc.mov(byte_ptr(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
+
+        // MYT-268: bind the per-function deopt-exit label after the normal
+        // epilogue. emitAwaitOp emits cc.jnz to this label after stashing
+        // OSRDeoptException via jit_await; we want it reached only via
+        // that jump. Emit an explicit cc.ret() so the post-loop fall-
+        // through cleanup above can't fall into the deopt-exit cleanup
+        // (which would double-destroy boxed locals via emitCleanup's
+        // jit_value_destroy invokes). Mirrors the osrExit lambda pattern
+        // at JitCompiler_OSR.cpp:446-447 — every exit block ends with
+        // cleanup + ret. The functionDeoptExitBound guard avoids binding
+        // an unreferenced label in functions with no AWAIT.
+        if (s.functionDeoptExitBound)
+        {
+            cc.ret();
+            cc.bind(s.functionDeoptExitLabel);
+            emitCleanup(s);
+            cc.mov(byte_ptr(ctxPtr, offsetof(JitContext, hasReturnValue)), 0);
+            cc.ret();
+        }
         return true;
     }
 
