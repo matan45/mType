@@ -222,6 +222,29 @@ namespace tests::testSuite
         addOutputVerificationTest("Async Parallel Rejection Fanout",
                         passPath + "asyncParallelRejectionFanout.mt");
 
+        // MYT-265: Script-level pending promises. These force executeAwait()
+        // through the event-loop suspend/resume branch instead of the
+        // synchronously fulfilled/rejected fast paths.
+        addOutputVerificationTest("Async Pending Await Suspend",
+                        passPath + "asyncPendingAwaitSuspend.mt");
+        addOutputVerificationTest("Async Pending Await Rejection",
+                        passPath + "asyncPendingAwaitRejection.mt");
+        addOutputVerificationTest("Async Pending Await In Loop",
+                        passPath + "asyncPendingAwaitInLoop.mt");
+
+        // MYT-265: JIT-warmed variants. Each calls a hot async function 200x
+        // (> JIT threshold = 100), so jit_await observes a pending promise,
+        // throws OSRDeoptException, and the interpreter resumes through
+        // executeAwait's suspend branch. Pins the JIT-AWAIT deopt route
+        // explicitly rather than relying on incidental coverage from the
+        // suite's default JIT-on pass.
+        addOutputVerificationTest("Async Pending Await Suspend (JIT-warmed)",
+                        passPath + "asyncPendingAwaitSuspendJitWarmed.mt");
+        addOutputVerificationTest("Async Pending Await Rejection (JIT-warmed)",
+                        passPath + "asyncPendingAwaitRejectionJitWarmed.mt");
+        addOutputVerificationTest("Async Pending Await In Loop (JIT-warmed)",
+                        passPath + "asyncPendingAwaitInLoopJitWarmed.mt");
+
         // === CROSS-FEATURE EDGE CASES ===
         addOutputVerificationTest("Async Final Capture Lambda",
                         passPath + "asyncFinalCaptureLambda.mt");

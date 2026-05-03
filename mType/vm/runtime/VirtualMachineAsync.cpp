@@ -94,15 +94,21 @@ namespace vm::runtime
                 "Use AsyncPromiseValue for true async/await functionality.");
         }
 
-        auto stackMgr = this->stackManager;
         std::weak_ptr<VirtualMachine> weakVM = weak_from_this();
         auto taskId = this->currentTaskId;
 
-        asyncPromise->then([stackMgr, weakVM, taskId](value::Value resolvedValue)
+        asyncPromise->then([weakVM, taskId](value::Value resolvedValue)
         {
             if (auto vm = weakVM.lock())
             {
-                stackMgr->push(resolvedValue);
+                if (vm->savedState.has_value())
+                {
+                    vm->savedState->stack.push_back(resolvedValue);
+                }
+                else
+                {
+                    vm->stackManager->push(resolvedValue);
+                }
                 if (vm->eventLoop)
                     vm->eventLoop->resumeTask(taskId, resolvedValue);
             }

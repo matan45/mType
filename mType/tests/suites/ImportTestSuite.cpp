@@ -85,6 +85,8 @@ namespace tests::testSuite
                         "mType/tests/testFiles/import/pass/importListCollection.mt");
         addOutputVerificationTest("Import Nested Collections",
                         "mType/tests/testFiles/import/pass/importNestedCollections.mt");
+        addOutputVerificationTest("Import Random Math",
+                        "mType/tests/testFiles/import/pass/importRandomMath.mt");
 
         // === GENERICS IMPORTS (6 tests) ===
         addOutputVerificationTest("Import Generic Class",

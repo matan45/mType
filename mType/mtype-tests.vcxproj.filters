@@ -1999,6 +1999,42 @@
     <None Include="tests\testFiles\await\pass\asyncParallelRejectionFanout.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitInLoop.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitInLoop.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitInLoopJitWarmed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitInLoopJitWarmed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitRejection.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitRejection.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitRejectionJitWarmed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitRejectionJitWarmed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitSuspend.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitSuspend.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitSuspendJitWarmed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingAwaitSuspendJitWarmed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncPreRejectedPromiseFanout.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
