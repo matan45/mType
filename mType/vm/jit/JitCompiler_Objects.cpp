@@ -1875,20 +1875,32 @@ namespace vm::jit
         // MYT-268: post-invoke deopt-exit check. Lazily allocate the
         // per-function exit label on first AWAIT; emitFunctionBody binds
         // it after emitCodegenLoop and emits cleanup + cc.ret.
-        if (!s.functionDeoptExitBound)
+        //
+        // OSR compilation skips this — compileLoopOSR doesn't bind the
+        // function-level deopt-exit label (it has no emitFunctionBody
+        // pass), and the existing back-edge check at the next iteration
+        // (JitCompiler_OSR.cpp:311-326) detects pendingException and
+        // routes through osrExit, which is the correct OSR-deopt path.
+        // Subsequent helpers in the same iteration short-circuit via
+        // their own `if (ctx->pendingException) return;` guard, so the
+        // back-edge check is the bounded-latency surrogate.
+        if (!s.isOSRCompilation)
         {
-            s.functionDeoptExitLabel = cc.new_label();
-            s.functionDeoptExitBound = true;
+            if (!s.functionDeoptExitBound)
+            {
+                s.functionDeoptExitLabel = cc.new_label();
+                s.functionDeoptExitBound = true;
+            }
+            InvokeNode* checkInv = nullptr;
+            cc.invoke(Out(checkInv),
+                      reinterpret_cast<uint64_t>(jit_has_pending_exception),
+                      FuncSignature::build<int64_t, const JitContext*>());
+            checkInv->set_arg(0, s.ctxPtr);
+            Gp pendingResult = cc.new_gp64();
+            checkInv->set_ret(0, pendingResult);
+            cc.test(pendingResult, pendingResult);
+            cc.jnz(s.functionDeoptExitLabel);
         }
-        InvokeNode* checkInv = nullptr;
-        cc.invoke(Out(checkInv),
-                  reinterpret_cast<uint64_t>(jit_has_pending_exception),
-                  FuncSignature::build<int64_t, const JitContext*>());
-        checkInv->set_arg(0, s.ctxPtr);
-        Gp pendingResult = cc.new_gp64();
-        checkInv->set_ret(0, pendingResult);
-        cc.test(pendingResult, pendingResult);
-        cc.jnz(s.functionDeoptExitLabel);
 
         s.slotTypes.push_back(SlotType::BOXED);
         return true;
