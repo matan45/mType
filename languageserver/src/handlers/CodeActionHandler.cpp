@@ -433,15 +433,16 @@ std::vector<std::string> CodeActionHandler::getRequiredMethods(
     const auto& signatures = interfaceDef->getMethodSignatures();
 
     for (const auto& sig : signatures) {
-        // Build method signature string
+        // Build method signature string. mType uses C/Java-style param
+        // syntax (`int index`, not `index: int`); interface-implemented
+        // methods are conventionally `public`.
         std::stringstream methodBuilder;
-        methodBuilder << "function " << sig.name << "(";
+        methodBuilder << "public function " << sig.name << "(";
 
-        // Add parameters
         bool first = true;
         for (const auto& [paramName, paramType] : sig.parameters) {
             if (!first) methodBuilder << ", ";
-            methodBuilder << paramName << ": " << paramType->getName();
+            methodBuilder << paramType->getName() << " " << paramName;
             first = false;
         }
 

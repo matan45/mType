@@ -184,6 +184,93 @@ namespace {
         return detail;
     }
 
+    // Builds a callable snippet body so accepting a function/method
+    // completion drops the user inside the parameter list with the
+    // first argument selected. Mirrors the form already used for
+    // builtins ("print(${1:value})"). Empty-param methods become
+    // "name()$0" so the user lands past the closing paren.
+    std::string buildCallSnippet(
+        const std::string& name,
+        const std::vector<std::pair<std::string, value::ParameterType>>& params)
+    {
+        std::string snippet = name + "(";
+        for (std::size_t i = 0; i < params.size(); ++i) {
+            if (i > 0) snippet += ", ";
+            const std::string& paramName = params[i].first;
+            snippet += "${" + std::to_string(i + 1) + ":";
+            snippet += paramName.empty() ? ("p" + std::to_string(i + 1)) : paramName;
+            snippet += "}";
+        }
+        snippet += ")$0";
+        return snippet;
+    }
+
+    // True when the user's cursor is immediately followed by `(`.
+    // We then suppress the snippet body so the dropdown doesn't
+    // produce `myFunc(${1:p1})()` against an existing call site —
+    // the textEdit only replaces the typed prefix, not the trailing
+    // parens. Whitespace before the paren still counts as "already
+    // a call" for this purpose.
+    bool cursorFollowedByOpenParen(const std::string& textAfterCursor)
+    {
+        for (char c : textAfterCursor) {
+            if (c == '(') return true;
+            if (!std::isspace(static_cast<unsigned char>(c))) return false;
+        }
+        return false;
+    }
+
+    // Stamp `data` so completionItem/resolve can rehydrate the symbol
+    // identity without the server having to recompute the whole
+    // completion list. Kept as a tiny json blob — the spec lets us
+    // round-trip arbitrary structured data through the client.
+    void stampResolveData(CompletionItem& item,
+                          const std::string& uri,
+                          const std::string& kind,
+                          const std::string& owner,
+                          const std::string& name)
+    {
+        json data = {
+            {"uri", uri},
+            {"kind", kind},
+            {"name", name}
+        };
+        if (!owner.empty()) data["owner"] = owner;
+        item.data = std::move(data);
+    }
+
+    void attachCallCommitChars(CompletionItem& item)
+    {
+        item.commitCharacters = {"("};
+    }
+
+    bool isCallableKind(int kind)
+    {
+        const auto k = static_cast<CompletionItemKind>(kind);
+        return k == CompletionItemKind::Method
+            || k == CompletionItemKind::Function
+            || k == CompletionItemKind::Constructor;
+    }
+
+    // True when the cursor sits right after `@`, optionally followed by
+    // a partial annotation name (`@`, `@Ov`, `@Override`). The post-`@`
+    // partial is returned via `outPartial` so the caller can fuzzy-filter
+    // and replace just the typed name, not the `@` itself.
+    bool textEndsInAnnotationTrigger(const std::string& text, std::string& outPartial)
+    {
+        try {
+            std::regex re(R"((^|[^A-Za-z0-9_])@(\w*)$)");
+            std::smatch match;
+            if (std::regex_search(text, match, re)) {
+                outPartial = match[2].matched ? match[2].str() : std::string{};
+                return true;
+            }
+            return false;
+        } catch (const std::regex_error&) {
+            return false;
+        }
+    }
+
     std::string inferEnclosingClass(const std::string& content, int targetLine)
     {
         std::regex classRegex(R"(\bclass\s+([A-Za-z_][A-Za-z0-9_]*))");
@@ -285,11 +372,30 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     std::string currentLine = getLineAtPosition(doc->content, position);
     std::string textBeforeCursor = currentLine.substr(
         0, std::min(position.character, static_cast<int>(currentLine.length())));
+    std::string textAfterCursor = (position.character < static_cast<int>(currentLine.length()))
+        ? currentLine.substr(position.character)
+        : std::string{};
 
     // MYT-51 — extract the partial identifier under the cursor once,
     // upfront, so every branch can apply the same fuzzy filter.
     const std::string typedPrefix =
         util::extractIdentifierTokenBefore(currentLine, position.character);
+
+    // True when the cursor is already immediately followed by `(` —
+    // in that case the call snippet `name(${1:p})$0` would produce a
+    // double-paren `name(${1:p})()`. We post-process below to drop
+    // back to the bare identifier when this is detected.
+    const bool followedByOpenParen = cursorFollowedByOpenParen(textAfterCursor);
+
+    auto stripCallSnippetsIfNeeded = [&](std::vector<CompletionItem>& items) {
+        if (!followedByOpenParen) return;
+        for (auto& item : items) {
+            if (!isCallableKind(item.kind)) continue;
+            if (item.insertTextFormat.value_or(1) != kSnippetInsertTextFormat) continue;
+            item.insertText = item.label;
+            item.insertTextFormat.reset();
+        }
+    };
 
     // Check if we're after :: (static member access) or . (instance member access)
     // Trim whitespace from the end
@@ -348,10 +454,22 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
             // Get member completions for this identifier
             auto memberItems = getMemberCompletions(uri, identifier, position.line, isStaticAccess);
             applyFuzzyFilter(memberItems, typedPrefix);
+            stripCallSnippetsIfNeeded(memberItems);
             applyReplacementEdit(memberItems, position, typedPrefix);
             sortCompletions(memberItems, typedPrefix);
             return memberItems;
         }
+    }
+
+    // Annotation context: cursor sits right after `@` (with optional
+    // partial name). Replace just the partial — the `@` itself stays.
+    std::string annotationPartial;
+    if (textEndsInAnnotationTrigger(textBeforeCursor, annotationPartial)) {
+        auto annotations = getAnnotationCompletions(uri);
+        applyFuzzyFilter(annotations, annotationPartial);
+        applyReplacementEdit(annotations, position, annotationPartial);
+        sortCompletions(annotations, annotationPartial);
+        return annotations;
     }
 
     // Check context-specific completions
@@ -414,6 +532,7 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     auto autoImports = getAutoImportCompletions(uri, typedPrefix, items);
     items.insert(items.end(), autoImports.begin(), autoImports.end());
 
+    stripCallSnippetsIfNeeded(items);
     applyReplacementEdit(items, position, typedPrefix);
     sortCompletions(items, typedPrefix);
 
@@ -607,6 +726,7 @@ std::vector<CompletionItem> CompletionHandler::getIdentifierCompletions(const st
         item.kind = static_cast<int>(CompletionItemKind::Function);
         item.detail = "function";
         item.insertText = name;
+        item.filterText = name;
         if (auto registry = doc->environment->getFunctionRegistry()) {
             if (auto fn = registry->findFunction(name)) {
                 std::string returnType = valueTypeToString(fn->getReturnType());
@@ -614,11 +734,20 @@ std::vector<CompletionItem> CompletionHandler::getIdentifierCompletions(const st
                     && !fn->getReturnClassName().empty()) {
                     returnType = fn->getReturnClassName();
                 }
+                const auto& params = fn->getParametersWithTypes();
                 item.detail = name + "("
-                    + formatParameters(fn->getParametersWithTypes())
+                    + formatParameters(params)
                     + "): " + returnType;
+                // Snippet body so accepting a function completion drops
+                // the user inside the call with the first argument
+                // selected. handleCompletion strips this back to a bare
+                // identifier when the cursor is already followed by `(`.
+                item.insertText = buildCallSnippet(name, params);
+                item.insertTextFormat = kSnippetInsertTextFormat;
             }
         }
+        attachCallCommitChars(item);
+        stampResolveData(item, uri, "function", /*owner=*/"", name);
         items.push_back(std::move(item));
     }
 
@@ -698,6 +827,127 @@ std::vector<CompletionItem> CompletionHandler::getInterfaceCompletions(const std
     }
 
     return items;
+}
+
+std::vector<CompletionItem> CompletionHandler::getAnnotationCompletions(
+    const std::string& uri) const
+{
+    std::vector<CompletionItem> items;
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc || !doc->environment) {
+        return items;
+    }
+
+    auto registry = doc->environment->getAnnotationRegistry();
+    if (!registry) {
+        return items;
+    }
+
+    // Built-ins (Override / Script / EntryPoint / Throw / Retention /
+    // Target / Inherited) are pre-registered by BuiltInAnnotations at
+    // Environment::initialize, so a single registry walk covers both
+    // built-ins and any user-declared annotations.
+    auto names = registry->getAllItemNames();
+    for (const auto& name : names) {
+        CompletionItem item;
+        item.label = name;
+        item.kind = static_cast<int>(CompletionItemKind::Reference);
+        item.detail = "annotation";
+        item.insertText = name;
+        item.filterText = name;
+        stampResolveData(item, uri, "annotation", /*owner=*/"", name);
+        items.push_back(std::move(item));
+    }
+
+    return items;
+}
+
+CompletionItem CompletionHandler::resolveCompletion(const CompletionItem& item) const
+{
+    CompletionItem resolved = item;
+
+    // The resolve round-trip is best-effort: if VS Code dropped the
+    // `data` blob, or the document closed since the initial response,
+    // we hand the item back unchanged rather than fail the request.
+    if (!resolved.data || !resolved.data->is_object()) {
+        return resolved;
+    }
+
+    const auto& data = *resolved.data;
+    if (!data.contains("uri") || !data.contains("kind") || !data.contains("name")) {
+        return resolved;
+    }
+
+    const std::string uri = data.value("uri", std::string{});
+    const std::string kind = data.value("kind", std::string{});
+    const std::string owner = data.value("owner", std::string{});
+    const std::string name = data.value("name", std::string{});
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc || !doc->environment) {
+        return resolved;
+    }
+
+    std::string doc_md;
+
+    if (kind == "function") {
+        if (auto registry = doc->environment->getFunctionRegistry()) {
+            if (auto fn = registry->findFunction(name)) {
+                std::string returnType = valueTypeToString(fn->getReturnType());
+                if (fn->getReturnType() == value::ValueType::OBJECT
+                    && !fn->getReturnClassName().empty()) {
+                    returnType = fn->getReturnClassName();
+                }
+                doc_md = "**function** `" + name + "("
+                    + formatParameters(fn->getParametersWithTypes())
+                    + "): " + returnType + "`";
+            }
+        }
+    } else if (kind == "method" || kind == "static_method") {
+        if (auto classRegistry = doc->environment->getClassRegistry()) {
+            if (auto classDef = classRegistry->findClass(owner)) {
+                const auto& methods = (kind == "static_method")
+                    ? classDef->getStaticMethods()
+                    : classDef->getInstanceMethods();
+                auto it = methods.find(name);
+                if (it != methods.end() && !it->second.empty()) {
+                    doc_md = "**" + std::string(kind == "static_method" ? "static method" : "method")
+                        + "** `" + methodDetail(it->second.front(), owner,
+                                                it->second.size(),
+                                                kind == "static_method") + "`";
+                    if (it->second.size() > 1) {
+                        doc_md += "\n\nMultiple overloads available.";
+                    }
+                }
+            }
+        }
+    } else if (kind == "field" || kind == "static_field") {
+        if (auto classRegistry = doc->environment->getClassRegistry()) {
+            if (auto classDef = classRegistry->findClass(owner)) {
+                const auto& fields = (kind == "static_field")
+                    ? classDef->getStaticFields()
+                    : classDef->getInstanceFields();
+                auto it = fields.find(name);
+                if (it != fields.end() && it->second) {
+                    doc_md = "**" + std::string(kind == "static_field" ? "static field" : "field")
+                        + "** `" + fieldDetail(it->second, owner,
+                                               kind == "static_field") + "`";
+                }
+            }
+        }
+    } else if (kind == "annotation") {
+        if (auto registry = doc->environment->getAnnotationRegistry()) {
+            if (registry->hasAnnotation(name)) {
+                doc_md = "**annotation** `@" + name + "`";
+            }
+        }
+    }
+
+    if (!doc_md.empty()) {
+        resolved.documentation = std::move(doc_md);
+    }
+    return resolved;
 }
 
 std::vector<CompletionItem> CompletionHandler::getAutoImportCompletions(
@@ -784,52 +1034,12 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
         return items;
     }
 
-    // If using :: operator, ONLY allow static member access from class names
-    if (isStaticAccess) {
-        // objectName must be a class name for :: operator
-        if (classRegistry->hasClass(objectName)) {
-            auto classDef = classRegistry->findClass(objectName);
-            if (classDef) {
-                // Get static methods
-                const auto& staticMethods = classDef->getStaticMethods();
-                for (const auto& pair : staticMethods) {
-                    const std::string& methodName = pair.first;
-                    const auto& methodOverloads = pair.second;
-                    if (methodOverloads.empty()) continue;
-
-                    // Use first overload for access modifier info
-                    const auto& firstOverload = methodOverloads.front();
-
-                    CompletionItem item;
-                    item.label = methodName;
-                    item.kind = static_cast<int>(CompletionItemKind::Method);
-                    item.detail = methodDetail(firstOverload, objectName, methodOverloads.size(), true);
-                    item.insertText = methodName;
-                    items.push_back(item);
-                }
-
-                // Get static fields
-                const auto& staticFields = classDef->getStaticFields();
-                for (const auto& pair : staticFields) {
-                    const std::string& fieldName = pair.first;
-                    const auto& fieldDef = pair.second;
-
-                    CompletionItem item;
-                    item.label = fieldName;
-                    item.kind = static_cast<int>(CompletionItemKind::Field);
-                    item.detail = fieldDetail(fieldDef, objectName, true);
-                    item.insertText = fieldName;
-                    items.push_back(item);
-                }
-            }
-        }
-        return items;
-    }
-
-    // If using . operator, provide instance member access
-    // Use type inference to show only relevant members for the specific object type
+    // Resolve the type name we're going to walk. For `this` / `super`
+    // this depends on the cursor's enclosing class; for a regular
+    // identifier we go through DocumentManager's per-document type
+    // inference. Failure short-circuits — no point in walking.
     std::string varType;
-    if (objectName == "this" || objectName == "super") {
+    if (!isStaticAccess && (objectName == "this" || objectName == "super")) {
         varType = inferEnclosingClass(doc->content, line);
         if (objectName == "super" && !varType.empty()) {
             auto currentClass = classRegistry->findClass(varType);
@@ -839,6 +1049,8 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
             }
             varType = parentClass;
         }
+    } else if (isStaticAccess) {
+        varType = objectName;
     } else {
         varType = documentManager_->getVariableType(uri, objectName, line);
     }
@@ -850,46 +1062,109 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
         varType = varType.substr(0, angle);
     }
 
-    // Type inference succeeded! Show only members from the specific type
     if (!classRegistry->hasClass(varType)) {
-        return items; // Type not found in registry
-    }
-
-    auto classDef = classRegistry->findClass(varType);
-    if (!classDef) {
         return items;
     }
 
-    // Add instance methods from the specific class
-    const auto& instanceMethods = classDef->getInstanceMethods();
-    for (const auto& pair : instanceMethods) {
-        const std::string& methodName = pair.first;
-        const auto& methodOverloads = pair.second;
-        if (methodOverloads.empty()) continue;
-
-        // Use first overload for access modifier info
-        const auto& firstOverload = methodOverloads.front();
-
-        CompletionItem item;
-        item.label = methodName;
-        item.kind = static_cast<int>(CompletionItemKind::Method);
-        item.detail = methodDetail(firstOverload, varType, methodOverloads.size(), false);
-        item.insertText = methodName;
-        items.push_back(item);
+    // Member completions for `obj.` / `Class::` are pure with respect
+    // to (uri, version, varType, accessKind) — the same call returns
+    // the same list until the document is edited. The dropdown fires
+    // on every keystroke after the trigger, so caching saves the full
+    // inheritance walk on each one.
+    const std::string cacheKey = uri + "|v" + std::to_string(doc->version)
+        + (isStaticAccess ? "|s|" : "|i|") + varType;
+    {
+        std::lock_guard<std::mutex> lock(memberCacheMutex_);
+        auto cacheIt = memberCache_.find(cacheKey);
+        if (cacheIt != memberCache_.end()
+            && cacheIt->second.docVersion == doc->version) {
+            return cacheIt->second.items;
+        }
     }
 
-    // Add instance fields from the specific class
-    const auto& instanceFields = classDef->getInstanceFields();
-    for (const auto& pair : instanceFields) {
-        const std::string& fieldName = pair.first;
-        const auto& fieldDef = pair.second;
+    // Are we inside the class we're querying? Used to decide whether
+    // private members are visible. Outside-class access still surfaces
+    // protected members so subclass authors can discover them.
+    const std::string enclosingClass = inferEnclosingClass(doc->content, line);
+    auto isAccessible = [&](ast::AccessModifier modifier,
+                            const std::string& memberOwner) {
+        if (modifier != ast::AccessModifier::PRIVATE) return true;
+        return enclosingClass == memberOwner;
+    };
 
-        CompletionItem item;
-        item.label = fieldName;
-        item.kind = static_cast<int>(CompletionItemKind::Field);
-        item.detail = fieldDetail(fieldDef, varType, false);
-        item.insertText = fieldName;
-        items.push_back(item);
+    // Walk the inheritance chain, deduping by (name, isMethod) so an
+    // override in the most-derived class wins. Without the walk,
+    // members declared on parent classes / Object never showed up
+    // after `obj.`.
+    std::unordered_set<std::string> seenMembers;
+    auto rememberMember = [&](const std::string& name, bool method) {
+        return seenMembers.insert((method ? "m:" : "f:") + name).second;
+    };
+
+    constexpr int kMaxInheritanceWalk = 32;  // matches ClassDefinition's depth guard
+    auto current = classRegistry->findClass(varType);
+    int depth = 0;
+    while (current && depth++ < kMaxInheritanceWalk) {
+        const std::string& currentOwner = current->getName();
+
+        const auto& methods =
+            isStaticAccess ? current->getStaticMethods() : current->getInstanceMethods();
+        for (const auto& [methodName, overloads] : methods) {
+            if (overloads.empty()) continue;
+            const auto& firstOverload = overloads.front();
+            if (!isAccessible(firstOverload->getAccessModifier(), currentOwner)) continue;
+            if (!rememberMember(methodName, /*method=*/true)) continue;
+
+            CompletionItem item;
+            item.label = methodName;
+            item.kind = static_cast<int>(CompletionItemKind::Method);
+            item.detail = methodDetail(firstOverload, currentOwner, overloads.size(), isStaticAccess);
+            item.insertText = buildCallSnippet(methodName, firstOverload->getParametersWithTypes());
+            item.insertTextFormat = kSnippetInsertTextFormat;
+            item.filterText = methodName;
+            attachCallCommitChars(item);
+            stampResolveData(item, uri,
+                             isStaticAccess ? "static_method" : "method",
+                             currentOwner, methodName);
+            items.push_back(std::move(item));
+        }
+
+        const auto& fields =
+            isStaticAccess ? current->getStaticFields() : current->getInstanceFields();
+        for (const auto& [fieldName, fieldDef] : fields) {
+            if (!fieldDef) continue;
+            if (!isAccessible(fieldDef->getAccessModifier(), currentOwner)) continue;
+            if (!rememberMember(fieldName, /*method=*/false)) continue;
+
+            CompletionItem item;
+            item.label = fieldName;
+            item.kind = static_cast<int>(CompletionItemKind::Field);
+            item.detail = fieldDetail(fieldDef, currentOwner, isStaticAccess);
+            item.insertText = fieldName;
+            item.filterText = fieldName;
+            stampResolveData(item, uri,
+                             isStaticAccess ? "static_field" : "field",
+                             currentOwner, fieldName);
+            items.push_back(std::move(item));
+        }
+
+        current = current->getParentClass();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(memberCacheMutex_);
+        // Evict stale entries for this uri so the cache doesn't grow
+        // unbounded across document edits.
+        const std::string uriPrefix = uri + "|v";
+        for (auto it = memberCache_.begin(); it != memberCache_.end(); ) {
+            if (it->first.rfind(uriPrefix, 0) == 0
+                && it->second.docVersion != doc->version) {
+                it = memberCache_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        memberCache_[cacheKey] = MemberCacheEntry{ doc->version, items };
     }
 
     return items;

@@ -102,6 +102,15 @@ struct CompletionItem {
     // accepts the completion. LSP spec models this as an array; VS
     // Code applies all entries silently alongside the main insert.
     std::vector<TextEdit> additionalTextEdits;
+    // Per-item characters that, when typed by the user, commit this
+    // completion before the trailing character is inserted. Methods
+    // and functions set this to ["("] so typing the open paren
+    // accepts the suggestion in one motion.
+    std::vector<std::string> commitCharacters;
+    // Opaque blob round-tripped through completionItem/resolve so the
+    // server can recover the original symbol identity (kind + fqName)
+    // when populating documentation lazily.
+    std::optional<json> data;
 
     json toJson() const;
 };
@@ -266,7 +275,39 @@ inline json CompletionItem::toJson() const {
         for (const auto& te : additionalTextEdits) arr.push_back(te.toJson());
         j["additionalTextEdits"] = arr;
     }
+    if (!commitCharacters.empty()) j["commitCharacters"] = commitCharacters;
+    if (data) j["data"] = *data;
     return j;
+}
+
+// Round-trip CompletionItem through completionItem/resolve. VS Code echoes
+// the full object (including the opaque `data` blob and any fields it
+// preserved) so the server can rehydrate the original symbol identity
+// without recomputing the whole completion list.
+inline void from_json(const json& j, CompletionItem& item) {
+    j.at("label").get_to(item.label);
+    j.at("kind").get_to(item.kind);
+    if (j.contains("detail") && j.at("detail").is_string()) {
+        item.detail = j.at("detail").get<std::string>();
+    }
+    if (j.contains("documentation") && j.at("documentation").is_string()) {
+        item.documentation = j.at("documentation").get<std::string>();
+    }
+    if (j.contains("insertText") && j.at("insertText").is_string()) {
+        item.insertText = j.at("insertText").get<std::string>();
+    }
+    if (j.contains("insertTextFormat") && j.at("insertTextFormat").is_number_integer()) {
+        item.insertTextFormat = j.at("insertTextFormat").get<int>();
+    }
+    if (j.contains("sortText") && j.at("sortText").is_string()) {
+        item.sortText = j.at("sortText").get<std::string>();
+    }
+    if (j.contains("filterText") && j.at("filterText").is_string()) {
+        item.filterText = j.at("filterText").get<std::string>();
+    }
+    if (j.contains("data")) {
+        item.data = j.at("data");
+    }
 }
 
 struct WorkspaceEdit {

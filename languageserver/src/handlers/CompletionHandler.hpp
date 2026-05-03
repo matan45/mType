@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../utils/LSPTypes.hpp"
@@ -29,11 +31,24 @@ public:
         const Position& position
     );
 
+    // Lazy enrichment for completionItem/resolve. The client echoes the
+    // original CompletionItem (including the opaque `data` blob the
+    // server stamped during the initial response); this fills in
+    // documentation derived from the registry without recomputing the
+    // whole list.
+    CompletionItem resolveCompletion(const CompletionItem& item) const;
+
 private:
     std::vector<CompletionItem> getKeywordCompletions() const;
     std::vector<CompletionItem> getTypeCompletions() const;
     std::vector<CompletionItem> getBuiltinCompletions() const;
     std::vector<CompletionItem> getCollectionCompletions() const;
+    // Annotation completions sourced from the per-document
+    // AnnotationRegistry (populated with built-ins via
+    // BuiltInAnnotations + any user-declared annotations). Triggered
+    // when the cursor sits right after `@` (optionally followed by a
+    // partial identifier).
+    std::vector<CompletionItem> getAnnotationCompletions(const std::string& uri) const;
 
     // MYT-51 — unified identifier enumeration. Walks the environment's
     // scope chain + class/interface/function registries through
@@ -75,6 +90,19 @@ private:
     DocumentManager* documentManager_;
     std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
     std::unique_ptr<PathCompletionHandler> pathCompletionHandler_;
+
+    // Per-document member completion cache. `getMemberCompletions` is
+    // called on every keystroke after `.` / `::`, and the underlying
+    // inheritance walk + dedup is the same answer until the document
+    // changes. Keyed by `uri + access + "@" + typeName`; entries are
+    // invalidated by document version. Guarded by a mutex because the
+    // LSP runtime is free to dispatch requests on any thread.
+    struct MemberCacheEntry {
+        int docVersion;
+        std::vector<CompletionItem> items;
+    };
+    mutable std::mutex memberCacheMutex_;
+    mutable std::unordered_map<std::string, MemberCacheEntry> memberCache_;
 };
 
 } // namespace mtype::lsp
