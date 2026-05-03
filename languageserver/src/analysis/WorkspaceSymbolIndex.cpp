@@ -17,6 +17,7 @@
 #include "../../../mType/ast/nodes/statements/ProgramNode.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -33,6 +34,28 @@ namespace mtype::lsp::analysis
         bool isTopLevelKey(const std::string& key)
         {
             return key.find('.') == std::string::npos;
+        }
+
+        std::string toLowerAscii(std::string text)
+        {
+            std::transform(text.begin(), text.end(), text.begin(),
+                [](unsigned char c) {
+                    return static_cast<char>(std::tolower(c));
+                });
+            return text;
+        }
+
+        bool startsWithCaseInsensitive(const std::string& text,
+                                       const std::string& prefix)
+        {
+            if (prefix.size() > text.size()) return false;
+            for (std::size_t i = 0; i < prefix.size(); ++i)
+            {
+                const auto a = static_cast<unsigned char>(text[i]);
+                const auto b = static_cast<unsigned char>(prefix[i]);
+                if (std::tolower(a) != std::tolower(b)) return false;
+            }
+            return true;
         }
 
         // Best-effort kind detection by inspecting top-level program
@@ -184,6 +207,41 @@ namespace mtype::lsp::analysis
         if (it == byName_.end()) return {};
 
         std::vector<WorkspaceSymbol> results = it->second;
+        if (results.size() > maxResults)
+        {
+            results.resize(maxResults);
+        }
+        return results;
+    }
+
+    std::vector<WorkspaceSymbol> WorkspaceSymbolIndex::findByPrefix(
+        const std::string& prefix, std::size_t maxResults) const
+    {
+        if (prefix.empty() || maxResults == 0) return {};
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::vector<WorkspaceSymbol> results;
+
+        for (const auto& [name, symbols] : byName_)
+        {
+            if (!startsWithCaseInsensitive(name, prefix)) continue;
+            results.insert(results.end(), symbols.begin(), symbols.end());
+        }
+
+        const std::string loweredPrefix = toLowerAscii(prefix);
+        std::sort(results.begin(), results.end(),
+            [&loweredPrefix](const WorkspaceSymbol& a, const WorkspaceSymbol& b)
+            {
+                const std::string aLower = toLowerAscii(a.name);
+                const std::string bLower = toLowerAscii(b.name);
+                const bool aExact = aLower == loweredPrefix;
+                const bool bExact = bLower == loweredPrefix;
+                if (aExact != bExact) return aExact;
+                if (aLower != bLower) return aLower < bLower;
+                if (a.name != b.name) return a.name < b.name;
+                return a.fileUri < b.fileUri;
+            });
+
         if (results.size() > maxResults)
         {
             results.resize(maxResults);

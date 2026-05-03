@@ -23,6 +23,24 @@ bool hasItemWithKind(const std::vector<CompletionItem>& items, const std::string
         [&](const CompletionItem& item) { return item.label == label && item.kind == kind; });
 }
 
+const CompletionItem* findItemWithLabel(const std::vector<CompletionItem>& items, const std::string& label) {
+    auto it = std::find_if(items.begin(), items.end(),
+        [&](const CompletionItem& item) { return item.label == label; });
+    return it == items.end() ? nullptr : &(*it);
+}
+
+const CompletionItem* findAutoImportItem(
+    const std::vector<CompletionItem>& items,
+    const std::string& label) {
+    auto it = std::find_if(items.begin(), items.end(),
+        [&](const CompletionItem& item) {
+            return item.label == label
+                && item.detail.has_value()
+                && item.detail->find("Auto-import") == 0;
+        });
+    return it == items.end() ? nullptr : &(*it);
+}
+
 } // anonymous namespace
 
 void CompletionHandlerTestSuite::registerTests(LspTestHarness& harness) {
@@ -152,6 +170,19 @@ function topLevelFn(): void {}
             "expected 'print' to be filtered out for prefix 'xyz'");
     });
 
+    harness.addTest("fuzzy filter: case-insensitive typo keeps print", []() {
+        DocumentManager docMgr;
+        const std::string uri = "file:///test/fuzzy_case.mt";
+        docMgr.openDocument(uri, "PRNT", 1);
+        docMgr.parseDocument(uri);
+
+        CompletionHandler handler(&docMgr);
+        auto items = handler.handleCompletion(uri, {0, 4});
+
+        require(hasItemWithLabel(items, "print"),
+            "expected 'print' to survive fuzzy filter for uppercase prefix 'PRNT'");
+    });
+
     // ---------------------------------------------------------------
     // Test 6: Auto-import via WorkspaceSymbolIndex
     // ---------------------------------------------------------------
@@ -188,6 +219,56 @@ function topLevelFn(): void {}
         }
         require(foundAutoImport,
             "expected auto-import completion item for 'Helper' from workspace index");
+    });
+
+    harness.addTest("auto-import: partial prefix surfaces workspace class", []() {
+        DocumentManager docMgr;
+        const std::string mainUri = "file:///test/main_partial.mt";
+        const std::string libUri  = "file:///test/lib/Helper.mt";
+
+        docMgr.openDocument(mainUri, "Hel", 1);
+        docMgr.parseDocument(mainUri);
+
+        auto wsIndex = std::make_shared<analysis::WorkspaceSymbolIndex>();
+        wsIndex->reindexFile(libUri, "class Helper {\n}\n");
+
+        CompletionHandler handler(&docMgr, wsIndex);
+        auto items = handler.handleCompletion(mainUri, {0, 3});
+        const auto* item = findAutoImportItem(items, "Helper");
+
+        require(item != nullptr,
+            "expected partial prefix 'Hel' to offer auto-import for 'Helper'");
+        require(!item->additionalTextEdits.empty(),
+            "partial auto-import item should include import edit");
+        require(item->textEdit.has_value(),
+            "partial auto-import item should replace the typed prefix");
+    });
+
+    harness.addTest("auto-import: workspace kind maps to completion kind", []() {
+        DocumentManager docMgr;
+        const std::string mainUri = "file:///test/kinds.mt";
+        docMgr.openDocument(mainUri, "IF", 1);
+        docMgr.parseDocument(mainUri);
+
+        auto wsIndex = std::make_shared<analysis::WorkspaceSymbolIndex>();
+        wsIndex->reindexFile("file:///test/lib/IFace.mt",
+            "interface IFace {\n    function run(): void;\n}\n");
+        wsIndex->reindexFile("file:///test/lib/makeThing.mt",
+            "function makeThing(): void {}\n");
+
+        CompletionHandler handler(&docMgr, wsIndex);
+        auto interfaceItems = handler.handleCompletion(mainUri, {0, 2});
+        const auto* iface = findAutoImportItem(interfaceItems, "IFace");
+        require(iface != nullptr, "expected interface auto-import item");
+        require(iface->kind == static_cast<int>(CompletionItemKind::Interface),
+            "auto-imported interface should use Interface completion kind");
+
+        docMgr.updateDocument(mainUri, "make", 2);
+        auto functionItems = handler.handleCompletion(mainUri, {0, 4});
+        const auto* fn = findAutoImportItem(functionItems, "makeThing");
+        require(fn != nullptr, "expected function auto-import item");
+        require(fn->kind == static_cast<int>(CompletionItemKind::Function),
+            "auto-imported function should use Function completion kind");
     });
 
     // ---------------------------------------------------------------
@@ -318,6 +399,24 @@ function topLevelFn(): void {}
         require(hasItemWithLabel(items, "HashMap"), "expected 'HashMap' collection");
     });
 
+    harness.addTest("ranking metadata: prefix function sorts before keyword", []() {
+        auto docMgr = makeDocManager("file:///test/ranking.mt", "pr");
+        CompletionHandler handler(docMgr.get());
+        auto items = handler.handleCompletion("file:///test/ranking.mt", {0, 2});
+
+        const auto* printItem = findItemWithLabel(items, "print");
+        const auto* privateItem = findItemWithLabel(items, "private");
+
+        require(printItem != nullptr, "expected print completion");
+        require(privateItem != nullptr, "expected private completion");
+        require(printItem->sortText.has_value(), "print should have sortText");
+        require(privateItem->sortText.has_value(), "private should have sortText");
+        require(*printItem->sortText < *privateItem->sortText,
+            "function completion should sort before keyword completion for same prefix");
+        require(printItem->textEdit.has_value(),
+            "completion should include replacement edit for typed prefix");
+    });
+
     // ---------------------------------------------------------------
     // Test 12: Member access via dot
     // ---------------------------------------------------------------
@@ -334,6 +433,31 @@ function topLevelFn(): void {}
             require(!hasItemWithLabel(items, "class"),
                 "member access should not show keywords");
         }
+    });
+
+    harness.addTest("member access: unknown receiver does not show unrelated members", []() {
+        auto docMgr = makeDocManager("file:///test/unknown_member.mt",
+            "class Dog {\n    function bark(): void {}\n}\nmissing.bark();\n");
+        CompletionHandler handler(docMgr.get());
+        auto items = handler.handleCompletion("file:///test/unknown_member.mt", {3, 8});
+
+        require(items.empty(),
+            "unknown receiver should not fall back to members from every class");
+    });
+
+    harness.addTest("member access: this resolves enclosing class", []() {
+        auto docMgr = makeDocManager("file:///test/this_member.mt",
+            "class Dog {\n"
+            "    function bark(): void {}\n"
+            "    function test(): void {\n"
+            "        this.bark();\n"
+            "    }\n"
+            "}\n");
+        CompletionHandler handler(docMgr.get());
+        auto items = handler.handleCompletion("file:///test/this_member.mt", {3, 13});
+
+        require(hasItemWithLabel(items, "bark"),
+            "this. should include members from the enclosing class");
     });
 
     // ---------------------------------------------------------------

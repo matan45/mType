@@ -67,8 +67,4 @@ namespace runtimeTypes::klass
         return genericTypeBindings;
     }
 
-    std::shared_ptr<MethodDefinition> ObjectInstance::findMethodInHierarchy(const std::string& methodName, size_t argCount) const {
-        return classDefinition ? classDefinition->findMethodInHierarchy(methodName, argCount) : nullptr;
-    }
-
 } // namespace runtimeTypes::klass

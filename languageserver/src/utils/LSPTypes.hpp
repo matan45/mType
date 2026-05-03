@@ -73,9 +73,19 @@ inline void from_json(const json& j, TextDocumentContentChangeEvent& e) {
     j.at("text").get_to(e.text);
 }
 
-// Forward declaration so CompletionItem can hold a vector of them;
-// the full definition lives further down in this header.
-struct TextEdit;
+struct TextEdit {
+    Range range;
+    std::string newText;
+
+    json toJson() const {
+        return json{
+            {"range", range},
+            {"newText", newText}
+        };
+    }
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(TextEdit, range, newText)
+};
 
 struct CompletionItem {
     std::string label;
@@ -83,6 +93,10 @@ struct CompletionItem {
     std::optional<std::string> detail;
     std::optional<std::string> documentation;
     std::optional<std::string> insertText;
+    std::optional<int> insertTextFormat; // 1 = plain text, 2 = snippet
+    std::optional<std::string> sortText;
+    std::optional<std::string> filterText;
+    std::optional<TextEdit> textEdit;
     // MYT-51 — auto-import completion items attach a TextEdit that
     // inserts the missing `import ... from "..."` line when the user
     // accepts the completion. LSP spec models this as an array; VS
@@ -235,22 +249,6 @@ struct Hover {
     }
 };
 
-struct TextEdit {
-    Range range;
-    std::string newText;
-
-    json toJson() const {
-        return json{
-            {"range", range},
-            {"newText", newText}
-        };
-    }
-
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(TextEdit, range, newText)
-};
-
-// Out-of-line so we can reference TextEdit::toJson() (TextEdit is
-// only forward-declared at the point CompletionItem is defined).
 inline json CompletionItem::toJson() const {
     json j = {
         {"label", label},
@@ -259,6 +257,10 @@ inline json CompletionItem::toJson() const {
     if (detail) j["detail"] = *detail;
     if (documentation) j["documentation"] = *documentation;
     if (insertText) j["insertText"] = *insertText;
+    if (insertTextFormat) j["insertTextFormat"] = *insertTextFormat;
+    if (sortText) j["sortText"] = *sortText;
+    if (filterText) j["filterText"] = *filterText;
+    if (textEdit) j["textEdit"] = textEdit->toJson();
     if (!additionalTextEdits.empty()) {
         json arr = json::array();
         for (const auto& te : additionalTextEdits) arr.push_back(te.toJson());

@@ -10,13 +10,211 @@
 #include "../../../mType/util/TokenExtraction.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <iomanip>
 #include <regex>
 #include <sstream>
+#include <tuple>
 #include <unordered_set>
 
 namespace mtype::lsp {
 
 namespace {
+    constexpr int kSnippetInsertTextFormat = 2;
+
+    std::string toLowerAscii(std::string text)
+    {
+        std::transform(text.begin(), text.end(), text.begin(),
+            [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            });
+        return text;
+    }
+
+    int kindPriority(int kind)
+    {
+        switch (static_cast<CompletionItemKind>(kind)) {
+            case CompletionItemKind::Variable: return 1;
+            case CompletionItemKind::Field: return 2;
+            case CompletionItemKind::Method: return 3;
+            case CompletionItemKind::Function: return 4;
+            case CompletionItemKind::Class:
+            case CompletionItemKind::Interface: return 5;
+            case CompletionItemKind::Keyword: return 8;
+            default: return 6;
+        }
+    }
+
+    int matchPriority(const CompletionItem& item, const std::string& typedPrefix)
+    {
+        if (typedPrefix.empty()) return 2;
+        const std::string labelLower = toLowerAscii(item.label);
+        const std::string prefixLower = toLowerAscii(typedPrefix);
+        if (labelLower == prefixLower) return 0;
+        if (labelLower.rfind(prefixLower, 0) == 0) return 1;
+        return 2;
+    }
+
+    bool isAutoImportItem(const CompletionItem& item)
+    {
+        return item.detail && item.detail->find("Auto-import") == 0;
+    }
+
+    int completionPriority(const CompletionItem& item, const std::string& typedPrefix)
+    {
+        const int autoImportOffset = isAutoImportItem(item) ? 20 : 0;
+        return autoImportOffset + (matchPriority(item, typedPrefix) * 10) + kindPriority(item.kind);
+    }
+
+    void applySortText(std::vector<CompletionItem>& items, const std::string& typedPrefix)
+    {
+        std::size_t stableIndex = 0;
+        for (auto& item : items) {
+            std::ostringstream sort;
+            sort << std::setw(2) << std::setfill('0')
+                 << completionPriority(item, typedPrefix) << "_"
+                 << toLowerAscii(item.label) << "_"
+                 << std::setw(4) << std::setfill('0') << stableIndex++;
+            item.sortText = sort.str();
+            if (!item.filterText) {
+                item.filterText = item.label;
+            }
+        }
+    }
+
+    void sortCompletions(std::vector<CompletionItem>& items,
+                         const std::string& typedPrefix)
+    {
+        applySortText(items, typedPrefix);
+        std::stable_sort(items.begin(), items.end(),
+            [](const CompletionItem& a, const CompletionItem& b) {
+                return a.sortText.value_or(a.label) < b.sortText.value_or(b.label);
+            });
+    }
+
+    void applyReplacementEdit(std::vector<CompletionItem>& items,
+                              const Position& position,
+                              const std::string& typedPrefix)
+    {
+        if (typedPrefix.empty()) return;
+
+        const int startCharacter =
+            std::max(0, position.character - static_cast<int>(typedPrefix.size()));
+        for (auto& item : items) {
+            TextEdit edit;
+            edit.range = {{position.line, startCharacter}, position};
+            edit.newText = item.insertText.value_or(item.label);
+            item.textEdit = std::move(edit);
+        }
+    }
+
+    CompletionItemKind workspaceKindToCompletionKind(
+        analysis::WorkspaceSymbolKind kind)
+    {
+        switch (kind) {
+            case analysis::WorkspaceSymbolKind::Function:
+                return CompletionItemKind::Function;
+            case analysis::WorkspaceSymbolKind::Interface:
+                return CompletionItemKind::Interface;
+            case analysis::WorkspaceSymbolKind::Class:
+                return CompletionItemKind::Class;
+            case analysis::WorkspaceSymbolKind::Unknown:
+            default:
+                return CompletionItemKind::Reference;
+        }
+    }
+
+    std::string formatParameters(
+        const std::vector<std::pair<std::string, value::ParameterType>>& params)
+    {
+        std::string text;
+        for (std::size_t i = 0; i < params.size(); ++i) {
+            if (i > 0) text += ", ";
+            text += params[i].second.toString();
+            text += " ";
+            text += params[i].first;
+        }
+        return text;
+    }
+
+    std::string valueTypeToString(value::ValueType type)
+    {
+        switch (type) {
+            case value::ValueType::INT: return "int";
+            case value::ValueType::FLOAT: return "float";
+            case value::ValueType::BOOL: return "bool";
+            case value::ValueType::STRING: return "string";
+            case value::ValueType::VOID: return "void";
+            case value::ValueType::OBJECT: return "object";
+            case value::ValueType::ARRAY: return "array";
+            case value::ValueType::LAMBDA: return "lambda";
+            case value::ValueType::NULL_TYPE: return "null";
+            case value::ValueType::PROMISE: return "Promise";
+            default: return "unknown";
+        }
+    }
+
+    std::string methodDetail(
+        const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& method,
+        const std::string& owner,
+        std::size_t overloadCount,
+        bool isStatic)
+    {
+        std::string detail = std::string(ast::accessModifierToString(method->getAccessModifier())) + " ";
+        if (isStatic) detail += "static ";
+        detail += owner + "." + method->getName() + "(";
+        detail += formatParameters(method->getParametersWithTypes());
+        detail += "): ";
+        detail += valueTypeToString(method->getReturnType());
+        if (overloadCount > 1) {
+            detail += " (" + std::to_string(overloadCount) + " overloads)";
+        }
+        return detail;
+    }
+
+    std::string fieldDetail(
+        const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field,
+        const std::string& owner,
+        bool isStatic)
+    {
+        std::string detail = std::string(ast::accessModifierToString(field->getAccessModifier())) + " ";
+        if (isStatic) detail += "static ";
+        detail += owner + " field: ";
+        detail += valueTypeToString(field->getType());
+        return detail;
+    }
+
+    std::string inferEnclosingClass(const std::string& content, int targetLine)
+    {
+        std::regex classRegex(R"(\bclass\s+([A-Za-z_][A-Za-z0-9_]*))");
+        std::istringstream stream(content);
+        std::string line;
+        int currentLine = 0;
+        int braceDepth = 0;
+        std::string currentClass;
+
+        while (std::getline(stream, line) && currentLine <= targetLine) {
+            std::smatch match;
+            if (std::regex_search(line, match, classRegex)) {
+                currentClass = match[1].str();
+            }
+
+            for (char c : line) {
+                if (c == '{') ++braceDepth;
+                else if (c == '}') {
+                    --braceDepth;
+                    if (braceDepth <= 0) {
+                        braceDepth = 0;
+                        if (currentLine < targetLine) currentClass.clear();
+                    }
+                }
+            }
+            ++currentLine;
+        }
+
+        return currentClass;
+    }
+
     // Returns true if `text` ends in the given keyword used as an
     // inheritance keyword (whitespace-bounded), optionally followed by a
     // partial identifier the user is currently typing. Replaces the
@@ -150,6 +348,8 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
             // Get member completions for this identifier
             auto memberItems = getMemberCompletions(uri, identifier, position.line, isStaticAccess);
             applyFuzzyFilter(memberItems, typedPrefix);
+            applyReplacementEdit(memberItems, position, typedPrefix);
+            sortCompletions(memberItems, typedPrefix);
             return memberItems;
         }
     }
@@ -164,6 +364,8 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     if (textEndsInInheritanceKeyword(textBeforeCursor, "implements", inheritancePartial)) {
         auto interfaces = getInterfaceCompletions(uri);
         applyFuzzyFilter(interfaces, inheritancePartial);
+        applyReplacementEdit(interfaces, position, inheritancePartial);
+        sortCompletions(interfaces, inheritancePartial);
         return interfaces;
     }
 
@@ -171,6 +373,8 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     if (textEndsInInheritanceKeyword(textBeforeCursor, "extends", inheritancePartial)) {
         auto classes = getClassCompletions(uri);
         applyFuzzyFilter(classes, inheritancePartial);
+        applyReplacementEdit(classes, position, inheritancePartial);
+        sortCompletions(classes, inheritancePartial);
         return classes;
     }
 
@@ -210,6 +414,9 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     auto autoImports = getAutoImportCompletions(uri, typedPrefix, items);
     items.insert(items.end(), autoImports.begin(), autoImports.end());
 
+    applyReplacementEdit(items, position, typedPrefix);
+    sortCompletions(items, typedPrefix);
+
     return items;
 }
 
@@ -236,14 +443,16 @@ void CompletionHandler::applyFuzzyFilter(
     if (typedPrefix.empty()) return;
 
     const int budget = std::max(1, static_cast<int>(typedPrefix.size()) / 3);
+    const std::string loweredPrefix = toLowerAscii(typedPrefix);
 
     items.erase(std::remove_if(items.begin(), items.end(),
-        [&typedPrefix, budget](const CompletionItem& item) {
+        [&loweredPrefix, budget](const CompletionItem& item) {
+            const std::string loweredLabel = toLowerAscii(item.label);
             // Keep prefix matches unconditionally — VS Code will
             // re-score them and put them at the top of the list.
-            if (item.label.rfind(typedPrefix, 0) == 0) return false;
+            if (loweredLabel.rfind(loweredPrefix, 0) == 0) return false;
             // Otherwise drop anything outside the rustc-style budget.
-            return util::levenshtein(typedPrefix, item.label, budget) > budget;
+            return util::levenshtein(loweredPrefix, loweredLabel, budget) > budget;
         }),
         items.end());
 }
@@ -308,23 +517,25 @@ std::vector<CompletionItem> CompletionHandler::getTypeCompletions() const {
 std::vector<CompletionItem> CompletionHandler::getBuiltinCompletions() const {
     std::vector<CompletionItem> items;
 
-    std::vector<std::pair<std::string, std::string>> builtins = {
-        {"print", "print(value): void"},
-        {"typeof", "typeof(value): string"},
-        {"hashCode", "hashCode(value): int"},
-        {"parsePrimitive", "parsePrimitive(value): string"},
-        {"arrayAdd", "arrayAdd(a, b): array"},
-        {"arraySum", "arraySum(arr): number"},
-        {"arrayMin", "arrayMin(arr): number"},
-        {"arrayMax", "arrayMax(arr): number"}
+    std::vector<std::tuple<std::string, std::string, std::string>> builtins = {
+        {"print", "print(value): void", "print(${1:value})"},
+        {"typeof", "typeof(value): string", "typeof(${1:value})"},
+        {"hashCode", "hashCode(value): int", "hashCode(${1:value})"},
+        {"parsePrimitive", "parsePrimitive(value): string", "parsePrimitive(${1:value})"},
+        {"arrayAdd", "arrayAdd(a, b): array", "arrayAdd(${1:a}, ${2:b})"},
+        {"arraySum", "arraySum(arr): number", "arraySum(${1:arr})"},
+        {"arrayMin", "arrayMin(arr): number", "arrayMin(${1:arr})"},
+        {"arrayMax", "arrayMax(arr): number", "arrayMax(${1:arr})"}
     };
 
-    for (const auto& [name, signature] : builtins) {
+    for (const auto& [name, signature, snippet] : builtins) {
         CompletionItem item;
         item.label = name;
         item.kind = static_cast<int>(CompletionItemKind::Function);
         item.detail = signature;
-        item.insertText = name;
+        item.insertText = snippet;
+        item.insertTextFormat = kSnippetInsertTextFormat;
+        item.filterText = name;
         items.push_back(item);
     }
 
@@ -396,6 +607,18 @@ std::vector<CompletionItem> CompletionHandler::getIdentifierCompletions(const st
         item.kind = static_cast<int>(CompletionItemKind::Function);
         item.detail = "function";
         item.insertText = name;
+        if (auto registry = doc->environment->getFunctionRegistry()) {
+            if (auto fn = registry->findFunction(name)) {
+                std::string returnType = valueTypeToString(fn->getReturnType());
+                if (fn->getReturnType() == value::ValueType::OBJECT
+                    && !fn->getReturnClassName().empty()) {
+                    returnType = fn->getReturnClassName();
+                }
+                item.detail = name + "("
+                    + formatParameters(fn->getParametersWithTypes())
+                    + "): " + returnType;
+            }
+        }
         items.push_back(std::move(item));
     }
 
@@ -498,7 +721,7 @@ std::vector<CompletionItem> CompletionHandler::getAutoImportCompletions(
     // index and offer no suggestions even when the symbol exists.
     workspaceIndex_->waitForReady(std::chrono::milliseconds(50));
 
-    auto matches = workspaceIndex_->findByName(typedPrefix, /*maxResults=*/5);
+    auto matches = workspaceIndex_->findByPrefix(typedPrefix, /*maxResults=*/20);
     if (matches.empty()) {
         return items;
     }
@@ -508,14 +731,16 @@ std::vector<CompletionItem> CompletionHandler::getAutoImportCompletions(
     std::unordered_set<std::string> existingLabels;
     existingLabels.reserve(existingItems.size());
     for (const auto& item : existingItems) {
-        existingLabels.insert(item.label);
+        existingLabels.insert(toLowerAscii(item.label));
     }
 
     const std::string referencingPath = UriUtils::uriToFilePath(uri);
     const int insertLine = util::findImportInsertLine(doc->content);
+    std::unordered_set<std::string> emittedAutoImports;
 
     for (const auto& match : matches) {
-        if (existingLabels.count(match.name) != 0) continue;
+        const std::string loweredName = toLowerAscii(match.name);
+        if (existingLabels.count(loweredName) != 0) continue;
 
         const std::string symbolPath = UriUtils::uriToFilePath(match.fileUri);
         if (symbolPath == referencingPath) continue; // same file
@@ -524,11 +749,15 @@ std::vector<CompletionItem> CompletionHandler::getAutoImportCompletions(
             analysis::WorkspaceSymbolIndex::computeImportSpelling(
                 symbolPath, referencingPath);
 
+        const std::string duplicateKey = loweredName + "\n" + spelling;
+        if (!emittedAutoImports.insert(duplicateKey).second) continue;
+
         CompletionItem item;
         item.label = match.name;
-        item.kind = static_cast<int>(CompletionItemKind::Class);
+        item.kind = static_cast<int>(workspaceKindToCompletionKind(match.kind));
         item.detail = "Auto-import from \"" + spelling + "\"";
         item.insertText = match.name;
+        item.filterText = match.name;
         item.additionalTextEdits.push_back(
             utils::buildImportInsertEdit(insertLine, match.name, spelling));
         items.push_back(std::move(item));
@@ -574,13 +803,7 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
                     CompletionItem item;
                     item.label = methodName;
                     item.kind = static_cast<int>(CompletionItemKind::Method);
-
-                    // Include access modifier and static keyword
-                    std::string detail = std::string(ast::accessModifierToString(firstOverload->getAccessModifier())) + " static method";
-                    if (methodOverloads.size() > 1) {
-                        detail += " (" + std::to_string(methodOverloads.size()) + " overloads)";
-                    }
-                    item.detail = detail;
+                    item.detail = methodDetail(firstOverload, objectName, methodOverloads.size(), true);
                     item.insertText = methodName;
                     items.push_back(item);
                 }
@@ -594,10 +817,7 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
                     CompletionItem item;
                     item.label = fieldName;
                     item.kind = static_cast<int>(CompletionItemKind::Field);
-
-                    // Include access modifier and static keyword
-                    std::string detail = std::string(ast::accessModifierToString(fieldDef->getAccessModifier())) + " static field";
-                    item.detail = detail;
+                    item.detail = fieldDetail(fieldDef, objectName, true);
                     item.insertText = fieldName;
                     items.push_back(item);
                 }
@@ -608,57 +828,26 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
 
     // If using . operator, provide instance member access
     // Use type inference to show only relevant members for the specific object type
-    std::string varType = documentManager_->getVariableType(uri, objectName, line);
+    std::string varType;
+    if (objectName == "this" || objectName == "super") {
+        varType = inferEnclosingClass(doc->content, line);
+        if (objectName == "super" && !varType.empty()) {
+            auto currentClass = classRegistry->findClass(varType);
+            std::string parentClass = currentClass ? currentClass->getParentClassName() : "";
+            if (parentClass.empty()) {
+                parentClass = classRegistry->getParentClass(varType);
+            }
+            varType = parentClass;
+        }
+    } else {
+        varType = documentManager_->getVariableType(uri, objectName, line);
+    }
 
     if (varType.empty()) {
-        // Fallback: if type inference fails, show all instance members
-        auto allClasses = classRegistry->getAllItemNames();
-        for (const auto& className : allClasses) {
-            auto classDef = classRegistry->findClass(className);
-            if (!classDef) continue;
-
-            // Add instance methods from all classes
-            const auto& instanceMethods = classDef->getInstanceMethods();
-            for (const auto& pair : instanceMethods) {
-                const std::string& methodName = pair.first;
-                const auto& methodOverloads = pair.second;
-                if (methodOverloads.empty()) continue;
-
-                // Use first overload for access modifier info
-                const auto& firstOverload = methodOverloads.front();
-
-                CompletionItem item;
-                item.label = methodName;
-                item.kind = static_cast<int>(CompletionItemKind::Method);
-
-                // Include access modifier
-                std::string detail = std::string(ast::accessModifierToString(firstOverload->getAccessModifier())) + " method from " + className;
-                if (methodOverloads.size() > 1) {
-                    detail += " (" + std::to_string(methodOverloads.size()) + " overloads)";
-                }
-                item.detail = detail;
-                item.insertText = methodName;
-                items.push_back(item);
-            }
-
-            // Add instance fields from all classes
-            const auto& instanceFields = classDef->getInstanceFields();
-            for (const auto& pair : instanceFields) {
-                const std::string& fieldName = pair.first;
-                const auto& fieldDef = pair.second;
-
-                CompletionItem item;
-                item.label = fieldName;
-                item.kind = static_cast<int>(CompletionItemKind::Field);
-
-                // Include access modifier
-                std::string detail = std::string(ast::accessModifierToString(fieldDef->getAccessModifier())) + " field from " + className;
-                item.detail = detail;
-                item.insertText = fieldName;
-                items.push_back(item);
-            }
-        }
         return items;
+    }
+    if (auto angle = varType.find('<'); angle != std::string::npos) {
+        varType = varType.substr(0, angle);
     }
 
     // Type inference succeeded! Show only members from the specific type
@@ -684,13 +873,7 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
         CompletionItem item;
         item.label = methodName;
         item.kind = static_cast<int>(CompletionItemKind::Method);
-
-        // Include access modifier
-        std::string detail = std::string(ast::accessModifierToString(firstOverload->getAccessModifier())) + " " + varType + " method";
-        if (methodOverloads.size() > 1) {
-            detail += " (" + std::to_string(methodOverloads.size()) + " overloads)";
-        }
-        item.detail = detail;
+        item.detail = methodDetail(firstOverload, varType, methodOverloads.size(), false);
         item.insertText = methodName;
         items.push_back(item);
     }
@@ -704,10 +887,7 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
         CompletionItem item;
         item.label = fieldName;
         item.kind = static_cast<int>(CompletionItemKind::Field);
-
-        // Include access modifier
-        std::string detail = std::string(ast::accessModifierToString(fieldDef->getAccessModifier())) + " " + varType + " field";
-        item.detail = detail;
+        item.detail = fieldDetail(fieldDef, varType, false);
         item.insertText = fieldName;
         items.push_back(item);
     }
