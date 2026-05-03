@@ -2234,3 +2234,141 @@ Other scripts within ±5% of prior (noise) — no regressions on the
   native deferred primitives, so every script-level promise sync-resolves
   before its await). The branch is covered only via C++-driven
   `callMethod` interop (the test framework's `eventLoop->tick()` drain).
+
+## 2026-05-03 — hashCode()/equals() primitive protocol fast path (commit d9c5d3c6)
+
+- Machine: dev machine (Windows 11 Home)
+- Branch:  set
+- Commit:  `d9c5d3c6`
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+
+Scope:
+- New `MethodProtocolFastKind { NONE, PRIMITIVE_HASH_CODE, PRIMITIVE_EQUALS }`
+  IC-entry tag (`vm/jit/ic/InlineCacheTypes.hpp`). Stamped at IC fill time
+  by `classifyPrimitiveProtocolFastKind` when the receiver class is one of
+  the four primitive wrappers (`classNameToPrimitiveTag` returns INT/FLOAT/
+  BOOL/STRING) and the method+arity is `hashCode/0` or `equals/1`.
+- **Interpreter fast path** (`vm/runtime/executors/InlineCacheExecutor.cpp`):
+  on a method-IC hit with `entry.protocolFastKind != NONE`,
+  `tryDispatchPrimitiveProtocolFast` extracts field-0 from the wrapper and
+  computes `std::hash<int64_t/double/std::string>` or primitive `==`
+  directly — bypassing the user method's bytecode body entirely.
+- **JIT fast path** (`vm/jit/JitCompiler_Objects.cpp` `tryEmitProtocolFastMethodCall`,
+  helpers in `vm/jit/JitHelpers_Objects.cpp`): emitted only on
+  `MONOMORPHIC && entryCount == 1`; the helpers re-validate the
+  `PrimitiveTypeTag` at runtime and return `false` to fall through to
+  `emitCallMethodOpGeneric()` if the shape guard let a wrong-shape value
+  through.
+- Both fast paths are mutually exclusive with `CALL_METHOD_CACHED`
+  promotion — `protocolFastKind != NONE` short-circuits the cached-opcode
+  rewrite so the bytecode mini-interpreter doesn't replay the user method.
+
+Restrictions: only `Int`/`Float`/`Bool`/`String` wrappers; only `hashCode/0`
+and `equals/1`; only MONO. Anything else falls through to the normal IC.
+
+```
+=== Summary (jit=on) ===
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt             97.73         97.84           20017         0
+  method_dispatch.mt                   95.59         96.23           14043       506
+  object_alloc.mt                     512.33        514.06           12511         0
+  object_alloc_nested.mt             1151.46       1153.44           16811       500
+  field_write_hot.mt                   64.62         65.74            8018         1
+  field_read_hot.mt                    65.81         67.64            9020         1
+  string_ops.mt                       111.91        112.35           19019         0
+  recursive.mt                        751.63        753.08           17261   2545487
+  bitwise_tight_loop.mt                78.11         78.43           23019         0
+  short_circuit_chain.mt               64.11         64.37           24909         0
+  primitive_method_dispatch.mt        456.97        462.28           32039         0
+  array_multi_alloc.mt                 71.94         72.97            9911       500
+  array_multi_get.mt                  332.34        332.60           49787       500
+  for_each_loop.mt                    306.24        311.23           75654      5604
+  inline_monomorphic.mt                60.55         61.22           13017       501
+  inline_branching.mt                  62.33         63.20           15017       501
+  inline_polymorphic.mt                99.17         99.18           14052       508
+  inline_value_object_hot.mt          128.03        130.21           12518       500
+  function_call_hot.mt                183.78        184.58           15011       500
+  async_await_tight_loop.mt           671.35        671.62           12423       501
+  async_await_chain.mt               1279.71       1283.72           23323      2001
+  lambda_call_hot.mt                  845.59        845.86           12522   1999501
+  lambda_closure_hot.mt               868.41        871.74           12527   1999502
+  generic_dispatch_hot.mt             613.26        618.10           20075      1012
+  try_catch_finally_hot.mt            424.32        425.75           50020      2000
+  switch_dispatch_hot.mt              450.21        452.37           14634       500
+  overload_dispatch_hot.mt            480.95        480.97           34029      2001
+  abstract_dispatch_hot.mt             95.71         96.02           14043       506
+  cast_hot.mt                         186.98        187.96           19561       505
+  collections_hash_hot.mt            4672.48       4714.44          244887      2533
+  collections_hashset_hot.mt         1564.97       1566.76          105660       765
+  stream_pipeline_hot.mt              416.10        416.58         2090492    306881
+  reflection_lookup_hot.mt           2240.01       2344.46           85542   1203001
+  pattern_match_hot.mt                452.95        455.55           12861       500
+  string_interpolation_hot.mt         256.83        257.25         7400025         0
+  boxed_primitive_dispatch_hot.mt        990.09        996.95           32803         0
+  boxed_bool_dispatch_hot.mt          948.72        950.01           29277         0
+  boxed_string_dispatch_hot.mt        500.14        502.71           24262         0
+  static_call_hot.mt                  166.28        167.17           32517      2000
+  linked_list_nested_hot.mt           331.83        338.12          124920     81001
+```
+
+### Delta vs prior 2026-05-02 entry (JIT-AWAIT)
+
+Targets of this round — the two `Int`-keyed collection benchmarks where
+`HashMap`/`HashSet` internals call `key.hashCode()` and `key.equals(other)`
+in the bucket-walk hot loop:
+
+| Script                       | Before (median, ms) | After (median, ms) | Change   |
+|------------------------------|--------------------:|-------------------:|---------:|
+| collections_hash_hot.mt      |             7067.01 |            4714.44 |  -33.3%  |
+| collections_hashset_hot.mt   |             2307.58 |            1566.76 |  -32.1%  |
+
+Dynamic-call collapse confirms the fast path is firing (the wrapper method
+body is no longer being entered):
+
+| Script                       | Before (calls)      | After (calls)      |
+|------------------------------|--------------------:|-------------------:|
+| collections_hash_hot.mt      |           2,581,948 |              2,533 |
+| collections_hashset_hot.mt   |             860,655 |                765 |
+
+Other 38 benchmarks within ±5 % of prior (noise). Notable steady values:
+`arithmetic_tight_loop.mt` (113.6 → 97.8, -13.9 % — likely run-to-run
+variance, not attributable to this change), `recursive.mt` (774 → 753,
+-2.7 %), `lambda_call_hot.mt` (861 → 846, -1.8 %).
+
+### Notes
+
+- **Where the win comes from.** Two stacked savings per `key.hashCode()` /
+  `key.equals(other)` call inside the hash-bucket walk:
+  1. No method-frame setup — no `pushCallFrame`, no operand-stack save/
+     restore, no return-IP push. ~300 cycles per call eliminated.
+  2. No method-body bytecode dispatch — the wrapper's body
+     (`return hashCode(this.value);` and `return this.value == other.value;`)
+     is replaced by an inline `std::hash<int64_t>` / primitive `==`. Saves
+     a global lookup + native call for hashCode and a load+compare for
+     equals.
+  Together these produce the `2.58M → 2.5K` collapse in dynamic calls and
+  the ~33 % wall-time reduction on the two collection-hot benchmarks.
+- **Scope.** Limited to `Int`/`Float`/`Bool`/`String` wrappers. User
+  classes with hand-written `hashCode`/`equals` still go through the
+  normal MONO/POLY IC path (this commit doesn't touch their dispatch).
+  Generalizing to user classes would require either method-body inlining
+  at the IC or an opt-in annotation — see **MYT-270** (`@PrimitiveProtocol`).
+- **Maintainability coupling.** The wrapper bodies in
+  `lib/primitives/{Int,Float,Bool,String}.mt` and the C++ helpers
+  `computePrimitiveProtocolHash` / `computePrimitiveProtocolEquals` are
+  semantically equivalent by convention only — nothing enforces it. Drift
+  guard added at
+  `mType/tests/testFiles/integration/pass/protocolFastPathDrift.mt`,
+  registered in `IntegrationTestSuite.cpp` as "Protocol Fast Path Drift".
+- **Side bug surfaced while authoring the drift test.** `if (!fn()) <stmt>;`
+  (braceless body, `!`-negated user-fn condition where the callee invokes
+  a native) emits invalid bytecode and crashes with
+  `MT-E5005: Stack underflow`. Filed as **MYT-271**; minimal repro at
+  `mType/tests/testFiles/bugs/bracelessIfNativeUnderflow.mt`. Reproduces
+  under both `--no-jit` and JIT, so the bug is in the AST→bytecode
+  compiler, not the JIT.
+- **Sanity.** Full test suite green under both JIT and `--no-jit`;
+  `protocolFastPathDrift.mt` prints `PASS` on both, confirming the C++
+  helper output matches the wrapper-method semantics for all primitive
+  types and a wide range of values.

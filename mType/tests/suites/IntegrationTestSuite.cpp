@@ -395,6 +395,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Fusion Skipped At Jump Target",
                                   passPath + "ic/fused_jump_target.mt");
 
+        // d9c5d3c6: hashCode()/equals() primitive protocol fast path —
+        // wrapper.hashCode()/equals() bypasses the user method body and
+        // computes via field-0 + std::hash / ==. Drift detector compares
+        // warm-IC fast-path results against the ground-truth global
+        // hashCode(primitive) / direct primitive ==.
+        addOutputVerificationTest("Protocol Fast Path Drift",
+                                  passPath + "protocolFastPathDrift.mt");
+
         // ====================================
         // CROSS-FEATURE COMBO TESTS
         // ====================================
