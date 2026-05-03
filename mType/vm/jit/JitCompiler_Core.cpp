@@ -690,9 +690,9 @@ namespace vm::jit
         // (which would double-destroy boxed locals via emitCleanup's
         // jit_value_destroy invokes). Mirrors the osrExit lambda pattern
         // at JitCompiler_OSR.cpp:446-447 — every exit block ends with
-        // cleanup + ret. The functionDeoptExitBound guard avoids binding
+        // cleanup + ret. The hasAwaitDeoptExit guard avoids binding
         // an unreferenced label in functions with no AWAIT.
-        if (s.functionDeoptExitBound)
+        if (s.hasAwaitDeoptExit)
         {
             cc.ret();
             cc.bind(s.functionDeoptExitLabel);

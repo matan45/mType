@@ -55,23 +55,6 @@ namespace vm::jit
 
     } // extern "C"
 
-    // MYT-268: stash on pendingException instead of throwing. The throw
-    // form crashes silently on Windows x64 — the asmjit JIT frame has no
-    // PE x64 unwind data registered so the OS unwinder can't traverse it.
-    // OSR back-edge checks (JitCompiler_OSR.cpp:311-326) emit
-    // jit_has_pending_exception, which fires after this stashes and
-    // jumps into osrExit; OSRManager::executeOSRLoop rethrows the
-    // stashed exception to drive the deopt path. Currently dead code
-    // (no emit site invokes this), kept symmetric with jit_await for
-    // any future caller.
-    void jit_osr_deoptimize(JitContext* ctx, uint64_t bytecodeOffset)
-    {
-        if (ctx && ctx->pendingException) return;
-        if (ctx)
-            ctx->pendingException = std::make_exception_ptr(
-                OSRDeoptException(static_cast<size_t>(bytecodeOffset)));
-    }
-
     // MYT-259: push the function's return value onto the interpreter's
     // operand stack so the resumed RETURN_VALUE bytecode (dispatched at
     // ctx->osrExitOffset by the interpreter) can pop it via the normal

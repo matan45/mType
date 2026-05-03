@@ -1886,10 +1886,10 @@ namespace vm::jit
         // back-edge check is the bounded-latency surrogate.
         if (!s.isOSRCompilation)
         {
-            if (!s.functionDeoptExitBound)
+            if (!s.hasAwaitDeoptExit)
             {
                 s.functionDeoptExitLabel = cc.new_label();
-                s.functionDeoptExitBound = true;
+                s.hasAwaitDeoptExit = true;
             }
             InvokeNode* checkInv = nullptr;
             cc.invoke(Out(checkInv),

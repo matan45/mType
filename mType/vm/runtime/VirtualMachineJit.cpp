@@ -30,6 +30,34 @@
 
 namespace vm::runtime
 {
+    namespace
+    {
+        // MYT-268: shared deopt-detection idiom for executeCallWithJit /
+        // executeCallFastWithJit. jit_await stashes OSRDeoptException on
+        // ctx->pendingException instead of throwing (the throw form crashed
+        // silently on Windows x64 — no PE unwind data registered for the
+        // asmjit frame). std::exception_ptr can't be peeked without
+        // rethrowing; this helper rethrows once to inspect the type, and
+        // either reports "deopt sentinel" or rethrows real errors so the
+        // VM loop sees them exactly as the previous direct rethrow did.
+        bool isStashedOSRDeopt(std::exception_ptr ep)
+        {
+            try
+            {
+                std::rethrow_exception(ep);
+            }
+            catch (const jit::OSRDeoptException&)
+            {
+                return true;
+            }
+            catch (...)
+            {
+                std::rethrow_exception(ep);
+            }
+            return false; // unreachable
+        }
+    }
+
     value::Value VirtualMachine::runJitMiniInterpret(
         size_t savedIP,
         size_t savedCallStackDepth,
@@ -747,47 +775,25 @@ namespace vm::runtime
                 jitCode(&jitCtx);
                 --jitNativeDepth;
 
-                // MYT-268: jit_await stashes OSRDeoptException on
-                // pendingException instead of throwing — the throw form
-                // crashed silently on Windows x64 because the asmjit JIT
-                // frame has no PE x64 unwind data registered. Inspect
-                // pendingException via rethrow-and-catch to detect the
-                // deopt sentinel; route to the interpreter fallback for
-                // OSRDeoptException, rethrow anything else exactly as the
-                // previous std::rethrow_exception path did.
-                //
-                // JIT-AWAIT deopt landed at the function-level boundary.
-                // The JIT body uses asmjit-private locals/operand-stack,
-                // so we can't materialize its mid-body state into the
-                // interpreter cleanly. Re-execute the call from scratch
-                // in the interpreter. Side-effect-free bodies (the async
-                // benchmarks, which never deopt anyway because they hit
-                // PROMISE_INT inline) re-execute cleanly. Bodies with
-                // externally visible side effects before deopt may
-                // double-execute them — known v1 limitation.
-                if (jitCtx.pendingException)
+                // MYT-268: JIT-AWAIT deopt landed at the function-level
+                // boundary. The JIT body uses asmjit-private locals /
+                // operand-stack, so we can't materialize its mid-body
+                // state into the interpreter cleanly. Re-execute the
+                // call from scratch in the interpreter. Side-effect-free
+                // bodies (the async benchmarks, which never deopt anyway
+                // because they hit PROMISE_INT inline) re-execute
+                // cleanly. Bodies with externally visible side effects
+                // before deopt may double-execute them — known v1
+                // limitation. isStashedOSRDeopt rethrows non-deopt
+                // exceptions to the VM loop unchanged.
+                if (jitCtx.pendingException
+                    && isStashedOSRDeopt(jitCtx.pendingException))
                 {
-                    bool deoptToInterpreter = false;
-                    try
-                    {
-                        std::rethrow_exception(jitCtx.pendingException);
-                    }
-                    catch (const jit::OSRDeoptException&)
-                    {
-                        deoptToInterpreter = true;
-                    }
-                    catch (...)
-                    {
-                        std::rethrow_exception(jitCtx.pendingException);
-                    }
-                    if (deoptToInterpreter)
-                    {
-                        for (size_t i = 0; i < args.size(); ++i)
-                            stackManager->push(args[i]);
-                        functionExecutor->handleCall(instr);
-                        stats.functionCalls++;
-                        return;
-                    }
+                    for (size_t i = 0; i < args.size(); ++i)
+                        stackManager->push(args[i]);
+                    functionExecutor->handleCall(instr);
+                    stats.functionCalls++;
+                    return;
                 }
 
                 if (jitCtx.hasReturnValue)
@@ -839,32 +845,14 @@ namespace vm::runtime
                     --jitNativeDepth;
 
                     // MYT-268: see executeCallWithJit for rationale.
-                    // jit_await stashes OSRDeoptException on pendingException
-                    // instead of throwing; detect via rethrow-and-catch and
-                    // route to the interpreter fallback.
-                    if (jitCtx.pendingException)
+                    if (jitCtx.pendingException
+                        && isStashedOSRDeopt(jitCtx.pendingException))
                     {
-                        bool deoptToInterpreter = false;
-                        try
-                        {
-                            std::rethrow_exception(jitCtx.pendingException);
-                        }
-                        catch (const jit::OSRDeoptException&)
-                        {
-                            deoptToInterpreter = true;
-                        }
-                        catch (...)
-                        {
-                            std::rethrow_exception(jitCtx.pendingException);
-                        }
-                        if (deoptToInterpreter)
-                        {
-                            for (size_t i = 0; i < args.size(); ++i)
-                                stackManager->push(args[i]);
-                            functionExecutor->handleCallFast(instr);
-                            stats.functionCalls++;
-                            return;
-                        }
+                        for (size_t i = 0; i < args.size(); ++i)
+                            stackManager->push(args[i]);
+                        functionExecutor->handleCallFast(instr);
+                        stats.functionCalls++;
+                        return;
                     }
 
                     if (jitCtx.hasReturnValue)

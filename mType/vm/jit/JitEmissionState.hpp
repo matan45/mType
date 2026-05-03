@@ -187,9 +187,11 @@ namespace vm::jit
         // emitFunctionBody binds it after emitCodegenLoop and emits
         // emitCleanup + cc.ret. Reused across every AWAIT in the body —
         // only one cleanup epilogue per function, mirroring the OSR
-        // path's single osrExit lambda.
+        // path's single osrExit lambda. hasAwaitDeoptExit is true once
+        // the label has been created (not yet bound — cc.bind happens
+        // later in emitFunctionBody).
         asmjit::Label functionDeoptExitLabel;
-        bool functionDeoptExitBound = false;
+        bool hasAwaitDeoptExit = false;
 
         // MYT-207: self-recursive direct-call optimization for NON-tail sites.
         // selfFuncCallLabel == FuncNode->label() of the currently compiling

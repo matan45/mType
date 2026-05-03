@@ -258,8 +258,6 @@ namespace vm::jit
         void jit_pop_inlined_class(JitContext* ctx);
     }
 
-    void jit_osr_deoptimize(JitContext* ctx, uint64_t bytecodeOffset);
-
     void jit_get_field_ic(value::Value* dest, const value::Value* object,
                           JitContext* ctx, size_t bytecodeOffset,
                           uint32_t fieldNameIndex, uint8_t flags = 0);
