@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -99,14 +98,17 @@ private:
     // Per-document member completion cache. `getMemberCompletions` is
     // called on every keystroke after `.` / `::`, and the underlying
     // inheritance walk + dedup is the same answer until the document
-    // changes. Keyed by `uri + access + "@" + typeName`; entries are
-    // invalidated by document version. Guarded by a mutex because the
-    // LSP runtime is free to dispatch requests on any thread.
+    // changes. Keyed by `uri + "|v" + docVersion + "|" + access + "|"
+    // + typeName` (the version is part of the key so stale entries
+    // are naturally bypassed and pruned on the next miss for that
+    // uri). NOT thread-safe: the LSP request loop in
+    // MTypeLanguageServer::run is single-threaded today, so the cache
+    // never sees concurrent access. If/when dispatch goes parallel,
+    // wrap reads/writes in a mutex.
     struct MemberCacheEntry {
         int docVersion;
         std::vector<CompletionItem> items;
     };
-    mutable std::mutex memberCacheMutex_;
     mutable std::unordered_map<std::string, MemberCacheEntry> memberCache_;
 };
 

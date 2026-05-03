@@ -101,6 +101,13 @@ void extractTypeNames(const std::string& typeExpr,
 // class header line (e.g. "class MyList<T> implements List<T>" →
 // {"T"}). Used so we don't try to import the class's own type
 // parameters as if they were external symbols.
+//
+// Limitation: the close-angle is matched as the FIRST `>` after the
+// opening `<`, so a nested-generic header like
+// `class Foo<T extends Bar<X>> implements IFoo` would stop at the
+// inner `>` and miss the outer parameter list. mType doesn't support
+// that form today, so this is fine — but anyone extending the language
+// to allow it should swap this scan for a depth-aware one.
 std::unordered_set<std::string> extractClassGenericParams(
     const std::string& classDeclLine)
 {

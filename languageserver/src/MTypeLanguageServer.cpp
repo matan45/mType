@@ -403,17 +403,37 @@ namespace mtype::lsp
     {
         // VS Code echoes the original CompletionItem (with the opaque
         // `data` blob the server stamped) so we can rehydrate the
-        // symbol identity and fill in documentation lazily. Malformed
-        // requests fall through to the unchanged item.
+        // symbol identity and fill in documentation lazily. On a
+        // malformed request we surface the issue on stderr and reply
+        // with a minimal valid CompletionItem rather than echoing the
+        // raw client params (which wouldn't be a CompletionItem per
+        // the LSP spec and could trip strict clients).
         try
         {
             CompletionItem item = params.get<CompletionItem>();
             CompletionItem resolved = completionHandler_->resolveCompletion(item);
             sendResponse(id, resolved.toJson());
         }
-        catch (const std::exception&)
+        catch (const std::exception& e)
         {
-            sendResponse(id, params);
+            std::cerr << "[mtype-lsp] completionItem/resolve failed to parse "
+                      << "the client's echoed item: " << e.what() << "\n";
+            CompletionItem fallback;
+            if (params.is_object() && params.contains("label")
+                && params.at("label").is_string())
+            {
+                fallback.label = params.at("label").get<std::string>();
+            }
+            if (params.is_object() && params.contains("kind")
+                && params.at("kind").is_number_integer())
+            {
+                fallback.kind = params.at("kind").get<int>();
+            }
+            else
+            {
+                fallback.kind = static_cast<int>(CompletionItemKind::Text);
+            }
+            sendResponse(id, fallback.toJson());
         }
     }
 

@@ -2,6 +2,7 @@
 
 #include "../analysis/WorkspaceSymbolIndex.hpp"
 #include "../utils/ImportUtils.hpp"
+#include "../utils/StringUtils.hpp"
 #include "../utils/UriUtils.hpp"
 #include "../../../mType/ast/AccessModifier.hpp"
 #include "../../../mType/diagnostics/IdentifierEnumerator.hpp"
@@ -22,14 +23,9 @@ namespace mtype::lsp {
 namespace {
     constexpr int kSnippetInsertTextFormat = 2;
 
-    std::string toLowerAscii(std::string text)
-    {
-        std::transform(text.begin(), text.end(), text.begin(),
-            [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-        return text;
-    }
+    // toLowerAscii lives in utils/StringUtils.hpp — shared with
+    // WorkspaceSymbolIndex so both call sites have one definition.
+    using mtype::lsp::utils::toLowerAscii;
 
     int kindPriority(int kind)
     {
@@ -273,7 +269,18 @@ namespace {
 
     std::string inferEnclosingClass(const std::string& content, int targetLine)
     {
-        std::regex classRegex(R"(\bclass\s+([A-Za-z_][A-Za-z0-9_]*))");
+        // Pre-compiled once via function-local static so we don't pay
+        // std::regex construction on every member-completion miss.
+        // Limitation: the brace counter below doesn't recognise that
+        // `{` and `}` inside string literals or `// ... { ... }`
+        // comments aren't real scope braces. A line like
+        // `string s = "{ token";` will perturb braceDepth and may
+        // mis-attribute the enclosing class for that span. mType code
+        // rarely puts unbalanced braces in strings, so this is a
+        // documented caveat rather than a correctness bug — fixing it
+        // would require a real lexer pass instead of a text scan.
+        static const std::regex classRegex(
+            R"(\bclass\s+([A-Za-z_][A-Za-z0-9_]*))");
         std::istringstream stream(content);
         std::string line;
         int currentLine = 0;
@@ -396,6 +403,13 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
             item.insertTextFormat.reset();
         }
     };
+    // Ordering: every caller below invokes
+    //   stripCallSnippetsIfNeeded(items)  → applyReplacementEdit(items, …)
+    // in that exact sequence. The replacement edit reads `item.insertText`
+    // and copies it into `textEdit.newText`, so stripping the snippet
+    // body MUST happen first — otherwise the textEdit captures the
+    // `name(${1:p})$0` form and we end up inserting `name(${1:p})$0()`
+    // against an existing call site.
 
     // Check if we're after :: (static member access) or . (instance member access)
     // Trim whitespace from the end
@@ -657,7 +671,10 @@ std::vector<CompletionItem> CompletionHandler::getTypeCompletions(
         const bool alreadyInScope =
             classRegistry && classRegistry->hasClass(wrapper);
 
-        if (!alreadyInScope && workspaceIndex_) {
+        // Non-blocking — see the comment in getAutoImportCompletions
+        // about why we don't wait for the workspace scan here.
+        if (!alreadyInScope && workspaceIndex_
+            && workspaceIndex_->waitForReady(std::chrono::milliseconds(0))) {
             auto matches = workspaceIndex_->findByName(wrapper, /*maxResults=*/1);
             if (!matches.empty()) {
                 const auto& match = matches.front();
@@ -1012,10 +1029,15 @@ std::vector<CompletionItem> CompletionHandler::getAutoImportCompletions(
         return items;
     }
 
-    // Short-block until the initial workspace scan is populated. Without
-    // this, an early auto-import completion request would see an empty
-    // index and offer no suggestions even when the symbol exists.
-    workspaceIndex_->waitForReady(std::chrono::milliseconds(50));
+    // Non-blocking readiness check. The previous `waitForReady(50ms)`
+    // synchronously pinned the LSP dispatch thread on every keystroke
+    // during the initial workspace scan, which the user feels as a
+    // sluggish dropdown. Now we just skip auto-import this round if
+    // the index isn't ready — once the scan finishes (the user types
+    // again or moves the cursor) auto-imports will start surfacing.
+    if (!workspaceIndex_->waitForReady(std::chrono::milliseconds(0))) {
+        return items;
+    }
 
     auto matches = workspaceIndex_->findByPrefix(typedPrefix, /*maxResults=*/20);
     if (matches.empty()) {
@@ -1120,7 +1142,6 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
     const std::string cacheKey = uri + "|v" + std::to_string(doc->version)
         + (isStaticAccess ? "|s|" : "|i|") + varType;
     {
-        std::lock_guard<std::mutex> lock(memberCacheMutex_);
         auto cacheIt = memberCache_.find(cacheKey);
         if (cacheIt != memberCache_.end()
             && cacheIt->second.docVersion == doc->version) {
@@ -1198,7 +1219,6 @@ std::vector<CompletionItem> CompletionHandler::getMemberCompletions(
     }
 
     {
-        std::lock_guard<std::mutex> lock(memberCacheMutex_);
         // Evict stale entries for this uri so the cache doesn't grow
         // unbounded across document edits.
         const std::string uriPrefix = uri + "|v";
