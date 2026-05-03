@@ -19,6 +19,8 @@
 #include "../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
+#include "../project/mtclib/MtcLibSerializer.hpp"
+#include <cstring>
 #include <fstream>
 #include <filesystem>
 #include <iostream>
@@ -220,13 +222,24 @@ namespace services
     {
         using namespace vm::bytecode;
 
-        // Deserialize bytecode program
+        // Deserialize raw .mtc bytecode or unwrap a .mtcLib container.
         std::ifstream inFile(bytecodeFile, std::ios::binary);
         if (!inFile)
         {
             throw std::runtime_error("Could not open bytecode file: " + bytecodeFile);
         }
-        auto program = std::make_unique<BytecodeProgram>(BytecodeProgram::deserialize(inFile));
+        char magic[6] = {};
+        inFile.read(magic, sizeof(magic));
+        const bool isMtcLib = inFile.gcount() == static_cast<std::streamsize>(sizeof(magic)) &&
+                              std::memcmp(magic, "MTCLIB", sizeof(magic)) == 0;
+
+        inFile.clear();
+        inFile.seekg(0, std::ios::beg);
+
+        auto program = isMtcLib
+            ? std::make_unique<BytecodeProgram>(
+                std::move(project::mtclib::MtcLibSerializer::deserialize(inFile).bytecodeProgram))
+            : std::make_unique<BytecodeProgram>(BytecodeProgram::deserialize(inFile));
         inFile.close();
 
         // Register classes, interfaces, and annotation declarations from metadata
