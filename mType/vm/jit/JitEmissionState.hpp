@@ -178,6 +178,21 @@ namespace vm::jit
         asmjit::x86::Gp tailCallCounter;  // MYT-226: per-frame depth counter
         bool selfTailCallEnabled = true;
 
+        // MYT-268: per-function deopt-exit label for AWAIT bail-out.
+        // jit_await stashes OSRDeoptException on ctx->pendingException
+        // (the throw form crashed silently on Windows x64 — no PE unwind
+        // data registered for the asmjit frame), and emitAwaitOp's post-
+        // invoke jit_has_pending_exception check jumps here. Allocated
+        // lazily by emitAwaitOp on first AWAIT in the function;
+        // emitFunctionBody binds it after emitCodegenLoop and emits
+        // emitCleanup + cc.ret. Reused across every AWAIT in the body —
+        // only one cleanup epilogue per function, mirroring the OSR
+        // path's single osrExit lambda. hasAwaitDeoptExit is true once
+        // the label has been created (not yet bound — cc.bind happens
+        // later in emitFunctionBody).
+        asmjit::Label functionDeoptExitLabel;
+        bool hasAwaitDeoptExit = false;
+
         // MYT-207: self-recursive direct-call optimization for NON-tail sites.
         // selfFuncCallLabel == FuncNode->label() of the currently compiling
         // function — emitted by `cc.invoke(label, ...)` in tryEmitSelfDirectCall

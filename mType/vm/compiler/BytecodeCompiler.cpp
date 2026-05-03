@@ -25,6 +25,42 @@ namespace
     using Instruction = vm::bytecode::BytecodeProgram::Instruction;
     using FunctionMetadata = vm::bytecode::BytecodeProgram::FunctionMetadata;
 
+    void applyBuiltinNativeMetadata(const std::string& name, FunctionMetadata& metadata)
+    {
+        if (name == "delay")
+        {
+            metadata.parameterCount = 1;
+            metadata.parameterNames = {"ms"};
+            metadata.parameterTypes = {"int"};
+            metadata.parameterNullable = {false};
+            metadata.returnType = "Promise<void>";
+        }
+        else if (name == "delayReject")
+        {
+            metadata.parameterCount = 2;
+            metadata.parameterNames = {"ms", "exception"};
+            metadata.parameterTypes = {"int", "Exception"};
+            metadata.parameterNullable = {false, false};
+            metadata.returnType = "Promise<void>";
+        }
+        else if (name == "__random_nextInt")
+        {
+            metadata.parameterCount = 2;
+            metadata.parameterNames = {"min", "max"};
+            metadata.parameterTypes = {"int", "int"};
+            metadata.parameterNullable = {false, false};
+            metadata.returnType = "int";
+        }
+        else if (name == "__random_nextFloat")
+        {
+            metadata.parameterCount = 2;
+            metadata.parameterNames = {"min", "max"};
+            metadata.parameterTypes = {"float", "float"};
+            metadata.parameterNullable = {false, false};
+            metadata.returnType = "float";
+        }
+    }
+
     void inlineTrivialSetters(vm::bytecode::BytecodeProgram& program)
     {
         const auto& functions = program.getFunctions();
@@ -406,6 +442,7 @@ namespace vm::compiler
             metadata.parameterCount = 0;
             metadata.startOffset = 0;
             metadata.returnType = "";
+            applyBuiltinNativeMetadata(name, metadata);
             program.registerFunction(name, metadata);
         }
 

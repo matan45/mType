@@ -1,15 +1,21 @@
 #include "BuiltinNatives.hpp"
 #include "ValuePrinter.hpp"
 #include "../NativeBinder.hpp"
+#include "../../NativeContext.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/AsyncPromiseValue.hpp"
+#include "../../../value/PromiseValue.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../errors/RuntimeException.hpp"
+#include "../../../runtime/EventLoop.hpp"
+#include "../../../vm/runtime/VirtualMachine.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cctype>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <string>
 
 namespace environment::registry::builtin
@@ -27,6 +33,35 @@ namespace environment::registry::builtin
 
     // ---- Math (two-arg numeric) -----------------------------------------
     static double atan2_fn(double y, double x) { return std::atan2(y, x); }
+
+    // ---- Random ----------------------------------------------------------
+    static std::mt19937_64& randomEngine()
+    {
+        thread_local std::mt19937_64 engine{ std::random_device{}() };
+        return engine;
+    }
+
+    static int64_t randomNextInt_fn(int64_t min, int64_t max)
+    {
+        if (max <= min)
+        {
+            throw errors::RuntimeException("__random_nextInt: max must be greater than min");
+        }
+
+        std::uniform_int_distribution<int64_t> distribution(min, max - 1);
+        return distribution(randomEngine());
+    }
+
+    static double randomNextFloat_fn(double min, double max)
+    {
+        if (max <= min)
+        {
+            throw errors::RuntimeException("__random_nextFloat: max must be greater than min");
+        }
+
+        std::uniform_real_distribution<double> distribution(min, max);
+        return distribution(randomEngine());
+    }
 
     // ---- String operations ----------------------------------------------
     static int64_t strLength_fn(const std::string& s)
@@ -128,6 +163,104 @@ namespace environment::registry::builtin
         return 0;
     }
 
+    static Value delay_fn(::environment::NativeContext& ctx,
+                          std::span<const Value> args)
+    {
+        if (args.size() != 1)
+        {
+            throw errors::RuntimeException("delay: expected 1 argument(s)");
+        }
+        if (!value::isInt(args[0]))
+        {
+            throw errors::RuntimeException("delay: ms argument must be int");
+        }
+        if (!ctx.vm)
+        {
+            throw errors::RuntimeException("delay: VM context is not available");
+        }
+
+        auto promise = std::make_shared<value::AsyncPromiseValue>();
+        int delayMs = static_cast<int>(value::asInt(args[0]));
+        auto* eventLoop = ctx.vm->ensureEventLoop();
+        eventLoop->scheduleDelayedTask([promise]() -> value::Value
+        {
+            if (promise->isPending())
+            {
+                promise->resolve(std::monostate{});
+            }
+            return std::monostate{};
+        }, delayMs);
+
+        return std::static_pointer_cast<value::PromiseValue>(promise);
+    }
+
+    static std::string exceptionTypeName(const Value& exceptionValue)
+    {
+        if (value::isAnyObject(exceptionValue))
+        {
+            if (auto* obj = value::asObjectInstanceRaw(exceptionValue))
+            {
+                return obj->getTypeName();
+            }
+        }
+        return "RuntimeException";
+    }
+
+    static std::string exceptionMessage(const Value& exceptionValue)
+    {
+        if (value::isAnyObject(exceptionValue))
+        {
+            if (auto* obj = value::asObjectInstanceRaw(exceptionValue))
+            {
+                try
+                {
+                    Value message = obj->getFieldValue("message");
+                    if (value::isString(message)) return value::asString(message);
+                    if (value::isInternedString(message)) return value::asInternedString(message).getString();
+                }
+                catch (...)
+                {
+                }
+            }
+        }
+        return "delayed rejection";
+    }
+
+    static Value delayReject_fn(::environment::NativeContext& ctx,
+                                std::span<const Value> args)
+    {
+        if (args.size() != 2)
+        {
+            throw errors::RuntimeException("delayReject: expected 2 argument(s)");
+        }
+        if (!value::isInt(args[0]))
+        {
+            throw errors::RuntimeException("delayReject: ms argument must be int");
+        }
+        if (!ctx.vm)
+        {
+            throw errors::RuntimeException("delayReject: VM context is not available");
+        }
+
+        auto promise = std::make_shared<value::AsyncPromiseValue>();
+        int delayMs = static_cast<int>(value::asInt(args[0]));
+        Value exceptionValue = args[1];
+        std::string typeName = exceptionTypeName(exceptionValue);
+        std::string message = exceptionMessage(exceptionValue);
+
+        auto* eventLoop = ctx.vm->ensureEventLoop();
+        eventLoop->scheduleDelayedTask([promise, exceptionValue, typeName, message]() -> value::Value
+        {
+            if (promise->isPending())
+            {
+                promise->rejectWithException(exceptionValue, typeName, message);
+            }
+            return std::monostate{};
+        }, delayMs);
+
+        return std::static_pointer_cast<value::PromiseValue>(promise);
+    }
+
     void registerAll(NativeRegistry& registry, MethodCallHandler printHandler)
     {
         // Print is variadic — register a raw-form delegate manually since the
@@ -161,11 +294,22 @@ namespace environment::registry::builtin
         registry.registerNativeFunction("acos",  NativeBinder::bind("acos",  &acos_fn));
         registry.registerNativeFunction("atan",  NativeBinder::bind("atan",  &atan_fn));
         registry.registerNativeFunction("atan2", NativeBinder::bind("atan2", &atan2_fn));
+        registry.registerNativeFunction("__random_nextInt", NativeBinder::bind("__random_nextInt", &randomNextInt_fn));
+        registry.registerNativeFunction("__random_nextFloat", NativeBinder::bind("__random_nextFloat", &randomNextFloat_fn));
 
         // String manipulation.
         registry.registerNativeFunction("substring",   NativeBinder::bind("substring",   &substring_fn));
         registry.registerNativeFunction("toUpperCase", NativeBinder::bind("toUpperCase", &toUpperCase_fn));
         registry.registerNativeFunction("toLowerCase", NativeBinder::bind("toLowerCase", &toLowerCase_fn));
         registry.registerNativeFunction("indexOf",     NativeBinder::bind("indexOf",     &indexOf_fn));
+
+        // Async timing. delay() returns a pending Promise<void> that the event
+        // loop resolves after the requested delay; delayReject() returns a
+        // pending Promise<void> that rejects with the supplied exception after
+        // the delay. Building blocks for cooperative sleep / timeout patterns;
+        // also make the executeAwait suspend branch (both resolve and reject
+        // sub-paths) reachable from script code.
+        registry.registerNativeFunction("delay",       NativeBinder::bind(&delay_fn));
+        registry.registerNativeFunction("delayReject", NativeBinder::bind(&delayReject_fn));
     }
 }

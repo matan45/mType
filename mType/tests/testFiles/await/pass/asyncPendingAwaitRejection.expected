@@ -1,0 +1,4 @@
+=== Pending Await Rejection ===
+main: before delayed rejection
+main: caught delayed boom
+OK

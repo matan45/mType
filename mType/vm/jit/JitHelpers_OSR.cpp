@@ -55,11 +55,6 @@ namespace vm::jit
 
     } // extern "C"
 
-    void jit_osr_deoptimize(JitContext* ctx, uint64_t bytecodeOffset)
-    {
-        throw OSRDeoptException(static_cast<size_t>(bytecodeOffset));
-    }
-
     // MYT-259: push the function's return value onto the interpreter's
     // operand stack so the resumed RETURN_VALUE bytecode (dispatched at
     // ctx->osrExitOffset by the interpreter) can pop it via the normal

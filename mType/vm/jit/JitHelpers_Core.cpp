@@ -350,9 +350,20 @@ namespace vm::jit
     // Mirrors VirtualMachine::executeAwait, fast-path arms only.
     // - PROMISE_INT: unwrap inline; rebuild as a plain INT Value.
     // - Heap PROMISE in FULFILLED state: copy out promise->getValue().
-    // - Anything else (pending, rejected, non-promise, null): deopt to the
-    //   interpreter via OSRDeoptException so the interpreter's existing
-    //   suspend / UserException / type-error paths run.
+    // - Anything else (pending, rejected, non-promise, null): stash an
+    //   OSRDeoptException on ctx->pendingException so the emitter's
+    //   post-invoke jit_has_pending_exception check jumps to the per-
+    //   function deopt-exit label, the JIT body returns cleanly, and
+    //   executeCallWithJit / executeCallFastWithJit / OSRManager rethrow
+    //   the stashed exception to drive the interpreter-resume path.
+    //
+    // MYT-268: the previous form here threw OSRDeoptException directly.
+    // On Windows x64 the throw would unwind through the asmjit-generated
+    // frame, but no PE x64 unwind data is registered for the JIT region —
+    // the OS unwinder gives up and the process exits silently before any
+    // catch handler runs. The stash convention (used by every other JIT
+    // helper, see JitContext.hpp:82-85) avoids unwinding through asmjit
+    // entirely.
     void jit_await(JitContext* ctx, value::Value* val, uint64_t bytecodeOffset)
     {
         // Skip when an earlier CALL helper stashed an exception — *val may
@@ -378,6 +389,8 @@ namespace vm::jit
             }
         }
 
-        throw OSRDeoptException(static_cast<size_t>(bytecodeOffset));
+        if (ctx)
+            ctx->pendingException = std::make_exception_ptr(
+                OSRDeoptException(static_cast<size_t>(bytecodeOffset)));
     }
 }

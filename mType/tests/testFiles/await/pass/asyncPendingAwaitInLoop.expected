@@ -1,0 +1,9 @@
+=== Pending Await In Loop ===
+loop: before await 1
+loop: after await 1
+loop: before await 2
+loop: after await 2
+loop: before await 3
+loop: after await 3
+main: sum=6
+OK

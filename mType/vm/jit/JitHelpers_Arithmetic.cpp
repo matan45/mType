@@ -220,24 +220,20 @@ namespace vm::jit
         nestedCtx.icTable = ctx->icTable;
         nestedCtx.callingClassName = ctx->callingClassName;
 
-        try
-        {
-            jitFn(&nestedCtx);
-        }
-        catch (const OSRDeoptException&)
-        {
-            // JIT callee deopted mid-AWAIT. Roll back the frame + native-
-            // depth bookkeeping we set up above, then let the deopt unwind
-            // further. It propagates through the JIT caller's asmjit frame
-            // to executeCallWithJit's catch, which falls back to interpreter.
-            ctx->vm->decrementJitNativeDepth();
-            ctx->vm->popCallStack();
-            throw;
-        }
+        // MYT-268: jit_await stashes OSRDeoptException on
+        // nestedCtx.pendingException instead of throwing (the throw form
+        // crashed silently on Windows x64 — no PE unwind data registered
+        // for the asmjit frame). The deopt now propagates via the
+        // pendingException field below; the prior catch (OSRDeoptException&)
+        // wrapper is unreachable.
+        jitFn(&nestedCtx);
         ctx->vm->decrementJitNativeDepth();
         ctx->vm->popCallStack();
 
-        // Propagate any exception stored by JIT helpers
+        // Propagate any exception stored by JIT helpers (including the
+        // OSRDeoptException stashed by jit_await — the function-level
+        // deopt boundary in executeCallWithJit detects it and routes to
+        // the interpreter fallback).
         if (nestedCtx.pendingException)
         {
             ctx->pendingException = nestedCtx.pendingException;
@@ -302,44 +298,13 @@ namespace vm::jit
 
             if (ctx->vm)
             {
-                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->returnValue = ctx->vm->callFunctionFromJit(
+                    funcName, std::span<const value::Value>(ctx->callArgs, argCount));
                 ctx->hasReturnValue = true;
                 return;
             }
 
             throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
-        }
-        catch (const OSRDeoptException&)
-        {
-            // A JIT-compiled callee deopted on AWAIT. Handle it locally so
-            // the deopt does NOT unwind further into the JIT caller's frame
-            // (re-running the callee in the interpreter from scratch loses
-            // less than the alternative — a stale OSR catch would set the
-            // outer frame's IP to the inner IP and corrupt it). Side-effect
-            // free callees re-execute cleanly; bodies with externally-visible
-            // side effects pre-deopt may double-execute them — known v1
-            // limitation. Wrap in another try so a throw from the fallback
-            // routes through the normal pendingException stash.
-            try
-            {
-                if (ctx->vm)
-                {
-                    const std::string& funcName =
-                        ctx->program->getConstantPool().getString(nameIndex);
-                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                    ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
-                    ctx->hasReturnValue = true;
-                }
-            }
-            catch (const errors::RuntimeException&)
-            {
-                throw;
-            }
-            catch (...)
-            {
-                ctx->pendingException = std::current_exception();
-            }
         }
         catch (...)
         {
@@ -347,6 +312,11 @@ namespace vm::jit
             // (Function-level JIT bodies have no implicit pendingException check
             // between opcodes; rely on each helper's entry-check to short-circuit
             // until the body returns and executeCallWithJit rethrows.)
+            // MYT-268: includes the OSRDeoptException stashed by jit_await
+            // (now propagated via nestedCtx.pendingException in
+            // tryJitDispatchResolved, then assigned to ctx->pendingException
+            // before the helper returns — the prior catch (OSRDeoptException&)
+            // arm is unreachable since no callee throws this type anymore).
             ctx->pendingException = std::current_exception();
         }
     }
@@ -387,9 +357,9 @@ namespace vm::jit
                 // hashmap probe.
                 if (cached->cachedFuncMetadata && ctx->vm)
                 {
-                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
                     ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
-                        funcName, cached->cachedFuncMetadata, argVec);
+                        funcName, cached->cachedFuncMetadata,
+                        std::span<const value::Value>(ctx->callArgs, argCount));
                     ctx->hasReturnValue = true;
                     return;
                 }
@@ -445,36 +415,20 @@ namespace vm::jit
             }
             if (funcMeta && ctx->vm)
             {
-                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
                 ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
-                    funcName, funcMeta, argVec);
+                    funcName, funcMeta,
+                    std::span<const value::Value>(ctx->callArgs, argCount));
                 ctx->hasReturnValue = true;
                 return;
             }
 
             throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
         }
-        catch (const OSRDeoptException&)
-        {
-            // See jit_call_function above for rationale.
-            try
-            {
-                if (ctx->vm)
-                {
-                    const std::string& funcName =
-                        ctx->program->getConstantPool().getString(nameIndex);
-                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                    ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
-                    ctx->hasReturnValue = true;
-                }
-            }
-            catch (...)
-            {
-                ctx->pendingException = std::current_exception();
-            }
-        }
         catch (...)
         {
+            // MYT-268: includes the OSRDeoptException stashed by jit_await
+            // (propagated via nestedCtx.pendingException; the prior
+            // catch (OSRDeoptException&) wrapper here is unreachable).
             ctx->pendingException = std::current_exception();
         }
     }
@@ -521,40 +475,19 @@ namespace vm::jit
 
             if (ctx->vm)
             {
-                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->returnValue = ctx->vm->callFunctionFromJit(
+                    funcName, std::span<const value::Value>(ctx->callArgs, argCount));
                 ctx->hasReturnValue = true;
                 return;
             }
 
             throw errors::RuntimeException("JIT: cannot call function '" + funcName + "'");
         }
-        catch (const OSRDeoptException&)
-        {
-            // See jit_call_function above for rationale. Fast variant has
-            // funcIndex; resolve the metadata to get a function name.
-            try
-            {
-                if (ctx->vm)
-                {
-                    const auto* meta = ctx->program->getFunctionByIndex(funcIndex);
-                    if (meta)
-                    {
-                        const std::string& funcName =
-                            meta->mangledName.empty() ? meta->name : meta->mangledName;
-                        std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                        ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
-                        ctx->hasReturnValue = true;
-                    }
-                }
-            }
-            catch (...)
-            {
-                ctx->pendingException = std::current_exception();
-            }
-        }
         catch (...)
         {
+            // MYT-268: includes the OSRDeoptException stashed by jit_await
+            // (propagated via nestedCtx.pendingException; the prior
+            // catch (OSRDeoptException&) wrapper here is unreachable).
             ctx->pendingException = std::current_exception();
         }
     }

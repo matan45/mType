@@ -1,0 +1,4 @@
+=== Pending Await Suspend ===
+main: before delayed await
+main: after delayed await name=custom value=42
+OK
