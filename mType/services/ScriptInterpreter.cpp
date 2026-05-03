@@ -404,8 +404,10 @@ namespace services
     {
         try
         {
-            // Check if this is a compiled bytecode file
-            if (filename.length() >= 4 && filename.substr(filename.length() - 4) == ".mtc")
+            // Check if this is a compiled bytecode file or .mtcLib container.
+            const bool isMtc = filename.length() >= 4 && filename.substr(filename.length() - 4) == ".mtc";
+            const bool isMtcLib = filename.length() >= 7 && filename.substr(filename.length() - 7) == ".mtcLib";
+            if (isMtc || isMtcLib)
             {
                 // Load pre-compiled bytecode and register classes
                 loadCompiledBytecode(filename);

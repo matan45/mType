@@ -1,4 +1,5 @@
 #include "LibraryTestSuite.hpp"
+#include "../../services/ScriptInterpreter.hpp"
 #include "../../services/ScriptAPI.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../types/TypeSignature.hpp"
@@ -789,6 +790,80 @@ namespace tests::testSuite
 
     void LibraryTestSuite::setupRuntimeLoadingTests()
     {
+        addCallbackTest("ScriptInterpreter loadCompiledBytecode accepts .mtcLib as main program",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+                require(libConfig != nullptr, "Failed to parse MathLib.mtproj");
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed: " +
+                    (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
+
+                ScriptInterpreter interpreter;
+                interpreter.loadCompiledBytecode(libPath);
+
+                value::Value result = interpreter.callStaticMethod(
+                    "MathUtils",
+                    "max",
+                    { value::Value(int64_t{2}), value::Value(int64_t{5}) });
+
+                require(value::isInt(result), "MathUtils.max should return int");
+                require(value::asInt(result) == 5,
+                    "MathUtils.max should return 5, got " + std::to_string(value::asInt(result)));
+
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                } catch (...) {}
+            });
+
+        addCallbackTest("ScriptInterpreter parseAndRegisterClasses accepts .mtcLib as main program",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                std::string libMtproj = "mType/tests/testFiles/library/projects/mathlib/MathLib.mtproj";
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+                require(libConfig != nullptr, "Failed to parse MathLib.mtproj");
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "MathLib build failed: " +
+                    (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
+
+                ScriptInterpreter interpreter;
+                interpreter.parseAndRegisterClasses(libPath);
+
+                value::Value result = interpreter.callStaticMethod(
+                    "MathUtils",
+                    "min",
+                    { value::Value(int64_t{2}), value::Value(int64_t{5}) });
+
+                require(value::isInt(result), "MathUtils.min should return int");
+                require(value::asInt(result) == 2,
+                    "MathUtils.min should return 2, got " + std::to_string(value::asInt(result)));
+
+                try {
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                } catch (...) {}
+            });
+
         addCallbackTest("End-to-end: build MathLib, load into interpreter, run consumer code",
             "",
             [](ScriptAPI&) {
