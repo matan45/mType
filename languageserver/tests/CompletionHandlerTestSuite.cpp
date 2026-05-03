@@ -212,8 +212,18 @@ function topLevelFn(): void {}
                 foundAutoImport = true;
                 require(!item.additionalTextEdits.empty(),
                     "auto-import item should have additionalTextEdits");
-                require(item.additionalTextEdits[0].newText.find("import") != std::string::npos,
+                const std::string& importText =
+                    item.additionalTextEdits[0].newText;
+                require(importText.find("import") != std::string::npos,
                     "additionalTextEdits should contain an import statement");
+                // Lock in the selective brace form + .mt extension so a
+                // regression in buildImportInsertEdit / computeImportSpelling
+                // surfaces here (Auto-import emits an import the user
+                // would actually write by hand).
+                require(importText.find("import { Helper }") != std::string::npos,
+                    "expected selective brace-form import for 'Helper', got: " + importText);
+                require(importText.find(".mt") != std::string::npos,
+                    "expected import path to include .mt extension, got: " + importText);
                 break;
             }
         }

@@ -331,14 +331,16 @@ namespace mtype::lsp::analysis
                 return symbolFilePath;
             }
 
-            // Drop the .mt extension to match existing import convention.
-            if (rel.extension() == ".mt")
-            {
-                rel.replace_extension();
-            }
-
-            // Normalize separators to forward slashes.
+            // mType requires the explicit `.mt` suffix in import paths
+            // (the parser rejects extensionless imports — see test
+            // suites under tests/testFiles/import/error/). If somehow
+            // the symbol path didn't carry it, append.
             std::string spelling = rel.generic_string();
+            if (spelling.size() < 3
+                || spelling.compare(spelling.size() - 3, 3, ".mt") != 0)
+            {
+                spelling += ".mt";
+            }
 
             // Ensure relative imports start with `./` so the parser
             // recognises them as relative.

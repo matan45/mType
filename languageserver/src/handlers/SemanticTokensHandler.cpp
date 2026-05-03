@@ -84,15 +84,21 @@ void SemanticTokensHandler::pushToken(std::vector<RawToken>& tokens,
 
 SemanticTokensHandler::SemanticTokensHandler(DocumentManager* docMgr)
     : annotationRegex_(R"(@(\w+))")
-    , classRegex_(R"(\b(abstract\s+)?class\s+(\w+))")
+    , annotationDeclRegex_(R"(\bannotation\s+(\w+))")
+    // `(value\s+|abstract\s+)?` lets the class-decl pass capture the
+    // `class` keyword and the type name even when prefixed with the
+    // value-class modifier (e.g. `public value class Int { ... }`).
+    , classRegex_(R"(\b(value\s+|abstract\s+)?class\s+(\w+))")
     , interfaceRegex_(R"(\binterface\s+(\w+))")
     , methodRegex_(R"(\b(static\s+)?(async\s+)?function\s+(\w+)\s*\()")
     , varRegex_(R"(\b(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?(\w+(?:<[^>]+>)?)\s+(\w+)\s*[;=])")
     // Single alternation — no per-keyword/per-modifier regex construction.
     // Keywords that are also modifiers are excluded here; they are handled
     // solely by tokenizeModifiers to avoid duplicate tokens at the same position.
-    , keywordRegex_(R"(\b(if|else|while|do|for|switch|case|default|break|continue|match|return|new|this|super|try|catch|finally|throw|import|from|extends|implements|final|await)\b)")
-    , modifierRegex_(R"(\b(public|private|protected|static|abstract|async|final)\b)")
+    // `annotation` is excluded too — tokenizeAnnotationDeclarations handles
+    // it so the type name following it can also be colored as a class.
+    , keywordRegex_(R"(\b(if|else|while|do|for|switch|case|default|break|continue|match|return|new|this|super|try|catch|finally|throw|import|from|extends|implements|final|await|isClassOf)\b)")
+    , modifierRegex_(R"(\b(public|private|protected|static|abstract|async|final|value)\b)")
     , functionCallRegex_(R"(\b(\w+)\s*\()")
     , classDeclLookbehind_(R"(\b(?:class|interface)\s*$)")
     , documentManager_(docMgr)
@@ -133,6 +139,7 @@ SemanticTokens SemanticTokensHandler::handleSemanticTokensFull(const std::string
 
     while (std::getline(stream, line)) {
         tokenizeAnnotations(line, lineIndex, tokens);
+        tokenizeAnnotationDeclarations(line, lineIndex, tokens);
         tokenizeClassDeclarations(line, lineIndex, tokens);
         tokenizeInterfaceDeclarations(line, lineIndex, tokens);
         tokenizeMethodDeclarations(line, lineIndex, tokens);
@@ -193,9 +200,11 @@ void SemanticTokensHandler::tokenizeClassDeclarations(const std::string& line, i
     auto end = std::sregex_iterator();
 
     for (auto it = begin; it != end; ++it) {
-        bool hasAbstract = (*it)[1].matched;
+        // Group 1 captures `value ` / `abstract ` (with trailing space)
+        // when present — the `class` keyword sits past it.
+        bool hasModifier = (*it)[1].matched;
         int classKeywordOffset = static_cast<int>(it->position())
-            + (hasAbstract ? static_cast<int>((*it)[1].length()) : 0);
+            + (hasModifier ? static_cast<int>((*it)[1].length()) : 0);
 
         // Highlight "class" keyword
         pushToken(tokens, lineIndex, classKeywordOffset, 5,
@@ -205,6 +214,31 @@ void SemanticTokensHandler::tokenizeClassDeclarations(const std::string& line, i
         std::string className = (*it)[2].str();
         int nameOffset = static_cast<int>(it->position(2));
         pushToken(tokens, lineIndex, nameOffset, static_cast<int>(className.length()),
+                  encodeTokenType("class"),
+                  encodeTokenModifiers({"declaration"}));
+    }
+}
+
+void SemanticTokensHandler::tokenizeAnnotationDeclarations(const std::string& line, int lineIndex,
+                                                            std::vector<RawToken>& tokens) const {
+    auto begin = std::sregex_iterator(line.begin(), line.end(), annotationDeclRegex_);
+    auto end = std::sregex_iterator();
+
+    for (auto it = begin; it != end; ++it) {
+        int pos = static_cast<int>(it->position());
+
+        // Highlight "annotation" keyword (length 10)
+        pushToken(tokens, lineIndex, pos, 10,
+                  encodeTokenType("keyword"), 0);
+
+        // Highlight the declared annotation type name. We tag it as
+        // `class` so themes that style class-name declarations also
+        // style annotation-type declarations consistently — the LSP
+        // semantic-tokens legend doesn't have a dedicated annotation
+        // declaration kind.
+        std::string name = (*it)[1].str();
+        int namePos = static_cast<int>(it->position(1));
+        pushToken(tokens, lineIndex, namePos, static_cast<int>(name.length()),
                   encodeTokenType("class"),
                   encodeTokenModifiers({"declaration"}));
     }

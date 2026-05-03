@@ -40,7 +40,12 @@ public:
 
 private:
     std::vector<CompletionItem> getKeywordCompletions() const;
-    std::vector<CompletionItem> getTypeCompletions() const;
+    // Lowercase primitive keywords + the capitalized wrapper classes
+    // (Int / Float / Bool / String / Promise). The wrappers are real
+    // classes living in lib/primitives/*.mt — when the workspace index
+    // can resolve them they're emitted with an auto-import attached so
+    // accepting the completion also inserts `import { Int } from "..."`.
+    std::vector<CompletionItem> getTypeCompletions(const std::string& uri) const;
     std::vector<CompletionItem> getBuiltinCompletions() const;
     std::vector<CompletionItem> getCollectionCompletions() const;
     // Annotation completions sourced from the per-document

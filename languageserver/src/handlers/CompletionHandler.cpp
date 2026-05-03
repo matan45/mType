@@ -503,7 +503,7 @@ std::vector<CompletionItem> CompletionHandler::handleCompletion(
     items.insert(items.end(), keywords.begin(), keywords.end());
 
     // Add type completions
-    auto types = getTypeCompletions();
+    auto types = getTypeCompletions(uri);
     items.insert(items.end(), types.begin(), types.end());
 
     // Add builtin functions
@@ -585,7 +585,14 @@ std::vector<CompletionItem> CompletionHandler::getKeywordCompletions() const {
         "public", "private", "protected", "static", "final", "abstract",
         "async", "await", "try", "catch", "finally", "throw",
         "break", "continue", "switch", "case", "default", "do", "match",
-        "import", "from", "null", "true", "false"
+        "import", "from", "null", "true", "false",
+        // Type-system keywords previously missing from the dropdown.
+        // `annotation` declares user-defined annotation types
+        // (`annotation Logged { string level = "info"; }`); `value`
+        // marks value classes used by lib/primitives wrappers
+        // (`public value class Int { ... }`); `isClassOf` is the
+        // runtime type-test operator.
+        "annotation", "value", "isClassOf"
     };
 
     for (const auto& kw : keywords) {
@@ -600,13 +607,15 @@ std::vector<CompletionItem> CompletionHandler::getKeywordCompletions() const {
     return items;
 }
 
-std::vector<CompletionItem> CompletionHandler::getTypeCompletions() const {
+std::vector<CompletionItem> CompletionHandler::getTypeCompletions(
+    const std::string& uri) const
+{
     std::vector<CompletionItem> items;
 
+    // Lowercase keywords are true built-ins — never need an import.
     std::vector<std::string> types = {
         "int", "float", "string", "bool", "void"
     };
-
     for (const auto& type : types) {
         CompletionItem item;
         item.label = type;
@@ -616,18 +625,55 @@ std::vector<CompletionItem> CompletionHandler::getTypeCompletions() const {
         items.push_back(item);
     }
 
-    // Wrapper types
-    std::vector<std::string> wrappers = {
+    // Capitalized wrappers are real classes in lib/primitives/*.mt.
+    // We always surface them so the dropdown is predictable, but if
+    // the workspace symbol index has the source file AND the wrapper
+    // isn't already in scope, attach an auto-import edit so accepting
+    // the completion also inserts the matching `import { Int } from
+    // "...mt";`. Falls back to a plain item when the workspace can't
+    // resolve the wrapper (e.g. lib/primitives lives outside the
+    // indexed root).
+    static const std::vector<std::string> kWrappers = {
         "Int", "Float", "String", "Bool", "Promise"
     };
 
-    for (const auto& wrapper : wrappers) {
+    auto doc = documentManager_ ? documentManager_->getDocument(uri) : nullptr;
+    auto classRegistry = (doc && doc->environment)
+        ? doc->environment->getClassRegistry()
+        : nullptr;
+    const std::string referencingPath = UriUtils::uriToFilePath(uri);
+    const int insertLine = doc ? util::findImportInsertLine(doc->content) : 0;
+
+    for (const auto& wrapper : kWrappers) {
         CompletionItem item;
         item.label = wrapper;
         item.kind = static_cast<int>(CompletionItemKind::Class);
         item.detail = "wrapper type";
         item.insertText = wrapper;
-        items.push_back(item);
+        item.filterText = wrapper;
+
+        // If the wrapper is already imported (visible via the class
+        // registry), no auto-import edit needed — just emit plain.
+        const bool alreadyInScope =
+            classRegistry && classRegistry->hasClass(wrapper);
+
+        if (!alreadyInScope && workspaceIndex_) {
+            auto matches = workspaceIndex_->findByName(wrapper, /*maxResults=*/1);
+            if (!matches.empty()) {
+                const auto& match = matches.front();
+                const std::string symbolPath = UriUtils::uriToFilePath(match.fileUri);
+                if (symbolPath != referencingPath) {
+                    const std::string spelling =
+                        analysis::WorkspaceSymbolIndex::computeImportSpelling(
+                            symbolPath, referencingPath);
+                    item.detail = "Auto-import from \"" + spelling + "\"";
+                    item.additionalTextEdits.push_back(
+                        utils::buildImportInsertEdit(insertLine, wrapper, spelling));
+                }
+            }
+        }
+
+        items.push_back(std::move(item));
     }
 
     return items;

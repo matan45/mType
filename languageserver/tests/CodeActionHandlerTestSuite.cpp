@@ -57,8 +57,18 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
                     "expected edit changes keyed by main URI");
                 require(!action.edit->changes.at(mainUri).empty(),
                     "expected at least one TextEdit");
-                require(action.edit->changes.at(mainUri)[0].newText.find("import") != std::string::npos,
+                const std::string& importEditText =
+                    action.edit->changes.at(mainUri)[0].newText;
+                require(importEditText.find("import") != std::string::npos,
                     "expected TextEdit newText to contain an import statement");
+                // mType uses selective `import { Name } from "...mt";`
+                // for auto-generated imports; the test locks in both
+                // the brace form and the .mt extension so a regression
+                // in either would be caught here.
+                require(importEditText.find("import { Util }") != std::string::npos,
+                    "expected selective brace-form import for 'Util', got: " + importEditText);
+                require(importEditText.find(".mt") != std::string::npos,
+                    "expected import path to include .mt extension, got: " + importEditText);
                 break;
             }
         }
@@ -198,6 +208,15 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
                         for (const auto& edit : edits) {
                             require(edit.newText.find("toString") != std::string::npos,
                                 "stub should contain 'toString' method");
+                            // Lock in the modifier + signature shape so a
+                            // regression to the old `function name(...)` form
+                            // (no `public`) surfaces immediately.
+                            require(edit.newText.find("public function toString(): string")
+                                    != std::string::npos,
+                                "stub should be `public function toString(): string`, got: "
+                                + edit.newText);
+                            require(edit.newText.find("@Override") != std::string::npos,
+                                "stub should be annotated `@Override`");
                         }
                     }
                 }
@@ -206,6 +225,88 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
         }
         require(foundImplement,
             "expected an 'Implement interface' code action");
+    });
+
+    // ---------------------------------------------------------------
+    // Test 6b: Implement interface — params use C/Java syntax and
+    // referenced external types are auto-imported alongside the stub.
+    // ---------------------------------------------------------------
+    harness.addTest("implement interface: C/Java param syntax + auto-imports", []() {
+        DocumentManager docMgr;
+        const std::string animalUri = "file:///test/Animal.mt";
+        const std::string mainUri   = "file:///test/Keeper.mt";
+
+        // Keep the interface inline with the implementing class so the
+        // test doesn't depend on cross-file import resolution (the
+        // default DocumentManager in tests has no importResolver wired
+        // up, so `import { ... } from "..."` would not actually pull
+        // the interface into the document's environment). The Animal
+        // type is referenced in the signature but never imported —
+        // that's exactly the case the auto-import path should fix.
+        const std::string animalSrc = "class Animal {\n}\n";
+        const std::string mainSrc =
+            "interface Caretaker {\n"
+            "    function feed(Animal a, int count): bool;\n"
+            "}\n"
+            "class Keeper implements Caretaker {\n}\n";
+
+        docMgr.openDocument(animalUri, animalSrc, 1);
+        docMgr.parseDocument(animalUri);
+        docMgr.openDocument(mainUri, mainSrc, 1);
+        docMgr.parseDocument(mainUri);
+
+        auto wsIndex = std::make_shared<analysis::WorkspaceSymbolIndex>();
+        wsIndex->reindexFile(animalUri, animalSrc);
+        wsIndex->reindexFile(mainUri, mainSrc);
+
+        // Sanity-check the index — if Animal isn't indexed, no later
+        // assertion can succeed and we want a clear failure message
+        // pointing at the index, not at the auto-import logic.
+        auto animalMatches = wsIndex->findByName("Animal", 5);
+        require(!animalMatches.empty(),
+            "WorkspaceSymbolIndex should contain 'Animal' after reindexFile");
+
+        CodeActionHandler handler(&docMgr, wsIndex);
+        // The implementing class declaration is on line 3 (0-based)
+        // — interface header (0), method (1), interface close (2),
+        // class declaration (3).
+        Range range{{3, 0}, {3, 40}};
+        auto actions = handler.handleCodeAction(mainUri, range, {});
+
+        bool foundImplement = false;
+        bool sawCJavaParams = false;
+        bool sawAnimalImport = false;
+        // Capture all generated edits so a failed assertion can show
+        // exactly what the handler produced — much faster to diagnose
+        // than guessing at which filter rejected the type.
+        std::string allEditsConcat;
+        for (const auto& action : actions) {
+            if (action.title.find("Implement") == std::string::npos
+                && action.title.find("implement") == std::string::npos) continue;
+            foundImplement = true;
+            if (!action.edit.has_value()) continue;
+            for (const auto& [uri, edits] : action.edit->changes) {
+                for (const auto& edit : edits) {
+                    allEditsConcat += "---\n" + edit.newText;
+                    if (edit.newText.find("public function feed(Animal a, int count): bool")
+                        != std::string::npos) {
+                        sawCJavaParams = true;
+                    }
+                    if (edit.newText.find("import { Animal }") != std::string::npos
+                        && edit.newText.find(".mt") != std::string::npos) {
+                        sawAnimalImport = true;
+                    }
+                }
+            }
+        }
+        require(foundImplement, "expected an Implement-interface action");
+        require(sawCJavaParams,
+            "stub should use C/Java param syntax `Animal a, int count`. "
+            "All edits seen:\n" + allEditsConcat);
+        require(sawAnimalImport,
+            "auto-import should attach `import { Animal } from \"...mt\"` "
+            "for the externally-defined parameter type. All edits seen:\n"
+            + allEditsConcat);
     });
 
     // ---------------------------------------------------------------
