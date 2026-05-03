@@ -343,14 +343,14 @@ namespace vm::runtime
         bool isICEnabled() const { return icEnabled; }
 
         // JIT helper: execute a function call from JIT code via interpreter
-        value::Value callFunctionFromJit(const std::string& funcName, const std::vector<value::Value>& args);
+        value::Value callFunctionFromJit(const std::string& funcName, std::span<const value::Value> args);
 
         // JIT IC fast path: skip the program->getFunction(funcName) hashmap
         // lookup when the caller already has the resolved FunctionMetadata
         // cached at the call-site IP.
         value::Value callFunctionFromJitDirect(const std::string& funcName,
                                                 const bytecode::BytecodeProgram::FunctionMetadata* funcMeta,
-                                                const std::vector<value::Value>& args);
+                                                std::span<const value::Value> args);
 
     private:
         // Shared mini-interpret loop used by callFunctionFromJit and the two

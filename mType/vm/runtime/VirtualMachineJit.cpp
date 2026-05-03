@@ -181,7 +181,7 @@ namespace vm::runtime
     }
 
     value::Value VirtualMachine::callFunctionFromJit(const std::string& funcName,
-                                                      const std::vector<value::Value>& args)
+                                                      std::span<const value::Value> args)
     {
         auto funcMeta = program->getFunction(funcName);
         if (!funcMeta)
@@ -193,7 +193,7 @@ namespace vm::runtime
 
     value::Value VirtualMachine::callFunctionFromJitDirect(const std::string& funcName,
                                                             const bytecode::BytecodeProgram::FunctionMetadata* funcMeta,
-                                                            const std::vector<value::Value>& args)
+                                                            std::span<const value::Value> args)
     {
         size_t savedIP = instructionPointer;
         size_t savedCallStackDepth = callStack.size();

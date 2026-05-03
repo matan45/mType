@@ -302,8 +302,8 @@ namespace vm::jit
 
             if (ctx->vm)
             {
-                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->returnValue = ctx->vm->callFunctionFromJit(
+                    funcName, std::span<const value::Value>(ctx->callArgs, argCount));
                 ctx->hasReturnValue = true;
                 return;
             }
@@ -327,8 +327,8 @@ namespace vm::jit
                 {
                     const std::string& funcName =
                         ctx->program->getConstantPool().getString(nameIndex);
-                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                    ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                    ctx->returnValue = ctx->vm->callFunctionFromJit(
+                        funcName, std::span<const value::Value>(ctx->callArgs, argCount));
                     ctx->hasReturnValue = true;
                 }
             }
@@ -387,9 +387,9 @@ namespace vm::jit
                 // hashmap probe.
                 if (cached->cachedFuncMetadata && ctx->vm)
                 {
-                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
                     ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
-                        funcName, cached->cachedFuncMetadata, argVec);
+                        funcName, cached->cachedFuncMetadata,
+                        std::span<const value::Value>(ctx->callArgs, argCount));
                     ctx->hasReturnValue = true;
                     return;
                 }
@@ -445,9 +445,9 @@ namespace vm::jit
             }
             if (funcMeta && ctx->vm)
             {
-                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
                 ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
-                    funcName, funcMeta, argVec);
+                    funcName, funcMeta,
+                    std::span<const value::Value>(ctx->callArgs, argCount));
                 ctx->hasReturnValue = true;
                 return;
             }
@@ -463,8 +463,8 @@ namespace vm::jit
                 {
                     const std::string& funcName =
                         ctx->program->getConstantPool().getString(nameIndex);
-                    std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                    ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                    ctx->returnValue = ctx->vm->callFunctionFromJit(
+                        funcName, std::span<const value::Value>(ctx->callArgs, argCount));
                     ctx->hasReturnValue = true;
                 }
             }
@@ -521,8 +521,8 @@ namespace vm::jit
 
             if (ctx->vm)
             {
-                std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                ctx->returnValue = ctx->vm->callFunctionFromJit(
+                    funcName, std::span<const value::Value>(ctx->callArgs, argCount));
                 ctx->hasReturnValue = true;
                 return;
             }
@@ -542,8 +542,8 @@ namespace vm::jit
                     {
                         const std::string& funcName =
                             meta->mangledName.empty() ? meta->name : meta->mangledName;
-                        std::vector<value::Value> argVec(ctx->callArgs, ctx->callArgs + argCount);
-                        ctx->returnValue = ctx->vm->callFunctionFromJit(funcName, argVec);
+                        ctx->returnValue = ctx->vm->callFunctionFromJit(
+                            funcName, std::span<const value::Value>(ctx->callArgs, argCount));
                         ctx->hasReturnValue = true;
                     }
                 }
