@@ -27,6 +27,8 @@ namespace tests::testSuite
                         passPath + "genericImportTest.mt");
         addOutputVerificationTest("HashMap HashSet Optimization",
                         passPath + "hashmapHashsetOptimization.mt");
+        addOutputVerificationTest("HashMap Shape Specialization",
+                        passPath + "hashmapShapeSpecialization.mt");
         addOutputVerificationTest("Generic Nullable Return Substitution",
                         passPath + "genericNullableReturnSubstitution.mt");
 

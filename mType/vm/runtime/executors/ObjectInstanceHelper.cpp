@@ -104,11 +104,42 @@ namespace vm::runtime
                classDef->hasMethod("toArray");
     }
 
+    static std::shared_ptr<runtimeTypes::klass::ClassDefinition> resolveKeyClass(
+        const std::shared_ptr<environment::registry::ClassRegistry>& classRegistry,
+        const std::string& keyTypeName)
+    {
+        if (!classRegistry) return nullptr;
+        // Strip generic suffix if present (e.g. "Foo<Int>" → "Foo"). Phase 1
+        // requires the K class itself to be non-generic per
+        // SpecializedCollectionStorage::isSpecializableShape; a parameterized
+        // K is rejected by that gate anyway, so a base-name lookup is fine.
+        std::string base = keyTypeName;
+        size_t lt = base.find('<');
+        if (lt != std::string::npos) base = base.substr(0, lt);
+        return classRegistry->findClass(base);
+    }
+
+    static bool tryAttachShapeCollection(
+        runtimeTypes::klass::ObjectInstance* instance,
+        value::SpecializedCollectionStorage::Kind kind,
+        const std::shared_ptr<environment::registry::ClassRegistry>& classRegistry,
+        const std::string& keyTypeName,
+        size_t initialCapacity)
+    {
+        auto keyClassDef = resolveKeyClass(classRegistry, keyTypeName);
+        if (!value::SpecializedCollectionStorage::isSpecializableShape(keyClassDef.get())) return false;
+        auto shape = value::SpecializedCollectionStorage::buildShapeDescriptor(keyClassDef);
+        if (shape.empty()) return false;
+        instance->attachSpecializedShapeCollection(kind, std::move(shape), initialCapacity);
+        return true;
+    }
+
     static void attachSpecializedCollectionIfNeeded(
         runtimeTypes::klass::ObjectInstance* instance,
         const std::string& baseClassName,
         const std::unordered_map<std::string, std::string>& genericTypeBindings,
-        size_t initialCapacity)
+        size_t initialCapacity,
+        const std::shared_ptr<environment::registry::ClassRegistry>& classRegistry)
     {
         if (!instance) return;
 
@@ -117,11 +148,21 @@ namespace vm::runtime
             if (!isStdHashMapClass(instance->getClassDefinitionRaw())) return;
             auto it = genericTypeBindings.find("K");
             if (it == genericTypeBindings.end()) return;
-            auto tag = specializableTypeNameToTag(it->second);
-            if (!value::SpecializedCollectionStorage::isSpecializableKeyTag(tag)) return;
-            instance->attachSpecializedCollection(
+            const std::string& keyTypeName = it->second;
+            auto tag = specializableTypeNameToTag(keyTypeName);
+            if (value::SpecializedCollectionStorage::isSpecializableKeyTag(tag))
+            {
+                instance->attachSpecializedCollection(
+                    value::SpecializedCollectionStorage::Kind::MAP,
+                    tag,
+                    initialCapacity);
+                return;
+            }
+            tryAttachShapeCollection(
+                instance,
                 value::SpecializedCollectionStorage::Kind::MAP,
-                tag,
+                classRegistry,
+                keyTypeName,
                 initialCapacity);
             return;
         }
@@ -131,11 +172,21 @@ namespace vm::runtime
             if (!isStdHashSetClass(instance->getClassDefinitionRaw())) return;
             auto it = genericTypeBindings.find("T");
             if (it == genericTypeBindings.end()) return;
-            auto tag = specializableTypeNameToTag(it->second);
-            if (!value::SpecializedCollectionStorage::isSpecializableKeyTag(tag)) return;
-            instance->attachSpecializedCollection(
+            const std::string& keyTypeName = it->second;
+            auto tag = specializableTypeNameToTag(keyTypeName);
+            if (value::SpecializedCollectionStorage::isSpecializableKeyTag(tag))
+            {
+                instance->attachSpecializedCollection(
+                    value::SpecializedCollectionStorage::Kind::SET,
+                    tag,
+                    initialCapacity);
+                return;
+            }
+            tryAttachShapeCollection(
+                instance,
                 value::SpecializedCollectionStorage::Kind::SET,
-                tag,
+                classRegistry,
+                keyTypeName,
                 initialCapacity);
         }
     }
@@ -1048,7 +1099,8 @@ namespace vm::runtime
             instance.get(),
             baseClassName,
             genericTypeBindings,
-            collectionInitialCapacity);
+            collectionInitialCapacity,
+            context.environment->getClassRegistry());
 
         // Invoke constructor using the class definition's actual name
         // (handles aliases: "MyInt" resolves to same ClassDef as "Int",
@@ -1106,7 +1158,8 @@ namespace vm::runtime
                 instance.get(),
                 baseClassName,
                 genericTypeBindings,
-                collectionInitialCapacity);
+                collectionInitialCapacity,
+                classRegistry);
             std::string actualClassName = instance->getClassDefinition()->getName();
             invokeConstructor(value::Value(instance), actualClassName, args.span());
             return;
@@ -1131,7 +1184,8 @@ namespace vm::runtime
             raw,
             baseClassName,
             genericTypeBindings,
-            collectionInitialCapacity);
+            collectionInitialCapacity,
+            classRegistry);
 
         // The cap-check above guarantees the inline array has room.
         context.callStack.back().tryPushStackObject(raw);

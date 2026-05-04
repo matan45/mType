@@ -51,7 +51,20 @@ namespace value
         PrimitiveTypeTag keyTag,
         size_t initialCapacity)
         : kind_(kind),
+          mode_(Mode::PRIMITIVE),
           keyTag_(keyTag),
+          entries_(normalizeCapacity(initialCapacity))
+    {
+    }
+
+    SpecializedCollectionStorage::SpecializedCollectionStorage(
+        Kind kind,
+        ShapeDescriptor shape,
+        size_t initialCapacity)
+        : kind_(kind),
+          mode_(Mode::SHAPE),
+          keyTag_(PrimitiveTypeTag::NONE),
+          shape_(std::move(shape)),
           entries_(normalizeCapacity(initialCapacity))
     {
     }
@@ -62,6 +75,65 @@ namespace value
                tag == PrimitiveTypeTag::FLOAT ||
                tag == PrimitiveTypeTag::BOOL ||
                tag == PrimitiveTypeTag::STRING;
+    }
+
+    bool SpecializedCollectionStorage::isSpecializableShape(
+        const runtimeTypes::klass::ClassDefinition* classDef)
+    {
+        if (!classDef) return false;
+        if (classDef->isAbstract() || classDef->isValueClass() || classDef->isGeneric()) return false;
+        // Phase 1: no in-program parent. MYT-274's STRUCT_*_INT fast emit
+        // takes the same gate; storage and synth methods stay in lockstep.
+        if (classDef->hasParentClass())
+        {
+            const std::string& parentName = classDef->getParentClassName();
+            if (!parentName.empty() && parentName != "Object") return false;
+        }
+
+        const auto& fields = classDef->getInstanceFields();
+        if (fields.empty()) return false;
+        size_t intFieldCount = 0;
+        for (const auto& [name, fieldDef] : fields)
+        {
+            if (!fieldDef || fieldDef->isStatic()) continue;
+            if (fieldDef->getType() != ValueType::INT) return false;
+            ++intFieldCount;
+        }
+        if (intFieldCount == 0) return false;
+        if (intFieldCount > kMaxShapeFields) return false;
+
+        // Require synth-only equals/hashCode. findInstanceMethod walks user
+        // methods first, falling through to synthetic; if we find a non-
+        // synthetic match, the user overrode the contract and the storage's
+        // field-wise compare would silently disagree.
+        auto eq = classDef->findInstanceMethod("equals", 1);
+        auto hc = classDef->findInstanceMethod("hashCode", 0);
+        if (!eq || !hc) return false;
+        if (!eq->isSynthetic() || !hc->isSynthetic()) return false;
+        return true;
+    }
+
+    ShapeDescriptor SpecializedCollectionStorage::buildShapeDescriptor(
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef)
+    {
+        ShapeDescriptor desc;
+        if (!isSpecializableShape(classDef.get())) return desc;
+
+        // Slot indices 0..n-1 in declaration order match
+        // ClassRegistrar's fieldIndexMap and the slots emitted by the
+        // STRUCT_HASH_INT / STRUCT_EQ_INT fast-body path
+        // (MethodCompilerHelper::tryEmitStructuralFastBody).
+        const size_t n = classDef->getIndexedFieldCount();
+        desc.fields.reserve(n);
+        for (size_t i = 0; i < n && i < kMaxShapeFields; ++i)
+        {
+            ShapeFieldDescriptor f;
+            f.fieldIndex = i;
+            f.type = ValueType::INT;
+            desc.fields.push_back(f);
+        }
+        desc.classDef = std::move(classDef);
+        return desc;
     }
 
     void SpecializedCollectionStorage::clear()
@@ -78,6 +150,12 @@ namespace value
     bool SpecializedCollectionStorage::extractKey(const Value& value, Key& out) const
     {
         out = Key{};
+        if (mode_ == Mode::SHAPE) return extractShapeKey(value, out);
+        return extractPrimitiveKey(value, out);
+    }
+
+    bool SpecializedCollectionStorage::extractPrimitiveKey(const Value& value, Key& out) const
+    {
         out.tag = keyTag_;
 
         Value source = value;
@@ -125,8 +203,39 @@ namespace value
         }
     }
 
+    bool SpecializedCollectionStorage::extractShapeKey(const Value& value, Key& out) const
+    {
+        if (shape_.empty()) return false;
+        if (!isAnyObject(value)) return false;
+        auto* obj = asObjectInstanceRaw(value);
+        if (!obj) return false;
+        if (obj->getClassDefinitionRaw() != shape_.classDef.get()) return false;
+        if (!obj->hasFieldVector()) return false;
+
+        const size_t n = shape_.fields.size();
+        out.shapeFieldCount = static_cast<uint8_t>(n);
+        for (size_t i = 0; i < n; ++i)
+        {
+            const Value& fv = obj->getFieldByIndex(shape_.fields[i].fieldIndex);
+            if (!isInt(fv)) return false;
+            out.shapeInts[i] = asInt(fv);
+        }
+        return true;
+    }
+
     int64_t SpecializedCollectionStorage::rawHash(const Key& key) const
     {
+        if (mode_ == Mode::SHAPE)
+        {
+            // Horner-31, h0 = 1. Mirrors jit_struct_hash_int and the synth
+            // hashCode body so storage and user-visible hashCode agree.
+            int64_t h = 1;
+            for (uint8_t i = 0; i < key.shapeFieldCount; ++i)
+            {
+                h = h * 31 + key.shapeInts[i];
+            }
+            return maskedHash(static_cast<size_t>(h));
+        }
         switch (key.tag)
         {
         case PrimitiveTypeTag::INT:
@@ -144,6 +253,15 @@ namespace value
 
     bool SpecializedCollectionStorage::keysEqual(const Key& a, const Key& b) const
     {
+        if (mode_ == Mode::SHAPE)
+        {
+            if (a.shapeFieldCount != b.shapeFieldCount) return false;
+            for (uint8_t i = 0; i < a.shapeFieldCount; ++i)
+            {
+                if (a.shapeInts[i] != b.shapeInts[i]) return false;
+            }
+            return true;
+        }
         if (a.tag != b.tag) return false;
         switch (a.tag)
         {
@@ -349,6 +467,12 @@ namespace value
 
     Value SpecializedCollectionStorage::boxKey(const Key& key, environment::Environment* env) const
     {
+        if (mode_ == Mode::SHAPE) return boxShapeKey(key);
+        return boxPrimitiveKey(key, env);
+    }
+
+    Value SpecializedCollectionStorage::boxPrimitiveKey(const Key& key, environment::Environment* env) const
+    {
         if (!env)
         {
             switch (key.tag)
@@ -408,6 +532,20 @@ namespace value
             return nullptr;
         }
         return boxed;
+    }
+
+    Value SpecializedCollectionStorage::boxShapeKey(const Key& key) const
+    {
+        if (!shape_.classDef) return nullptr;
+        auto inst = std::make_shared<runtimeTypes::klass::ObjectInstance>(shape_.classDef);
+        inst->ensureFieldVector();
+        for (uint8_t i = 0; i < key.shapeFieldCount; ++i)
+        {
+            inst->setFieldByIndex(shape_.fields[i].fieldIndex,
+                                  static_cast<int64_t>(key.shapeInts[i]));
+        }
+        inst->registerWithGC();
+        return Value(inst);
     }
 
     std::shared_ptr<NativeArray> SpecializedCollectionStorage::materializeKeys(environment::Environment* env) const

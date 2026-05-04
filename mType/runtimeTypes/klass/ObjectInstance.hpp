@@ -134,6 +134,9 @@ namespace runtimeTypes::klass
         void attachSpecializedCollection(value::SpecializedCollectionStorage::Kind kind,
                                          value::PrimitiveTypeTag keyTag,
                                          size_t initialCapacity = 32);
+        void attachSpecializedShapeCollection(value::SpecializedCollectionStorage::Kind kind,
+                                              value::ShapeDescriptor shape,
+                                              size_t initialCapacity = 32);
         value::SpecializedCollectionStorage* getSpecializedCollection() noexcept { return specializedCollection_.get(); }
         const value::SpecializedCollectionStorage* getSpecializedCollection() const noexcept { return specializedCollection_.get(); }
         void clearSpecializedCollection();

@@ -1,0 +1,11 @@
+size: 3
+get 3,4: b
+has 3,4: true
+has 99,99: false
+after replace size: 3
+get 3,4 again: B
+after remove size: 2
+has 1,2 after remove: false
+set size: 2
+set has 10,20: true
+set has 99,99: false

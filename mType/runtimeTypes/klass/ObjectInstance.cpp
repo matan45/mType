@@ -538,6 +538,16 @@ namespace runtimeTypes::klass
             std::make_unique<value::SpecializedCollectionStorage>(kind, keyTag, initialCapacity);
     }
 
+    void ObjectInstance::attachSpecializedShapeCollection(
+        value::SpecializedCollectionStorage::Kind kind,
+        value::ShapeDescriptor shape,
+        size_t initialCapacity)
+    {
+        if (shape.empty()) return;
+        specializedCollection_ =
+            std::make_unique<value::SpecializedCollectionStorage>(kind, std::move(shape), initialCapacity);
+    }
+
     void ObjectInstance::clearSpecializedCollection()
     {
         specializedCollection_.reset();

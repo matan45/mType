@@ -6940,6 +6940,12 @@
     <None Include="tests\testFiles\generics\pass\hashmapHashsetOptimization.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeSpecialization.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeSpecialization.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\inferArrayType.expected">
       <Filter>testFiles\generics\pass</Filter>
     </None>
