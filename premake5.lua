@@ -30,6 +30,12 @@ function commonConfig()
       buildoptions { "-msse2", "-msse4.1" }
       links { "pthread" }
 
+   -- GNU ld does single-pass static-lib resolution; mtype-vm <-> mtype-jit and
+   -- mtype-core <-> mtype-extensions/-ast have cyclic refs that MSVC/ld64
+   -- handle natively but ld does not. Wrap archives in --start-group.
+   filter "system:linux"
+      linkgroups "On"
+
    filter { "system:linux or system:macosx", "configurations:Release" }
       buildoptions { "-mavx2", "-mfma" }
 
